@@ -1414,8 +1414,7 @@ impl ConstraintMachine {
                 parent_claim,
                 derivation,
             };
-            self.bounds.push_claim_qualified_parent(result, parent);
-            self.register_new_constraint_premise_route_edges(result, parent);
+            self.admit_claim_qualified_parent(result, parent);
             inserted_parents.push(parent);
         }
         if derivation_inserted {

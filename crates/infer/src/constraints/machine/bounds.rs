@@ -450,9 +450,14 @@ impl ConstraintMachine {
             );
             return;
         }
+        let premise_inclusion_before = producer
+            .map(|producer| self.projection_inclusion_snapshot(ProofPremise::Constraint(producer)));
         let insertion = self
             .bounds
             .add_lower(target, pos, weights.clone(), derivation.clone());
+        if let Some(before) = premise_inclusion_before {
+            self.publish_projection_inclusion_snapshot(before);
+        }
         self.record_bound_provenance(insertion, BoundDirection::Lower, false);
         self.record_bound_disposition(
             BoundDirection::Lower,
@@ -929,37 +934,42 @@ impl ConstraintMachine {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) {
-        let (_, clause_inserted) =
+        let was_included = self.scheme_projection_record_is_included(lower_record);
+        let (_, clause_inserted, link_inserted) =
             self.bounds
                 .register_record_proof_clause_link(lower_record, support, clause);
-        if !clause_inserted {
+        if !clause_inserted && !link_inserted {
             return;
         }
-        match clause {
-            RecordProofClause::Standalone { .. } => {}
-            RecordProofClause::DerivedUnary { premise, .. } => {
-                let mut visited_constraints = FxHashSet::default();
-                self.register_premise_dependency_chain(
-                    premise,
-                    lower_record,
-                    &mut visited_constraints,
-                );
-            }
-            RecordProofClause::ReplayConjunction {
-                lower_premise,
-                upper_premise,
-                ..
-            } => {
-                self.bounds.insert_dependent_record_edge(
-                    ProofPremise::Record(lower_premise),
-                    lower_record,
-                );
-                self.bounds.insert_dependent_record_edge(
-                    ProofPremise::Record(upper_premise),
-                    lower_record,
-                );
+        if clause_inserted {
+            match clause {
+                RecordProofClause::Standalone { .. } => {}
+                RecordProofClause::DerivedUnary { premise, .. } => {
+                    let mut visited_constraints = FxHashSet::default();
+                    self.register_premise_dependency_chain(
+                        premise,
+                        lower_record,
+                        &mut visited_constraints,
+                    );
+                }
+                RecordProofClause::ReplayConjunction {
+                    lower_premise,
+                    upper_premise,
+                    ..
+                } => {
+                    self.bounds.insert_dependent_record_edge(
+                        ProofPremise::Record(lower_premise),
+                        lower_record,
+                    );
+                    self.bounds.insert_dependent_record_edge(
+                        ProofPremise::Record(upper_premise),
+                        lower_record,
+                    );
+                }
             }
         }
+        let is_included = self.scheme_projection_record_is_included(lower_record);
+        self.publish_record_inclusion_change(lower_record, was_included, is_included, false);
     }
 
     fn register_premise_dependency_chain(
@@ -1036,8 +1046,8 @@ impl ConstraintMachine {
         constraint: ConstraintRecordId,
         parent: ClaimQualifiedParent,
     ) {
-        // A late route must extend edges already rooted at this Constraint premise. Evaluation and
-        // mutation publication remain deferred together to DPN-B/MPC-C.
+        // A late route extends every edge already rooted at this Constraint premise before the
+        // caller compares and publishes the dependent records' inclusion states.
         let dependents = self
             .bounds
             .dependent_records_by_premise
@@ -1054,7 +1064,21 @@ impl ConstraintMachine {
         }
     }
 
-    fn lower_record_for_constraint(&self, producer: ConstraintRecordId) -> Option<BoundRecordId> {
+    pub(in crate::constraints) fn admit_claim_qualified_parent(
+        &mut self,
+        constraint: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        let before = self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
+        self.bounds.push_claim_qualified_parent(constraint, parent);
+        self.register_new_constraint_premise_route_edges(constraint, parent);
+        self.publish_projection_inclusion_snapshot(before);
+    }
+
+    pub(in crate::constraints) fn lower_record_for_constraint(
+        &self,
+        producer: ConstraintRecordId,
+    ) -> Option<BoundRecordId> {
         if let Some(record) = self
             .bounds
             .scheme_projection_lower_record_by_constraint
@@ -1615,8 +1639,7 @@ impl ConstraintMachine {
                 parent_side: parent.parent_side,
                 replay,
             };
-            self.bounds.push_claim_qualified_parent(result, parent);
-            self.register_new_constraint_premise_route_edges(result, parent);
+            self.admit_claim_qualified_parent(result, parent);
             inserted_parents.push(parent);
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -1699,8 +1722,7 @@ impl ConstraintMachine {
         {
             return;
         }
-        self.bounds.push_claim_qualified_parent(result, parent);
-        self.register_new_constraint_premise_route_edges(result, parent);
+        self.admit_claim_qualified_parent(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
         self.materialize_existing_claim_parents_delta(
             result,
@@ -3533,6 +3555,283 @@ mod mutation_tests {
     }
 
     #[test]
+    fn dpn_b_cycle_guard_self_cycle_is_not_a_proof() {
+        let mut machine = ConstraintMachine::new();
+        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 0);
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(0),
+                premise: ProofPremise::Record(record),
+            },
+        );
+
+        assert_eq!(
+            machine.scheme_projection_cycle_guard_snapshot(record),
+            (false, 1),
+            "a self-referential clause is circular evidence, not a projectable proof"
+        );
+    }
+
+    #[test]
+    fn dpn_b_cycle_guard_two_node_cycle_is_not_a_proof() {
+        let mut machine = ConstraintMachine::new();
+        let (first, first_support) = dpn_b_synthetic_projection_record(&mut machine, 1);
+        let (second, second_support) = dpn_b_synthetic_projection_record(&mut machine, 2);
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            first,
+            first_support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(1),
+                premise: ProofPremise::Record(second),
+            },
+        );
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            second,
+            second_support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(2),
+                premise: ProofPremise::Record(first),
+            },
+        );
+
+        assert_eq!(
+            machine.scheme_projection_cycle_guard_snapshot(first),
+            (false, 1)
+        );
+        assert_eq!(
+            machine.scheme_projection_cycle_guard_snapshot(second),
+            (false, 1),
+            "the result is independent of which node begins the reachable-graph walk"
+        );
+    }
+
+    #[test]
+    fn dpn_b_cycle_guard_cyclic_route_plus_independent_source_stays_projectable() {
+        for standalone_first in [false, true] {
+            let mut machine = ConstraintMachine::new();
+            let (source, cycle_support) =
+                dpn_b_synthetic_projection_record(&mut machine, standalone_first as u32 + 3);
+            let (dependent, dependent_support) =
+                dpn_b_synthetic_projection_record(&mut machine, standalone_first as u32 + 7);
+            let standalone_carrier = ProjectionProofCarrier::Incomplete;
+            let standalone_support = SchemeProjectionProofSupport::Independent(standalone_carrier);
+            machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get_mut(&source)
+                .expect("the synthetic record has a proof ledger")
+                .push(SchemeProjectionProof {
+                    lower_record: source,
+                    support: standalone_support,
+                });
+            let cycle_clause = RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(3),
+                premise: ProofPremise::Record(dependent),
+            };
+            let standalone_clause = RecordProofClause::Standalone {
+                support: standalone_support,
+            };
+            let clauses = if standalone_first {
+                [
+                    (standalone_support, standalone_clause),
+                    (cycle_support, cycle_clause),
+                ]
+            } else {
+                [
+                    (cycle_support, cycle_clause),
+                    (standalone_support, standalone_clause),
+                ]
+            };
+            for (support, clause) in clauses {
+                dpn_b_register_synthetic_clause(&mut machine, source, support, clause);
+            }
+            dpn_b_register_synthetic_clause(
+                &mut machine,
+                dependent,
+                dependent_support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(4),
+                    premise: ProofPremise::Record(source),
+                },
+            );
+
+            let (projectable, cycle_cuts) = machine.scheme_projection_cycle_guard_snapshot(source);
+            assert!(
+                projectable,
+                "the independent OR arm remains a complete proof"
+            );
+            if standalone_first {
+                assert_eq!(cycle_cuts, 0, "OR short-circuit need not enter the cycle");
+            } else {
+                assert_eq!(
+                    cycle_cuts, 1,
+                    "cutting one circular arm must continue to the independent source"
+                );
+            }
+            assert!(
+                machine.scheme_projection_cycle_guard_snapshot(dependent).0,
+                "a dependent route reaches the independent source through the cycle"
+            );
+        }
+    }
+
+    #[test]
+    fn dpn_b_cycle_guard_mixed_record_constraint_cycle_is_not_a_proof() {
+        let mut machine = ConstraintMachine::new();
+        let constraint_lower =
+            machine.alloc_pos(Pos::Con(vec!["dpn-b-cycle-lower".into()], Vec::new()));
+        let constraint_upper =
+            machine.alloc_neg(Neg::Con(vec!["dpn-b-cycle-upper".into()], Vec::new()));
+        machine.subtype(
+            constraint_lower,
+            constraint_upper,
+            OriginId::unknown_internal(),
+        );
+        let constraint = machine
+            .constraint_record_id(
+                constraint_lower,
+                ConstraintWeights::empty(),
+                constraint_upper,
+            )
+            .expect("the synthetic constraint is canonical");
+        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 5);
+        machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .insert(constraint, record);
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(5),
+                premise: ProofPremise::Constraint(constraint),
+            },
+        );
+
+        assert_eq!(
+            machine.scheme_projection_cycle_guard_snapshot(record),
+            (false, 1),
+            "Record -> Constraint -> linked Record re-entry is cut like a record-only cycle"
+        );
+    }
+
+    #[test]
+    fn dpn_b_9_5_late_lower_map_retriggers_constraint_dependents() {
+        let mut machine = ConstraintMachine::new();
+        let state = UnweightedRowReductionRecordId(60_000);
+        let root_upper = machine.alloc_neg(Neg::Con(vec!["dpn-b-covered-root".into()], Vec::new()));
+        let root_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(80),
+                root_upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let root = machine
+            .bounds
+            .original_upper_replay_claim(
+                root_record,
+                ConstraintRecordId(60_000),
+                UpperReplayClaimKind::Reduced(state),
+            )
+            .claim;
+        assert!(machine.insert_scheme_projection_live_coverage_state(root, state));
+
+        let premise_lower =
+            machine.alloc_pos(Pos::Con(vec!["dpn-b-premise-lower".into()], Vec::new()));
+        let premise_upper =
+            machine.alloc_neg(Neg::Con(vec!["dpn-b-premise-upper".into()], Vec::new()));
+        machine.subtype(premise_lower, premise_upper, OriginId::unknown_internal());
+        let premise = machine
+            .constraint_record_id(premise_lower, ConstraintWeights::empty(), premise_upper)
+            .expect("the premise constraint is canonical");
+        let route = RowDerivationId(60_000);
+        machine.constraint_records[premise.0 as usize]
+            .row_derivations
+            .push(route);
+        machine.admit_claim_qualified_parent(
+            premise,
+            ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: root,
+                derivation: route,
+            },
+        );
+
+        let (dependent, support) = dpn_b_synthetic_projection_record(&mut machine, 6);
+        machine.register_record_proof_clause_link(
+            dependent,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(6),
+                premise: ProofPremise::Constraint(premise),
+            },
+        );
+        assert_eq!(
+            machine.scheme_projection_record_is_included(dependent),
+            false,
+            "the live reduction route is the premise constraint's only source"
+        );
+
+        let linked_owner = TypeVar(81);
+        let linked_endpoint =
+            machine.alloc_pos(Pos::Con(vec!["dpn-b-late-linked-lower".into()], Vec::new()));
+        let linked_record = machine
+            .bounds
+            .add_lower(
+                linked_owner,
+                linked_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let dependent_owner = machine.bounds.record(dependent).unwrap().owner();
+        let epoch_before = machine.bounds.of(dependent_owner).unwrap().epoch();
+        let journal = machine.activate_method_role_mutations();
+
+        machine.add_lower_bound(
+            linked_owner,
+            linked_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(premise),
+        );
+
+        assert_eq!(
+            machine.lower_record_for_constraint(premise),
+            Some(linked_record)
+        );
+        assert!(machine.scheme_projection_record_is_included(linked_record));
+        assert!(
+            machine.scheme_projection_record_is_included(dependent),
+            "source (a) delegates to the newly linked projectable record"
+        );
+        assert!(
+            machine.bounds.of(dependent_owner).unwrap().epoch() > epoch_before,
+            "hook 3 publishes the dependent owner's false-to-true transition"
+        );
+        assert!(
+            machine
+                .take_method_role_mutations()
+                .iter()
+                .any(|mutation| matches!(
+                    mutation,
+                    MethodRoleMutation::Changed {
+                        key: DependencyKey::ConstraintBounds(owner),
+                        ..
+                    } if *owner == dependent_owner
+                ))
+        );
+        journal.finish();
+    }
+
+    #[test]
     fn mpc_b_clause_and_dpn_a_edge_census_are_linear_in_link_events() {
         for link_events in [1usize, 4, 16] {
             assert_eq!(
@@ -3545,6 +3844,58 @@ mod mutation_tests {
                 "each exact replay occurrence creates one clause/link and two record-premise edges"
             );
         }
+    }
+
+    fn dpn_b_synthetic_projection_record(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+    ) -> (BoundRecordId, SchemeProjectionProofSupport) {
+        let endpoint =
+            machine.alloc_pos(Pos::Con(vec![format!("dpn-b-cycle-{ordinal}")], Vec::new()));
+        let record = machine
+            .bounds
+            .add_lower(
+                TypeVar(10_000 + ordinal),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let carrier = ProjectionProofCarrier::ConstraintOrigin {
+            constraint: ConstraintRecordId(10_000 + ordinal),
+            origin: OriginId::unknown_internal(),
+        };
+        machine.bounds.projection_proofs_by_lower_record.insert(
+            record,
+            vec![SchemeProjectionProof {
+                lower_record: record,
+                support: SchemeProjectionProofSupport::Independent(carrier),
+            }],
+        );
+        machine
+            .bounds
+            .scheme_projection_claimed_lower_owners
+            .insert(TypeVar(10_000 + ordinal));
+        (record, SchemeProjectionProofSupport::Independent(carrier))
+    }
+
+    fn dpn_b_register_synthetic_clause(
+        machine: &mut ConstraintMachine,
+        record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) {
+        let (_, clause_inserted, link_inserted) = machine
+            .bounds
+            .register_record_proof_clause_link(record, support, clause);
+        assert!(clause_inserted && link_inserted);
+    }
+
+    fn dpn_b_synthetic_unary_carrier(ordinal: u32) -> DerivedUnaryCarrier {
+        DerivedUnaryCarrier::Structural(StructuralDerivation {
+            parent: ConstraintRecordId(20_000 + ordinal),
+            rule: StructuralDerivationRule::FunctionReturn,
+        })
     }
 
     #[cfg(debug_assertions)]

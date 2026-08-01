@@ -3380,6 +3380,194 @@ fn dpn_a_confirmed_path_attribution_is_complete() {
     assert_all_record_proof_attribution_complete(&reduction.machine);
 }
 
+#[test]
+fn dpn_b_9_1_structural_constraint_premise_evaluates_replay_conjunction() {
+    let mut fixture = row_structural_claim_fixture();
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.target, fixture.lower_record,),
+        0,
+        "the child is suppressed while its parent constraint has only a covered replay route"
+    );
+    let coverage_state = fixture.machine.bounds.live_coverage_by_root[&fixture.coverage_root][0];
+
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(fixture.coverage_root, coverage_state)
+    );
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.target, fixture.lower_record,),
+        1,
+        "the same Constraint premise reopens after its covered replay input becomes projectable"
+    );
+}
+
+#[test]
+fn dpn_b_9_2_root_coverage_premise_tracks_liveness_without_a_lower_map() {
+    let mut fixture = scheme_projection_unmatched_route_fixture(false);
+    let root_producer = fixture.machine.bounds.upper_replay_claims
+        [fixture.coverage_root.0 as usize]
+        .producer_constraint;
+    assert!(
+        !fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .contains_key(&root_producer),
+        "the reduction root has no lower-record delegation"
+    );
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.residual, fixture.lower_record,),
+        0
+    );
+
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                fixture.coverage_state,
+            )
+    );
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.residual, fixture.lower_record,),
+        1,
+        "RootCoverage is evaluated directly and reverses when its last live state leaves"
+    );
+}
+
+#[test]
+fn dpn_b_9_4_nested_constraint_chain_reaches_the_root_base_case() {
+    let mut fixture = row_structural_claim_fixture();
+    let nested_target = TypeVar(70);
+    let nested_lower = fixture
+        .machine
+        .alloc_pos(Pos::Con(vec!["dpn-b-nested-constraint".into()], Vec::new()));
+    let nested_upper = fixture.machine.alloc_neg(Neg::Var(nested_target));
+    let nested_rule = StructuralDerivationRule::FunctionReturn;
+    assert!(fixture.machine.enqueue_derived_subtype(
+        nested_lower,
+        ConstraintWeights::empty(),
+        nested_upper,
+        fixture.child,
+        nested_rule,
+    ));
+    fixture.machine.drain();
+    let nested_constraint = fixture
+        .machine
+        .constraint_record_id(nested_lower, ConstraintWeights::empty(), nested_upper)
+        .expect("the nested structural child is canonical");
+    let nested_record = fixture
+        .machine
+        .bounds
+        .scheme_projection_lower_record_by_constraint[&nested_constraint];
+    assert!(
+        record_proof_clauses(&fixture.machine, nested_record).contains(
+            &RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                    parent: fixture.child,
+                    rule: nested_rule,
+                }),
+                premise: ProofPremise::Constraint(fixture.child),
+            }
+        )
+    );
+    assert_eq!(
+        projection_count(&fixture.machine, nested_target, nested_record),
+        0,
+        "two Constraint nodes preserve the covered root result"
+    );
+    let coverage_state = fixture.machine.bounds.live_coverage_by_root[&fixture.coverage_root][0];
+
+    assert!(
+        fixture
+            .machine
+            .remove_scheme_projection_live_coverage_state(fixture.coverage_root, coverage_state)
+    );
+    assert_eq!(
+        projection_count(&fixture.machine, nested_target, nested_record),
+        1,
+        "the nested walk reaches the uncovered root without a one-level shortcut"
+    );
+}
+
+#[test]
+fn dpn_b_9_5_late_constraint_route_retriggers_dependent_record() {
+    let mut fixture = row_structural_claim_fixture();
+    let parent = fixture.derivation.parent;
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.target, fixture.lower_record,),
+        0
+    );
+    let direct_upper = fixture
+        .machine
+        .alloc_neg(Neg::Con(vec!["dpn-b-independent-root".into()], Vec::new()));
+    let direct_upper_record = fixture
+        .machine
+        .bounds
+        .add_upper(
+            TypeVar(71),
+            direct_upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+    let direct_claim = fixture
+        .machine
+        .bounds
+        .original_upper_replay_claim(
+            direct_upper_record,
+            ConstraintRecordId(50_000),
+            UpperReplayClaimKind::Direct,
+        )
+        .claim;
+    let route = RowDerivationId(50_000);
+    fixture.machine.constraint_records[parent.0 as usize]
+        .row_derivations
+        .push(route);
+    let epoch_before = fixture
+        .machine
+        .bounds()
+        .of(fixture.target)
+        .expect("dependent owner")
+        .epoch();
+    let journal = fixture.machine.activate_method_role_mutations();
+
+    fixture.machine.admit_claim_qualified_parent(
+        parent,
+        ClaimQualifiedParent::ReductionRouteConstraint {
+            parent_claim: direct_claim,
+            derivation: route,
+        },
+    );
+
+    assert_eq!(
+        projection_count(&fixture.machine, fixture.target, fixture.lower_record,),
+        1,
+        "the newly admitted independent route becomes another OR source"
+    );
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::RootCoverage(direct_claim),
+        fixture.lower_record,
+    ));
+    assert!(
+        fixture
+            .machine
+            .bounds()
+            .of(fixture.target)
+            .expect("dependent owner after late route")
+            .epoch()
+            > epoch_before,
+        "hook 4 publishes the dependent owner's inclusion change"
+    );
+    assert!(has_constraint_bounds_mutation(
+        &fixture.machine.take_method_role_mutations(),
+        fixture.target,
+    ));
+    journal.finish();
+}
+
 #[derive(Debug, Clone, Copy)]
 enum MpcReplayAdmissionOrder {
     DirectPremiseFirst,

@@ -486,18 +486,20 @@ struct UpperReplayClaim {
     lineage: UpperReplayClaimLineage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct UpperReplayClaimRegistration {
     claim: UpperReplayClaimId,
     scheme_projection_mutation: SchemeProjectionMutation,
 }
 
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
     None,
-    ProvenanceOnly,
-    InclusionChanged { owner: TypeVar },
+    ProofsChanged {
+        lower_record: BoundRecordId,
+        previous_proofs: Option<Vec<SchemeProjectionProof>>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -677,6 +679,293 @@ pub(crate) struct SchemeProjectableLower<'a> {
     pub(crate) reason: SchemeProjectableLowerReason,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ProofEvalNode {
+    Record(BoundRecordId),
+    Constraint(ConstraintRecordId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProofEvalState {
+    Visiting,
+    Done(bool),
+}
+
+/// One projection pass over the reachable proof graph.
+///
+/// The memo is deliberately pass-local. A `Visiting` re-entry rejects only that circular proof
+/// route; the caller's surrounding OR continues evaluating its remaining clauses or sources.
+struct SchemeProjectionEvaluator<'a> {
+    machine: &'a ConstraintMachine,
+    states: FxHashMap<ProofEvalNode, ProofEvalState>,
+    record_result_overrides: FxHashMap<BoundRecordId, bool>,
+    root_result_overrides: FxHashMap<UpperReplayClaimId, bool>,
+    proof_overrides: FxHashMap<BoundRecordId, Option<&'a [SchemeProjectionProof]>>,
+    cycle_cuts: usize,
+}
+
+impl<'a> SchemeProjectionEvaluator<'a> {
+    fn new(machine: &'a ConstraintMachine) -> Self {
+        Self {
+            machine,
+            states: FxHashMap::default(),
+            record_result_overrides: FxHashMap::default(),
+            root_result_overrides: FxHashMap::default(),
+            proof_overrides: FxHashMap::default(),
+            cycle_cuts: 0,
+        }
+    }
+
+    fn with_record_result_override(mut self, record: BoundRecordId, result: bool) -> Self {
+        self.record_result_overrides.insert(record, result);
+        self
+    }
+
+    fn with_root_result_override(mut self, root: UpperReplayClaimId, result: bool) -> Self {
+        self.root_result_overrides.insert(root, result);
+        self
+    }
+
+    fn with_proof_override(
+        mut self,
+        record: BoundRecordId,
+        proofs: Option<&'a [SchemeProjectionProof]>,
+    ) -> Self {
+        self.proof_overrides.insert(record, proofs);
+        self
+    }
+
+    fn eval_premise(&mut self, premise: ProofPremise) -> bool {
+        match premise {
+            ProofPremise::Record(record) => self.eval_record(record),
+            ProofPremise::Constraint(constraint) => self.eval_constraint(constraint),
+            ProofPremise::RootCoverage(root) => self.eval_root_coverage(root),
+        }
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        if let Some(result) = self.record_result_overrides.get(&record) {
+            return *result;
+        }
+        let node = ProofEvalNode::Record(record);
+        if let Some(result) = self.enter(node) {
+            return result;
+        }
+        let result = self.eval_record_uncached(record);
+        self.finish(node, result)
+    }
+
+    fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
+        let Some(bound) = self.machine.bounds.record(record) else {
+            return true;
+        };
+        if bound.state() == BoundRecordState::Tombstone {
+            return true;
+        }
+        if bound.direction() == BoundDirection::Upper {
+            let Some(claims) = self.machine.bounds.claims_by_upper_record.get(&record) else {
+                return true;
+            };
+            if claims.is_empty() {
+                return true;
+            }
+            return claims.iter().any(|claim| self.eval_root_coverage(*claim));
+        }
+        let proofs = match self.proof_overrides.get(&record) {
+            Some(proofs) => *proofs,
+            None => self
+                .machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get(&record)
+                .map(Vec::as_slice),
+        };
+        let Some(proofs) = proofs else {
+            return true;
+        };
+        if proofs.is_empty() {
+            return true;
+        }
+
+        for proof in proofs {
+            let qualifying = self.support_is_qualifying(proof.support);
+            let attributed = self.support_has_clause_link(record, proof.support);
+            if qualifying && !attributed {
+                return true;
+            }
+        }
+
+        let Some(clause_ids) = self
+            .machine
+            .bounds
+            .record_proof_clause_ids_by_lower_record
+            .get(&record)
+        else {
+            return false;
+        };
+        for clause_id in clause_ids {
+            let Some(clause) = self
+                .machine
+                .bounds
+                .record_proof_clauses
+                .get(clause_id.0 as usize)
+                .copied()
+            else {
+                return true;
+            };
+            if clause.id != *clause_id || clause.lower_record != record {
+                return true;
+            }
+            let projectable = self.eval_clause(clause.clause);
+            if projectable {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn eval_clause(&mut self, clause: RecordProofClause) -> bool {
+        match clause {
+            RecordProofClause::Standalone { support } => self.support_is_qualifying(support),
+            RecordProofClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
+            RecordProofClause::ReplayConjunction {
+                lower_premise,
+                upper_premise,
+                ..
+            } => self.eval_record(lower_premise) && self.eval_record(upper_premise),
+        }
+    }
+
+    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> bool {
+        let node = ProofEvalNode::Constraint(constraint);
+        if let Some(result) = self.enter(node) {
+            return result;
+        }
+        let result = self.eval_constraint_uncached(constraint);
+        self.finish(node, result)
+    }
+
+    fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
+        if self
+            .machine
+            .constraint_records
+            .get(constraint.0 as usize)
+            .is_none()
+        {
+            return true;
+        }
+        let mut has_source = false;
+        if let Some(lower_record) = self.machine.lower_record_for_constraint(constraint) {
+            has_source = true;
+            let projectable = self.eval_record(lower_record);
+            if projectable {
+                return true;
+            }
+        }
+
+        let parent_count = self
+            .machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&constraint)
+            .map_or(0, Vec::len);
+        for index in 0..parent_count {
+            let parent = self.machine.bounds.claim_parents_by_constraint[&constraint][index];
+            has_source = true;
+            let projectable = match parent {
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                    self.eval_record(replay.lower) && self.eval_record(replay.upper)
+                }
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    self.eval_constraint(derivation.parent)
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
+                    self.eval_root_coverage(parent_claim)
+                }
+            };
+            if projectable {
+                return true;
+            }
+        }
+
+        if let Some(root_claim) = self
+            .machine
+            .bounds
+            .root_claim_by_producer_constraint
+            .get(&constraint)
+            .copied()
+        {
+            has_source = true;
+            let projectable = self.eval_root_coverage(root_claim);
+            if projectable {
+                return true;
+            }
+        }
+        !has_source
+    }
+
+    fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
+        let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
+            return true;
+        };
+        if let Some(result) = self.root_result_overrides.get(&root) {
+            return *result;
+        }
+        self.machine
+            .bounds
+            .live_coverage_by_root
+            .get(&root)
+            .is_none_or(Vec::is_empty)
+    }
+
+    fn support_is_qualifying(&self, support: SchemeProjectionProofSupport) -> bool {
+        match support {
+            SchemeProjectionProofSupport::Independent(_) => true,
+            SchemeProjectionProofSupport::Claimed(claim) => self.eval_root_coverage(claim),
+        }
+    }
+
+    fn support_has_clause_link(
+        &self,
+        record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+    ) -> bool {
+        let support = match support {
+            SchemeProjectionProofSupport::Claimed(claim) => {
+                let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
+                    return false;
+                };
+                SchemeProjectionProofSupport::Claimed(root)
+            }
+            independent => independent,
+        };
+        self.machine
+            .bounds
+            .record_proof_clause_links_by_lower_record
+            .get(&record)
+            .is_some_and(|links| links.iter().any(|link| link.support == support))
+    }
+
+    fn enter(&mut self, node: ProofEvalNode) -> Option<bool> {
+        match self.states.get(&node).copied() {
+            Some(ProofEvalState::Done(result)) => Some(result),
+            Some(ProofEvalState::Visiting) => {
+                self.cycle_cuts += 1;
+                Some(false)
+            }
+            None => {
+                self.states.insert(node, ProofEvalState::Visiting);
+                None
+            }
+        }
+    }
+
+    fn finish(&mut self, node: ProofEvalNode, result: bool) -> bool {
+        self.states.insert(node, ProofEvalState::Done(result));
+        result
+    }
+}
+
 impl ConstraintMachine {
     /// Return the active lower relations that may contribute to a generalized scheme.
     ///
@@ -689,86 +978,78 @@ impl ConstraintMachine {
     ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
         let bounds = &self.bounds;
         let claimed_owner = bounds.scheme_projection_claimed_lower_owners.contains(&var);
-        bounds
+        let records = bounds
             .vars
             .get(var.0 as usize)
             .and_then(Option::as_ref)
             .into_iter()
-            .flat_map(move |var_bounds| {
-                var_bounds
-                    .projection_lower_records()
-                    .filter_map(move |(record, bound)| {
-                        let Some(proofs) = claimed_owner
-                            .then(|| bounds.projection_proofs_by_lower_record.get(&record))
-                            .flatten()
-                        else {
-                            return Some(SchemeProjectableLower {
-                                record,
-                                bound,
-                                reason: SchemeProjectableLowerReason::Unclaimed,
-                            });
-                        };
-                        if proofs.is_empty() {
-                            return Some(SchemeProjectableLower {
-                                record,
-                                bound,
-                                reason: SchemeProjectableLowerReason::Unclaimed,
-                            });
-                        }
+            .flat_map(VarBounds::projection_lower_records);
+        records.filter_map(move |(record, bound)| {
+            let Some(proofs) = claimed_owner
+                .then(|| bounds.projection_proofs_by_lower_record.get(&record))
+                .flatten()
+            else {
+                return Some(SchemeProjectableLower {
+                    record,
+                    bound,
+                    reason: SchemeProjectableLowerReason::Unclaimed,
+                });
+            };
+            if proofs.is_empty() {
+                return Some(SchemeProjectableLower {
+                    record,
+                    bound,
+                    reason: SchemeProjectableLowerReason::Unclaimed,
+                });
+            }
 
-                        let mut uncovered_claims = Vec::new();
-                        let mut independent_supports = Vec::new();
-                        for proof in proofs {
-                            let SchemeProjectionProofSupport::Claimed(claim_id) = &proof.support
-                            else {
-                                if let SchemeProjectionProofSupport::Independent(carrier) =
-                                    &proof.support
-                                {
-                                    independent_supports.push(*carrier);
-                                }
-                                continue;
-                            };
-                            let Some(claim) = bounds.upper_replay_claims.get(claim_id.0 as usize)
-                            else {
-                                // Broken projection metadata must fail open rather than narrow a
-                                // scheme by silently dropping a valid raw relation.
-                                return Some(SchemeProjectableLower {
-                                    record,
-                                    bound,
-                                    reason: SchemeProjectableLowerReason::Unclaimed,
-                                });
-                            };
-                            if bounds
-                                .upper_replay_claims
-                                .get(claim.coverage_root.0 as usize)
-                                .is_none()
-                            {
-                                return Some(SchemeProjectableLower {
-                                    record,
-                                    bound,
-                                    reason: SchemeProjectableLowerReason::Unclaimed,
-                                });
-                            }
-                            if bounds
-                                .live_coverage_by_root
-                                .get(&claim.coverage_root)
-                                .is_none_or(Vec::is_empty)
-                            {
-                                uncovered_claims.push(*claim_id);
-                            }
-                        }
-
-                        (!uncovered_claims.is_empty() || !independent_supports.is_empty())
-                            .then_some(SchemeProjectableLower {
-                                record,
-                                bound,
-                                reason: SchemeProjectableLowerReason::Qualified {
-                                    uncovered_claims,
-                                    independent_supports,
-                                },
-                            })
-                    })
+            let mut uncovered_claims = Vec::new();
+            let mut independent_supports = Vec::new();
+            for proof in proofs {
+                let SchemeProjectionProofSupport::Claimed(claim_id) = &proof.support else {
+                    if let SchemeProjectionProofSupport::Independent(carrier) = &proof.support {
+                        independent_supports.push(*carrier);
+                    }
+                    continue;
+                };
+                let Some(claim) = bounds.upper_replay_claims.get(claim_id.0 as usize) else {
+                    // Broken projection metadata must fail open rather than narrow a
+                    // scheme by silently dropping a valid raw relation.
+                    return Some(SchemeProjectableLower {
+                        record,
+                        bound,
+                        reason: SchemeProjectableLowerReason::Unclaimed,
+                    });
+                };
+                if bounds
+                    .upper_replay_claims
+                    .get(claim.coverage_root.0 as usize)
+                    .is_none()
+                {
+                    return Some(SchemeProjectableLower {
+                        record,
+                        bound,
+                        reason: SchemeProjectableLowerReason::Unclaimed,
+                    });
+                }
+                if bounds
+                    .live_coverage_by_root
+                    .get(&claim.coverage_root)
+                    .is_none_or(Vec::is_empty)
+                {
+                    uncovered_claims.push(*claim_id);
+                }
+            }
+            let included = self.scheme_projection_record_is_included(record);
+            included.then_some(SchemeProjectableLower {
+                record,
+                bound,
+                reason: SchemeProjectableLowerReason::Qualified {
+                    uncovered_claims,
+                    independent_supports,
+                },
             })
+        })
     }
 
     /// Remove one state from the live coverage index without defining a new expiry policy.
@@ -821,15 +1102,37 @@ impl ConstraintMachine {
             self.bump_provenance_epoch();
             return;
         }
-        let affected_owners = self
+        let Some(root) = self.bounds.canonical_coverage_root(root) else {
+            self.bump_provenance_epoch();
+            return;
+        };
+        let mut affected_records = self
             .bounds
             .scheme_projection_lower_records_by_root
             .get(&root)
             .into_iter()
             .flatten()
-            .filter_map(|record| self.bounds.record(*record))
-            .filter(|record| record.state() != BoundRecordState::Tombstone)
-            .map(BoundRecord::owner)
+            .copied()
+            .collect::<FxHashSet<_>>();
+        affected_records.extend(
+            self.bounds
+                .dependent_records_by_premise
+                .get(&ProofPremise::RootCoverage(root))
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        self.extend_with_record_dependents(&mut affected_records);
+
+        let affected_owners = affected_records
+            .into_iter()
+            .filter(|record| {
+                let was_included = SchemeProjectionEvaluator::new(self)
+                    .with_root_result_override(root, was_empty)
+                    .eval_record(*record);
+                was_included != self.scheme_projection_record_is_included(*record)
+            })
+            .filter_map(|record| self.active_projection_record_owner(record))
             .collect::<FxHashSet<_>>();
         self.record_scheme_projection_mutation(affected_owners);
     }
@@ -837,13 +1140,123 @@ impl ConstraintMachine {
     fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
         match mutation {
             SchemeProjectionMutation::None => {}
-            SchemeProjectionMutation::ProvenanceOnly => {
-                self.bump_provenance_epoch();
-            }
-            SchemeProjectionMutation::InclusionChanged { owner } => {
-                self.record_scheme_projection_mutation(FxHashSet::from_iter([owner]));
+            SchemeProjectionMutation::ProofsChanged {
+                lower_record,
+                previous_proofs,
+            } => {
+                let was_included = SchemeProjectionEvaluator::new(self)
+                    .with_proof_override(lower_record, previous_proofs.as_deref())
+                    .eval_record(lower_record);
+                let is_included = self.scheme_projection_record_is_included(lower_record);
+                self.publish_record_inclusion_change(lower_record, was_included, is_included, true);
             }
         }
+    }
+
+    fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
+        SchemeProjectionEvaluator::new(self).eval_record(lower_record)
+    }
+
+    #[cfg(test)]
+    fn scheme_projection_cycle_guard_snapshot(&self, lower_record: BoundRecordId) -> (bool, usize) {
+        let mut evaluator = SchemeProjectionEvaluator::new(self);
+        let projectable = evaluator.eval_record(lower_record);
+        (projectable, evaluator.cycle_cuts)
+    }
+
+    fn publish_record_inclusion_change(
+        &mut self,
+        lower_record: BoundRecordId,
+        was_included: bool,
+        is_included: bool,
+        metadata_changed: bool,
+    ) {
+        if was_included == is_included {
+            if metadata_changed {
+                self.bump_provenance_epoch();
+            }
+            return;
+        }
+
+        let mut affected_records = self
+            .bounds
+            .dependent_records_by_premise
+            .get(&ProofPremise::Record(lower_record))
+            .cloned()
+            .unwrap_or_default();
+        self.extend_with_record_dependents(&mut affected_records);
+        let mut affected_owners = affected_records
+            .into_iter()
+            .filter(|record| {
+                let dependent_was_included = SchemeProjectionEvaluator::new(self)
+                    .with_record_result_override(lower_record, was_included)
+                    .eval_record(*record);
+                dependent_was_included != self.scheme_projection_record_is_included(*record)
+            })
+            .filter_map(|record| self.active_projection_record_owner(record))
+            .collect::<FxHashSet<_>>();
+        if let Some(owner) = self.active_projection_record_owner(lower_record) {
+            affected_owners.insert(owner);
+        }
+        self.record_scheme_projection_mutation(affected_owners);
+    }
+
+    fn projection_inclusion_snapshot(
+        &self,
+        premise: ProofPremise,
+    ) -> FxHashMap<BoundRecordId, bool> {
+        let mut records = self
+            .bounds
+            .dependent_records_by_premise
+            .get(&premise)
+            .cloned()
+            .unwrap_or_default();
+        self.extend_with_record_dependents(&mut records);
+        records
+            .into_iter()
+            .map(|record| (record, self.scheme_projection_record_is_included(record)))
+            .collect()
+    }
+
+    fn publish_projection_inclusion_snapshot(&mut self, before: FxHashMap<BoundRecordId, bool>) {
+        if before.is_empty() {
+            return;
+        }
+        let affected_owners = before
+            .into_iter()
+            .filter(|(record, was_included)| {
+                *was_included != self.scheme_projection_record_is_included(*record)
+            })
+            .filter_map(|(record, _)| self.active_projection_record_owner(record))
+            .collect::<FxHashSet<_>>();
+        if !affected_owners.is_empty() {
+            self.record_scheme_projection_mutation(affected_owners);
+        }
+    }
+
+    fn extend_with_record_dependents(&self, records: &mut FxHashSet<BoundRecordId>) {
+        let mut queue = records.iter().copied().collect::<VecDeque<_>>();
+        while let Some(record) = queue.pop_front() {
+            let Some(dependents) = self
+                .bounds
+                .dependent_records_by_premise
+                .get(&ProofPremise::Record(record))
+            else {
+                continue;
+            };
+            for dependent in dependents {
+                if records.insert(*dependent) {
+                    queue.push_back(*dependent);
+                }
+            }
+        }
+    }
+
+    fn active_projection_record_owner(&self, record: BoundRecordId) -> Option<TypeVar> {
+        self.bounds
+            .record(record)
+            .filter(|record| record.state() != BoundRecordState::Tombstone)
+            .map(BoundRecord::owner)
     }
 
     fn record_scheme_projection_mutation(&mut self, owners: FxHashSet<TypeVar>) {
@@ -945,7 +1358,7 @@ impl TypeBounds {
         lower_record: BoundRecordId,
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
-    ) -> (RecordProofClauseId, bool) {
+    ) -> (RecordProofClauseId, bool, bool) {
         let (clause_id, clause_inserted) = if let Some(clause_id) = self
             .record_proof_clause_by_key
             .get(&(lower_record, clause))
@@ -973,16 +1386,16 @@ impl TypeBounds {
             support,
             clause: clause_id,
         };
-        if self
-            .record_proof_clause_link_keys
-            .insert((lower_record, support, clause_id))
-        {
+        let link_inserted =
+            self.record_proof_clause_link_keys
+                .insert((lower_record, support, clause_id));
+        if link_inserted {
             self.record_proof_clause_links_by_lower_record
                 .entry(lower_record)
                 .or_default()
                 .push(link);
         }
-        (clause_id, clause_inserted)
+        (clause_id, clause_inserted, link_inserted)
     }
 
     fn insert_dependent_record_edge(
@@ -1497,7 +1910,6 @@ impl TypeBounds {
             return SchemeProjectionMutation::None;
         };
         let owner = record.owner;
-        let record_is_active = record.state != BoundRecordState::Tombstone;
         if claims_to_link.is_empty()
             && !self
                 .projection_proofs_by_lower_record
@@ -1505,7 +1917,10 @@ impl TypeBounds {
         {
             return SchemeProjectionMutation::None;
         }
-        let was_included = self.scheme_projection_record_is_included(lower_record);
+        let previous_proofs = self
+            .projection_proofs_by_lower_record
+            .get(&lower_record)
+            .cloned();
         let mut metadata_changed = false;
         for claim in claims_to_link {
             let Some(root) = self
@@ -1585,39 +2000,10 @@ impl TypeBounds {
         if !metadata_changed {
             return SchemeProjectionMutation::None;
         }
-        let is_included = self.scheme_projection_record_is_included(lower_record);
-        if record_is_active && was_included != is_included {
-            SchemeProjectionMutation::InclusionChanged { owner }
-        } else {
-            SchemeProjectionMutation::ProvenanceOnly
+        SchemeProjectionMutation::ProofsChanged {
+            lower_record,
+            previous_proofs,
         }
-    }
-
-    fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
-        let Some(proofs) = self.projection_proofs_by_lower_record.get(&lower_record) else {
-            return true;
-        };
-        if proofs.is_empty() {
-            return true;
-        }
-        proofs.iter().any(|proof| {
-            let SchemeProjectionProofSupport::Claimed(claim_id) = proof.support else {
-                return true;
-            };
-            let Some(claim) = self.upper_replay_claims.get(claim_id.0 as usize) else {
-                return true;
-            };
-            if self
-                .upper_replay_claims
-                .get(claim.coverage_root.0 as usize)
-                .is_none()
-            {
-                return true;
-            }
-            self.live_coverage_by_root
-                .get(&claim.coverage_root)
-                .is_none_or(Vec::is_empty)
-        })
     }
 
     fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {
