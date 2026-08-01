@@ -29,6 +29,19 @@ Yulang の性能改善は、意味論を削る作業ではなく、意味論上�
 - runtime marker の path-only index 化を本命にしない。foreign-path / entry-time guard 条件を失う。
 - pure / direct-style island や native backend は、cache と runtime scope state の後に回す。
 
+## Open: `std::text::parse` module-lowering regression (2026-08-01)
+
+`95b95586` の独立した correctness fix 後、`std::text::parse` の module lowering は
+6.126s から 481.875s（約 78.66 倍）へ悪化した。これは local-var effect boundary の
+動機になった型健全性バグとは別の、実測で確認済みの性能回帰である。
+
+claim-parent delta materialization（CDM、
+`notes/design/2026-07-31-claim-parent-delta-materialization.md`）で 46.930s まで回復した
+（悪化時から約 10.3 倍の回復）。ただし元の ≤15s target には未達であり、この gap は
+**open** のまま残す。2026-08-01 は local-var の型健全性問題を先に閉じるため、ユーザ判断で
+明示的に defer した。再開時は CDM を local-var leak の対症療法として扱わず、同じ workload
+の ≤15s target を exit witness にする。
+
 ## Release Gate First
 
 最初に、性能変更前後を比べる一つの release gate script を作る。

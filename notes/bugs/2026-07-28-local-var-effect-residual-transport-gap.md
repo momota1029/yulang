@@ -1,7 +1,7 @@
 # local mutable state の effect residual が specialize で衝突する
 
 発見日: 2026-07-28
-状態: 未修正
+状態: **解決済み（2026-08-01、`a65655b2`）**。下記「解決」を参照。
 発見経緯: `notes/design/2026-07-28-subtype-fallthrough-closure.md`（STF-A〜I、17コミット）
 の一環である `650fec0b`「parameterized effect row residual の修正」を push した直後、
 CI の契約スイートで `file_mock_text_with_rollback_on_error` が回帰した。
@@ -2371,5 +2371,29 @@ production traceで未確認である。どちらも今回の時間枠では修�
 
 [claim propagationの現行アーキテクチャ](../architecture/claim-propagation-architecture.md)を、
 検証済み範囲と未解決の9個のuncovered claim rootを時系列なしで読む入口として追加した。
+
+## 解決 2026-08-01
+
+動機だった local-var effect family の outer finalized scheme への漏れは、
+`a65655b2` で閉じた。`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`
+は green である。
+
+最終原因は claim propagation / solver の欠陥ではなかった。regression test が手で組み立てた
+witness が、LVB v5 の deferred concrete-ref connection 規則を破っており、inner generalized
+scheme の `&buffer#36:0` family を outer finalized scheme へ不正に接続していた。
+修正はこの test construction を v5 の lifecycle に従わせる場所に入った。
+
+この調査で見つかった claim-attribution の欠陥は別件として実在し、DCP → MPC → DPN →
+DPN-addendum で修正済みである（`df001de9` とそれ以前の commit）。「9 Direct-kind uncovered
+claims」の漏れは閉じ、MPC-A の `mpc_a_9_1` / `mpc_a_9_2` / `mpc_a_9_3` は red から green へ
+変わった。これらを local-var leak の原因・修正としては扱わない。
+
+local-var leak を claim propagation で閉じるために作成・一部実装した URR-V3-A は不要と判明し、
+D1 が pinned MPC control に過剰一致する未解決 gap もあったため、`0f2d4921` で revert された。
+URR-v3 は production に残っておらず、設計文書は保留した調査記録として残す。
+
+同時に判明した `std::text::parse` module-lowering の性能回帰は未解決である。CDM により
+481.875s から 46.930s まで回復したが、元の ≤15s target には未達であるため、追跡先を
+`notes/todo/performance-localization.md` の open follow-up とした。
 
 <!-- bug-append-anchor: 2026-07-30 -->
