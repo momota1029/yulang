@@ -2,7 +2,30 @@
 
 日付: 2026-08-01
 
-状態: **ユーザ承認済み**
+状態: **ユーザ承認済み・実装は保留（2026-08-01 追記）**
+
+**2026-08-01 追記（着地後の結果）**: URR-V3-A（登録層、挙動中立、commit `c4490082`）は着地済みで独立に有効。
+URR-V3-B（評価器切替）は実装を試みたが、pinned MPC control
+（`scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record`）を誤って抑制する
+D1の過剰一致が判明し、その修正案（D1'）も本番トポロジーには届かないことが確認された
+（producer側にexact routeが存在せず、Bound/Constraint混在のprovenance graphを新たに歩く
+より重い機構が必要——D2.1が避けようとしたevent-local規律の範囲を超える）。
+
+さらに、この文書が本来閉じるはずだった動機バグ
+（`v5_corrected_nested_boundary_traces_inner_family_into_outer_finalization`、
+`&buffer#36:0`のinner/outer境界越えleak）は、claim propagation層の問題ではなく、
+動機テスト自身のhand-built witness構築が
+`notes/design/2026-07-28-local-var-effect-boundary-fix.md`（LVB v5）自身の
+「nested callback parameterはbody lowering中fresh placeholderのまま、concrete ref接続は
+第二段階applicationまで遅延する」という規則を破っていたことが根本原因と判明した。
+この構築を修正しただけ（claim propagation側は一切変更なし）で、hand-built outer schemeが
+parsed outer schemeと完全一致し、動機バグは`a65655b2`で決着した。
+
+したがって、URR-V3-Bの評価器切替は動機バグを閉じるのに**不要**だったと結論する。
+D1'を含むURR-V3-Bのimplementationは、working treeから破棄済み（未commit、discard済み）。
+本書のD1〜D5の設計自体は、将来「producerにexact routeが実在するco-owned survivor」が
+本当に必要になった時点で再開してよいが、その際はD1'の`RowRouteDependsOnProducer`が
+row-derivation-onlyの祖先探索では不十分だった点（Bound provenance拡張が必要）を踏まえること。
 
 本書は、次の設計系譜を継ぐ追補設計である。
 
