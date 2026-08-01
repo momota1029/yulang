@@ -984,28 +984,46 @@ impl<'a> SchemeProjectionEvaluator<'a> {
     }
 }
 
-/// Shares acyclic projection results across top-level queries over one fixed current view.
+/// Shares acyclic projection results across top-level queries over one fixed view.
 ///
 /// A cycle cut can leave root-dependent `Done` results in the shared evaluator. Once a query cuts
 /// a cycle, that evaluator is discarded and every remaining query uses its own fresh evaluator.
 struct SchemeProjectionEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
+    record_result_override: Option<(BoundRecordId, bool)>,
     shared: Option<SchemeProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
 impl<'a> SchemeProjectionEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
+        Self::new_with_record_result_override(machine, None)
+    }
+
+    fn with_record_result_override(
+        machine: &'a ConstraintMachine,
+        record: BoundRecordId,
+        result: bool,
+    ) -> Self {
+        Self::new_with_record_result_override(machine, Some((record, result)))
+    }
+
+    fn new_with_record_result_override(
+        machine: &'a ConstraintMachine,
+        record_result_override: Option<(BoundRecordId, bool)>,
+    ) -> Self {
         Self {
             machine,
-            shared: Some(SchemeProjectionEvaluator::new(machine)),
+            record_result_override,
+            shared: Some(Self::new_evaluator(machine, record_result_override)),
             sharing_disabled: false,
         }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if self.sharing_disabled {
-            return SchemeProjectionEvaluator::new(self.machine).eval_record(record);
+            return Self::new_evaluator(self.machine, self.record_result_override)
+                .eval_record(record);
         }
 
         let shared = self
@@ -1026,6 +1044,17 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         }
 
         result
+    }
+
+    fn new_evaluator(
+        machine: &'a ConstraintMachine,
+        record_result_override: Option<(BoundRecordId, bool)>,
+    ) -> SchemeProjectionEvaluator<'a> {
+        let evaluator = SchemeProjectionEvaluator::new(machine);
+        let Some((record, result)) = record_result_override else {
+            return evaluator;
+        };
+        evaluator.with_record_result_override(record, result)
     }
 }
 
@@ -1280,13 +1309,17 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         self.extend_with_record_dependents(&mut affected_records);
+        let mut before_round = SchemeProjectionEvaluationRound::with_record_result_override(
+            self,
+            lower_record,
+            was_included,
+        );
+        let mut after_round = SchemeProjectionEvaluationRound::new(self);
         let mut affected_owners = affected_records
             .into_iter()
             .filter(|record| {
-                let dependent_was_included = SchemeProjectionEvaluator::new(self)
-                    .with_record_result_override(lower_record, was_included)
-                    .eval_record(*record);
-                dependent_was_included != self.scheme_projection_record_is_included(*record)
+                let dependent_was_included = before_round.eval_record(*record);
+                dependent_was_included != after_round.eval_record(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
             .collect::<FxHashSet<_>>();
