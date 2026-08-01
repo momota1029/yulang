@@ -3098,6 +3098,93 @@ fn mpc_a_9_4_premise_alternative_keeps_result_projectable() {
 }
 
 #[test]
+fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
+    let mut fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, true);
+    assert_eq!(
+        projection_count(
+            &fixture.machine,
+            fixture.result_owner,
+            fixture.result_record,
+        ),
+        1,
+        "the existing MPC control starts with an unrelated Direct upper alternative"
+    );
+
+    let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
+    let direct_producer =
+        fixture.machine.bounds.upper_replay_claims[direct_root.0 as usize].producer_constraint;
+    let direct_key = fixture.machine.constraint_records[direct_producer.0 as usize]
+        .key
+        .clone();
+    let reduction_route = fixture.machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(direct_producer)],
+        Vec::new(),
+    );
+    assert!(
+        !fixture.machine.enqueue_row_derived_subtype(
+            direct_key.lower,
+            direct_key.weights,
+            direct_key.upper,
+            reduction_route,
+        ),
+        "the reduction route converges on the already-canonical Direct producer"
+    );
+    fixture.machine.register_reduction_route_claim_parent(
+        direct_producer,
+        reduction_route,
+        fixture.coverage_root,
+    );
+
+    let upper_roots = fixture.machine.bounds.claims_by_upper_record[&fixture.direct_upper_record]
+        .iter()
+        .map(|claim| claim_root(&fixture.machine, *claim))
+        .collect::<FxHashSet<_>>();
+    assert!(
+        upper_roots.contains(&direct_root) && upper_roots.contains(&fixture.coverage_root),
+        "the replay upper is one physical survivor with an uncovered Direct root and the live Reduced root"
+    );
+    assert!(
+        fixture.machine.bounds.claim_parents_by_constraint[&direct_producer]
+            .iter()
+            .any(|parent| matches!(
+                parent,
+                ClaimQualifiedParent::ReductionRouteConstraint {
+                    parent_claim,
+                    derivation,
+                } if claim_root(&fixture.machine, *parent_claim) == fixture.coverage_root
+                    && *derivation == reduction_route
+            )),
+        "the Direct producer is causally downstream of the same exact reduction root"
+    );
+    assert!(
+        fixture
+            .machine
+            .bounds
+            .live_coverage_by_root
+            .get(&fixture.coverage_root)
+            .is_some_and(|states| !states.is_empty())
+            && fixture
+                .machine
+                .bounds
+                .live_coverage_by_root
+                .get(&direct_root)
+                .is_none_or(Vec::is_empty),
+        "only the reduction side of the co-owned survivor is live-covered"
+    );
+
+    assert_eq!(
+        projection_count(
+            &fixture.machine,
+            fixture.result_owner,
+            fixture.result_record,
+        ),
+        0,
+        "a Direct root qualified by the same reduction must not reopen that survivor as an independent replay premise"
+    );
+}
+
+#[test]
 fn mpc_a_9_5_unattributed_claim_link_fails_open() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
