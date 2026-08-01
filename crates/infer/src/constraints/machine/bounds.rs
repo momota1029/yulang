@@ -877,6 +877,8 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
+        let mut pending_links = Vec::new();
+        let mut batch_link_keys = FxHashSet::default();
         for parent in parents.iter().copied() {
             let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
                 continue;
@@ -903,8 +905,25 @@ impl ConstraintMachine {
                     }
                 }
             };
-            self.register_record_proof_clause_link(lower_record, support, clause);
+            if self
+                .bounds
+                .record_proof_clause_link_is_registered(lower_record, support, clause)
+            {
+                continue;
+            }
+            let batch_link_key = (
+                TypeBounds::record_proof_clause_key(lower_record, clause),
+                support,
+            );
+            if !batch_link_keys.insert(batch_link_key) {
+                continue;
+            }
+            pending_links.push((support, clause));
         }
+        if pending_links.is_empty() {
+            return;
+        }
+        self.commit_record_proof_clause_link_batch(lower_record, pending_links);
     }
 
     fn register_replay_evidence_clause_link(
@@ -940,18 +959,41 @@ impl ConstraintMachine {
         {
             return;
         }
-        let was_included = self.scheme_projection_record_is_included(lower_record);
-        let (_, clause_inserted, link_inserted) =
-            self.bounds
-                .register_record_proof_clause_link(lower_record, support, clause);
-        debug_assert!(
-            clause_inserted || link_inserted,
-            "clause-link duplicate preflight must agree with exact-key insertion"
-        );
-        if !clause_inserted && !link_inserted {
+        self.commit_record_proof_clause_link_batch(lower_record, [(support, clause)]);
+    }
+
+    fn commit_record_proof_clause_link_batch(
+        &mut self,
+        lower_record: BoundRecordId,
+        links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
+    ) {
+        let mut links = links.into_iter().peekable();
+        if links.peek().is_none() {
             return;
         }
-        if clause_inserted {
+        let was_included = self.scheme_projection_record_is_included(lower_record);
+        let mut any_link_inserted = false;
+        let mut inserted_clauses = Vec::new();
+        for (support, clause) in links {
+            let (_, clause_inserted, link_inserted) = self
+                .bounds
+                .register_record_proof_clause_link(lower_record, support, clause);
+            debug_assert!(
+                link_inserted,
+                "clause-link batch preflight must agree with exact-key insertion"
+            );
+            if !link_inserted {
+                continue;
+            }
+            any_link_inserted = true;
+            if clause_inserted {
+                inserted_clauses.push(clause);
+            }
+        }
+        if !any_link_inserted {
+            return;
+        }
+        for clause in inserted_clauses {
             match clause {
                 RecordProofClause::Standalone { .. } => {}
                 RecordProofClause::DerivedUnary { premise, .. } => {
