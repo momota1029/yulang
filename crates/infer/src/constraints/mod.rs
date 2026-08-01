@@ -787,19 +787,8 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 .get(&record)
                 .map(Vec::as_slice),
         };
-        let Some(proofs) = proofs else {
+        if self.flat_fail_open(record, proofs) {
             return true;
-        };
-        if proofs.is_empty() {
-            return true;
-        }
-
-        for proof in proofs {
-            let qualifying = self.support_is_qualifying(proof.support);
-            let attributed = self.support_has_clause_link(record, proof.support);
-            if qualifying && !attributed {
-                return true;
-            }
         }
 
         let Some(clause_ids) = self
@@ -829,6 +818,23 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             }
         }
         false
+    }
+
+    fn flat_fail_open(
+        &self,
+        record: BoundRecordId,
+        proofs: Option<&[SchemeProjectionProof]>,
+    ) -> bool {
+        let Some(proofs) = proofs else {
+            return true;
+        };
+        if proofs.is_empty() {
+            return true;
+        }
+        proofs.iter().any(|proof| {
+            self.support_is_qualifying(proof.support)
+                && !self.support_has_clause_link(record, proof.support)
+        })
     }
 
     fn eval_clause(&mut self, clause: RecordProofClause) -> bool {
@@ -1151,11 +1157,42 @@ impl ConstraintMachine {
                 lower_record,
                 previous_proofs,
             } => {
-                let was_included = SchemeProjectionEvaluator::new(self)
-                    .with_proof_override(lower_record, previous_proofs.as_deref())
-                    .eval_record(lower_record);
-                let is_included = self.scheme_projection_record_is_included(lower_record);
-                self.publish_record_inclusion_change(lower_record, was_included, is_included, true);
+                let current_proofs = self
+                    .bounds
+                    .projection_proofs_by_lower_record
+                    .get(&lower_record)
+                    .map(Vec::as_slice);
+                let mut evaluator = SchemeProjectionEvaluator::new(self);
+                let was_fail_open =
+                    evaluator.flat_fail_open(lower_record, previous_proofs.as_deref());
+                let is_fail_open = evaluator.flat_fail_open(lower_record, current_proofs);
+                // Clause evaluation does not read the proof vector, so an unchanged flat gate
+                // proves that the record's inclusion result is unchanged.
+                match (was_fail_open, is_fail_open) {
+                    (true, true) | (false, false) => {
+                        self.bump_provenance_epoch();
+                    }
+                    (true, false) => {
+                        let is_included = evaluator.eval_record(lower_record);
+                        self.publish_record_inclusion_change(
+                            lower_record,
+                            true,
+                            is_included,
+                            true,
+                        );
+                    }
+                    (false, true) => {
+                        let was_included = evaluator
+                            .with_proof_override(lower_record, previous_proofs.as_deref())
+                            .eval_record(lower_record);
+                        self.publish_record_inclusion_change(
+                            lower_record,
+                            was_included,
+                            true,
+                            true,
+                        );
+                    }
+                }
             }
         }
     }
