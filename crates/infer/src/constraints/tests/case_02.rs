@@ -3273,6 +3273,113 @@ fn mpc_a_9_8_duplicate_evidence_and_promotion_preserve_clause_snapshot() {
     );
 }
 
+#[test]
+fn dpn_a_9_1_structural_clause_uses_constraint_premise_node() {
+    let fixture = row_structural_claim_fixture();
+    let clauses = record_proof_clauses(&fixture.machine, fixture.lower_record);
+    assert_eq!(
+        clauses,
+        vec![RecordProofClause::DerivedUnary {
+            carrier: DerivedUnaryCarrier::Structural(fixture.derivation),
+            premise: ProofPremise::Constraint(fixture.derivation.parent),
+        }],
+        "the structural occurrence copies its exact parent constraint without a record lookup"
+    );
+    assert_eq!(
+        fixture
+            .machine
+            .bounds
+            .record_proof_clause_links_by_lower_record[&fixture.lower_record]
+            .len(),
+        1,
+        "the one structural claim link is attributed to the one unary clause"
+    );
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::Constraint(fixture.derivation.parent),
+        fixture.lower_record,
+    ));
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::Record(fixture.replay.lower),
+        fixture.lower_record,
+    ));
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::Record(fixture.replay.upper),
+        fixture.lower_record,
+    ));
+    assert_record_proof_attribution_complete(&fixture.machine, fixture.lower_record);
+}
+
+#[test]
+fn dpn_a_9_2_reduction_route_clause_uses_root_coverage_premise() {
+    let fixture = scheme_projection_unmatched_route_fixture(false);
+    let claim = &fixture.machine.bounds.upper_replay_claims[fixture.covered_claim.0 as usize];
+    let UpperReplayClaimLineage::ReductionRouteConstraint { derivation, .. } = claim.lineage else {
+        panic!("the unmatched route fixture must carry a reduction-route claim");
+    };
+    let root_claim = &fixture.machine.bounds.upper_replay_claims[fixture.coverage_root.0 as usize];
+    assert!(
+        !fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .contains_key(&root_claim.producer_constraint),
+        "the URR root producer remains upper-only and has no linked lower record"
+    );
+    assert!(
+        record_proof_clauses(&fixture.machine, fixture.lower_record).contains(
+            &RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(derivation),
+                premise: ProofPremise::RootCoverage(fixture.coverage_root),
+            }
+        ),
+        "the reduction-route occurrence stores its event-local canonical coverage root"
+    );
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::RootCoverage(fixture.coverage_root),
+        fixture.lower_record,
+    ));
+    assert_record_proof_attribution_complete(&fixture.machine, fixture.lower_record);
+}
+
+#[test]
+fn dpn_a_9_6_replay_registration_is_insertion_order_invariant() {
+    let covered_first =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    let direct_first = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, false);
+    let expected = ObservedDpnReplayRegistration {
+        replay_clauses: 1,
+        attributed_links: 2,
+        premise_edges: 2,
+        unattributed_supports: 0,
+    };
+    assert_eq!(observed_dpn_replay_registration(&covered_first), expected);
+    assert_eq!(
+        observed_dpn_replay_registration(&covered_first),
+        observed_dpn_replay_registration(&direct_first),
+        "exact replay clauses, link tags, reverse edges, and attribution are order-invariant"
+    );
+}
+
+#[test]
+fn dpn_a_confirmed_path_attribution_is_complete() {
+    let covered_first =
+        mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, false);
+    assert_all_record_proof_attribution_complete(&covered_first.machine);
+
+    let direct_first = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, true);
+    assert_all_record_proof_attribution_complete(&direct_first.machine);
+
+    let structural = row_structural_claim_fixture();
+    assert_all_record_proof_attribution_complete(&structural.machine);
+
+    let reduction = scheme_projection_unmatched_route_fixture(false);
+    assert_all_record_proof_attribution_complete(&reduction.machine);
+}
+
 #[derive(Debug, Clone, Copy)]
 enum MpcReplayAdmissionOrder {
     DirectPremiseFirst,
@@ -3311,6 +3418,14 @@ struct ObservedMpcPreservedClauseSnapshot {
     linked_roots: usize,
     projected_count: usize,
     incomplete_replay: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ObservedDpnReplayRegistration {
+    replay_clauses: usize,
+    attributed_links: usize,
+    premise_edges: usize,
+    unattributed_supports: usize,
 }
 
 struct MpcMixedReplayFixture {
@@ -3559,6 +3674,136 @@ fn observed_mpc_preserved_clause_snapshot(
         incomplete_replay: fixture.machine.bounds.records[fixture.lower_record.0 as usize]
             .derivations()
             .contains(&BoundDerivation::IncompleteReplay),
+    }
+}
+
+fn record_proof_clauses(
+    machine: &ConstraintMachine,
+    lower_record: BoundRecordId,
+) -> Vec<RecordProofClause> {
+    machine
+        .bounds
+        .record_proof_clause_ids_by_lower_record
+        .get(&lower_record)
+        .into_iter()
+        .flatten()
+        .map(|clause_id| {
+            let clause = machine.bounds.record_proof_clauses[clause_id.0 as usize];
+            assert_eq!(clause.id, *clause_id);
+            assert_eq!(clause.lower_record, lower_record);
+            clause.clause
+        })
+        .collect()
+}
+
+fn dependent_edge_exists(
+    machine: &ConstraintMachine,
+    premise: ProofPremise,
+    dependent: BoundRecordId,
+) -> bool {
+    machine
+        .bounds
+        .dependent_records_by_premise
+        .get(&premise)
+        .is_some_and(|dependents| dependents.contains(&dependent))
+}
+
+fn normalized_projection_support(
+    machine: &ConstraintMachine,
+    support: SchemeProjectionProofSupport,
+) -> Option<SchemeProjectionProofSupport> {
+    match support {
+        SchemeProjectionProofSupport::Claimed(claim) => machine
+            .bounds
+            .canonical_coverage_root(claim)
+            .map(SchemeProjectionProofSupport::Claimed),
+        SchemeProjectionProofSupport::Independent(carrier) => {
+            Some(SchemeProjectionProofSupport::Independent(carrier))
+        }
+    }
+}
+
+fn unattributed_record_proof_supports(
+    machine: &ConstraintMachine,
+    lower_record: BoundRecordId,
+) -> Vec<SchemeProjectionProofSupport> {
+    let attributed = machine
+        .bounds
+        .record_proof_clause_links_by_lower_record
+        .get(&lower_record)
+        .into_iter()
+        .flatten()
+        .map(|link| link.support)
+        .collect::<FxHashSet<_>>();
+    machine
+        .bounds
+        .projection_proofs_by_lower_record
+        .get(&lower_record)
+        .into_iter()
+        .flatten()
+        .filter_map(|proof| normalized_projection_support(machine, proof.support))
+        .filter(|support| !attributed.contains(support))
+        .collect()
+}
+
+fn assert_record_proof_attribution_complete(
+    machine: &ConstraintMachine,
+    lower_record: BoundRecordId,
+) {
+    assert_eq!(
+        unattributed_record_proof_supports(machine, lower_record),
+        Vec::new(),
+        "every confirmed projection support has an occurrence-owned clause link"
+    );
+}
+
+fn assert_all_record_proof_attribution_complete(machine: &ConstraintMachine) {
+    for lower_record in machine
+        .bounds
+        .projection_proofs_by_lower_record
+        .keys()
+        .copied()
+    {
+        assert_record_proof_attribution_complete(machine, lower_record);
+    }
+}
+
+fn observed_dpn_replay_registration(
+    fixture: &MpcMixedReplayFixture,
+) -> ObservedDpnReplayRegistration {
+    let clauses = record_proof_clauses(&fixture.machine, fixture.result_record);
+    assert_eq!(
+        clauses,
+        vec![RecordProofClause::ReplayConjunction {
+            carrier: fixture.replay,
+            lower_premise: fixture.replay.lower,
+            upper_premise: fixture.replay.upper,
+        }]
+    );
+    let premise_edges = [fixture.replay.lower, fixture.replay.upper]
+        .into_iter()
+        .filter(|premise| {
+            dependent_edge_exists(
+                &fixture.machine,
+                ProofPremise::Record(*premise),
+                fixture.result_record,
+            )
+        })
+        .count();
+    ObservedDpnReplayRegistration {
+        replay_clauses: clauses.len(),
+        attributed_links: fixture
+            .machine
+            .bounds
+            .record_proof_clause_links_by_lower_record
+            .get(&fixture.result_record)
+            .map_or(0, Vec::len),
+        premise_edges,
+        unattributed_supports: unattributed_record_proof_supports(
+            &fixture.machine,
+            fixture.result_record,
+        )
+        .len(),
     }
 }
 

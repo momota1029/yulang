@@ -753,6 +753,9 @@ impl ConstraintMachine {
             .get(&producer)
             .cloned()
             .unwrap_or_default();
+        if let Some(lower_record) = self.lower_record_for_constraint(producer) {
+            self.register_claim_parent_clause_links(lower_record, &parents);
+        }
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();
@@ -792,6 +795,9 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> Vec<UpperReplayClaimId> {
+        if let Some(lower_record) = self.lower_record_for_constraint(producer) {
+            self.register_claim_parent_clause_links(lower_record, parents);
+        }
         let mut claims = Vec::new();
         for parent in parents.iter().copied() {
             let coverage_root =
@@ -861,6 +867,193 @@ impl ConstraintMachine {
         registration.claim
     }
 
+    fn register_claim_parent_clause_links(
+        &mut self,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        for parent in parents.iter().copied() {
+            let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
+                continue;
+            };
+            let support = SchemeProjectionProofSupport::Claimed(root);
+            let clause = match parent {
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                    RecordProofClause::ReplayConjunction {
+                        carrier: replay,
+                        lower_premise: replay.lower,
+                        upper_premise: replay.upper,
+                    }
+                }
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(derivation),
+                        premise: ProofPremise::Constraint(derivation.parent),
+                    }
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::ReductionRoute(derivation),
+                        premise: ProofPremise::RootCoverage(root),
+                    }
+                }
+            };
+            self.register_record_proof_clause_link(lower_record, support, clause);
+        }
+    }
+
+    fn register_replay_evidence_clause_link(
+        &mut self,
+        lower_record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        replay: BinaryReplayDerivation,
+    ) {
+        let Some(root) = self.bounds.canonical_coverage_root(parent_claim) else {
+            return;
+        };
+        let support = SchemeProjectionProofSupport::Claimed(root);
+        self.register_record_proof_clause_link(
+            lower_record,
+            support,
+            RecordProofClause::ReplayConjunction {
+                carrier: replay,
+                lower_premise: replay.lower,
+                upper_premise: replay.upper,
+            },
+        );
+    }
+
+    fn register_record_proof_clause_link(
+        &mut self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) {
+        let (_, clause_inserted) =
+            self.bounds
+                .register_record_proof_clause_link(lower_record, support, clause);
+        if !clause_inserted {
+            return;
+        }
+        match clause {
+            RecordProofClause::Standalone { .. } => {}
+            RecordProofClause::DerivedUnary { premise, .. } => {
+                let mut visited_constraints = FxHashSet::default();
+                self.register_premise_dependency_chain(
+                    premise,
+                    lower_record,
+                    &mut visited_constraints,
+                );
+            }
+            RecordProofClause::ReplayConjunction {
+                lower_premise,
+                upper_premise,
+                ..
+            } => {
+                self.bounds.insert_dependent_record_edge(
+                    ProofPremise::Record(lower_premise),
+                    lower_record,
+                );
+                self.bounds.insert_dependent_record_edge(
+                    ProofPremise::Record(upper_premise),
+                    lower_record,
+                );
+            }
+        }
+    }
+
+    fn register_premise_dependency_chain(
+        &mut self,
+        premise: ProofPremise,
+        dependent: BoundRecordId,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+    ) {
+        self.bounds.insert_dependent_record_edge(premise, dependent);
+        let ProofPremise::Constraint(constraint) = premise else {
+            return;
+        };
+        // Record nodes publish their own inclusion changes, so only record-free constraint chains
+        // are expanded here. The pass-local set bounds structural cycles without evaluating them.
+        if !visited_constraints.insert(constraint) {
+            return;
+        }
+        if let Some(lower_record) = self.lower_record_for_constraint(constraint) {
+            self.bounds
+                .insert_dependent_record_edge(ProofPremise::Record(lower_record), dependent);
+        }
+        let parents = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&constraint)
+            .cloned()
+            .unwrap_or_default();
+        for parent in parents {
+            self.register_claim_parent_dependency_chain(parent, dependent, visited_constraints);
+        }
+        if let Some(root_claim) = self
+            .bounds
+            .root_claim_by_producer_constraint
+            .get(&constraint)
+            .copied()
+            && let Some(root) = self.bounds.canonical_coverage_root(root_claim)
+        {
+            self.bounds
+                .insert_dependent_record_edge(ProofPremise::RootCoverage(root), dependent);
+        }
+    }
+
+    fn register_claim_parent_dependency_chain(
+        &mut self,
+        parent: ClaimQualifiedParent,
+        dependent: BoundRecordId,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+    ) {
+        match parent {
+            ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                self.bounds
+                    .insert_dependent_record_edge(ProofPremise::Record(replay.lower), dependent);
+                self.bounds
+                    .insert_dependent_record_edge(ProofPremise::Record(replay.upper), dependent);
+            }
+            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                self.register_premise_dependency_chain(
+                    ProofPremise::Constraint(derivation.parent),
+                    dependent,
+                    visited_constraints,
+                );
+            }
+            ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
+                if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
+                    self.bounds
+                        .insert_dependent_record_edge(ProofPremise::RootCoverage(root), dependent);
+                }
+            }
+        }
+    }
+
+    pub(in crate::constraints) fn register_new_constraint_premise_route_edges(
+        &mut self,
+        constraint: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        // A late route must extend edges already rooted at this Constraint premise. Evaluation and
+        // mutation publication remain deferred together to DPN-B/MPC-C.
+        let dependents = self
+            .bounds
+            .dependent_records_by_premise
+            .get(&ProofPremise::Constraint(constraint))
+            .cloned()
+            .unwrap_or_default();
+        for dependent in dependents {
+            let mut visited_constraints = FxHashSet::from_iter([constraint]);
+            self.register_claim_parent_dependency_chain(
+                parent,
+                dependent,
+                &mut visited_constraints,
+            );
+        }
+    }
+
     fn lower_record_for_constraint(&self, producer: ConstraintRecordId) -> Option<BoundRecordId> {
         if let Some(record) = self
             .bounds
@@ -870,7 +1063,7 @@ impl ConstraintMachine {
         {
             return Some(record);
         }
-        let constraint = &self.constraint_records[producer.0 as usize].key;
+        let constraint = &self.constraint_records.get(producer.0 as usize)?.key;
         let Neg::Var(target) = self.types.neg(constraint.upper) else {
             return None;
         };
@@ -897,6 +1090,10 @@ impl ConstraintMachine {
             }
             _ => self.cdm_lower_delta_census.other_bound_events += 1,
         }
+        let parents = producer
+            .and_then(|producer| self.bounds.claim_parents_by_constraint.get(&producer))
+            .cloned()
+            .unwrap_or_default();
         let claims = if self
             .bounds
             .projection_proofs_by_lower_record
@@ -904,18 +1101,14 @@ impl ConstraintMachine {
         {
             Vec::new()
         } else {
-            producer
-                .and_then(|producer| self.bounds.claim_parents_by_constraint.get(&producer))
-                .into_iter()
-                .flatten()
-                .map(|parent| parent.parent_claim())
-                .collect()
+            parents.iter().map(|parent| parent.parent_claim()).collect()
         };
         self.register_lower_projection_delta(
             lower_record,
             &claims,
             LowerProjectionDelta::Bound(derivation),
         );
+        self.register_claim_parent_clause_links(lower_record, &parents);
     }
 
     fn register_existing_constraint_lower_projection_delta(
@@ -932,19 +1125,20 @@ impl ConstraintMachine {
             .projection_proofs_by_lower_record
             .contains_key(&lower_record);
         let parents = if ledger_exists {
-            parents
+            parents.to_vec()
         } else {
             self.bounds
                 .claim_parents_by_constraint
                 .get(&producer)
-                .map(Vec::as_slice)
-                .unwrap_or(&[])
+                .cloned()
+                .unwrap_or_default()
         };
         let claims = parents
             .iter()
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         self.register_lower_projection_delta(lower_record, &claims, delta);
+        self.register_claim_parent_clause_links(lower_record, &parents);
     }
 
     pub(in crate::constraints) fn register_constraint_projection_carrier_delta(
@@ -1045,6 +1239,14 @@ impl ConstraintMachine {
             &independent_supports,
         );
         self.apply_scheme_projection_mutation(mutation);
+        for support in independent_supports {
+            let support = SchemeProjectionProofSupport::Independent(support);
+            self.register_record_proof_clause_link(
+                lower_record,
+                support,
+                RecordProofClause::Standalone { support },
+            );
+        }
     }
 
     fn bootstrap_independent_projection_supports(
@@ -1414,6 +1616,7 @@ impl ConstraintMachine {
                 replay,
             };
             self.bounds.push_claim_qualified_parent(result, parent);
+            self.register_new_constraint_premise_route_edges(result, parent);
             inserted_parents.push(parent);
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -1497,6 +1700,7 @@ impl ConstraintMachine {
             return;
         }
         self.bounds.push_claim_qualified_parent(result, parent);
+        self.register_new_constraint_premise_route_edges(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
         self.materialize_existing_claim_parents_delta(
             result,
@@ -2236,6 +2440,11 @@ impl ConstraintMachine {
                         },
                     );
                     self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+                    self.register_replay_evidence_clause_link(
+                        lower_record,
+                        parent.claim,
+                        action.derivation,
+                    );
                 }
             }
             if lower_edge_inserted {
@@ -3204,6 +3413,140 @@ mod mutation_tests {
         );
     }
 
+    #[test]
+    fn dpn_a_original_claim_mirror_is_injective_for_direct_and_reduced_roots() {
+        let mut machine = ConstraintMachine::new();
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(90)));
+        let origin = OriginId::unknown_internal();
+        let direct_producer = ConstraintRecordId(50_000);
+        let reduced_producer = ConstraintRecordId(50_001);
+        let direct_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(91),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let reduced_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(92),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let moved_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(93),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+
+        let direct = machine.bounds.original_upper_replay_claim(
+            direct_record,
+            direct_producer,
+            UpperReplayClaimKind::Direct,
+        );
+        let direct_again = machine.bounds.original_upper_replay_claim(
+            direct_record,
+            direct_producer,
+            UpperReplayClaimKind::Direct,
+        );
+        let reduced = machine.bounds.original_upper_replay_claim(
+            reduced_record,
+            reduced_producer,
+            UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(50_000)),
+        );
+        assert_eq!(direct.claim, direct_again.claim);
+        machine
+            .bounds
+            .move_upper_replay_claim(direct.claim, moved_record);
+
+        let originals = machine
+            .bounds
+            .upper_replay_claims
+            .iter()
+            .filter(|claim| claim.lineage == UpperReplayClaimLineage::Original)
+            .collect::<Vec<_>>();
+        assert_eq!(originals.len(), 2);
+        assert_eq!(
+            machine.bounds.root_claim_by_producer_constraint.len(),
+            originals.len(),
+            "the lazy mirror contains exactly one entry per Original claim"
+        );
+        for claim in originals {
+            assert_eq!(claim.coverage_root, claim.id);
+            assert_eq!(
+                machine.bounds.root_claim_by_producer_constraint[&claim.producer_constraint],
+                claim.id,
+                "each producer maps injectively to its own Original claim"
+            );
+        }
+        assert_eq!(
+            machine.bounds.root_claim_by_producer_constraint[&direct_producer], direct.claim,
+            "moving an Original claim's current record does not change producer identity"
+        );
+        assert_eq!(
+            machine.bounds.root_claim_by_producer_constraint[&reduced_producer], reduced.claim,
+            "Reduced roots pass through the same shared constructor mirror"
+        );
+    }
+
+    #[test]
+    fn dpn_a_no_claim_workload_allocates_no_registration_ledgers() {
+        let mut machine = ConstraintMachine::new();
+        let lower = machine.alloc_pos(Pos::Con(vec!["plain".into()], Vec::new()));
+        machine.add_lower_bound(
+            TypeVar(0),
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        assert!(machine.bounds.root_claim_by_producer_constraint.is_empty());
+        assert_eq!(
+            machine.bounds.root_claim_by_producer_constraint.capacity(),
+            0
+        );
+        assert!(machine.bounds.record_proof_clauses.is_empty());
+        assert!(machine.bounds.record_proof_clause_by_key.is_empty());
+        assert!(
+            machine
+                .bounds
+                .record_proof_clause_ids_by_lower_record
+                .is_empty()
+        );
+        assert!(
+            machine
+                .bounds
+                .record_proof_clause_links_by_lower_record
+                .is_empty()
+        );
+        assert!(machine.bounds.record_proof_clause_link_keys.is_empty());
+        assert!(machine.bounds.dependent_records_by_premise.is_empty());
+    }
+
+    #[test]
+    fn mpc_b_clause_and_dpn_a_edge_census_are_linear_in_link_events() {
+        for link_events in [1usize, 4, 16] {
+            assert_eq!(
+                dpn_linear_registration_census(link_events),
+                DpnRegistrationCensus {
+                    clauses: link_events,
+                    clause_links: link_events,
+                    reverse_edges: link_events * 2,
+                },
+                "each exact replay occurrence creates one clause/link and two record-premise edges"
+            );
+        }
+    }
+
     #[cfg(debug_assertions)]
     #[test]
     #[should_panic(expected = "qualified carrier index diverged from claim-parent linear scan")]
@@ -3554,6 +3897,107 @@ mod mutation_tests {
         coverage_root: UpperReplayClaimId,
         parent: SideTaggedReplayClaim,
         pivot: TypeVar,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct DpnRegistrationCensus {
+        clauses: usize,
+        clause_links: usize,
+        reverse_edges: usize,
+    }
+
+    impl DpnRegistrationCensus {
+        fn delta_from(self, baseline: Self) -> Self {
+            Self {
+                clauses: self.clauses - baseline.clauses,
+                clause_links: self.clause_links - baseline.clause_links,
+                reverse_edges: self.reverse_edges - baseline.reverse_edges,
+            }
+        }
+    }
+
+    fn dpn_registration_census(machine: &ConstraintMachine) -> DpnRegistrationCensus {
+        DpnRegistrationCensus {
+            clauses: machine.bounds.record_proof_clauses.len(),
+            clause_links: machine.bounds.record_proof_clause_link_keys.len(),
+            reverse_edges: machine
+                .bounds
+                .dependent_records_by_premise
+                .values()
+                .map(FxHashSet::len)
+                .sum(),
+        }
+    }
+
+    fn dpn_linear_registration_census(link_events: usize) -> DpnRegistrationCensus {
+        let mut fixture = cdm_replay_claim_fixture();
+        let baseline = dpn_registration_census(&fixture.machine);
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let origin = OriginId::unknown_internal();
+
+        for index in 0..link_events {
+            let offset = u32::try_from(index).expect("test link-event index fits in u32");
+            let lower_record = fixture
+                .machine
+                .bounds
+                .add_lower(
+                    TypeVar(600u32.checked_add(offset).expect("test lower owner")),
+                    key.lower,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id;
+            let upper_record = fixture
+                .machine
+                .bounds
+                .add_upper(
+                    TypeVar(700u32.checked_add(offset).expect("test upper owner")),
+                    key.upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id;
+            let replay = BinaryReplayDerivation {
+                pivot: TypeVar(800u32.checked_add(offset).expect("test replay pivot")),
+                lower: lower_record,
+                upper: upper_record,
+                rule: ReplayRule::LowerBoundAdded,
+            };
+            assert_eq!(
+                fixture
+                    .machine
+                    .merge_replay_derivation(fixture.result, replay),
+                ReplayDerivationInsert::Inserted
+            );
+            let parent_record = fixture
+                .machine
+                .bounds
+                .add_upper(
+                    TypeVar(900u32.checked_add(offset).expect("test parent source")),
+                    key.upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id;
+            let registration = fixture.machine.bounds.original_upper_replay_claim(
+                parent_record,
+                ConstraintRecordId(60_000u32.checked_add(offset).expect("test producer")),
+                UpperReplayClaimKind::Direct,
+            );
+            fixture.machine.register_replay_claim_parents(
+                fixture.result,
+                replay,
+                &[SideTaggedReplayClaim {
+                    claim: registration.claim,
+                    parent_side: ReplayClaimParentSide::Lower,
+                }],
+                true,
+            );
+        }
+
+        dpn_registration_census(&fixture.machine).delta_from(baseline)
     }
 
     impl CdmReplayClaimFixture {

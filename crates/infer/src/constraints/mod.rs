@@ -608,6 +608,53 @@ pub(crate) enum SchemeProjectionProofSupport {
     Independent(ProjectionProofCarrier),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// A lazily evaluated proof input. DPN-A records these nodes; DPN-B will evaluate them.
+enum ProofPremise {
+    Record(BoundRecordId),
+    Constraint(ConstraintRecordId),
+    RootCoverage(UpperReplayClaimId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum DerivedUnaryCarrier {
+    Structural(StructuralDerivation),
+    ReductionRoute(RowDerivationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// One OR-arm in a lower record's proof-composition ledger.
+enum RecordProofClause {
+    Standalone {
+        support: SchemeProjectionProofSupport,
+    },
+    DerivedUnary {
+        carrier: DerivedUnaryCarrier,
+        premise: ProofPremise,
+    },
+    ReplayConjunction {
+        carrier: BinaryReplayDerivation,
+        lower_premise: BoundRecordId,
+        upper_premise: BoundRecordId,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct RecordProofClauseId(u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RecordProofClauseRecord {
+    id: RecordProofClauseId,
+    lower_record: BoundRecordId,
+    clause: RecordProofClause,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct RecordProofClauseLink {
+    support: SchemeProjectionProofSupport,
+    clause: RecordProofClauseId,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SchemeProjectionProof {
     pub(crate) lower_record: BoundRecordId,
@@ -834,6 +881,8 @@ pub struct TypeBounds {
     derived_claim_by_record_and_root:
         FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
+    // Append-only mirror of Original claims, keyed by their stable producer identity.
+    root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
     claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
     // Append-only exact-carrier projection of `claim_parents_by_constraint`.
     qualified_carrier_index: FxHashMap<ConstraintRecordId, FxHashSet<QualifiedCarrier>>,
@@ -846,6 +895,16 @@ pub struct TypeBounds {
     projection_proofs_by_lower_record: FxHashMap<BoundRecordId, Vec<SchemeProjectionProof>>,
     scheme_projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     scheme_projection_claimed_lower_owners: FxHashSet<TypeVar>,
+    record_proof_clauses: Vec<RecordProofClauseRecord>,
+    record_proof_clause_by_key: FxHashMap<(BoundRecordId, RecordProofClause), RecordProofClauseId>,
+    record_proof_clause_ids_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseId>>,
+    record_proof_clause_links_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseLink>>,
+    record_proof_clause_link_keys: FxHashSet<(
+        BoundRecordId,
+        SchemeProjectionProofSupport,
+        RecordProofClauseId,
+    )>,
+    dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
 
@@ -879,6 +938,132 @@ impl TypeBounds {
             .entry(result)
             .or_default()
             .insert(parent.exact_carrier());
+    }
+
+    fn register_record_proof_clause_link(
+        &mut self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> (RecordProofClauseId, bool) {
+        let (clause_id, clause_inserted) = if let Some(clause_id) = self
+            .record_proof_clause_by_key
+            .get(&(lower_record, clause))
+            .copied()
+        {
+            (clause_id, false)
+        } else {
+            let clause_id = RecordProofClauseId(self.record_proof_clauses.len() as u32);
+            self.record_proof_clauses.push(RecordProofClauseRecord {
+                id: clause_id,
+                lower_record,
+                clause,
+            });
+            self.record_proof_clause_by_key
+                .insert((lower_record, clause), clause_id);
+            self.record_proof_clause_ids_by_lower_record
+                .entry(lower_record)
+                .or_default()
+                .push(clause_id);
+            (clause_id, true)
+        };
+        // Claimed supports are normalized to their canonical root by every production caller, so
+        // claim replacement in the flat ledger cannot stale either the clause or its link tag.
+        let link = RecordProofClauseLink {
+            support,
+            clause: clause_id,
+        };
+        if self
+            .record_proof_clause_link_keys
+            .insert((lower_record, support, clause_id))
+        {
+            self.record_proof_clause_links_by_lower_record
+                .entry(lower_record)
+                .or_default()
+                .push(link);
+        }
+        (clause_id, clause_inserted)
+    }
+
+    fn insert_dependent_record_edge(
+        &mut self,
+        premise: ProofPremise,
+        dependent: BoundRecordId,
+    ) -> bool {
+        self.dependent_records_by_premise
+            .entry(premise)
+            .or_default()
+            .insert(dependent)
+    }
+
+    fn canonical_coverage_root(&self, claim: UpperReplayClaimId) -> Option<UpperReplayClaimId> {
+        let root = self
+            .upper_replay_claims
+            .get(claim.0 as usize)?
+            .coverage_root;
+        let root_claim = self.upper_replay_claims.get(root.0 as usize)?;
+        debug_assert_eq!(
+            root_claim.coverage_root, root,
+            "coverage roots must already be path-compressed"
+        );
+        Some(root_claim.coverage_root)
+    }
+
+    fn register_original_claim_mirror(
+        &mut self,
+        producer: ConstraintRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        match self.root_claim_by_producer_constraint.entry(producer) {
+            Entry::Vacant(entry) => {
+                entry.insert(claim);
+            }
+            Entry::Occupied(entry) => {
+                assert_eq!(
+                    *entry.get(),
+                    claim,
+                    "one producer constraint mapped to two distinct Original replay claims"
+                );
+            }
+        }
+    }
+
+    fn register_original_claim_standalone_link(
+        &mut self,
+        producer: ConstraintRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        let Some(lower_record) = self
+            .scheme_projection_lower_record_by_constraint
+            .get(&producer)
+            .copied()
+        else {
+            return;
+        };
+        let Some(root) = self.canonical_coverage_root(claim) else {
+            return;
+        };
+        let support = SchemeProjectionProofSupport::Claimed(root);
+        self.register_record_proof_clause_link(
+            lower_record,
+            support,
+            RecordProofClause::Standalone { support },
+        );
+    }
+
+    fn register_linked_record_dependency_edges(
+        &mut self,
+        producer: ConstraintRecordId,
+        lower_record: BoundRecordId,
+    ) {
+        let dependents = self
+            .dependent_records_by_premise
+            .get(&ProofPremise::Constraint(producer))
+            .cloned()
+            .unwrap_or_default();
+        for dependent in dependents {
+            self.insert_dependent_record_edge(ProofPremise::Record(lower_record), dependent);
+        }
     }
 
     #[cfg(all(test, debug_assertions))]
@@ -932,6 +1117,7 @@ impl TypeBounds {
         if let Some(producer) = producer {
             self.scheme_projection_lower_record_by_constraint
                 .insert(producer, insertion.id);
+            self.register_linked_record_dependency_edges(producer, insertion.id);
         }
         insertion
     }
@@ -1133,13 +1319,21 @@ impl TypeBounds {
             .get(&key)
             .copied()
         {
+            self.register_original_claim_mirror(producer_constraint, claim);
             let scheme_projection_mutation =
                 self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
+            self.register_original_claim_standalone_link(producer_constraint, claim);
             return UpperReplayClaimRegistration {
                 claim,
                 scheme_projection_mutation,
             };
         }
+        assert!(
+            !self
+                .root_claim_by_producer_constraint
+                .contains_key(&producer_constraint),
+            "one producer constraint attempted to create a second Original replay claim"
+        );
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
@@ -1157,12 +1351,14 @@ impl TypeBounds {
             lineage: UpperReplayClaimLineage::Original,
         });
         self.original_claim_by_record_and_producer.insert(key, id);
+        self.register_original_claim_mirror(producer_constraint, id);
         self.claims_by_upper_record
             .entry(record)
             .or_default()
             .push(id);
         let scheme_projection_mutation =
             self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
+        self.register_original_claim_standalone_link(producer_constraint, id);
         UpperReplayClaimRegistration {
             claim: id,
             scheme_projection_mutation,
