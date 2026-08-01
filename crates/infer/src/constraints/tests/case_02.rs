@@ -3185,6 +3185,240 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
 }
 
 #[test]
+fn urr_v3_a_causal_candidate_registration_is_insertion_order_invariant() {
+    let direct_first = urr_v3_a_causal_candidate_fixture(UrrV3CandidateAdmissionOrder::DirectFirst);
+    let parent_first = urr_v3_a_causal_candidate_fixture(UrrV3CandidateAdmissionOrder::ParentFirst);
+
+    assert_eq!(
+        direct_first.snapshot, parent_first.snapshot,
+        "the symmetric hooks produce the same exact-dedup candidate and reverse edge"
+    );
+    assert_eq!(direct_first.snapshot.candidates.len(), 1);
+    assert_eq!(
+        direct_first.snapshot.root_dependents,
+        FxHashSet::from_iter([direct_first.direct_record]),
+        "one exact route occurrence adds one RootCoverage(R) -> U edge"
+    );
+}
+
+#[test]
+fn urr_v3_a_co_owned_survivor_registers_candidate_without_changing_projection() {
+    let mut fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, true);
+    let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
+    let direct_producer =
+        fixture.machine.bounds.upper_replay_claims[direct_root.0 as usize].producer_constraint;
+    let direct_key = fixture.machine.constraint_records[direct_producer.0 as usize]
+        .key
+        .clone();
+    let reduction_route = fixture.machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(direct_producer)],
+        Vec::new(),
+    );
+    assert!(!fixture.machine.enqueue_row_derived_subtype(
+        direct_key.lower,
+        direct_key.weights,
+        direct_key.upper,
+        reduction_route,
+    ));
+    fixture.machine.register_reduction_route_claim_parent(
+        direct_producer,
+        reduction_route,
+        fixture.coverage_root,
+    );
+
+    assert_eq!(
+        fixture.machine.bounds.causal_qualification_by_direct_claim[&direct_root],
+        FxHashSet::from_iter([CausalDirectClaimQualification {
+            parent: ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: fixture.coverage_root,
+                derivation: reduction_route,
+            },
+            coverage_root: fixture.coverage_root,
+        }]),
+        "the confirmed exact route registers one stable candidate"
+    );
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::RootCoverage(fixture.coverage_root),
+        fixture.direct_upper_record,
+    ));
+    assert_eq!(
+        projection_count(
+            &fixture.machine,
+            fixture.result_owner,
+            fixture.result_record,
+        ),
+        1,
+        "URR-V3-A records qualification metadata but does not change evaluator behavior"
+    );
+}
+
+#[test]
+fn urr_v3_a_unrelated_direct_claim_has_no_candidate() {
+    let fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::CoveredPremiseFirst, true);
+    let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
+
+    assert!(
+        fixture
+            .machine
+            .bounds
+            .causal_qualification_by_direct_claim
+            .get(&direct_root)
+            .is_none_or(FxHashSet::is_empty),
+        "co-location without an exact producer-local parent route is not a candidate"
+    );
+}
+
+#[test]
+fn urr_v3_a_no_claim_passthrough_allocates_no_candidate_index() {
+    let mut machine = ConstraintMachine::new();
+    let owner = TypeVar(89);
+    let lower = machine.alloc_pos(Pos::Con(vec!["urr-v3-a-no-claim".into()], Vec::new()));
+    let record = machine
+        .bounds
+        .add_lower(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+
+    assert_eq!(projection_count(&machine, owner, record), 1);
+    assert!(
+        machine
+            .bounds
+            .causal_qualification_by_direct_claim
+            .is_empty()
+    );
+    assert_eq!(
+        machine
+            .bounds
+            .causal_qualification_by_direct_claim
+            .capacity(),
+        0,
+        "no-claim passthrough does not allocate the lazy candidate map"
+    );
+}
+
+#[test]
+fn urr_v3_a_candidate_and_edge_census_is_linear_in_exact_routes() {
+    let mut machine = ConstraintMachine::new();
+    let direct_endpoint =
+        machine.alloc_neg(Neg::Con(vec!["urr-v3-a-linear-direct".into()], Vec::new()));
+    let direct_record = machine
+        .bounds
+        .add_upper(
+            TypeVar(93),
+            direct_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+    let direct_producer = ConstraintRecordId(71_000);
+    let direct_claim = machine
+        .original_upper_replay_claim(direct_record, direct_producer, UpperReplayClaimKind::Direct)
+        .claim;
+    let route_count = 32;
+    let mut coverage_roots = Vec::with_capacity(route_count);
+
+    for index in 0..route_count {
+        let endpoint = machine.alloc_neg(Neg::Con(
+            vec!["urr-v3-a-linear-reduced".into(), index.to_string()],
+            Vec::new(),
+        ));
+        let record = machine
+            .bounds
+            .add_upper(
+                TypeVar(94 + index as u32),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let root = machine
+            .original_upper_replay_claim(
+                record,
+                ConstraintRecordId(72_000 + index as u32),
+                UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(
+                    72_000 + index as u32,
+                )),
+            )
+            .claim;
+        coverage_roots.push(root);
+        machine.admit_claim_qualified_parent(
+            direct_producer,
+            ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: root,
+                derivation: RowDerivationId(72_000 + index as u32),
+            },
+        );
+    }
+    machine.original_upper_replay_claim(
+        direct_record,
+        direct_producer,
+        UpperReplayClaimKind::Direct,
+    );
+
+    assert_eq!(
+        machine.bounds.causal_qualification_by_direct_claim[&direct_claim].len(),
+        route_count,
+        "one candidate is retained per exact route after an idempotent producer-local rescan"
+    );
+    assert_eq!(
+        coverage_roots
+            .into_iter()
+            .filter(|root| dependent_edge_exists(
+                &machine,
+                ProofPremise::RootCoverage(*root),
+                direct_record,
+            ))
+            .count(),
+        route_count,
+        "one exact-dedup reverse edge is retained per candidate root"
+    );
+}
+
+#[test]
+fn urr_v3_a_causal_candidate_edge_follows_direct_claim_move() {
+    let mut fixture = urr_v3_a_causal_candidate_fixture(UrrV3CandidateAdmissionOrder::DirectFirst);
+    let moved_endpoint = fixture
+        .machine
+        .alloc_neg(Neg::Con(vec!["urr-v3-a-moved".into()], Vec::new()));
+    let moved_record = fixture
+        .machine
+        .bounds
+        .add_upper(
+            TypeVar(92),
+            moved_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+
+    fixture
+        .machine
+        .move_upper_replay_claim(fixture.direct_claim, moved_record);
+
+    assert_eq!(
+        fixture.machine.bounds.causal_qualification_by_direct_claim[&fixture.direct_claim],
+        fixture.snapshot.candidates,
+        "record movement does not rewrite the stable candidate identity"
+    );
+    assert!(!dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::RootCoverage(fixture.coverage_root),
+        fixture.direct_record,
+    ));
+    assert!(dependent_edge_exists(
+        &fixture.machine,
+        ProofPremise::RootCoverage(fixture.coverage_root),
+        moved_record,
+    ));
+}
+
+#[test]
 fn mpc_a_9_5_unattributed_claim_link_fails_open() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
@@ -3653,6 +3887,116 @@ fn dpn_b_9_5_late_constraint_route_retriggers_dependent_record() {
         fixture.target,
     ));
     journal.finish();
+}
+
+#[derive(Debug, Clone, Copy)]
+enum UrrV3CandidateAdmissionOrder {
+    DirectFirst,
+    ParentFirst,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ObservedUrrV3CandidateSnapshot {
+    candidates: FxHashSet<CausalDirectClaimQualification>,
+    root_dependents: FxHashSet<BoundRecordId>,
+}
+
+struct UrrV3CandidateFixture {
+    machine: ConstraintMachine,
+    direct_claim: UpperReplayClaimId,
+    direct_record: BoundRecordId,
+    coverage_root: UpperReplayClaimId,
+    snapshot: ObservedUrrV3CandidateSnapshot,
+}
+
+fn urr_v3_a_causal_candidate_fixture(order: UrrV3CandidateAdmissionOrder) -> UrrV3CandidateFixture {
+    let mut machine = ConstraintMachine::new();
+    let coverage_state = UnweightedRowReductionRecordId(70_000);
+    let coverage_endpoint =
+        machine.alloc_neg(Neg::Con(vec!["urr-v3-a-reduced".into()], Vec::new()));
+    let coverage_record = machine
+        .bounds
+        .add_upper(
+            TypeVar(90),
+            coverage_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+    let coverage_root = machine
+        .original_upper_replay_claim(
+            coverage_record,
+            ConstraintRecordId(70_000),
+            UpperReplayClaimKind::Reduced(coverage_state),
+        )
+        .claim;
+    let direct_endpoint = machine.alloc_neg(Neg::Con(vec!["urr-v3-a-direct".into()], Vec::new()));
+    let direct_record = machine
+        .bounds
+        .add_upper(
+            TypeVar(91),
+            direct_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id;
+    let direct_producer = ConstraintRecordId(70_001);
+    let parent = ClaimQualifiedParent::ReductionRouteConstraint {
+        parent_claim: coverage_root,
+        derivation: RowDerivationId(70_000),
+    };
+
+    let direct_claim = match order {
+        UrrV3CandidateAdmissionOrder::DirectFirst => {
+            let direct_claim = machine
+                .original_upper_replay_claim(
+                    direct_record,
+                    direct_producer,
+                    UpperReplayClaimKind::Direct,
+                )
+                .claim;
+            machine.admit_claim_qualified_parent(direct_producer, parent);
+            direct_claim
+        }
+        UrrV3CandidateAdmissionOrder::ParentFirst => {
+            machine.admit_claim_qualified_parent(direct_producer, parent);
+            machine
+                .original_upper_replay_claim(
+                    direct_record,
+                    direct_producer,
+                    UpperReplayClaimKind::Direct,
+                )
+                .claim
+        }
+    };
+    assert_eq!(
+        machine
+            .original_upper_replay_claim(
+                direct_record,
+                direct_producer,
+                UpperReplayClaimKind::Direct,
+            )
+            .claim,
+        direct_claim,
+        "the idempotent-return hook preserves the candidate set"
+    );
+
+    let snapshot = ObservedUrrV3CandidateSnapshot {
+        candidates: machine.bounds.causal_qualification_by_direct_claim[&direct_claim].clone(),
+        root_dependents: machine
+            .bounds
+            .dependent_records_by_premise
+            .get(&ProofPremise::RootCoverage(coverage_root))
+            .cloned()
+            .unwrap_or_default(),
+    };
+    UrrV3CandidateFixture {
+        machine,
+        direct_claim,
+        direct_record,
+        coverage_root,
+        snapshot,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

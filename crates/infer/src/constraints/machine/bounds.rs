@@ -783,15 +783,27 @@ impl ConstraintMachine {
             }
         }
         if claims.is_empty() {
-            let registration = self.bounds.original_upper_replay_claim(
-                record,
-                producer,
-                UpperReplayClaimKind::Direct,
-            );
+            let registration =
+                self.original_upper_replay_claim(record, producer, UpperReplayClaimKind::Direct);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             claims.push(registration.claim);
         }
         claims
+    }
+
+    pub(in crate::constraints) fn original_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> UpperReplayClaimRegistration {
+        let registration = self
+            .bounds
+            .original_upper_replay_claim(record, producer, kind);
+        if kind == UpperReplayClaimKind::Direct {
+            self.register_causal_qualifications_for_direct_claim(registration.claim);
+        }
+        registration
     }
 
     fn register_constraint_upper_replay_claims_delta(
@@ -1012,6 +1024,80 @@ impl ConstraintMachine {
         }
     }
 
+    fn register_causal_qualifications_for_direct_claim(
+        &mut self,
+        direct_claim: UpperReplayClaimId,
+    ) {
+        let producer = self.bounds.upper_replay_claims[direct_claim.0 as usize].producer_constraint;
+        let parents = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&producer)
+            .cloned()
+            .unwrap_or_default();
+        for parent in parents {
+            self.register_causal_direct_claim_qualification(producer, direct_claim, parent);
+        }
+    }
+
+    fn register_causal_qualification_for_parent(
+        &mut self,
+        producer: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        let Some(direct_claim) = self
+            .bounds
+            .root_claim_by_producer_constraint
+            .get(&producer)
+            .copied()
+        else {
+            return;
+        };
+        self.register_causal_direct_claim_qualification(producer, direct_claim, parent);
+    }
+
+    fn register_causal_direct_claim_qualification(
+        &mut self,
+        producer: ConstraintRecordId,
+        direct_claim: UpperReplayClaimId,
+        parent: ClaimQualifiedParent,
+    ) {
+        let Some(candidate) =
+            self.bounds
+                .causal_direct_claim_qualification(producer, direct_claim, parent)
+        else {
+            return;
+        };
+        let dependent = self.bounds.upper_replay_claims[direct_claim.0 as usize].current_record;
+        let candidate_is_new = !self
+            .bounds
+            .causal_qualification_by_direct_claim
+            .get(&direct_claim)
+            .is_some_and(|candidates| candidates.contains(&candidate));
+        let edge_is_new = !self
+            .bounds
+            .dependent_records_by_premise
+            .get(&ProofPremise::RootCoverage(candidate.coverage_root))
+            .is_some_and(|dependents| dependents.contains(&dependent));
+        if !candidate_is_new && !edge_is_new {
+            return;
+        }
+
+        let before =
+            self.projection_inclusion_snapshot(ProofPremise::RootCoverage(candidate.coverage_root));
+        self.bounds
+            .causal_qualification_by_direct_claim
+            .entry(direct_claim)
+            .or_default()
+            .insert(candidate);
+        self.register_premise_dependency_chain(
+            ProofPremise::RootCoverage(candidate.coverage_root),
+            dependent,
+            &mut FxHashSet::default(),
+        );
+        self.publish_projection_inclusion_snapshot(before);
+    }
+
     fn register_claim_parent_dependency_chain(
         &mut self,
         parent: ClaimQualifiedParent,
@@ -1072,6 +1158,39 @@ impl ConstraintMachine {
         let before = self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
         self.bounds.push_claim_qualified_parent(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
+        self.register_causal_qualification_for_parent(constraint, parent);
+        self.publish_projection_inclusion_snapshot(before);
+    }
+
+    pub(in crate::constraints) fn move_upper_replay_claim(
+        &mut self,
+        claim: UpperReplayClaimId,
+        new_record: BoundRecordId,
+    ) {
+        let replay_claim = &self.bounds.upper_replay_claims[claim.0 as usize];
+        let old_record = replay_claim.current_record;
+        if old_record == new_record {
+            return;
+        }
+        let mut affected_roots = FxHashSet::default();
+        affected_roots.insert(replay_claim.coverage_root);
+        affected_roots.extend(
+            self.bounds
+                .causal_qualification_by_direct_claim
+                .get(&claim)
+                .into_iter()
+                .flatten()
+                .map(|candidate| candidate.coverage_root),
+        );
+
+        let mut before = FxHashMap::default();
+        for root in affected_roots {
+            before.extend(self.projection_inclusion_snapshot(ProofPremise::RootCoverage(root)));
+        }
+        before.extend(self.projection_inclusion_snapshot(ProofPremise::Record(old_record)));
+        before.extend(self.projection_inclusion_snapshot(ProofPremise::Record(new_record)));
+
+        self.bounds.move_upper_replay_claim(claim, new_record);
         self.publish_projection_inclusion_snapshot(before);
     }
 

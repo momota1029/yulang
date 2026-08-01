@@ -554,6 +554,12 @@ impl ClaimQualifiedParent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct CausalDirectClaimQualification {
+    parent: ClaimQualifiedParent,
+    coverage_root: UpperReplayClaimId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum QualifiedCarrier {
     Replay(BinaryReplayDerivation),
     Structural(StructuralDerivation),
@@ -1297,6 +1303,9 @@ pub struct TypeBounds {
     // Append-only mirror of Original claims, keyed by their stable producer identity.
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
     claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
+    // Append-only stable candidates; co-location and liveness remain evaluation-time predicates.
+    causal_qualification_by_direct_claim:
+        FxHashMap<UpperReplayClaimId, FxHashSet<CausalDirectClaimQualification>>,
     // Append-only exact-carrier projection of `claim_parents_by_constraint`.
     qualified_carrier_index: FxHashMap<ConstraintRecordId, FxHashSet<QualifiedCarrier>>,
     replay_claim_parent_keys: FxHashSet<ReplayClaimParentKey>,
@@ -1351,6 +1360,33 @@ impl TypeBounds {
             .entry(result)
             .or_default()
             .insert(parent.exact_carrier());
+    }
+
+    fn causal_direct_claim_qualification(
+        &self,
+        producer: ConstraintRecordId,
+        direct_claim: UpperReplayClaimId,
+        parent: ClaimQualifiedParent,
+    ) -> Option<CausalDirectClaimQualification> {
+        let claim = self.upper_replay_claims.get(direct_claim.0 as usize)?;
+        if claim.producer_constraint != producer
+            || claim.kind != UpperReplayClaimKind::Direct
+            || claim.lineage != UpperReplayClaimLineage::Original
+            || self.root_claim_by_producer_constraint.get(&producer) != Some(&direct_claim)
+        {
+            return None;
+        }
+        let coverage_root = self.canonical_coverage_root(parent.parent_claim())?;
+        matches!(
+            self.upper_replay_claims
+                .get(coverage_root.0 as usize)
+                .map(|claim| claim.kind),
+            Some(UpperReplayClaimKind::Reduced(_))
+        )
+        .then_some(CausalDirectClaimQualification {
+            parent,
+            coverage_root,
+        })
     }
 
     fn register_record_proof_clause_link(
@@ -2011,6 +2047,13 @@ impl TypeBounds {
         if old_record == new_record {
             return;
         }
+        let causal_roots = self
+            .causal_qualification_by_direct_claim
+            .get(&claim)
+            .into_iter()
+            .flatten()
+            .map(|candidate| candidate.coverage_root)
+            .collect::<FxHashSet<_>>();
         if let Some(claims) = self.claims_by_upper_record.get_mut(&old_record) {
             claims.retain(|candidate| *candidate != claim);
         }
@@ -2040,6 +2083,34 @@ impl TypeBounds {
         let claims = self.claims_by_upper_record.entry(new_record).or_default();
         if !claims.contains(&claim) {
             claims.push(claim);
+        }
+        let retained_causal_roots = self
+            .claims_by_upper_record
+            .get(&old_record)
+            .into_iter()
+            .flatten()
+            .filter_map(|claim| self.causal_qualification_by_direct_claim.get(claim))
+            .flatten()
+            .map(|candidate| candidate.coverage_root)
+            .collect::<FxHashSet<_>>();
+        for root in causal_roots {
+            if !retained_causal_roots.contains(&root) {
+                // Proof-clause dependents are lower records. On this upper record the edge is
+                // qualification-owned, so the remaining co-located candidates are its complete
+                // ownership census and removal cannot erase a clause dependency.
+                let premise = ProofPremise::RootCoverage(root);
+                let remove_premise = self
+                    .dependent_records_by_premise
+                    .get_mut(&premise)
+                    .is_some_and(|dependents| {
+                        dependents.remove(&old_record);
+                        dependents.is_empty()
+                    });
+                if remove_premise {
+                    self.dependent_records_by_premise.remove(&premise);
+                }
+            }
+            self.insert_dependent_record_edge(ProofPremise::RootCoverage(root), new_record);
         }
     }
 
