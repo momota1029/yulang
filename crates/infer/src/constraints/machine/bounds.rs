@@ -934,10 +934,20 @@ impl ConstraintMachine {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) {
+        if self
+            .bounds
+            .record_proof_clause_link_is_registered(lower_record, support, clause)
+        {
+            return;
+        }
         let was_included = self.scheme_projection_record_is_included(lower_record);
         let (_, clause_inserted, link_inserted) =
             self.bounds
                 .register_record_proof_clause_link(lower_record, support, clause);
+        debug_assert!(
+            clause_inserted || link_inserted,
+            "clause-link duplicate preflight must agree with exact-key insertion"
+        );
         if !clause_inserted && !link_inserted {
             return;
         }
@@ -3844,6 +3854,53 @@ mod mutation_tests {
                 "each exact replay occurrence creates one clause/link and two record-premise edges"
             );
         }
+    }
+
+    #[test]
+    fn exact_clause_link_duplicate_preflight_keeps_new_support_distinct() {
+        let mut machine = ConstraintMachine::new();
+        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 30);
+        let clause = RecordProofClause::DerivedUnary {
+            carrier: dpn_b_synthetic_unary_carrier(30),
+            premise: ProofPremise::Record(record),
+        };
+
+        assert!(
+            !machine
+                .bounds
+                .record_proof_clause_link_is_registered(record, support, clause)
+        );
+        let (_, clause_inserted, link_inserted) = machine
+            .bounds
+            .register_record_proof_clause_link(record, support, clause);
+        assert!(clause_inserted && link_inserted);
+        assert!(
+            machine
+                .bounds
+                .record_proof_clause_link_is_registered(record, support, clause)
+        );
+
+        let other_support =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::ConstraintOrigin {
+                constraint: ConstraintRecordId(10_031),
+                origin: OriginId::unknown_internal(),
+            });
+        assert!(
+            !machine
+                .bounds
+                .record_proof_clause_link_is_registered(record, other_support, clause),
+            "an existing clause with a new support is a new attribution, not a duplicate"
+        );
+        let (_, clause_inserted, link_inserted) =
+            machine
+                .bounds
+                .register_record_proof_clause_link(record, other_support, clause);
+        assert!(!clause_inserted && link_inserted);
+        assert!(machine.bounds.record_proof_clause_link_is_registered(
+            record,
+            other_support,
+            clause
+        ));
     }
 
     fn dpn_b_synthetic_projection_record(

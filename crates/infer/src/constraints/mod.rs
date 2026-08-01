@@ -657,6 +657,13 @@ struct RecordProofClauseLink {
     clause: RecordProofClauseId,
 }
 
+type RecordProofClauseKey = (BoundRecordId, RecordProofClause);
+type RecordProofClauseLinkKey = (
+    BoundRecordId,
+    SchemeProjectionProofSupport,
+    RecordProofClauseId,
+);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SchemeProjectionProof {
     pub(crate) lower_record: BoundRecordId,
@@ -1309,14 +1316,10 @@ pub struct TypeBounds {
     scheme_projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     scheme_projection_claimed_lower_owners: FxHashSet<TypeVar>,
     record_proof_clauses: Vec<RecordProofClauseRecord>,
-    record_proof_clause_by_key: FxHashMap<(BoundRecordId, RecordProofClause), RecordProofClauseId>,
+    record_proof_clause_by_key: FxHashMap<RecordProofClauseKey, RecordProofClauseId>,
     record_proof_clause_ids_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseId>>,
     record_proof_clause_links_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseLink>>,
-    record_proof_clause_link_keys: FxHashSet<(
-        BoundRecordId,
-        SchemeProjectionProofSupport,
-        RecordProofClauseId,
-    )>,
+    record_proof_clause_link_keys: FxHashSet<RecordProofClauseLinkKey>,
     dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
@@ -1359,36 +1362,33 @@ impl TypeBounds {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) -> (RecordProofClauseId, bool, bool) {
-        let (clause_id, clause_inserted) = if let Some(clause_id) = self
-            .record_proof_clause_by_key
-            .get(&(lower_record, clause))
-            .copied()
-        {
-            (clause_id, false)
-        } else {
-            let clause_id = RecordProofClauseId(self.record_proof_clauses.len() as u32);
-            self.record_proof_clauses.push(RecordProofClauseRecord {
-                id: clause_id,
-                lower_record,
-                clause,
-            });
-            self.record_proof_clause_by_key
-                .insert((lower_record, clause), clause_id);
-            self.record_proof_clause_ids_by_lower_record
-                .entry(lower_record)
-                .or_default()
-                .push(clause_id);
-            (clause_id, true)
-        };
+        let clause_key = Self::record_proof_clause_key(lower_record, clause);
+        let (clause_id, clause_inserted) =
+            if let Some(clause_id) = self.record_proof_clause_by_key.get(&clause_key).copied() {
+                (clause_id, false)
+            } else {
+                let clause_id = RecordProofClauseId(self.record_proof_clauses.len() as u32);
+                self.record_proof_clauses.push(RecordProofClauseRecord {
+                    id: clause_id,
+                    lower_record,
+                    clause,
+                });
+                self.record_proof_clause_by_key
+                    .insert(clause_key, clause_id);
+                self.record_proof_clause_ids_by_lower_record
+                    .entry(lower_record)
+                    .or_default()
+                    .push(clause_id);
+                (clause_id, true)
+            };
         // Claimed supports are normalized to their canonical root by every production caller, so
         // claim replacement in the flat ledger cannot stale either the clause or its link tag.
         let link = RecordProofClauseLink {
             support,
             clause: clause_id,
         };
-        let link_inserted =
-            self.record_proof_clause_link_keys
-                .insert((lower_record, support, clause_id));
+        let link_key = Self::record_proof_clause_link_key(lower_record, support, clause_id);
+        let link_inserted = self.record_proof_clause_link_keys.insert(link_key);
         if link_inserted {
             self.record_proof_clause_links_by_lower_record
                 .entry(lower_record)
@@ -1396,6 +1396,35 @@ impl TypeBounds {
                 .push(link);
         }
         (clause_id, clause_inserted, link_inserted)
+    }
+
+    fn record_proof_clause_link_is_registered(
+        &self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> bool {
+        let clause_key = Self::record_proof_clause_key(lower_record, clause);
+        let Some(clause_id) = self.record_proof_clause_by_key.get(&clause_key).copied() else {
+            return false;
+        };
+        let link_key = Self::record_proof_clause_link_key(lower_record, support, clause_id);
+        self.record_proof_clause_link_keys.contains(&link_key)
+    }
+
+    fn record_proof_clause_key(
+        lower_record: BoundRecordId,
+        clause: RecordProofClause,
+    ) -> RecordProofClauseKey {
+        (lower_record, clause)
+    }
+
+    fn record_proof_clause_link_key(
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClauseId,
+    ) -> RecordProofClauseLinkKey {
+        (lower_record, support, clause)
     }
 
     fn insert_dependent_record_edge(
