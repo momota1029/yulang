@@ -705,6 +705,7 @@ enum ProofEvalState {
 struct SchemeProjectionEvaluator<'a> {
     machine: &'a ConstraintMachine,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
+    visiting_nodes: usize,
     record_result_overrides: FxHashMap<BoundRecordId, bool>,
     root_result_overrides: FxHashMap<UpperReplayClaimId, bool>,
     proof_overrides: FxHashMap<BoundRecordId, Option<&'a [SchemeProjectionProof]>>,
@@ -716,6 +717,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         Self {
             machine,
             states: FxHashMap::default(),
+            visiting_nodes: 0,
             record_result_overrides: FxHashMap::default(),
             root_result_overrides: FxHashMap::default(),
             proof_overrides: FxHashMap::default(),
@@ -968,13 +970,61 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             }
             None => {
                 self.states.insert(node, ProofEvalState::Visiting);
+                self.visiting_nodes += 1;
                 None
             }
         }
     }
 
     fn finish(&mut self, node: ProofEvalNode, result: bool) -> bool {
+        debug_assert_eq!(self.states.get(&node), Some(&ProofEvalState::Visiting));
         self.states.insert(node, ProofEvalState::Done(result));
+        self.visiting_nodes -= 1;
+        result
+    }
+}
+
+/// Shares acyclic projection results across top-level queries over one fixed current view.
+///
+/// A cycle cut can leave root-dependent `Done` results in the shared evaluator. Once a query cuts
+/// a cycle, that evaluator is discarded and every remaining query uses its own fresh evaluator.
+struct SchemeProjectionEvaluationRound<'a> {
+    machine: &'a ConstraintMachine,
+    shared: Option<SchemeProjectionEvaluator<'a>>,
+    sharing_disabled: bool,
+}
+
+impl<'a> SchemeProjectionEvaluationRound<'a> {
+    fn new(machine: &'a ConstraintMachine) -> Self {
+        Self {
+            machine,
+            shared: Some(SchemeProjectionEvaluator::new(machine)),
+            sharing_disabled: false,
+        }
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        if self.sharing_disabled {
+            return SchemeProjectionEvaluator::new(self.machine).eval_record(record);
+        }
+
+        let shared = self
+            .shared
+            .as_mut()
+            .expect("sharing remains available until a cycle cut disables it");
+        let cuts_before = shared.cycle_cuts;
+        let result = shared.eval_record(record);
+        assert_eq!(
+            shared.visiting_nodes, 0,
+            "projection evaluation left a Visiting node after a top-level query"
+        );
+        let cycle_was_cut = shared.cycle_cuts != cuts_before;
+
+        if cycle_was_cut {
+            self.shared = None;
+            self.sharing_disabled = true;
+        }
+
         result
     }
 }
@@ -997,6 +1047,7 @@ impl ConstraintMachine {
             .and_then(Option::as_ref)
             .into_iter()
             .flat_map(VarBounds::projection_lower_records);
+        let mut evaluation_round = SchemeProjectionEvaluationRound::new(self);
         records.filter_map(move |(record, bound)| {
             let Some(proofs) = claimed_owner
                 .then(|| bounds.projection_proofs_by_lower_record.get(&record))
@@ -1053,7 +1104,7 @@ impl ConstraintMachine {
                     uncovered_claims.push(*claim_id);
                 }
             }
-            let included = self.scheme_projection_record_is_included(record);
+            let included = evaluation_round.eval_record(record);
             included.then_some(SchemeProjectableLower {
                 record,
                 bound,
