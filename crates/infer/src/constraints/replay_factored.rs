@@ -93,6 +93,8 @@ pub(super) enum ReplayFactoredShadowFailure {
         expected: RecordProofClauseId,
         actual: RecordProofClauseId,
     },
+    #[cfg(any(test, debug_assertions))]
+    OracleMismatch(ReplayFactoredOracleMismatch),
     UnknownReplayOccurrence(ReplayOccurrenceId),
     InvalidReplayParentCoverageRoot {
         claim: UpperReplayClaimId,
@@ -106,6 +108,19 @@ pub(super) enum ReplayFactoredShadowFailure {
     },
     CorruptParentSetIndex,
     CorruptReplayOccurrenceIndex,
+}
+
+#[cfg(any(test, debug_assertions))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ReplayFactoredOracleMismatch {
+    ExactParentRelation,
+    QualifiedReplayCarriers,
+    FirstReplayWitness,
+    ClauseMapping,
+    ExactClauseLinks,
+    AttributedRoots,
+    ReplayDependencyEdges,
+    DerivedReplayLineage,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -735,9 +750,23 @@ pub(super) struct ReplayResultSummary {
         ReplayClaimParentSide,
         ParentSetVersionId,
     )>,
+    /// Debug/test admission checks are explicitly opt-in because each boundary reconstructs the
+    /// legacy relation. The field and all of its consumers disappear from release builds.
+    #[cfg(any(test, debug_assertions))]
+    event_oracle_enabled: bool,
 }
 
 impl ReplayResultSummary {
+    #[cfg(any(test, debug_assertions))]
+    pub(super) fn enable_event_oracle(&mut self) {
+        self.event_oracle_enabled = true;
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    pub(super) fn event_oracle_enabled(&self) -> bool {
+        self.event_oracle_enabled
+    }
+
     pub(super) fn try_record_admission(
         &mut self,
         result: ConstraintRecordId,
