@@ -13,6 +13,7 @@ mod machine;
 pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
 mod portable_explain;
+mod replay_factored;
 mod row_effect;
 #[cfg(test)]
 mod tests;
