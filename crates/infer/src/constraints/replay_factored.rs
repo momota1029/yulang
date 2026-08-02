@@ -733,6 +733,111 @@ impl ReplayOccurrenceStore {
     }
 }
 
+/// Flat claim-parent storage for the structural and reduction routes that RCPF does not
+/// factorize.
+#[derive(Debug, Default)]
+pub(super) struct NonReplayClaimParentStore {
+    by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
+    #[cfg(test)]
+    fail_next_reservation: bool,
+}
+
+impl NonReplayClaimParentStore {
+    pub(super) fn try_admit(
+        &mut self,
+        result: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) -> ReplayFactoredResult<bool> {
+        if matches!(parent, ClaimQualifiedParent::ReplayConstraint { .. }) {
+            return Ok(false);
+        }
+        if let Some(parents) = self.by_constraint.get_mut(&result) {
+            if parents.contains(&parent) {
+                return Ok(false);
+            }
+            #[cfg(test)]
+            if std::mem::take(&mut self.fail_next_reservation) {
+                return Err(ReplayFactoredShadowFailure::AllocationFailed);
+            }
+            parents
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            parents.push(parent);
+            return Ok(true);
+        }
+
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_reservation) {
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
+        self.by_constraint
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        let mut parents = Vec::new();
+        parents
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        parents.push(parent);
+        self.by_constraint.insert(result, parents);
+        Ok(true)
+    }
+
+    fn parents_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = ClaimQualifiedParent> + '_ {
+        self.by_constraint
+            .get(&result)
+            .into_iter()
+            .flat_map(|parents| parents.iter().copied())
+    }
+
+    #[cfg(test)]
+    pub(super) fn storage_census(&self) -> (usize, usize, usize, usize) {
+        (
+            self.by_constraint.len(),
+            self.by_constraint.capacity(),
+            self.by_constraint.values().map(Vec::len).sum(),
+            self.by_constraint.values().map(Vec::capacity).sum(),
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_reservation(&mut self) {
+        self.fail_next_reservation = true;
+    }
+}
+
+/// Read-side RCPF boundary. The facade names the two queries from the design while reusing the
+/// existing occurrence vector and `by_result` index without adding another projection.
+impl ConstraintMachine {
+    pub(super) fn replay_occurrences_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = ReplayOccurrenceId> + '_ {
+        self.replay_occurrences
+            .by_result
+            .get(&result)
+            .into_iter()
+            .flat_map(|occurrences| occurrences.iter().copied())
+    }
+
+    pub(super) fn replay_occurrence(
+        &self,
+        id: ReplayOccurrenceId,
+    ) -> ReplayFactoredResult<&ReplayOccurrence> {
+        self.replay_occurrences.occurrence(id)
+    }
+
+    pub(super) fn non_replay_claim_parents_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = ClaimQualifiedParent> + '_ {
+        self.non_replay_claim_parents_by_constraint
+            .parents_for_result(result)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct FirstReplayParentWitness {
     pub(super) occurrence: ReplayOccurrenceId,

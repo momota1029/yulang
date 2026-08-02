@@ -12,6 +12,7 @@ impl ConstraintMachine {
             replay_occurrences: ReplayOccurrenceStore::default(),
             replay_result_summary: ReplayResultSummary::default(),
             replay_clause_projection: ReplayClauseProjection::default(),
+            non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
             replay_factored_shadow_status: ReplayFactoredShadowStatus::Active,
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),

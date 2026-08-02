@@ -1714,8 +1714,30 @@ impl ConstraintMachine {
     ) {
         let before = self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
         self.bounds.push_claim_qualified_parent(constraint, parent);
+        self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
         self.publish_projection_inclusion_snapshot(before);
+    }
+
+    /// Observe an already completed legacy admission. Failure quarantines the additive RCPF
+    /// representation without changing legacy route publication or evaluation.
+    fn observe_non_replay_claim_parent_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        if !matches!(
+            self.replay_factored_shadow_status,
+            ReplayFactoredShadowStatus::Active
+        ) {
+            return;
+        }
+        if let Err(failure) = self
+            .non_replay_claim_parents_by_constraint
+            .try_admit(result, parent)
+        {
+            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+        }
     }
 
     pub(in crate::constraints) fn lower_record_for_constraint(
@@ -4527,6 +4549,269 @@ mod mutation_tests {
                 }
             })
             .claim
+    }
+
+    fn legacy_non_replay_claim_parents(
+        machine: &ConstraintMachine,
+        result: ConstraintRecordId,
+    ) -> Vec<ClaimQualifiedParent> {
+        machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&result)
+            .into_iter()
+            .flat_map(|parents| parents.iter().copied())
+            .filter(|parent| !matches!(parent, ClaimQualifiedParent::ReplayConstraint { .. }))
+            .collect()
+    }
+
+    fn assert_non_replay_store_matches_legacy(
+        machine: &ConstraintMachine,
+        result: ConstraintRecordId,
+    ) {
+        assert_eq!(
+            machine
+                .non_replay_claim_parents_for_result(result)
+                .collect::<Vec<_>>(),
+            legacy_non_replay_claim_parents(machine, result),
+            "the RCPF-C1 flat store is the legacy ledger with replay parents filtered out"
+        );
+    }
+
+    #[test]
+    fn rcpf_c1_query_facade_reuses_the_occurrence_store_indexes() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+
+        let occurrence_ids = fixture
+            .machine
+            .replay_occurrences_for_result(fixture.result)
+            .collect::<Vec<_>>();
+        assert_eq!(occurrence_ids.len(), 1);
+        let occurrence = fixture
+            .machine
+            .replay_occurrence(occurrence_ids[0])
+            .expect("the facade resolves an ID from the existing by-result index");
+        assert_eq!(occurrence.result, fixture.result);
+        assert_eq!(occurrence.carrier, replay);
+        assert!(
+            fixture
+                .machine
+                .replay_occurrences_for_result(ConstraintRecordId(u32::MAX))
+                .next()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage() {
+        let mut fixture = cdm_replay_claim_fixture();
+        assert_non_replay_store_matches_legacy(&fixture.machine, fixture.result);
+        assert_eq!(
+            fixture
+                .machine
+                .non_replay_claim_parents_by_constraint
+                .storage_census(),
+            (0, 0, 0, 0),
+            "a no-claim record does not allocate the flat non-replay store"
+        );
+
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+        assert_non_replay_store_matches_legacy(&fixture.machine, fixture.result);
+        assert_eq!(
+            fixture
+                .machine
+                .non_replay_claim_parents_by_constraint
+                .storage_census(),
+            (0, 0, 0, 0),
+            "a replay-only record does not create a non-replay map entry"
+        );
+    }
+
+    #[test]
+    fn rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let reduction = RowDerivationId(70_000);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction);
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+        assert!(
+            fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+                .iter()
+                .all(|parent| matches!(
+                    parent,
+                    ClaimQualifiedParent::ReductionRouteConstraint { .. }
+                )),
+            "the parent fixture is reduction-only"
+        );
+        assert_non_replay_store_matches_legacy(&fixture.machine, fixture.result);
+
+        let child_lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["rcpf-c1-child".into()], Vec::new()));
+        let child_upper = fixture.machine.alloc_neg(Neg::Var(TypeVar(70)));
+        let structural_rule = StructuralDerivationRule::FunctionReturn;
+        assert!(fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            structural_rule,
+        ));
+        let child = fixture
+            .machine
+            .constraint_record_id(child_lower, ConstraintWeights::empty(), child_upper)
+            .expect("the structural-only child is canonical");
+        assert!(
+            fixture.machine.bounds.claim_parents_by_constraint[&child]
+                .iter()
+                .all(|parent| matches!(parent, ClaimQualifiedParent::StructuralConstraint { .. })),
+            "the child starts structural-only"
+        );
+        assert_non_replay_store_matches_legacy(&fixture.machine, child);
+
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture.machine.merge_replay_derivation(child, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot(&mut fixture.machine, child, replay, &[parent]);
+        let child_reduction = RowDerivationId(70_001);
+        fixture.machine.constraint_records[child.0 as usize]
+            .row_derivations
+            .push(child_reduction);
+        fixture.machine.register_reduction_route_claim_parent(
+            child,
+            child_reduction,
+            fixture.coverage_root,
+        );
+        let mixed = &fixture.machine.bounds.claim_parents_by_constraint[&child];
+        assert!(
+            mixed
+                .iter()
+                .any(|parent| matches!(parent, ClaimQualifiedParent::StructuralConstraint { .. }))
+        );
+        assert!(mixed.iter().any(|parent| matches!(
+            parent,
+            ClaimQualifiedParent::ReductionRouteConstraint { .. }
+        )));
+        assert!(
+            mixed
+                .iter()
+                .any(|parent| matches!(parent, ClaimQualifiedParent::ReplayConstraint { .. }))
+        );
+        assert_non_replay_store_matches_legacy(&fixture.machine, child);
+    }
+
+    #[test]
+    fn rcpf_c1_non_replay_store_preserves_structural_and_reduction_exact_dedup() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let reduction = RowDerivationId(70_002);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction);
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+        assert_eq!(
+            legacy_non_replay_claim_parents(&fixture.machine, fixture.result).len(),
+            1
+        );
+        assert_non_replay_store_matches_legacy(&fixture.machine, fixture.result);
+
+        let child_lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["rcpf-c1-dedup-child".into()], Vec::new()));
+        let child_upper = fixture.machine.alloc_neg(Neg::Var(TypeVar(71)));
+        let rule = StructuralDerivationRule::FunctionReturn;
+        assert!(fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            rule,
+        ));
+        assert!(!fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            rule,
+        ));
+        let child = fixture
+            .machine
+            .constraint_record_id(child_lower, ConstraintWeights::empty(), child_upper)
+            .expect("the dedup child is canonical");
+        assert_eq!(
+            legacy_non_replay_claim_parents(&fixture.machine, child).len(),
+            1
+        );
+        assert_non_replay_store_matches_legacy(&fixture.machine, child);
+    }
+
+    #[test]
+    fn rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let reduction = RowDerivationId(70_003);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction);
+        fixture
+            .machine
+            .non_replay_claim_parents_by_constraint
+            .fail_next_reservation();
+
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status,
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            legacy_non_replay_claim_parents(&fixture.machine, fixture.result).len(),
+            1
+        );
+        assert!(
+            fixture
+                .machine
+                .non_replay_claim_parents_for_result(fixture.result)
+                .next()
+                .is_none(),
+            "the failed shadow store does not partially commit"
+        );
     }
 
     #[test]
