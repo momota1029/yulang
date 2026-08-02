@@ -83,6 +83,7 @@ pub(super) enum ReplayFactoredShadowFailure {
     UnknownReplayParentDraft(ReplayParentDraftId),
     ReplayParentDraftMismatch(ReplayClaimParentSide),
     NonReplayParentInReplaySummary,
+    ReplayParentInNonReplayStore,
     ReplaySummaryCarrierMismatch {
         expected: BinaryReplayDerivation,
         actual: BinaryReplayDerivation,
@@ -859,6 +860,10 @@ pub(super) struct ReplayResultSummary {
     /// legacy relation. The field and all of its consumers disappear from release builds.
     #[cfg(any(test, debug_assertions))]
     event_oracle_enabled: bool,
+    /// Evaluator comparison is opt-in because it runs two additional fresh graph walks per
+    /// top-level query. Release builds remove the flag and all comparison code.
+    #[cfg(any(test, debug_assertions))]
+    evaluator_oracle_enabled: bool,
 }
 
 impl ReplayResultSummary {
@@ -870,6 +875,16 @@ impl ReplayResultSummary {
     #[cfg(any(test, debug_assertions))]
     pub(super) fn event_oracle_enabled(&self) -> bool {
         self.event_oracle_enabled
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    pub(super) fn enable_evaluator_oracle(&mut self) {
+        self.evaluator_oracle_enabled = true;
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    pub(super) fn evaluator_oracle_enabled(&self) -> bool {
+        self.evaluator_oracle_enabled
     }
 
     pub(super) fn try_record_admission(

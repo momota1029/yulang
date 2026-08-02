@@ -1085,6 +1085,15 @@ impl ConstraintMachine {
         self.replay_result_summary.enable_event_oracle();
     }
 
+    #[cfg(any(test, debug_assertions))]
+    #[allow(
+        dead_code,
+        reason = "debug consumers opt in explicitly; release builds remove this API"
+    )]
+    pub(in crate::constraints) fn enable_replay_factored_evaluator_oracle(&mut self) {
+        self.replay_result_summary.enable_evaluator_oracle();
+    }
+
     /// Run the expensive dual-write comparison only at a complete admission boundary. A
     /// mismatch quarantines the observer exactly like a shadow allocation failure; legacy state
     /// has already committed and never depends on this result.
@@ -4814,6 +4823,215 @@ mod mutation_tests {
         );
     }
 
+    fn rcpf_c2_replay_inspection_census(root_count: usize) -> (usize, usize, usize) {
+        assert!(root_count > 0);
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let mut parents = vec![fixture.parent];
+        for index in 1..root_count {
+            let offset = u32::try_from(index).expect("test root count fits in u32");
+            let claim = add_original_replay_parent_claim(
+                &mut fixture.machine,
+                TypeVar(80_000 + offset),
+                endpoint,
+                ConstraintRecordId(80_000 + offset),
+            );
+            parents.push(SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            });
+        }
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &parents);
+
+        let mut legacy = SchemeProjectionEvaluator::with_replay_source(
+            &fixture.machine,
+            ReplayEvaluatorSource::Legacy,
+        )
+        .with_record_result_override(fixture.lower_record, false);
+        let legacy_result = legacy.eval_constraint(fixture.result);
+        let mut factored = SchemeProjectionEvaluator::with_replay_source(
+            &fixture.machine,
+            ReplayEvaluatorSource::Factored,
+        )
+        .with_record_result_override(fixture.lower_record, false);
+        let factored_result = factored.eval_constraint(fixture.result);
+        assert_eq!(legacy_result, factored_result);
+        assert_eq!(factored.factored_read_failure, None);
+        (
+            legacy.replay_inspections,
+            factored.replay_inspections,
+            fixture.machine.replay_occurrences.occurrences.len(),
+        )
+    }
+
+    #[test]
+    fn rcpf_c2_factored_replay_inspections_scale_with_occurrences_not_roots() {
+        assert_eq!(rcpf_c2_replay_inspection_census(1), (1, 1, 1));
+        assert_eq!(rcpf_c2_replay_inspection_census(8), (8, 1, 1));
+    }
+
+    #[test]
+    fn rcpf_c2_factored_evaluator_uses_structural_and_reduction_flat_sources() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let reduction = RowDerivationId(70_100);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction);
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+        let child_lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["rcpf-c2-structural".into()], Vec::new()));
+        let child_upper = fixture.machine.alloc_neg(Neg::Var(TypeVar(72)));
+        assert!(fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            StructuralDerivationRule::FunctionReturn,
+        ));
+        let child = fixture
+            .machine
+            .constraint_record_id(child_lower, ConstraintWeights::empty(), child_upper)
+            .expect("the structural child is canonical");
+
+        for constraint in [fixture.result, child] {
+            let legacy = SchemeProjectionEvaluator::with_replay_source(
+                &fixture.machine,
+                ReplayEvaluatorSource::Legacy,
+            )
+            .with_record_result_override(fixture.lower_record, false)
+            .eval_constraint(constraint);
+            let mut factored = SchemeProjectionEvaluator::with_replay_source(
+                &fixture.machine,
+                ReplayEvaluatorSource::Factored,
+            )
+            .with_record_result_override(fixture.lower_record, false);
+            let factored_result = factored.eval_constraint(constraint);
+            assert_eq!(legacy, factored_result);
+            assert_eq!(factored.factored_read_failure, None);
+        }
+    }
+
+    #[test]
+    fn rcpf_c2_factored_oracle_matches_fresh_shared_and_insertion_order_queries() {
+        for standalone_first in [false, true] {
+            let mut machine = ConstraintMachine::new();
+            machine.enable_replay_factored_evaluator_oracle();
+            let (source, cycle_support) =
+                dpn_b_synthetic_projection_record(&mut machine, 100 + standalone_first as u32);
+            let (dependent, dependent_support) =
+                dpn_b_synthetic_projection_record(&mut machine, 110 + standalone_first as u32);
+            let standalone_support =
+                SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+            machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get_mut(&source)
+                .expect("the synthetic record has a proof ledger")
+                .push(SchemeProjectionProof {
+                    lower_record: source,
+                    support: standalone_support,
+                });
+            let cycle_clause = RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(100),
+                premise: ProofPremise::Record(dependent),
+            };
+            let standalone_clause = RecordProofClause::Standalone {
+                support: standalone_support,
+            };
+            let clauses = if standalone_first {
+                [
+                    (standalone_support, standalone_clause),
+                    (cycle_support, cycle_clause),
+                ]
+            } else {
+                [
+                    (cycle_support, cycle_clause),
+                    (standalone_support, standalone_clause),
+                ]
+            };
+            for (support, clause) in clauses {
+                dpn_b_register_synthetic_clause(&mut machine, source, support, clause);
+            }
+            dpn_b_register_synthetic_clause(
+                &mut machine,
+                dependent,
+                dependent_support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(101),
+                    premise: ProofPremise::Record(source),
+                },
+            );
+
+            for roots in [[source, dependent], [dependent, source]] {
+                for replay_source in [
+                    ReplayEvaluatorSource::Legacy,
+                    ReplayEvaluatorSource::Factored,
+                ] {
+                    let fresh = roots.map(|record| {
+                        SchemeProjectionEvaluator::with_replay_source(&machine, replay_source)
+                            .eval_record(record)
+                    });
+                    let mut round = SchemeProjectionEvaluationRound::with_replay_source(
+                        &machine,
+                        replay_source,
+                    );
+                    let shared = roots.map(|record| round.eval_record(record));
+                    assert_eq!(fresh, shared);
+                    assert_eq!(fresh, [true, true]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rcpf_c2_factored_oracle_skips_a_quarantined_shadow() {
+        let mut machine = ConstraintMachine::new();
+        machine.enable_replay_factored_evaluator_oracle();
+        let lower = machine.alloc_pos(Pos::Con(vec!["rcpf-c2-skip-lower".into()], Vec::new()));
+        let upper = machine.alloc_neg(Neg::Con(vec!["rcpf-c2-skip-upper".into()], Vec::new()));
+        machine.subtype(lower, upper, OriginId::unknown_internal());
+        let constraint = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the synthetic constraint is canonical");
+        machine.replay_occurrences.by_result.insert(
+            constraint,
+            vec![crate::constraints::replay_factored::ReplayOccurrenceId(
+                u32::MAX,
+            )],
+        );
+        machine.replay_factored_shadow_status =
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed);
+        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 120);
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(120),
+                premise: ProofPremise::Constraint(constraint),
+            },
+        );
+
+        assert!(
+            machine.scheme_projection_record_is_included(record),
+            "the legacy result is returned without constructing a factored evaluator"
+        );
+    }
+
     #[test]
     fn rcpf_shadow_exact_relation_matches_legacy_across_extensions_and_carriers() {
         let mut fixture = cdm_replay_claim_fixture();
@@ -5983,6 +6201,7 @@ mod mutation_tests {
     #[test]
     fn dpn_b_cycle_guard_self_cycle_is_not_a_proof() {
         let mut machine = ConstraintMachine::new();
+        machine.enable_replay_factored_evaluator_oracle();
         let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 0);
         dpn_b_register_synthetic_clause(
             &mut machine,
@@ -6004,6 +6223,7 @@ mod mutation_tests {
     #[test]
     fn dpn_b_cycle_guard_two_node_cycle_is_not_a_proof() {
         let mut machine = ConstraintMachine::new();
+        machine.enable_replay_factored_evaluator_oracle();
         let (first, first_support) = dpn_b_synthetic_projection_record(&mut machine, 1);
         let (second, second_support) = dpn_b_synthetic_projection_record(&mut machine, 2);
         dpn_b_register_synthetic_clause(
@@ -6040,6 +6260,7 @@ mod mutation_tests {
     fn dpn_b_cycle_guard_cyclic_route_plus_independent_source_stays_projectable() {
         for standalone_first in [false, true] {
             let mut machine = ConstraintMachine::new();
+            machine.enable_replay_factored_evaluator_oracle();
             let (source, cycle_support) =
                 dpn_b_synthetic_projection_record(&mut machine, standalone_first as u32 + 3);
             let (dependent, dependent_support) =
@@ -6109,6 +6330,7 @@ mod mutation_tests {
     #[test]
     fn dpn_b_cycle_guard_mixed_record_constraint_cycle_is_not_a_proof() {
         let mut machine = ConstraintMachine::new();
+        machine.enable_replay_factored_evaluator_oracle();
         let constraint_lower =
             machine.alloc_pos(Pos::Con(vec!["dpn-b-cycle-lower".into()], Vec::new()));
         let constraint_upper =
