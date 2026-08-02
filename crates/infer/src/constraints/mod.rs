@@ -1435,6 +1435,8 @@ pub struct TypeBounds {
     scheme_projection_claims_by_lower_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     projection_proofs_by_lower_record: FxHashMap<BoundRecordId, Vec<SchemeProjectionProof>>,
     scheme_projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
+    scheme_projection_lower_record_memberships:
+        FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     scheme_projection_claimed_lower_owners: FxHashSet<TypeVar>,
     record_proof_clauses: Vec<RecordProofClauseRecord>,
     record_proof_clause_by_key: FxHashMap<RecordProofClauseKey, RecordProofClauseId>,
@@ -2121,12 +2123,14 @@ impl TypeBounds {
                 });
                 metadata_changed = true;
             }
-            let records = self
-                .scheme_projection_lower_records_by_root
-                .entry(root)
-                .or_default();
-            if !records.contains(&lower_record) {
-                records.push(lower_record);
+            if self
+                .scheme_projection_lower_record_memberships
+                .insert((root, lower_record))
+            {
+                self.scheme_projection_lower_records_by_root
+                    .entry(root)
+                    .or_default()
+                    .push(lower_record);
                 metadata_changed = true;
             }
         }
