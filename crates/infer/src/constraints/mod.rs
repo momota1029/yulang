@@ -945,20 +945,23 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         record: BoundRecordId,
         support: SchemeProjectionProofSupport,
     ) -> bool {
-        let support = match support {
+        match support {
             SchemeProjectionProofSupport::Claimed(claim) => {
                 let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
                     return false;
                 };
-                SchemeProjectionProofSupport::Claimed(root)
+                self.machine
+                    .bounds
+                    .attributed_claim_supports
+                    .contains(&(record, root))
             }
-            independent => independent,
-        };
-        self.machine
-            .bounds
-            .record_proof_clause_links_by_lower_record
-            .get(&record)
-            .is_some_and(|links| links.iter().any(|link| link.support == support))
+            independent => self
+                .machine
+                .bounds
+                .record_proof_clause_links_by_lower_record
+                .get(&record)
+                .is_some_and(|links| links.iter().any(|link| link.support == independent)),
+        }
     }
 
     fn enter(&mut self, node: ProofEvalNode) -> Option<bool> {
@@ -1443,6 +1446,8 @@ pub struct TypeBounds {
     record_proof_clause_ids_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseId>>,
     record_proof_clause_links_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseLink>>,
     record_proof_clause_link_keys: FxHashSet<RecordProofClauseLinkKey>,
+    // Append-only claimed-support projection of `record_proof_clause_link_keys`.
+    attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
@@ -1513,6 +1518,10 @@ impl TypeBounds {
         let link_key = Self::record_proof_clause_link_key(lower_record, support, clause_id);
         let link_inserted = self.record_proof_clause_link_keys.insert(link_key);
         if link_inserted {
+            if let SchemeProjectionProofSupport::Claimed(root) = support {
+                self.attributed_claim_supports
+                    .insert((lower_record, root));
+            }
             self.record_proof_clause_links_by_lower_record
                 .entry(lower_record)
                 .or_default()
