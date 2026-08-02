@@ -1,5 +1,9 @@
 use super::*;
 
+use std::hash::{Hash, Hasher};
+
+use crate::constraints::replay_factored::{ReplayParentDraft, ReplayParentDraftId};
+use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
@@ -13,12 +17,17 @@ type ReplayClaimParents = SmallVec<[SideTaggedReplayClaim; 2]>;
 struct BoundReplayAction {
     constraint: SubtypeConstraintKey,
     derivation: BinaryReplayDerivation,
+    // Legacy admission remains authoritative until the RCPF cutover.
     claim_parents: ReplayClaimParents,
+    lower_parents: ReplayParentDraftId,
+    upper_parents: ReplayParentDraftId,
     canonicalization_disposition: Option<ConstraintCanonicalizationDisposition>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct BoundReplayPlan {
+    parent_drafts: Vec<ReplayParentDraft>,
+    parent_drafts_by_fingerprint: FxHashMap<u64, SmallVec<[ReplayParentDraftId; 1]>>,
     input_count: usize,
     generated: usize,
     var_var: usize,
@@ -36,6 +45,69 @@ struct BoundReplayApplyStats {
     accepted: usize,
     duplicate: usize,
     trivial: usize,
+}
+
+impl BoundReplayPlan {
+    /// Intern the ordered claim projection for one side. The fingerprint is only an index hint;
+    /// exact draft contents decide reuse.
+    fn intern_parent_draft(
+        &mut self,
+        claim_parents: &ReplayClaimParents,
+        parent_side: ReplayClaimParentSide,
+    ) -> ReplayParentDraftId {
+        let mut parent_count = 0usize;
+        let mut hasher = FxHasher::default();
+        for parent in claim_parents
+            .iter()
+            .filter(|parent| parent.parent_side == parent_side)
+        {
+            parent.claim.hash(&mut hasher);
+            parent_count += 1;
+        }
+        if parent_count == 0 {
+            return ReplayParentDraftId::EMPTY;
+        }
+        parent_count.hash(&mut hasher);
+        let fingerprint = hasher.finish();
+
+        if let Some(candidates) = self.parent_drafts_by_fingerprint.get(&fingerprint) {
+            for &candidate in candidates {
+                let Some(draft) = self.parent_draft(candidate) else {
+                    continue;
+                };
+                if draft.claims.iter().copied().eq(claim_parents
+                    .iter()
+                    .filter(|parent| parent.parent_side == parent_side)
+                    .map(|parent| parent.claim))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        let id = u32::try_from(self.parent_drafts.len())
+            .ok()
+            .and_then(|index| index.checked_add(1))
+            .map(ReplayParentDraftId)
+            .expect("a replay plan cannot contain more than u32::MAX parent drafts");
+        let claims = claim_parents
+            .iter()
+            .filter(|parent| parent.parent_side == parent_side)
+            .map(|parent| parent.claim)
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        self.parent_drafts.push(ReplayParentDraft { claims });
+        self.parent_drafts_by_fingerprint
+            .entry(fingerprint)
+            .or_default()
+            .push(id);
+        id
+    }
+
+    fn parent_draft(&self, id: ReplayParentDraftId) -> Option<&ReplayParentDraft> {
+        let index = id.0.checked_sub(1)?;
+        self.parent_drafts.get(index as usize)
+    }
 }
 
 enum LowerProjectionDelta {
@@ -2231,6 +2303,10 @@ impl ConstraintMachine {
         claim_parents: ReplayClaimParents,
         replay: &mut BoundReplayPlan,
     ) {
+        let lower_parents =
+            replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower);
+        let upper_parents =
+            replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Upper);
         let attempted = SubtypeConstraintKey {
             lower,
             upper,
@@ -2246,6 +2322,8 @@ impl ConstraintMachine {
                 constraint: attempted,
                 derivation,
                 claim_parents,
+                lower_parents,
+                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -2260,6 +2338,8 @@ impl ConstraintMachine {
                 constraint,
                 derivation,
                 claim_parents,
+                lower_parents,
+                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -2270,6 +2350,8 @@ impl ConstraintMachine {
                 constraint,
                 derivation,
                 claim_parents,
+                lower_parents,
+                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -2278,6 +2360,8 @@ impl ConstraintMachine {
             constraint,
             derivation,
             claim_parents,
+            lower_parents,
+            upper_parents,
             canonicalization_disposition,
         });
     }
@@ -3096,6 +3180,221 @@ impl ConstraintMachine {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    fn replay_plan_actions(replay: &BoundReplayPlan) -> impl Iterator<Item = &BoundReplayAction> {
+        replay
+            .actions
+            .iter()
+            .chain(&replay.evidence_actions)
+            .chain(&replay.duplicate_actions)
+            .chain(&replay.trivial_actions)
+    }
+
+    fn assert_parent_drafts_match_legacy(replay: &BoundReplayPlan) {
+        for action in replay_plan_actions(replay) {
+            for (side, draft_id) in [
+                (ReplayClaimParentSide::Lower, action.lower_parents),
+                (ReplayClaimParentSide::Upper, action.upper_parents),
+            ] {
+                let expected = action
+                    .claim_parents
+                    .iter()
+                    .filter(|parent| parent.parent_side == side)
+                    .map(|parent| parent.claim)
+                    .collect::<Vec<_>>();
+                let actual = if draft_id == ReplayParentDraftId::EMPTY {
+                    &[][..]
+                } else {
+                    replay
+                        .parent_draft(draft_id)
+                        .expect("action draft ID belongs to its replay plan")
+                        .claims
+                        .as_ref()
+                };
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn replay_plan_parent_drafts_match_legacy_parent_order() {
+        let mut machine = ConstraintMachine::new();
+        let source = TypeVar(0);
+        let target = TypeVar(1);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        let derivation = BinaryReplayDerivation {
+            pivot: target,
+            lower: BoundRecordId(20),
+            upper: BoundRecordId(21),
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let claim_parents = ReplayClaimParents::from_iter([
+            SideTaggedReplayClaim {
+                claim: UpperReplayClaimId(30),
+                parent_side: ReplayClaimParentSide::Lower,
+            },
+            SideTaggedReplayClaim {
+                claim: UpperReplayClaimId(31),
+                parent_side: ReplayClaimParentSide::Lower,
+            },
+            SideTaggedReplayClaim {
+                claim: UpperReplayClaimId(40),
+                parent_side: ReplayClaimParentSide::Upper,
+            },
+            SideTaggedReplayClaim {
+                claim: UpperReplayClaimId(41),
+                parent_side: ReplayClaimParentSide::Upper,
+            },
+        ]);
+        let mut replay = BoundReplayPlan::default();
+
+        machine.push_replay_constraint_or_prefilter(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+            derivation,
+            claim_parents.clone(),
+            &mut replay,
+        );
+
+        let mut actions = replay_plan_actions(&replay);
+        let action = actions.next().expect("planning retains one replay action");
+        assert!(actions.next().is_none());
+        assert_eq!(action.claim_parents, claim_parents);
+        assert_eq!(
+            replay
+                .parent_draft(action.lower_parents)
+                .expect("non-empty lower draft")
+                .claims
+                .as_ref(),
+            &[UpperReplayClaimId(30), UpperReplayClaimId(31)]
+        );
+        assert_eq!(
+            replay
+                .parent_draft(action.upper_parents)
+                .expect("non-empty upper draft")
+                .claims
+                .as_ref(),
+            &[UpperReplayClaimId(40), UpperReplayClaimId(41)]
+        );
+        let first_draft_ids = (action.lower_parents, action.upper_parents);
+        drop(actions);
+
+        machine.push_replay_constraint_or_prefilter(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+            BinaryReplayDerivation {
+                rule: ReplayRule::UpperBoundAdded,
+                ..derivation
+            },
+            claim_parents,
+            &mut replay,
+        );
+
+        assert_eq!(replay.parent_drafts.len(), 2);
+        assert_eq!(replay_plan_actions(&replay).count(), 2);
+        for action in replay_plan_actions(&replay) {
+            assert_eq!(
+                (action.lower_parents, action.upper_parents),
+                first_draft_ids
+            );
+        }
+        assert_parent_drafts_match_legacy(&replay);
+    }
+
+    #[test]
+    fn lower_and_upper_replay_planning_capture_legacy_parent_drafts() {
+        let mut machine = ConstraintMachine::new();
+        let pivot = TypeVar(0);
+        let lower_parent_owner = TypeVar(1);
+        let lower = machine.alloc_pos(Pos::Var(TypeVar(2)));
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(3)));
+        let origin = OriginId::unknown_internal();
+        let lower_record = machine
+            .bounds
+            .add_lower(
+                pivot,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let upper_record = machine
+            .bounds
+            .add_upper(
+                pivot,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let lower_parent_record = machine
+            .bounds
+            .add_upper(
+                lower_parent_owner,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let lower_parent = machine
+            .bounds
+            .original_upper_replay_claim(
+                lower_parent_record,
+                ConstraintRecordId(10_000),
+                UpperReplayClaimKind::Direct,
+            )
+            .claim;
+        let upper_parent = machine
+            .bounds
+            .original_upper_replay_claim(
+                upper_record,
+                ConstraintRecordId(10_001),
+                UpperReplayClaimKind::Direct,
+            )
+            .claim;
+        machine
+            .bounds
+            .scheme_projection_claims_by_lower_record
+            .insert(lower_record, vec![lower_parent]);
+
+        let lower_plan = machine.lower_bound_replay_actions(
+            pivot,
+            lower_record,
+            lower,
+            &ConstraintWeights::empty(),
+            &[],
+        );
+        let upper_plan = machine.upper_bound_replay_actions(
+            pivot,
+            upper_record,
+            upper,
+            &ConstraintWeights::empty(),
+        );
+
+        for replay in [&lower_plan, &upper_plan] {
+            assert_eq!(replay_plan_actions(replay).count(), 1);
+            let action = replay_plan_actions(replay)
+                .next()
+                .expect("the lower/upper pairing is planned");
+            assert_eq!(
+                action.claim_parents.as_slice(),
+                &[
+                    SideTaggedReplayClaim {
+                        claim: lower_parent,
+                        parent_side: ReplayClaimParentSide::Lower,
+                    },
+                    SideTaggedReplayClaim {
+                        claim: upper_parent,
+                        parent_side: ReplayClaimParentSide::Upper,
+                    },
+                ]
+            );
+            assert_parent_drafts_match_legacy(replay);
+        }
+    }
 
     #[test]
     fn replay_claim_parent_dedup_keeps_each_exact_replay_carrier() {
@@ -4488,6 +4787,8 @@ mod mutation_tests {
             constraint,
             derivation,
             claim_parents,
+            lower_parents: ReplayParentDraftId::EMPTY,
+            upper_parents: ReplayParentDraftId::EMPTY,
             canonicalization_disposition: None,
         }
     }
@@ -4936,6 +5237,8 @@ mod mutation_tests {
                 rule: ReplayRule::LowerBoundAdded,
             },
             claim_parents: ReplayClaimParents::new(),
+            lower_parents: ReplayParentDraftId::EMPTY,
+            upper_parents: ReplayParentDraftId::EMPTY,
             canonicalization_disposition: None,
         });
         machine.apply_bound_replay_evidence_actions(actions);

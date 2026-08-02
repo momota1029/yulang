@@ -8,7 +8,6 @@
 use std::marker::PhantomData;
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::SmallVec;
 
 use super::*;
 
@@ -46,39 +45,6 @@ impl ReplayParentDraftId {
 pub(super) struct ReplayParentDraft {
     /// Legacy admission order. Losers are intentionally plan-local.
     pub(super) claims: Box<[UpperReplayClaimId]>,
-}
-
-type BoundReplayActions = SmallVec<[BoundReplayAction; 4]>;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct BoundReplayAction {
-    pub(super) constraint: SubtypeConstraintKey,
-    pub(super) derivation: BinaryReplayDerivation,
-    pub(super) lower_parents: ReplayParentDraftId,
-    pub(super) upper_parents: ReplayParentDraftId,
-    pub(super) canonicalization_disposition: Option<ConstraintCanonicalizationDisposition>,
-}
-
-#[derive(Debug, Default, PartialEq, Eq)]
-pub(super) struct BoundReplayPlan {
-    pub(super) parent_drafts: Vec<ReplayParentDraft>,
-    pub(super) input_count: usize,
-    pub(super) generated: usize,
-    pub(super) var_var: usize,
-    pub(super) prefiltered: usize,
-    pub(super) prefilter_duplicate: ReplayDuplicateProfile,
-    pub(super) stats: BoundReplayApplyStats,
-    pub(super) actions: BoundReplayActions,
-    pub(super) evidence_actions: BoundReplayActions,
-    pub(super) duplicate_actions: BoundReplayActions,
-    pub(super) trivial_actions: BoundReplayActions,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(super) struct BoundReplayApplyStats {
-    pub(super) accepted: usize,
-    pub(super) duplicate: usize,
-    pub(super) trivial: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
