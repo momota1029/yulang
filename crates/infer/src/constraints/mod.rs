@@ -33,7 +33,9 @@ use poly::types::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use replay_factored::{ParentSetArena, ReplayFactoredShadowStatus, ReplayOccurrenceStore};
+use replay_factored::{
+    ParentSetArena, ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
+};
 
 #[cfg(test)]
 pub(crate) use mutation::MethodRoleMutation;
@@ -69,6 +71,7 @@ pub struct ConstraintMachine {
     bounds: TypeBounds,
     replay_parent_sets: ParentSetArena,
     replay_occurrences: ReplayOccurrenceStore,
+    replay_result_summary: ReplayResultSummary,
     replay_factored_shadow_status: ReplayFactoredShadowStatus,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,

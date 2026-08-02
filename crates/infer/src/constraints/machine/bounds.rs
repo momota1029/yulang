@@ -1852,7 +1852,13 @@ impl ConstraintMachine {
             );
         }
         if let Some(factored_drafts) = factored_drafts {
-            self.observe_factored_replay_parent_admission(result, replay, parents, factored_drafts);
+            self.observe_factored_replay_parent_admission(
+                result,
+                replay,
+                parents,
+                &inserted_parents,
+                factored_drafts,
+            );
         }
     }
 
@@ -1863,6 +1869,7 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
         legacy_parents: &[SideTaggedReplayClaim],
+        inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) {
         if !matches!(
@@ -1875,6 +1882,7 @@ impl ConstraintMachine {
             result,
             replay,
             legacy_parents,
+            inserted_parents,
             drafts,
         ) {
             self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
@@ -1886,6 +1894,7 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
         legacy_parents: &[SideTaggedReplayClaim],
+        inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) -> ReplayFactoredResult<()> {
         let lower_draft = drafts.resolve(drafts.lower)?;
@@ -1942,7 +1951,7 @@ impl ConstraintMachine {
             (upper_base, false)
         };
 
-        if let Some(occurrence_id) = occurrence_id {
+        let occurrence_id = if let Some(occurrence_id) = occurrence_id {
             if lower_changed || upper_changed {
                 self.replay_occurrences.update_parent_versions(
                     occurrence_id,
@@ -1950,14 +1959,31 @@ impl ConstraintMachine {
                     upper_parents,
                 )?;
             }
+            occurrence_id
         } else if lower_changed || upper_changed {
             self.replay_occurrences.try_insert(
                 key,
                 lower_parents,
                 upper_parents,
                 admission_ordinal,
-            )?;
-        }
+            )?
+        } else if inserted_parents.is_empty() {
+            return Ok(());
+        } else {
+            return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+        };
+        self.replay_result_summary.try_record_admission(
+            result,
+            occurrence_id,
+            replay,
+            admission_ordinal,
+            inserted_parents,
+            &[
+                (ReplayClaimParentSide::Lower, lower_parents, lower_changed),
+                (ReplayClaimParentSide::Upper, upper_parents, upper_changed),
+            ],
+            &self.bounds,
+        )?;
         Ok(())
     }
 
@@ -3731,6 +3757,64 @@ mod mutation_tests {
         oracle
     }
 
+    type ReplayFirstWitnessOracleValue = (
+        UpperReplayClaimId,
+        ReplayClaimParentSide,
+        BinaryReplayDerivation,
+    );
+
+    fn legacy_replay_first_witness_oracle(
+        machine: &ConstraintMachine,
+    ) -> FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitnessOracleValue> {
+        let mut oracle = FxHashMap::default();
+        for (&result, parents) in &machine.bounds.claim_parents_by_constraint {
+            for &parent in parents {
+                let ClaimQualifiedParent::ReplayConstraint {
+                    parent_claim,
+                    parent_side,
+                    replay,
+                } = parent
+                else {
+                    continue;
+                };
+                let root =
+                    machine.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
+                oracle
+                    .entry((result, root))
+                    .or_insert((parent_claim, parent_side, replay));
+            }
+        }
+        oracle
+    }
+
+    fn factored_replay_first_witness_oracle(
+        machine: &ConstraintMachine,
+    ) -> FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitnessOracleValue> {
+        let mut oracle = FxHashMap::default();
+        for (&key, &witness) in &machine.replay_result_summary.first_parent_by_root {
+            let occurrence = machine
+                .replay_occurrences
+                .occurrence(witness.occurrence)
+                .expect("first witness references a live shadow occurrence");
+            assert_eq!(occurrence.result, key.0);
+            assert!(occurrence.first_admission_ordinal <= witness.admission_ordinal);
+            assert!(
+                oracle
+                    .insert(
+                        key,
+                        (
+                            witness.parent_claim,
+                            witness.parent_side,
+                            occurrence.carrier,
+                        ),
+                    )
+                    .is_none(),
+                "one shadow summary entry exists per result and root"
+            );
+        }
+        oracle
+    }
+
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     struct ReplayFactoredStorageCensus {
         arena: (usize, usize, usize, usize, usize, usize, usize, usize),
@@ -3738,6 +3822,8 @@ mod mutation_tests {
         by_key: (usize, usize),
         by_result: (usize, usize, usize, usize),
         attachment_batches: (usize, usize),
+        first_parent_by_root: (usize, usize),
+        projected_parent_versions: (usize, usize),
     }
 
     fn replay_factored_storage_census(machine: &ConstraintMachine) -> ReplayFactoredStorageCensus {
@@ -3771,6 +3857,23 @@ mod mutation_tests {
                 machine.replay_occurrences.attachment_batches.len(),
                 machine.replay_occurrences.attachment_batches.capacity(),
             ),
+            first_parent_by_root: (
+                machine.replay_result_summary.first_parent_by_root.len(),
+                machine
+                    .replay_result_summary
+                    .first_parent_by_root
+                    .capacity(),
+            ),
+            projected_parent_versions: (
+                machine
+                    .replay_result_summary
+                    .projected_parent_versions
+                    .len(),
+                machine
+                    .replay_result_summary
+                    .projected_parent_versions
+                    .capacity(),
+            ),
         }
     }
 
@@ -3792,6 +3895,38 @@ mod mutation_tests {
         machine
             .bounds
             .original_upper_replay_claim(record, producer, UpperReplayClaimKind::Direct)
+            .claim
+    }
+
+    fn add_derived_replay_parent_claim(
+        machine: &mut ConstraintMachine,
+        owner: TypeVar,
+        endpoint: NegId,
+        root: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+    ) -> UpperReplayClaimId {
+        let record = machine
+            .bounds
+            .add_upper(
+                owner,
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        machine
+            .bounds
+            .derived_upper_replay_claim(record, root, producer, |depth| {
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim: root,
+                    parent_side: ReplayClaimParentSide::Lower,
+                    result,
+                    replay,
+                    depth,
+                }
+            })
             .claim
     }
 
@@ -3835,32 +3970,15 @@ mod mutation_tests {
             }],
         );
 
-        let alternate_record = fixture
-            .machine
-            .bounds
-            .add_upper(
-                TypeVar(91),
-                endpoint,
-                ConstraintWeights::empty(),
-                BoundDerivation::Origin(OriginId::unknown_internal()),
-            )
-            .id;
-        let alternate_claim = fixture
-            .machine
-            .bounds
-            .derived_upper_replay_claim(
-                alternate_record,
-                root,
-                ConstraintRecordId(30_001),
-                |depth| UpperReplayClaimLineage::ReplayConstraint {
-                    parent_claim: root,
-                    parent_side: ReplayClaimParentSide::Lower,
-                    result: fixture.result,
-                    replay: first,
-                    depth,
-                },
-            )
-            .claim;
+        let alternate_claim = add_derived_replay_parent_claim(
+            &mut fixture.machine,
+            TypeVar(91),
+            endpoint,
+            root,
+            ConstraintRecordId(30_001),
+            fixture.result,
+            first,
+        );
         assert_ne!(alternate_claim, root);
         apply_factored_canonical_duplicate_snapshot(
             &mut fixture.machine,
@@ -3893,6 +4011,36 @@ mod mutation_tests {
             legacy_replay_parent_oracle(&fixture.machine),
             factored_replay_parent_oracle(&fixture.machine)
         );
+        assert_eq!(
+            legacy_replay_first_witness_oracle(&fixture.machine),
+            factored_replay_first_witness_oracle(&fixture.machine)
+        );
+        let empty_version = fixture.machine.replay_parent_sets.empty_version();
+        assert!(
+            fixture
+                .machine
+                .replay_result_summary
+                .projected_parent_versions
+                .iter()
+                .all(|(_, _, version)| *version != empty_version)
+        );
+        for occurrence in &fixture.machine.replay_occurrences.occurrences {
+            for (side, version) in [
+                (ReplayClaimParentSide::Lower, occurrence.lower_parents),
+                (ReplayClaimParentSide::Upper, occurrence.upper_parents),
+            ] {
+                if version != empty_version {
+                    assert!(
+                        fixture
+                            .machine
+                            .replay_result_summary
+                            .projected_parent_versions
+                            .contains(&(occurrence.result, side, version)),
+                        "every changed nonempty current version is recorded as projected"
+                    );
+                }
+            }
+        }
         let first_occurrence = fixture.machine.replay_occurrences.occurrences[0].clone();
         assert_eq!(
             fixture
@@ -3919,6 +4067,56 @@ mod mutation_tests {
             legacy_replay_parent_oracle(&fixture.machine),
             factored_replay_parent_oracle(&fixture.machine)
         );
+        assert_eq!(
+            legacy_replay_first_witness_oracle(&fixture.machine),
+            factored_replay_first_witness_oracle(&fixture.machine)
+        );
+    }
+
+    #[test]
+    fn rcpf_summary_first_witness_tracks_legacy_insertion_order() {
+        for alternate_first in [false, true] {
+            let mut fixture = cdm_replay_claim_fixture();
+            let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+            let root = fixture.coverage_root;
+            let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
+                .key
+                .upper;
+            let alternate = add_derived_replay_parent_claim(
+                &mut fixture.machine,
+                TypeVar(92),
+                endpoint,
+                root,
+                ConstraintRecordId(30_002),
+                fixture.result,
+                replay,
+            );
+            let ordered_claims = if alternate_first {
+                [alternate, root]
+            } else {
+                [root, alternate]
+            };
+            let parents = ordered_claims.map(|claim| SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            });
+
+            apply_factored_canonical_duplicate_snapshot(
+                &mut fixture.machine,
+                fixture.result,
+                replay,
+                &parents,
+            );
+
+            let legacy = legacy_replay_first_witness_oracle(&fixture.machine);
+            let factored = factored_replay_first_witness_oracle(&fixture.machine);
+            assert_eq!(legacy, factored);
+            assert_eq!(
+                legacy[&(fixture.result, root)].0,
+                ordered_claims[0],
+                "the first legacy claim wins for its insertion order"
+            );
+        }
     }
 
     #[test]

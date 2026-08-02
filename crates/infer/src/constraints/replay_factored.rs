@@ -82,6 +82,11 @@ pub(super) enum ReplayFactoredShadowFailure {
     UnknownReplayParentClaim(UpperReplayClaimId),
     UnknownReplayParentDraft(ReplayParentDraftId),
     ReplayParentDraftMismatch(ReplayClaimParentSide),
+    NonReplayParentInReplaySummary,
+    ReplaySummaryCarrierMismatch {
+        expected: BinaryReplayDerivation,
+        actual: BinaryReplayDerivation,
+    },
     UnknownReplayOccurrence(ReplayOccurrenceId),
     InvalidReplayParentCoverageRoot {
         claim: UpperReplayClaimId,
@@ -724,6 +729,100 @@ pub(super) struct ReplayResultSummary {
         ReplayClaimParentSide,
         ParentSetVersionId,
     )>,
+}
+
+impl ReplayResultSummary {
+    pub(super) fn try_record_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        occurrence: ReplayOccurrenceId,
+        carrier: BinaryReplayDerivation,
+        admission_ordinal: u64,
+        inserted_parents: &[ClaimQualifiedParent],
+        changed_parent_versions: &[(ReplayClaimParentSide, ParentSetVersionId, bool)],
+        bounds: &TypeBounds,
+    ) -> ReplayFactoredResult<()> {
+        let mut pending_witnesses = Vec::new();
+        let mut pending_roots = FxHashSet::default();
+        let mut pending_storage_reserved = false;
+        for &parent in inserted_parents {
+            let ClaimQualifiedParent::ReplayConstraint {
+                parent_claim,
+                parent_side,
+                replay,
+            } = parent
+            else {
+                return Err(ReplayFactoredShadowFailure::NonReplayParentInReplaySummary);
+            };
+            if replay != carrier {
+                return Err(ReplayFactoredShadowFailure::ReplaySummaryCarrierMismatch {
+                    expected: carrier,
+                    actual: replay,
+                });
+            }
+            let root = replay_parent_coverage_root(bounds, parent_claim)?;
+            if self.first_parent_by_root.contains_key(&(result, root)) {
+                continue;
+            }
+            if !pending_storage_reserved {
+                pending_witnesses
+                    .try_reserve(inserted_parents.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                pending_roots
+                    .try_reserve(inserted_parents.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                pending_storage_reserved = true;
+            }
+            if pending_roots.insert(root) {
+                pending_witnesses.push((
+                    root,
+                    FirstReplayParentWitness {
+                        occurrence,
+                        parent_side,
+                        parent_claim,
+                        admission_ordinal,
+                    },
+                ));
+            }
+        }
+
+        let mut pending_versions = Vec::new();
+        for &(side, version, changed) in changed_parent_versions {
+            let key = (result, side, version);
+            if !changed
+                || version == ParentSetVersionId::EMPTY
+                || self.projected_parent_versions.contains(&key)
+            {
+                continue;
+            }
+            if pending_versions.is_empty() {
+                pending_versions
+                    .try_reserve(changed_parent_versions.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            }
+            pending_versions.push(key);
+        }
+
+        if !pending_witnesses.is_empty() {
+            self.first_parent_by_root
+                .try_reserve(pending_witnesses.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        }
+        if !pending_versions.is_empty() {
+            self.projected_parent_versions
+                .try_reserve(pending_versions.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        }
+        for (root, witness) in pending_witnesses {
+            self.first_parent_by_root
+                .entry((result, root))
+                .or_insert(witness);
+        }
+        for version in pending_versions {
+            self.projected_parent_versions.insert(version);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default)]
