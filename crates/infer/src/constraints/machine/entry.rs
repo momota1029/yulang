@@ -11,6 +11,7 @@ impl ConstraintMachine {
             replay_parent_sets: ParentSetArena::new(),
             replay_occurrences: ReplayOccurrenceStore::default(),
             replay_result_summary: ReplayResultSummary::default(),
+            replay_clause_projection: ReplayClauseProjection::default(),
             replay_factored_shadow_status: ReplayFactoredShadowStatus::Active,
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),

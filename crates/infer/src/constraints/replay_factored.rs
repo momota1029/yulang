@@ -87,6 +87,12 @@ pub(super) enum ReplayFactoredShadowFailure {
         expected: BinaryReplayDerivation,
         actual: BinaryReplayDerivation,
     },
+    ReplayClauseProjectionMismatch {
+        record: BoundRecordId,
+        occurrence: ReplayOccurrenceId,
+        expected: RecordProofClauseId,
+        actual: RecordProofClauseId,
+    },
     UnknownReplayOccurrence(ReplayOccurrenceId),
     InvalidReplayParentCoverageRoot {
         claim: UpperReplayClaimId,
@@ -829,7 +835,175 @@ impl ReplayResultSummary {
 pub(super) struct ReplayClauseProjection {
     pub(super) clause_by_record_and_occurrence:
         FxHashMap<(BoundRecordId, ReplayOccurrenceId), RecordProofClauseId>,
-    pub(super) attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
+    pub(super) replay_attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
+}
+
+impl ReplayClauseProjection {
+    pub(super) fn try_project_replay_parents(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+        parent_sets: &ParentSetArena,
+        occurrences: &ReplayOccurrenceStore,
+        bounds: &TypeBounds,
+    ) -> ReplayFactoredResult<()> {
+        let mut pending_mappings = FxHashMap::default();
+        let mut pending_supports = FxHashSet::default();
+        let mut mapping_storage_reserved = false;
+        let mut support_storage_reserved = false;
+
+        for &parent in parents {
+            let ClaimQualifiedParent::ReplayConstraint {
+                parent_claim,
+                parent_side,
+                replay,
+            } = parent
+            else {
+                continue;
+            };
+            let Some(occurrence_id) = occurrences.occurrence_id(ReplayOccurrenceKey {
+                result,
+                carrier: replay,
+            }) else {
+                continue;
+            };
+            let occurrence = occurrences.occurrence(occurrence_id)?;
+            let version = match parent_side {
+                ReplayClaimParentSide::Lower => occurrence.lower_parents,
+                ReplayClaimParentSide::Upper => occurrence.upper_parents,
+            };
+            let root = replay_parent_coverage_root(bounds, parent_claim)?;
+            if !parent_sets.contains(version, root)? {
+                continue;
+            }
+
+            let clause = RecordProofClause::ReplayConjunction {
+                carrier: replay,
+                lower_premise: replay.lower,
+                upper_premise: replay.upper,
+            };
+            let clause_key = TypeBounds::record_proof_clause_key(lower_record, clause);
+            let Some(clause_id) = bounds.record_proof_clause_by_key.get(&clause_key).copied()
+            else {
+                continue;
+            };
+            let support = SchemeProjectionProofSupport::Claimed(root);
+            let link_key =
+                TypeBounds::record_proof_clause_link_key(lower_record, support, clause_id);
+            if !bounds.record_proof_clause_link_keys.contains(&link_key) {
+                continue;
+            }
+
+            let mapping_key = (lower_record, occurrence_id);
+            if let Some(existing) = self
+                .clause_by_record_and_occurrence
+                .get(&mapping_key)
+                .copied()
+            {
+                if existing != clause_id {
+                    return Err(
+                        ReplayFactoredShadowFailure::ReplayClauseProjectionMismatch {
+                            record: lower_record,
+                            occurrence: occurrence_id,
+                            expected: existing,
+                            actual: clause_id,
+                        },
+                    );
+                }
+            } else if let Some(existing) = pending_mappings.get(&mapping_key).copied() {
+                if existing != clause_id {
+                    return Err(
+                        ReplayFactoredShadowFailure::ReplayClauseProjectionMismatch {
+                            record: lower_record,
+                            occurrence: occurrence_id,
+                            expected: existing,
+                            actual: clause_id,
+                        },
+                    );
+                }
+            } else {
+                if !mapping_storage_reserved {
+                    pending_mappings
+                        .try_reserve(parents.len())
+                        .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                    mapping_storage_reserved = true;
+                }
+                pending_mappings.insert(mapping_key, clause_id);
+            }
+
+            let support_key = (lower_record, root);
+            if !self.replay_attributed_claim_supports.contains(&support_key)
+                && !pending_supports.contains(&support_key)
+            {
+                if !support_storage_reserved {
+                    pending_supports
+                        .try_reserve(parents.len())
+                        .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                    support_storage_reserved = true;
+                }
+                pending_supports.insert(support_key);
+            }
+        }
+
+        if !pending_mappings.is_empty() {
+            self.clause_by_record_and_occurrence
+                .try_reserve(pending_mappings.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        }
+        if !pending_supports.is_empty() {
+            self.replay_attributed_claim_supports
+                .try_reserve(pending_supports.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        }
+        for (key, clause) in pending_mappings {
+            self.clause_by_record_and_occurrence
+                .entry(key)
+                .or_insert(clause);
+        }
+        self.replay_attributed_claim_supports
+            .extend(pending_supports);
+        Ok(())
+    }
+
+    pub(super) fn try_exact_links(
+        &self,
+        parent_sets: &ParentSetArena,
+        occurrences: &ReplayOccurrenceStore,
+    ) -> ReplayFactoredResult<
+        std::vec::IntoIter<(BoundRecordId, UpperReplayClaimId, RecordProofClauseId)>,
+    > {
+        let mut mappings = Vec::new();
+        mappings
+            .try_reserve(self.clause_by_record_and_occurrence.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        mappings.extend(
+            self.clause_by_record_and_occurrence
+                .iter()
+                .map(|(&(record, occurrence), &clause)| (record, occurrence, clause)),
+        );
+        mappings.sort_unstable_by_key(|(record, occurrence, clause)| {
+            (record.0, occurrence.0, clause.0)
+        });
+
+        let mut links = Vec::new();
+        for (record, occurrence_id, clause) in mappings {
+            let occurrence = occurrences.occurrence(occurrence_id)?;
+            let lower = parent_sets.iter(occurrence.lower_parents)?;
+            let upper = parent_sets.iter(occurrence.upper_parents)?;
+            links
+                .try_reserve(lower.len().saturating_add(upper.len()))
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            links.extend(
+                lower
+                    .chain(upper)
+                    .map(|entry| (record, entry.coverage_root, clause)),
+            );
+        }
+        links.sort_unstable_by_key(|(record, root, clause)| (record.0, root.0, clause.0));
+        links.dedup();
+        Ok(links.into_iter())
+    }
 }
 
 fn replay_parent_coverage_root(

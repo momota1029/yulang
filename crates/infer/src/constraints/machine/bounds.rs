@@ -869,7 +869,7 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(lower_record, &parents);
+            self.register_claim_parent_clause_links(producer, lower_record, &parents);
         }
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
@@ -911,7 +911,7 @@ impl ConstraintMachine {
         parents: &[ClaimQualifiedParent],
     ) -> Vec<UpperReplayClaimId> {
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(lower_record, parents);
+            self.register_claim_parent_clause_links(producer, lower_record, parents);
         }
         let mut claims = Vec::new();
         for parent in parents.iter().copied() {
@@ -984,6 +984,7 @@ impl ConstraintMachine {
 
     fn register_claim_parent_clause_links(
         &mut self,
+        producer: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
@@ -1030,10 +1031,45 @@ impl ConstraintMachine {
             }
             pending_links.push((support, clause));
         }
-        if pending_links.is_empty() {
+        if !pending_links.is_empty() {
+            self.commit_record_proof_clause_link_batch(lower_record, pending_links);
+        }
+        self.observe_factored_replay_clause_projection(producer, lower_record, parents);
+    }
+
+    fn observe_factored_replay_clause_projection(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        if !matches!(
+            self.replay_factored_shadow_status,
+            ReplayFactoredShadowStatus::Active
+        ) {
             return;
         }
-        self.commit_record_proof_clause_link_batch(lower_record, pending_links);
+        if let Err(failure) =
+            self.try_project_factored_replay_clause_parents(result, lower_record, parents)
+        {
+            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+        }
+    }
+
+    fn try_project_factored_replay_clause_parents(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) -> ReplayFactoredResult<()> {
+        self.replay_clause_projection.try_project_replay_parents(
+            result,
+            lower_record,
+            parents,
+            &self.replay_parent_sets,
+            &self.replay_occurrences,
+            &self.bounds,
+        )
     }
 
     fn register_replay_evidence_clause_link(
@@ -1294,7 +1330,9 @@ impl ConstraintMachine {
             &claims,
             LowerProjectionDelta::Bound(derivation),
         );
-        self.register_claim_parent_clause_links(lower_record, &parents);
+        if let Some(producer) = producer {
+            self.register_claim_parent_clause_links(producer, lower_record, &parents);
+        }
     }
 
     fn register_existing_constraint_lower_projection_delta(
@@ -1324,7 +1362,7 @@ impl ConstraintMachine {
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         self.register_lower_projection_delta(lower_record, &claims, delta);
-        self.register_claim_parent_clause_links(lower_record, &parents);
+        self.register_claim_parent_clause_links(producer, lower_record, &parents);
     }
 
     pub(in crate::constraints) fn register_constraint_projection_carrier_delta(
@@ -1984,6 +2022,13 @@ impl ConstraintMachine {
             ],
             &self.bounds,
         )?;
+        if let Some(lower_record) = self.lower_record_for_constraint(result) {
+            self.try_project_factored_replay_clause_parents(
+                result,
+                lower_record,
+                inserted_parents,
+            )?;
+        }
         Ok(())
     }
 
@@ -3645,6 +3690,18 @@ mod mutation_tests {
         replay: BinaryReplayDerivation,
         parents: &[SideTaggedReplayClaim],
     ) {
+        register_factored_parent_snapshot_with_materialization(
+            machine, result, replay, parents, true,
+        );
+    }
+
+    fn register_factored_parent_snapshot_with_materialization(
+        machine: &mut ConstraintMachine,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        parents: &[SideTaggedReplayClaim],
+        materialize_existing_target: bool,
+    ) {
         let claim_parents = parents.iter().copied().collect::<ReplayClaimParents>();
         let mut plan = BoundReplayPlan::default();
         let lower = plan.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower);
@@ -3653,7 +3710,7 @@ mod mutation_tests {
             result,
             replay,
             parents,
-            true,
+            materialize_existing_target,
             Some(FactoredReplayParentDrafts {
                 parent_drafts: &plan.parent_drafts,
                 lower,
@@ -3815,6 +3872,77 @@ mod mutation_tests {
         oracle
     }
 
+    type ReplayClauseLinkOracleKey = (BoundRecordId, UpperReplayClaimId, RecordProofClauseId);
+
+    fn legacy_replay_clause_link_oracle(
+        machine: &ConstraintMachine,
+    ) -> FxHashSet<ReplayClauseLinkOracleKey> {
+        let mut oracle = FxHashSet::default();
+        for (&result, parents) in &machine.bounds.claim_parents_by_constraint {
+            let Some(lower_record) = machine.lower_record_for_constraint(result) else {
+                continue;
+            };
+            for &parent in parents {
+                let ClaimQualifiedParent::ReplayConstraint {
+                    parent_claim,
+                    replay,
+                    ..
+                } = parent
+                else {
+                    continue;
+                };
+                let root =
+                    machine.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
+                let clause = RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                };
+                let Some(clause_id) = machine
+                    .bounds
+                    .record_proof_clause_by_key
+                    .get(&TypeBounds::record_proof_clause_key(lower_record, clause))
+                    .copied()
+                else {
+                    continue;
+                };
+                let support = SchemeProjectionProofSupport::Claimed(root);
+                if machine.bounds.record_proof_clause_link_keys.contains(
+                    &TypeBounds::record_proof_clause_link_key(lower_record, support, clause_id),
+                ) {
+                    oracle.insert((lower_record, root, clause_id));
+                }
+            }
+        }
+        oracle
+    }
+
+    fn factored_replay_clause_link_oracle(
+        machine: &ConstraintMachine,
+    ) -> FxHashSet<ReplayClauseLinkOracleKey> {
+        machine
+            .replay_clause_projection
+            .try_exact_links(&machine.replay_parent_sets, &machine.replay_occurrences)
+            .expect("shadow replay clause links remain reconstructible")
+            .collect()
+    }
+
+    fn assert_factored_replay_clause_projection_matches_legacy(machine: &ConstraintMachine) {
+        let legacy = legacy_replay_clause_link_oracle(machine);
+        let factored = factored_replay_clause_link_oracle(machine);
+        assert_eq!(legacy, factored);
+        let attributed = legacy
+            .iter()
+            .map(|&(record, root, _)| (record, root))
+            .collect::<FxHashSet<_>>();
+        assert_eq!(
+            attributed,
+            machine
+                .replay_clause_projection
+                .replay_attributed_claim_supports
+        );
+    }
+
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     struct ReplayFactoredStorageCensus {
         arena: (usize, usize, usize, usize, usize, usize, usize, usize),
@@ -3824,6 +3952,8 @@ mod mutation_tests {
         attachment_batches: (usize, usize),
         first_parent_by_root: (usize, usize),
         projected_parent_versions: (usize, usize),
+        clause_by_record_and_occurrence: (usize, usize),
+        replay_attributed_claim_supports: (usize, usize),
     }
 
     fn replay_factored_storage_census(machine: &ConstraintMachine) -> ReplayFactoredStorageCensus {
@@ -3872,6 +4002,26 @@ mod mutation_tests {
                 machine
                     .replay_result_summary
                     .projected_parent_versions
+                    .capacity(),
+            ),
+            clause_by_record_and_occurrence: (
+                machine
+                    .replay_clause_projection
+                    .clause_by_record_and_occurrence
+                    .len(),
+                machine
+                    .replay_clause_projection
+                    .clause_by_record_and_occurrence
+                    .capacity(),
+            ),
+            replay_attributed_claim_supports: (
+                machine
+                    .replay_clause_projection
+                    .replay_attributed_claim_supports
+                    .len(),
+                machine
+                    .replay_clause_projection
+                    .replay_attributed_claim_supports
                     .capacity(),
             ),
         }
@@ -3950,6 +4100,19 @@ mod mutation_tests {
                 },
             ],
         );
+        assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
+        assert_eq!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .len(),
+            1
+        );
+        assert_eq!(
+            factored_replay_clause_link_oracle(&fixture.machine).len(),
+            1
+        );
 
         let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -3968,6 +4131,20 @@ mod mutation_tests {
                 claim: late_root,
                 parent_side: ReplayClaimParentSide::Lower,
             }],
+        );
+        assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
+        assert_eq!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .len(),
+            1,
+            "a late root reuses the occurrence clause"
+        );
+        assert_eq!(
+            factored_replay_clause_link_oracle(&fixture.machine).len(),
+            2
         );
 
         let alternate_claim = add_derived_replay_parent_claim(
@@ -4014,6 +4191,21 @@ mod mutation_tests {
         assert_eq!(
             legacy_replay_first_witness_oracle(&fixture.machine),
             factored_replay_first_witness_oracle(&fixture.machine)
+        );
+        assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
+        assert_eq!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .len(),
+            2,
+            "each exact carrier has one occurrence clause"
+        );
+        assert_eq!(
+            factored_replay_clause_link_oracle(&fixture.machine).len(),
+            3,
+            "the shared lower/upper root is deduplicated while the second carrier stays exact"
         );
         let empty_version = fixture.machine.replay_parent_sets.empty_version();
         assert!(
@@ -4117,6 +4309,102 @@ mod mutation_tests {
                 "the first legacy claim wins for its insertion order"
             );
         }
+    }
+
+    #[test]
+    fn rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot_with_materialization(
+            &mut fixture.machine,
+            fixture.result,
+            replay,
+            &[parent],
+            false,
+        );
+
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .is_empty(),
+            "the occurrence exists before legacy clause materialization"
+        );
+        fixture
+            .machine
+            .register_constraint_upper_replay_claims(fixture.upper_record, Some(fixture.result));
+
+        assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
+        assert_eq!(
+            factored_replay_clause_link_oracle(&fixture.machine).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn rcpf_clause_projection_excludes_evidence_and_trivial_replays() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        fixture.machine.register_replay_evidence_clause_link(
+            fixture.lower_record,
+            fixture.coverage_root,
+            replay,
+        );
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .record_proof_clause_links_by_lower_record
+                .contains_key(&fixture.lower_record),
+            "the evidence path has a legacy ReplayConjunction link"
+        );
+
+        let lower = fixture.machine.alloc_pos(Pos::Bot);
+        let upper = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let mut plan = BoundReplayPlan::default();
+        fixture.machine.push_replay_constraint_or_prefilter(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+            replay,
+            [fixture.parent].into_iter().collect(),
+            &mut plan,
+        );
+        assert_eq!(plan.trivial_actions.len(), 1);
+        fixture
+            .machine
+            .apply_prefiltered_replay_provenance_with_parent_drafts(
+                plan.duplicate_actions,
+                plan.trivial_actions,
+                &plan.parent_drafts,
+            );
+
+        assert!(fixture.machine.replay_occurrences.occurrences.is_empty());
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .is_empty()
+        );
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .replay_attributed_claim_supports
+                .is_empty()
+        );
+        assert!(factored_replay_clause_link_oracle(&fixture.machine).is_empty());
     }
 
     #[test]

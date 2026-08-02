@@ -34,7 +34,8 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use replay_factored::{
-    ParentSetArena, ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
+    ParentSetArena, ReplayClauseProjection, ReplayFactoredShadowStatus, ReplayOccurrenceStore,
+    ReplayResultSummary,
 };
 
 #[cfg(test)]
@@ -72,6 +73,7 @@ pub struct ConstraintMachine {
     replay_parent_sets: ParentSetArena,
     replay_occurrences: ReplayOccurrenceStore,
     replay_result_summary: ReplayResultSummary,
+    replay_clause_projection: ReplayClauseProjection,
     replay_factored_shadow_status: ReplayFactoredShadowStatus,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
