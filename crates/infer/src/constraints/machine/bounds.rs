@@ -11,6 +11,12 @@ use crate::constraints::replay_factored::{
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
+#[cfg(test)]
+std::thread_local! {
+    static RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
 /// the same bounds table, so replay construction must not keep borrowed bound
 /// rows. Semantic queue admission remains prefiltered, while duplicate/trivial
@@ -2341,6 +2347,10 @@ impl ConstraintMachine {
                 parent_side: parent.parent_side,
                 replay,
             };
+            #[cfg(test)]
+            RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(|probes| {
+                probes.set(probes.get().saturating_add(1));
+            });
             if !self.bounds.replay_claim_parent_keys.insert(key) {
                 continue;
             }
@@ -5650,7 +5660,7 @@ mod mutation_tests {
     }
 
     #[test]
-    fn rcpf_shadow_failure_is_quarantined_after_legacy_admission() {
+    fn rcpf_shadow_failure_does_not_suppress_or_delay_legacy_admission() {
         let mut shadow = cdm_replay_claim_fixture();
         let mut legacy = cdm_replay_claim_fixture();
         let first = shadow.replay(ReplayRule::LowerBoundAdded);
@@ -5679,6 +5689,11 @@ mod mutation_tests {
         assert_eq!(
             shadow.machine.replay_factored_shadow_status,
             ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            shadow.machine.bounds.claim_parents_by_constraint[&shadow.result].len(),
+            1,
+            "the real legacy parent is committed before the factored writer can fail"
         );
         assert!(shadow.machine.replay_occurrences.occurrences.is_empty());
         assert_eq!(
@@ -5740,6 +5755,126 @@ mod mutation_tests {
         );
         assert_eq!(shadow.machine.queue.len(), legacy.machine.queue.len());
         assert_eq!(shadow.machine.events.len(), legacy.machine.events.len());
+    }
+
+    fn rcpf_c3b_replay_parent_admission_census(parent_count: usize) -> (usize, usize) {
+        assert!(parent_count > 0);
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let mut parents = vec![fixture.parent];
+        for index in 1..parent_count {
+            let offset = u32::try_from(index).expect("test parent count fits in u32");
+            let claim = add_original_replay_parent_claim(
+                &mut fixture.machine,
+                TypeVar(90_000 + offset),
+                endpoint,
+                ConstraintRecordId(90_000 + offset),
+            );
+            parents.push(SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            });
+        }
+        let legacy_before = fixture
+            .machine
+            .bounds
+            .claim_parents_by_constraint
+            .get(&fixture.result)
+            .map_or(0, Vec::len);
+        let keys_before = fixture.machine.bounds.replay_claim_parent_keys.len();
+        RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(|probes| probes.set(0));
+
+        fixture
+            .machine
+            .register_replay_claim_parents(fixture.result, replay, &parents, false);
+
+        let probes = RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(std::cell::Cell::get);
+        let legacy_after =
+            fixture.machine.bounds.claim_parents_by_constraint[&fixture.result].len();
+        assert_eq!(legacy_after - legacy_before, parent_count);
+        (
+            probes,
+            fixture.machine.bounds.replay_claim_parent_keys.len() - keys_before,
+        )
+    }
+
+    #[test]
+    fn rcpf_c3b_replay_parent_admission_uses_one_hash_probe_per_parent() {
+        assert_eq!(rcpf_c3b_replay_parent_admission_census(1), (1, 1));
+        assert_eq!(rcpf_c3b_replay_parent_admission_census(96), (96, 96));
+    }
+
+    #[test]
+    fn rcpf_c3b_terminal_failure_stops_drain_before_the_next_queued_work() {
+        let mut machine = ConstraintMachine::new();
+        let pivot = TypeVar(91_000);
+        let replay_target = TypeVar(91_001);
+        let first_source = TypeVar(91_002);
+        let sentinel_source = TypeVar(91_003);
+        let sentinel_target = TypeVar(91_004);
+        let origin = OriginId::unknown_internal();
+
+        let replay_upper = machine.alloc_neg(Neg::Var(replay_target));
+        let replay_parent_record = machine
+            .bounds
+            .add_upper(
+                pivot,
+                replay_upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let replay_parent = machine.bounds.original_upper_replay_claim(
+            replay_parent_record,
+            ConstraintRecordId(91_000),
+            UpperReplayClaimKind::Direct,
+        );
+        machine.apply_scheme_projection_mutation(replay_parent.scheme_projection_mutation);
+
+        let first_lower = machine.alloc_pos(Pos::Var(first_source));
+        let first_upper = machine.alloc_neg(Neg::Var(pivot));
+        assert!(machine.enqueue_root_subtype(
+            first_lower,
+            ConstraintWeights::empty(),
+            first_upper,
+            origin,
+        ));
+        let sentinel_lower = machine.alloc_pos(Pos::Var(sentinel_source));
+        let sentinel_upper = machine.alloc_neg(Neg::Var(sentinel_target));
+        assert!(machine.enqueue_root_subtype(
+            sentinel_lower,
+            ConstraintWeights::empty(),
+            sentinel_upper,
+            origin,
+        ));
+        let sentinel = machine
+            .constraint_record_id(sentinel_lower, ConstraintWeights::empty(), sentinel_upper)
+            .expect("the sentinel work item is queued");
+
+        machine.replay_parent_sets.fail_next_reservation();
+        machine.drain();
+
+        assert_eq!(
+            machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            machine.queue.front(),
+            Some(&ConstraintWork::Subtype(sentinel))
+        );
+        assert!(
+            machine.bounds.of(sentinel_target).is_none(),
+            "the queued sentinel must not mutate bounds after terminal failure"
+        );
     }
 
     #[test]

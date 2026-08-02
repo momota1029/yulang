@@ -949,7 +949,10 @@ impl ConstraintMachine {
         let mut subtype_work_items = 0usize;
         let mut subtract_work_items = 0usize;
         let mut trace = ConstraintDrainTrace::from_env(self);
-        while let Some(work) = self.queue.pop_front() {
+        while self.replay_factored_terminal_failure().is_none() {
+            let Some(work) = self.queue.pop_front() else {
+                break;
+            };
             trace.work(&work, self);
             work_items += 1;
             match &work {
