@@ -27,6 +27,10 @@ impl ParentSetVersionId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct ParentSetChunkId(pub(super) u32);
 
+impl ParentSetChunkId {
+    const EMPTY: Self = Self(0);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct ReplayParentAttachmentBatchId(pub(super) u32);
 
@@ -98,6 +102,39 @@ pub(super) struct ParentSetChunk {
     pub(super) entries: Box<[ParentSetEntry]>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ReplayFactoredShadowFailure {
+    AllocationFailed,
+    ParentSetLengthOverflow,
+    ParentSetDepthOverflow,
+    ParentSetVersionIdOverflow,
+    ParentSetChunkIdOverflow,
+    UnknownParentSetVersion(ParentSetVersionId),
+    UnknownParentSetChunk(ParentSetChunkId),
+    UnknownReplayParentClaim(UpperReplayClaimId),
+    InvalidReplayParentCoverageRoot {
+        claim: UpperReplayClaimId,
+        root: UpperReplayClaimId,
+    },
+    NonCanonicalParentSetChunk,
+    CorruptParentSetVersionLength {
+        version: ParentSetVersionId,
+        expected: u32,
+        actual: usize,
+    },
+    CorruptParentSetIndex,
+}
+
+pub(super) type ReplayFactoredResult<T> = Result<T, ReplayFactoredShadowFailure>;
+
+const EMPTY_PARENT_SET_VERSION: ParentSetVersionRecord = ParentSetVersionRecord {
+    base: None,
+    delta: ParentSetChunkId::EMPTY,
+    len: 0,
+    depth: 0,
+    fingerprint: 0,
+};
+
 /// A bounded base/delta chain with content interning.
 ///
 /// Normal extension stores only its accepted delta. Once a chain reaches the fixed depth bound,
@@ -109,29 +146,19 @@ pub(super) struct ParentSetArena {
     chunks: Vec<ParentSetChunk>,
     chunks_by_fingerprint: FxHashMap<(u32, u64), Vec<ParentSetChunkId>>,
     versions_by_fingerprint: FxHashMap<(u32, u64), Vec<ParentSetVersionId>>,
+    #[cfg(test)]
+    fail_next_reservation: bool,
 }
 
 impl Default for ParentSetArena {
     fn default() -> Self {
-        let empty_chunk = ParentSetChunk {
-            entries: Box::default(),
-        };
-        let empty_version = ParentSetVersionRecord {
-            base: None,
-            delta: ParentSetChunkId(0),
-            len: 0,
-            depth: 0,
-            fingerprint: 0,
-        };
-        let mut chunks_by_fingerprint = FxHashMap::default();
-        chunks_by_fingerprint.insert((0, 0), vec![ParentSetChunkId(0)]);
-        let mut versions_by_fingerprint = FxHashMap::default();
-        versions_by_fingerprint.insert((0, 0), vec![ParentSetVersionId::EMPTY]);
         Self {
-            versions: vec![empty_version],
-            chunks: vec![empty_chunk],
-            chunks_by_fingerprint,
-            versions_by_fingerprint,
+            versions: Vec::new(),
+            chunks: Vec::new(),
+            chunks_by_fingerprint: FxHashMap::default(),
+            versions_by_fingerprint: FxHashMap::default(),
+            #[cfg(test)]
+            fail_next_reservation: false,
         }
     }
 }
@@ -150,16 +177,20 @@ impl ParentSetArena {
         base: ParentSetVersionId,
         draft: &'draft ReplayParentDraft,
         bounds: &TypeBounds,
-    ) -> ParentSetExtensionPlan<'draft> {
-        self.version_record(base);
+    ) -> ReplayFactoredResult<ParentSetExtensionPlan<'draft>> {
+        self.version_record(base)?;
 
         let mut accepted_roots = FxHashSet::default();
+        accepted_roots
+            .try_reserve(draft.claims.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         let mut accepted_entries = Vec::new();
+        accepted_entries
+            .try_reserve(draft.claims.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         for &claim in &draft.claims {
-            let root = bounds
-                .canonical_coverage_root(claim)
-                .expect("replay parent draft contains an unknown claim");
-            if self.contains(base, root) || !accepted_roots.insert(root) {
+            let root = replay_parent_coverage_root(bounds, claim)?;
+            if self.contains(base, root)? || !accepted_roots.insert(root) {
                 continue;
             }
             accepted_entries.push(ParentSetEntry {
@@ -169,44 +200,47 @@ impl ParentSetArena {
         }
         canonicalize_entries(&mut accepted_entries);
 
-        ParentSetExtensionPlan {
+        Ok(ParentSetExtensionPlan {
             base,
             accepted_entries: accepted_entries.into_boxed_slice(),
             draft: PhantomData,
-        }
+        })
     }
 
-    pub(super) fn commit_extend(&mut self, plan: ParentSetExtensionPlan<'_>) -> ParentSetExtension {
+    pub(super) fn commit_extend(
+        &mut self,
+        plan: ParentSetExtensionPlan<'_>,
+    ) -> ReplayFactoredResult<ParentSetExtension> {
         if plan.accepted_entries.is_empty() {
-            return ParentSetExtension {
+            return Ok(ParentSetExtension {
                 version: plan.base,
                 accepted_delta: ParentSetVersionId::EMPTY,
                 changed: false,
-            };
+            });
         }
 
         let accepted_len = u32::try_from(plan.accepted_entries.len())
-            .expect("parent-set accepted delta length overflow");
+            .map_err(|_| ReplayFactoredShadowFailure::ParentSetLengthOverflow)?;
         let accepted_fingerprint = entries_fingerprint(&plan.accepted_entries);
-        let accepted_chunk = self.intern_chunk(plan.accepted_entries);
+        let accepted_chunk = self.intern_chunk(plan.accepted_entries)?;
         let accepted_delta = self.intern_version_description(
             None,
             accepted_chunk,
             accepted_len,
             0,
             accepted_fingerprint,
-        );
+        )?;
 
-        let base_record = *self.version_record(plan.base);
+        let base_record = *self.version_record(plan.base)?;
         let len = base_record
             .len
             .checked_add(accepted_len)
-            .expect("parent-set version length overflow");
+            .ok_or(ReplayFactoredShadowFailure::ParentSetLengthOverflow)?;
         let fingerprint = base_record.fingerprint ^ accepted_fingerprint;
         let next_depth = base_record
             .depth
             .checked_add(1)
-            .expect("parent-set version depth overflow");
+            .ok_or(ReplayFactoredShadowFailure::ParentSetDepthOverflow)?;
 
         let version = if next_depth <= MAX_PARENT_SET_DEPTH {
             self.intern_version_description(
@@ -215,80 +249,134 @@ impl ParentSetArena {
                 len,
                 next_depth,
                 fingerprint,
-            )
+            )?
         } else {
-            let mut checkpoint_entries = self.iter(plan.base).collect::<Vec<_>>();
-            checkpoint_entries.extend_from_slice(&self.chunk(accepted_chunk).entries);
+            let mut checkpoint_entries = self.iter(plan.base)?.collect::<Vec<_>>();
+            let accepted_entries = self.chunk_entries(accepted_chunk)?;
+            checkpoint_entries
+                .try_reserve(accepted_entries.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            checkpoint_entries.extend_from_slice(accepted_entries);
             canonicalize_entries(&mut checkpoint_entries);
-            let checkpoint_chunk = self.intern_chunk(checkpoint_entries.into_boxed_slice());
-            self.intern_version_description(None, checkpoint_chunk, len, 0, fingerprint)
+            let checkpoint_chunk = self.intern_chunk(checkpoint_entries.into_boxed_slice())?;
+            self.intern_version_description(None, checkpoint_chunk, len, 0, fingerprint)?
         };
 
-        ParentSetExtension {
+        Ok(ParentSetExtension {
             version,
             accepted_delta,
             changed: true,
-        }
+        })
     }
 
-    pub(super) fn contains(&self, version: ParentSetVersionId, root: UpperReplayClaimId) -> bool {
-        self.representative_claim(version, root).is_some()
+    pub(super) fn contains(
+        &self,
+        version: ParentSetVersionId,
+        root: UpperReplayClaimId,
+    ) -> ReplayFactoredResult<bool> {
+        Ok(self.representative_claim(version, root)?.is_some())
     }
 
     pub(super) fn representative_claim(
         &self,
         version: ParentSetVersionId,
         root: UpperReplayClaimId,
-    ) -> Option<UpperReplayClaimId> {
+    ) -> ReplayFactoredResult<Option<UpperReplayClaimId>> {
         let mut cursor = Some(version);
         while let Some(version) = cursor {
-            let record = self.version_record(version);
-            if let Some(entry) = find_entry(&self.chunk(record.delta).entries, root) {
-                return Some(entry.representative_claim);
+            let record = self.version_record(version)?;
+            if let Some(entry) = find_entry(self.chunk_entries(record.delta)?, root) {
+                return Ok(Some(entry.representative_claim));
             }
             cursor = record.base;
         }
-        None
+        Ok(None)
     }
 
-    pub(super) fn iter(&self, version: ParentSetVersionId) -> impl Iterator<Item = ParentSetEntry> {
-        let expected_len = self.version_record(version).len as usize;
-        let mut entries = Vec::with_capacity(expected_len);
+    pub(super) fn iter(
+        &self,
+        version: ParentSetVersionId,
+    ) -> ReplayFactoredResult<std::vec::IntoIter<ParentSetEntry>> {
+        let expected_len = self.version_record(version)?.len;
+        let mut entries = Vec::new();
+        entries
+            .try_reserve(expected_len as usize)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         let mut cursor = Some(version);
         while let Some(version) = cursor {
-            let record = self.version_record(version);
-            entries.extend_from_slice(&self.chunk(record.delta).entries);
+            let record = self.version_record(version)?;
+            let delta = self.chunk_entries(record.delta)?;
+            entries
+                .try_reserve(delta.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            entries.extend_from_slice(delta);
             cursor = record.base;
         }
-        debug_assert_eq!(entries.len(), expected_len);
+        if entries.len() != expected_len as usize {
+            return Err(ReplayFactoredShadowFailure::CorruptParentSetVersionLength {
+                version,
+                expected: expected_len,
+                actual: entries.len(),
+            });
+        }
         canonicalize_entries(&mut entries);
-        entries.into_iter()
+        Ok(entries.into_iter())
     }
 
-    fn intern_chunk(&mut self, entries: Box<[ParentSetEntry]>) -> ParentSetChunkId {
-        debug_assert!(
-            entries
-                .windows(2)
-                .all(|pair| { canonical_entry_key(pair[0]) < canonical_entry_key(pair[1]) })
-        );
+    fn intern_chunk(
+        &mut self,
+        entries: Box<[ParentSetEntry]>,
+    ) -> ReplayFactoredResult<ParentSetChunkId> {
+        if !entries.windows(2).all(|pair| {
+            canonical_entry_key(pair[0]) < canonical_entry_key(pair[1])
+                && pair[0].coverage_root != pair[1].coverage_root
+        }) {
+            return Err(ReplayFactoredShadowFailure::NonCanonicalParentSetChunk);
+        }
         let key = (
-            u32::try_from(entries.len()).expect("parent-set chunk length overflow"),
+            u32::try_from(entries.len())
+                .map_err(|_| ReplayFactoredShadowFailure::ParentSetLengthOverflow)?,
             entries_fingerprint(&entries),
         );
         if let Some(candidates) = self.chunks_by_fingerprint.get(&key) {
             for &candidate in candidates {
-                if self.chunk(candidate).entries == entries {
-                    return candidate;
+                if self.chunk_entries(candidate)? == entries.as_ref() {
+                    return Ok(candidate);
                 }
             }
         }
 
-        let id = ParentSetChunkId(
-            u32::try_from(self.chunks.len()).expect("parent-set chunk ID overflow"),
-        );
+        let id = self.next_chunk_id()?;
+        self.try_reserve_chunks(1)?;
+        let existing_key = self.chunks_by_fingerprint.contains_key(&key);
+        let mut new_candidates = if existing_key {
+            self.chunks_by_fingerprint
+                .get_mut(&key)
+                .ok_or(ReplayFactoredShadowFailure::CorruptParentSetIndex)?
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            None
+        } else {
+            self.try_reserve_chunk_index(1)?;
+            let mut candidates = Vec::new();
+            candidates
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            Some(candidates)
+        };
+
         self.chunks.push(ParentSetChunk { entries });
-        self.chunks_by_fingerprint.entry(key).or_default().push(id);
-        id
+        if let Some(candidates) = &mut new_candidates {
+            candidates.push(id);
+        } else if let Some(candidates) = self.chunks_by_fingerprint.get_mut(&key) {
+            candidates.push(id);
+        } else {
+            return Err(ReplayFactoredShadowFailure::CorruptParentSetIndex);
+        }
+        if let Some(candidates) = new_candidates {
+            self.chunks_by_fingerprint.insert(key, candidates);
+        }
+        Ok(id)
     }
 
     fn intern_version_description(
@@ -298,19 +386,35 @@ impl ParentSetArena {
         len: u32,
         depth: u16,
         fingerprint: u64,
-    ) -> ParentSetVersionId {
+    ) -> ReplayFactoredResult<ParentSetVersionId> {
         let key = (len, fingerprint);
         if let Some(candidates) = self.versions_by_fingerprint.get(&key) {
             for &candidate in candidates {
-                if self.version_matches_description(candidate, base, delta) {
-                    return candidate;
+                if self.version_matches_description(candidate, base, delta)? {
+                    return Ok(candidate);
                 }
             }
         }
 
-        let id = ParentSetVersionId(
-            u32::try_from(self.versions.len()).expect("parent-set version ID overflow"),
-        );
+        let id = self.next_version_id()?;
+        self.try_reserve_versions(1)?;
+        let existing_key = self.versions_by_fingerprint.contains_key(&key);
+        let mut new_candidates = if existing_key {
+            self.versions_by_fingerprint
+                .get_mut(&key)
+                .ok_or(ReplayFactoredShadowFailure::CorruptParentSetIndex)?
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            None
+        } else {
+            self.try_reserve_version_index(1)?;
+            let mut candidates = Vec::new();
+            candidates
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            Some(candidates)
+        };
+
         self.versions.push(ParentSetVersionRecord {
             base,
             delta,
@@ -318,11 +422,17 @@ impl ParentSetArena {
             depth,
             fingerprint,
         });
-        self.versions_by_fingerprint
-            .entry(key)
-            .or_default()
-            .push(id);
-        id
+        if let Some(candidates) = &mut new_candidates {
+            candidates.push(id);
+        } else if let Some(candidates) = self.versions_by_fingerprint.get_mut(&key) {
+            candidates.push(id);
+        } else {
+            return Err(ReplayFactoredShadowFailure::CorruptParentSetIndex);
+        }
+        if let Some(candidates) = new_candidates {
+            self.versions_by_fingerprint.insert(key, candidates);
+        }
+        Ok(id)
     }
 
     fn version_matches_description(
@@ -330,20 +440,20 @@ impl ParentSetArena {
         candidate: ParentSetVersionId,
         base: Option<ParentSetVersionId>,
         delta: ParentSetChunkId,
-    ) -> bool {
+    ) -> ReplayFactoredResult<bool> {
         let mut cursor = Some(candidate);
         while let Some(version) = cursor {
-            let record = self.version_record(version);
-            for &entry in &self.chunk(record.delta).entries {
-                if self.description_representative_claim(base, delta, entry.coverage_root)
+            let record = self.version_record(version)?;
+            for &entry in self.chunk_entries(record.delta)? {
+                if self.description_representative_claim(base, delta, entry.coverage_root)?
                     != Some(entry.representative_claim)
                 {
-                    return false;
+                    return Ok(false);
                 }
             }
             cursor = record.base;
         }
-        true
+        Ok(true)
     }
 
     fn description_representative_claim(
@@ -351,22 +461,101 @@ impl ParentSetArena {
         base: Option<ParentSetVersionId>,
         delta: ParentSetChunkId,
         root: UpperReplayClaimId,
-    ) -> Option<UpperReplayClaimId> {
-        find_entry(&self.chunk(delta).entries, root)
-            .map(|entry| entry.representative_claim)
-            .or_else(|| base.and_then(|base| self.representative_claim(base, root)))
+    ) -> ReplayFactoredResult<Option<UpperReplayClaimId>> {
+        if let Some(entry) = find_entry(self.chunk_entries(delta)?, root) {
+            return Ok(Some(entry.representative_claim));
+        }
+        match base {
+            Some(base) => self.representative_claim(base, root),
+            None => Ok(None),
+        }
     }
 
-    fn version_record(&self, id: ParentSetVersionId) -> &ParentSetVersionRecord {
+    fn version_record(
+        &self,
+        id: ParentSetVersionId,
+    ) -> ReplayFactoredResult<&ParentSetVersionRecord> {
+        if id == ParentSetVersionId::EMPTY {
+            return Ok(&EMPTY_PARENT_SET_VERSION);
+        }
+        let index =
+            id.0.checked_sub(1)
+                .ok_or(ReplayFactoredShadowFailure::UnknownParentSetVersion(id))?;
         self.versions
-            .get(id.0 as usize)
-            .expect("unknown parent-set version")
+            .get(index as usize)
+            .ok_or(ReplayFactoredShadowFailure::UnknownParentSetVersion(id))
     }
 
-    fn chunk(&self, id: ParentSetChunkId) -> &ParentSetChunk {
+    fn chunk_entries(&self, id: ParentSetChunkId) -> ReplayFactoredResult<&[ParentSetEntry]> {
+        if id == ParentSetChunkId::EMPTY {
+            return Ok(&[]);
+        }
+        let index =
+            id.0.checked_sub(1)
+                .ok_or(ReplayFactoredShadowFailure::UnknownParentSetChunk(id))?;
         self.chunks
-            .get(id.0 as usize)
-            .expect("unknown parent-set chunk")
+            .get(index as usize)
+            .map(|chunk| chunk.entries.as_ref())
+            .ok_or(ReplayFactoredShadowFailure::UnknownParentSetChunk(id))
+    }
+
+    fn next_version_id(&self) -> ReplayFactoredResult<ParentSetVersionId> {
+        let index = u32::try_from(self.versions.len())
+            .map_err(|_| ReplayFactoredShadowFailure::ParentSetVersionIdOverflow)?;
+        index
+            .checked_add(1)
+            .map(ParentSetVersionId)
+            .ok_or(ReplayFactoredShadowFailure::ParentSetVersionIdOverflow)
+    }
+
+    fn next_chunk_id(&self) -> ReplayFactoredResult<ParentSetChunkId> {
+        let index = u32::try_from(self.chunks.len())
+            .map_err(|_| ReplayFactoredShadowFailure::ParentSetChunkIdOverflow)?;
+        index
+            .checked_add(1)
+            .map(ParentSetChunkId)
+            .ok_or(ReplayFactoredShadowFailure::ParentSetChunkIdOverflow)
+    }
+
+    fn try_reserve_versions(&mut self, additional: usize) -> ReplayFactoredResult<()> {
+        self.maybe_fail_reservation()?;
+        self.versions
+            .try_reserve(additional)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)
+    }
+
+    fn try_reserve_chunks(&mut self, additional: usize) -> ReplayFactoredResult<()> {
+        self.maybe_fail_reservation()?;
+        self.chunks
+            .try_reserve(additional)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)
+    }
+
+    fn try_reserve_version_index(&mut self, additional: usize) -> ReplayFactoredResult<()> {
+        self.maybe_fail_reservation()?;
+        self.versions_by_fingerprint
+            .try_reserve(additional)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)
+    }
+
+    fn try_reserve_chunk_index(&mut self, additional: usize) -> ReplayFactoredResult<()> {
+        self.maybe_fail_reservation()?;
+        self.chunks_by_fingerprint
+            .try_reserve(additional)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)
+    }
+
+    fn maybe_fail_reservation(&mut self) -> ReplayFactoredResult<()> {
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_reservation) {
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn fail_next_reservation(&mut self) {
+        self.fail_next_reservation = true;
     }
 }
 
@@ -449,6 +638,25 @@ pub(super) struct ReplayClauseProjection {
     pub(super) attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
 }
 
+fn replay_parent_coverage_root(
+    bounds: &TypeBounds,
+    claim: UpperReplayClaimId,
+) -> ReplayFactoredResult<UpperReplayClaimId> {
+    let claim_record = bounds
+        .upper_replay_claims
+        .get(claim.0 as usize)
+        .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))?;
+    let root = claim_record.coverage_root;
+    let root_record = bounds
+        .upper_replay_claims
+        .get(root.0 as usize)
+        .ok_or(ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot { claim, root })?;
+    if root_record.coverage_root != root {
+        return Err(ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot { claim, root });
+    }
+    Ok(root)
+}
+
 fn canonicalize_entries(entries: &mut [ParentSetEntry]) {
     entries.sort_unstable_by_key(|&entry| canonical_entry_key(entry));
 }
@@ -461,7 +669,7 @@ fn find_entry(entries: &[ParentSetEntry], root: UpperReplayClaimId) -> Option<Pa
     entries
         .binary_search_by_key(&root.0, |entry| entry.coverage_root.0)
         .ok()
-        .map(|index| entries[index])
+        .and_then(|index| entries.get(index).copied())
 }
 
 fn entries_fingerprint(entries: &[ParentSetEntry]) -> u64 {
@@ -489,6 +697,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn virtual_empty_arena_has_zero_allocation_and_stays_virtual_on_empty_extend() {
+        let bounds = TypeBounds::new();
+        let draft = ReplayParentDraft::default();
+        let mut arena = ParentSetArena::new();
+
+        assert_arena_storage_is_unallocated(&arena);
+        assert!(
+            !arena
+                .contains(ParentSetVersionId::EMPTY, UpperReplayClaimId(0))
+                .unwrap()
+        );
+        assert_eq!(
+            arena
+                .representative_claim(ParentSetVersionId::EMPTY, UpperReplayClaimId(0))
+                .unwrap(),
+            None
+        );
+        assert_eq!(entries(&arena, ParentSetVersionId::EMPTY), Vec::new());
+
+        let plan = arena
+            .preflight_extend(ParentSetVersionId::EMPTY, &draft, &bounds)
+            .unwrap();
+        let extension = arena.commit_extend(plan).unwrap();
+        assert_eq!(
+            extension,
+            ParentSetExtension {
+                version: ParentSetVersionId::EMPTY,
+                accepted_delta: ParentSetVersionId::EMPTY,
+                changed: false,
+            }
+        );
+        assert_arena_storage_is_unallocated(&arena);
+    }
+
+    #[test]
     fn extends_an_empty_arena_in_canonical_order() {
         let bounds = bounds_with_roots(&[0, 1]);
         let mut arena = ParentSetArena::new();
@@ -496,11 +739,11 @@ mod tests {
 
         assert!(extension.changed);
         assert_eq!(
-            arena.iter(extension.version).collect::<Vec<_>>(),
+            entries(&arena, extension.version),
             vec![entry(0, 0), entry(1, 1)]
         );
         assert_eq!(
-            arena.iter(extension.accepted_delta).collect::<Vec<_>>(),
+            entries(&arena, extension.accepted_delta),
             vec![entry(0, 0), entry(1, 1)]
         );
     }
@@ -520,11 +763,15 @@ mod tests {
         assert_eq!(arena.versions.len(), version_count);
         assert_eq!(arena.chunks.len(), chunk_count);
         assert_eq!(
-            arena.representative_claim(repeated.version, UpperReplayClaimId(0)),
+            arena
+                .representative_claim(repeated.version, UpperReplayClaimId(0))
+                .unwrap(),
             Some(UpperReplayClaimId(1))
         );
         assert_eq!(
-            arena.representative_claim(repeated.version, UpperReplayClaimId(3)),
+            arena
+                .representative_claim(repeated.version, UpperReplayClaimId(3))
+                .unwrap(),
             Some(UpperReplayClaimId(4))
         );
     }
@@ -538,11 +785,11 @@ mod tests {
 
         assert_eq!(left.version, right.version);
         assert_eq!(
-            arena.iter(left.version).collect::<Vec<_>>(),
-            arena.iter(right.version).collect::<Vec<_>>()
+            entries(&arena, left.version),
+            entries(&arena, right.version)
         );
         assert_eq!(
-            arena.iter(right.version).collect::<Vec<_>>(),
+            entries(&arena, right.version),
             vec![entry(0, 0), entry(1, 1)]
         );
     }
@@ -554,15 +801,83 @@ mod tests {
         let first = extend(&mut arena, ParentSetVersionId::EMPTY, &[2, 1], &bounds);
         let later = extend(&mut arena, first.version, &[1], &bounds);
 
+        assert_eq!(entries(&arena, first.version), vec![entry(0, 2)]);
         assert_eq!(
-            arena.iter(first.version).collect::<Vec<_>>(),
-            vec![entry(0, 2)]
-        );
-        assert_eq!(
-            arena.representative_claim(later.version, UpperReplayClaimId(0)),
+            arena
+                .representative_claim(later.version, UpperReplayClaimId(0))
+                .unwrap(),
             Some(UpperReplayClaimId(2))
         );
         assert!(!later.changed);
+    }
+
+    #[test]
+    fn invalid_ids_and_claims_return_errors() {
+        let arena = ParentSetArena::new();
+        let bounds = TypeBounds::new();
+        let invalid_root_bounds = bounds_with_roots(&[1, 0]);
+        let unknown_version = ParentSetVersionId(1);
+        let unknown_chunk = ParentSetChunkId(1);
+        let draft = ReplayParentDraft {
+            claims: Box::new([UpperReplayClaimId(0)]),
+        };
+
+        assert_eq!(
+            arena.contains(unknown_version, UpperReplayClaimId(0)),
+            Err(ReplayFactoredShadowFailure::UnknownParentSetVersion(
+                unknown_version
+            ))
+        );
+        assert!(matches!(
+            arena.iter(unknown_version),
+            Err(ReplayFactoredShadowFailure::UnknownParentSetVersion(
+                version
+            )) if version == unknown_version
+        ));
+        assert_eq!(
+            arena.chunk_entries(unknown_chunk),
+            Err(ReplayFactoredShadowFailure::UnknownParentSetChunk(
+                unknown_chunk
+            ))
+        );
+        assert!(matches!(
+            arena.preflight_extend(ParentSetVersionId::EMPTY, &draft, &bounds),
+            Err(ReplayFactoredShadowFailure::UnknownReplayParentClaim(
+                UpperReplayClaimId(0)
+            ))
+        ));
+        assert!(matches!(
+            arena.preflight_extend(
+                ParentSetVersionId::EMPTY,
+                &draft,
+                &invalid_root_bounds
+            ),
+            Err(
+                ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
+                    claim,
+                    root,
+                }
+            ) if claim == UpperReplayClaimId(0) && root == UpperReplayClaimId(1)
+        ));
+    }
+
+    #[test]
+    fn reservation_failure_returns_error_without_committing_storage() {
+        let bounds = bounds_with_roots(&[0]);
+        let draft = ReplayParentDraft {
+            claims: Box::new([UpperReplayClaimId(0)]),
+        };
+        let mut arena = ParentSetArena::new();
+        let plan = arena
+            .preflight_extend(ParentSetVersionId::EMPTY, &draft, &bounds)
+            .unwrap();
+        arena.fail_next_reservation();
+
+        assert_eq!(
+            arena.commit_extend(plan),
+            Err(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_arena_storage_is_unallocated(&arena);
     }
 
     fn extend(
@@ -579,8 +894,23 @@ mod tests {
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         };
-        let plan = arena.preflight_extend(base, &draft, bounds);
-        arena.commit_extend(plan)
+        let plan = arena.preflight_extend(base, &draft, bounds).unwrap();
+        arena.commit_extend(plan).unwrap()
+    }
+
+    fn entries(arena: &ParentSetArena, version: ParentSetVersionId) -> Vec<ParentSetEntry> {
+        arena.iter(version).unwrap().collect()
+    }
+
+    fn assert_arena_storage_is_unallocated(arena: &ParentSetArena) {
+        assert_eq!(arena.versions.len(), 0);
+        assert_eq!(arena.versions.capacity(), 0);
+        assert_eq!(arena.chunks.len(), 0);
+        assert_eq!(arena.chunks.capacity(), 0);
+        assert_eq!(arena.versions_by_fingerprint.len(), 0);
+        assert_eq!(arena.versions_by_fingerprint.capacity(), 0);
+        assert_eq!(arena.chunks_by_fingerprint.len(), 0);
+        assert_eq!(arena.chunks_by_fingerprint.capacity(), 0);
     }
 
     fn bounds_with_roots(roots: &[u32]) -> TypeBounds {
