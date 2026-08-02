@@ -34,8 +34,8 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use replay_factored::{
-    NonReplayClaimParentStore, ParentSetArena, ReplayClauseProjection, ReplayFactoredShadowStatus,
-    ReplayOccurrenceStore, ReplayResultSummary,
+    NonReplayClaimParentStore, ParentSetArena, ReplayClauseProjection, ReplayFactoredResult,
+    ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
 };
 pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
 
@@ -734,8 +734,6 @@ struct SchemeProjectionEvaluator<'a> {
     cycle_cuts: usize,
     #[cfg(any(test, debug_assertions))]
     compare_factored_evaluator: bool,
-    #[cfg(any(test, debug_assertions))]
-    factored_read_failure: Option<replay_factored::ReplayFactoredShadowFailure>,
     #[cfg(test)]
     replay_inspections: usize,
 }
@@ -753,8 +751,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             cycle_cuts: 0,
             #[cfg(any(test, debug_assertions))]
             compare_factored_evaluator: true,
-            #[cfg(any(test, debug_assertions))]
-            factored_read_failure: None,
             #[cfg(test)]
             replay_inspections: 0,
         }
@@ -790,49 +786,55 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         self
     }
 
-    fn eval_premise(&mut self, premise: ProofPremise) -> bool {
+    fn eval_premise(&mut self, premise: ProofPremise) -> ReplayFactoredResult<bool> {
         match premise {
             ProofPremise::Record(record) => self.eval_record(record),
             ProofPremise::Constraint(constraint) => self.eval_constraint(constraint),
-            ProofPremise::RootCoverage(root) => self.eval_root_coverage(root),
+            ProofPremise::RootCoverage(root) => Ok(self.eval_root_coverage(root)),
         }
     }
 
-    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+    /// C3c keeps production on the infallible Legacy source; Factored callers use the Result
+    /// entrypoint below so a read failure cannot be mistaken for a negative evaluation.
+    fn eval_record_legacy(&mut self, record: BoundRecordId) -> bool {
+        self.eval_record(record).unwrap_or(false)
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
         let top_level = self.visiting_nodes == 0;
         let result = if let Some(result) = self.record_result_overrides.get(&record) {
-            *result
+            Ok(*result)
         } else {
             let node = ProofEvalNode::Record(record);
             if let Some(result) = self.enter(node) {
-                result
+                Ok(result)
             } else {
                 let result = self.eval_record_uncached(record);
-                self.finish(node, result)
+                self.finish_result(node, result)
             }
-        };
+        }?;
         if top_level {
             #[cfg(any(test, debug_assertions))]
             self.compare_factored_top_level_result(record, result);
         }
-        result
+        Ok(result)
     }
 
-    fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
+    fn eval_record_uncached(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
         let Some(bound) = self.machine.bounds.record(record) else {
-            return true;
+            return Ok(true);
         };
         if bound.state() == BoundRecordState::Tombstone {
-            return true;
+            return Ok(true);
         }
         if bound.direction() == BoundDirection::Upper {
             let Some(claims) = self.machine.bounds.claims_by_upper_record.get(&record) else {
-                return true;
+                return Ok(true);
             };
             if claims.is_empty() {
-                return true;
+                return Ok(true);
             }
-            return claims.iter().any(|claim| self.eval_root_coverage(*claim));
+            return Ok(claims.iter().any(|claim| self.eval_root_coverage(*claim)));
         }
         let proofs = match self.proof_overrides.get(&record) {
             Some(proofs) => *proofs,
@@ -844,7 +846,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 .map(Vec::as_slice),
         };
         if self.flat_fail_open(record, proofs) {
-            return true;
+            return Ok(true);
         }
 
         let Some(clause_ids) = self
@@ -853,7 +855,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             .record_proof_clause_ids_by_lower_record
             .get(&record)
         else {
-            return false;
+            return Ok(false);
         };
         for clause_id in clause_ids {
             let Some(clause) = self
@@ -863,17 +865,17 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 .get(clause_id.0 as usize)
                 .copied()
             else {
-                return true;
+                return Ok(true);
             };
             if clause.id != *clause_id || clause.lower_record != record {
-                return true;
+                return Ok(true);
             }
-            let projectable = self.eval_clause(clause.clause);
+            let projectable = self.eval_clause(clause.clause)?;
             if projectable {
-                return true;
+                return Ok(true);
             }
         }
-        false
+        Ok(false)
     }
 
     fn flat_fail_open(
@@ -893,42 +895,50 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         })
     }
 
-    fn eval_clause(&mut self, clause: RecordProofClause) -> bool {
+    fn eval_clause(&mut self, clause: RecordProofClause) -> ReplayFactoredResult<bool> {
         match clause {
-            RecordProofClause::Standalone { support } => self.support_is_qualifying(support),
+            RecordProofClause::Standalone { support } => Ok(self.support_is_qualifying(support)),
             RecordProofClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
             RecordProofClause::ReplayConjunction {
                 lower_premise,
                 upper_premise,
                 ..
-            } => self.eval_record(lower_premise) && self.eval_record(upper_premise),
+            } => {
+                if !self.eval_record(lower_premise)? {
+                    return Ok(false);
+                }
+                self.eval_record(upper_premise)
+            }
         }
     }
 
-    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> bool {
+    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> ReplayFactoredResult<bool> {
         let node = ProofEvalNode::Constraint(constraint);
         if let Some(result) = self.enter(node) {
-            return result;
+            return Ok(result);
         }
         let result = self.eval_constraint_uncached(constraint);
-        self.finish(node, result)
+        self.finish_result(node, result)
     }
 
-    fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
+    fn eval_constraint_uncached(
+        &mut self,
+        constraint: ConstraintRecordId,
+    ) -> ReplayFactoredResult<bool> {
         if self
             .machine
             .constraint_records
             .get(constraint.0 as usize)
             .is_none()
         {
-            return true;
+            return Ok(true);
         }
         let mut has_source = false;
         if let Some(lower_record) = self.machine.lower_record_for_constraint(constraint) {
             has_source = true;
-            let projectable = self.eval_record(lower_record);
+            let projectable = self.eval_record(lower_record)?;
             if projectable {
-                return true;
+                return Ok(true);
             }
         }
 
@@ -950,17 +960,17 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                             {
                                 self.replay_inspections = self.replay_inspections.saturating_add(1);
                             }
-                            self.eval_record(replay.lower) && self.eval_record(replay.upper)
+                            self.eval_record(replay.lower)? && self.eval_record(replay.upper)?
                         }
                         ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                            self.eval_constraint(derivation.parent)
+                            self.eval_constraint(derivation.parent)?
                         }
                         ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
                             self.eval_root_coverage(parent_claim)
                         }
                     };
                     if projectable {
-                        return true;
+                        return Ok(true);
                     }
                 }
             }
@@ -972,38 +982,31 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                     {
                         self.replay_inspections = self.replay_inspections.saturating_add(1);
                     }
-                    let occurrence = match machine.replay_occurrence(occurrence_id) {
-                        Ok(occurrence) => occurrence,
-                        Err(failure) => {
-                            self.factored_read_failure = Some(failure);
-                            return false;
-                        }
-                    };
+                    let occurrence = machine.replay_occurrence(occurrence_id)?;
                     has_source = true;
-                    if self.eval_record(occurrence.carrier.lower)
-                        && self.eval_record(occurrence.carrier.upper)
+                    if self.eval_record(occurrence.carrier.lower)?
+                        && self.eval_record(occurrence.carrier.upper)?
                     {
-                        return true;
+                        return Ok(true);
                     }
                 }
                 for parent in machine.non_replay_claim_parents_for_result(constraint) {
                     has_source = true;
                     let projectable = match parent {
                         ClaimQualifiedParent::ReplayConstraint { .. } => {
-                            self.factored_read_failure = Some(
+                            return Err(
                                 replay_factored::ReplayFactoredShadowFailure::ReplayParentInNonReplayStore,
                             );
-                            return false;
                         }
                         ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                            self.eval_constraint(derivation.parent)
+                            self.eval_constraint(derivation.parent)?
                         }
                         ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
                             self.eval_root_coverage(parent_claim)
                         }
                     };
                     if projectable {
-                        return true;
+                        return Ok(true);
                     }
                 }
             }
@@ -1019,10 +1022,10 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             has_source = true;
             let projectable = self.eval_root_coverage(root_claim);
             if projectable {
-                return true;
+                return Ok(true);
             }
         }
-        !has_source
+        Ok(!has_source)
     }
 
     fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
@@ -1092,6 +1095,22 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         result
     }
 
+    fn finish_result(
+        &mut self,
+        node: ProofEvalNode,
+        result: ReplayFactoredResult<bool>,
+    ) -> ReplayFactoredResult<bool> {
+        match result {
+            Ok(result) => Ok(self.finish(node, result)),
+            Err(failure) => {
+                debug_assert_eq!(self.states.get(&node), Some(&ProofEvalState::Visiting));
+                self.states.remove(&node);
+                self.visiting_nodes -= 1;
+                Err(failure)
+            }
+        }
+    }
+
     #[cfg(any(test, debug_assertions))]
     fn compare_factored_top_level_result(&self, record: BoundRecordId, observed_legacy: bool) {
         if !self.compare_factored_evaluator
@@ -1117,16 +1136,13 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         let mut factored = self.fresh_for_replay_source(ReplayEvaluatorSource::Factored);
         let factored_result = factored.eval_record(record);
         assert_eq!(
-            factored.factored_read_failure, None,
-            "RCPF-C2 factored evaluator query failed while the shadow was Active"
-        );
-        assert_eq!(
-            observed_legacy, legacy_result,
+            Ok(observed_legacy),
+            legacy_result,
             "RCPF-C2 shared and fresh legacy evaluator results diverged"
         );
         assert_eq!(
-            legacy_result, factored_result,
-            "RCPF-C2 legacy and factored evaluator results diverged"
+            factored_result, legacy_result,
+            "RCPF-C3c factored evaluator failed or diverged while the shadow was Active"
         );
     }
 
@@ -1196,7 +1212,12 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         }
     }
 
-    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+    /// Production rounds remain Legacy-only until C3d; Factored rounds use the fallible entrypoint.
+    fn eval_record_legacy(&mut self, record: BoundRecordId) -> bool {
+        self.eval_record(record).unwrap_or(false)
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
         if self.sharing_disabled {
             return Self::new_evaluator(
                 self.machine,
@@ -1320,7 +1341,7 @@ impl ConstraintMachine {
                     uncovered_claims.push(*claim_id);
                 }
             }
-            let included = evaluation_round.eval_record(record);
+            let included = evaluation_round.eval_record_legacy(record);
             included.then_some(SchemeProjectableLower {
                 record,
                 bound,
@@ -1409,7 +1430,7 @@ impl ConstraintMachine {
             .filter(|record| {
                 let was_included = SchemeProjectionEvaluator::new(self)
                     .with_root_result_override(root, was_empty)
-                    .eval_record(*record);
+                    .eval_record_legacy(*record);
                 was_included != self.scheme_projection_record_is_included(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
@@ -1440,7 +1461,7 @@ impl ConstraintMachine {
                         self.bump_provenance_epoch();
                     }
                     (true, false) => {
-                        let is_included = evaluator.eval_record(lower_record);
+                        let is_included = evaluator.eval_record_legacy(lower_record);
                         self.publish_record_inclusion_change(
                             lower_record,
                             true,
@@ -1451,7 +1472,7 @@ impl ConstraintMachine {
                     (false, true) => {
                         let was_included = evaluator
                             .with_proof_override(lower_record, previous_proofs.as_deref())
-                            .eval_record(lower_record);
+                            .eval_record_legacy(lower_record);
                         self.publish_record_inclusion_change(
                             lower_record,
                             was_included,
@@ -1465,13 +1486,13 @@ impl ConstraintMachine {
     }
 
     fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
-        SchemeProjectionEvaluator::new(self).eval_record(lower_record)
+        SchemeProjectionEvaluator::new(self).eval_record_legacy(lower_record)
     }
 
     #[cfg(test)]
     fn scheme_projection_cycle_guard_snapshot(&self, lower_record: BoundRecordId) -> (bool, usize) {
         let mut evaluator = SchemeProjectionEvaluator::new(self);
-        let projectable = evaluator.eval_record(lower_record);
+        let projectable = evaluator.eval_record_legacy(lower_record);
         (projectable, evaluator.cycle_cuts)
     }
 
@@ -1505,8 +1526,8 @@ impl ConstraintMachine {
         let mut affected_owners = affected_records
             .into_iter()
             .filter(|record| {
-                let dependent_was_included = before_round.eval_record(*record);
-                dependent_was_included != after_round.eval_record(*record)
+                let dependent_was_included = before_round.eval_record_legacy(*record);
+                dependent_was_included != after_round.eval_record_legacy(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
             .collect::<FxHashSet<_>>();

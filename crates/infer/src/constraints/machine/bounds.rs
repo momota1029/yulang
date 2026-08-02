@@ -4943,8 +4943,7 @@ mod mutation_tests {
         )
         .with_record_result_override(fixture.lower_record, false);
         let factored_result = factored.eval_constraint(fixture.result);
-        assert_eq!(legacy_result, factored_result);
-        assert_eq!(factored.factored_read_failure, None);
+        assert_eq!(factored_result, legacy_result);
         (
             legacy.replay_inspections,
             factored.replay_inspections,
@@ -4999,8 +4998,7 @@ mod mutation_tests {
             )
             .with_record_result_override(fixture.lower_record, false);
             let factored_result = factored.eval_constraint(constraint);
-            assert_eq!(legacy, factored_result);
-            assert_eq!(factored.factored_read_failure, None);
+            assert_eq!(factored_result, legacy);
         }
     }
 
@@ -5061,8 +5059,9 @@ mod mutation_tests {
                     ReplayEvaluatorSource::Factored,
                 ] {
                     let fresh = roots.map(|record| {
-                        SchemeProjectionEvaluator::with_replay_source(&machine, replay_source)
-                            .eval_record(record)
+                        let mut evaluator =
+                            SchemeProjectionEvaluator::with_replay_source(&machine, replay_source);
+                        evaluator.eval_record(record)
                     });
                     let mut round = SchemeProjectionEvaluationRound::with_replay_source(
                         &machine,
@@ -5070,10 +5069,62 @@ mod mutation_tests {
                     );
                     let shared = roots.map(|record| round.eval_record(record));
                     assert_eq!(fresh, shared);
-                    assert_eq!(fresh, [true, true]);
+                    assert_eq!(fresh, [Ok(true), Ok(true)]);
                 }
             }
         }
+    }
+
+    #[test]
+    fn rcpf_c3c_factored_read_error_propagates_and_cleans_cycle_guard_state() {
+        let mut machine = ConstraintMachine::new();
+        let lower = machine.alloc_pos(Pos::Con(vec!["rcpf-c3c-lower".into()], Vec::new()));
+        let upper = machine.alloc_neg(Neg::Con(vec!["rcpf-c3c-upper".into()], Vec::new()));
+        machine.subtype(lower, upper, OriginId::unknown_internal());
+        let constraint = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the synthetic constraint is canonical");
+        let missing_occurrence = crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX);
+        machine
+            .replay_occurrences
+            .by_result
+            .insert(constraint, vec![missing_occurrence]);
+        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 119);
+        dpn_b_register_synthetic_clause(
+            &mut machine,
+            record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(119),
+                premise: ProofPremise::Constraint(constraint),
+            },
+        );
+        let expected = Err(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
+            missing_occurrence,
+        ));
+
+        let mut evaluator = SchemeProjectionEvaluator::with_replay_source(
+            &machine,
+            ReplayEvaluatorSource::Factored,
+        );
+        assert_eq!(evaluator.eval_record(record), expected);
+        assert_eq!(evaluator.visiting_nodes, 0);
+        assert!(evaluator.states.is_empty());
+        assert_eq!(evaluator.eval_record(record), expected);
+        assert_eq!(evaluator.visiting_nodes, 0);
+        assert!(evaluator.states.is_empty());
+
+        let mut round = SchemeProjectionEvaluationRound::with_replay_source(
+            &machine,
+            ReplayEvaluatorSource::Factored,
+        );
+        assert_eq!(round.eval_record(record), expected);
+        let shared = round
+            .shared
+            .as_ref()
+            .expect("an error without a cycle cut keeps the shared evaluator");
+        assert_eq!(shared.visiting_nodes, 0);
+        assert!(shared.states.is_empty());
     }
 
     #[test]
