@@ -4,9 +4,11 @@ use std::hash::{Hash, Hasher};
 
 #[cfg(any(test, debug_assertions))]
 use crate::constraints::replay_factored::ReplayFactoredOracleMismatch;
+#[cfg(test)]
+use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
 use crate::constraints::replay_factored::{
-    ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayFactoredShadowStatus,
-    ReplayOccurrenceKey, ReplayParentDraft, ReplayParentDraftId,
+    ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
+    ReplayParentDraftId,
 };
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -1059,7 +1061,7 @@ impl ConstraintMachine {
         if let Err(failure) =
             self.try_project_factored_replay_clause_parents(result, lower_record, parents)
         {
-            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+            self.mark_replay_factored_failure(failure);
         }
     }
 
@@ -1114,7 +1116,7 @@ impl ConstraintMachine {
             return;
         }
         if let Err(failure) = self.try_compare_factored_replay_event_boundary(result) {
-            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+            self.mark_replay_factored_failure(failure);
         }
     }
 
@@ -1749,7 +1751,7 @@ impl ConstraintMachine {
             .non_replay_claim_parents_by_constraint
             .try_admit(result, parent)
         {
-            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+            self.mark_replay_factored_failure(failure);
         }
     }
 
@@ -2406,7 +2408,7 @@ impl ConstraintMachine {
             inserted_parents,
             drafts,
         ) {
-            self.replay_factored_shadow_status = ReplayFactoredShadowStatus::Failed(failure);
+            self.mark_replay_factored_failure(failure);
         }
     }
 
@@ -4815,7 +4817,7 @@ mod mutation_tests {
         );
 
         assert_eq!(
-            fixture.machine.replay_factored_shadow_status,
+            fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
         );
         assert_eq!(
@@ -4891,6 +4893,14 @@ mod mutation_tests {
             fixture.machine.replay_read_authority(),
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed)
         );
+        assert_eq!(
+            SchemeProjectionEvaluator::new(&fixture.machine).replay_source,
+            ReplayEvaluatorSource::Legacy,
+        );
+        assert_eq!(
+            SchemeProjectionEvaluationRound::new(&fixture.machine).replay_source,
+            ReplayEvaluatorSource::Legacy,
+        );
         assert!(
             fixture
                 .machine
@@ -4937,11 +4947,13 @@ mod mutation_tests {
         )
         .with_record_result_override(fixture.lower_record, false);
         let legacy_result = legacy.eval_constraint(fixture.result);
-        let mut factored = SchemeProjectionEvaluator::with_replay_source(
-            &fixture.machine,
+        let mut factored = SchemeProjectionEvaluator::new(&fixture.machine)
+            .with_record_result_override(fixture.lower_record, false);
+        assert_eq!(factored.replay_source, ReplayEvaluatorSource::Factored);
+        assert_eq!(
+            SchemeProjectionEvaluationRound::new(&fixture.machine).replay_source,
             ReplayEvaluatorSource::Factored,
-        )
-        .with_record_result_override(fixture.lower_record, false);
+        );
         let factored_result = factored.eval_constraint(fixture.result);
         assert_eq!(factored_result, legacy_result);
         (
@@ -5076,7 +5088,7 @@ mod mutation_tests {
     }
 
     #[test]
-    fn rcpf_c3c_factored_read_error_propagates_and_cleans_cycle_guard_state() {
+    fn rcpf_c3d_factored_read_error_quarantines_the_production_attempt() {
         let mut machine = ConstraintMachine::new();
         let lower = machine.alloc_pos(Pos::Con(vec!["rcpf-c3c-lower".into()], Vec::new()));
         let upper = machine.alloc_neg(Neg::Con(vec!["rcpf-c3c-upper".into()], Vec::new()));
@@ -5125,6 +5137,19 @@ mod mutation_tests {
             .expect("an error without a cycle cut keeps the shared evaluator");
         assert_eq!(shared.visiting_nodes, 0);
         assert!(shared.states.is_empty());
+
+        assert_eq!(machine.replay_factored_terminal_failure(), None);
+        assert!(
+            !machine.scheme_projection_record_is_included(record),
+            "the terminal attempt returns an inert value that C3a will discard"
+        );
+        assert_eq!(
+            machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
+                missing_occurrence,
+            ))
+        );
+        assert!(!machine.replay_factored_writes_enabled());
     }
 
     #[test]
@@ -5143,8 +5168,11 @@ mod mutation_tests {
                 u32::MAX,
             )],
         );
-        machine.replay_factored_shadow_status =
-            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed);
+        machine
+            .replay_factored_shadow_status
+            .set(ReplayFactoredShadowStatus::Failed(
+                ReplayFactoredShadowFailure::AllocationFailed,
+            ));
         let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 120);
         dpn_b_register_synthetic_clause(
             &mut machine,
@@ -5156,10 +5184,9 @@ mod mutation_tests {
             },
         );
 
-        assert!(
-            machine.scheme_projection_record_is_included(record),
-            "the legacy result is returned without constructing a factored evaluator"
-        );
+        let mut legacy =
+            SchemeProjectionEvaluator::with_replay_source(&machine, ReplayEvaluatorSource::Legacy);
+        assert!(legacy.eval_record_or_quarantine(record));
     }
 
     #[test]
@@ -5262,7 +5289,7 @@ mod mutation_tests {
         );
 
         assert_eq!(
-            fixture.machine.replay_factored_shadow_status,
+            fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
         );
         assert_eq!(fixture.machine.replay_occurrences.occurrences.len(), 2);
@@ -5427,7 +5454,7 @@ mod mutation_tests {
 
         assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
         assert_eq!(
-            fixture.machine.replay_factored_shadow_status,
+            fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
         );
         assert_eq!(
@@ -5522,7 +5549,7 @@ mod mutation_tests {
         assert_eq!(shadow.machine.events.len(), legacy.machine.events.len());
         assert_eq!(shadow_affected, legacy_affected);
         assert_eq!(
-            shadow.machine.replay_factored_shadow_status,
+            shadow.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
         );
     }
@@ -5689,7 +5716,7 @@ mod mutation_tests {
         let parent = fixture.parent;
         register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
         assert_eq!(
-            fixture.machine.replay_factored_shadow_status,
+            fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
         );
         let legacy_before = cdm_oracle_ledger_snapshot(&fixture);
@@ -5702,7 +5729,7 @@ mod mutation_tests {
         register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
 
         assert_eq!(
-            fixture.machine.replay_factored_shadow_status,
+            fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::OracleMismatch(
                 ReplayFactoredOracleMismatch::FirstReplayWitness
             ))
@@ -5738,7 +5765,7 @@ mod mutation_tests {
             .register_replay_claim_parents(legacy.result, first, &[legacy.parent], true);
 
         assert_eq!(
-            shadow.machine.replay_factored_shadow_status,
+            shadow.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
         );
         assert_eq!(

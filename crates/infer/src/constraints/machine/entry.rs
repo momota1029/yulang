@@ -10,17 +10,27 @@ impl ConstraintMachine {
     pub(crate) fn new_with_replay_read_authority(
         replay_read_authority: ReplayReadAuthority,
     ) -> Self {
+        #[cfg(test)]
+        let replay_result_summary = {
+            let mut summary = ReplayResultSummary::default();
+            if replay_read_authority.writes_factored_shadow() {
+                summary.enable_evaluator_oracle();
+            }
+            summary
+        };
+        #[cfg(not(test))]
+        let replay_result_summary = ReplayResultSummary::default();
         Self {
             types: TypeArena::new(),
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
             replay_parent_sets: ParentSetArena::new(),
             replay_occurrences: ReplayOccurrenceStore::default(),
-            replay_result_summary: ReplayResultSummary::default(),
+            replay_result_summary,
             replay_clause_projection: ReplayClauseProjection::default(),
             non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
             replay_read_authority,
-            replay_factored_shadow_status: ReplayFactoredShadowStatus::Active,
+            replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
             levels: TypeLevels::new(),
@@ -76,22 +86,34 @@ impl ConstraintMachine {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn replay_read_authority(&self) -> ReplayReadAuthority {
         self.replay_read_authority
     }
 
     pub(crate) fn replay_factored_terminal_failure(&self) -> Option<ReplayFactoredShadowFailure> {
-        match self.replay_factored_shadow_status {
+        match self.replay_factored_shadow_status.get() {
             ReplayFactoredShadowStatus::Active => None,
             ReplayFactoredShadowStatus::Failed(failure) => Some(failure),
+        }
+    }
+
+    pub(in crate::constraints) fn mark_replay_factored_failure(
+        &self,
+        failure: ReplayFactoredShadowFailure,
+    ) {
+        if matches!(
+            self.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Active
+        ) {
+            self.replay_factored_shadow_status
+                .set(ReplayFactoredShadowStatus::Failed(failure));
         }
     }
 
     pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
         self.replay_read_authority.writes_factored_shadow()
             && matches!(
-                self.replay_factored_shadow_status,
+                self.replay_factored_shadow_status.get(),
                 ReplayFactoredShadowStatus::Active
             )
     }

@@ -20,7 +20,7 @@ mod tests;
 mod timing;
 mod trace;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{VecDeque, hash_map::Entry};
 
 use directed_weight::{
@@ -77,7 +77,7 @@ pub struct ConstraintMachine {
     replay_clause_projection: ReplayClauseProjection,
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
     replay_read_authority: ReplayReadAuthority,
-    replay_factored_shadow_status: ReplayFactoredShadowStatus,
+    replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
     levels: TypeLevels,
@@ -715,8 +715,16 @@ enum ProofEvalState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReplayEvaluatorSource {
     Legacy,
-    #[cfg(any(test, debug_assertions))]
     Factored,
+}
+
+impl ReplayReadAuthority {
+    fn evaluator_source(self) -> ReplayEvaluatorSource {
+        match self {
+            Self::Factored => ReplayEvaluatorSource::Factored,
+            Self::LegacyRollback(_) => ReplayEvaluatorSource::Legacy,
+        }
+    }
 }
 
 /// One projection pass over the reachable proof graph.
@@ -742,7 +750,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
             machine,
-            replay_source: ReplayEvaluatorSource::Legacy,
+            replay_source: machine.replay_read_authority().evaluator_source(),
             states: FxHashMap::default(),
             visiting_nodes: 0,
             record_result_overrides: FxHashMap::default(),
@@ -756,7 +764,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         }
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn with_replay_source(
         machine: &'a ConstraintMachine,
         replay_source: ReplayEvaluatorSource,
@@ -794,10 +801,16 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         }
     }
 
-    /// C3c keeps production on the infallible Legacy source; Factored callers use the Result
-    /// entrypoint below so a read failure cannot be mistaken for a negative evaluation.
-    fn eval_record_legacy(&mut self, record: BoundRecordId) -> bool {
-        self.eval_record(record).unwrap_or(false)
+    /// A failed Factored read makes the entire attempt terminal. The returned value is only an
+    /// inert placeholder while the caller unwinds; C3a discards every output from this machine.
+    fn eval_record_or_quarantine(&mut self, record: BoundRecordId) -> bool {
+        match self.eval_record(record) {
+            Ok(result) => result,
+            Err(failure) => {
+                self.machine.mark_replay_factored_failure(failure);
+                false
+            }
+        }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
@@ -974,7 +987,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                     }
                 }
             }
-            #[cfg(any(test, debug_assertions))]
             ReplayEvaluatorSource::Factored => {
                 let machine = self.machine;
                 for occurrence_id in machine.replay_occurrences_for_result(constraint) {
@@ -1112,15 +1124,14 @@ impl<'a> SchemeProjectionEvaluator<'a> {
     }
 
     #[cfg(any(test, debug_assertions))]
-    fn compare_factored_top_level_result(&self, record: BoundRecordId, observed_legacy: bool) {
+    fn compare_factored_top_level_result(&self, record: BoundRecordId, observed_result: bool) {
         if !self.compare_factored_evaluator
-            || self.replay_source != ReplayEvaluatorSource::Legacy
             || !self
                 .machine
                 .replay_result_summary
                 .evaluator_oracle_enabled()
             || !matches!(
-                self.machine.replay_factored_shadow_status,
+                self.machine.replay_factored_shadow_status.get(),
                 ReplayFactoredShadowStatus::Active
             )
         {
@@ -1135,14 +1146,20 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         let legacy_result = legacy.eval_record(record);
         let mut factored = self.fresh_for_replay_source(ReplayEvaluatorSource::Factored);
         let factored_result = factored.eval_record(record);
+        let observed_result = Ok(observed_result);
         assert_eq!(
-            Ok(observed_legacy),
-            legacy_result,
-            "RCPF-C2 shared and fresh legacy evaluator results diverged"
+            observed_result, legacy_result,
+            "RCPF-C3d observed {:?} and fresh Legacy evaluator results diverged",
+            self.replay_source,
+        );
+        assert_eq!(
+            observed_result, factored_result,
+            "RCPF-C3d observed {:?} and fresh Factored evaluator results diverged",
+            self.replay_source,
         );
         assert_eq!(
             factored_result, legacy_result,
-            "RCPF-C3c factored evaluator failed or diverged while the shadow was Active"
+            "RCPF-C3d fresh Factored evaluator failed or diverged while the shadow was Active"
         );
     }
 
@@ -1171,7 +1188,11 @@ struct SchemeProjectionEvaluationRound<'a> {
 
 impl<'a> SchemeProjectionEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
-        Self::new_with_record_result_override(machine, ReplayEvaluatorSource::Legacy, None)
+        Self::new_with_record_result_override(
+            machine,
+            machine.replay_read_authority().evaluator_source(),
+            None,
+        )
     }
 
     #[cfg(test)]
@@ -1189,7 +1210,7 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
     ) -> Self {
         Self::new_with_record_result_override(
             machine,
-            ReplayEvaluatorSource::Legacy,
+            machine.replay_read_authority().evaluator_source(),
             Some((record, result)),
         )
     }
@@ -1212,9 +1233,16 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         }
     }
 
-    /// Production rounds remain Legacy-only until C3d; Factored rounds use the fallible entrypoint.
-    fn eval_record_legacy(&mut self, record: BoundRecordId) -> bool {
-        self.eval_record(record).unwrap_or(false)
+    /// A failed Factored read makes the entire attempt terminal. The returned value is only an
+    /// inert placeholder while the caller unwinds; C3a discards every output from this machine.
+    fn eval_record_or_quarantine(&mut self, record: BoundRecordId) -> bool {
+        match self.eval_record(record) {
+            Ok(result) => result,
+            Err(failure) => {
+                self.machine.mark_replay_factored_failure(failure);
+                false
+            }
+        }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
@@ -1252,13 +1280,7 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         replay_source: ReplayEvaluatorSource,
         record_result_override: Option<(BoundRecordId, bool)>,
     ) -> SchemeProjectionEvaluator<'a> {
-        #[cfg(any(test, debug_assertions))]
         let evaluator = SchemeProjectionEvaluator::with_replay_source(machine, replay_source);
-        #[cfg(not(any(test, debug_assertions)))]
-        let evaluator = {
-            let _ = replay_source;
-            SchemeProjectionEvaluator::new(machine)
-        };
         let Some((record, result)) = record_result_override else {
             return evaluator;
         };
@@ -1341,7 +1363,7 @@ impl ConstraintMachine {
                     uncovered_claims.push(*claim_id);
                 }
             }
-            let included = evaluation_round.eval_record_legacy(record);
+            let included = evaluation_round.eval_record_or_quarantine(record);
             included.then_some(SchemeProjectableLower {
                 record,
                 bound,
@@ -1430,7 +1452,7 @@ impl ConstraintMachine {
             .filter(|record| {
                 let was_included = SchemeProjectionEvaluator::new(self)
                     .with_root_result_override(root, was_empty)
-                    .eval_record_legacy(*record);
+                    .eval_record_or_quarantine(*record);
                 was_included != self.scheme_projection_record_is_included(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
@@ -1461,18 +1483,13 @@ impl ConstraintMachine {
                         self.bump_provenance_epoch();
                     }
                     (true, false) => {
-                        let is_included = evaluator.eval_record_legacy(lower_record);
-                        self.publish_record_inclusion_change(
-                            lower_record,
-                            true,
-                            is_included,
-                            true,
-                        );
+                        let is_included = evaluator.eval_record_or_quarantine(lower_record);
+                        self.publish_record_inclusion_change(lower_record, true, is_included, true);
                     }
                     (false, true) => {
                         let was_included = evaluator
                             .with_proof_override(lower_record, previous_proofs.as_deref())
-                            .eval_record_legacy(lower_record);
+                            .eval_record_or_quarantine(lower_record);
                         self.publish_record_inclusion_change(
                             lower_record,
                             was_included,
@@ -1486,13 +1503,13 @@ impl ConstraintMachine {
     }
 
     fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
-        SchemeProjectionEvaluator::new(self).eval_record_legacy(lower_record)
+        SchemeProjectionEvaluator::new(self).eval_record_or_quarantine(lower_record)
     }
 
     #[cfg(test)]
     fn scheme_projection_cycle_guard_snapshot(&self, lower_record: BoundRecordId) -> (bool, usize) {
         let mut evaluator = SchemeProjectionEvaluator::new(self);
-        let projectable = evaluator.eval_record_legacy(lower_record);
+        let projectable = evaluator.eval_record_or_quarantine(lower_record);
         (projectable, evaluator.cycle_cuts)
     }
 
@@ -1526,8 +1543,8 @@ impl ConstraintMachine {
         let mut affected_owners = affected_records
             .into_iter()
             .filter(|record| {
-                let dependent_was_included = before_round.eval_record_legacy(*record);
-                dependent_was_included != after_round.eval_record_legacy(*record)
+                let dependent_was_included = before_round.eval_record_or_quarantine(*record);
+                dependent_was_included != after_round.eval_record_or_quarantine(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
             .collect::<FxHashSet<_>>();
