@@ -37,6 +37,7 @@ use replay_factored::{
     NonReplayClaimParentStore, ParentSetArena, ReplayClauseProjection, ReplayFactoredShadowStatus,
     ReplayOccurrenceStore, ReplayResultSummary,
 };
+pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
 
 #[cfg(test)]
 pub(crate) use mutation::MethodRoleMutation;
@@ -75,6 +76,7 @@ pub struct ConstraintMachine {
     replay_result_summary: ReplayResultSummary,
     replay_clause_projection: ReplayClauseProjection,
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
+    replay_read_authority: ReplayReadAuthority,
     replay_factored_shadow_status: ReplayFactoredShadowStatus,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
@@ -515,7 +517,7 @@ enum SchemeProjectionMutation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ReplayClaimParentSide {
+pub(crate) enum ReplayClaimParentSide {
     Lower,
     Upper,
 }
@@ -654,7 +656,7 @@ enum RecordProofClause {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct RecordProofClauseId(u32);
+pub(crate) struct RecordProofClauseId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct RecordProofClauseRecord {

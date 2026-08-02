@@ -27,8 +27,8 @@ mod yumark_tests;
 
 use super::*;
 use crate::analysis::AnalysisTiming;
-use crate::constraints::ConstraintTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
+use crate::constraints::{ConstraintTiming, ReplayFactoredShadowFailure, ReplayReadAuthority};
 use crate::source_range_for_name;
 use register::*;
 use signature_helpers::*;
@@ -640,6 +640,48 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
     lowerer.finish()
 }
 
+struct ReplayCompilationAttempt<T> {
+    output: T,
+    terminal_failure: Option<ReplayFactoredShadowFailure>,
+}
+
+impl<T> ReplayCompilationAttempt<T> {
+    fn completed(output: T, terminal_failure: Option<ReplayFactoredShadowFailure>) -> Self {
+        Self {
+            output,
+            terminal_failure,
+        }
+    }
+}
+
+fn run_replay_compilation_attempt<T>(
+    mut attempt: impl FnMut(
+        ReplayReadAuthority,
+    ) -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
+) -> Result<T, LoadedFilesError> {
+    let first = attempt(ReplayReadAuthority::Factored)?;
+    let Some(failure) = first.terminal_failure else {
+        return Ok(first.output);
+    };
+    drop(first.output);
+
+    let retry = attempt(ReplayReadAuthority::LegacyRollback(failure))
+        .map_err(|_| LoadedFilesError::ReplayFactoredRetryFailed)?;
+    if retry.terminal_failure.is_some() {
+        return Err(LoadedFilesError::ReplayFactoredRetryFailed);
+    }
+    Ok(retry.output)
+}
+
+fn body_lowering_attempt(output: BodyLowering) -> ReplayCompilationAttempt<BodyLowering> {
+    let terminal_failure = output
+        .session
+        .infer
+        .constraints()
+        .replay_factored_terminal_failure();
+    ReplayCompilationAttempt::completed(output, terminal_failure)
+}
+
 /// 複数 `LoadedFile` を1つの module tree として body lowering する。
 ///
 /// pass1 は root file から `mod` / `use mod` の module skeleton を作り、child file の
@@ -662,8 +704,18 @@ pub fn lower_loaded_files_with_doc_tests(
 
 fn lower_loaded_files_with_consumer<T>(
     files: &[LoadedFile],
-    consumer: impl FnOnce(&mut BodyLowerer) -> T,
+    mut consumer: impl FnMut(&mut BodyLowerer) -> T,
 ) -> Result<(BodyLowering, T), LoadedFilesError> {
+    run_replay_compilation_attempt(|authority| {
+        lower_loaded_files_with_consumer_once(files, &mut consumer, authority)
+    })
+}
+
+fn lower_loaded_files_with_consumer_once<T>(
+    files: &[LoadedFile],
+    consumer: &mut impl FnMut(&mut BodyLowerer) -> T,
+    replay_read_authority: ReplayReadAuthority,
+) -> Result<ReplayCompilationAttempt<(BodyLowering, T)>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -679,7 +731,7 @@ fn lower_loaded_files_with_consumer<T>(
     timing.phase("lower module map", measured.module_map);
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new(lower);
+    let mut lowerer = BodyLowerer::new_with_replay_read_authority(lower, replay_read_authority);
     measured.init_lowerer = phase_start.elapsed();
     timing.phase("initialize body lowerer", measured.init_lowerer);
 
@@ -734,7 +786,15 @@ fn lower_loaded_files_with_consumer<T>(
     output.timing = measured;
     timing.phase("finish lowering", measured.finish);
     timing.phase("total lower_loaded_files", measured.total);
-    Ok((output, consumer_output))
+    let terminal_failure = output
+        .session
+        .infer
+        .constraints()
+        .replay_factored_terminal_failure();
+    Ok(ReplayCompilationAttempt::completed(
+        (output, consumer_output),
+        terminal_failure,
+    ))
 }
 
 pub fn lower_loaded_files_prefix(
@@ -747,6 +807,16 @@ pub fn lower_loaded_files_with_prefix(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],
 ) -> Result<BodyLowering, LoadedFilesError> {
+    run_replay_compilation_attempt(|authority| {
+        lower_loaded_files_with_prefix_once(prefix, files, authority)
+    })
+}
+
+fn lower_loaded_files_with_prefix_once(
+    prefix: &BodyLoweringPrefix,
+    files: &[LoadedFile],
+    replay_read_authority: ReplayReadAuthority,
+) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -768,7 +838,11 @@ pub fn lower_loaded_files_with_prefix(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary_and_replay_read_authority(
+        append.lower,
+        &prefix.boundary,
+        replay_read_authority,
+    );
     lowerer.prefix_runtime = prefix.runtime.clone();
     let suffix_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -835,13 +909,24 @@ pub fn lower_loaded_files_with_prefix(
     output.timing = measured;
     timing.phase("finish cached suffix lowering", measured.finish);
     timing.phase("total lower_loaded_files_with_prefix", measured.total);
-    Ok(output)
+    let attempt = body_lowering_attempt(output);
+    Ok(attempt)
 }
 
 pub fn lower_root_loaded_file_with_prefix(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,
 ) -> Result<BodyLowering, LoadedFilesError> {
+    run_replay_compilation_attempt(|authority| {
+        lower_root_loaded_file_with_prefix_once(prefix, root, authority)
+    })
+}
+
+fn lower_root_loaded_file_with_prefix_once(
+    prefix: &BodyLoweringPrefix,
+    root: &LoadedFile,
+    replay_read_authority: ReplayReadAuthority,
+) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -863,7 +948,11 @@ pub fn lower_root_loaded_file_with_prefix(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary_and_replay_read_authority(
+        append.lower,
+        &prefix.boundary,
+        replay_read_authority,
+    );
     lowerer.prefix_runtime = prefix.runtime.clone();
     let root_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -914,7 +1003,8 @@ pub fn lower_root_loaded_file_with_prefix(
     output.timing = measured;
     timing.phase("finish cached root lowering", measured.finish);
     timing.phase("total lower_root_loaded_file_with_prefix", measured.total);
-    Ok(output)
+    let attempt = body_lowering_attempt(output);
+    Ok(attempt)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1446,12 +1536,39 @@ impl BodyLowerer {
         Self::new_with_imported_boundary(lower, &crate::CompiledBoundaryInterface::empty())
     }
 
+    fn new_with_replay_read_authority(
+        lower: Lower,
+        replay_read_authority: ReplayReadAuthority,
+    ) -> Self {
+        Self::new_with_imported_boundary_and_replay_read_authority(
+            lower,
+            &crate::CompiledBoundaryInterface::empty(),
+            replay_read_authority,
+        )
+    }
+
     fn new_with_imported_boundary(
         lower: Lower,
         boundary: &crate::CompiledBoundaryInterface,
     ) -> Self {
+        Self::new_with_imported_boundary_and_replay_read_authority(
+            lower,
+            boundary,
+            ReplayReadAuthority::Factored,
+        )
+    }
+
+    fn new_with_imported_boundary_and_replay_read_authority(
+        lower: Lower,
+        boundary: &crate::CompiledBoundaryInterface,
+        replay_read_authority: ReplayReadAuthority,
+    ) -> Self {
         let labels = lower.modules.dump_labels();
-        let mut session = AnalysisSession::new_with_imported_boundary(lower.arena, boundary);
+        let mut session = AnalysisSession::new_with_imported_boundary_and_replay_read_authority(
+            lower.arena,
+            boundary,
+            replay_read_authority,
+        );
         register_declared_type_methods(&mut session, &lower.modules);
         register_declared_type_field_methods(&mut session, &lower.modules);
         register_declared_act_methods(&mut session, &lower.modules);
@@ -2645,6 +2762,102 @@ fn top_level_var_binding_source(node: &Cst) -> Option<Name> {
     let mut sources = Vec::new();
     crate::collect_pattern_var_binding_sources(&pattern, &mut sources);
     sources.into_iter().next()
+}
+
+#[cfg(test)]
+mod rcpf_c3a_retry_tests {
+    use super::*;
+
+    const FAILURE: ReplayFactoredShadowFailure = ReplayFactoredShadowFailure::AllocationFailed;
+
+    #[test]
+    fn rcpf_c3a_normal_attempt_runs_once_under_factored_authority() {
+        let mut authorities = Vec::new();
+        let mut next_identity = 0usize;
+        let output = run_replay_compilation_attempt(|authority| {
+            authorities.push(authority);
+            let identity = next_identity;
+            next_identity += 1;
+            Ok(ReplayCompilationAttempt::completed(identity, None))
+        })
+        .expect("the normal attempt completes");
+
+        assert_eq!(output, 0);
+        assert_eq!(next_identity, 1);
+        assert_eq!(authorities, [ReplayReadAuthority::Factored]);
+    }
+
+    #[test]
+    fn rcpf_c3a_failed_attempt_is_discarded_before_fresh_legacy_retry() {
+        let mut authorities = Vec::new();
+        let mut next_identity = 0usize;
+        let output = run_replay_compilation_attempt(|authority| {
+            authorities.push(authority);
+            let identity = next_identity;
+            next_identity += 1;
+            let terminal_failure = (identity == 0).then_some(FAILURE);
+            let state = if identity == 0 {
+                vec!["failed-attempt-only"]
+            } else {
+                vec!["clean-legacy-output"]
+            };
+            Ok(ReplayCompilationAttempt::completed(
+                (identity, state),
+                terminal_failure,
+            ))
+        })
+        .expect("the legacy rollback attempt completes");
+
+        let clean_legacy_output = (1, vec!["clean-legacy-output"]);
+        assert_eq!(output, clean_legacy_output);
+        assert_eq!(next_identity, 2, "retry constructs a fresh attempt");
+        assert_eq!(
+            authorities,
+            [
+                ReplayReadAuthority::Factored,
+                ReplayReadAuthority::LegacyRollback(FAILURE),
+            ]
+        );
+    }
+
+    #[test]
+    fn rcpf_c3a_retry_failure_is_a_typed_hard_error() {
+        let mut attempt_count = 0usize;
+        let error = run_replay_compilation_attempt::<()>(|_| {
+            attempt_count += 1;
+            if attempt_count == 1 {
+                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
+            } else {
+                Err(LoadedFilesError::MissingRoot)
+            }
+        })
+        .expect_err("an unavailable clean retry is terminal");
+
+        assert_eq!(attempt_count, 2);
+        assert_eq!(error, LoadedFilesError::ReplayFactoredRetryFailed);
+    }
+
+    #[test]
+    fn rcpf_c3a_loaded_files_driver_threads_factored_authority() {
+        let loaded = sources::load(vec![sources::SourceFile {
+            module_path: Path::default(),
+            source: "pub identity x = x\n".into(),
+        }]);
+        let output = lower_loaded_files(&loaded).expect("lower the authority fixture");
+
+        assert_eq!(
+            output.session.infer.constraints().replay_read_authority(),
+            ReplayReadAuthority::Factored
+        );
+        assert_eq!(
+            output
+                .session
+                .infer
+                .constraints()
+                .replay_factored_terminal_failure(),
+            None
+        );
+    }
 }
 
 #[cfg(test)]

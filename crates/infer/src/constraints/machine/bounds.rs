@@ -1047,10 +1047,7 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
-        if !matches!(
-            self.replay_factored_shadow_status,
-            ReplayFactoredShadowStatus::Active
-        ) {
+        if !self.replay_factored_writes_enabled() {
             return;
         }
         if let Err(failure) =
@@ -1082,6 +1079,9 @@ impl ConstraintMachine {
         reason = "debug consumers opt in explicitly; release builds remove this API"
     )]
     pub(in crate::constraints) fn enable_replay_factored_event_oracle(&mut self) {
+        if !self.replay_factored_writes_enabled() {
+            return;
+        }
         self.replay_result_summary.enable_event_oracle();
     }
 
@@ -1091,6 +1091,9 @@ impl ConstraintMachine {
         reason = "debug consumers opt in explicitly; release builds remove this API"
     )]
     pub(in crate::constraints) fn enable_replay_factored_evaluator_oracle(&mut self) {
+        if !self.replay_factored_writes_enabled() {
+            return;
+        }
         self.replay_result_summary.enable_evaluator_oracle();
     }
 
@@ -1099,10 +1102,8 @@ impl ConstraintMachine {
     /// has already committed and never depends on this result.
     #[cfg(any(test, debug_assertions))]
     fn observe_factored_replay_event_boundary(&mut self, result: ConstraintRecordId) {
-        if !matches!(
-            self.replay_factored_shadow_status,
-            ReplayFactoredShadowStatus::Active
-        ) || !self.replay_result_summary.event_oracle_enabled()
+        if !self.replay_factored_writes_enabled()
+            || !self.replay_result_summary.event_oracle_enabled()
         {
             return;
         }
@@ -1735,10 +1736,7 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         parent: ClaimQualifiedParent,
     ) {
-        if !matches!(
-            self.replay_factored_shadow_status,
-            ReplayFactoredShadowStatus::Active
-        ) {
+        if !self.replay_factored_writes_enabled() {
             return;
         }
         if let Err(failure) = self
@@ -2388,10 +2386,7 @@ impl ConstraintMachine {
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) {
-        if !matches!(
-            self.replay_factored_shadow_status,
-            ReplayFactoredShadowStatus::Active
-        ) {
+        if !self.replay_factored_writes_enabled() {
             return;
         }
         if let Err(failure) = self.try_observe_factored_replay_parent_admission(
@@ -3018,10 +3013,14 @@ impl ConstraintMachine {
         claim_parents: ReplayClaimParents,
         replay: &mut BoundReplayPlan,
     ) {
-        let lower_parents =
-            replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower);
-        let upper_parents =
-            replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Upper);
+        let (lower_parents, upper_parents) = if self.replay_factored_writes_enabled() {
+            (
+                replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower),
+                replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Upper),
+            )
+        } else {
+            (ReplayParentDraftId::EMPTY, ReplayParentDraftId::EMPTY)
+        };
         let attempted = SubtypeConstraintKey {
             lower,
             upper,
@@ -4820,6 +4819,76 @@ mod mutation_tests {
                 .next()
                 .is_none(),
             "the failed shadow store does not partially commit"
+        );
+    }
+
+    #[test]
+    fn rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles() {
+        let mut fixture = cdm_replay_claim_fixture_with_authority(
+            ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed),
+        );
+        let factored_before = replay_factored_storage_census(&fixture.machine);
+        let non_replay_before = fixture
+            .machine
+            .non_replay_claim_parents_by_constraint
+            .storage_census();
+        fixture.machine.enable_replay_factored_event_oracle();
+        fixture.machine.enable_replay_factored_evaluator_oracle();
+
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        register_factored_parent_snapshot(
+            &mut fixture.machine,
+            fixture.result,
+            replay,
+            &[fixture.parent],
+        );
+        let reduction = RowDerivationId(70_004);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(reduction);
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            reduction,
+            fixture.coverage_root,
+        );
+
+        assert_eq!(
+            replay_factored_storage_census(&fixture.machine),
+            factored_before
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .non_replay_claim_parents_by_constraint
+                .storage_census(),
+            non_replay_before
+        );
+        assert!(!fixture.machine.replay_result_summary.event_oracle_enabled());
+        assert!(
+            !fixture
+                .machine
+                .replay_result_summary
+                .evaluator_oracle_enabled()
+        );
+        assert_eq!(fixture.machine.replay_factored_terminal_failure(), None);
+        assert_eq!(
+            fixture.machine.replay_read_authority(),
+            ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .claim_parents_by_constraint
+                .get(&fixture.result)
+                .is_some_and(|parents| !parents.is_empty()),
+            "legacy admission remains active during rollback"
         );
     }
 
@@ -7177,7 +7246,13 @@ mod mutation_tests {
     }
 
     fn cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
-        let mut machine = ConstraintMachine::new();
+        cdm_replay_claim_fixture_with_authority(ReplayReadAuthority::Factored)
+    }
+
+    fn cdm_replay_claim_fixture_with_authority(
+        replay_read_authority: ReplayReadAuthority,
+    ) -> CdmReplayClaimFixture {
+        let mut machine = ConstraintMachine::new_with_replay_read_authority(replay_read_authority);
         let source = TypeVar(0);
         let target = TypeVar(1);
         let parent_source = TypeVar(2);

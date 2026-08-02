@@ -4,6 +4,12 @@ use crate::time::Instant;
 
 impl ConstraintMachine {
     pub fn new() -> Self {
+        Self::new_with_replay_read_authority(ReplayReadAuthority::Factored)
+    }
+
+    pub(crate) fn new_with_replay_read_authority(
+        replay_read_authority: ReplayReadAuthority,
+    ) -> Self {
         Self {
             types: TypeArena::new(),
             queue: VecDeque::new(),
@@ -13,6 +19,7 @@ impl ConstraintMachine {
             replay_result_summary: ReplayResultSummary::default(),
             replay_clause_projection: ReplayClauseProjection::default(),
             non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
+            replay_read_authority,
             replay_factored_shadow_status: ReplayFactoredShadowStatus::Active,
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
@@ -67,6 +74,26 @@ impl ConstraintMachine {
             #[cfg(test)]
             cdm_lower_delta_census: CdmLowerDeltaCensus::default(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn replay_read_authority(&self) -> ReplayReadAuthority {
+        self.replay_read_authority
+    }
+
+    pub(crate) fn replay_factored_terminal_failure(&self) -> Option<ReplayFactoredShadowFailure> {
+        match self.replay_factored_shadow_status {
+            ReplayFactoredShadowStatus::Active => None,
+            ReplayFactoredShadowStatus::Failed(failure) => Some(failure),
+        }
+    }
+
+    pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
+        self.replay_read_authority.writes_factored_shadow()
+            && matches!(
+                self.replay_factored_shadow_status,
+                ReplayFactoredShadowStatus::Active
+            )
     }
 
     pub fn alloc_pos(&mut self, pos: Pos) -> PosId {

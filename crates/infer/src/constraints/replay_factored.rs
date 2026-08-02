@@ -14,17 +14,17 @@ use super::*;
 const MAX_PARENT_SET_DEPTH: u16 = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) struct ReplayOccurrenceId(pub(super) u32);
+pub(crate) struct ReplayOccurrenceId(pub(super) u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) struct ParentSetVersionId(pub(super) u32);
+pub(crate) struct ParentSetVersionId(pub(super) u32);
 
 impl ParentSetVersionId {
     const EMPTY: Self = Self(0);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) struct ParentSetChunkId(pub(super) u32);
+pub(crate) struct ParentSetChunkId(pub(super) u32);
 
 impl ParentSetChunkId {
     const EMPTY: Self = Self(0);
@@ -34,7 +34,7 @@ impl ParentSetChunkId {
 pub(super) struct ReplayParentAttachmentBatchId(pub(super) u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) struct ReplayParentDraftId(pub(super) u32);
+pub(crate) struct ReplayParentDraftId(pub(super) u32);
 
 impl ReplayParentDraftId {
     /// The shared empty draft is represented by the sentinel rather than a plan allocation.
@@ -69,7 +69,7 @@ pub(super) struct ParentSetChunk {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ReplayFactoredShadowFailure {
+pub(crate) enum ReplayFactoredShadowFailure {
     AllocationFailed,
     ReplayOccurrenceIdOverflow,
     ReplayAdmissionOrdinalOverflow,
@@ -113,7 +113,7 @@ pub(super) enum ReplayFactoredShadowFailure {
 
 #[cfg(any(test, debug_assertions))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ReplayFactoredOracleMismatch {
+pub(crate) enum ReplayFactoredOracleMismatch {
     ExactParentRelation,
     QualifiedReplayCarriers,
     FirstReplayWitness,
@@ -129,6 +129,19 @@ pub(super) enum ReplayFactoredShadowStatus {
     #[default]
     Active,
     Failed(ReplayFactoredShadowFailure),
+}
+
+/// Replay representation selected once for one `ConstraintMachine` lifetime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplayReadAuthority {
+    Factored,
+    LegacyRollback(ReplayFactoredShadowFailure),
+}
+
+impl ReplayReadAuthority {
+    pub(super) fn writes_factored_shadow(self) -> bool {
+        matches!(self, Self::Factored)
+    }
 }
 
 pub(super) type ReplayFactoredResult<T> = Result<T, ReplayFactoredShadowFailure>;
