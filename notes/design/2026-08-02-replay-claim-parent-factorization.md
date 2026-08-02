@@ -21,8 +21,13 @@
 1. **Exact occurrence + immutable parent-set snapshot**
    - exact `(result, replay carrier)`に`ReplayOccurrenceId`を与える。
    - occurrenceのLower/Upper各sideは、admission時に確定したimmutableな`ParentSetVersionId`を参照する。
-   - 同じparent集合をcarrierごとにコピーしない。
-   - logicalな`(result, root, side, carrier)`relationはlosslessに列挙・membership判定できる。
+   - parent-setの意味内容は、canonical root membershipをdomain、各rootについてlegacy admission streamが選んだfirst representative claimを値とする、次のunorderedな有限写像である。
+     ```text
+     coverage_root -> representative_claim
+     ```
+   - 同じroot membershipとrepresentative claim写像をcarrierごとにコピーしない。
+   - entry permutationや、そのwinner選択に至ったadmission順序自体はpersistent parent-set identityへ含めない。
+   - logicalな`(result, root, side, carrier)`relationと、各exact keyのrepresentative claimはlosslessに列挙・membership判定できる。
 
 2. **Consumer別summary**
    - evaluatorは一つのreplay carrierをroot数に関係なく一回だけ評価する。
@@ -48,7 +53,10 @@ Bだけでは、consumerが毎回factored relationを展開した時点でコス
   (result, canonical coverage root, parent side, exact replay carrier)
   ```
 - lower/upper parent sideの区別。
-- admission時点で選ばれたclaim集合。
+- admission時点で選ばれたcanonical root集合。
+- 各exact keyについて、legacy admission streamのfirst-winsで選ばれたrepresentative claimの値。
+- `(result, root)`について、legacy admission streamのfirst-winsで選ばれたfirst witnessの値。
+- representative claimとfirst witnessの選択結果は不変とするが、その選択に至った入力順列や処理順序自体はpersistent identityの一部としない。
 - covered/uncovered判定。
 - incremental row routeがgeneric replay側から除外される規則。
 - first accepted parent claimがderived claimの代表lineageになる可能性。
@@ -195,6 +203,32 @@ Nparent = Σc (|Rₗ(c)| + |Rᵤ(c)|)
 同じrootが両sideに存在する場合、sideがidentityに含まれるため二件になる。
 
 問題は、`Rₗ(c)`や`Rᵤ(c)`が多くのcarrier間で同じ、または大きく重なっていても、各tupleを独立したHashSet/Vec entryとして保持・処理している点にある。
+
+### 2.6 RCPF-0 / RCPF-0b parent-set census
+
+RCPF-0では、parent-set identityへ含める情報を変えた場合のphysical entry数を、同じ`std::text::parse` workloadで比較した。
+
+| 構成 | 実測結果 | §12.3判定 |
+|---|---:|---|
+| root membershipのみ | logical replay parent比0.95% | PASS |
+| `coverage_root -> representative_claim`のunorderedな有限写像 | unique entry 4,169,215件、logical replay parent比8.27% | PASS |
+| root membership層と上記写像の合計 | 4,648,988件 | PASS（5,038,674件未満） |
+| `ParentSetEntry { root, representative_claim }`とfirst-admission順序 | logical replay parent比15.52% | FAIL |
+
+root membershipだけなら十分に小さいが、first representative lineageを保持できないため完成形にはならない。一方、representative claimのwinner値まで含めても、entry permutationをidentityから外せば§12.3の10%未満を満たす。
+
+RCPF-0bでは、次の代替構成を測定した。
+
+```text
+global (result, root) representative default
++ carrier-specific override
+```
+
+override率は95.37%であり、overrideを疎に保てなかった。physical entryはlogical replay parent比12.05%となり、§12.3をFAILした。
+
+従って、global default＋overrideは採用しない。RCPFのpersistent parent-set identityは、root membershipをdomain、legacy admission streamが選択したrepresentative claimを値とするunorderedな有限写像とする。admission順序はwinner確定までの処理上の入力であり、persistent identityには含めない。
+
+このcensusはparent-set表現の採否だけを支持する。wall time、RSS、attachment数、consumer切替後のoperation countについては、引き続き§12の各gateで判定する。
 
 ## 3. 現行データフロー
 
@@ -454,12 +488,18 @@ RCPFはplanning時に選ばれたclaim ID列をdraftとして捕捉し、admissi
 
 ### 4.7 Admission order
 
-RCPFが守る順序は次である。
+legacy admission streamとは、現行のreplay action traversalと、各actionから`register_replay_claim_parents`相当へ届くparent claim traversalを合わせた処理列である。
 
-- 各exact keyのfirst representative。
-- derived claimのfirst witness。
-- 一つのadmission block内のclaim順。
-- portable provenanceで使用する決定的なblock順。
+RCPFは、このstreamを次の値が確定する地点までは変更しない。
+
+- 各`(result, root, side, carrier)`のfirst representative claim。
+- 各`(result, root)`のderived claimに使うfirst witness。
+
+representative claimとfirst witnessは、legacy admission streamを処理しながらfirst-winsで直接確定する。後続claimでwinnerを上書きしない。
+
+persistent parent-set identityが保存するのは、こうして確定した`coverage_root -> representative_claim`写像である。winner選択に至ったclaim順、action順、entry permutationはidentityへ含めない。attachment blockから選択履歴を再構成し、representativeまたはfirst witnessを再導出してはならない。
+
+exact iteratorは、§6.6のblock total order、block内occurrence順、parent-setのcanonical entry orderで列挙する。この順序は決定的な列挙契約であり、legacy flat Vecのhistorical parent permutationを再現する契約ではない。
 
 flat Vecのアドレス配置やHashMap iteration orderは契約にしない。
 
@@ -581,7 +621,7 @@ replay planningは現在`&self`で動き、その後にmachine mutationを行う
 struct ReplayParentDraftId(u32);
 
 struct ReplayParentDraft {
-    // 現行のparent選択順。まだcanonical rootへ畳まない。
+    // representativeとfirst witnessを確定するまでのlegacy claim順。
     claims: Box<[UpperReplayClaimId]>,
 }
 
@@ -604,6 +644,10 @@ struct BoundReplayAction {
 }
 ```
 
+draftのclaim ID列とplan内のaction traversalは、legacy admission streamに従ってrepresentative claimとfirst witnessを確定するためのplan-local情報である。
+
+admissionではこの順序のままfirst-wins選択を行い、winnerを確定した後にroot単位の有限写像へcanonicalizeする。draft順序、選択途中のloser、entry permutationはpersistent snapshot identityへ含めない。
+
 empty draftには共通のsentinel IDを使い、no-claim workloadでheap allocationしない。
 
 new lower eventでは一つのlower draftを全actionが共有する。new upper eventでは一つのupper draftを全actionが共有する。
@@ -618,9 +662,20 @@ struct ParentSetEntry {
 }
 ```
 
-snapshot作成時にcanonical rootでdedupする。同一rootへ複数claimがある場合、draft内で最初のclaimを代表にする。
+parent-setの意味上のmodelは、次のunorderedな有限写像である。
 
-sideはsnapshot自体へ含めない。Lower/Upperで同じentry列を共有できるためである。sideはoccurrence attachment側に保持する。
+```text
+ParentSet =
+    { coverage_root -> representative_claim }
+```
+
+写像のdomainがcanonical root membershipを表す。各rootの値は、§4.7のlegacy admission streamでfirst-wins選択されたrepresentative claimである。
+
+同じrootへ複数claimが到達した場合、既存versionのwinnerを置き換えない。同じadmission draft内で競合する場合も、legacy admission streamで最初のclaimをwinnerとし、そのwinner値だけをpersistent entryへ保存する。
+
+entry permutationはparent-set identity、equality、fingerprint、hash-cons keyのいずれにも含めない。同じ`coverage_root -> representative_claim`写像は、入力entry順が異なっても同じparent-set contentである。
+
+sideはsnapshot自体へ含めない。Lower/Upperで同じ写像を共有できるためである。sideはoccurrence attachment側に保持する。
 
 ### 6.4 Persistent parent-set version
 
@@ -636,7 +691,7 @@ struct ParentSetVersionRecord {
 }
 
 struct ParentSetChunk {
-    // first-admission順。coverage_rootはchunk内unique。
+    // canonical entry order。coverage_rootはchunk内unique。
     entries: Box<[ParentSetEntry]>,
 }
 ```
@@ -686,11 +741,18 @@ struct ParentSetExtension {
 
 契約は次になる。
 
+- versionの意味内容は`coverage_root -> representative_claim`有限写像であり、first-admission順を含まない。
+- `preflight_extend`はdraftをlegacy admission stream順に処理してwinnerを確定してから、accepted deltaをcanonicalizeする。
+- `iter`はversion全体をcanonical entry orderで列挙する。
+- canonical entry orderは、`coverage_root`のstable ID、次に`representative_claim`のstable IDによる昇順の辞書式順序とする。coverage rootはuniqueなので、第二keyは全順序を明示するためのtie ruleである。
+- `accepted_delta`のiteratorも同じcanonical entry orderを使う。
+- HashMap iteration order、base/delta chainの物理配置、draftのentry permutationをiterator順へ漏らさない。
+- fingerprintとintern keyはentry permutationに依存しない。同じ有限写像は同じinterned contentとして共有する。
 - baseのentryをcopyしない。
--同じ`(base, accepted delta)`はhash-consしてよい。
+- 同じ`(base, accepted delta)`はhash-consしてよい。
 - membershipはexpected O(1)、または深さに小さい定数上限を持つ。
 - version chainが閾値を超える場合、shared checkpointへcompactしてよい。
-- checkpointはlogical relationを変えない内部処理であり、epochを進めない。
+- checkpointはlogical relationとcanonical iterator結果を変えない内部処理であり、epochを進めない。
 - `changed == false`ならpersistent allocationを行わない。
 
 backendとしてpersistent HAMT、hash-consed chunk＋bounded checkpointなどを選べる。backend選択は意味契約ではないが、`O(Nparent)`の再物理化へ戻る実装は認めない。
@@ -722,7 +784,7 @@ parentsが空のcarrierはclaim-parent occurrence storeへ追加しない。inde
 
 ### 6.6 Attachment block
 
-exact parent deltaのadmission順と共有を保持する。
+exact parent deltaのstorage groupingと決定的な列挙順を保持する。
 
 ```rust
 struct ReplayParentAttachmentBatch {
@@ -730,27 +792,39 @@ struct ReplayParentAttachmentBatch {
     admission_ordinal: u64,
     side: ReplayParentSide,
 
-    // 元のaction順。物理共有であり、mutation batch境界ではない。
+    // cohort内で確定したoccurrence順。
     occurrences: Box<[ReplayOccurrenceId]>,
 
-    // 各occurrenceについて新しく受理されたroot集合。
+    // 各occurrenceについて新しく受理されたroot -> representative写像。
     accepted_delta: ParentSetVersionId,
 }
 ```
 
 同じparent deltaを受け取るoccurrence cohortだけを一つのattachment blockへ入れる。
 
+block間のtotal orderは次のkeyで定義する。
+
+```text
+(admission_ordinal, ReplayParentAttachmentBatchId)
+```
+
+`admission_ordinal`を第一keyとする。同じadmission ordinalに複数blockがある場合、append-onlyなblock commit時に単調増加で割り当てた`ReplayParentAttachmentBatchId`をtie-breakerとする。同一ordinal内のID割り当ては決定されたblock commit順に行い、HashMap iteration orderから生成しない。
+
+block内では`occurrences`に保存された順序を使う。`accepted_delta`は§6.4のcanonical entry orderで列挙する。
+
 attachment blockが複数resultやlower recordを含んでも、それはstorage sharingに限る。epoch publicationやA4 atomic batchは§9の境界で分割する。
 
 exact parent列挙では、
 
 ```text
-attachment blockのadmission順
-    -> occurrence順
-        -> accepted_delta内のentry順
+(admission_ordinal, attachment batch ID)によるblock total order
+    -> block内のoccurrence順
+        -> accepted_deltaのcanonical entry order
 ```
 
 でlogical tupleを生成する。
+
+attachment groupingはrepresentative claimまたはfirst witnessの決定源ではない。両winnerは、元のlegacy admission streamを処理する地点でfirst-winsにより直接確定し、同じadmission eventでcommitする。attachment iteratorを後から列挙してwinnerを再計算してはならない。
 
 ### 6.7 Exact occurrence store
 
@@ -802,6 +876,10 @@ struct ReplayResultSummary {
 ```
 
 `first_parent_by_root`はupper claim materializationの代表lineageを固定する。
+
+各entryは、legacy admission streamを現行と同じ順序で処理している間に、`(result, root)`ごとのfirst-winsで確定する。後続witnessで上書きしない。persistent化するのはwinnerである`FirstReplayParentWitness`の値であり、winner選択に至ったparent permutationではない。
+
+`first_parent_by_root`をattachment blockの列挙後に再計算してはならない。attachment grouping、canonical entry order、cohort化によって得られる列挙順は、first witnessの決定源ではない。
 
 `projected_parent_versions`はappend-only inputの鏡であり、評価結果cacheではない。
 
@@ -1202,18 +1280,35 @@ root attachment追加時にはedgeを追加しない。
 
 ### 8.8 Portable provenance
 
-portable provenanceがexact replay parentを必要とする場合、factored iteratorから遅延列挙する。
+portable provenanceまたは互換adapterがexact replay parent relationを必要とする場合、factored iteratorから遅延列挙する。
 
 要件:
 
 - exact carrierを保持する。
 - rootとsideを保持する。
-- representative claimを保持する。
-- deterministicなadmission block順で列挙する。
+- 各exact keyのrepresentative claimを保持する。
+- blockを`(admission_ordinal, ReplayParentAttachmentBatchId)`のtotal orderで列挙する。
+- 各blockでは保存されたoccurrence順を使う。
+- 各accepted deltaでは§6.4のcanonical entry orderを使う。
+- deterministicとは、このblock total order、occurrence順、canonical entry orderから同じfactored stateに対して同じ列を得ることを意味する。
+- deterministicは、legacy flat Vecのhistorical parent permutationやwinner選択途中のloser順を再現することを意味しない。
 - consumerが全5,000万tupleを要求した場合、そのコストを明示的なfull expansionとして扱う。
--通常のlowering、projectability、cache key生成のためにfull expansionしない。
+- 通常のlowering、projectability、cache key生成のためにfull expansionしない。
 
-既存portable provenanceの公開表現は変更しない。必要ならiterator→既存builderへのadapterを置く。
+portable oracleは、順序がconsumer-visibleかどうかで比較方法を分ける。
+
+- relationの意味だけを比較する場合:
+  ```text
+  (result, root, side, carrier) -> representative_claim
+  ```
+  というunorderedな有限写像としてlegacyとfactoredを比較する。
+- iterator順がportable outputへ現れる場合:
+  legacy側とfactored側を同じblock total order、occurrence順、canonical entry orderへnormalizeし、canonical sequenceとして比較する。
+- legacy flat Vecのraw admission順とのbyte-for-byte比較はoracleにしない。
+
+既存portable provenanceの公開表現は変更しない。必要ならiteratorから既存builderへのadapterを置く。
+
+`explain.rs`のexplanation graphは別レイヤーであり、`claim_parents_by_constraint`を直接列挙しない。その順序は既存のcategory順、edge順、hyperedge parent順に従う。RCPFはこのgraphのdata sourceや順序契約を変更せず、representative claim選択の結果だけをlegacyと一致させる。
 
 ### 8.9 Diagnostics / census
 
@@ -1374,12 +1469,14 @@ compactionをprojectability評価roundの途中で行わない。IDの安定性�
    - rootがresult/recordで既にmaterialize済みでも、新しいcarrierのexact relationを失わない。
 
 4. **First representative**
-   - 各`(result, root, side, carrier)`について、最初に受理されたparent claimを保持する。
-   - 後続claimで上書きしない。
+   - 各`(result, root, side, carrier)`について、legacy admission streamで最初に受理されたparent claimをwinnerとして保持する。
+   - 保存対象はwinnerである`representative_claim`の値であり、その選択に至った入力順列やloserの履歴ではない。
+   - 後続claimでwinnerを上書きしない。
 
 5. **Event-time snapshot**
-   - snapshotはadmission時点のparent選択を表す。
-   - live endpoint集合を後から参照して再構成しない。
+   - snapshotはadmission時点で確定した`coverage_root -> representative_claim`写像を表す。
+   - root membershipとrepresentative winnerの双方をadmission-time結果として保持する。
+   - live endpoint集合やattachment iteratorを後から参照して再構成しない。
 
 6. **Covered/uncovered equivalence**
    - current liveness、endpoint形状、incremental route exclusionを現行と同じ順序で適用する。
@@ -1416,8 +1513,9 @@ compactionをprojectability評価roundの途中で行わない。IDの安定性�
     - repair pass、flush、後続fixpointへ依存しない。
 
 15. **Insertion-order invariance**
-    - replay action順、parent順、lower/upper到着順を変えてもlogical relation、projectability、scheme結果が一致する。
-    - first witnessが異なり得る順序についてはportable provenance oracleを明示的に比較する。
+    - replay action順、parent順、lower/upper到着順を変えてもlogical exact relation、projectability、scheme結果が一致する。
+    - representative claimまたはfirst witnessが異なり得る順序については、各入力順でlegacy admission streamが選んだwinnerとfactored admissionが直接保存したwinnerを比較する。
+    - first witnessをattachment iteratorから再導出して比較しない。
 
 16. **Atomic net publication**
     - 同一eventの途中状態をepoch/cache consumerへpublishしない。
@@ -1443,14 +1541,23 @@ compactionをprojectability評価roundの途中で行わない。IDの安定性�
     - ParentSet membership indexはappend-only inputの表現であり、projectability結果cacheではない。
     - evaluator memoはround終了時に破棄する。
 
+23. **Diagnostic order isolation**
+    - RCPF cutoverの前提として、diagnostic-consuming codeに`claim_parents_by_constraint`の直接列挙者を置かない。
+    - diagnostic lineageが使用するrepresentative claimと`derived_claim_by_record_and_root`の選択結果をlegacyと一致させる。
+    - `explain.rs`のexplanation graphはclaim-parent ledgerとは別レイヤーであり、category順、edge順、hyperedge parent順という既存契約を維持する。
+    - representative claim選択の結果が一致し、explanation graphのdata sourceを変更しない限り、その別レイヤーの順序契約はRCPFのattachment groupingやcanonical entry orderの影響を受けない。
+    - 将来diagnostic-consuming codeがflat claim-parent列を直接列挙する場合は、この前提を黙って破らず、RCPF cutover前に別のconsumer契約とoracleを設計する。
+
 ### 10.1 Oracle
 
 移行中はlegacy flat ledgerを正しいoracleとして残し、少なくとも次を比較する。
 
 - exact replay parent set。
-- first representative parent。
+- 各exact keyからfirst representative parent claimへの写像。
+- 各`(result, root)`のfirst witness。
 - qualified carrier set。
 - `(record, root)`derived claim。
+- derived claimのrepresentative lineage。
 - projection proofs。
 - exact clause set。
 - exact clause-link set。
@@ -1459,6 +1566,18 @@ compactionをprojectability評価roundの途中で行わない。IDの安定性�
 - affected owner set。
 - epoch列。
 - portable provenance。
+
+exact replay parentとfirst representativeは、
+
+```text
+(result, root, side, carrier) -> representative_claim
+```
+
+というunorderedな有限写像として比較する。
+
+portable provenanceの順序がconsumer-visibleでない場合は集合または有限写像として比較する。順序がvisibleな場合は、legacy側とfactored側を§8.8の同じcanonical orderへnormalizeしてsequence比較する。legacy flat Vecのhistorical parent permutation自体はoracleにしない。
+
+insertion-order fixtureでは、各入力順についてlegacyが直接選んだrepresentative claimとfirst witnessをfactored側の保存値へ比較する。attachment iteratorからwinnerを再導出しない。
 
 比較はfixture終了時だけでなく、test/debug buildではadmission event境界でも実行可能にする。
 
@@ -1509,6 +1628,8 @@ Gate:
 - event-time snapshotの構成要素が全経路で確定。
 - 同じsnapshotを共有できない未確認のmutable dependencyがない。
 - reuse率が§12の物理圧縮目標を支持する。
+
+**実施済み(2026-08-02)**: 上記censusおよびRCPF-0bを実施し、§2.6のとおり全Gateを満たした。採用するparent-set表現は、root membershipをdomain、legacy admission streamが選択したrepresentative claimを値とするunorderedな有限写像(§6.3)に確定した。admission順序そのものはpersistent identityに含めない。この結論を反映して§1.1/1.2/4.7/6.2-6.4/6.6/6.8/8.8/10を改訂した。
 
 Rollback:
 
