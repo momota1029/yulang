@@ -71,6 +71,8 @@ pub(super) struct ParentSetChunk {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ReplayFactoredShadowFailure {
     AllocationFailed,
+    ReplayOccurrenceIdOverflow,
+    ReplayAdmissionOrdinalOverflow,
     ParentSetLengthOverflow,
     ParentSetDepthOverflow,
     ParentSetVersionIdOverflow,
@@ -78,6 +80,9 @@ pub(super) enum ReplayFactoredShadowFailure {
     UnknownParentSetVersion(ParentSetVersionId),
     UnknownParentSetChunk(ParentSetChunkId),
     UnknownReplayParentClaim(UpperReplayClaimId),
+    UnknownReplayParentDraft(ReplayParentDraftId),
+    ReplayParentDraftMismatch(ReplayClaimParentSide),
+    UnknownReplayOccurrence(ReplayOccurrenceId),
     InvalidReplayParentCoverageRoot {
         claim: UpperReplayClaimId,
         root: UpperReplayClaimId,
@@ -89,6 +94,14 @@ pub(super) enum ReplayFactoredShadowFailure {
         actual: usize,
     },
     CorruptParentSetIndex,
+    CorruptReplayOccurrenceIndex,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) enum ReplayFactoredShadowStatus {
+    #[default]
+    Active,
+    Failed(ReplayFactoredShadowFailure),
 }
 
 pub(super) type ReplayFactoredResult<T> = Result<T, ReplayFactoredShadowFailure>;
@@ -287,6 +300,22 @@ impl ParentSetArena {
         }
         canonicalize_entries(&mut entries);
         Ok(entries.into_iter())
+    }
+
+    #[cfg(test)]
+    pub(super) fn storage_census(
+        &self,
+    ) -> (usize, usize, usize, usize, usize, usize, usize, usize) {
+        (
+            self.versions.len(),
+            self.versions.capacity(),
+            self.chunks.len(),
+            self.chunks.capacity(),
+            self.versions_by_fingerprint.len(),
+            self.versions_by_fingerprint.capacity(),
+            self.chunks_by_fingerprint.len(),
+            self.chunks_by_fingerprint.capacity(),
+        )
     }
 
     fn intern_chunk(
@@ -520,7 +549,7 @@ impl ParentSetArena {
     }
 
     #[cfg(test)]
-    fn fail_next_reservation(&mut self) {
+    pub(super) fn fail_next_reservation(&mut self) {
         self.fail_next_reservation = true;
     }
 }
@@ -576,6 +605,106 @@ pub(super) struct ReplayOccurrenceStore {
     pub(super) by_key: FxHashMap<ReplayOccurrenceKey, ReplayOccurrenceId>,
     pub(super) by_result: FxHashMap<ConstraintRecordId, Vec<ReplayOccurrenceId>>,
     pub(super) attachment_batches: Vec<ReplayParentAttachmentBatch>,
+    next_admission_ordinal: u64,
+}
+
+impl ReplayOccurrenceStore {
+    pub(super) fn claim_admission_ordinal(&mut self) -> ReplayFactoredResult<u64> {
+        let ordinal = self.next_admission_ordinal;
+        self.next_admission_ordinal = ordinal
+            .checked_add(1)
+            .ok_or(ReplayFactoredShadowFailure::ReplayAdmissionOrdinalOverflow)?;
+        Ok(ordinal)
+    }
+
+    pub(super) fn occurrence_id(&self, key: ReplayOccurrenceKey) -> Option<ReplayOccurrenceId> {
+        self.by_key.get(&key).copied()
+    }
+
+    pub(super) fn occurrence(
+        &self,
+        id: ReplayOccurrenceId,
+    ) -> ReplayFactoredResult<&ReplayOccurrence> {
+        self.occurrences
+            .get(id.0 as usize)
+            .ok_or(ReplayFactoredShadowFailure::UnknownReplayOccurrence(id))
+    }
+
+    pub(super) fn update_parent_versions(
+        &mut self,
+        id: ReplayOccurrenceId,
+        lower_parents: ParentSetVersionId,
+        upper_parents: ParentSetVersionId,
+    ) -> ReplayFactoredResult<()> {
+        let occurrence = self
+            .occurrences
+            .get_mut(id.0 as usize)
+            .ok_or(ReplayFactoredShadowFailure::UnknownReplayOccurrence(id))?;
+        occurrence.lower_parents = lower_parents;
+        occurrence.upper_parents = upper_parents;
+        Ok(())
+    }
+
+    pub(super) fn try_insert(
+        &mut self,
+        key: ReplayOccurrenceKey,
+        lower_parents: ParentSetVersionId,
+        upper_parents: ParentSetVersionId,
+        first_admission_ordinal: u64,
+    ) -> ReplayFactoredResult<ReplayOccurrenceId> {
+        if self.by_key.contains_key(&key) {
+            return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+        }
+        let raw_id = u32::try_from(self.occurrences.len())
+            .map_err(|_| ReplayFactoredShadowFailure::ReplayOccurrenceIdOverflow)?;
+        let id = ReplayOccurrenceId(raw_id);
+
+        self.occurrences
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        self.by_key
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        let result_already_indexed = self.by_result.contains_key(&key.result);
+        let mut new_result_occurrences = if result_already_indexed {
+            self.by_result
+                .get_mut(&key.result)
+                .ok_or(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex)?
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            None
+        } else {
+            self.by_result
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            let mut occurrences = Vec::new();
+            occurrences
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            Some(occurrences)
+        };
+
+        self.occurrences.push(ReplayOccurrence {
+            id,
+            result: key.result,
+            carrier: key.carrier,
+            lower_parents,
+            upper_parents,
+            first_admission_ordinal,
+        });
+        self.by_key.insert(key, id);
+        if let Some(occurrences) = &mut new_result_occurrences {
+            occurrences.push(id);
+        } else if let Some(occurrences) = self.by_result.get_mut(&key.result) {
+            occurrences.push(id);
+        } else {
+            return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+        }
+        if let Some(occurrences) = new_result_occurrences {
+            self.by_result.insert(key.result, occurrences);
+        }
+        Ok(id)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
