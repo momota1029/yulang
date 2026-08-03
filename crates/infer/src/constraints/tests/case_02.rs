@@ -766,6 +766,74 @@ fn unweighted_row_upper_incremental_route_registers_reduction_route_claim_parent
 }
 
 #[test]
+fn unweighted_row_claim_move_can_reach_a_same_root_destination() {
+    let mut machine = ConstraintMachine::new();
+    let source = TypeVar(0);
+    let residual = TypeVar(1);
+    let initial_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let late_family = machine.alloc_pos(Pos::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let first_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "f".into()], Vec::new()));
+    let second_upper = machine.alloc_neg(Neg::Con(vec!["effect".into(), "g".into()], Vec::new()));
+    let source_neg = machine.alloc_neg(Neg::Var(source));
+    let source_pos = machine.alloc_pos(Pos::Var(source));
+    let tail = machine.alloc_neg(Neg::Var(residual));
+    let row_upper = machine.alloc_neg(Neg::Row(vec![first_upper, second_upper], tail));
+    let origin = crate::constraints::OriginId::unknown_internal();
+
+    machine.subtype(initial_family, source_neg, origin);
+    machine.subtype(source_pos, row_upper, origin);
+    let producer =
+        constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
+    let state = reduction_state_for_source(&machine, source);
+    let root = machine.bounds.reduction_claim_by_state[&state];
+
+    // The next reduction can reuse an existing exact upper survivor. A qualified parent can
+    // already have materialized the moving root there, so the move path has no structural
+    // destination-uniqueness guarantee for `(record, coverage_root)`. This is characterization
+    // only: section 12.5 requires an explicit lineage-survivor design before the writer cutover.
+    let destination = machine
+        .bounds
+        .add_upper(
+            source,
+            tail,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        )
+        .id;
+    let route = machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(producer)],
+        Vec::new(),
+    );
+    machine.constraint_records[producer.0 as usize]
+        .row_derivations
+        .push(route);
+    machine.register_reduction_route_claim_parent(producer, route, root);
+    let derived = machine.register_constraint_upper_replay_claims(destination, Some(producer));
+    assert_eq!(derived.len(), 1);
+    assert_ne!(derived[0], root);
+
+    machine.subtype(late_family, source_neg, origin);
+
+    assert_eq!(
+        machine.unweighted_row_reduction_records[state.0 as usize]
+            .current_reduced_upper
+            .record,
+        destination,
+        "the real incremental row path must move the root into the pre-populated survivor"
+    );
+    let destination_roots = machine.bounds.claims_by_upper_record[&destination]
+        .iter()
+        .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        destination_roots,
+        vec![root, root],
+        "RCPF-D4-0c characterization: moved-root destination collision is reachable"
+    );
+}
+
+#[test]
 fn unweighted_row_upper_late_payload_match_generates_invariant_constraints() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
