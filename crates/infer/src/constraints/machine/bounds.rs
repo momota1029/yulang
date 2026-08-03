@@ -3,7 +3,7 @@ use super::*;
 use std::hash::{Hash, Hasher};
 
 #[cfg(any(test, debug_assertions))]
-use crate::constraints::replay_factored::ReplayFactoredOracleMismatch;
+use crate::constraints::replay_factored::{FirstReplayParentWitness, ReplayFactoredOracleMismatch};
 #[cfg(test)]
 use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
 use crate::constraints::replay_factored::{
@@ -106,6 +106,11 @@ struct ClauseLinkBatchAdmissionSnapshot {
 struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
 }
+
+#[cfg(any(test, debug_assertions))]
+#[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
+type UpperMaterializationLineages =
+    FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
 
 impl ReplayAdmissionPublicationFence {
     fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ReplayFactoredResult<()> {
@@ -1063,6 +1068,168 @@ impl ConstraintMachine {
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         }
         registration.claim
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
+    fn try_insert_upper_materialization_lineage(
+        &self,
+        lineages: &mut UpperMaterializationLineages,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+        unmaterialized_only: bool,
+    ) -> ReplayFactoredResult<()> {
+        let parent_claim = parent.parent_claim();
+        let parent_record = self
+            .bounds
+            .upper_replay_claims
+            .get(parent_claim.0 as usize)
+            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(
+                parent_claim,
+            ))?;
+        let root = parent_record.coverage_root;
+        let root_record = self
+            .bounds
+            .upper_replay_claims
+            .get(root.0 as usize)
+            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(root))?;
+        if unmaterialized_only
+            && (root_record.current_record == record
+                || self
+                    .bounds
+                    .derived_claim_by_record_and_root
+                    .contains_key(&(record, root)))
+        {
+            return Ok(());
+        }
+        let key = (record, root);
+        if lineages.contains_key(&key) {
+            return Ok(());
+        }
+        let depth = parent_record.lineage.depth().saturating_add(1);
+        let lineage = if root_record.current_record == record {
+            UpperReplayClaimLineage::Original
+        } else {
+            match parent {
+                ClaimQualifiedParent::ReplayConstraint {
+                    parent_side,
+                    replay,
+                    ..
+                } => UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim,
+                    parent_side,
+                    result: producer,
+                    replay,
+                    depth,
+                },
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    UpperReplayClaimLineage::StructuralConstraint {
+                        parent_claim,
+                        result: producer,
+                        derivation,
+                        depth,
+                    }
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
+                    UpperReplayClaimLineage::ReductionRouteConstraint {
+                        parent_claim,
+                        result: producer,
+                        derivation,
+                        depth,
+                    }
+                }
+            }
+        };
+        lineages
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        lineages.insert(key, lineage);
+        Ok(())
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
+    fn try_upper_materialization_lineages_from_parents(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        parents: impl IntoIterator<Item = ClaimQualifiedParent>,
+        unmaterialized_only: bool,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        let mut lineages = FxHashMap::default();
+        for parent in parents {
+            self.try_insert_upper_materialization_lineage(
+                &mut lineages,
+                record,
+                producer,
+                parent,
+                unmaterialized_only,
+            )?;
+        }
+        Ok(lineages)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
+    fn try_factored_upper_materialization(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        witnesses: impl IntoIterator<
+            Item = ReplayFactoredResult<(UpperReplayClaimId, FirstReplayParentWitness)>,
+        >,
+        include_non_replay: bool,
+        unmaterialized_only: bool,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        let mut lineages = UpperMaterializationLineages::default();
+        for witness in witnesses {
+            let (root, witness) = witness?;
+            let occurrence = self.replay_occurrence(witness.occurrence)?;
+            if occurrence.result != producer {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+            }
+            let parent = ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: witness.parent_claim,
+                parent_side: witness.parent_side,
+                replay: occurrence.carrier,
+            };
+            let parent_root = self
+                .bounds
+                .upper_replay_claims
+                .get(witness.parent_claim.0 as usize)
+                .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(
+                    witness.parent_claim,
+                ))?
+                .coverage_root;
+            if parent_root != root {
+                return Err(
+                    ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
+                        claim: witness.parent_claim,
+                        root,
+                    },
+                );
+            }
+            self.try_insert_upper_materialization_lineage(
+                &mut lineages,
+                record,
+                producer,
+                parent,
+                unmaterialized_only,
+            )?;
+        }
+        if include_non_replay {
+            for parent in self.non_replay_claim_parents_for_result(producer) {
+                self.try_insert_upper_materialization_lineage(
+                    &mut lineages,
+                    record,
+                    producer,
+                    parent,
+                    unmaterialized_only,
+                )?;
+            }
+        }
+        Ok(lineages)
     }
 
     fn register_claim_parent_clause_links(
