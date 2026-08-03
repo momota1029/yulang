@@ -391,6 +391,124 @@ fn general_subtype_diagnostic_uses_complete_portable_cause_as_related_informatio
     assert_eq!(&context.source.source[start..end], "(1, 2, 3)\n");
 }
 
+fn diagnostic_type_cause(
+    role: infer::constraints::DiagnosticTypeCauseRole,
+    file: &str,
+    range: SourceRange,
+) -> infer::constraints::DiagnosticTypeCause {
+    infer::constraints::DiagnosticTypeCause {
+        role,
+        source_span: infer::SourceSpan {
+            file: path_from_segments(&[file]),
+            range,
+        },
+    }
+}
+
+fn complete_subtype_cause_survivor(
+    role: infer::constraints::DiagnosticTypeCauseRole,
+    message: &str,
+    file: &str,
+    range: SourceRange,
+    origin: SourceDiagnosticRelatedOrigin,
+) -> CompleteSubtypeCauseSurvivor {
+    CompleteSubtypeCauseSurvivor {
+        role,
+        related: SourceDiagnosticRelated {
+            message: message.to_string(),
+            file: path_from_segments(&[file]),
+            range,
+            origin: Some(origin),
+        },
+    }
+}
+
+#[test]
+fn canonical_subtype_cause_dedup_keeps_first_span_survivor_and_related_order() {
+    use infer::constraints::DiagnosticTypeCauseRole as Role;
+
+    let shared = SourceRange { start: 10, end: 14 };
+    let pattern = SourceRange { start: 20, end: 23 };
+    let application = SourceRange { start: 30, end: 34 };
+    let survivors = deduplicated_complete_subtype_causes(
+        &[],
+        [
+            diagnostic_type_cause(Role::RequiredByAnnotation, "primary", shared),
+            diagnostic_type_cause(Role::RequiredByPattern, "pattern", pattern),
+            diagnostic_type_cause(Role::InferredFromExpression, "primary", shared),
+            diagnostic_type_cause(Role::RequiredByApplication, "application", application),
+        ],
+        "(int, bool)",
+    );
+    assert_eq!(
+        survivors,
+        vec![
+            complete_subtype_cause_survivor(
+                Role::RequiredByAnnotation,
+                "type `(int, bool)` is required by this annotation",
+                "primary",
+                shared,
+                SourceDiagnosticRelatedOrigin::TypeAnnotation,
+            ),
+            complete_subtype_cause_survivor(
+                Role::RequiredByPattern,
+                "this pattern requires a value compatible with `(int, bool)`",
+                "pattern",
+                pattern,
+                SourceDiagnosticRelatedOrigin::Expression,
+            ),
+            complete_subtype_cause_survivor(
+                Role::RequiredByApplication,
+                "this callee requires an argument compatible with `(int, bool)`",
+                "application",
+                application,
+                SourceDiagnosticRelatedOrigin::Expression,
+            ),
+        ]
+    );
+    assert_eq!(
+        survivors
+            .iter()
+            .filter(|survivor| {
+                survivor.related.file == path_from_segments(&["primary"])
+                    && survivor.related.range == shared
+            })
+            .count(),
+        1
+    );
+    let Some(primary) = survivors.first().map(|survivor| &survivor.related) else {
+        panic!("canonical survivor list must have a primary")
+    };
+    assert_eq!(primary.file, path_from_segments(&["primary"]));
+    assert_eq!(primary.range, shared);
+}
+
+#[test]
+fn canonical_subtype_cause_dedup_handles_three_way_span_collision() {
+    use infer::constraints::DiagnosticTypeCauseRole as Role;
+
+    let shared = SourceRange { start: 40, end: 44 };
+    let survivors = deduplicated_complete_subtype_causes(
+        &[],
+        [
+            diagnostic_type_cause(Role::RequiredByPattern, "shared", shared),
+            diagnostic_type_cause(Role::RequiredByApplication, "shared", shared),
+            diagnostic_type_cause(Role::RequiredByAnnotation, "shared", shared),
+        ],
+        "bool",
+    );
+    assert_eq!(
+        survivors,
+        vec![complete_subtype_cause_survivor(
+            Role::RequiredByPattern,
+            "this pattern requires a value compatible with `bool`",
+            "shared",
+            shared,
+            SourceDiagnosticRelatedOrigin::Expression,
+        )]
+    );
+}
+
 #[test]
 fn general_subtype_regression_fixtures_report_their_real_source_cause() {
     const FIXTURES: [(&str, &str); 5] = [

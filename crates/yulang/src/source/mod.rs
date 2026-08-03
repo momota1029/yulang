@@ -2079,19 +2079,43 @@ fn append_complete_subtype_causes(
         return;
     }
     let rendered_type = specialize::mono::dump::dump_type(ty);
-    for cause in explanation.lower_sites {
-        if related.iter().any(|existing| {
-            existing.file == cause.source_span.file && existing.range == cause.source_span.range
-        }) {
-            continue;
+    let additions =
+        deduplicated_complete_subtype_causes(related, explanation.lower_sites, &rendered_type);
+    related.extend(additions.into_iter().map(|survivor| survivor.related));
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CompleteSubtypeCauseSurvivor {
+    role: infer::constraints::DiagnosticTypeCauseRole,
+    related: SourceDiagnosticRelated,
+}
+
+fn deduplicated_complete_subtype_causes(
+    existing: &[SourceDiagnosticRelated],
+    causes: impl IntoIterator<Item = infer::constraints::DiagnosticTypeCause>,
+    rendered_type: &str,
+) -> Vec<CompleteSubtypeCauseSurvivor> {
+    let mut survivors = Vec::<CompleteSubtypeCauseSurvivor>::new();
+    for cause in causes {
+        let already_present = existing
+            .iter()
+            .chain(survivors.iter().map(|survivor| &survivor.related))
+            .any(|related| {
+                related.file == cause.source_span.file && related.range == cause.source_span.range
+            });
+        if !already_present {
+            survivors.push(CompleteSubtypeCauseSurvivor {
+                role: cause.role,
+                related: SourceDiagnosticRelated {
+                    message: subtype_cause_related_message(cause.role, rendered_type),
+                    file: cause.source_span.file,
+                    range: cause.source_span.range,
+                    origin: Some(subtype_cause_related_origin(cause.role)),
+                },
+            });
         }
-        related.push(SourceDiagnosticRelated {
-            message: subtype_cause_related_message(cause.role, &rendered_type),
-            file: cause.source_span.file,
-            range: cause.source_span.range,
-            origin: Some(subtype_cause_related_origin(cause.role)),
-        });
     }
+    survivors
 }
 
 fn subtype_cause_related_message(
