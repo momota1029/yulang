@@ -3088,6 +3088,7 @@ impl ConstraintMachine {
         }
     }
 
+    #[cfg(test)]
     pub(in crate::constraints) fn admit_claim_qualified_parent(
         &mut self,
         constraint: ConstraintRecordId,
@@ -3095,6 +3096,109 @@ impl ConstraintMachine {
     ) {
         let snapshot = self.commit_claim_qualified_parent_mutation(constraint, parent);
         self.publish_claim_qualified_parent_admission(snapshot);
+    }
+
+    fn begin_non_replay_claim_parent_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+        target_record: Option<BoundRecordId>,
+        lower_carrier: Option<ProjectionProofCarrier>,
+    ) -> Option<ReplayAdmissionPublicationFence> {
+        let factored_admission = self.replay_read_authority() == ReplayReadAuthority::Factored;
+        let mut publication_fence =
+            factored_admission.then(ReplayAdmissionPublicationFence::default);
+        for parent in parents.iter().copied() {
+            let snapshot = self.commit_claim_qualified_parent_mutation(result, parent);
+            if let Some(fence) = publication_fence.as_mut() {
+                self.defer_claim_qualified_parent_admission(fence, snapshot);
+            } else {
+                self.publish_claim_qualified_parent_admission(snapshot);
+            }
+        }
+        if let Some(lower_record) = self.lower_record_for_constraint(result) {
+            self.register_claim_parent_clause_links_with_fence(
+                lower_record,
+                parents,
+                publication_fence.as_mut(),
+            );
+            self.observe_factored_replay_clause_projection(result, lower_record, parents);
+        }
+        if factored_admission && self.replay_factored_terminal_failure().is_none() {
+            let independent_supports = self
+                .lower_record_for_constraint(result)
+                .zip(lower_carrier)
+                .filter(|(lower_record, carrier)| {
+                    self.projection_carrier_is_independent(*lower_record, *carrier)
+                })
+                .map(|(_, carrier)| vec![carrier])
+                .unwrap_or_default();
+            if let Err(failure) = self.try_authoritative_claim_parent_full_plan(
+                result,
+                target_record.filter(|_| !parents.is_empty()),
+                parents,
+                &independent_supports,
+            ) {
+                self.mark_replay_factored_failure(failure);
+            }
+        }
+        publication_fence
+    }
+
+    fn finish_non_replay_claim_parent_admission(
+        &mut self,
+        _result: ConstraintRecordId,
+        publication_fence: Option<ReplayAdmissionPublicationFence>,
+    ) {
+        let Some(publication_fence) = publication_fence else {
+            return;
+        };
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        #[cfg(any(test, debug_assertions))]
+        self.observe_factored_replay_event_boundary(_result);
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        self.publish_replay_admission_publication_fence(publication_fence);
+    }
+
+    pub(in crate::constraints) fn register_structural_claim_parent_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+        derivation: StructuralDerivation,
+        derivation_inserted: bool,
+    ) {
+        let carrier = ProjectionProofCarrier::StructuralConstraint { result, derivation };
+        let mut publication_fence = self.begin_non_replay_claim_parent_admission(
+            result,
+            parents,
+            None,
+            derivation_inserted.then_some(carrier),
+        );
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        if derivation_inserted {
+            self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
+                result,
+                parents,
+                carrier,
+                true,
+                publication_fence.as_mut(),
+            );
+        } else {
+            self.register_existing_constraint_lower_projection_delta(
+                result,
+                parents,
+                LowerProjectionDelta::ClaimsOnly,
+                true,
+                publication_fence.as_mut(),
+            );
+        }
+        self.finish_non_replay_claim_parent_admission(result, publication_fence);
     }
 
     fn commit_claim_qualified_parent_mutation(
@@ -3397,23 +3501,6 @@ impl ConstraintMachine {
             delta,
             replay_clause_work_precommitted,
             publication_fence,
-        );
-    }
-
-    pub(in crate::constraints) fn register_constraint_projection_claims_delta(
-        &mut self,
-        producer: ConstraintRecordId,
-        parents: &[ClaimQualifiedParent],
-    ) {
-        if parents.is_empty() {
-            return;
-        }
-        self.register_existing_constraint_lower_projection_delta(
-            producer,
-            parents,
-            LowerProjectionDelta::ClaimsOnly,
-            false,
-            None,
         );
     }
 
@@ -4261,16 +4348,26 @@ impl ConstraintMachine {
         {
             return;
         }
-        self.admit_claim_qualified_parent(result, parent);
         let target_record = self.var_var_upper_record_for_constraint(result);
+        let carrier = ProjectionProofCarrier::RowConstraint { result, derivation };
+        let mut publication_fence = self.begin_non_replay_claim_parent_admission(
+            result,
+            &[parent],
+            target_record,
+            Some(carrier),
+        );
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
         self.materialize_existing_claim_parents_delta(
             result,
             target_record,
             &[parent],
-            ProjectionProofCarrier::RowConstraint { result, derivation },
-            false,
-            None,
+            carrier,
+            true,
+            publication_fence.as_mut(),
         );
+        self.finish_non_replay_claim_parent_admission(result, publication_fence);
     }
 
     fn var_var_upper_record_for_constraint(
@@ -7282,6 +7379,111 @@ mod mutation_tests {
                 .contains_key(&(fixture.upper_record, fixture.coverage_root))
         );
         assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
+    }
+
+    type D4PhaseCState = (
+        Option<Vec<UpperReplayClaimId>>,
+        Option<Vec<UpperReplayClaimId>>,
+        Option<Vec<SchemeProjectionProof>>,
+        ConstraintEpoch,
+        ProvenanceEpoch,
+    );
+
+    fn d4_phase_c_state(fixture: &CdmReplayClaimFixture) -> D4PhaseCState {
+        (
+            fixture
+                .machine
+                .bounds
+                .claims_by_upper_record
+                .get(&fixture.upper_record)
+                .cloned(),
+            fixture
+                .machine
+                .bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&fixture.lower_record)
+                .cloned(),
+            fixture
+                .machine
+                .bounds
+                .projection_proofs_by_lower_record
+                .get(&fixture.lower_record)
+                .cloned(),
+            fixture.machine.epoch,
+            fixture.machine.provenance_epoch,
+        )
+    }
+
+    #[test]
+    fn rcpf_d4_replay_pre_consumer_failure_blocks_phase_c_and_publication() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let phase_c_before = d4_phase_c_state(&fixture);
+        let journal = fixture.machine.activate_method_role_mutations();
+        RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY.with(|fail| fail.set(true));
+        let parent = fixture.parent;
+
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(
+            fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+                .iter()
+                .any(|candidate| candidate.parent_claim() == parent.claim)
+        );
+        assert_eq!(
+            phase_c_before,
+            d4_phase_c_state(&fixture),
+            "Phase B failure must leave upper/lower Phase C and epochs untouched"
+        );
+        assert!(fixture.machine.take_method_role_mutations().is_empty());
+        journal.finish();
+    }
+
+    #[test]
+    fn rcpf_d4_non_replay_pre_consumer_failure_blocks_phase_c_and_publication() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let derivation = RowDerivationId(72_100);
+        fixture.machine.constraint_records[fixture.result.0 as usize]
+            .row_derivations
+            .push(derivation);
+        let phase_c_before = d4_phase_c_state(&fixture);
+        let journal = fixture.machine.activate_method_role_mutations();
+        RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY.with(|fail| fail.set(true));
+
+        fixture.machine.register_reduction_route_claim_parent(
+            fixture.result,
+            derivation,
+            fixture.coverage_root,
+        );
+
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+            .iter()
+            .any(|candidate| matches!(candidate,
+                ClaimQualifiedParent::ReductionRouteConstraint {
+                    parent_claim, derivation: candidate_derivation,
+                } if *parent_claim == fixture.coverage_root && *candidate_derivation == derivation
+            )));
+        assert_eq!(
+            phase_c_before,
+            d4_phase_c_state(&fixture),
+            "Phase B failure must leave upper/lower Phase C and epochs untouched"
+        );
+        assert!(fixture.machine.take_method_role_mutations().is_empty());
+        journal.finish();
     }
 
     #[test]

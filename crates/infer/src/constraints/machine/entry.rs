@@ -1472,18 +1472,14 @@ impl ConstraintMachine {
                 parent_claim,
                 derivation,
             };
-            self.admit_claim_qualified_parent(result, parent);
             inserted_parents.push(parent);
         }
-        if derivation_inserted {
-            self.register_constraint_projection_carrier_delta(
-                result,
-                &inserted_parents,
-                ProjectionProofCarrier::StructuralConstraint { result, derivation },
-            );
-        } else {
-            self.register_constraint_projection_claims_delta(result, &inserted_parents);
-        }
+        self.register_structural_claim_parent_admission(
+            result,
+            &inserted_parents,
+            derivation,
+            derivation_inserted,
+        );
         !inserted_parents.is_empty()
     }
 
