@@ -9460,7 +9460,10 @@ mod mutation_tests {
             PortableProvenanceExport, PortableProvenanceExportBudget, PortableProvenanceExportRoot,
         };
         use crate::generalize::{GeneralizedCompactRoot, capture_generalized_witnesses};
-        use poly::provenance::{PortableByteRange, PortableSourceLocation, ProvenanceCompleteness as PortableCompleteness};
+        use poly::provenance::{
+            PortableByteRange, PortableProvenanceTruncation, PortableSourceLocation,
+            ProvenanceCompleteness as PortableCompleteness,
+        };
 
         #[derive(Clone, Copy)]
         enum Event { Replay, NonReplay, Independent(usize) }
@@ -9599,19 +9602,26 @@ mod mutation_tests {
                 capture_generalized_witnesses(&self.machine, self.target, &generalized)
             }
 
-            fn portable_consumer_snapshot(&mut self) -> PortableConsumerSnapshot {
+            fn record_witness_roots(&mut self) -> Vec<PortableProvenanceExportRoot> {
                 let (drafts, completeness) = self.capture_witnesses();
                 let scheme = self.machine.alloc_generalized_scheme_record(poly::expr::DefId(0), 0, drafts, completeness);
                 let witnesses = self.machine.generalized_scheme_record(scheme).expect("oracle scheme").witnesses.clone();
-                let roots = witnesses.iter().copied().map(PortableProvenanceExportRoot::GeneralizedWitness).collect::<Vec<_>>();
+                witnesses.into_iter().map(PortableProvenanceExportRoot::GeneralizedWitness).collect()
+            }
+
+            fn portable_consumer_snapshot(
+                &self,
+                roots: &[PortableProvenanceExportRoot],
+                budget: PortableProvenanceExportBudget,
+            ) -> PortableConsumerSnapshot {
                 let export = self.machine.export_portable_provenance(
-                    &roots, PortableProvenanceExportBudget::default(), |boundary, _| Some(PortableSourceLocation {
+                    roots, budget, |boundary, _| Some(PortableSourceLocation {
                         module: vec!["rcpf".to_string()],
                         range: PortableByteRange { start: boundary.0 * 2, end: boundary.0 * 2 + 1 },
                     }),
                 ).expect("full-budget portable export");
-                let anchors = export.root_anchors.iter().copied().collect::<Option<Vec<_>>>()
-                    .expect("every generalized witness retains an anchor");
+                let anchors = export.root_anchors.iter().flatten().copied().collect::<Vec<_>>();
+                assert!(!anchors.is_empty(), "portable oracle must retain at least one root anchor");
                 let explanation = explain_portable_subtype(
                     &export.snapshot, &anchors, &anchors, PortableExplanationBudget::default(),
                 );
@@ -9646,6 +9656,26 @@ mod mutation_tests {
         fn lower_draft(snapshot: &ConsumerSnapshot) -> &GeneralizedWitnessDraft {
             snapshot.drafts.iter().find(|draft| draft.path == GeneralizedTypePath::default()
                 && draft.role == GeneralizedWitnessRole::LowerBound).expect("root lower draft")
+        }
+
+        fn export_budget_ladder() -> Vec<(
+            &'static str, PortableProvenanceExportBudget, PortableProvenanceTruncation, [bool; 2],
+        )> {
+            let full = PortableProvenanceExportBudget::default();
+            vec![
+                ("per-anchor nodes", PortableProvenanceExportBudget {
+                    max_anchors: 1, max_nodes_per_anchor: 4, ..full
+                }, PortableProvenanceTruncation::NodeBudget { limit: 4 }, [true, false]),
+                ("per-anchor edges", PortableProvenanceExportBudget {
+                    max_anchors: 1, max_edges_per_anchor: 3, ..full
+                }, PortableProvenanceTruncation::EdgeBudget { limit: 3 }, [true, false]),
+                ("global nodes", PortableProvenanceExportBudget { max_nodes: 4, ..full },
+                    PortableProvenanceTruncation::NodeBudget { limit: 4 }, [true, false]),
+                ("global edges", PortableProvenanceExportBudget { max_edges: 3, ..full },
+                    PortableProvenanceTruncation::EdgeBudget { limit: 3 }, [true, true]),
+                ("parent fan-in", PortableProvenanceExportBudget { max_parents_per_edge: 0, ..full },
+                    PortableProvenanceTruncation::ParentFanInBudget { limit: 0 }, [true, true]),
+            ]
         }
 
         fn permutations() -> Vec<[usize; 4]> {
@@ -9775,7 +9805,8 @@ mod mutation_tests {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
                 fixture.canonicalize_shadow_ledgers();
-                let snapshot = fixture.portable_consumer_snapshot();
+                let roots = fixture.record_witness_roots();
+                let snapshot = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
                 assert_eq!(snapshot.export.root_anchors.len(), 2);
                 assert_eq!(snapshot.export.snapshot.completeness(), PortableCompleteness::Complete);
                 assert_eq!(snapshot.export.snapshot.truncation(), None);
@@ -9787,6 +9818,50 @@ mod mutation_tests {
                 assert_eq!(snapshot.explanation.completeness, DiagnosticExplanationCompleteness::Complete);
                 assert_eq!(snapshot.explanation.truncation, None);
                 assert_eq!(snapshot, *expected.get_or_insert_with(|| snapshot.clone()));
+            }
+        }
+
+        #[test]
+        fn canonical_export_budget_truncation_is_invariant_and_a_full_snapshot_prefix() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let mut expected_full = None;
+            let mut expected_tight = None;
+            for order in permutations() {
+                let mut fixture = Fixture::new();
+                for index in order { fixture.admit(events[index]); }
+                fixture.canonicalize_shadow_ledgers();
+                let roots = fixture.record_witness_roots();
+                let full = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
+                assert!(full.export.snapshot.nodes().len() > 4);
+                assert!(full.export.snapshot.edges().len() > 3);
+                let mut tight_snapshots = Vec::new();
+                for (name, budget, truncation, anchor_survival) in export_budget_ladder() {
+                    let tight = fixture.portable_consumer_snapshot(&roots, budget);
+                    let snapshot = &tight.export.snapshot;
+                    assert_eq!(snapshot.completeness(), PortableCompleteness::Incomplete, "{name}");
+                    assert_eq!(snapshot.truncation(), Some(truncation), "{name}");
+                    assert_eq!(tight.export.root_anchors.iter().map(Option::is_some).collect::<Vec<_>>(),
+                        anchor_survival, "{name}: root-anchor survival");
+                    let anchor = tight.export.root_anchors[0].expect("tight export retains its first root anchor");
+                    assert_eq!(snapshot.anchor(anchor).expect("retained anchor").completeness,
+                        PortableCompleteness::Incomplete, "{name}");
+                    assert!(snapshot.nodes().len() < full.export.snapshot.nodes().len()
+                        || snapshot.edges().len() < full.export.snapshot.edges().len(), "{name}: budget must truncate content");
+                    assert_eq!(snapshot.nodes(), &full.export.snapshot.nodes()[..snapshot.nodes().len()], "{name}: node prefix");
+                    assert_eq!(snapshot.edges(), &full.export.snapshot.edges()[..snapshot.edges().len()], "{name}: edge prefix");
+                    assert_eq!(snapshot.source_sites(),
+                        &full.export.snapshot.source_sites()[..snapshot.source_sites().len()], "{name}: source-site prefix");
+                    assert_eq!(tight.explanation.lower_sites,
+                        full.explanation.lower_sites[..tight.explanation.lower_sites.len()], "{name}: lower cause prefix");
+                    assert_eq!(tight.explanation.upper_sites,
+                        full.explanation.upper_sites[..tight.explanation.upper_sites.len()], "{name}: upper cause prefix");
+                    assert_eq!(tight.explanation.completeness,
+                        DiagnosticExplanationCompleteness::IncompleteProvenance, "{name}");
+                    assert_eq!(tight.explanation.truncation, None, "{name}");
+                    tight_snapshots.push(tight);
+                }
+                assert_eq!(full, *expected_full.get_or_insert_with(|| full.clone()));
+                assert_eq!(tight_snapshots, *expected_tight.get_or_insert_with(|| tight_snapshots.clone()));
             }
         }
     }
