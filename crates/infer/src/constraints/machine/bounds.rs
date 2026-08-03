@@ -2,17 +2,15 @@ use super::*;
 
 use std::hash::{Hash, Hasher};
 
-#[cfg(any(test, debug_assertions))]
 use crate::constraints::canonical_projection_key::{self, Key as CanonicalProjectionKey};
+#[cfg(any(test, debug_assertions))]
+use crate::constraints::replay_factored::ReplayFactoredOracleMismatch;
 #[cfg(test)]
 use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
-#[cfg(any(test, debug_assertions))]
 use crate::constraints::replay_factored::{
-    FirstQualifiedParentSource, FirstReplayParentWitness, ReplayFactoredOracleMismatch,
-};
-use crate::constraints::replay_factored::{
-    ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
-    ReplayParentDraftId, ReplayResultSummaryDelta,
+    FirstQualifiedParentSource, FirstReplayParentWitness, ReplayFactoredResult,
+    ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft, ReplayParentDraftId,
+    ReplayResultSummaryDelta,
 };
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -111,11 +109,9 @@ struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
 }
 
-#[cfg(any(test, debug_assertions))]
 type UpperMaterializationLineages =
     FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
 
-#[cfg(any(test, debug_assertions))]
 #[derive(Debug, Default, PartialEq, Eq)]
 struct LowerProjectionAdapterSnapshot {
     claimed_roots: Vec<UpperReplayClaimId>,
@@ -1097,7 +1093,6 @@ impl ConstraintMachine {
         registration.claim
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_insert_upper_materialization_lineage(
         &self,
         lineages: &mut UpperMaterializationLineages,
@@ -1138,7 +1133,6 @@ impl ConstraintMachine {
         )
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_insert_upper_materialization_lineage_from_parent(
         &self,
         lineages: &mut UpperMaterializationLineages,
@@ -1215,7 +1209,6 @@ impl ConstraintMachine {
         Ok(())
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_upper_materialization_lineages_from_parents(
         &self,
         record: BoundRecordId,
@@ -1236,7 +1229,6 @@ impl ConstraintMachine {
         Ok(lineages)
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_factored_upper_materialization(
         &self,
         record: BoundRecordId,
@@ -1314,7 +1306,6 @@ impl ConstraintMachine {
         Ok(lineages)
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_factored_upper_materialization_full(
         &self,
         record: BoundRecordId,
@@ -1336,7 +1327,6 @@ impl ConstraintMachine {
         self.try_factored_upper_materialization(record, producer, witnesses, true, false)
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_factored_upper_materialization_delta(
         &self,
         record: BoundRecordId,
@@ -1350,6 +1340,59 @@ impl ConstraintMachine {
             false,
             true,
         )
+    }
+
+    #[allow(
+        dead_code,
+        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
+    )]
+    fn try_authoritative_upper_materialization_full(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        match self.replay_read_authority() {
+            ReplayReadAuthority::Factored => {
+                self.try_factored_upper_materialization_full(record, producer)
+            }
+            ReplayReadAuthority::LegacyRollback(_) => self
+                .try_upper_materialization_lineages_from_parents(
+                    record,
+                    producer,
+                    self.bounds
+                        .claim_parents_by_constraint
+                        .get(&producer)
+                        .into_iter()
+                        .flatten()
+                        .copied(),
+                    false,
+                ),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
+    )]
+    fn try_authoritative_upper_materialization_replay_delta(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        legacy_parents: &[ClaimQualifiedParent],
+        delta: &ReplayResultSummaryDelta,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        match self.replay_read_authority() {
+            ReplayReadAuthority::Factored => {
+                self.try_factored_upper_materialization_delta(record, producer, delta)
+            }
+            ReplayReadAuthority::LegacyRollback(_) => self
+                .try_upper_materialization_lineages_from_parents(
+                    record,
+                    producer,
+                    legacy_parents.iter().copied(),
+                    true,
+                ),
+        }
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -1428,7 +1471,6 @@ impl ConstraintMachine {
         }
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_lower_projection_root(
         &self,
         claim: UpperReplayClaimId,
@@ -1438,7 +1480,6 @@ impl ConstraintMachine {
             .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_factored_lower_projection(
         &self,
         producer: ConstraintRecordId,
@@ -1514,6 +1555,13 @@ impl ConstraintMachine {
             }
             claimed_roots.push(root);
         }
+        Self::try_lower_projection_adapter_snapshot(claimed_roots, independent_supports)
+    }
+
+    fn try_lower_projection_adapter_snapshot(
+        mut claimed_roots: Vec<UpperReplayClaimId>,
+        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
         claimed_roots.sort_by(|left, right| {
             canonical_projection_key::cmp(
                 &CanonicalProjectionKey::Claimed(*left),
@@ -1545,7 +1593,6 @@ impl ConstraintMachine {
         })
     }
 
-    #[cfg(any(test, debug_assertions))]
     fn try_factored_lower_projection_full(
         &self,
         producer: ConstraintRecordId,
@@ -1567,7 +1614,6 @@ impl ConstraintMachine {
         self.try_factored_lower_projection(producer, witnesses, true, independent_supports)
     }
 
-    #[cfg(any(test, debug_assertions))]
     #[allow(
         dead_code,
         reason = "RCPF-D3b-1 retains the producer-local delta adapter"
@@ -1584,6 +1630,68 @@ impl ConstraintMachine {
             false,
             independent_supports,
         )
+    }
+
+    fn try_lower_projection_from_parents(
+        &self,
+        parents: impl IntoIterator<Item = ClaimQualifiedParent>,
+        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let mut roots = FxHashSet::default();
+        for parent in parents {
+            roots
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            roots.insert(self.try_lower_projection_root(parent.parent_claim())?);
+        }
+        Self::try_lower_projection_adapter_snapshot(
+            roots.into_iter().collect(),
+            independent_supports,
+        )
+    }
+
+    #[allow(
+        dead_code,
+        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
+    )]
+    fn try_authoritative_lower_projection_full(
+        &self,
+        producer: ConstraintRecordId,
+        legacy_parents: &[ClaimQualifiedParent],
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        match self.replay_read_authority() {
+            ReplayReadAuthority::Factored => self
+                .try_factored_lower_projection_full(producer, independent_supports.iter().copied()),
+            ReplayReadAuthority::LegacyRollback(_) => self.try_lower_projection_from_parents(
+                legacy_parents.iter().copied(),
+                independent_supports.iter().copied(),
+            ),
+        }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
+    )]
+    fn try_authoritative_lower_projection_replay_delta(
+        &self,
+        producer: ConstraintRecordId,
+        legacy_parents: &[ClaimQualifiedParent],
+        delta: &ReplayResultSummaryDelta,
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        match self.replay_read_authority() {
+            ReplayReadAuthority::Factored => self.try_factored_lower_projection_delta(
+                producer,
+                delta,
+                independent_supports.iter().copied(),
+            ),
+            ReplayReadAuthority::LegacyRollback(_) => self.try_lower_projection_from_parents(
+                legacy_parents.iter().copied(),
+                independent_supports.iter().copied(),
+            ),
+        }
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -10646,11 +10754,27 @@ mod mutation_tests {
                 self.machine.register_lower_projection_derivation(
                     lower_record, Some(self.result), BoundDerivation::Constraint(self.result),
                 );
+                let legacy_parents = self.machine.bounds.claim_parents_by_constraint[&self.result].clone();
+                let legacy_upper = self.machine.try_upper_materialization_lineages_from_parents(
+                    upper_record, self.result, legacy_parents.iter().copied(), false,
+                );
+                assert_eq!(
+                    self.machine.try_authoritative_upper_materialization_full(
+                        upper_record, self.result,
+                    ),
+                    legacy_upper,
+                );
                 let legacy_lower = self.machine.try_legacy_record_lower_projection(lower_record).unwrap();
+                assert_eq!(
+                    self.machine.try_authoritative_lower_projection_full(
+                        self.result, &legacy_parents, &[],
+                    ).unwrap(),
+                    legacy_lower.canonical,
+                );
                 if self.machine.replay_read_authority() == ReplayReadAuthority::Factored {
                     assert_eq!(self.machine.try_upper_materialization_lineages_from_parents(
                         upper_record, self.result,
-                        self.machine.bounds.claim_parents_by_constraint[&self.result].iter().copied(), false,
+                        legacy_parents.iter().copied(), false,
                     ), self.machine.try_factored_upper_materialization_full(upper_record, self.result));
                     assert_eq!(legacy_lower,
                         self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap());
