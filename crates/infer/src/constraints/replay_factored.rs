@@ -109,6 +109,7 @@ pub(crate) enum ReplayFactoredShadowFailure {
     },
     CorruptParentSetIndex,
     CorruptReplayOccurrenceIndex,
+    CorruptReplayResultSummaryIndex,
 }
 
 #[cfg(any(test, debug_assertions))]
@@ -864,11 +865,14 @@ pub(super) struct FirstReplayParentWitness {
 pub(super) struct ReplayResultSummary {
     pub(super) first_parent_by_root:
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), FirstReplayParentWitness>,
+    first_parent_roots_by_result: FxHashMap<ConstraintRecordId, FxHashSet<UpperReplayClaimId>>,
     pub(super) projected_parent_versions: FxHashSet<(
         ConstraintRecordId,
         ReplayClaimParentSide,
         ParentSetVersionId,
     )>,
+    #[cfg(test)]
+    fail_next_result_root_reservation: bool,
     /// Debug/test admission checks are explicitly opt-in because each boundary reconstructs the
     /// legacy relation. The field and all of its consumers disappear from release builds.
     #[cfg(any(test, debug_assertions))]
@@ -880,6 +884,34 @@ pub(super) struct ReplayResultSummary {
 }
 
 impl ReplayResultSummary {
+    pub(super) fn roots_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = UpperReplayClaimId> + '_ {
+        self.first_parent_roots_by_result
+            .get(&result)
+            .into_iter()
+            .flatten()
+            .copied()
+    }
+
+    pub(super) fn first_parent_witness(
+        &self,
+        result: ConstraintRecordId,
+        root: UpperReplayClaimId,
+    ) -> ReplayFactoredResult<Option<&FirstReplayParentWitness>> {
+        let witness = self.first_parent_by_root.get(&(result, root));
+        let indexed = self
+            .first_parent_roots_by_result
+            .get(&result)
+            .is_some_and(|roots| roots.contains(&root));
+        match (witness, indexed) {
+            (Some(witness), true) => Ok(Some(witness)),
+            (None, false) => Ok(None),
+            _ => Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex),
+        }
+    }
+
     #[cfg(any(test, debug_assertions))]
     pub(super) fn enable_event_oracle(&mut self) {
         self.event_oracle_enabled = true;
@@ -929,8 +961,17 @@ impl ReplayResultSummary {
                 });
             }
             let root = replay_parent_coverage_root(bounds, parent_claim)?;
-            if self.first_parent_by_root.contains_key(&(result, root)) {
-                continue;
+            let has_witness = self.first_parent_by_root.contains_key(&(result, root));
+            let root_is_indexed = self
+                .first_parent_roots_by_result
+                .get(&result)
+                .is_some_and(|roots| roots.contains(&root));
+            match (has_witness, root_is_indexed) {
+                (true, true) => continue,
+                (false, false) => {}
+                _ => {
+                    return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+                }
             }
             if !pending_storage_reserved {
                 pending_witnesses
@@ -971,25 +1012,53 @@ impl ReplayResultSummary {
             pending_versions.push(key);
         }
 
+        let new_result = !self.first_parent_roots_by_result.contains_key(&result);
         if !pending_witnesses.is_empty() {
             self.first_parent_by_root
                 .try_reserve(pending_witnesses.len())
                 .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            #[cfg(test)]
+            if std::mem::take(&mut self.fail_next_result_root_reservation) {
+                return Err(ReplayFactoredShadowFailure::AllocationFailed);
+            }
+            if new_result {
+                self.first_parent_roots_by_result
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            } else if let Some(roots) = self.first_parent_roots_by_result.get_mut(&result) {
+                roots
+                    .try_reserve(pending_witnesses.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            } else {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+            }
         }
         if !pending_versions.is_empty() {
             self.projected_parent_versions
                 .try_reserve(pending_versions.len())
                 .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         }
+        if new_result && !pending_witnesses.is_empty() {
+            self.first_parent_roots_by_result
+                .insert(result, pending_roots);
+        } else if !pending_witnesses.is_empty() {
+            let Some(roots) = self.first_parent_roots_by_result.get_mut(&result) else {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+            };
+            roots.extend(pending_roots);
+        }
         for (root, witness) in pending_witnesses {
-            self.first_parent_by_root
-                .entry((result, root))
-                .or_insert(witness);
+            self.first_parent_by_root.insert((result, root), witness);
         }
         for version in pending_versions {
             self.projected_parent_versions.insert(version);
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn fail_next_result_root_reservation(&mut self) {
+        self.fail_next_result_root_reservation = true;
     }
 }
 
@@ -1410,6 +1479,51 @@ mod tests {
         assert_arena_storage_is_unallocated(&arena);
     }
 
+    #[test]
+    fn result_summary_indexes_single_and_multiple_roots_without_empty_storage() {
+        let bounds = bounds_with_roots(&[0, 1]);
+        let result = ConstraintRecordId(7);
+        let mut summary = ReplayResultSummary::default();
+
+        record_summary(&mut summary, &bounds, 0, None).unwrap();
+        assert_eq!(summary.first_parent_by_root.capacity(), 0);
+        assert_eq!(summary.first_parent_roots_by_result.capacity(), 0);
+
+        record_summary(&mut summary, &bounds, 1, Some(0)).unwrap();
+        assert_eq!(
+            summary.roots_for_result(result).collect::<FxHashSet<_>>(),
+            FxHashSet::from_iter([UpperReplayClaimId(0)])
+        );
+        let witness = summary
+            .first_parent_witness(result, UpperReplayClaimId(0))
+            .unwrap()
+            .copied()
+            .unwrap();
+        assert_eq!(witness.occurrence, ReplayOccurrenceId(1));
+        assert_eq!(witness.parent_claim, UpperReplayClaimId(0));
+        assert_eq!(witness.admission_ordinal, 1);
+
+        record_summary(&mut summary, &bounds, 2, Some(1)).unwrap();
+        assert_eq!(
+            summary.roots_for_result(result).collect::<FxHashSet<_>>(),
+            FxHashSet::from_iter([UpperReplayClaimId(0), UpperReplayClaimId(1)])
+        );
+    }
+
+    #[test]
+    fn result_root_reservation_failure_rejects_both_summary_indices() {
+        let bounds = bounds_with_roots(&[0]);
+        let mut summary = ReplayResultSummary::default();
+        summary.fail_next_result_root_reservation();
+
+        assert_eq!(
+            record_summary(&mut summary, &bounds, 1, Some(0)),
+            Err(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(summary.first_parent_by_root.is_empty());
+        assert!(summary.first_parent_roots_by_result.is_empty());
+    }
+
     fn extend(
         arena: &mut ParentSetArena,
         base: ParentSetVersionId,
@@ -1472,5 +1586,33 @@ mod tests {
             coverage_root: UpperReplayClaimId(root),
             representative_claim: UpperReplayClaimId(representative),
         }
+    }
+
+    fn record_summary(
+        summary: &mut ReplayResultSummary,
+        bounds: &TypeBounds,
+        ordinal: u64,
+        claim: Option<u32>,
+    ) -> ReplayFactoredResult<()> {
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(0),
+            lower: BoundRecordId(0),
+            upper: BoundRecordId(1),
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let parent = claim.map(|claim| ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: UpperReplayClaimId(claim),
+            parent_side: ReplayClaimParentSide::Lower,
+            replay,
+        });
+        summary.try_record_admission(
+            ConstraintRecordId(7),
+            ReplayOccurrenceId(ordinal as u32),
+            replay,
+            ordinal,
+            parent.as_slice(),
+            &[],
+            bounds,
+        )
     }
 }
