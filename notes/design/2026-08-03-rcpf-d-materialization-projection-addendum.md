@@ -725,10 +725,97 @@ RCPF-D3aの前に、新しい必須prerequisiteとして以下を挿入する:
 - **RCPF-D4**: D3a/D3bの両方のshadow oracleが通るまで、authority
   cutoverには着手しない。
 
+## 10. Stop condition（2026-08-03、D3b着手時に発見。未解決）
+
+§9のcross-kind winner map（RCPF-D3a-0a/0b、`fb48c975`/`5f4e03db`）は
+「同一rootをreplay parentとnon-replay parentが取り合う場合の勝者選択」
+を正しく解決し、RCPF-D3a本体（`f72e0df3`）はこれを使って7種類の
+fixture（single root・multiple candidates・late root・no root・
+target-late bootstrap・replay-first・non-replay-first）全てで
+legacyと一致することを実証した。
+
+しかしRCPF-D3b（lower projection adapter）の着手時、**さらに一段深い
+gap**が見つかった。今回は同一root内の勝敗ではなく、**異なるroot間の
+相対的なadmission順**の問題である。
+
+### 10.1 問題
+
+legacyの`scheme_projection_claims_by_lower_record`/
+`projection_proofs_by_lower_record`は、mixed replay/non-replay
+historyにおいて、実際のadmission順によって最終的なproof vectorの
+並びが変わる。例えば次の2つの履歴は、最終的なD1 summary・C1
+non-replay store・cross-kind winner mapの状態としては完全に同一に
+なるが、legacyのproof vectorの並びは異なる:
+
+```text
+history A: NonReplay(root_b) が先、Replay(root_a) が後
+history B: Replay(root_a) が先、NonReplay(root_b) が後
+```
+
+legacy: history Aなら`[root_b, root_a]`、history Bなら
+`[root_a, root_b]`という異なるVecになる。factored側（D1 summary +
+C1 non-replay facade + cross-kind winner map）は、どちらの履歴でも
+同じ最終状態にしかならず、この2つのroot間の相対的な承認順を
+再現する手段を持たない。point queryでもcanonicalなsortでも固定
+kind優先度でも復元できない、真の履歴問題である。
+
+### 10.2 この順序が実際に診断・provenance品質に影響するかの調査結果
+
+Codex Sol xhighによるread-only調査の結果、この順序は
+**load-bearing（実際にuser-visibleな出力へ影響する）**と確定した
+（過去のSUBP-H実運用事故——順序が診断品質の実運用に影響した
+実例——と同種の問題）。具体的に順序へ依存すると確認された箇所:
+
+- `crates/infer/src/generalize/provenance.rs`: proof vectorの順序を
+  そのまま`GeneralizationParent`のedge順へ変換する。
+- `crates/infer/src/constraints/explain.rs`: append-only insertion
+  順＋depth-first preorderという明示的な契約を持ち、truncated
+  resultの安定prefixがこの順序に依存する。
+- `crates/infer/src/constraints/portable_explain.rs`: portable
+  snapshotの構築がquery node/edge insertion順をそのまま消費し、
+  budget truncationの結果（どのnode/edgeが切り捨てられるか）が
+  順序で変わる。
+- `crates/yulang/src/source/mod.rs`: `lower_sites`を順序どおりに
+  消費し、重複spanのdeduplicationで「どちらのcauseが生き残るか」
+  が順序に依存する。
+
+型のinclusion判定・projectability評価自体はvectorの中身（集合）
+だけに依存し、順序には依存しない（`mod.rs`のevaluatorは論理的な
+存在だけを見る）。順序へ依存するのは診断・provenance・portable
+explanation・最終的なユーザー向けdiagnostic出力の経路である。
+
+### 10.3 結論と今後の扱い
+
+これは実装スライスの範囲を超える、根本的な設計判断を要する
+stop conditionである。historical admission順の永続化は
+invariant 23への違反になるため、単純に「順序も含めて永続化する」
+という解決は取れない。両立可能な方向性は、legacy/factored両経路が
+共通のcanonical順（例: claimed parentをstable root/source keyで
+並べる、independent supportをstable carrier keyで並べる）を採用する
+よう、正規化の境界を新たに設計することだが、これは以下を含む
+広範な検証が必要になる:
+
+- admission順の置換（permutation）が、正規化後は同一の
+  generalized witness edgeを生成することの証明。
+- 正規化後のportable snapshotとdiagnostic cause順が、admission順
+  によらず同一であることの証明。
+- tight node/edge budgetでのtruncation prefixが、admission順に
+  よらず同一であることの証明。
+- 重複spanのdeduplication挙動を含む最終related diagnosticsが、
+  admission順によらず同一であることの証明。
+
+この正規化設計が承認されるまで、RCPF-D3bとRCPF-D4は
+**ブロックされる**。これは設計判断の重さがquarantine/retry追補や
+本書§9と同等かそれ以上であり、ユーザーの直接確認を経ずに実装まで
+進めるべきではないと判断し、read-only調査の結果を本書へ記録した
+上で作業を保留する。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
 ユーザ包括的事前承認済み（2026-08-03）。本書は設計判断の正本として扱う。
 実装は本書§5のRCPF-D1〜D4スライス、および§9のRCPF-D3a-0a/D3a-0bを
-含む再分割スライス順に従って着手してよい。
+含む再分割スライス順に従って着手してよい。ただし§10のstop condition
+（root間admission順の診断/provenance依存）が解決されるまで、
+RCPF-D3b・RCPF-D4には着手しない。
