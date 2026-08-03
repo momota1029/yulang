@@ -9452,9 +9452,11 @@ mod mutation_tests {
     }
 
     #[rustfmt::skip]
-    mod rcpf_d3b_0b_1_tests {
+    mod rcpf_d3b_0b_tests {
         use super::*;
+        use crate::compact::CompactRoot;
         use crate::constraints::canonical_projection_key::{self, Key};
+        use crate::generalize::{GeneralizedCompactRoot, capture_generalized_witnesses};
 
         #[derive(Clone, Copy)]
         enum Event { Replay, NonReplay, Independent(usize) }
@@ -9469,11 +9471,15 @@ mod mutation_tests {
             replay: BinaryReplayDerivation,
             row: RowDerivationId,
             roots: [UpperReplayClaimId; 2],
-            origins: [OriginId; 2],
+            origins: Vec<OriginId>,
         }
 
         impl Fixture {
             fn new() -> Self {
+                Self::new_with_independent_count(2)
+            }
+
+            fn new_with_independent_count(independent_count: usize) -> Self {
                 let mut machine = ConstraintMachine::new();
                 let source = TypeVar(0);
                 let target = TypeVar(1);
@@ -9502,8 +9508,9 @@ mod mutation_tests {
                 ).id;
                 assert!(!machine.bounds.scheme_projection_claims_by_lower_record.contains_key(&lower_record));
                 assert!(!machine.bounds.projection_proofs_by_lower_record.contains_key(&lower_record));
-                let origins = [ConstraintOriginKind::Field, ConstraintOriginKind::Return]
-                    .map(|kind| machine.alloc_source_boundary(kind).origin());
+                let origins = (0..independent_count).map(|index| machine.alloc_source_boundary(
+                    if index % 2 == 0 { ConstraintOriginKind::Field } else { ConstraintOriginKind::Return },
+                ).origin()).collect();
                 Self {
                     machine, result, lower_record, source, target, upper,
                     replay: BinaryReplayDerivation {
@@ -9548,6 +9555,62 @@ mod mutation_tests {
                 }).collect();
                 (claims, supports, keys)
             }
+
+            fn key(&self, support: SchemeProjectionProofSupport) -> Key {
+                match support {
+                    SchemeProjectionProofSupport::Claimed(claim) => Key::Claimed(self.root(claim)),
+                    SchemeProjectionProofSupport::Independent(carrier) => Key::Independent(carrier),
+                }
+            }
+
+            fn canonicalize_shadow_ledgers(&mut self) {
+                let mut claims = self.machine.bounds.scheme_projection_claims_by_lower_record[&self.lower_record].clone();
+                claims.sort_by(|left, right| canonical_projection_key::cmp(
+                    &Key::Claimed(self.root(*left)), &Key::Claimed(self.root(*right)),
+                ));
+                self.machine.bounds.scheme_projection_claims_by_lower_record.insert(self.lower_record, claims);
+                let mut proofs = self.machine.bounds.projection_proofs_by_lower_record[&self.lower_record].clone();
+                proofs.sort_by(|left, right| canonical_projection_key::cmp(
+                    &self.key(left.support), &self.key(right.support),
+                ));
+                self.machine.bounds.projection_proofs_by_lower_record.insert(self.lower_record, proofs);
+            }
+
+            fn consumer_snapshot(&self) -> ConsumerSnapshot {
+                let qualified = self.machine.scheme_projectable_lowers(self.target)
+                    .find(|entry| entry.record == self.lower_record).expect("isolated lower remains projectable").reason;
+                let generalized = GeneralizedCompactRoot {
+                    compact: CompactRoot::default(), role_predicates: Vec::new(), quantifiers: Vec::new(),
+                    stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
+                };
+                let (drafts, completeness) = capture_generalized_witnesses(&self.machine, self.target, &generalized);
+                let parents = drafts.iter().flat_map(|draft| &draft.incoming)
+                    .flat_map(|edge| &edge.parents).copied().collect();
+                ConsumerSnapshot { qualified, drafts, parents, completeness }
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct ConsumerSnapshot {
+            qualified: SchemeProjectableLowerReason,
+            drafts: Vec<GeneralizedWitnessDraft>,
+            parents: Vec<GeneralizationParent>,
+            completeness: ProvenanceCompleteness,
+        }
+
+        fn qualified_parents(reason: &SchemeProjectableLowerReason, bound: BoundRecordId) -> Vec<GeneralizationParent> {
+            let SchemeProjectableLowerReason::Qualified { uncovered_claims, independent_supports } = reason else {
+                panic!("canonical projection fixture must remain qualified")
+            };
+            uncovered_claims.iter().map(|claim| GeneralizationParent::BoundClaim { bound, claim: *claim })
+                .chain(independent_supports.iter().map(|carrier| GeneralizationParent::BoundProjectionProof {
+                    bound, carrier: *carrier,
+                })).collect()
+        }
+
+        fn lower_draft(snapshot: &ConsumerSnapshot) -> &GeneralizedWitnessDraft {
+            snapshot.drafts.iter().find(|draft| draft.path == GeneralizedTypePath::default()
+                && draft.role == GeneralizedWitnessRole::LowerBound).expect("root lower draft")
         }
 
         fn permutations() -> Vec<[usize; 4]> {
@@ -9606,6 +9669,67 @@ mod mutation_tests {
             assert_eq!(before_normalized, after_normalized);
             assert_eq!(before_normalized.iter().position(|key| *key == Key::Claimed(root)),
                 after_normalized.iter().position(|key| *key == Key::Claimed(root)));
+        }
+
+        #[test]
+        fn canonical_qualified_and_generalized_parent_sequences_are_invariant_across_all_permutations() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let mut expected = None;
+            for order in permutations() {
+                let mut fixture = Fixture::new();
+                for index in order { fixture.admit(events[index]); }
+                fixture.canonicalize_shadow_ledgers();
+                let snapshot = fixture.consumer_snapshot();
+                let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
+                assert_eq!(parents, vec![
+                    GeneralizationParent::BoundClaim { bound: fixture.lower_record, claim: fixture.roots[0] },
+                    GeneralizationParent::BoundClaim { bound: fixture.lower_record, claim: fixture.roots[1] },
+                    GeneralizationParent::BoundProjectionProof { bound: fixture.lower_record,
+                        carrier: ProjectionProofCarrier::Origin(fixture.origins[0]) },
+                    GeneralizationParent::BoundProjectionProof { bound: fixture.lower_record,
+                        carrier: ProjectionProofCarrier::Origin(fixture.origins[1]) },
+                ]);
+                assert_eq!(lower_draft(&snapshot).incoming.iter().flat_map(|edge| &edge.parents)
+                    .copied().collect::<Vec<_>>(), parents);
+                assert_eq!(snapshot, *expected.get_or_insert_with(|| snapshot.clone()));
+            }
+        }
+
+        fn sampled_orders(len: usize) -> Vec<Vec<usize>> {
+            let ascending = (0..len).collect::<Vec<_>>();
+            let descending = (0..len).rev().collect();
+            let mut rotated = ascending.clone();
+            rotated.rotate_left(73);
+            let parity = (0..len).step_by(2).chain((1..len).step_by(2)).collect();
+            let stride = (0..len).map(|index| index * 101 % len).collect();
+            vec![ascending, descending, rotated, parity, stride]
+        }
+
+        #[test]
+        fn canonical_generalized_witness_prefix_and_completeness_survive_sampled_large_orders() {
+            const INDEPENDENT_SUPPORTS: usize = 258;
+            let mut events = vec![Event::Replay, Event::NonReplay];
+            events.extend((0..INDEPENDENT_SUPPORTS).map(Event::Independent));
+            let orders = sampled_orders(events.len());
+            assert_eq!(orders.iter().collect::<FxHashSet<_>>().len(), 5);
+            let mut expected = None;
+            for order in orders {
+                let mut fixture = Fixture::new_with_independent_count(INDEPENDENT_SUPPORTS);
+                for index in order { fixture.admit(events[index]); }
+                assert_eq!(fixture.snapshot().1.len(), 260);
+                fixture.canonicalize_shadow_ledgers();
+                let snapshot = fixture.consumer_snapshot();
+                let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
+                let draft = lower_draft(&snapshot);
+                assert_eq!(parents.len(), 260);
+                assert_eq!(draft.incoming.len(), 256);
+                assert_eq!(draft.completeness, ProvenanceCompleteness::Incomplete);
+                assert_eq!(snapshot.completeness, ProvenanceCompleteness::Incomplete);
+                let prefix = draft.incoming.iter().flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>();
+                assert_eq!(prefix, parents[..256]);
+                let capped = (draft.incoming.clone(), prefix, draft.completeness, snapshot.completeness);
+                assert_eq!(capped, *expected.get_or_insert_with(|| capped.clone()));
+            }
         }
     }
 
