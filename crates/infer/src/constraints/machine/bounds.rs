@@ -8647,6 +8647,25 @@ mod mutation_tests {
         machine
             .bounds
             .move_upper_replay_claim(direct.claim, moved_record);
+        assert!(
+            machine.bounds.claims_by_upper_record[&direct_record].is_empty(),
+            "the non-collision move removes the root from its old record"
+        );
+        assert_eq!(
+            machine.bounds.claims_by_upper_record[&moved_record],
+            vec![direct.claim],
+            "the non-collision move keeps the existing single-entry behavior"
+        );
+        assert_eq!(
+            machine.bounds.original_claim_by_record_and_producer[&(moved_record, direct_producer)],
+            direct.claim
+        );
+        assert!(
+            !machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(moved_record, direct.claim))
+        );
 
         let originals = machine
             .bounds
@@ -8675,6 +8694,75 @@ mod mutation_tests {
         assert_eq!(
             machine.bounds.root_claim_by_producer_constraint[&reduced_producer], reduced.claim,
             "Reduced roots pass through the same shared constructor mirror"
+        );
+    }
+
+    #[test]
+    fn moved_root_collision_reconstructs_original_full_and_delta_lineage() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+        let root = fixture.coverage_root;
+        let displaced =
+            fixture.machine.bounds.derived_claim_by_record_and_root[&(fixture.upper_record, root)];
+        assert_ne!(displaced, root);
+
+        fixture
+            .machine
+            .bounds
+            .move_upper_replay_claim(root, fixture.upper_record);
+
+        let full = fixture
+            .machine
+            .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
+            .expect("the full adapter reconstructs the moved root");
+        assert_eq!(
+            full.get(&(fixture.upper_record, root)),
+            Some(&UpperReplayClaimLineage::Original)
+        );
+        assert_eq!(full.len(), 1);
+
+        let witness = *fixture
+            .machine
+            .replay_result_summary
+            .first_parent_witness(fixture.result, root)
+            .expect("the replay summary index is valid")
+            .expect("the delta has a first parent witness");
+        let delta = ReplayResultSummaryDelta {
+            entries: vec![(root, witness)],
+        };
+        let delta_lineage = fixture
+            .machine
+            .try_factored_upper_materialization(
+                fixture.upper_record,
+                fixture.result,
+                delta.entries.iter().copied().map(Ok),
+                false,
+                false,
+            )
+            .expect("the delta witness reconstructs the moved root");
+        assert_eq!(
+            delta_lineage.get(&(fixture.upper_record, root)),
+            Some(&UpperReplayClaimLineage::Original)
+        );
+        assert!(
+            fixture
+                .machine
+                .try_factored_upper_materialization_delta(
+                    fixture.upper_record,
+                    fixture.result,
+                    &delta,
+                )
+                .expect("the operational delta adapter observes existing materialization")
+                .is_empty(),
+            "an already-active Original root leaves no delta materialization work"
         );
     }
 

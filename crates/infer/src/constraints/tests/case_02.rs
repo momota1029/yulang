@@ -765,8 +765,19 @@ fn unweighted_row_upper_incremental_route_registers_reduction_route_claim_parent
     );
 }
 
-#[test]
-fn unweighted_row_claim_move_can_reach_a_same_root_destination() {
+struct MovedRootCollisionFixture {
+    machine: ConstraintMachine,
+    source_neg: NegId,
+    tail: NegId,
+    origin: OriginId,
+    producer: ConstraintRecordId,
+    destination: BoundRecordId,
+    root: UpperReplayClaimId,
+    displaced: UpperReplayClaimId,
+    displaced_record: UpperReplayClaim,
+}
+
+fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let residual = TypeVar(1);
@@ -787,10 +798,9 @@ fn unweighted_row_claim_move_can_reach_a_same_root_destination() {
     let state = reduction_state_for_source(&machine, source);
     let root = machine.bounds.reduction_claim_by_state[&state];
 
-    // The next reduction can reuse an existing exact upper survivor. A qualified parent can
-    // already have materialized the moving root there, so the move path has no structural
-    // destination-uniqueness guarantee for `(record, coverage_root)`. This is characterization
-    // only: section 12.5 requires an explicit lineage-survivor design before the writer cutover.
+    // The next reduction reuses an exact upper survivor where a qualified parent has already
+    // materialized the moving root. The real incremental move below must make the Original root
+    // canonical for that reachable `(record, coverage_root)` collision.
     let destination = machine
         .bounds
         .add_upper(
@@ -812,6 +822,8 @@ fn unweighted_row_claim_move_can_reach_a_same_root_destination() {
     let derived = machine.register_constraint_upper_replay_claims(destination, Some(producer));
     assert_eq!(derived.len(), 1);
     assert_ne!(derived[0], root);
+    let displaced = derived[0];
+    let displaced_record = machine.bounds.upper_replay_claims[displaced.0 as usize].clone();
 
     machine.subtype(late_family, source_neg, origin);
 
@@ -822,15 +834,79 @@ fn unweighted_row_claim_move_can_reach_a_same_root_destination() {
         destination,
         "the real incremental row path must move the root into the pre-populated survivor"
     );
-    let destination_roots = machine.bounds.claims_by_upper_record[&destination]
-        .iter()
-        .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
-        .collect::<Vec<_>>();
+    MovedRootCollisionFixture {
+        machine,
+        source_neg,
+        tail,
+        origin,
+        producer,
+        destination,
+        root,
+        displaced,
+        displaced_record,
+    }
+}
+
+#[test]
+fn unweighted_row_claim_move_displaces_the_same_root_destination_claim() {
+    let fixture = moved_root_collision_fixture();
     assert_eq!(
-        destination_roots,
-        vec![root, root],
-        "RCPF-D4-0c characterization: moved-root destination collision is reachable"
+        fixture.machine.bounds.claims_by_upper_record[&fixture.destination],
+        vec![fixture.root],
+        "the Original root replaces, rather than joins, the derived destination claim"
     );
+    assert_eq!(
+        fixture.machine.bounds.original_claim_by_record_and_producer
+            [&(fixture.destination, fixture.producer)],
+        fixture.root
+    );
+    assert!(
+        !fixture
+            .machine
+            .bounds
+            .derived_claim_by_record_and_root
+            .contains_key(&(fixture.destination, fixture.root))
+    );
+    assert_eq!(
+        fixture.machine.bounds.upper_replay_claims[fixture.displaced.0 as usize],
+        fixture.displaced_record,
+        "displacement removes only active indexes; historical lineage stays append-only"
+    );
+}
+
+#[test]
+fn replay_after_a_same_root_move_uses_only_the_original_exact_parent() {
+    let mut fixture = moved_root_collision_fixture();
+    let replay_lower = fixture.machine.alloc_pos(Pos::Var(TypeVar(2)));
+    fixture
+        .machine
+        .subtype(replay_lower, fixture.source_neg, fixture.origin);
+    let result = constraint_record_for_key(
+        &fixture.machine,
+        replay_lower,
+        fixture.tail,
+        &ConstraintWeights::empty(),
+    );
+    let replay = fixture.machine.constraint_records[result.0 as usize]
+        .replay_derivations
+        .iter()
+        .copied()
+        .find(|replay| replay.upper == fixture.destination)
+        .expect("the live reduction route replays against its current upper record");
+    let exact_parents = fixture.machine.bounds.claim_parents_by_constraint[&result]
+        .iter()
+        .filter_map(|parent| match *parent {
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim,
+                replay: candidate,
+                ..
+            } if candidate == replay => Some(parent_claim),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(exact_parents, vec![fixture.root]);
+    assert!(!exact_parents.contains(&fixture.displaced));
 }
 
 #[test]

@@ -2799,38 +2799,62 @@ impl TypeBounds {
     }
 
     fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {
-        let old_record = self.upper_replay_claims[claim.0 as usize].current_record;
+        let replay_claim = &self.upper_replay_claims[claim.0 as usize];
+        let old_record = replay_claim.current_record;
         if old_record == new_record {
             return;
         }
-        if let Some(claims) = self.claims_by_upper_record.get_mut(&old_record) {
-            claims.retain(|candidate| *candidate != claim);
-        }
+        let producer_constraint = replay_claim.producer_constraint;
+        let coverage_root = replay_claim.coverage_root;
+        let lineage = replay_claim.lineage;
         let bound = &self.records[new_record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
-        let replay_claim = &mut self.upper_replay_claims[claim.0 as usize];
-        self.original_claim_by_record_and_producer
-            .remove(&(old_record, replay_claim.producer_constraint));
-        self.derived_claim_by_record_and_root
-            .remove(&(old_record, replay_claim.coverage_root));
-        replay_claim.current_record = new_record;
-        replay_claim.source = bound.owner;
-        replay_claim.endpoint = endpoint;
-        replay_claim.weights = bound.weights.clone();
-        match replay_claim.lineage {
+        let source = bound.owner;
+        let weights = bound.weights.clone();
+        if let Some(claims) = self.claims_by_upper_record.get_mut(&old_record) {
+            claims.retain(|candidate| *candidate != claim);
+        }
+        match lineage {
             UpperReplayClaimLineage::Original => {
                 self.original_claim_by_record_and_producer
-                    .insert((new_record, replay_claim.producer_constraint), claim);
+                    .remove(&(old_record, producer_constraint));
             }
             _ => {
                 self.derived_claim_by_record_and_root
-                    .insert((new_record, replay_claim.coverage_root), claim);
+                    .remove(&(old_record, coverage_root));
+            }
+        }
+        // Once the Original root reaches this record, the existing materialization contract makes
+        // it canonical for `(record, root)`; the displaced child remains append-only history.
+        let displaced = (lineage == UpperReplayClaimLineage::Original)
+            .then(|| {
+                self.derived_claim_by_record_and_root
+                    .remove(&(new_record, coverage_root))
+            })
+            .flatten();
+        let replay_claim = &mut self.upper_replay_claims[claim.0 as usize];
+        replay_claim.current_record = new_record;
+        replay_claim.source = source;
+        replay_claim.endpoint = endpoint;
+        replay_claim.weights = weights;
+        match lineage {
+            UpperReplayClaimLineage::Original => {
+                self.original_claim_by_record_and_producer
+                    .insert((new_record, producer_constraint), claim);
+            }
+            _ => {
+                self.derived_claim_by_record_and_root
+                    .insert((new_record, coverage_root), claim);
             }
         }
         let claims = self.claims_by_upper_record.entry(new_record).or_default();
-        if !claims.contains(&claim) {
+        if let Some(position) = displaced
+            .and_then(|displaced| claims.iter().position(|candidate| *candidate == displaced))
+        {
+            claims[position] = claim;
+        } else if !claims.contains(&claim) {
             claims.push(claim);
         }
     }
