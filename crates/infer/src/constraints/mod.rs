@@ -630,6 +630,217 @@ pub(crate) enum SchemeProjectionProofSupport {
     Independent(ProjectionProofCarrier),
 }
 
+#[allow(dead_code, reason = "RCPF-D3b-0b wires the permutation oracle")]
+#[rustfmt::skip]
+mod canonical_projection_key {
+    use super::*;
+    use std::cmp::Ordering;
+
+    type CarrierKey = (u8, [u32; 6]);
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(super) enum Key {
+        Claimed(UpperReplayClaimId),
+        Independent(ProjectionProofCarrier),
+    }
+
+    pub(super) fn carrier_cmp(
+        left: &ProjectionProofCarrier,
+        right: &ProjectionProofCarrier,
+    ) -> Ordering {
+        carrier_key(*left).cmp(&carrier_key(*right))
+    }
+
+    pub(super) fn cmp(left: &Key, right: &Key) -> Ordering {
+        match (left, right) {
+            (Key::Claimed(left), Key::Claimed(right)) => left.cmp(right),
+            (Key::Claimed(_), Key::Independent(_)) => Ordering::Less,
+            (Key::Independent(_), Key::Claimed(_)) => Ordering::Greater,
+            (Key::Independent(left), Key::Independent(right)) => carrier_cmp(left, right),
+        }
+    }
+
+    pub(super) fn normalize_clone(keys: &[Key]) -> Vec<Key> {
+        let mut normalized = keys.to_vec();
+        normalized.sort_by(cmp);
+        normalized
+    }
+
+    fn carrier_key(carrier: ProjectionProofCarrier) -> CarrierKey {
+        match carrier {
+            ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => (0, [constraint.0, origin.0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
+                let rule = structural_rule_key(derivation.rule);
+                (1, [result.0, derivation.parent.0, rule[0], rule[1], rule[2], rule[3]])
+            }
+            ProjectionProofCarrier::ReplayConstraint { result, derivation } => (2, [result.0, derivation.pivot.0, derivation.lower.0, derivation.upper.0, replay_rule_rank(derivation.rule), 0]),
+            ProjectionProofCarrier::RowConstraint { result, derivation } => (3, [result.0, derivation.0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::SchemeInstantiationConstraint { result, source_witness } => (4, [result.0, source_witness.0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::Origin(origin) => (5, [origin.0, 0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::ReplayEvidence(derivation) => (6, [derivation.pivot.0, derivation.lower.0, derivation.upper.0, replay_rule_rank(derivation.rule), 0, 0]),
+            ProjectionProofCarrier::Row(derivation) => (7, [derivation.0, 0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::SchemeInstantiation(source_witness) => (8, [source_witness.0, 0, 0, 0, 0, 0]),
+            ProjectionProofCarrier::Incomplete => (9, [0; 6]),
+        }
+    }
+
+    fn structural_rule_key(rule: StructuralDerivationRule) -> [u32; 4] {
+        use StructuralDerivationRule::*;
+        match rule {
+            LowerStackNormalization => [0, 0, 0, 0],
+            LowerNonSubtractNormalization => [1, 0, 0, 0],
+            UpperStackNormalization => [2, 0, 0, 0],
+            UnionBranch { branch } => [3, branch.0, 0, 0],
+            IntersectionBranch { branch } => [4, branch.0, 0, 0],
+            FunctionArgument => [5, 0, 0, 0],
+            FunctionArgumentEffect { pure_passthrough } => [6, pure_passthrough as u32, 0, 0],
+            FunctionReturnEffect => [7, 0, 0, 0],
+            FunctionReturn => [8, 0, 0, 0],
+            ConstructorArgument { index, direction } => [9, index.0, direction_rank(direction), 0],
+            TupleElement { index } => [10, index.0, 0, 0],
+            RecordField { index } => [11, index.0, 0, 0],
+            RecordSpreadField { spread, index } => [12, spread_rank(spread), index.0, 0],
+            RecordSpreadTail { spread, index } => [13, spread_rank(spread), index.0, 0],
+            VariantPayload { variant_index, payload_index } => [14, variant_index.0, payload_index.0, 0],
+            RowItem { index, route } => [15, index.0, row_route_rank(route), 0],
+            RowItemArgument { item_index, argument_index, direction } => [16, item_index.0, argument_index.0, direction_rank(direction)],
+        }
+    }
+
+    fn replay_rule_rank(rule: ReplayRule) -> u32 {
+        match rule { ReplayRule::LowerBoundAdded => 0, ReplayRule::UpperBoundAdded => 1 }
+    }
+
+    fn direction_rank(direction: InvariantDirection) -> u32 {
+        match direction { InvariantDirection::LowerToUpper => 0, InvariantDirection::UpperToLower => 1 }
+    }
+
+    fn spread_rank(spread: RecordSpreadKind) -> u32 {
+        match spread { RecordSpreadKind::Head => 0, RecordSpreadKind::Tail => 1 }
+    }
+
+    fn row_route_rank(route: RowItemRoute) -> u32 {
+        match route {
+            RowItemRoute::Matched => 0,
+            RowItemRoute::DirectToUpperTail => 1,
+            RowItemRoute::MarkerAggregateToUpperTail => 2,
+            RowItemRoute::VariableToRemainingRow => 3,
+            RowItemRoute::UpperTailToMarkerItems => 4,
+            RowItemRoute::UpperTailToDirectItems => 5,
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn carriers() -> [ProjectionProofCarrier; 10] {
+            let replay = |seed| BinaryReplayDerivation {
+                pivot: TypeVar(seed), lower: BoundRecordId(seed + 1), upper: BoundRecordId(seed + 2),
+                rule: ReplayRule::LowerBoundAdded,
+            };
+            [
+                ProjectionProofCarrier::ConstraintOrigin { constraint: ConstraintRecordId(1), origin: OriginId(2) },
+                ProjectionProofCarrier::StructuralConstraint {
+                    result: ConstraintRecordId(3), derivation: StructuralDerivation {
+                        parent: ConstraintRecordId(4), rule: StructuralDerivationRule::FunctionArgument,
+                    }
+                },
+                ProjectionProofCarrier::ReplayConstraint { result: ConstraintRecordId(5), derivation: replay(6) },
+                ProjectionProofCarrier::RowConstraint { result: ConstraintRecordId(9), derivation: RowDerivationId(10) },
+                ProjectionProofCarrier::SchemeInstantiationConstraint { result: ConstraintRecordId(11), source_witness: GeneralizedSchemeWitnessId(12) },
+                ProjectionProofCarrier::Origin(OriginId(13)),
+                ProjectionProofCarrier::ReplayEvidence(replay(14)),
+                ProjectionProofCarrier::Row(RowDerivationId(17)),
+                ProjectionProofCarrier::SchemeInstantiation(GeneralizedSchemeWitnessId(18)),
+                ProjectionProofCarrier::Incomplete,
+            ]
+        }
+
+        #[test]
+        fn canonical_cmp_is_equal_exactly_for_equal_keys() {
+            let same_root = Key::Claimed(UpperReplayClaimId(7));
+            let same_root_again = Key::Claimed(UpperReplayClaimId(7));
+            let same_carrier = Key::Independent(carriers()[0]);
+            let same_carrier_again = Key::Independent(carriers()[0]);
+            assert_eq!(cmp(&same_root, &same_root_again), Ordering::Equal);
+            assert_eq!(cmp(&same_carrier, &same_carrier_again), Ordering::Equal);
+            let keys = [vec![Key::Claimed(UpperReplayClaimId(6)), same_root],
+                carriers().into_iter().map(Key::Independent).collect()].concat();
+            for left in &keys {
+                for right in &keys {
+                    assert_eq!(cmp(left, right) == Ordering::Equal, left == right);
+                }
+            }
+        }
+
+        #[test]
+        fn canonical_cmp_is_transitive_across_categories_and_ranks() {
+            let keys = [vec![Key::Claimed(UpperReplayClaimId(1)), Key::Claimed(UpperReplayClaimId(2))],
+                carriers().into_iter().map(Key::Independent).collect()].concat();
+            for left in &keys {
+                for middle in &keys {
+                    for right in &keys {
+                        if cmp(left, middle) != Ordering::Greater && cmp(middle, right) != Ordering::Greater {
+                            assert_ne!(cmp(left, right), Ordering::Greater);
+                        }
+                        assert_eq!(cmp(left, middle), cmp(middle, left).reverse());
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn every_claimed_root_sorts_before_every_independent_carrier() {
+            for root in [UpperReplayClaimId(0), UpperReplayClaimId(u32::MAX)] {
+                for carrier in carriers() {
+                    assert_eq!(cmp(&Key::Claimed(root), &Key::Independent(carrier)), Ordering::Less);
+                }
+            }
+        }
+
+        #[test]
+        fn carrier_rank_table_and_clone_normalizer_are_canonical() {
+            let carriers = carriers();
+            for (lower_rank, lower) in carriers.iter().enumerate() {
+                for (higher_rank, higher) in carriers.iter().enumerate().skip(lower_rank + 1) {
+                    assert_eq!(carrier_cmp(lower, higher), Ordering::Less, "rank {lower_rank} < {higher_rank}");
+                }
+            }
+            let expected = carriers.map(Key::Independent).to_vec();
+            let input = expected.iter().copied().rev().collect::<Vec<_>>();
+            assert_eq!(normalize_clone(&input), expected);
+            assert_ne!(input, expected, "normalization must leave its input clone untouched");
+        }
+
+        #[test]
+        fn structural_rule_key_distinguishes_every_payload_kind() {
+            use InvariantDirection::*;
+            use RecordSpreadKind::*;
+            use RowItemRoute::*;
+            use StructuralDerivationRule::*;
+            let rules = [
+                (UnionBranch { branch: StructuralIndex(2) }, [3, 2, 0, 0]),
+                (FunctionArgumentEffect { pure_passthrough: true }, [6, 1, 0, 0]),
+                (ConstructorArgument { index: StructuralIndex(3), direction: UpperToLower }, [9, 3, 1, 0]),
+                (RecordSpreadField { spread: Tail, index: StructuralIndex(4) }, [12, 1, 4, 0]),
+                (VariantPayload { variant_index: StructuralIndex(5), payload_index: StructuralIndex(6) }, [14, 5, 6, 0]),
+                (RowItem { index: StructuralIndex(7), route: UpperTailToDirectItems }, [15, 7, 5, 0]),
+                (RowItemArgument { item_index: StructuralIndex(8), argument_index: StructuralIndex(9), direction: UpperToLower }, [16, 8, 9, 1]),
+            ];
+            for (rule, expected) in rules { assert_eq!(structural_rule_key(rule), expected); }
+            let carrier = |rule| ProjectionProofCarrier::StructuralConstraint {
+                result: ConstraintRecordId(20),
+                derivation: StructuralDerivation { parent: ConstraintRecordId(21), rule },
+            };
+            let left = carrier(RowItem { index: StructuralIndex(7), route: Matched });
+            let right = carrier(RowItem { index: StructuralIndex(7), route: UpperTailToDirectItems });
+            assert_ne!(carrier_cmp(&left, &right), Ordering::Equal);
+            assert_eq!(carrier_cmp(&left, &right), carrier_cmp(&right, &left).reverse());
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// A lazily evaluated proof input. DPN-A records these nodes; DPN-B will evaluate them.
 enum ProofPremise {
