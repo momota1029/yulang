@@ -67,6 +67,10 @@ struct FactoredReplayParentDrafts<'plan> {
     upper: ReplayParentDraftId,
 }
 
+struct ClaimQualifiedParentAdmissionSnapshot {
+    inclusion_before: FxHashMap<BoundRecordId, bool>,
+}
+
 impl<'plan> FactoredReplayParentDrafts<'plan> {
     fn resolve(
         self,
@@ -1730,11 +1734,28 @@ impl ConstraintMachine {
         constraint: ConstraintRecordId,
         parent: ClaimQualifiedParent,
     ) {
-        let before = self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
+        let snapshot = self.commit_claim_qualified_parent_mutation(constraint, parent);
+        self.publish_claim_qualified_parent_admission(snapshot);
+    }
+
+    fn commit_claim_qualified_parent_mutation(
+        &mut self,
+        constraint: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) -> ClaimQualifiedParentAdmissionSnapshot {
+        let inclusion_before =
+            self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
         self.bounds.push_claim_qualified_parent(constraint, parent);
         self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
-        self.publish_projection_inclusion_snapshot(before);
+        ClaimQualifiedParentAdmissionSnapshot { inclusion_before }
+    }
+
+    fn publish_claim_qualified_parent_admission(
+        &mut self,
+        snapshot: ClaimQualifiedParentAdmissionSnapshot,
+    ) {
+        self.publish_projection_inclusion_snapshot(snapshot.inclusion_before);
     }
 
     /// Observe an already completed legacy admission. Failure quarantines the additive RCPF
@@ -2361,7 +2382,8 @@ impl ConstraintMachine {
                 parent_side: parent.parent_side,
                 replay,
             };
-            self.admit_claim_qualified_parent(result, parent);
+            let snapshot = self.commit_claim_qualified_parent_mutation(result, parent);
+            self.publish_claim_qualified_parent_admission(snapshot);
             inserted_parents.push(parent);
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -4910,6 +4932,135 @@ mod mutation_tests {
                 .is_some_and(|parents| !parents.is_empty()),
             "legacy admission remains active during rollback"
         );
+    }
+
+    #[test]
+    fn rcpf_d2a_legacy_rollback_split_preserves_immediate_publication_sequence() {
+        let authority =
+            ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed);
+        let mut split = cdm_replay_claim_fixture_with_authority(authority);
+        let mut combined = cdm_replay_claim_fixture_with_authority(authority);
+
+        let add_result = |fixture: &mut CdmReplayClaimFixture| {
+            let lower = fixture
+                .machine
+                .alloc_pos(Pos::Con(vec!["rcpf-d2a-lower".into()], Vec::new()));
+            let upper = fixture
+                .machine
+                .alloc_neg(Neg::Con(vec!["rcpf-d2a-upper".into()], Vec::new()));
+            fixture
+                .machine
+                .subtype(lower, upper, OriginId::unknown_internal());
+            fixture
+                .machine
+                .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+                .expect("the publication fixture constraint is canonical")
+        };
+        let split_result = add_result(&mut split);
+        let combined_result = add_result(&mut combined);
+        assert_eq!(split_result, combined_result);
+
+        let attach_dependent = |fixture: &mut CdmReplayClaimFixture, result| {
+            let (dependent, support) = dpn_b_synthetic_projection_record(&mut fixture.machine, 70);
+            fixture.machine.register_record_proof_clause_link(
+                dependent,
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(70),
+                    premise: ProofPremise::Constraint(result),
+                },
+            );
+            dependent
+        };
+        let split_dependent = attach_dependent(&mut split, split_result);
+        let combined_dependent = attach_dependent(&mut combined, combined_result);
+        assert_eq!(split_dependent, combined_dependent);
+        let replay = BinaryReplayDerivation {
+            pivot: split.pivot,
+            lower: split_dependent,
+            upper: split_dependent,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        for (fixture, result) in [(&mut split, split_result), (&mut combined, combined_result)] {
+            assert_eq!(
+                fixture.machine.merge_replay_derivation(result, replay),
+                ReplayDerivationInsert::Inserted
+            );
+        }
+
+        let epoch_snapshot = |fixture: &CdmReplayClaimFixture, dependent: BoundRecordId| {
+            let owner = fixture.machine.bounds.record(dependent).unwrap().owner();
+            (
+                fixture.machine.epoch,
+                fixture.machine.provenance_epoch,
+                fixture.machine.bounds.of(owner).unwrap().epoch(),
+                fixture
+                    .machine
+                    .scheme_projection_record_is_included(dependent),
+            )
+        };
+        let mut split_epochs = vec![epoch_snapshot(&split, split_dependent)];
+        let mut combined_epochs = vec![epoch_snapshot(&combined, combined_dependent)];
+        let split_factored_before = replay_factored_storage_census(&split.machine);
+        let combined_factored_before = replay_factored_storage_census(&combined.machine);
+        let split_journal = split.machine.activate_method_role_mutations();
+        let combined_journal = combined.machine.activate_method_role_mutations();
+
+        let split_parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: split.parent.claim,
+            parent_side: split.parent.parent_side,
+            replay,
+        };
+        let split_snapshot = split
+            .machine
+            .commit_claim_qualified_parent_mutation(split_result, split_parent);
+        split
+            .machine
+            .publish_claim_qualified_parent_admission(split_snapshot);
+        combined.machine.admit_claim_qualified_parent(
+            combined_result,
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: combined.parent.claim,
+                parent_side: combined.parent.parent_side,
+                replay,
+            },
+        );
+
+        split_epochs.push(epoch_snapshot(&split, split_dependent));
+        combined_epochs.push(epoch_snapshot(&combined, combined_dependent));
+        let split_affected = changed_keys(split.machine.take_method_role_mutations());
+        let combined_affected = changed_keys(combined.machine.take_method_role_mutations());
+        split_journal.finish();
+        combined_journal.finish();
+
+        assert_eq!(split_epochs, combined_epochs);
+        assert!(
+            split_epochs[1].0 > split_epochs[0].0
+                && split_epochs[1].1 > split_epochs[0].1
+                && split_epochs[1].2 > split_epochs[0].2,
+            "the fixture must advance global, provenance, and owner epochs"
+        );
+        assert_eq!((split_epochs[0].3, split_epochs[1].3), (true, false));
+        assert_eq!(split_epochs[1].2, split_epochs[1].0);
+        assert_eq!(split_affected, combined_affected);
+        assert_eq!(
+            split.machine.bounds.claim_parents_by_constraint,
+            combined.machine.bounds.claim_parents_by_constraint
+        );
+        assert_eq!(
+            split.machine.bounds.dependent_records_by_premise,
+            combined.machine.bounds.dependent_records_by_premise
+        );
+        assert_eq!(
+            replay_factored_storage_census(&split.machine),
+            split_factored_before
+        );
+        assert_eq!(
+            replay_factored_storage_census(&combined.machine),
+            combined_factored_before
+        );
+        assert_eq!(split.machine.replay_read_authority(), authority);
+        assert_eq!(combined.machine.replay_read_authority(), authority);
     }
 
     fn rcpf_c2_replay_inspection_census(root_count: usize) -> (usize, usize, usize) {
