@@ -23,6 +23,26 @@ std::thread_local! {
         const { std::cell::Cell::new(0) };
     static RCPF_D2C_EVENT_ORACLE_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
+    static RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT: std::cell::Cell<Option<usize>> =
+        const { std::cell::Cell::new(None) };
+    static RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn rcpf_d2c_should_fail_deferred_evaluation() -> bool {
+    RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT.with(|fail_at| {
+        let Some(remaining) = fail_at.get() else {
+            return false;
+        };
+        if remaining == 1 {
+            fail_at.set(None);
+            true
+        } else {
+            fail_at.set(Some(remaining - 1));
+            false
+        }
+    })
 }
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
@@ -1924,12 +1944,46 @@ impl ConstraintMachine {
         }
     }
 
+    fn defer_claim_qualified_parent_admission(
+        &mut self,
+        fence: &mut ReplayAdmissionPublicationFence,
+        snapshot: ClaimQualifiedParentAdmissionSnapshot,
+    ) {
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        #[cfg(test)]
+        if rcpf_d2c_should_fail_deferred_evaluation() {
+            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::AllocationFailed);
+            return;
+        }
+        let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
+            Ok(intent) => intent,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        #[cfg(test)]
+        if matches!(&intent, SchemeProjectionPublicationIntent::OwnersChanged(_)) {
+            RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES.with(|probes| {
+                probes.set(probes.get().saturating_add(1));
+            });
+        }
+        self.defer_replay_admission_publication(fence, intent);
+    }
+
     fn defer_scheme_projection_mutation(
         &mut self,
         fence: &mut ReplayAdmissionPublicationFence,
         mutation: SchemeProjectionMutation,
     ) {
         if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        #[cfg(test)]
+        if rcpf_d2c_should_fail_deferred_evaluation() {
+            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::AllocationFailed);
             return;
         }
         let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
@@ -2602,6 +2656,8 @@ impl ConstraintMachine {
         let target_record = self.var_var_upper_record_for_constraint(result);
         let factored_admission = factored_drafts.is_some();
         let phase_b_enabled = factored_admission && self.replay_factored_writes_enabled();
+        let mut publication_fence =
+            factored_admission.then(ReplayAdmissionPublicationFence::default);
         let mut inserted_parents = Vec::new();
         for parent in parents {
             let coverage_root =
@@ -2625,7 +2681,11 @@ impl ConstraintMachine {
                 replay,
             };
             let snapshot = self.commit_claim_qualified_parent_mutation(result, parent);
-            self.publish_claim_qualified_parent_admission(snapshot);
+            if let Some(fence) = publication_fence.as_mut() {
+                self.defer_claim_qualified_parent_admission(fence, snapshot);
+            } else {
+                self.publish_claim_qualified_parent_admission(snapshot);
+            }
             inserted_parents.push(parent);
         }
         let bootstrap_clause_projection_parents = if phase_b_enabled
@@ -2653,7 +2713,11 @@ impl ConstraintMachine {
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
         {
-            self.register_claim_parent_clause_links(lower_record, clause_projection_parents);
+            self.register_claim_parent_clause_links_with_fence(
+                lower_record,
+                clause_projection_parents,
+                publication_fence.as_mut(),
+            );
         }
         let summary_delta = factored_drafts.map(|factored_drafts| {
             self.observe_factored_replay_parent_admission(
@@ -2668,8 +2732,6 @@ impl ConstraintMachine {
         if factored_admission && self.replay_factored_terminal_failure().is_some() {
             return;
         }
-        let mut phase_c_publication_fence =
-            factored_admission.then(ReplayAdmissionPublicationFence::default);
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
         if materialize_existing_target {
@@ -2682,19 +2744,22 @@ impl ConstraintMachine {
                     derivation: replay,
                 },
                 phase_b_enabled,
-                phase_c_publication_fence.as_mut(),
+                publication_fence.as_mut(),
             );
         }
         let _summary_delta = summary_delta;
         if factored_admission && self.replay_factored_terminal_failure().is_some() {
             return;
         }
-        if let Some(fence) = phase_c_publication_fence {
-            self.publish_replay_admission_publication_fence(fence);
-        }
         if factored_admission {
             #[cfg(any(test, debug_assertions))]
             self.observe_factored_replay_event_boundary(result);
+        }
+        if factored_admission && self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        if let Some(fence) = publication_fence {
+            self.publish_replay_admission_publication_fence(fence);
         }
     }
 
@@ -5463,6 +5528,137 @@ mod mutation_tests {
         );
         assert_eq!(split.replay_read_authority(), authority);
         assert_eq!(combined.replay_read_authority(), authority);
+    }
+
+    #[test]
+    fn rcpf_d2c_2c_2b_later_phase_c_failure_discards_whole_event_publication() {
+        let mut fixture = cdm_replay_claim_fixture_with_authority(
+            ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed),
+        );
+        let lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["rcpf-d2c-2c-event-lower".into()], Vec::new()));
+        let upper = fixture
+            .machine
+            .alloc_neg(Neg::Con(vec!["rcpf-d2c-2c-event-upper".into()], Vec::new()));
+        fixture
+            .machine
+            .subtype(lower, upper, OriginId::unknown_internal());
+        let result = fixture
+            .machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the event fixture constraint is canonical");
+        let (dependent, support) = dpn_b_synthetic_projection_record(&mut fixture.machine, 73);
+        fixture.machine.register_record_proof_clause_link(
+            dependent,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(73),
+                premise: ProofPremise::Constraint(result),
+            },
+        );
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .insert(result, dependent);
+        assert!(
+            !fixture
+                .machine
+                .scheme_projection_record_is_included(dependent)
+        );
+        let replay = BinaryReplayDerivation {
+            pivot: fixture.pivot,
+            lower: fixture.lower_record,
+            upper: fixture.upper_record,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        assert_eq!(
+            fixture.machine.merge_replay_derivation(result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let dependent_owner = fixture.machine.bounds.record(dependent).unwrap().owner();
+        let epoch_snapshot = |machine: &ConstraintMachine| {
+            (
+                machine.epoch,
+                machine.provenance_epoch,
+                machine.bounds.of(dependent_owner).unwrap().epoch(),
+            )
+        };
+        let before = epoch_snapshot(&fixture.machine);
+        let journal = fixture.machine.activate_method_role_mutations();
+        RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT.with(|fail_at| fail_at.set(Some(2)));
+        RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES.with(|probes| probes.set(0));
+        let parent = fixture.parent;
+
+        register_factored_parent_snapshot(&mut fixture.machine, result, replay, &[parent]);
+
+        let published = fixture.machine.take_method_role_mutations();
+        journal.finish();
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT.with(std::cell::Cell::get),
+            None,
+            "the second deferred evaluation, in Phase C, must consume the injected failure"
+        );
+        assert_eq!(
+            epoch_snapshot(&fixture.machine),
+            before,
+            "a later Phase C failure discards Phase A's owner-changing publication intent"
+        );
+        assert!(
+            published.is_empty(),
+            "the whole event publishes no cache keys"
+        );
+        assert_eq!(
+            RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES.with(std::cell::Cell::get),
+            1,
+            "the qualified-parent mutation must create one real deferred Phase A intent"
+        );
+        let qualified_parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: parent.claim,
+            parent_side: parent.parent_side,
+            replay,
+        };
+        let bounds = &fixture.machine.bounds;
+        assert!(bounds.claim_parents_by_constraint[&result].contains(&qualified_parent));
+        assert!(
+            bounds
+                .replay_claim_parent_keys
+                .contains(&ReplayClaimParentKey {
+                    result,
+                    coverage_root: fixture.coverage_root,
+                    parent_side: parent.parent_side,
+                    replay,
+                })
+        );
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        assert!(bounds.record_proof_clause_link_is_registered(
+            dependent,
+            SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
+            clause,
+        ));
+        for premise in [replay.lower, replay.upper] {
+            assert!(
+                bounds
+                    .dependent_records_by_premise
+                    .get(&ProofPremise::Record(premise))
+                    .is_some_and(|records| records.contains(&dependent))
+            );
+        }
+        assert!(
+            bounds
+                .scheme_projection_claims_by_lower_record
+                .get(&dependent)
+                .is_some_and(|claims| claims.contains(&fixture.coverage_root))
+        );
     }
 
     #[test]
