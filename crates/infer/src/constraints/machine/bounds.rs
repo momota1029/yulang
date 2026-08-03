@@ -17,6 +17,8 @@ use smallvec::SmallVec;
 std::thread_local! {
     static RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
+    static RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
 }
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
@@ -69,6 +71,11 @@ struct FactoredReplayParentDrafts<'plan> {
 
 struct ClaimQualifiedParentAdmissionSnapshot {
     inclusion_before: FxHashMap<BoundRecordId, bool>,
+}
+
+struct ClauseLinkBatchAdmissionSnapshot {
+    lower_record: BoundRecordId,
+    was_included: bool,
 }
 
 impl<'plan> FactoredReplayParentDrafts<'plan> {
@@ -883,7 +890,8 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(producer, lower_record, &parents);
+            self.register_claim_parent_clause_links(lower_record, &parents);
+            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
         }
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
@@ -927,7 +935,8 @@ impl ConstraintMachine {
         parents: &[ClaimQualifiedParent],
     ) -> Vec<UpperReplayClaimId> {
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(producer, lower_record, parents);
+            self.register_claim_parent_clause_links(lower_record, parents);
+            self.observe_factored_replay_clause_projection(producer, lower_record, parents);
         }
         let mut claims = Vec::new();
         for parent in parents.iter().copied() {
@@ -1000,7 +1009,6 @@ impl ConstraintMachine {
 
     fn register_claim_parent_clause_links(
         &mut self,
-        producer: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
@@ -1050,7 +1058,6 @@ impl ConstraintMachine {
         if !pending_links.is_empty() {
             self.commit_record_proof_clause_link_batch(lower_record, pending_links);
         }
-        self.observe_factored_replay_clause_projection(producer, lower_record, parents);
     }
 
     fn observe_factored_replay_clause_projection(
@@ -1075,6 +1082,10 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> ReplayFactoredResult<()> {
+        #[cfg(test)]
+        if RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.replace(false)) {
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
         self.replay_clause_projection.try_project_replay_parents(
             result,
             lower_record,
@@ -1580,9 +1591,22 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
     ) {
+        let Some(snapshot) =
+            self.commit_record_proof_clause_link_batch_mutation(lower_record, links)
+        else {
+            return;
+        };
+        self.publish_record_proof_clause_link_batch(snapshot);
+    }
+
+    fn commit_record_proof_clause_link_batch_mutation(
+        &mut self,
+        lower_record: BoundRecordId,
+        links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
+    ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
         let mut links = links.into_iter().peekable();
         if links.peek().is_none() {
-            return;
+            return None;
         }
         let was_included = self.scheme_projection_record_is_included(lower_record);
         let mut any_link_inserted = false;
@@ -1604,7 +1628,7 @@ impl ConstraintMachine {
             }
         }
         if !any_link_inserted {
-            return;
+            return None;
         }
         for clause in inserted_clauses {
             match clause {
@@ -1633,8 +1657,23 @@ impl ConstraintMachine {
                 }
             }
         }
-        let is_included = self.scheme_projection_record_is_included(lower_record);
-        self.publish_record_inclusion_change(lower_record, was_included, is_included, false);
+        Some(ClauseLinkBatchAdmissionSnapshot {
+            lower_record,
+            was_included,
+        })
+    }
+
+    fn publish_record_proof_clause_link_batch(
+        &mut self,
+        snapshot: ClauseLinkBatchAdmissionSnapshot,
+    ) {
+        let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
+        self.publish_record_inclusion_change(
+            snapshot.lower_record,
+            snapshot.was_included,
+            is_included,
+            false,
+        );
     }
 
     fn register_premise_dependency_chain(
@@ -1834,7 +1873,8 @@ impl ConstraintMachine {
             LowerProjectionDelta::Bound(derivation),
         );
         if let Some(producer) = producer {
-            self.register_claim_parent_clause_links(producer, lower_record, &parents);
+            self.register_claim_parent_clause_links(lower_record, &parents);
+            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
             #[cfg(any(test, debug_assertions))]
             self.observe_factored_replay_event_boundary(producer);
         }
@@ -1867,7 +1907,8 @@ impl ConstraintMachine {
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         self.register_lower_projection_delta(lower_record, &claims, delta);
-        self.register_claim_parent_clause_links(producer, lower_record, &parents);
+        self.register_claim_parent_clause_links(lower_record, &parents);
+        self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
     }
 
     pub(in crate::constraints) fn register_constraint_projection_carrier_delta(
@@ -5061,6 +5102,137 @@ mod mutation_tests {
         );
         assert_eq!(split.machine.replay_read_authority(), authority);
         assert_eq!(combined.machine.replay_read_authority(), authority);
+    }
+
+    #[test]
+    fn rcpf_d2b_legacy_rollback_split_preserves_immediate_publication_sequence() {
+        let authority =
+            ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed);
+        let mut split = ConstraintMachine::new_with_replay_read_authority(authority);
+        let mut combined = ConstraintMachine::new_with_replay_read_authority(authority);
+        let (split_record, split_support) = dpn_b_synthetic_projection_record(&mut split, 71);
+        let (combined_record, combined_support) =
+            dpn_b_synthetic_projection_record(&mut combined, 71);
+        assert_eq!(split_record, combined_record);
+        assert_eq!(split_support, combined_support);
+        let split_clause = RecordProofClause::DerivedUnary {
+            carrier: dpn_b_synthetic_unary_carrier(71),
+            premise: ProofPremise::Record(split_record),
+        };
+        let combined_clause = RecordProofClause::DerivedUnary {
+            carrier: dpn_b_synthetic_unary_carrier(71),
+            premise: ProofPremise::Record(combined_record),
+        };
+        let epoch_snapshot = |machine: &ConstraintMachine, record| {
+            let owner = machine.bounds.record(record).unwrap().owner();
+            (
+                machine.epoch,
+                machine.provenance_epoch,
+                machine.bounds.of(owner).unwrap().epoch(),
+                machine.scheme_projection_record_is_included(record),
+            )
+        };
+        let mut split_epochs = vec![epoch_snapshot(&split, split_record)];
+        let mut combined_epochs = vec![epoch_snapshot(&combined, combined_record)];
+        let split_journal = split.activate_method_role_mutations();
+        let combined_journal = combined.activate_method_role_mutations();
+
+        let snapshot = split
+            .commit_record_proof_clause_link_batch_mutation(
+                split_record,
+                [(split_support, split_clause)],
+            )
+            .expect("a new clause link produces an admission snapshot");
+        split.publish_record_proof_clause_link_batch(snapshot);
+        combined.commit_record_proof_clause_link_batch(
+            combined_record,
+            [(combined_support, combined_clause)],
+        );
+
+        split_epochs.push(epoch_snapshot(&split, split_record));
+        combined_epochs.push(epoch_snapshot(&combined, combined_record));
+        let split_affected = changed_keys(split.take_method_role_mutations());
+        let combined_affected = changed_keys(combined.take_method_role_mutations());
+        split_journal.finish();
+        combined_journal.finish();
+
+        assert_eq!(split_epochs, combined_epochs);
+        assert!(
+            split_epochs[1].0 > split_epochs[0].0
+                && split_epochs[1].1 > split_epochs[0].1
+                && split_epochs[1].2 > split_epochs[0].2,
+            "the fixture must advance global, provenance, and owner epochs"
+        );
+        assert_eq!((split_epochs[0].3, split_epochs[1].3), (true, false));
+        assert_eq!(split_epochs[1].2, split_epochs[1].0);
+        assert_eq!(split_affected, combined_affected);
+        assert_eq!(
+            split.bounds.record_proof_clause_link_keys,
+            combined.bounds.record_proof_clause_link_keys
+        );
+        assert_eq!(
+            split.bounds.dependent_records_by_premise,
+            combined.bounds.dependent_records_by_premise
+        );
+        assert_eq!(split.replay_read_authority(), authority);
+        assert_eq!(combined.replay_read_authority(), authority);
+    }
+
+    #[test]
+    fn rcpf_d2b_factored_clause_projection_failure_keeps_legacy_links_and_edges() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        let parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: fixture.parent.claim,
+            parent_side: fixture.parent.parent_side,
+            replay,
+        };
+        let support = SchemeProjectionProofSupport::Claimed(fixture.coverage_root);
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+
+        fixture
+            .machine
+            .register_claim_parent_clause_links(fixture.lower_record, &[parent]);
+        RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.set(true));
+        fixture.machine.observe_factored_replay_clause_projection(
+            fixture.result,
+            fixture.lower_record,
+            &[parent],
+        );
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .record_proof_clause_link_is_registered(fixture.lower_record, support, clause)
+        );
+        for premise in [replay.lower, replay.upper] {
+            assert!(
+                fixture
+                    .machine
+                    .bounds
+                    .dependent_records_by_premise
+                    .get(&ProofPremise::Record(premise))
+                    .is_some_and(|dependents| dependents.contains(&fixture.lower_record)),
+                "legacy replay dependency edges commit before the factored projection can fail"
+            );
+        }
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .is_empty(),
+            "the injected factored projection failure must not partially publish"
+        );
     }
 
     fn rcpf_c2_replay_inspection_census(root_count: usize) -> (usize, usize, usize) {
