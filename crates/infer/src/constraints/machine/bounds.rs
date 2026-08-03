@@ -10809,6 +10809,78 @@ mod mutation_tests {
             assert_eq!(factored.canonical.proof_keys,
                 vec![fixture.key(claimed), fixture.key(independent)]);
         }
+
+        #[test]
+        fn factored_record_lower_projection_keeps_first_winner_for_new_occurrence_old_root() {
+            let mut fixture = Fixture::new();
+            fixture.machine.enable_replay_factored_event_oracle();
+            fixture.machine.constraint_records[fixture.result.0 as usize]
+                .row_derivations.push(fixture.row);
+            fixture.machine.register_reduction_route_claim_parent(
+                fixture.result, fixture.row, fixture.roots[0],
+            );
+            let first = ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: fixture.roots[0], derivation: fixture.row,
+            };
+            let before = fixture.machine
+                .try_compare_factored_record_lower_projection(fixture.lower_record, &[]).unwrap();
+
+            fixture.admit_factored_replay(true);
+
+            let after = fixture.machine
+                .try_compare_factored_record_lower_projection(fixture.lower_record, &[]).unwrap();
+            assert_eq!(after, before, "the new occurrence reuses the existing logical root");
+            assert!(fixture.machine.replay_result_summary
+                .first_parent_witness(fixture.result, fixture.roots[0]).unwrap().is_some(),
+                "D1 still records the new replay occurrence for the old root");
+            assert_eq!(fixture.machine.replay_result_summary
+                .first_qualified_parent_source(fixture.result, fixture.roots[0]),
+                Ok(Some(FirstQualifiedParentSource::NonReplay(first))));
+            assert_eq!(fixture.machine.bounds.scheme_projection_lower_records_by_root
+                [&fixture.roots[0]].iter().filter(|record| **record == fixture.lower_record).count(), 1);
+            assert_eq!(fixture.machine.replay_factored_shadow_status.get(),
+                ReplayFactoredShadowStatus::Active);
+        }
+
+        #[test]
+        fn factored_record_lower_projection_transitions_independent_then_claimed_canonically() {
+            let mut fixture = Fixture::new();
+            fixture.machine.enable_replay_factored_event_oracle();
+            fixture.admit(Event::Independent(0));
+            fixture.machine.bounds.projection_proofs_by_lower_record
+                .insert(fixture.lower_record, Vec::new());
+            let carrier = ProjectionProofCarrier::Origin(fixture.origins[0]);
+            fixture.machine.register_lower_record_projection_carrier_delta(
+                fixture.lower_record, carrier,
+            );
+            let independent = SchemeProjectionProofSupport::Independent(carrier);
+            let before = fixture.machine
+                .try_compare_factored_record_lower_projection(fixture.lower_record, &[]).unwrap();
+            assert_eq!(before.canonical.proof_keys, vec![Key::Independent(carrier)]);
+            let previous_proofs = vec![SchemeProjectionProof {
+                lower_record: fixture.lower_record, support: independent,
+            }];
+            let provenance_before = fixture.machine.provenance_epoch;
+
+            fixture.admit_factored_replay(true);
+
+            let claimed = SchemeProjectionProofSupport::Claimed(fixture.roots[0]);
+            let after = fixture.machine
+                .try_compare_factored_record_lower_projection(fixture.lower_record, &[]).unwrap();
+            assert_eq!(after.canonical.proof_keys,
+                vec![fixture.key(claimed), fixture.key(independent)]);
+            let current_proofs = ConstraintMachine::try_lower_projection_proofs_from_snapshot(
+                fixture.lower_record, &after,
+            ).unwrap();
+            assert_eq!(fixture.machine.try_factored_lower_projection_publication_class(
+                fixture.lower_record, Some(&previous_proofs), &current_proofs,
+            ), Ok(LowerProjectionPublicationClass::MetadataOnly));
+            assert!(fixture.machine.provenance_epoch > provenance_before);
+            assert!(fixture.machine.bounds.scheme_projection_lower_record_memberships
+                .contains(&(fixture.roots[0], fixture.lower_record)));
+            assert_eq!(fixture.machine.replay_factored_shadow_status.get(),
+                ReplayFactoredShadowStatus::Active);
+        }
     }
 
     fn changed_keys(mutations: Vec<MethodRoleMutation>) -> Vec<DependencyKey> {
