@@ -10348,6 +10348,105 @@ mod mutation_tests {
             }
         }
 
+        struct TargetLateFixture {
+            machine: ConstraintMachine,
+            result: ConstraintRecordId,
+            source: TypeVar,
+            target: TypeVar,
+            lower: PosId,
+            upper: NegId,
+            replay: BinaryReplayDerivation,
+            roots: [UpperReplayClaimId; 2],
+            rows: [RowDerivationId; 2],
+        }
+
+        impl TargetLateFixture {
+            fn new() -> Self {
+                let mut machine = ConstraintMachine::new();
+                machine.enable_replay_factored_event_oracle();
+                let source = TypeVar(0);
+                let target = TypeVar(1);
+                let pivot = TypeVar(2);
+                let lower = machine.alloc_pos(Pos::Var(source));
+                let upper = machine.alloc_neg(Neg::Var(target));
+                let result = ConstraintRecordId(0);
+                let record = ConstraintRecord {
+                    key: SubtypeConstraintKey { lower, upper, weights: ConstraintWeights::empty() },
+                    root_origins: Vec::new(), structural_derivations: Vec::new(),
+                    row_derivations: Vec::new(), replay_derivations: Vec::new(),
+                    scheme_instantiation_derivations: Vec::new(), scheme_instantiation_routes: Vec::new(),
+                    canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
+                };
+                machine.constraint_records.extend([record.clone(), record.clone(), record]);
+                for (producer, kind) in [ConstraintOriginKind::Annotation, ConstraintOriginKind::Pattern]
+                    .into_iter().enumerate()
+                {
+                    let origin = machine.alloc_source_boundary(kind).origin();
+                    machine.constraint_records[producer + 1].root_origins.push(origin);
+                }
+                let parent_upper = machine.bounds.add_upper(
+                    pivot, upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
+                ).id;
+                let roots = [1, 2].map(|producer| machine.bounds.original_upper_replay_claim(
+                    parent_upper, ConstraintRecordId(producer), UpperReplayClaimKind::Direct,
+                ).claim);
+                let replay_lower = machine.bounds.add_lower(
+                    pivot, lower, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
+                ).id;
+                Self {
+                    machine, result, source, target, lower, upper,
+                    replay: BinaryReplayDerivation {
+                        pivot, lower: replay_lower, upper: parent_upper, rule: ReplayRule::LowerBoundAdded,
+                    },
+                    roots, rows: [RowDerivationId(90_000), RowDerivationId(90_001)],
+                }
+            }
+
+            fn admit_replay(&mut self) {
+                assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
+                let parent = SideTaggedReplayClaim {
+                    claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower,
+                };
+                register_factored_parent_snapshot_with_materialization(
+                    &mut self.machine, self.result, self.replay, &[parent], false,
+                );
+            }
+
+            fn admit_non_replay(&mut self, index: usize) {
+                let row = self.rows[index];
+                self.machine.constraint_records[self.result.0 as usize].row_derivations.push(row);
+                self.machine.register_reduction_route_claim_parent(self.result, row, self.roots[index]);
+            }
+
+            fn materialize(mut self) -> ([UpperReplayClaimId; 2], Vec<UpperReplayClaimId>) {
+                let upper_record = self.machine.bounds.add_upper(
+                    self.source, self.upper, ConstraintWeights::empty(), BoundDerivation::Constraint(self.result),
+                ).id;
+                self.machine.register_constraint_upper_replay_claims(upper_record, Some(self.result));
+                let lower_record = self.machine.bounds.add_lower(
+                    self.target, self.lower, ConstraintWeights::empty(), BoundDerivation::Constraint(self.result),
+                ).id;
+                self.machine.register_lower_projection_derivation(
+                    lower_record, Some(self.result), BoundDerivation::Constraint(self.result),
+                );
+                assert_eq!(
+                    self.machine.try_upper_materialization_lineages_from_parents(
+                        upper_record, self.result,
+                        self.machine.bounds.claim_parents_by_constraint[&self.result].iter().copied(), false,
+                    ),
+                    self.machine.try_factored_upper_materialization_full(upper_record, self.result),
+                );
+                self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap();
+                assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+                let replay_parent_roots = self.machine.upper_record_replay_claim_parents(
+                    self.lower, upper_record, &[],
+                ).iter().map(|parent| {
+                    self.machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
+                }).collect();
+                (self.roots, replay_parent_roots)
+            }
+        }
+
         #[derive(Debug, Clone, PartialEq, Eq)]
         struct ConsumerSnapshot {
             qualified: SchemeProjectableLowerReason,
@@ -10417,6 +10516,49 @@ mod mutation_tests {
                 if a != b && a != c && a != d && b != c && b != d && c != d { result.push([a, b, c, d]); }
             }}}}
             result
+        }
+
+        #[test]
+        fn target_late_mixed_roots_do_not_expose_historical_order_to_later_replay() {
+            for replay_wins_same_root in [true, false] {
+                let mut expected = None;
+                for root_a_before_root_b in [true, false] {
+                    let mut fixture = TargetLateFixture::new();
+                    match (replay_wins_same_root, root_a_before_root_b) {
+                        (true, true) => {
+                            fixture.admit_replay();
+                            fixture.admit_non_replay(0);
+                            fixture.admit_non_replay(1);
+                        }
+                        (true, false) => {
+                            fixture.admit_non_replay(1);
+                            fixture.admit_replay();
+                            fixture.admit_non_replay(0);
+                        }
+                        (false, true) => {
+                            fixture.admit_non_replay(0);
+                            fixture.admit_replay();
+                            fixture.admit_non_replay(1);
+                        }
+                        (false, false) => {
+                            fixture.admit_non_replay(1);
+                            fixture.admit_non_replay(0);
+                            fixture.admit_replay();
+                        }
+                    }
+                    let winner = fixture.machine.replay_result_summary
+                        .first_qualified_parent_source(fixture.result, fixture.roots[0]).unwrap();
+                    assert_eq!(matches!(winner, Some(FirstQualifiedParentSource::Replay)), replay_wins_same_root);
+                    let (roots, replay_parent_roots) = fixture.materialize();
+                    assert_eq!(replay_parent_roots.len(), 2);
+                    assert_eq!(replay_parent_roots.iter().copied().collect::<FxHashSet<_>>(), roots.into_iter().collect());
+                    assert_eq!(
+                        replay_parent_roots,
+                        *expected.get_or_insert_with(|| replay_parent_roots.clone()),
+                        "target-late later replay exposed cross-root admission order; replay same-root winner: {replay_wins_same_root}",
+                    );
+                }
+            }
         }
 
         #[test]
