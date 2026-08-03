@@ -1511,6 +1511,7 @@ impl ConstraintMachine {
                             lower_record,
                             true,
                             is_included,
+                            true,
                         )
                     }
                     (false, true) => {
@@ -1520,6 +1521,7 @@ impl ConstraintMachine {
                         self.try_evaluate_record_inclusion_publication(
                             lower_record,
                             was_included,
+                            true,
                             true,
                         )
                     }
@@ -1533,9 +1535,14 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         was_included: bool,
         is_included: bool,
+        metadata_changed: bool,
     ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
         if was_included == is_included {
-            return Ok(SchemeProjectionPublicationIntent::MetadataOnly);
+            return Ok(if metadata_changed {
+                SchemeProjectionPublicationIntent::MetadataOnly
+            } else {
+                SchemeProjectionPublicationIntent::None
+            });
         }
 
         let mut affected_records = self
@@ -1569,6 +1576,26 @@ impl ConstraintMachine {
         })
     }
 
+    fn try_evaluate_projection_inclusion_snapshot(
+        &self,
+        before: &FxHashMap<BoundRecordId, bool>,
+    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+        let mut after_round = SchemeProjectionEvaluationRound::new(self);
+        let mut affected_owners = FxHashSet::default();
+        for (record, was_included) in before {
+            if *was_included != after_round.eval_record(*record)?
+                && let Some(owner) = self.active_projection_record_owner(*record)
+            {
+                affected_owners.insert(owner);
+            }
+        }
+        Ok(if affected_owners.is_empty() {
+            SchemeProjectionPublicationIntent::None
+        } else {
+            SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
+        })
+    }
+
     fn publish_scheme_projection_intent(&mut self, intent: SchemeProjectionPublicationIntent) {
         match intent {
             SchemeProjectionPublicationIntent::None => {}
@@ -1590,47 +1617,6 @@ impl ConstraintMachine {
         let mut evaluator = SchemeProjectionEvaluator::new(self);
         let projectable = evaluator.eval_record_or_quarantine(lower_record);
         (projectable, evaluator.cycle_cuts)
-    }
-
-    fn publish_record_inclusion_change(
-        &mut self,
-        lower_record: BoundRecordId,
-        was_included: bool,
-        is_included: bool,
-        metadata_changed: bool,
-    ) {
-        if was_included == is_included {
-            if metadata_changed {
-                self.bump_provenance_epoch();
-            }
-            return;
-        }
-
-        let mut affected_records = self
-            .bounds
-            .dependent_records_by_premise
-            .get(&ProofPremise::Record(lower_record))
-            .cloned()
-            .unwrap_or_default();
-        self.extend_with_record_dependents(&mut affected_records);
-        let mut before_round = SchemeProjectionEvaluationRound::with_record_result_override(
-            self,
-            lower_record,
-            was_included,
-        );
-        let mut after_round = SchemeProjectionEvaluationRound::new(self);
-        let mut affected_owners = affected_records
-            .into_iter()
-            .filter(|record| {
-                let dependent_was_included = before_round.eval_record_or_quarantine(*record);
-                dependent_was_included != after_round.eval_record_or_quarantine(*record)
-            })
-            .filter_map(|record| self.active_projection_record_owner(record))
-            .collect::<FxHashSet<_>>();
-        if let Some(owner) = self.active_projection_record_owner(lower_record) {
-            affected_owners.insert(owner);
-        }
-        self.record_scheme_projection_mutation(affected_owners);
     }
 
     fn projection_inclusion_snapshot(

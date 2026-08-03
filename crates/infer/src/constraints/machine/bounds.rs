@@ -1682,13 +1682,31 @@ impl ConstraintMachine {
         &mut self,
         snapshot: ClauseLinkBatchAdmissionSnapshot,
     ) {
-        let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
-        self.publish_record_inclusion_change(
+        let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
+            Ok(intent) => intent,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        self.publish_scheme_projection_intent(intent);
+    }
+
+    fn try_evaluate_record_proof_clause_link_batch(
+        &self,
+        snapshot: &ClauseLinkBatchAdmissionSnapshot,
+    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+        let is_included =
+            SchemeProjectionEvaluator::new(self).eval_record(snapshot.lower_record)?;
+        self.try_evaluate_record_inclusion_publication(
             snapshot.lower_record,
             snapshot.was_included,
             is_included,
             false,
-        );
+        )
     }
 
     fn register_premise_dependency_chain(
@@ -1809,7 +1827,24 @@ impl ConstraintMachine {
         &mut self,
         snapshot: ClaimQualifiedParentAdmissionSnapshot,
     ) {
-        self.publish_projection_inclusion_snapshot(snapshot.inclusion_before);
+        let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
+            Ok(intent) => intent,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        self.publish_scheme_projection_intent(intent);
+    }
+
+    fn try_evaluate_claim_qualified_parent_admission(
+        &self,
+        snapshot: &ClaimQualifiedParentAdmissionSnapshot,
+    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+        self.try_evaluate_projection_inclusion_snapshot(&snapshot.inclusion_before)
     }
 
     /// Observe an already completed legacy admission. Failure quarantines the additive RCPF
@@ -5328,6 +5363,100 @@ mod mutation_tests {
                 .is_empty(),
             "the injected factored projection failure must not partially publish"
         );
+    }
+
+    fn rcpf_d2c_2c_1_missing_occurrence_publication_fixture()
+    -> (ConstraintMachine, BoundRecordId, TypeVar) {
+        let mut machine = ConstraintMachine::new();
+        let owner = TypeVar(72_000);
+        let lower = machine.alloc_pos(Pos::Con(vec!["d2c-2c-lower".into()], Vec::new()));
+        let upper = machine.alloc_neg(Neg::Var(owner));
+        machine.subtype(lower, upper, OriginId::unknown_internal());
+        let constraint = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the synthetic constraint is canonical");
+        let lower_record = machine.bounds.of(owner).unwrap().lower_record_ids()[0];
+        machine.replay_occurrences.by_result.insert(
+            constraint,
+            vec![crate::constraints::replay_factored::ReplayOccurrenceId(
+                u32::MAX,
+            )],
+        );
+
+        let carrier = ProjectionProofCarrier::ConstraintOrigin {
+            constraint: ConstraintRecordId(72_001),
+            origin: OriginId::unknown_internal(),
+        };
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        machine.bounds.projection_proofs_by_lower_record.insert(
+            lower_record,
+            vec![SchemeProjectionProof {
+                lower_record,
+                support,
+            }],
+        );
+        machine.bounds.register_record_proof_clause_link(
+            lower_record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: dpn_b_synthetic_unary_carrier(72_001),
+                premise: ProofPremise::Constraint(constraint),
+            },
+        );
+        (machine, lower_record, owner)
+    }
+
+    #[test]
+    fn rcpf_d2c_2c_1_snapshot_evaluation_failure_does_not_publish() {
+        for publication in ["qualified-parent", "clause-link"] {
+            let (mut machine, lower_record, owner) =
+                rcpf_d2c_2c_1_missing_occurrence_publication_fixture();
+            let before = (
+                machine.epoch,
+                machine.provenance_epoch,
+                machine.bounds.of(owner).unwrap().epoch(),
+            );
+            let journal = machine.activate_method_role_mutations();
+            match publication {
+                "qualified-parent" => {
+                    let snapshot = ClaimQualifiedParentAdmissionSnapshot {
+                        inclusion_before: FxHashMap::from_iter([(lower_record, true)]),
+                    };
+                    machine.publish_claim_qualified_parent_admission(snapshot);
+                }
+                "clause-link" => {
+                    let snapshot = ClauseLinkBatchAdmissionSnapshot {
+                        lower_record,
+                        was_included: true,
+                    };
+                    machine.publish_record_proof_clause_link_batch(snapshot);
+                }
+                _ => unreachable!("the fixture enumerates both publication snapshots"),
+            }
+            let published = machine.take_method_role_mutations();
+            journal.finish();
+
+            assert_eq!(
+                machine.replay_factored_terminal_failure(),
+                Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
+                    crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX)
+                )),
+                "{publication} snapshot records the fallible read"
+            );
+            assert_eq!(
+                (
+                    machine.epoch,
+                    machine.provenance_epoch,
+                    machine.bounds.of(owner).unwrap().epoch(),
+                ),
+                before,
+                "{publication} snapshot must not publish epochs from a placeholder"
+            );
+            assert!(
+                published.is_empty(),
+                "{publication} snapshot must not publish cache invalidations"
+            );
+        }
     }
 
     #[test]
