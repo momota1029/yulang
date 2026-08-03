@@ -1531,7 +1531,6 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
-    #[allow(dead_code, reason = "RCPF-D3b-1b wires the lower full oracle")]
     fn try_factored_lower_projection_full(
         &self,
         producer: ConstraintRecordId,
@@ -1554,7 +1553,6 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
-    #[allow(dead_code, reason = "RCPF-D3b-2 wires the lower delta oracle")]
     fn try_factored_lower_projection_delta(
         &self,
         producer: ConstraintRecordId,
@@ -1567,6 +1565,182 @@ impl ConstraintMachine {
             false,
             independent_supports,
         )
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_legacy_lower_projection(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let claims = self
+            .bounds
+            .scheme_projection_claims_by_lower_record
+            .get(&lower_record)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let proofs = self
+            .bounds
+            .projection_proofs_by_lower_record
+            .get(&lower_record)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut snapshot = LowerProjectionAdapterSnapshot::default();
+        snapshot
+            .claimed_roots
+            .try_reserve(claims.len())
+            .and_then(|_| snapshot.proof_keys.try_reserve(proofs.len()))
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for &claim in claims {
+            snapshot
+                .claimed_roots
+                .push(self.try_lower_projection_root(claim)?);
+        }
+        for proof in proofs {
+            if proof.lower_record != lower_record {
+                return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage,
+                ));
+            }
+            snapshot.proof_keys.push(match proof.support {
+                SchemeProjectionProofSupport::Claimed(claim) => {
+                    CanonicalProjectionKey::Claimed(self.try_lower_projection_root(claim)?)
+                }
+                SchemeProjectionProofSupport::Independent(carrier) => {
+                    CanonicalProjectionKey::Independent(carrier)
+                }
+            });
+        }
+        Ok(snapshot)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_legacy_lower_projection_delta(
+        &self,
+        lower_record: BoundRecordId,
+        delta: &ReplayResultSummaryDelta,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let mut snapshot = self.try_legacy_lower_projection(lower_record)?;
+        let mut roots = FxHashSet::default();
+        roots
+            .try_reserve(delta.entries.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        roots.extend(delta.entries.iter().map(|(root, _)| *root));
+        snapshot.claimed_roots.retain(|root| roots.contains(root));
+        snapshot.proof_keys.retain(|key| match key {
+            CanonicalProjectionKey::Claimed(root) => roots.contains(root),
+            CanonicalProjectionKey::Independent(_) => true,
+        });
+        Ok(snapshot)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_legacy_qualified_lower_projection(
+        &self,
+        lower_record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let mut snapshot = self.try_legacy_lower_projection(lower_record)?;
+        let parents = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&producer)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut roots = FxHashSet::default();
+        roots
+            .try_reserve(parents.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for parent in parents {
+            roots.insert(self.try_lower_projection_root(parent.parent_claim())?);
+        }
+        // A lower record can also carry direct claims owned outside the qualified-parent
+        // relation. D3b-1 compares the D1/C1/§9 relation without disturbing raw canonical order;
+        // D3b-2's logical-support map will cover the complete record-wide sequence.
+        snapshot.claimed_roots.retain(|root| roots.contains(root));
+        snapshot.proof_keys.retain(|key| match key {
+            CanonicalProjectionKey::Claimed(root) => roots.contains(root),
+            CanonicalProjectionKey::Independent(_) => true,
+        });
+        Ok(snapshot)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_lower_projection_full(
+        &self,
+        lower_record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) {
+        if !self.replay_factored_writes_enabled()
+            || !self.replay_result_summary.event_oracle_enabled()
+        {
+            return;
+        }
+        let legacy = self.try_legacy_qualified_lower_projection(lower_record, producer);
+        let factored = match &legacy {
+            Ok(snapshot) => self.try_factored_lower_projection_full(
+                producer,
+                snapshot.proof_keys.iter().filter_map(|key| match key {
+                    CanonicalProjectionKey::Independent(carrier) => Some(*carrier),
+                    CanonicalProjectionKey::Claimed(_) => None,
+                }),
+            ),
+            Err(failure) => Err(*failure),
+        };
+        self.observe_factored_lower_projection(legacy, factored);
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_lower_projection_delta(
+        &self,
+        lower_record: BoundRecordId,
+        producer: ConstraintRecordId,
+        delta: &ReplayResultSummaryDelta,
+    ) {
+        if !self.replay_factored_writes_enabled()
+            || !self.replay_result_summary.event_oracle_enabled()
+        {
+            return;
+        }
+        let legacy = self.try_legacy_lower_projection_delta(lower_record, delta);
+        let factored = match &legacy {
+            Ok(snapshot) => self.try_factored_lower_projection_delta(
+                producer,
+                delta,
+                snapshot.proof_keys.iter().filter_map(|key| match key {
+                    CanonicalProjectionKey::Independent(carrier) => Some(*carrier),
+                    CanonicalProjectionKey::Claimed(_) => None,
+                }),
+            ),
+            Err(failure) => Err(*failure),
+        };
+        self.observe_factored_lower_projection(legacy, factored);
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_lower_projection(
+        &self,
+        legacy: ReplayFactoredResult<LowerProjectionAdapterSnapshot>,
+        factored: ReplayFactoredResult<LowerProjectionAdapterSnapshot>,
+    ) {
+        let legacy = match legacy {
+            Ok(legacy) => legacy,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        let factored = match factored {
+            Ok(factored) => factored,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        if legacy != factored {
+            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::DerivedReplayLineage,
+            ));
+        }
     }
 
     fn register_claim_parent_clause_links(
@@ -2647,6 +2821,10 @@ impl ConstraintMachine {
             LowerProjectionDelta::Bound(derivation),
             None,
         );
+        #[cfg(any(test, debug_assertions))]
+        if let Some(producer) = producer {
+            self.observe_factored_lower_projection_full(lower_record, producer);
+        }
         if let Some(producer) = producer {
             self.register_claim_parent_clause_links(lower_record, &parents);
             self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
@@ -3321,6 +3499,13 @@ impl ConstraintMachine {
                 phase_b_enabled,
                 publication_fence.as_mut(),
             );
+            #[cfg(any(test, debug_assertions))]
+            if let (Some(lower_record), Some(delta)) = (
+                self.lower_record_for_constraint(result),
+                summary_delta.as_ref(),
+            ) {
+                self.observe_factored_lower_projection_delta(lower_record, result, delta);
+            }
         }
         let _summary_delta = summary_delta;
         if factored_admission && self.replay_factored_terminal_failure().is_some() {
@@ -9767,6 +9952,14 @@ mod mutation_tests {
                 }
             }
 
+            fn admit_factored_replay(&mut self, materialize: bool) {
+                assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
+                let parent = SideTaggedReplayClaim { claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower };
+                register_factored_parent_snapshot_with_materialization(
+                    &mut self.machine, self.result, self.replay, &[parent], materialize,
+                );
+            }
+
             fn root(&self, claim: UpperReplayClaimId) -> UpperReplayClaimId {
                 self.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
             }
@@ -10240,6 +10433,44 @@ mod mutation_tests {
                 assert_eq!(full, *expected_full.get_or_insert_with(|| full.clone()));
                 assert_eq!(tight_results, *expected_tight.get_or_insert_with(|| tight_results.clone()));
             }
+        }
+
+        #[test]
+        fn factored_lower_full_oracle_matches_target_late_bootstrap() {
+            let mut fixture = Fixture::new(); fixture.machine.enable_replay_factored_event_oracle();
+            fixture.admit_factored_replay(false);
+            fixture.machine.register_lower_projection_derivation(
+                fixture.lower_record, Some(fixture.result), BoundDerivation::Constraint(fixture.result),
+            );
+            assert_eq!(fixture.machine.try_legacy_lower_projection(fixture.lower_record).unwrap(),
+                LowerProjectionAdapterSnapshot { claimed_roots: vec![fixture.roots[0]],
+                    proof_keys: vec![Key::Claimed(fixture.roots[0])] });
+            assert_eq!(fixture.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+        }
+        #[test]
+        fn factored_lower_delta_oracle_matches_populated_replay_delta() {
+            let mut fixture = Fixture::new(); fixture.machine.enable_replay_factored_event_oracle();
+            fixture.admit_factored_replay(true);
+            assert_eq!(fixture.snapshot().2, vec![Key::Claimed(fixture.roots[0])]);
+            assert_eq!(fixture.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+        }
+        #[test]
+        fn factored_lower_oracle_mismatch_quarantines_after_legacy_commit() {
+            let mut fixture = Fixture::new(); fixture.machine.enable_replay_factored_event_oracle();
+            fixture.admit_factored_replay(false);
+            fixture.machine.register_lower_projection_derivation(
+                fixture.lower_record, Some(fixture.result), BoundDerivation::Constraint(fixture.result),
+            );
+            fixture.machine.bounds.scheme_projection_claims_by_lower_record
+                .get_mut(&fixture.lower_record).unwrap().clear();
+            fixture.machine.bounds.projection_proofs_by_lower_record
+                .get_mut(&fixture.lower_record).unwrap().clear();
+            fixture.machine.register_lower_projection_derivation(
+                fixture.lower_record, Some(fixture.result), BoundDerivation::Constraint(fixture.result),
+            );
+            assert_eq!(fixture.machine.replay_factored_shadow_status.get(),
+                ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage)));
         }
     }
 
