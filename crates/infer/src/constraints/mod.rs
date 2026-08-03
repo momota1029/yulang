@@ -516,6 +516,12 @@ enum SchemeProjectionMutation {
     },
 }
 
+enum SchemeProjectionPublicationIntent {
+    None,
+    MetadataOnly,
+    OwnersChanged(FxHashSet<TypeVar>),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ReplayClaimParentSide {
     Lower,
@@ -1461,8 +1467,25 @@ impl ConstraintMachine {
     }
 
     fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
+        let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
+            Ok(intent) => intent,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        if self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
+        self.publish_scheme_projection_intent(intent);
+    }
+
+    fn try_evaluate_scheme_projection_mutation(
+        &self,
+        mutation: SchemeProjectionMutation,
+    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
         match mutation {
-            SchemeProjectionMutation::None => {}
+            SchemeProjectionMutation::None => Ok(SchemeProjectionPublicationIntent::None),
             SchemeProjectionMutation::ProofsChanged {
                 lower_record,
                 previous_proofs,
@@ -1480,24 +1503,80 @@ impl ConstraintMachine {
                 // proves that the record's inclusion result is unchanged.
                 match (was_fail_open, is_fail_open) {
                     (true, true) | (false, false) => {
-                        self.bump_provenance_epoch();
+                        Ok(SchemeProjectionPublicationIntent::MetadataOnly)
                     }
                     (true, false) => {
-                        let is_included = evaluator.eval_record_or_quarantine(lower_record);
-                        self.publish_record_inclusion_change(lower_record, true, is_included, true);
+                        let is_included = evaluator.eval_record(lower_record)?;
+                        self.try_evaluate_record_inclusion_publication(
+                            lower_record,
+                            true,
+                            is_included,
+                        )
                     }
                     (false, true) => {
                         let was_included = evaluator
                             .with_proof_override(lower_record, previous_proofs.as_deref())
-                            .eval_record_or_quarantine(lower_record);
-                        self.publish_record_inclusion_change(
+                            .eval_record(lower_record)?;
+                        self.try_evaluate_record_inclusion_publication(
                             lower_record,
                             was_included,
                             true,
-                            true,
-                        );
+                        )
                     }
                 }
+            }
+        }
+    }
+
+    fn try_evaluate_record_inclusion_publication(
+        &self,
+        lower_record: BoundRecordId,
+        was_included: bool,
+        is_included: bool,
+    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+        if was_included == is_included {
+            return Ok(SchemeProjectionPublicationIntent::MetadataOnly);
+        }
+
+        let mut affected_records = self
+            .bounds
+            .dependent_records_by_premise
+            .get(&ProofPremise::Record(lower_record))
+            .cloned()
+            .unwrap_or_default();
+        self.extend_with_record_dependents(&mut affected_records);
+        let mut before_round = SchemeProjectionEvaluationRound::with_record_result_override(
+            self,
+            lower_record,
+            was_included,
+        );
+        let mut after_round = SchemeProjectionEvaluationRound::new(self);
+        let mut affected_owners = FxHashSet::default();
+        for record in affected_records {
+            if before_round.eval_record(record)? != after_round.eval_record(record)?
+                && let Some(owner) = self.active_projection_record_owner(record)
+            {
+                affected_owners.insert(owner);
+            }
+        }
+        if let Some(owner) = self.active_projection_record_owner(lower_record) {
+            affected_owners.insert(owner);
+        }
+        Ok(if affected_owners.is_empty() {
+            SchemeProjectionPublicationIntent::MetadataOnly
+        } else {
+            SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
+        })
+    }
+
+    fn publish_scheme_projection_intent(&mut self, intent: SchemeProjectionPublicationIntent) {
+        match intent {
+            SchemeProjectionPublicationIntent::None => {}
+            SchemeProjectionPublicationIntent::MetadataOnly => {
+                self.bump_provenance_epoch();
+            }
+            SchemeProjectionPublicationIntent::OwnersChanged(owners) => {
+                self.record_scheme_projection_mutation(owners);
             }
         }
     }
@@ -1628,6 +1707,78 @@ impl ConstraintMachine {
             self.bounds.record_var_epoch(owner, epoch);
         }
         self.bump_provenance_epoch();
+    }
+}
+
+#[cfg(test)]
+mod rcpf_d2c_2b_tests {
+    use super::*;
+
+    #[test]
+    fn factored_evaluator_failure_does_not_publish_projection_intent() {
+        let mut machine = ConstraintMachine::new();
+        let owner = TypeVar(20_000);
+        let lower = machine.alloc_pos(Pos::Con(vec!["d2c-2b-lower".into()], Vec::new()));
+        let upper = machine.alloc_neg(Neg::Var(owner));
+        machine.subtype(lower, upper, OriginId::unknown_internal());
+        let constraint = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the synthetic constraint is canonical");
+        let lower_record = machine.bounds.of(owner).unwrap().lower_record_ids()[0];
+        let missing_occurrence = replay_factored::ReplayOccurrenceId(u32::MAX);
+        machine
+            .replay_occurrences
+            .by_result
+            .insert(constraint, vec![missing_occurrence]);
+
+        let carrier = ProjectionProofCarrier::ConstraintOrigin {
+            constraint: ConstraintRecordId(20_000),
+            origin: OriginId::unknown_internal(),
+        };
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        machine.bounds.projection_proofs_by_lower_record.insert(
+            lower_record,
+            vec![SchemeProjectionProof {
+                lower_record,
+                support,
+            }],
+        );
+        machine.bounds.register_record_proof_clause_link(
+            lower_record,
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(20_001)),
+                premise: ProofPremise::Constraint(constraint),
+            },
+        );
+
+        let publication_state = |machine: &ConstraintMachine| {
+            (
+                machine.epoch,
+                machine.provenance_epoch,
+                machine.bounds.of(owner).unwrap().epoch(),
+            )
+        };
+        let before = publication_state(&machine);
+        let journal = machine.activate_method_role_mutations();
+        machine.apply_scheme_projection_mutation(SchemeProjectionMutation::ProofsChanged {
+            lower_record,
+            previous_proofs: None,
+        });
+        let published = machine.take_method_role_mutations();
+        journal.finish();
+
+        assert_eq!(
+            machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
+                missing_occurrence
+            ))
+        );
+        assert_eq!(publication_state(&machine), before);
+        assert!(
+            published.is_empty(),
+            "a failed evaluation must not publish cache invalidation keys"
+        );
     }
 }
 
