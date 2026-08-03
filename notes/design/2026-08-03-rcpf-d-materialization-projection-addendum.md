@@ -549,9 +549,186 @@ historical root orderへのconsumer-visibleな依存を示さないこと。
   （RCPF文書）: §11のRCPF-D節に、本書への参照と具体的なスライス分割
   （D1〜D4）を追記する。
 
+## 9. 追補（2026-08-03、D3a着手時に発見されたcross-kind representative選択gap）
+
+D2cシリーズ（D1/D2a/D2b/D2c-1/D2c-2a/D2c-2b/D2c-2c-1/D2c-2c-2a/
+D2c-2c-2b）着地後、D3a（upper materialization adapter + shadow
+oracle）の実装に着手したところ、本書が想定していなかった構造的
+ギャップが見つかった。
+
+### 9.1 問題
+
+legacyのfull path（`claim_parents_by_constraint[result]`）は、
+replay・structural・reductionの全parent kindが混在した実際の
+admission順を走査し、`(record, root)`ごとに最初に承認されたparentの
+lineageを採用する。
+
+しかしfactored representationは、このプロジェクトの初期段階から
+kindごとに分離している——replay parentのfirst-witness追跡はD1の
+`ReplayResultSummary`（`first_parent_roots_by_result`/
+`first_parent_witness`、`try_record_admission`内部のadmission
+ordinalで管理）に、structural/reduction parentはC1の
+`NonReplayClaimParentStore`（result単位のinsertion順`Vec`）に、
+それぞれ存在する。どちらも「自分のkind内でのfirst-wins」は正しく
+維持しているが、「replay parentとstructural/reduction parentの
+どちらが実際に先に承認されたか」という相互の順序情報は、どちらの
+索引にも存在しない。
+
+このため、ある`(record, root)`をreplay parentとstructural/reduction
+parentの両方が取り合う場合、factored側には legacy が実際に選ぶ
+lineageを再構成する手段がなかった。D3aで組んだadapterは暫定的に
+「replay優先」で実装されていたが、これは実際のadmission順で
+structural/reductionが先だったケースでは誤りになる。
+
+### 9.2 決定: cross-kind first-winner map
+
+`first_parent_by_root`と同じ情報隠蔽の形（historical admission
+順ではなく、単一のwinnerだけを保持する）を踏襲した、kind横断の
+first-winner mapを追加する。
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FirstQualifiedParentSource {
+    Replay,
+    NonReplay(ClaimQualifiedParent),
+}
+```
+
+（`NonReplay`は`StructuralConstraint`または
+`ReductionRouteConstraint`のみを許可する。）
+
+```rust
+first_qualified_parent_source_by_root:
+    FxHashMap<(ConstraintRecordId, UpperReplayClaimId), FirstQualifiedParentSource>
+```
+
+この形を選ぶ理由:
+
+- replay-vs-replayのwinner選択はD1が引き続きauthorityであり続ける
+  （このmapは触れない）。
+- structural-vs-reductionのwinnerは、最初のnon-replay parent自体を
+  保持することで、後から`NonReplayClaimParentStore`を再走査せずに
+  O(1)で正確なparentを取得できる。
+- replay-vs-non-replayの勝敗はenum discriminantが決める。
+- `Replay`側の具体的なclaim/side/carrierは複製せず、D1の
+  `FirstReplayParentWitness`から解決する（`(result, root)`から
+  `first_parent_witness`を引けばよい）。
+
+追加クエリAPI（生のmap iteratorはproduction/diagnosticへ公開しない）:
+
+```rust
+try_record_first_qualified_parent_source(result, parent, bounds)
+    -> ReplayFactoredResult<bool>
+
+first_qualified_parent_source(result, root)
+    -> ReplayFactoredResult<Option<FirstQualifiedParentSource>>
+```
+
+### 9.3 Writer位置
+
+`commit_claim_qualified_parent_mutation`（D2aで作られた共通choke
+point）に単一のwriter hookを置く。legacy flat parentの唯一のwriter
+（`push_claim_qualified_parent`）はこの関数内にあり、replay path
+（`replay_claim_parent_keys.insert`が成功したparentだけがここへ届く）
+とstructural/reduction path（既存の`admit_claim_qualified_parent`
+wrapper経由）の両方が同じ関数を通るため、二重のwriter hookを置く
+必要はない。
+
+```text
+inclusion-before snapshot
+legacy flat parent push
+既存のnon-replay shadow observation
+legacy route/dependency-edge mutation
+cross-kind first-winner observation   ← 新設
+return publication snapshot
+```
+
+map更新規則: canonical rootをfallibleに検証し、keyが既に存在すれば
+完全なno-op（winnerを上書きしない、first-wins）。keyが無ければ
+`try_reserve(1)`を先に行い、成功後だけinsertする。allocation
+failureはterminal shadow failureとしてmark_replay_factored_failure
+経由で記録し、legacy flat mutation・route edge・後続のPhase A
+mutationは一切undo・gateしない（quarantine/retry追補の大原則を継承）。
+`LegacyRollback`ではこのwriterを無効化し、legacy pathだけを使う。
+
+### 9.4 D3aアダプタでの利用
+
+full adapter:
+
+1. replay rootsをD1のresult-local indexから列挙する。
+2. structural/reduction rootsをC1のnon-replay facadeから列挙する。
+3. 一時的なunordered root集合へ統合する。
+4. 各rootを新しいcross-kind mapへpoint lookupする。
+5. `Replay`ならD1のwitnessから、`NonReplay(parent)`なら保存された
+   parentからlineageを組み立てる。
+6. 全rootをpreflightしてからmaterializationへ渡す。
+
+delta adapter: replay delta rootごとに新mapを読み、`Replay`なら
+同event deltaのwitnessを、`NonReplay(parent)`なら保存済みの先行
+winnerを使う。result全体やlegacy ledgerの再走査は発生しない。
+
+### 9.5 Invariant 23（診断順序分離）との整合
+
+この新しいmapはunordered finite mapであり、admission順のVecではない。
+ordinal・timestamp・loser・イベント列・root間の順序は一切保存しない。
+各entryが答えるのは「この`(result, root)`の単一winner sourceは何か」
+だけであり、全entryを反復してもroot間のhistorical sequenceは
+復元できない。同一root内で「winnerがloserより先だった」ことは
+分かるが、これはlegacyと一致させるべきrepresentative lineageその
+ものであり、既存の`first_parent_by_root`が既に保持している情報と
+同じ性質である。diagnostic/provenance層へ生のiteratorは公開せず、
+explanation graphのcategory/edge/hyperedge順序にも一切触れない。
+debug oracleだけが、unordered mapとしてlegacy winnerと比較する。
+
+関連invariantとの整合: invariant 4（first-winsで一度だけinsertし、
+後続kindで上書きしない）、invariant 15（各入力順でlegacyが直接
+選んだwinnerをadmission時に保存し、後からiteratorで再導出しない）、
+invariant 17（accepted parentがないeventではentryを作らない）、
+invariant 18（append-onlyで削除・再分類しない）、invariant 19
+（`Replay`からcarrier-specific情報を推測せずD1のoccurrence/witness
+へ問い合わせる）、invariant 21（write/queryは期待O(1)、full列挙も
+既存のresult-local sourceだけを読む）。
+
+### 9.6 D1への影響
+
+D1の`first_parent_by_root`・`first_parent_roots_by_result`・
+`ReplayResultSummaryDelta`・`admission_ordinal`の意味・writerは
+変更不要。D1は引き続きreplay-vs-replayのfirst witness authorityで
+あり続ける。cross-kind winnerが`NonReplay`側になったケースでも、
+D1はreplay witnessを通常どおり記録する（exact replay relationや
+将来のconsumerに必要なため、抑制しない）。新mapは完全にadditiveな
+siblingであり、D1既存stateの再構築・backfill・restructureは不要。
+event oracleには「`Replay`勝者ならD1のwitnessが存在する」という
+整合検査だけを追加する。
+
+### 9.7 実装スライスの再分割
+
+RCPF-D3aの前に、新しい必須prerequisiteとして以下を挿入する:
+
+- **RCPF-D3a-0a — Cross-kind winner store**: enum・map・fallible
+  insert・point query・fault injection hookの追加。first-wins・
+  no-op・allocation failure・storage censusのテスト。約80〜130行。
+- **RCPF-D3a-0b — Phase A writer wiring**: 共通
+  `commit_claim_qualified_parent_mutation`へのhook配線。
+  replay-first/non-replay-first双方、structural/reduction双方、
+  `LegacyRollback`、legacy-never-gatedのテスト。unordered legacy
+  oracleの追加。約80〜130行。
+- **RCPF-D3a（再開）**: `e323929d`で着地済みのshadow-only adapter
+  primitivesを新しいwinner queryへ接続する。stashしてある
+  oracle wiring差分（`stash@{0}`）は選択的に戻す。replay-firstと
+  non-replay-firstの両方のsame-root fixturesを追加し、既存の
+  single root・multiple replay candidates・late root・no root・
+  target-late bootstrapのカバレッジも維持する。
+- **RCPF-D3b**: 同じcross-kind winner mapをlower projectionの
+  kind横断選択へ再利用する。両方のadmission順fixtureが一致する
+  ことを必須gateにする。
+- **RCPF-D4**: D3a/D3bの両方のshadow oracleが通るまで、authority
+  cutoverには着手しない。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
 ユーザ包括的事前承認済み（2026-08-03）。本書は設計判断の正本として扱う。
-実装は本書§5のRCPF-D1〜D4スライスに従って着手してよい。
+実装は本書§5のRCPF-D1〜D4スライス、および§9のRCPF-D3a-0a/D3a-0bを
+含む再分割スライス順に従って着手してよい。
