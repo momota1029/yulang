@@ -110,7 +110,6 @@ struct ReplayAdmissionPublicationFence {
 }
 
 #[cfg(any(test, debug_assertions))]
-#[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
 type UpperMaterializationLineages =
     FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
 
@@ -929,6 +928,8 @@ impl ConstraintMachine {
         let Some(producer) = producer else {
             return Vec::new();
         };
+        #[cfg(any(test, debug_assertions))]
+        self.observe_factored_upper_materialization_full(record, producer);
         let parents = self
             .bounds
             .claim_parents_by_constraint
@@ -1073,8 +1074,48 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
-    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
     fn try_insert_upper_materialization_lineage(
+        &self,
+        lineages: &mut UpperMaterializationLineages,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        root: UpperReplayClaimId,
+        replay_parent: Option<ClaimQualifiedParent>,
+        unmaterialized_only: bool,
+    ) -> ReplayFactoredResult<()> {
+        let parent = match self
+            .replay_result_summary
+            .first_qualified_parent_source(producer, root)?
+            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
+        {
+            FirstQualifiedParentSource::Replay => {
+                replay_parent.ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
+            }
+            FirstQualifiedParentSource::NonReplay(parent) => parent,
+        };
+        let parent_claim = parent.parent_claim();
+        let actual_root = self.bounds.canonical_coverage_root(parent_claim).ok_or(
+            ReplayFactoredShadowFailure::UnknownReplayParentClaim(parent_claim),
+        )?;
+        if actual_root != root {
+            return Err(
+                ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
+                    claim: parent_claim,
+                    root,
+                },
+            );
+        }
+        self.try_insert_upper_materialization_lineage_from_parent(
+            lineages,
+            record,
+            producer,
+            parent,
+            unmaterialized_only,
+        )
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_insert_upper_materialization_lineage_from_parent(
         &self,
         lineages: &mut UpperMaterializationLineages,
         record: BoundRecordId,
@@ -1151,7 +1192,6 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
-    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
     fn try_upper_materialization_lineages_from_parents(
         &self,
         record: BoundRecordId,
@@ -1161,7 +1201,7 @@ impl ConstraintMachine {
     ) -> ReplayFactoredResult<UpperMaterializationLineages> {
         let mut lineages = FxHashMap::default();
         for parent in parents {
-            self.try_insert_upper_materialization_lineage(
+            self.try_insert_upper_materialization_lineage_from_parent(
                 &mut lineages,
                 record,
                 producer,
@@ -1173,7 +1213,6 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
-    #[allow(dead_code, reason = "RCPF-D3a-1b wires the shadow oracle")]
     fn try_factored_upper_materialization(
         &self,
         record: BoundRecordId,
@@ -1184,7 +1223,8 @@ impl ConstraintMachine {
         include_non_replay: bool,
         unmaterialized_only: bool,
     ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        let mut lineages = UpperMaterializationLineages::default();
+        let mut roots = FxHashSet::default();
+        let mut replay_parents = FxHashMap::default();
         for witness in witnesses {
             let (root, witness) = witness?;
             let occurrence = self.replay_occurrence(witness.occurrence)?;
@@ -1212,26 +1252,156 @@ impl ConstraintMachine {
                     },
                 );
             }
+            roots
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            replay_parents
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            roots.insert(root);
+            if replay_parents.insert(root, parent).is_some() {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+            }
+        }
+        if include_non_replay {
+            for parent in self.non_replay_claim_parents_for_result(producer) {
+                let claim = parent.parent_claim();
+                let root = self
+                    .bounds
+                    .canonical_coverage_root(claim)
+                    .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))?;
+                roots
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                roots.insert(root);
+            }
+        }
+        let mut lineages = UpperMaterializationLineages::default();
+        for root in roots {
             self.try_insert_upper_materialization_lineage(
                 &mut lineages,
                 record,
                 producer,
-                parent,
+                root,
+                replay_parents.get(&root).copied(),
                 unmaterialized_only,
             )?;
         }
-        if include_non_replay {
-            for parent in self.non_replay_claim_parents_for_result(producer) {
-                self.try_insert_upper_materialization_lineage(
-                    &mut lineages,
-                    record,
-                    producer,
-                    parent,
-                    unmaterialized_only,
-                )?;
-            }
-        }
         Ok(lineages)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_factored_upper_materialization_full(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        let witnesses = self
+            .replay_result_summary
+            .roots_for_result(producer)
+            .map(|root| {
+                self.replay_result_summary
+                    .first_parent_witness(producer, root)
+                    .and_then(|witness| {
+                        witness
+                            .copied()
+                            .map(|witness| (root, witness))
+                            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)
+                    })
+            });
+        self.try_factored_upper_materialization(record, producer, witnesses, true, false)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_factored_upper_materialization_delta(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        delta: &ReplayResultSummaryDelta,
+    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
+        self.try_factored_upper_materialization(
+            record,
+            producer,
+            delta.entries.iter().copied().map(Ok),
+            false,
+            true,
+        )
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_upper_materialization_full(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) {
+        if !self.replay_factored_writes_enabled()
+            || !self.replay_result_summary.event_oracle_enabled()
+        {
+            return;
+        }
+        let legacy = self.try_upper_materialization_lineages_from_parents(
+            record,
+            producer,
+            self.bounds
+                .claim_parents_by_constraint
+                .get(&producer)
+                .into_iter()
+                .flatten()
+                .copied(),
+            false,
+        );
+        let factored = self.try_factored_upper_materialization_full(record, producer);
+        self.observe_factored_upper_materialization(legacy, factored);
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_upper_materialization_delta(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        legacy_parents: &[ClaimQualifiedParent],
+        delta: &ReplayResultSummaryDelta,
+    ) {
+        if !self.replay_factored_writes_enabled()
+            || !self.replay_result_summary.event_oracle_enabled()
+        {
+            return;
+        }
+        let legacy = self.try_upper_materialization_lineages_from_parents(
+            record,
+            producer,
+            legacy_parents.iter().copied(),
+            true,
+        );
+        let factored = self.try_factored_upper_materialization_delta(record, producer, delta);
+        self.observe_factored_upper_materialization(legacy, factored);
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_upper_materialization(
+        &self,
+        legacy: ReplayFactoredResult<UpperMaterializationLineages>,
+        factored: ReplayFactoredResult<UpperMaterializationLineages>,
+    ) {
+        let legacy = match legacy {
+            Ok(legacy) => legacy,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        let factored = match factored {
+            Ok(factored) => factored,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                return;
+            }
+        };
+        if legacy != factored {
+            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::DerivedReplayLineage,
+            ));
+        }
     }
 
     fn register_claim_parent_clause_links(
@@ -2966,6 +3136,15 @@ impl ConstraintMachine {
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
         if materialize_existing_target {
+            #[cfg(any(test, debug_assertions))]
+            if let (Some(record), Some(delta)) = (target_record, summary_delta.as_ref()) {
+                self.observe_factored_upper_materialization_delta(
+                    record,
+                    result,
+                    &inserted_parents,
+                    delta,
+                );
+            }
             self.materialize_existing_claim_parents_delta(
                 result,
                 target_record,
@@ -5267,6 +5446,13 @@ mod mutation_tests {
     #[test]
     fn rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage() {
         let mut fixture = cdm_replay_claim_fixture();
+        assert!(
+            fixture
+                .machine
+                .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
+                .expect("the no-root summary is readable")
+                .is_empty()
+        );
         assert_non_replay_store_matches_legacy(&fixture.machine, fixture.result);
         assert_eq!(
             fixture
@@ -5475,11 +5661,6 @@ mod mutation_tests {
             let mut fixture = cdm_replay_claim_fixture();
             let (result, root) = (fixture.result, fixture.coverage_root);
             let replay = fixture.replay(ReplayRule::LowerBoundAdded);
-            let replay_parent = ClaimQualifiedParent::ReplayConstraint {
-                parent_claim: root,
-                parent_side: ReplayClaimParentSide::Lower,
-                replay,
-            };
             let non_replay = if structural {
                 ClaimQualifiedParent::StructuralConstraint {
                     parent_claim: root,
@@ -5494,18 +5675,46 @@ mod mutation_tests {
                     derivation: RowDerivationId(72_000),
                 }
             };
-            let ordered = if replay_first {
-                [replay_parent, non_replay]
-            } else {
-                [non_replay, replay_parent]
-            };
-            for parent in ordered {
-                fixture.machine.admit_claim_qualified_parent(result, parent);
+            if !replay_first {
+                fixture
+                    .machine
+                    .admit_claim_qualified_parent(result, non_replay);
+            }
+            assert_eq!(
+                fixture.machine.merge_replay_derivation(result, replay),
+                ReplayDerivationInsert::Inserted
+            );
+            let replay_parent = fixture.parent;
+            register_factored_parent_snapshot_with_materialization(
+                &mut fixture.machine,
+                result,
+                replay,
+                &[replay_parent],
+                false,
+            );
+            if replay_first {
+                fixture
+                    .machine
+                    .admit_claim_qualified_parent(result, non_replay);
             }
             let comparison = fixture
                 .machine
                 .try_compare_first_qualified_parent_sources(result);
             assert_eq!(comparison, Ok(()));
+            let legacy = fixture
+                .machine
+                .try_upper_materialization_lineages_from_parents(
+                    fixture.upper_record,
+                    result,
+                    fixture.machine.bounds.claim_parents_by_constraint[&result]
+                        .iter()
+                        .copied(),
+                    false,
+                );
+            let factored = fixture
+                .machine
+                .try_factored_upper_materialization_full(fixture.upper_record, result);
+            assert_eq!(legacy, factored);
         }
     }
 
@@ -6541,6 +6750,12 @@ mod mutation_tests {
             factored_replay_clause_link_oracle(&fixture.machine).len(),
             1
         );
+        let single_root = fixture
+            .machine
+            .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
+            .expect("the single-root summary is readable");
+        assert_eq!(single_root.len(), 1);
+        assert!(single_root.contains_key(&(fixture.upper_record, root)));
 
         let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -6573,6 +6788,13 @@ mod mutation_tests {
         assert_eq!(
             factored_replay_clause_link_oracle(&fixture.machine).len(),
             2
+        );
+        assert!(
+            fixture
+                .machine
+                .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
+                .expect("the late-root summary is readable")
+                .contains_key(&(fixture.upper_record, late_root))
         );
 
         let alternate_claim = add_derived_replay_parent_claim(
@@ -6736,6 +6958,18 @@ mod mutation_tests {
                 ordered_claims[0],
                 "the first legacy claim wins for its insertion order"
             );
+            assert!(matches!(
+                fixture
+                    .machine
+                    .try_factored_upper_materialization_full(
+                        fixture.upper_record,
+                        fixture.result,
+                    )
+                    .expect("the multi-candidate summary is readable")
+                    [&(fixture.upper_record, root)],
+                UpperReplayClaimLineage::ReplayConstraint { parent_claim, .. }
+                    if parent_claim == ordered_claims[0]
+            ));
         }
     }
 
@@ -6772,6 +7006,13 @@ mod mutation_tests {
             .register_constraint_upper_replay_claims(fixture.upper_record, Some(fixture.result));
 
         assert_factored_replay_clause_projection_matches_legacy(&fixture.machine);
+        assert!(
+            fixture
+                .machine
+                .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
+                .expect("the target-late summary is readable")
+                .contains_key(&(fixture.upper_record, fixture.coverage_root))
+        );
         assert_eq!(
             fixture.machine.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
