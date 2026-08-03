@@ -810,12 +810,227 @@ invariant 23への違反になるため、単純に「順序も含めて永続�
 進めるべきではないと判断し、read-only調査の結果を本書へ記録した
 上で作業を保留する。
 
+## 11. §10の解決: canonical ordering正規化（2026-08-03、ユーザ承認済み）
+
+ユーザが§10のstop condition解消を明示的に承認した
+（「これは進めた方がよいと思います」、2026-08-03）ことを受け、
+canonical orderingの正規化設計を確定する。
+
+### 11.1 決定の要約
+
+lower projectionの順序identityは、historical admission orderではなく、
+**claimed supportについてはcanonical coverage-root order、independent
+supportについてはexact carrier identityのcanonical total order**とする。
+category全体の順序はClaimed→Independentの順で固定する。legacyと
+factoredは同じcomparatorを使い、legacy storageは共通writerで
+canonical-position insertionされる。diagnostic/provenance consumerは
+raw admission historyを一切受け取らない。
+
+**重要な性質**: これはRCPFのauthority cutoverとは独立した、
+**既存legacy挙動そのものの変更**である。RCPF-D3b/D4の準備という
+枠を超えて、現在稼働中の診断出力（generalized witness edge順、
+portable snapshot、truncation prefix、duplicate-span survivor選択を
+含む最終diagnostic）が変わりうる。この点は§11.4で詳述する。
+
+### 11.2 Canonical key
+
+**Claimed support**: `coverage_root: UpperReplayClaimId`の昇順。
+proof Vecが保持するderived `claim_id`自体ではなく、そのclaim
+recordの`coverage_root`を使う——1つのlower recordには1つのroot
+あたり1 entryしかないため、rootだけで一意になる。同じrootの
+entryがより新しいderived claim IDへ更新されても、sort position
+は変わらない。`UpperReplayClaimId`は既存のcanonical root
+identityであり、parent admission ordinalではないため、O(1)
+lookupで計算でき、source graphや全claimの走査を必要としない。
+
+**Independent support**: `(explicit_variant_rank, exact identity
+fields全部)`という明示的total order。rankは現在のbootstrap
+enumerationとenumの意味分類に合わせる:
+
+| rank | carrier key |
+|---:|---|
+| 0 | `ConstraintOrigin(constraint, origin)` |
+| 1 | `StructuralConstraint(result, parent_constraint, structural_rule_key)` |
+| 2 | `ReplayConstraint(result, pivot, lower, upper, replay_rule)` |
+| 3 | `RowConstraint(result, row_derivation)` |
+| 4 | `SchemeInstantiationConstraint(result, source_witness)` |
+| 5 | `Origin(origin)` |
+| 6 | `ReplayEvidence(pivot, lower, upper, replay_rule)` |
+| 7 | `Row(row_derivation)` |
+| 8 | `SchemeInstantiation(source_witness)` |
+| 9 | `Incomplete` |
+
+`structural_rule_key`は明示的なrule rankと全payload（index・
+direction・spread kind・row route・`pure_passthrough`を一つも
+落とさない）から構成する。Rust enumの暗黙discriminant・hash・
+Debug文字列には依存しない、exhaustiveなmatch式の私的comparator
+とし、新variant追加時にcompilerがcanonical rankの追加を要求する
+形にする。`canonical_cmp(a, b) == Equal ⟺ a == b`を成立させる。
+
+proof Vec全体では`Claimed(root) < Independent(carrier)`とする。
+これは現行の`generalize/provenance.rs`がclaimed parentsを先に、
+independent parentsを後に追加する順序と一致し、independentの
+variant rankもbootstrapの現行category列挙と一致するため、既存の
+「category first」という説明の感覚を維持する。
+
+### 11.3 Legacy側の変更
+
+唯一のproduction writerである`TypeBounds::update_scheme_projection_
+proofs`にcanonical-position insertionを導入する:
+
+`scheme_projection_claims_by_lower_record`: incoming claimからroot
+を取得→rootをkeyにbinary search→同じrootがあれば現行どおりより
+新しいclaim IDへin-place update→なければcanonical positionへ
+`Vec::insert`。
+
+`projection_proofs_by_lower_record`: claimedは`(Claimed, root)`、
+independentは`(Independent, carrier_key)`でbinary search→同じ
+claimed rootはin-place update→同じindependent carrierはno-op→
+新supportはcanonical positionへinsert。
+
+production sessionは空ledgerから始まり、全production mutationが
+この共通writerを通るため、backfill passは不要。
+
+**性能**: read-time sortは採らない。`projection_proofs_by_lower_
+record`はevaluatorのround-local hot pathで繰り返し読まれ、
+`scheme_projectable_lowers`はcompact・generalize・provenance・
+positive-alias traversalから反復され、claim Vecもreplay planning
+で複数回読まれる。read毎のclone+sortは同じrecordを何度も
+O(k log k)処理することになり許容できない。writerは現状でも新
+root/carrierごとに既存Vecを O(k) 線形探索しているため、変更後は
+比較がO(k)→O(log k)、insertion moveはO(k)のまま、global/resort
+passは追加しない、readは従来どおりO(k)——1 admissionの漸近計算量
+は悪化しない。ただしVecの移動量は新しい実コストになるため、
+legacy cutover slice（§11.5のD3b-0d）では per-record Vec length
+のmax/p95/p99、canonical insertionで移動したentry総数と最大値、
+std::text::parseと既存five-case contractのwall time、no-claim
+workloadのallocation/lookup zero-diff、epoch・publication列の
+zero-diffを実測する。許容できない移動量が出た場合はstop condition
+とし、毎read sortや admission毎の全Vec sortへfallbackしない。
+
+### 11.4 検証戦略
+
+共通fixtureとしてroot/carrier identityを固定順で先に作り、次の
+4 admission eventの全24 permutationを流す:
+`Replay(root_a)`、`NonReplay(root_b)`、`Independent(carrier_c)`、
+`Independent(carrier_d)`（carrierは最終的に独立のまま残るものを
+選び、分類結果自体がpermutationで変わらないようにする）。
+
+1. **Generalized witness edges**: 各permutationでraw
+   `scheme_projection_claims_by_lower_record`・raw
+   `projection_proofs_by_lower_record`・
+   `SchemeProjectableLowerReason::Qualified`・
+   `GeneralizedWitnessDraft.incoming`・`GeneralizationParent`
+   sequenceをexact sequence比較する。同じrootのclaim replacement
+   でもpositionが変わらないことを別テストで固定する。
+   `MAX_INCOMING_EDGES_PER_SCHEME = 256`も load-bearingなので、
+   256を越えるsupport fixtureで全permutationにおいて最初の256
+   canonical edgesとcompletenessが一致することを確認する。
+2. **Portable snapshots**: 各permutationについてgeneralized
+   witnessをarenaへ記録→十分なbudgetで`export_portable_
+   provenance`を実行→`snapshot`・`root_anchors`・node/edge/
+   source-site sequence・completenessをexact equalityで比較→
+   `explain_portable_subtype`の`lower_sites`/`upper_sites`も
+   exact equalityで比較する。unordered set比較ではなくsequence
+   比較とする（portable IDはtraversal orderから割り当てられる
+   ため、snapshot全体のequalityがordering proofになる）。
+3. **Tight-budget truncation prefixes**: 同じpermutation群へ
+   budget ladder（infer exportの`max_nodes_per_anchor`・
+   `max_edges_per_anchor`・global node/edge・parent fan-in、
+   portable queryの`max_nodes`・`max_edges`・`max_depth`、
+   generalized witnessの256-edge cap）を適用し、retained
+   nodes/edges・cause prefix・exact truncation reason・
+   completeness・anchorsの生存状態を比較する。さらに、tight
+   resultが十分なbudgetのcanonical resultの安定prefixであること
+   を確認する。
+4. **Final diagnostics and duplicate-span survivor**: infer
+   fixtureの2つのcanonical parentsを、同一`PortableSourceLocation`
+   だが異なるcause roleへ到達させ、全permutationが同一順の
+   `DiagnosticSubtypeExplanation`を返すことを確認する。yulang側
+   では`append_complete_subtype_causes`のdedup loopを private
+   pure helperとして分離し、canonical cause sequenceを入力して
+   生き残るrole/message/origin・related informationの順序・
+   重複spanが一件だけ残ること・`related.first()`から選ばれる主
+   diagnostic file/rangeをexact assertする。最後に既存subtype
+   regression fixturesとCLI diagnostic outputをbase commitと
+   canonical cutover commitで比較する。
+
+### 11.5 Blast radius評価（最重要の発見）
+
+**これはRCPF authority cutoverとは無関係な、既存legacy behaviorの
+変更である。** membership・projectability・winner・reverse
+index・epochが同じでも、canonical orderingが現在のadmission
+orderingと異なるrecordでは、generalized witness edge order・
+256-edge capのsurvivor・explanation DFS prefix・portable node/edge
+ID allocation・tight-budget snapshot survivor・diagnostic cause
+order・duplicate-span survivor・最初のrelated causeから選ばれる
+主diagnostic spanが変わりうる。特に最後の項目により、「related
+noteの順序だけ」の変更では済まない可能性がある。
+
+直接影響する既存テスト: `crates/infer/src/constraints/tests/
+case_02.rs`の`[direct_claim, covered_claim]`assertion、
+`ObservedCdmBulkOracleSnapshot`のordered projection vectors、
+`CdmLowerOracleSnapshot`/`CdmOracleLedgerSnapshot`のdelta-vs-bulk
+exact Vec比較、portable deterministic-order/forced-truncation
+tests、yulangのgeneral subtype diagnostic source-cause tests。
+
+`[direct_claim, covered_claim]`はroot ID順も同じなら期待値自体は
+変わらない。それでも「たまたま現行出力と同じ」と扱わず、両rootの
+canonical key関係をtest内で明示し、canonical contractを固定する
+必要がある。**出力に合わせた無根拠な期待値更新は禁止する。**
+
+legacy cutover commitでは、base/after の診断差分を次のように
+分類する: proof/causeの集合差は不許可・stop。canonical keyで
+説明できる順序差はreview対象。duplicate-span survivorまたは主
+spanの変更は、explicit expected resultが無い限りstop。unrelated
+diagnostic・type・epoch・hashの差はstop。
+
+### 11.6 実装スライスの再分割
+
+1. **RCPF-D3b-0a — Canonical key primitive、shadow-only**:
+   private root/carrier comparator、key-law tests、canonical
+   clone normalizer。production consumer変更なし。約100〜150行。
+2. **RCPF-D3b-0b — Projection permutation oracle、shadow-only**:
+   24 permutations、raw support maps、canonical sequences、
+   same-root replacement、256-edge prefix。production behavior
+   不変。約150〜200行。
+3. **RCPF-D3b-0c — Portable/truncation/diagnostic oracle、
+   shadow-only**: generalized edges・portable snapshots・budget
+   ladder・duplicate-span survivorのcompositional test。
+   約150〜200行。
+4. **RCPF-D3b-0d — Legacy canonical ordering cutover**: 共通
+   writerをbinary search + canonical-position insertionへ変更。
+   pinned order testsを意図に沿って更新し、base/after diagnostic
+   comparisonとperformance censusを実行する。**factored adapter
+   を一切含めない独立behavior commit**。約100〜180 net行。
+5. **RCPF-D3b-1 — Factored lower-projection adapter primitives、
+   shadow-only**: D1 summary・C1 non-replay store・§9 winner map
+   からroot setを作り、同じcanonical comparatorでlegacy
+   canonical vectorsと比較する。約150〜200行。
+6. **RCPF-D3b-2 — Full/delta oracle wiring**: proof sequence・
+   logical support map・reverse index・epoch・occurrence-new/
+   root-old・independent-first→claimed-laterを比較する。
+   約150〜200行。
+7. **RCPF-D4 — Authority cutover**: D3aとD3bの全shadow oracle・
+   legacy canonical behavior gate・performance gateが通った後
+   だけ着手する。
+
+### 11.7 Invariant 23との整合
+
+ordinal・timestamp・event sequence・loser sequenceを追加保存
+しない。最終root/carrier setだけからsequenceを再構成できる。
+同じfinal stateへ至るparent-admission permutationは同じsequence
+になる。§9の同一root winnerは変更しない。`explain.rs`自身の
+category/DFS/insertion-order traversal契約は変更せず、そこへ
+渡されるgeneralized edge insertion orderだけをcanonicalにする。
+global scan・per-read sort・per-event full resortは導入しない。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
 ユーザ包括的事前承認済み（2026-08-03）。本書は設計判断の正本として扱う。
-実装は本書§5のRCPF-D1〜D4スライス、および§9のRCPF-D3a-0a/D3a-0bを
-含む再分割スライス順に従って着手してよい。ただし§10のstop condition
-（root間admission順の診断/provenance依存）が解決されるまで、
-RCPF-D3b・RCPF-D4には着手しない。
+実装は本書§5のRCPF-D1〜D4スライス、§9のRCPF-D3a-0a/D3a-0b、および
+§11のRCPF-D3b-0a〜D3b-2を含む再分割スライス順に従って着手してよい。
+§11.5のblast radius評価（既存legacy診断挙動の変更を伴う）について、
+D3b-0d着手前にユーザーへ改めて確認すること。
