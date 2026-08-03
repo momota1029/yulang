@@ -1899,6 +1899,12 @@ fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
         },
         "only the independent direct claim may justify scheme projection"
     );
+    let [direct_root, covered_root] = [direct_claim, fixture.covered_claim]
+        .map(|claim| fixture.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root);
+    assert!(
+        direct_root < covered_root,
+        "the pinned claim order follows the ascending coverage-root canonical key"
+    );
     assert_eq!(
         fixture
             .machine

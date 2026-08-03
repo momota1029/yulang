@@ -9456,6 +9456,9 @@ mod mutation_tests {
         use super::*;
         use crate::compact::CompactRoot;
         use crate::constraints::canonical_projection_key::{self, Key};
+        use crate::constraints::{
+            canonical_projection_insertion_census, reset_canonical_projection_insertion_census,
+        };
         use crate::constraints::explain::{
             PortableProvenanceExport, PortableProvenanceExportBudget, PortableProvenanceExportRoot,
         };
@@ -9726,28 +9729,22 @@ mod mutation_tests {
         }
 
         #[test]
-        fn canonical_projection_sequence_is_invariant_across_all_four_event_permutations() {
+        fn canonical_projection_storage_is_invariant_across_all_four_event_permutations() {
             let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
             let orders = permutations();
             assert_eq!(orders.len(), 24);
-            let mut expected = None;
-            let mut raw_orders = Vec::new();
             for order in orders {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
                 let (claims, supports, keys) = fixture.snapshot();
                 assert_eq!((claims.len(), supports.len()), (2, 4), "event order: {order:?}, supports: {supports:?}");
-                assert_eq!(claims.iter().map(|claim| fixture.root(*claim)).collect::<FxHashSet<_>>(), FxHashSet::from_iter(fixture.roots));
-                let claim_keys = claims.iter().map(|claim| Key::Claimed(fixture.root(*claim))).collect::<Vec<_>>();
-                assert_eq!(canonical_projection_key::normalize_clone(&claim_keys), fixture.roots.map(Key::Claimed));
-                if !raw_orders.contains(&keys) { raw_orders.push(keys.clone()); }
-                let normalized = canonical_projection_key::normalize_clone(&keys);
-                assert_eq!(normalized, vec![Key::Claimed(fixture.roots[0]), Key::Claimed(fixture.roots[1]),
+                assert_eq!(claims.iter().map(|claim| fixture.root(*claim)).collect::<Vec<_>>(), fixture.roots);
+                let expected = vec![Key::Claimed(fixture.roots[0]), Key::Claimed(fixture.roots[1]),
                     Key::Independent(ProjectionProofCarrier::Origin(fixture.origins[0])),
-                    Key::Independent(ProjectionProofCarrier::Origin(fixture.origins[1]))]);
-                assert_eq!(normalized, *expected.get_or_insert_with(|| normalized.clone()));
+                    Key::Independent(ProjectionProofCarrier::Origin(fixture.origins[1]))];
+                assert_eq!(keys, expected, "the production writer must store canonical keys for order {order:?}");
+                assert_eq!(canonical_projection_key::normalize_clone(&keys), keys);
             }
-            assert!(raw_orders.len() > 1, "the oracle must observe legacy admission order before normalization");
         }
 
         #[test]
@@ -9807,6 +9804,58 @@ mod mutation_tests {
             let parity = (0..len).step_by(2).chain((1..len).step_by(2)).collect();
             let stride = (0..len).map(|index| index * 101 % len).collect();
             vec![ascending, descending, rotated, parity, stride]
+        }
+
+        fn insertion_census(
+            events: &[Event],
+            orders: Vec<Vec<usize>>,
+        ) -> (Vec<usize>, Vec<usize>) {
+            let mut claim_lengths = Vec::new();
+            let mut proof_lengths = Vec::new();
+            for order in orders {
+                let independent_count = events.len() - 2;
+                let mut fixture = Fixture::new_with_independent_count(independent_count);
+                for index in order {
+                    fixture.admit(events[index]);
+                    let keys = fixture.machine.bounds.projection_proofs_by_lower_record
+                        .get(&fixture.lower_record).into_iter().flatten()
+                        .map(|proof| fixture.key(proof.support)).collect::<Vec<_>>();
+                    assert_eq!(keys, canonical_projection_key::normalize_clone(&keys));
+                }
+                claim_lengths.push(fixture.machine.bounds.scheme_projection_claims_by_lower_record
+                    [&fixture.lower_record].len());
+                proof_lengths.push(fixture.machine.bounds.projection_proofs_by_lower_record
+                    [&fixture.lower_record].len());
+            }
+            (claim_lengths, proof_lengths)
+        }
+
+        fn percentile(values: &mut [usize], percentile: usize) -> usize {
+            values.sort_unstable();
+            values[(values.len() * percentile).div_ceil(100) - 1]
+        }
+
+        #[test]
+        fn canonical_insertion_census_pins_lengths_and_entry_moves() {
+            reset_canonical_projection_insertion_census();
+            let small_events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let small_orders = permutations().into_iter().map(Vec::from).collect();
+            let (mut claim_lengths, mut proof_lengths) = insertion_census(&small_events, small_orders);
+
+            const INDEPENDENT_SUPPORTS: usize = 258;
+            let mut large_events = vec![Event::Replay, Event::NonReplay];
+            large_events.extend((0..INDEPENDENT_SUPPORTS).map(Event::Independent));
+            let (large_claim_lengths, large_proof_lengths) =
+                insertion_census(&large_events, sampled_orders(large_events.len()));
+            claim_lengths.extend(large_claim_lengths);
+            proof_lengths.extend(large_proof_lengths);
+
+            assert_eq!((claim_lengths.len(), proof_lengths.len()), (29, 29));
+            assert_eq!((*claim_lengths.iter().max().unwrap(), percentile(&mut claim_lengths, 95),
+                percentile(&mut claim_lengths, 99)), (2, 2, 2));
+            assert_eq!((*proof_lengths.iter().max().unwrap(), percentile(&mut proof_lengths, 95),
+                percentile(&mut proof_lengths, 99)), (260, 260, 260));
+            assert_eq!(canonical_projection_insertion_census(), (72_370, 259));
         }
 
         #[test]

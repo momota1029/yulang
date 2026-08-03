@@ -841,6 +841,30 @@ mod canonical_projection_key {
     }
 }
 
+#[cfg(test)]
+std::thread_local! {
+    static CANONICAL_PROJECTION_INSERTION_CENSUS: std::cell::Cell<(usize, usize)> =
+        const { std::cell::Cell::new((0, 0)) };
+}
+
+#[cfg(test)]
+pub(crate) fn reset_canonical_projection_insertion_census() {
+    CANONICAL_PROJECTION_INSERTION_CENSUS.set((0, 0));
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_projection_insertion_census() -> (usize, usize) {
+    CANONICAL_PROJECTION_INSERTION_CENSUS.get()
+}
+
+#[cfg(test)]
+fn record_canonical_projection_insertion_moves(moves: usize) {
+    CANONICAL_PROJECTION_INSERTION_CENSUS.with(|census| {
+        let (total, maximum) = census.get();
+        census.set((total + moves, maximum.max(moves)));
+    });
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// A lazily evaluated proof input. DPN-A records these nodes; DPN-B will evaluate them.
 enum ProofPremise {
@@ -2652,10 +2676,10 @@ impl TypeBounds {
             .projection_proofs_by_lower_record
             .get(&lower_record)
             .cloned();
+        let upper_replay_claims = &self.upper_replay_claims;
         let mut metadata_changed = false;
         for claim in claims_to_link {
-            let Some(root) = self
-                .upper_replay_claims
+            let Some(root) = upper_replay_claims
                 .get(claim.0 as usize)
                 .map(|claim| claim.coverage_root)
             else {
@@ -2665,42 +2689,62 @@ impl TypeBounds {
                 .scheme_projection_claims_by_lower_record
                 .entry(lower_record)
                 .or_default();
-            if let Some(existing) = claims.iter_mut().find(|existing| {
-                self.upper_replay_claims[existing.0 as usize].coverage_root == root
+            match claims.binary_search_by_key(&root, |existing| {
+                upper_replay_claims[existing.0 as usize].coverage_root
             }) {
-                if *existing < *claim {
-                    *existing = *claim;
+                Ok(position) => {
+                    if claims[position] < *claim {
+                        claims[position] = *claim;
+                        metadata_changed = true;
+                    }
+                }
+                Err(position) => {
+                    #[cfg(test)]
+                    record_canonical_projection_insertion_moves(claims.len() - position);
+                    claims.insert(position, *claim);
                     metadata_changed = true;
                 }
-            } else {
-                claims.push(*claim);
-                metadata_changed = true;
             }
             let proofs = self
                 .projection_proofs_by_lower_record
                 .entry(lower_record)
                 .or_default();
-            if let Some(existing) = proofs.iter_mut().find(|proof| {
-                matches!(
-                    proof.support,
-                    SchemeProjectionProofSupport::Claimed(existing)
-                        if self.upper_replay_claims[existing.0 as usize].coverage_root == root
-                )
+            let incoming_key = canonical_projection_key::Key::Claimed(root);
+            match proofs.binary_search_by(|proof| {
+                let existing_key = match proof.support {
+                    SchemeProjectionProofSupport::Claimed(existing) => {
+                        canonical_projection_key::Key::Claimed(
+                            upper_replay_claims[existing.0 as usize].coverage_root,
+                        )
+                    }
+                    SchemeProjectionProofSupport::Independent(carrier) => {
+                        canonical_projection_key::Key::Independent(carrier)
+                    }
+                };
+                canonical_projection_key::cmp(&existing_key, &incoming_key)
             }) {
-                if matches!(
-                    existing.support,
-                    SchemeProjectionProofSupport::Claimed(existing_claim)
-                        if existing_claim < *claim
-                ) {
-                    existing.support = SchemeProjectionProofSupport::Claimed(*claim);
+                Ok(position) => {
+                    if matches!(
+                        proofs[position].support,
+                        SchemeProjectionProofSupport::Claimed(existing_claim)
+                            if existing_claim < *claim
+                    ) {
+                        proofs[position].support = SchemeProjectionProofSupport::Claimed(*claim);
+                        metadata_changed = true;
+                    }
+                }
+                Err(position) => {
+                    #[cfg(test)]
+                    record_canonical_projection_insertion_moves(proofs.len() - position);
+                    proofs.insert(
+                        position,
+                        SchemeProjectionProof {
+                            lower_record,
+                            support: SchemeProjectionProofSupport::Claimed(*claim),
+                        },
+                    );
                     metadata_changed = true;
                 }
-            } else {
-                proofs.push(SchemeProjectionProof {
-                    lower_record,
-                    support: SchemeProjectionProofSupport::Claimed(*claim),
-                });
-                metadata_changed = true;
             }
             if self
                 .scheme_projection_lower_record_memberships
@@ -2722,8 +2766,23 @@ impl TypeBounds {
                 lower_record,
                 support: SchemeProjectionProofSupport::Independent(*carrier),
             };
-            if !proofs.contains(&proof) {
-                proofs.push(proof);
+            let incoming_key = canonical_projection_key::Key::Independent(*carrier);
+            if let Err(position) = proofs.binary_search_by(|proof| {
+                let existing_key = match proof.support {
+                    SchemeProjectionProofSupport::Claimed(existing) => {
+                        canonical_projection_key::Key::Claimed(
+                            upper_replay_claims[existing.0 as usize].coverage_root,
+                        )
+                    }
+                    SchemeProjectionProofSupport::Independent(carrier) => {
+                        canonical_projection_key::Key::Independent(carrier)
+                    }
+                };
+                canonical_projection_key::cmp(&existing_key, &incoming_key)
+            }) {
+                #[cfg(test)]
+                record_canonical_projection_insertion_moves(proofs.len() - position);
+                proofs.insert(position, proof);
                 metadata_changed = true;
             }
         }
