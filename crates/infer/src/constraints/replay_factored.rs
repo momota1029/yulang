@@ -861,6 +861,12 @@ pub(super) struct FirstReplayParentWitness {
     pub(super) admission_ordinal: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum FirstQualifiedParentSource {
+    Replay,
+    NonReplay(ClaimQualifiedParent),
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(super) struct ReplayResultSummaryDelta {
     pub(super) entries: Vec<(UpperReplayClaimId, FirstReplayParentWitness)>,
@@ -871,6 +877,8 @@ pub(super) struct ReplayResultSummary {
     pub(super) first_parent_by_root:
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), FirstReplayParentWitness>,
     first_parent_roots_by_result: FxHashMap<ConstraintRecordId, FxHashSet<UpperReplayClaimId>>,
+    first_qualified_parent_source_by_root:
+        FxHashMap<(ConstraintRecordId, UpperReplayClaimId), FirstQualifiedParentSource>,
     pub(super) projected_parent_versions: FxHashSet<(
         ConstraintRecordId,
         ReplayClaimParentSide,
@@ -878,6 +886,8 @@ pub(super) struct ReplayResultSummary {
     )>,
     #[cfg(test)]
     fail_next_result_root_reservation: bool,
+    #[cfg(test)]
+    fail_next_source_reservation: bool,
     /// Debug/test admission checks are explicitly opt-in because each boundary reconstructs the
     /// legacy relation. The field and all of its consumers disappear from release builds.
     #[cfg(any(test, debug_assertions))]
@@ -889,6 +899,56 @@ pub(super) struct ReplayResultSummary {
 }
 
 impl ReplayResultSummary {
+    pub(super) fn try_record_first_qualified_parent_source(
+        &mut self,
+        result: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+        bounds: &TypeBounds,
+    ) -> ReplayFactoredResult<bool> {
+        let root = replay_parent_coverage_root(bounds, parent.parent_claim())?;
+        let key = (result, root);
+        if self
+            .first_qualified_parent_source_by_root
+            .contains_key(&key)
+        {
+            return Ok(false);
+        }
+        let source = match parent {
+            ClaimQualifiedParent::ReplayConstraint { .. } => FirstQualifiedParentSource::Replay,
+            ClaimQualifiedParent::StructuralConstraint { .. }
+            | ClaimQualifiedParent::ReductionRouteConstraint { .. } => {
+                FirstQualifiedParentSource::NonReplay(parent)
+            }
+        };
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_source_reservation) {
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
+        self.first_qualified_parent_source_by_root
+            .try_reserve(1)
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        self.first_qualified_parent_source_by_root
+            .insert(key, source);
+        Ok(true)
+    }
+
+    pub(super) fn first_qualified_parent_source(
+        &self,
+        result: ConstraintRecordId,
+        root: UpperReplayClaimId,
+    ) -> ReplayFactoredResult<Option<FirstQualifiedParentSource>> {
+        match self
+            .first_qualified_parent_source_by_root
+            .get(&(result, root))
+            .copied()
+        {
+            Some(FirstQualifiedParentSource::NonReplay(
+                ClaimQualifiedParent::ReplayConstraint { .. },
+            )) => Err(ReplayFactoredShadowFailure::ReplayParentInNonReplayStore),
+            source => Ok(source),
+        }
+    }
+
     pub(super) fn roots_for_result(
         &self,
         result: ConstraintRecordId,
@@ -1066,6 +1126,17 @@ impl ReplayResultSummary {
     #[cfg(test)]
     fn fail_next_result_root_reservation(&mut self) {
         self.fail_next_result_root_reservation = true;
+    }
+
+    #[cfg(test)]
+    fn fail_next_source_reservation(&mut self) {
+        self.fail_next_source_reservation = true;
+    }
+
+    #[cfg(test)]
+    fn qualified_parent_source_storage_census(&self) -> (usize, usize) {
+        let store = &self.first_qualified_parent_source_by_root;
+        (store.len(), store.capacity())
     }
 }
 
@@ -1538,6 +1609,67 @@ mod tests {
         );
         assert!(summary.first_parent_by_root.is_empty());
         assert!(summary.first_parent_roots_by_result.is_empty());
+    }
+
+    #[test]
+    fn qualified_parent_source_store_is_first_wins_fallible_and_validated() {
+        let bounds = bounds_with_roots(&[0, 0]);
+        let result = ConstraintRecordId(8);
+        let root = UpperReplayClaimId(0);
+        let replay = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: root,
+            parent_side: ReplayClaimParentSide::Lower,
+            replay: BinaryReplayDerivation {
+                pivot: TypeVar(0),
+                lower: BoundRecordId(0),
+                upper: BoundRecordId(1),
+                rule: ReplayRule::LowerBoundAdded,
+            },
+        };
+        let non_replay = ClaimQualifiedParent::ReductionRouteConstraint {
+            parent_claim: UpperReplayClaimId(1),
+            derivation: RowDerivationId(1),
+        };
+        for (first, second, expected) in [
+            (replay, non_replay, FirstQualifiedParentSource::Replay),
+            (
+                non_replay,
+                replay,
+                FirstQualifiedParentSource::NonReplay(non_replay),
+            ),
+        ] {
+            let mut summary = ReplayResultSummary::default();
+            summary
+                .try_record_first_qualified_parent_source(result, first, &bounds)
+                .unwrap();
+            let census = summary.qualified_parent_source_storage_census();
+            assert!(
+                !summary
+                    .try_record_first_qualified_parent_source(result, second, &bounds)
+                    .unwrap()
+            );
+            assert_eq!(summary.qualified_parent_source_storage_census(), census);
+            let winner = summary.first_qualified_parent_source(result, root).unwrap();
+            assert_eq!(winner, Some(expected));
+        }
+
+        let mut summary = ReplayResultSummary::default();
+        assert_eq!(summary.qualified_parent_source_storage_census(), (0, 0));
+        summary.fail_next_source_reservation();
+        assert_eq!(
+            summary.try_record_first_qualified_parent_source(result, replay, &bounds),
+            Err(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(summary.qualified_parent_source_storage_census(), (0, 0));
+
+        summary.first_qualified_parent_source_by_root.insert(
+            (result, root),
+            FirstQualifiedParentSource::NonReplay(replay),
+        );
+        assert_eq!(
+            summary.first_qualified_parent_source(result, root),
+            Err(ReplayFactoredShadowFailure::ReplayParentInNonReplayStore)
+        );
     }
 
     fn extend(
