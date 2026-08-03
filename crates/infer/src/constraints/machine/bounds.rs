@@ -19,6 +19,8 @@ std::thread_local! {
         const { std::cell::Cell::new(0) };
     static RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
+    static RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
     static RCPF_D2C_EVENT_ORACLE_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
 }
@@ -935,9 +937,12 @@ impl ConstraintMachine {
         record: BoundRecordId,
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
+        claim_parent_clause_links_precommitted: bool,
     ) -> Vec<UpperReplayClaimId> {
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(lower_record, parents);
+            if !claim_parent_clause_links_precommitted {
+                self.register_claim_parent_clause_links(lower_record, parents);
+            }
             self.observe_factored_replay_clause_projection(producer, lower_record, parents);
         }
         let mut claims = Vec::new();
@@ -1014,6 +1019,10 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
+        #[cfg(test)]
+        RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(|probes| {
+            probes.set(probes.get().saturating_add(1));
+        });
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
         for parent in parents.iter().copied() {
@@ -1891,6 +1900,7 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
         delta: LowerProjectionDelta,
+        claim_parent_clause_links_precommitted: bool,
     ) {
         let Some(lower_record) = self.lower_record_for_constraint(producer) else {
             return;
@@ -1899,6 +1909,16 @@ impl ConstraintMachine {
             .bounds
             .projection_proofs_by_lower_record
             .contains_key(&lower_record);
+        // A missing lower ledger widens bootstrap from this event delta to every result parent.
+        // Skip its legacy helper only when that widened batch is still exactly the Phase A batch.
+        let claim_parent_clause_links_precommitted = claim_parent_clause_links_precommitted
+            && (ledger_exists
+                || self
+                    .bounds
+                    .claim_parents_by_constraint
+                    .get(&producer)
+                    .map_or(0, Vec::len)
+                    == parents.len());
         let parents = if ledger_exists {
             parents.to_vec()
         } else {
@@ -1913,7 +1933,9 @@ impl ConstraintMachine {
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         self.register_lower_projection_delta(lower_record, &claims, delta);
-        self.register_claim_parent_clause_links(lower_record, &parents);
+        if !claim_parent_clause_links_precommitted {
+            self.register_claim_parent_clause_links(lower_record, &parents);
+        }
         self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
     }
 
@@ -1922,6 +1944,18 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
         carrier: ProjectionProofCarrier,
+    ) {
+        self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
+            producer, parents, carrier, false,
+        );
+    }
+
+    fn register_constraint_projection_carrier_delta_with_precommitted_clause_links(
+        &mut self,
+        producer: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+        carrier: ProjectionProofCarrier,
+        claim_parent_clause_links_precommitted: bool,
     ) {
         #[cfg(test)]
         self.record_cdm_lower_carrier_event(carrier);
@@ -1938,7 +1972,12 @@ impl ConstraintMachine {
         } else {
             LowerProjectionDelta::Carrier(carrier)
         };
-        self.register_existing_constraint_lower_projection_delta(producer, parents, delta);
+        self.register_existing_constraint_lower_projection_delta(
+            producer,
+            parents,
+            delta,
+            claim_parent_clause_links_precommitted,
+        );
     }
 
     pub(in crate::constraints) fn register_constraint_projection_claims_delta(
@@ -1953,6 +1992,7 @@ impl ConstraintMachine {
             producer,
             parents,
             LowerProjectionDelta::ClaimsOnly,
+            false,
         );
     }
 
@@ -2464,6 +2504,7 @@ impl ConstraintMachine {
                     result,
                     derivation: replay,
                 },
+                phase_b_enabled,
             );
         }
         let _summary_delta = summary_delta;
@@ -2612,13 +2653,24 @@ impl ConstraintMachine {
         target_record: Option<BoundRecordId>,
         parents: &[ClaimQualifiedParent],
         lower_carrier: ProjectionProofCarrier,
+        claim_parent_clause_links_precommitted: bool,
     ) {
         if let Some(record) = target_record
             && !parents.is_empty()
         {
-            self.register_constraint_upper_replay_claims_delta(record, result, parents);
+            self.register_constraint_upper_replay_claims_delta(
+                record,
+                result,
+                parents,
+                claim_parent_clause_links_precommitted,
+            );
         }
-        self.register_constraint_projection_carrier_delta(result, parents, lower_carrier);
+        self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
+            result,
+            parents,
+            lower_carrier,
+            claim_parent_clause_links_precommitted,
+        );
     }
 
     /// Recompute every claim-parent consequence already attached to `result`.
@@ -2678,6 +2730,7 @@ impl ConstraintMachine {
             target_record,
             &[parent],
             ProjectionProofCarrier::RowConstraint { result, derivation },
+            false,
         );
     }
 
@@ -5979,12 +6032,18 @@ mod mutation_tests {
         let shadow_journal = shadow.machine.activate_method_role_mutations();
         let legacy_journal = legacy.machine.activate_method_role_mutations();
         let shadow_parent = shadow.parent;
+        RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(|probes| probes.set(0));
         RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| probes.set(0));
         register_factored_parent_snapshot(
             &mut shadow.machine,
             shadow.result,
             first,
             &[shadow_parent],
+        );
+        assert_eq!(
+            RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(std::cell::Cell::get),
+            1,
+            "the factored eager path commits legacy clause links exactly once in Phase A"
         );
         legacy
             .machine
