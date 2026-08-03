@@ -9452,11 +9452,15 @@ mod mutation_tests {
     }
 
     #[rustfmt::skip]
-    mod rcpf_d3b_0b_tests {
+    mod rcpf_d3b_projection_oracle_tests {
         use super::*;
         use crate::compact::CompactRoot;
         use crate::constraints::canonical_projection_key::{self, Key};
+        use crate::constraints::explain::{
+            PortableProvenanceExport, PortableProvenanceExportBudget, PortableProvenanceExportRoot,
+        };
         use crate::generalize::{GeneralizedCompactRoot, capture_generalized_witnesses};
+        use poly::provenance::{PortableByteRange, PortableSourceLocation, ProvenanceCompleteness as PortableCompleteness};
 
         #[derive(Clone, Copy)]
         enum Event { Replay, NonReplay, Independent(usize) }
@@ -9493,10 +9497,12 @@ mod mutation_tests {
                     scheme_instantiation_derivations: Vec::new(), scheme_instantiation_routes: Vec::new(),
                     canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
                 });
+                let root_producer = machine.constraint_records[0].clone();
+                machine.constraint_records.extend([root_producer.clone(), root_producer]);
                 let parent_record = machine.bounds.add_upper(
                     TypeVar(2), upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
                 ).id;
-                let roots = [81_000, 81_001].map(|producer| {
+                let roots = [1, 2].map(|producer| {
                     let registration = machine.bounds.original_upper_replay_claim(
                         parent_record, ConstraintRecordId(producer), UpperReplayClaimKind::Direct,
                     );
@@ -9579,14 +9585,37 @@ mod mutation_tests {
             fn consumer_snapshot(&self) -> ConsumerSnapshot {
                 let qualified = self.machine.scheme_projectable_lowers(self.target)
                     .find(|entry| entry.record == self.lower_record).expect("isolated lower remains projectable").reason;
+                let (drafts, completeness) = self.capture_witnesses();
+                let parents = drafts.iter().flat_map(|draft| &draft.incoming)
+                    .flat_map(|edge| &edge.parents).copied().collect();
+                ConsumerSnapshot { qualified, drafts, parents, completeness }
+            }
+
+            fn capture_witnesses(&self) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
                 let generalized = GeneralizedCompactRoot {
                     compact: CompactRoot::default(), role_predicates: Vec::new(), quantifiers: Vec::new(),
                     stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
                 };
-                let (drafts, completeness) = capture_generalized_witnesses(&self.machine, self.target, &generalized);
-                let parents = drafts.iter().flat_map(|draft| &draft.incoming)
-                    .flat_map(|edge| &edge.parents).copied().collect();
-                ConsumerSnapshot { qualified, drafts, parents, completeness }
+                capture_generalized_witnesses(&self.machine, self.target, &generalized)
+            }
+
+            fn portable_consumer_snapshot(&mut self) -> PortableConsumerSnapshot {
+                let (drafts, completeness) = self.capture_witnesses();
+                let scheme = self.machine.alloc_generalized_scheme_record(poly::expr::DefId(0), 0, drafts, completeness);
+                let witnesses = self.machine.generalized_scheme_record(scheme).expect("oracle scheme").witnesses.clone();
+                let roots = witnesses.iter().copied().map(PortableProvenanceExportRoot::GeneralizedWitness).collect::<Vec<_>>();
+                let export = self.machine.export_portable_provenance(
+                    &roots, PortableProvenanceExportBudget::default(), |boundary, _| Some(PortableSourceLocation {
+                        module: vec!["rcpf".to_string()],
+                        range: PortableByteRange { start: boundary.0 * 2, end: boundary.0 * 2 + 1 },
+                    }),
+                ).expect("full-budget portable export");
+                let anchors = export.root_anchors.iter().copied().collect::<Option<Vec<_>>>()
+                    .expect("every generalized witness retains an anchor");
+                let explanation = explain_portable_subtype(
+                    &export.snapshot, &anchors, &anchors, PortableExplanationBudget::default(),
+                );
+                PortableConsumerSnapshot { export, explanation }
             }
         }
 
@@ -9596,6 +9625,12 @@ mod mutation_tests {
             drafts: Vec<GeneralizedWitnessDraft>,
             parents: Vec<GeneralizationParent>,
             completeness: ProvenanceCompleteness,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct PortableConsumerSnapshot {
+            export: PortableProvenanceExport,
+            explanation: DiagnosticSubtypeExplanation,
         }
 
         fn qualified_parents(reason: &SchemeProjectableLowerReason, bound: BoundRecordId) -> Vec<GeneralizationParent> {
@@ -9729,6 +9764,29 @@ mod mutation_tests {
                 assert_eq!(prefix, parents[..256]);
                 let capped = (draft.incoming.clone(), prefix, draft.completeness, snapshot.completeness);
                 assert_eq!(capped, *expected.get_or_insert_with(|| capped.clone()));
+            }
+        }
+
+        #[test]
+        fn canonical_portable_export_and_explanation_sequences_are_invariant_across_all_permutations() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let mut expected = None;
+            for order in permutations() {
+                let mut fixture = Fixture::new();
+                for index in order { fixture.admit(events[index]); }
+                fixture.canonicalize_shadow_ledgers();
+                let snapshot = fixture.portable_consumer_snapshot();
+                assert_eq!(snapshot.export.root_anchors.len(), 2);
+                assert_eq!(snapshot.export.snapshot.completeness(), PortableCompleteness::Complete);
+                assert_eq!(snapshot.export.snapshot.truncation(), None);
+                assert!(!snapshot.export.snapshot.nodes().is_empty());
+                assert!(!snapshot.export.snapshot.edges().is_empty());
+                assert_eq!(snapshot.export.snapshot.source_sites().len(), 2);
+                assert_eq!(snapshot.explanation.lower_sites.len(), 2);
+                assert_eq!(snapshot.explanation.upper_sites, snapshot.explanation.lower_sites);
+                assert_eq!(snapshot.explanation.completeness, DiagnosticExplanationCompleteness::Complete);
+                assert_eq!(snapshot.explanation.truncation, None);
+                assert_eq!(snapshot, *expected.get_or_insert_with(|| snapshot.clone()));
             }
         }
     }
