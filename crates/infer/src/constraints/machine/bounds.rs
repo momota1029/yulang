@@ -122,6 +122,13 @@ struct LowerProjectionAdapterSnapshot {
     proof_keys: Vec<CanonicalProjectionKey>,
 }
 
+#[cfg(any(test, debug_assertions))]
+#[derive(Debug, Default, PartialEq, Eq)]
+struct LowerProjectionLogicalSnapshot {
+    support_map: FxHashSet<SchemeProjectionProofSupport>,
+    canonical: LowerProjectionAdapterSnapshot,
+}
+
 impl ReplayAdmissionPublicationFence {
     fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ReplayFactoredResult<()> {
         self.intents
@@ -1662,6 +1669,130 @@ impl ConstraintMachine {
             CanonicalProjectionKey::Independent(_) => true,
         });
         Ok(snapshot)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_lower_projection_logical_snapshot(
+        support_map: FxHashSet<SchemeProjectionProofSupport>,
+    ) -> ReplayFactoredResult<LowerProjectionLogicalSnapshot> {
+        let mut canonical = LowerProjectionAdapterSnapshot::default();
+        canonical
+            .claimed_roots
+            .try_reserve(support_map.len())
+            .and_then(|_| canonical.proof_keys.try_reserve(support_map.len()))
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for support in support_map.iter().copied() {
+            match support {
+                SchemeProjectionProofSupport::Claimed(root) => {
+                    canonical.claimed_roots.push(root);
+                    canonical
+                        .proof_keys
+                        .push(CanonicalProjectionKey::Claimed(root));
+                }
+                SchemeProjectionProofSupport::Independent(carrier) => canonical
+                    .proof_keys
+                    .push(CanonicalProjectionKey::Independent(carrier)),
+            }
+        }
+        canonical.claimed_roots.sort_by(|left, right| {
+            canonical_projection_key::cmp(
+                &CanonicalProjectionKey::Claimed(*left),
+                &CanonicalProjectionKey::Claimed(*right),
+            )
+        });
+        canonical.proof_keys.sort_by(canonical_projection_key::cmp);
+        Ok(LowerProjectionLogicalSnapshot {
+            support_map,
+            canonical,
+        })
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3b-2b wires the record-wide oracle")]
+    fn try_factored_record_lower_projection(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> ReplayFactoredResult<LowerProjectionLogicalSnapshot> {
+        let record =
+            self.bounds
+                .record(lower_record)
+                .ok_or(ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage,
+                ))?;
+        let links = self
+            .bounds
+            .record_proof_clause_links_by_lower_record
+            .get(&lower_record)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut support_map = FxHashSet::default();
+        support_map
+            .try_reserve(record.derivations().len().saturating_add(links.len()))
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+
+        for derivation in record.derivations() {
+            let BoundDerivation::Constraint(producer) = derivation else {
+                continue;
+            };
+            if let Some(claim) = self
+                .bounds
+                .root_claim_by_producer_constraint
+                .get(producer)
+                .copied()
+            {
+                support_map
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                support_map.insert(SchemeProjectionProofSupport::Claimed(
+                    self.try_lower_projection_root(claim)?,
+                ));
+            }
+            for root in self
+                .try_factored_lower_projection_full(*producer, [])?
+                .claimed_roots
+            {
+                support_map
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                support_map.insert(SchemeProjectionProofSupport::Claimed(root));
+            }
+        }
+        for link in links {
+            if let SchemeProjectionProofSupport::Independent(carrier) = link.support {
+                support_map
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                support_map.insert(SchemeProjectionProofSupport::Independent(carrier));
+            }
+        }
+        Self::try_lower_projection_logical_snapshot(support_map)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3b-2b wires the record-wide oracle")]
+    fn try_legacy_record_lower_projection(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> ReplayFactoredResult<LowerProjectionLogicalSnapshot> {
+        let canonical = self.try_legacy_lower_projection(lower_record)?;
+        let mut support_map = FxHashSet::default();
+        support_map
+            .try_reserve(canonical.proof_keys.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for key in canonical.proof_keys.iter().copied() {
+            support_map.insert(match key {
+                CanonicalProjectionKey::Claimed(root) => {
+                    SchemeProjectionProofSupport::Claimed(root)
+                }
+                CanonicalProjectionKey::Independent(carrier) => {
+                    SchemeProjectionProofSupport::Independent(carrier)
+                }
+            });
+        }
+        Ok(LowerProjectionLogicalSnapshot {
+            support_map,
+            canonical,
+        })
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -10471,6 +10602,45 @@ mod mutation_tests {
             assert_eq!(fixture.machine.replay_factored_shadow_status.get(),
                 ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::OracleMismatch(
                     ReplayFactoredOracleMismatch::DerivedReplayLineage)));
+        }
+
+        #[test]
+        fn factored_record_lower_projection_includes_direct_and_qualified_roots() {
+            let mut fixture = cdm_replay_claim_fixture();
+            let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+            assert_eq!(fixture.machine.merge_replay_derivation(fixture.result, replay),
+                ReplayDerivationInsert::Inserted);
+            register_factored_parent_snapshot(
+                &mut fixture.machine, fixture.result, replay, &[fixture.parent],
+            );
+            let direct_root = fixture.machine.bounds.root_claim_by_producer_constraint[&fixture.result];
+            let legacy = fixture.machine.try_legacy_record_lower_projection(fixture.lower_record).unwrap();
+            let factored = fixture.machine.try_factored_record_lower_projection(fixture.lower_record).unwrap();
+            assert_eq!(factored, legacy);
+            assert_eq!(factored.support_map, [
+                SchemeProjectionProofSupport::Claimed(direct_root),
+                SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
+            ].into_iter().collect());
+            let mut expected_keys = vec![Key::Claimed(direct_root), Key::Claimed(fixture.coverage_root)];
+            expected_keys.sort_by(canonical_projection_key::cmp);
+            assert_eq!(factored.canonical.proof_keys, expected_keys);
+        }
+
+        #[test]
+        fn factored_record_lower_projection_preserves_independent_supports() {
+            let mut fixture = Fixture::new();
+            fixture.admit(Event::Independent(0));
+            fixture.admit_factored_replay(true);
+            let claimed = SchemeProjectionProofSupport::Claimed(fixture.roots[0]);
+            let independent = SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Origin(fixture.origins[0]),
+            );
+            let legacy = fixture.machine.try_legacy_record_lower_projection(fixture.lower_record).unwrap();
+            let factored = fixture.machine.try_factored_record_lower_projection(fixture.lower_record).unwrap();
+            assert_eq!(factored, legacy);
+            assert_eq!(factored.support_map, [claimed, independent].into_iter().collect());
+            assert_eq!(factored.canonical.proof_keys,
+                vec![fixture.key(claimed), fixture.key(independent)]);
         }
     }
 
