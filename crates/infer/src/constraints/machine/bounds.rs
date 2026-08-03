@@ -2,6 +2,8 @@ use super::*;
 
 use std::hash::{Hash, Hasher};
 
+#[cfg(any(test, debug_assertions))]
+use crate::constraints::canonical_projection_key::{self, Key as CanonicalProjectionKey};
 #[cfg(test)]
 use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
 #[cfg(any(test, debug_assertions))]
@@ -112,6 +114,13 @@ struct ReplayAdmissionPublicationFence {
 #[cfg(any(test, debug_assertions))]
 type UpperMaterializationLineages =
     FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
+
+#[cfg(any(test, debug_assertions))]
+#[derive(Debug, Default, PartialEq, Eq)]
+struct LowerProjectionAdapterSnapshot {
+    claimed_roots: Vec<UpperReplayClaimId>,
+    proof_keys: Vec<CanonicalProjectionKey>,
+}
 
 impl ReplayAdmissionPublicationFence {
     fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ReplayFactoredResult<()> {
@@ -1402,6 +1411,162 @@ impl ConstraintMachine {
                 ReplayFactoredOracleMismatch::DerivedReplayLineage,
             ));
         }
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_lower_projection_root(
+        &self,
+        claim: UpperReplayClaimId,
+    ) -> ReplayFactoredResult<UpperReplayClaimId> {
+        self.bounds
+            .canonical_coverage_root(claim)
+            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_factored_lower_projection(
+        &self,
+        producer: ConstraintRecordId,
+        witnesses: impl IntoIterator<
+            Item = ReplayFactoredResult<(UpperReplayClaimId, FirstReplayParentWitness)>,
+        >,
+        include_non_replay: bool,
+        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let mut roots = FxHashSet::default();
+        let mut replay_roots = FxHashSet::default();
+        for witness in witnesses {
+            let (root, witness) = witness?;
+            let occurrence = self.replay_occurrence(witness.occurrence)?;
+            if occurrence.result != producer {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+            }
+            let actual_root = self.try_lower_projection_root(witness.parent_claim)?;
+            if actual_root != root {
+                return Err(
+                    ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
+                        claim: witness.parent_claim,
+                        root,
+                    },
+                );
+            }
+            roots
+                .try_reserve(1)
+                .and_then(|_| replay_roots.try_reserve(1))
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            roots.insert(root);
+            if !replay_roots.insert(root) {
+                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+            }
+        }
+        if include_non_replay {
+            for parent in self.non_replay_claim_parents_for_result(producer) {
+                let claim = parent.parent_claim();
+                let root = self.try_lower_projection_root(claim)?;
+                roots
+                    .try_reserve(1)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                roots.insert(root);
+            }
+        }
+
+        let mut claimed_roots = Vec::new();
+        claimed_roots
+            .try_reserve(roots.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for root in roots {
+            match self
+                .replay_result_summary
+                .first_qualified_parent_source(producer, root)?
+                .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
+            {
+                FirstQualifiedParentSource::Replay if !replay_roots.contains(&root) => {
+                    return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
+                }
+                FirstQualifiedParentSource::Replay => {}
+                FirstQualifiedParentSource::NonReplay(parent) => {
+                    let claim = parent.parent_claim();
+                    let actual_root = self.try_lower_projection_root(claim)?;
+                    if actual_root != root {
+                        return Err(
+                            ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
+                                claim,
+                                root,
+                            },
+                        );
+                    }
+                }
+            }
+            claimed_roots.push(root);
+        }
+        claimed_roots.sort_by(|left, right| {
+            canonical_projection_key::cmp(
+                &CanonicalProjectionKey::Claimed(*left),
+                &CanonicalProjectionKey::Claimed(*right),
+            )
+        });
+
+        let mut proof_keys = Vec::new();
+        proof_keys
+            .try_reserve(claimed_roots.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        proof_keys.extend(
+            claimed_roots
+                .iter()
+                .copied()
+                .map(CanonicalProjectionKey::Claimed),
+        );
+        for carrier in independent_supports {
+            proof_keys
+                .try_reserve(1)
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            proof_keys.push(CanonicalProjectionKey::Independent(carrier));
+        }
+        proof_keys.sort_by(canonical_projection_key::cmp);
+        proof_keys.dedup();
+        Ok(LowerProjectionAdapterSnapshot {
+            claimed_roots,
+            proof_keys,
+        })
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3b-1b wires the lower full oracle")]
+    fn try_factored_lower_projection_full(
+        &self,
+        producer: ConstraintRecordId,
+        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        let witnesses = self
+            .replay_result_summary
+            .roots_for_result(producer)
+            .map(|root| {
+                self.replay_result_summary
+                    .first_parent_witness(producer, root)
+                    .and_then(|witness| {
+                        witness
+                            .copied()
+                            .map(|witness| (root, witness))
+                            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)
+                    })
+            });
+        self.try_factored_lower_projection(producer, witnesses, true, independent_supports)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3b-2 wires the lower delta oracle")]
+    fn try_factored_lower_projection_delta(
+        &self,
+        producer: ConstraintRecordId,
+        delta: &ReplayResultSummaryDelta,
+        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
+    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
+        self.try_factored_lower_projection(
+            producer,
+            delta.entries.iter().copied().map(Ok),
+            false,
+            independent_supports,
+        )
     }
 
     fn register_claim_parent_clause_links(
@@ -5446,6 +5611,12 @@ mod mutation_tests {
     #[test]
     fn rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage() {
         let mut fixture = cdm_replay_claim_fixture();
+        assert_eq!(
+            fixture
+                .machine
+                .try_factored_lower_projection_full(fixture.result, []),
+            Ok(LowerProjectionAdapterSnapshot::default())
+        );
         assert!(
             fixture
                 .machine
@@ -5715,6 +5886,22 @@ mod mutation_tests {
                 .machine
                 .try_factored_upper_materialization_full(fixture.upper_record, result);
             assert_eq!(legacy, factored);
+            assert_eq!(
+                fixture
+                    .machine
+                    .try_factored_lower_projection_full(
+                        result,
+                        [ProjectionProofCarrier::Incomplete]
+                    )
+                    .expect("cross-kind lower adapter"),
+                LowerProjectionAdapterSnapshot {
+                    claimed_roots: vec![root],
+                    proof_keys: vec![
+                        CanonicalProjectionKey::Claimed(root),
+                        CanonicalProjectionKey::Independent(ProjectionProofCarrier::Incomplete)
+                    ],
+                }
+            );
         }
     }
 
@@ -6796,6 +6983,14 @@ mod mutation_tests {
                 .expect("the late-root summary is readable")
                 .contains_key(&(fixture.upper_record, late_root))
         );
+        assert_eq!(
+            fixture
+                .machine
+                .try_factored_lower_projection_full(fixture.result, [])
+                .expect("late-root lower adapter")
+                .claimed_roots,
+            vec![root, late_root]
+        );
 
         let alternate_claim = add_derived_replay_parent_claim(
             &mut fixture.machine,
@@ -6970,6 +7165,11 @@ mod mutation_tests {
                 UpperReplayClaimLineage::ReplayConstraint { parent_claim, .. }
                     if parent_claim == ordered_claims[0]
             ));
+            let lower = fixture
+                .machine
+                .try_factored_lower_projection_full(fixture.result, [])
+                .expect("same-root lower adapter");
+            assert_eq!(lower.claimed_roots, vec![root]);
         }
     }
 
