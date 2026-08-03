@@ -9479,6 +9479,7 @@ mod mutation_tests {
             row: RowDerivationId,
             roots: [UpperReplayClaimId; 2],
             origins: Vec<OriginId>,
+            boundaries: Vec<SourceBoundaryId>,
         }
 
         impl Fixture {
@@ -9517,17 +9518,30 @@ mod mutation_tests {
                 ).id;
                 assert!(!machine.bounds.scheme_projection_claims_by_lower_record.contains_key(&lower_record));
                 assert!(!machine.bounds.projection_proofs_by_lower_record.contains_key(&lower_record));
-                let origins = (0..independent_count).map(|index| machine.alloc_source_boundary(
+                let source_origins = (0..independent_count).map(|index| machine.alloc_source_boundary(
                     if index % 2 == 0 { ConstraintOriginKind::Field } else { ConstraintOriginKind::Return },
-                ).origin()).collect();
+                )).collect::<Vec<_>>();
+                let origins = source_origins.iter().map(|source| source.origin()).collect();
+                let boundaries = source_origins.iter().map(|source| source.boundary()).collect();
                 Self {
                     machine, result, lower_record, source, target, upper,
                     replay: BinaryReplayDerivation {
                         pivot: target, lower: lower_record, upper: parent_record,
                         rule: ReplayRule::LowerBoundAdded,
                     },
-                    row: RowDerivationId(0), roots, origins,
+                    row: RowDerivationId(0), roots, origins, boundaries,
                 }
+            }
+
+            fn add_claimed_source_origins(
+                &mut self,
+                kinds: [ConstraintOriginKind; 2],
+            ) -> [SourceBoundaryId; 2] {
+                let sources = kinds.map(|kind| self.machine.alloc_source_boundary(kind));
+                for (producer, source) in [1_usize, 2].into_iter().zip(sources) {
+                    self.machine.constraint_records[producer].root_origins.push(source.origin());
+                }
+                sources.map(|source| source.boundary())
             }
 
             fn admit(&mut self, event: Event) {
@@ -9614,11 +9628,22 @@ mod mutation_tests {
                 roots: &[PortableProvenanceExportRoot],
                 budget: PortableProvenanceExportBudget,
             ) -> PortableConsumerSnapshot {
-                let export = self.machine.export_portable_provenance(
-                    roots, budget, |boundary, _| Some(PortableSourceLocation {
+                self.portable_consumer_snapshot_with_location(roots, budget, |boundary, _| {
+                    Some(PortableSourceLocation {
                         module: vec!["rcpf".to_string()],
                         range: PortableByteRange { start: boundary.0 * 2, end: boundary.0 * 2 + 1 },
-                    }),
+                    })
+                })
+            }
+
+            fn portable_consumer_snapshot_with_location(
+                &self,
+                roots: &[PortableProvenanceExportRoot],
+                budget: PortableProvenanceExportBudget,
+                source_location: impl FnMut(SourceBoundaryId, ConstraintOriginKind) -> Option<PortableSourceLocation>,
+            ) -> PortableConsumerSnapshot {
+                let export = self.machine.export_portable_provenance(
+                    roots, budget, source_location,
                 ).expect("full-budget portable export");
                 let anchors = export.root_anchors.iter().flatten().copied().collect::<Vec<_>>();
                 assert!(!anchors.is_empty(), "portable oracle must retain at least one root anchor");
@@ -9832,6 +9857,58 @@ mod mutation_tests {
                 assert_eq!(snapshot.explanation.completeness, DiagnosticExplanationCompleteness::Complete);
                 assert_eq!(snapshot.explanation.truncation, None);
                 assert_eq!(snapshot, *expected.get_or_insert_with(|| snapshot.clone()));
+            }
+        }
+
+        #[test]
+        fn canonical_diagnostic_roles_remain_ordered_when_distinct_causes_share_a_location() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let mut expected = None;
+            for order in permutations() {
+                let mut fixture = Fixture::new();
+                let claimed_boundaries = fixture.add_claimed_source_origins([
+                    ConstraintOriginKind::Annotation, ConstraintOriginKind::Pattern,
+                ]);
+                let independent_boundaries = [fixture.boundaries[0], fixture.boundaries[1]];
+                for index in order { fixture.admit(events[index]); }
+                fixture.canonicalize_shadow_ledgers();
+                let roots = fixture.record_witness_roots();
+                let snapshot = fixture.portable_consumer_snapshot_with_location(
+                    &roots, PortableProvenanceExportBudget::default(), move |boundary, _| {
+                        let start = if boundary == claimed_boundaries[0]
+                            || boundary == independent_boundaries[0] { 10 }
+                        else if boundary == claimed_boundaries[1] { 20 }
+                        else if boundary == independent_boundaries[1] { 30 }
+                        else { 100 + boundary.0 * 2 };
+                        Some(PortableSourceLocation {
+                            module: vec!["rcpf-duplicate".to_string()],
+                            range: PortableByteRange { start, end: start + 1 },
+                        })
+                    },
+                );
+                let source_sites = snapshot.export.snapshot.source_sites();
+                assert_eq!(source_sites.len(), 4);
+                assert_eq!(source_sites[0].location.as_ref(), source_sites[2].location.as_ref());
+                assert_ne!(source_sites[0].role, source_sites[2].role);
+                assert_ne!(source_sites[1].location.as_ref(), source_sites[0].location.as_ref());
+                assert_ne!(source_sites[3].location.as_ref(), source_sites[0].location.as_ref());
+                let explanation = snapshot.explanation;
+                assert_eq!(explanation.completeness, DiagnosticExplanationCompleteness::Complete);
+                assert_eq!(explanation.truncation, None);
+                assert_eq!(explanation.lower_sites.iter().map(|cause| cause.role).collect::<Vec<_>>(), vec![
+                    DiagnosticTypeCauseRole::RequiredByAnnotation,
+                    DiagnosticTypeCauseRole::RequiredByPattern,
+                    DiagnosticTypeCauseRole::InferredFromExpression,
+                    DiagnosticTypeCauseRole::InferredFromExpression,
+                ]);
+                assert_eq!(explanation.upper_sites, explanation.lower_sites);
+                let causes = &explanation.lower_sites;
+                assert_eq!(causes[0].source_span, causes[2].source_span, "cross-category causes share one location");
+                assert_ne!(causes[0].role, causes[2].role, "shared-location causes retain distinct roles");
+                assert_ne!(causes[1].source_span, causes[0].source_span, "second claim remains distinct");
+                assert_ne!(causes[3].source_span, causes[0].source_span, "second independent remains distinct");
+                assert_ne!(causes[1].source_span, causes[3].source_span, "unpaired causes remain distinct");
+                assert_eq!(explanation, *expected.get_or_insert_with(|| explanation.clone()));
             }
         }
 
