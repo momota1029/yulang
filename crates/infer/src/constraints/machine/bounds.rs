@@ -9678,6 +9678,20 @@ mod mutation_tests {
             ]
         }
 
+        fn explanation_budget_ladder() -> Vec<(
+            &'static str, PortableExplanationBudget, DiagnosticExplanationTruncationReason,
+        )> {
+            let full = PortableExplanationBudget::default();
+            vec![
+                ("query nodes", PortableExplanationBudget { max_nodes: 4, ..full },
+                    DiagnosticExplanationTruncationReason::NodeBudget { limit: 4 }),
+                ("query edges", PortableExplanationBudget { max_edges: 3, ..full },
+                    DiagnosticExplanationTruncationReason::EdgeBudget { limit: 3 }),
+                ("query depth", PortableExplanationBudget { max_depth: 0, ..full },
+                    DiagnosticExplanationTruncationReason::DepthBudget { limit: 0 }),
+            ]
+        }
+
         fn permutations() -> Vec<[usize; 4]> {
             let mut result = Vec::new();
             for a in 0..4 { for b in 0..4 { for c in 0..4 { for d in 0..4 {
@@ -9862,6 +9876,43 @@ mod mutation_tests {
                 }
                 assert_eq!(full, *expected_full.get_or_insert_with(|| full.clone()));
                 assert_eq!(tight_snapshots, *expected_tight.get_or_insert_with(|| tight_snapshots.clone()));
+            }
+        }
+
+        #[test]
+        fn canonical_portable_query_budget_causes_are_invariant_full_result_prefixes() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let mut expected_full = None;
+            let mut expected_tight = None;
+            for order in permutations() {
+                let mut fixture = Fixture::new();
+                for index in order { fixture.admit(events[index]); }
+                fixture.canonicalize_shadow_ledgers();
+                let roots = fixture.record_witness_roots();
+                let full = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
+                assert_eq!(full.export.snapshot.completeness(), PortableCompleteness::Complete);
+                assert_eq!(full.explanation.lower_sites.len(), 2);
+                assert_eq!(full.explanation.upper_sites.len(), 2);
+                let anchors = full.export.root_anchors.iter().flatten().copied().collect::<Vec<_>>();
+                let mut tight_results = Vec::new();
+                let mut retained_nonempty_prefix = false;
+                for (name, budget, truncation) in explanation_budget_ladder() {
+                    let tight = explain_portable_subtype(&full.export.snapshot, &anchors, &anchors, budget);
+                    assert_eq!(tight.completeness, DiagnosticExplanationCompleteness::TruncatedByBudget, "{name}");
+                    assert_eq!(tight.truncation, Some(truncation), "{name}");
+                    assert!(tight.lower_sites.len() < full.explanation.lower_sites.len(), "{name}: lower causes truncate");
+                    assert!(tight.upper_sites.len() < full.explanation.upper_sites.len(), "{name}: upper causes truncate");
+                    assert_eq!(tight.lower_sites,
+                        full.explanation.lower_sites[..tight.lower_sites.len()], "{name}: lower cause prefix");
+                    assert_eq!(tight.upper_sites,
+                        full.explanation.upper_sites[..tight.upper_sites.len()], "{name}: upper cause prefix");
+                    assert_eq!(tight.upper_sites, tight.lower_sites, "{name}: endpoint symmetry");
+                    retained_nonempty_prefix |= !tight.lower_sites.is_empty();
+                    tight_results.push(tight);
+                }
+                assert!(retained_nonempty_prefix, "node or edge budget retains a genuine non-empty cause prefix");
+                assert_eq!(full, *expected_full.get_or_insert_with(|| full.clone()));
+                assert_eq!(tight_results, *expected_tight.get_or_insert_with(|| tight_results.clone()));
             }
         }
     }
