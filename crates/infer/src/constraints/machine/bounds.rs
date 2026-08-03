@@ -937,13 +937,13 @@ impl ConstraintMachine {
         record: BoundRecordId,
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
-        claim_parent_clause_links_precommitted: bool,
+        replay_clause_work_precommitted: bool,
     ) -> Vec<UpperReplayClaimId> {
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            if !claim_parent_clause_links_precommitted {
+            if !replay_clause_work_precommitted {
                 self.register_claim_parent_clause_links(lower_record, parents);
+                self.observe_factored_replay_clause_projection(producer, lower_record, parents);
             }
-            self.observe_factored_replay_clause_projection(producer, lower_record, parents);
         }
         let mut claims = Vec::new();
         for parent in parents.iter().copied() {
@@ -1900,7 +1900,7 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
         delta: LowerProjectionDelta,
-        claim_parent_clause_links_precommitted: bool,
+        replay_clause_work_precommitted: bool,
     ) {
         let Some(lower_record) = self.lower_record_for_constraint(producer) else {
             return;
@@ -1909,16 +1909,6 @@ impl ConstraintMachine {
             .bounds
             .projection_proofs_by_lower_record
             .contains_key(&lower_record);
-        // A missing lower ledger widens bootstrap from this event delta to every result parent.
-        // Skip its legacy helper only when that widened batch is still exactly the Phase A batch.
-        let claim_parent_clause_links_precommitted = claim_parent_clause_links_precommitted
-            && (ledger_exists
-                || self
-                    .bounds
-                    .claim_parents_by_constraint
-                    .get(&producer)
-                    .map_or(0, Vec::len)
-                    == parents.len());
         let parents = if ledger_exists {
             parents.to_vec()
         } else {
@@ -1933,10 +1923,10 @@ impl ConstraintMachine {
             .map(|parent| parent.parent_claim())
             .collect::<Vec<_>>();
         self.register_lower_projection_delta(lower_record, &claims, delta);
-        if !claim_parent_clause_links_precommitted {
+        if !replay_clause_work_precommitted {
             self.register_claim_parent_clause_links(lower_record, &parents);
+            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
         }
-        self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
     }
 
     pub(in crate::constraints) fn register_constraint_projection_carrier_delta(
@@ -1955,7 +1945,7 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
         carrier: ProjectionProofCarrier,
-        claim_parent_clause_links_precommitted: bool,
+        replay_clause_work_precommitted: bool,
     ) {
         #[cfg(test)]
         self.record_cdm_lower_carrier_event(carrier);
@@ -1976,7 +1966,7 @@ impl ConstraintMachine {
             producer,
             parents,
             delta,
-            claim_parent_clause_links_precommitted,
+            replay_clause_work_precommitted,
         );
     }
 
@@ -2475,11 +2465,32 @@ impl ConstraintMachine {
             self.publish_claim_qualified_parent_admission(snapshot);
             inserted_parents.push(parent);
         }
+        let bootstrap_clause_projection_parents = if phase_b_enabled
+            && materialize_existing_target
+            && let Some(lower_record) = self.lower_record_for_constraint(result)
+            && !self
+                .bounds
+                .projection_proofs_by_lower_record
+                .contains_key(&lower_record)
+        {
+            Some(
+                self.bounds
+                    .claim_parents_by_constraint
+                    .get(&result)
+                    .cloned()
+                    .unwrap_or_default(),
+            )
+        } else {
+            None
+        };
+        let clause_projection_parents = bootstrap_clause_projection_parents
+            .as_deref()
+            .unwrap_or(&inserted_parents);
         if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
         {
-            self.register_claim_parent_clause_links(lower_record, &inserted_parents);
+            self.register_claim_parent_clause_links(lower_record, clause_projection_parents);
         }
         let summary_delta = factored_drafts.map(|factored_drafts| {
             self.observe_factored_replay_parent_admission(
@@ -2487,6 +2498,7 @@ impl ConstraintMachine {
                 replay,
                 parents,
                 &inserted_parents,
+                clause_projection_parents,
                 factored_drafts,
             )
         });
@@ -2522,6 +2534,7 @@ impl ConstraintMachine {
         replay: BinaryReplayDerivation,
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
+        clause_projection_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) -> ReplayResultSummaryDelta {
         if !self.replay_factored_writes_enabled() {
@@ -2534,7 +2547,19 @@ impl ConstraintMachine {
             inserted_parents,
             drafts,
         ) {
-            Ok(delta) => delta,
+            Ok(delta) => {
+                if let Some(lower_record) = self.lower_record_for_constraint(result)
+                    && let Err(failure) = self.try_project_factored_replay_clause_parents(
+                        result,
+                        lower_record,
+                        clause_projection_parents,
+                    )
+                {
+                    self.mark_replay_factored_failure(failure);
+                    return ReplayResultSummaryDelta::default();
+                }
+                delta
+            }
             Err(failure) => {
                 self.mark_replay_factored_failure(failure);
                 ReplayResultSummaryDelta::default()
@@ -2637,13 +2662,6 @@ impl ConstraintMachine {
             ],
             &self.bounds,
         )?;
-        if let Some(lower_record) = self.lower_record_for_constraint(result) {
-            self.try_project_factored_replay_clause_parents(
-                result,
-                lower_record,
-                inserted_parents,
-            )?;
-        }
         Ok(summary_delta)
     }
 
@@ -2653,7 +2671,7 @@ impl ConstraintMachine {
         target_record: Option<BoundRecordId>,
         parents: &[ClaimQualifiedParent],
         lower_carrier: ProjectionProofCarrier,
-        claim_parent_clause_links_precommitted: bool,
+        replay_clause_work_precommitted: bool,
     ) {
         if let Some(record) = target_record
             && !parents.is_empty()
@@ -2662,14 +2680,14 @@ impl ConstraintMachine {
                 record,
                 result,
                 parents,
-                claim_parent_clause_links_precommitted,
+                replay_clause_work_precommitted,
             );
         }
         self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
             result,
             parents,
             lower_carrier,
-            claim_parent_clause_links_precommitted,
+            replay_clause_work_precommitted,
         );
     }
 
@@ -5366,6 +5384,51 @@ mod mutation_tests {
                 .bounds
                 .derived_claim_by_record_and_root
                 .contains_key(&(fixture.upper_record, fixture.coverage_root))
+        );
+        assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
+    }
+
+    #[test]
+    fn rcpf_d2c_2a_clause_projection_failure_stops_before_materialization() {
+        let mut fixture = cdm_replay_claim_fixture();
+        fixture.machine.enable_replay_factored_event_oracle();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.set(true));
+        RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| probes.set(0));
+        let parent = fixture.parent;
+
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        let support = SchemeProjectionProofSupport::Claimed(fixture.coverage_root);
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .record_proof_clause_link_is_registered(fixture.lower_record, support, clause),
+            "Phase A legacy clause-link mutation remains unconditional"
+        );
+        assert!(
+            !fixture
+                .machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(fixture.upper_record, fixture.coverage_root)),
+            "Phase B clause-projection failure must stop before upper materialization"
         );
         assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
     }
