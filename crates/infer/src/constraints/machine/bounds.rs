@@ -29,6 +29,8 @@ std::thread_local! {
         const { std::cell::Cell::new(None) };
     static RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
+    static RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -111,6 +113,10 @@ struct ReplayAdmissionPublicationFence {
 
 type UpperMaterializationLineages =
     FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
+type ClaimParentPhaseBPlan = (
+    Option<UpperMaterializationLineages>,
+    Option<LowerProjectionAdapterSnapshot>,
+);
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct LowerProjectionAdapterSnapshot {
@@ -1692,6 +1698,94 @@ impl ConstraintMachine {
                 independent_supports.iter().copied(),
             ),
         }
+    }
+
+    fn try_d4_pre_consumer_query(&self) -> ReplayFactoredResult<()> {
+        #[cfg(test)]
+        if RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY.with(|fail| fail.replace(false)) {
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
+        Ok(())
+    }
+
+    fn try_authoritative_claim_parent_full_plan(
+        &self,
+        producer: ConstraintRecordId,
+        target_record: Option<BoundRecordId>,
+        legacy_parents: &[ClaimQualifiedParent],
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
+        self.try_d4_pre_consumer_query()?;
+        let upper = target_record
+            .map(|record| self.try_authoritative_upper_materialization_full(record, producer))
+            .transpose()?;
+        let lower = self
+            .lower_record_for_constraint(producer)
+            .map(|_| {
+                self.try_authoritative_lower_projection_full(
+                    producer,
+                    legacy_parents,
+                    independent_supports,
+                )
+            })
+            .transpose()?;
+        Ok((upper, lower))
+    }
+
+    fn try_authoritative_replay_delta_plan(
+        &self,
+        producer: ConstraintRecordId,
+        target_record: Option<BoundRecordId>,
+        legacy_parents: &[ClaimQualifiedParent],
+        delta: &ReplayResultSummaryDelta,
+        carrier: ProjectionProofCarrier,
+    ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
+        self.try_d4_pre_consumer_query()?;
+        let upper = target_record
+            .filter(|_| !legacy_parents.is_empty())
+            .map(|record| {
+                self.try_authoritative_upper_materialization_replay_delta(
+                    record,
+                    producer,
+                    legacy_parents,
+                    delta,
+                )
+            })
+            .transpose()?;
+        let lower = if let Some(lower_record) = self.lower_record_for_constraint(producer) {
+            let independent_supports = self
+                .projection_carrier_is_independent(lower_record, carrier)
+                .then_some(carrier)
+                .into_iter()
+                .collect::<Vec<_>>();
+            if self
+                .bounds
+                .projection_proofs_by_lower_record
+                .contains_key(&lower_record)
+            {
+                Some(self.try_authoritative_lower_projection_replay_delta(
+                    producer,
+                    legacy_parents,
+                    delta,
+                    &independent_supports,
+                )?)
+            } else {
+                let all_parents = self
+                    .bounds
+                    .claim_parents_by_constraint
+                    .get(&producer)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                Some(self.try_authoritative_lower_projection_full(
+                    producer,
+                    all_parents,
+                    &independent_supports,
+                )?)
+            }
+        } else {
+            None
+        };
+        Ok((upper, lower))
     }
 
     #[cfg(any(test, debug_assertions))]
@@ -3879,6 +3973,23 @@ impl ConstraintMachine {
                 factored_drafts,
             )
         });
+        if phase_b_enabled
+            && materialize_existing_target
+            && self.replay_factored_terminal_failure().is_none()
+            && let Some(delta) = summary_delta.as_ref()
+            && let Err(failure) = self.try_authoritative_replay_delta_plan(
+                result,
+                target_record,
+                &inserted_parents,
+                delta,
+                ProjectionProofCarrier::ReplayConstraint {
+                    result,
+                    derivation: replay,
+                },
+            )
+        {
+            self.mark_replay_factored_failure(failure);
+        }
         if factored_admission && self.replay_factored_terminal_failure().is_some() {
             return;
         }
