@@ -129,6 +129,14 @@ struct LowerProjectionLogicalSnapshot {
     canonical: LowerProjectionAdapterSnapshot,
 }
 
+#[cfg(any(test, debug_assertions))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LowerProjectionPublicationClass {
+    None,
+    MetadataOnly,
+    OwnersChanged,
+}
+
 impl ReplayAdmissionPublicationFence {
     fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ReplayFactoredResult<()> {
         self.intents
@@ -1560,6 +1568,10 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
+    #[allow(
+        dead_code,
+        reason = "RCPF-D3b-1 retains the producer-local delta adapter"
+    )]
     fn try_factored_lower_projection_delta(
         &self,
         producer: ConstraintRecordId,
@@ -1621,6 +1633,10 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
+    #[allow(
+        dead_code,
+        reason = "RCPF-D3b-1 retains the producer-local delta oracle"
+    )]
     fn try_legacy_lower_projection_delta(
         &self,
         lower_record: BoundRecordId,
@@ -1641,6 +1657,7 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
+    #[allow(dead_code, reason = "RCPF-D3b-1 retains the qualified-parent oracle")]
     fn try_legacy_qualified_lower_projection(
         &self,
         lower_record: BoundRecordId,
@@ -1796,82 +1813,212 @@ impl ConstraintMachine {
     }
 
     #[cfg(any(test, debug_assertions))]
+    fn validate_lower_projection_reverse_index(
+        &self,
+        lower_record: BoundRecordId,
+        roots: &[UpperReplayClaimId],
+    ) -> ReplayFactoredResult<()> {
+        for &root in roots {
+            let has_membership = self
+                .bounds
+                .scheme_projection_lower_record_memberships
+                .contains(&(root, lower_record));
+            let count = self
+                .bounds
+                .scheme_projection_lower_records_by_root
+                .get(&root)
+                .map_or(0, |records| {
+                    records
+                        .iter()
+                        .filter(|record| **record == lower_record)
+                        .count()
+                });
+            if !has_membership || count != 1 {
+                return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage,
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_compare_factored_record_lower_projection(
+        &self,
+        lower_record: BoundRecordId,
+        pending_independent_supports: &[ProjectionProofCarrier],
+    ) -> ReplayFactoredResult<LowerProjectionLogicalSnapshot> {
+        let legacy = self.try_legacy_record_lower_projection(lower_record)?;
+        let mut factored = self.try_factored_record_lower_projection(lower_record)?;
+        if !pending_independent_supports.is_empty() {
+            factored
+                .support_map
+                .try_reserve(pending_independent_supports.len())
+                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            factored.support_map.extend(
+                pending_independent_supports
+                    .iter()
+                    .copied()
+                    .map(SchemeProjectionProofSupport::Independent),
+            );
+            factored = Self::try_lower_projection_logical_snapshot(factored.support_map)?;
+        }
+        if legacy != factored {
+            return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::DerivedReplayLineage,
+            ));
+        }
+        self.validate_lower_projection_reverse_index(
+            lower_record,
+            &factored.canonical.claimed_roots,
+        )?;
+        Ok(factored)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_lower_projection_proofs_from_snapshot(
+        lower_record: BoundRecordId,
+        snapshot: &LowerProjectionLogicalSnapshot,
+    ) -> ReplayFactoredResult<Vec<SchemeProjectionProof>> {
+        let mut proofs = Vec::new();
+        proofs
+            .try_reserve(snapshot.canonical.proof_keys.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        proofs.extend(snapshot.canonical.proof_keys.iter().map(|key| {
+            let support = match key {
+                CanonicalProjectionKey::Claimed(root) => {
+                    SchemeProjectionProofSupport::Claimed(*root)
+                }
+                CanonicalProjectionKey::Independent(carrier) => {
+                    SchemeProjectionProofSupport::Independent(*carrier)
+                }
+            };
+            SchemeProjectionProof {
+                lower_record,
+                support,
+            }
+        }));
+        Ok(proofs)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn lower_projection_publication_class(
+        intent: &SchemeProjectionPublicationIntent,
+    ) -> LowerProjectionPublicationClass {
+        match intent {
+            SchemeProjectionPublicationIntent::None => LowerProjectionPublicationClass::None,
+            SchemeProjectionPublicationIntent::MetadataOnly => {
+                LowerProjectionPublicationClass::MetadataOnly
+            }
+            SchemeProjectionPublicationIntent::OwnersChanged(_) => {
+                LowerProjectionPublicationClass::OwnersChanged
+            }
+        }
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_factored_lower_projection_publication_class(
+        &self,
+        lower_record: BoundRecordId,
+        previous_proofs: Option<&[SchemeProjectionProof]>,
+        current_proofs: &[SchemeProjectionProof],
+    ) -> ReplayFactoredResult<LowerProjectionPublicationClass> {
+        let evaluator = SchemeProjectionEvaluator::new(self);
+        let was_fail_open = evaluator.flat_fail_open(lower_record, previous_proofs);
+        let is_fail_open = evaluator.flat_fail_open(lower_record, Some(current_proofs));
+        if was_fail_open == is_fail_open {
+            return Ok(LowerProjectionPublicationClass::MetadataOnly);
+        }
+        let intent = if was_fail_open {
+            let is_included = SchemeProjectionEvaluator::new(self)
+                .with_proof_override(lower_record, Some(current_proofs))
+                .eval_record(lower_record)?;
+            self.try_evaluate_record_inclusion_publication(lower_record, true, is_included, true)?
+        } else {
+            let was_included = SchemeProjectionEvaluator::new(self)
+                .with_proof_override(lower_record, previous_proofs)
+                .eval_record(lower_record)?;
+            self.try_evaluate_record_inclusion_publication(lower_record, was_included, true, true)?
+        };
+        Ok(Self::lower_projection_publication_class(&intent))
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn try_factored_lower_projection_mutation_oracle(
+        &self,
+        lower_record: BoundRecordId,
+        mutation: &SchemeProjectionMutation,
+        pending_independent_supports: &[ProjectionProofCarrier],
+    ) -> ReplayFactoredResult<()> {
+        let factored = self.try_compare_factored_record_lower_projection(
+            lower_record,
+            pending_independent_supports,
+        )?;
+        let legacy_intent = self.try_evaluate_scheme_projection_mutation(mutation.clone())?;
+        let legacy_class = Self::lower_projection_publication_class(&legacy_intent);
+        let factored_class = match mutation {
+            SchemeProjectionMutation::None => LowerProjectionPublicationClass::None,
+            SchemeProjectionMutation::ProofsChanged {
+                previous_proofs, ..
+            } => {
+                let current_proofs =
+                    Self::try_lower_projection_proofs_from_snapshot(lower_record, &factored)?;
+                self.try_factored_lower_projection_publication_class(
+                    lower_record,
+                    previous_proofs.as_deref(),
+                    &current_proofs,
+                )?
+            }
+        };
+        if legacy_class != factored_class {
+            return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::DerivedReplayLineage,
+            ));
+        }
+        Ok(())
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn observe_factored_lower_projection_result(&self, result: ReplayFactoredResult<()>) {
+        if let Err(failure) = result {
+            self.mark_replay_factored_failure(failure);
+        }
+    }
+
+    #[cfg(any(test, debug_assertions))]
     fn observe_factored_lower_projection_full(
         &self,
         lower_record: BoundRecordId,
-        producer: ConstraintRecordId,
+        _producer: ConstraintRecordId,
     ) {
         if !self.replay_factored_writes_enabled()
             || !self.replay_result_summary.event_oracle_enabled()
         {
             return;
         }
-        let legacy = self.try_legacy_qualified_lower_projection(lower_record, producer);
-        let factored = match &legacy {
-            Ok(snapshot) => self.try_factored_lower_projection_full(
-                producer,
-                snapshot.proof_keys.iter().filter_map(|key| match key {
-                    CanonicalProjectionKey::Independent(carrier) => Some(*carrier),
-                    CanonicalProjectionKey::Claimed(_) => None,
-                }),
-            ),
-            Err(failure) => Err(*failure),
-        };
-        self.observe_factored_lower_projection(legacy, factored);
+        self.observe_factored_lower_projection_result(
+            self.try_compare_factored_record_lower_projection(lower_record, &[])
+                .map(drop),
+        );
     }
 
     #[cfg(any(test, debug_assertions))]
     fn observe_factored_lower_projection_delta(
         &self,
         lower_record: BoundRecordId,
-        producer: ConstraintRecordId,
+        _producer: ConstraintRecordId,
         delta: &ReplayResultSummaryDelta,
     ) {
         if !self.replay_factored_writes_enabled()
             || !self.replay_result_summary.event_oracle_enabled()
+            || delta.entries.is_empty()
         {
             return;
         }
-        let legacy = self.try_legacy_lower_projection_delta(lower_record, delta);
-        let factored = match &legacy {
-            Ok(snapshot) => self.try_factored_lower_projection_delta(
-                producer,
-                delta,
-                snapshot.proof_keys.iter().filter_map(|key| match key {
-                    CanonicalProjectionKey::Independent(carrier) => Some(*carrier),
-                    CanonicalProjectionKey::Claimed(_) => None,
-                }),
-            ),
-            Err(failure) => Err(*failure),
-        };
-        self.observe_factored_lower_projection(legacy, factored);
-    }
-
-    #[cfg(any(test, debug_assertions))]
-    fn observe_factored_lower_projection(
-        &self,
-        legacy: ReplayFactoredResult<LowerProjectionAdapterSnapshot>,
-        factored: ReplayFactoredResult<LowerProjectionAdapterSnapshot>,
-    ) {
-        let legacy = match legacy {
-            Ok(legacy) => legacy,
-            Err(failure) => {
-                self.mark_replay_factored_failure(failure);
-                return;
-            }
-        };
-        let factored = match factored {
-            Ok(factored) => factored,
-            Err(failure) => {
-                self.mark_replay_factored_failure(failure);
-                return;
-            }
-        };
-        if legacy != factored {
-            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::OracleMismatch(
-                ReplayFactoredOracleMismatch::DerivedReplayLineage,
-            ));
-        }
+        self.observe_factored_lower_projection_result(
+            self.try_compare_factored_record_lower_projection(lower_record, &[])
+                .map(drop),
+        );
     }
 
     fn register_claim_parent_clause_links(
@@ -3128,6 +3275,18 @@ impl ConstraintMachine {
             claims_to_link,
             &independent_supports,
         );
+        #[cfg(any(test, debug_assertions))]
+        let lower_projection_oracle =
+            (matches!(mutation, SchemeProjectionMutation::ProofsChanged { .. })
+                && self.replay_factored_writes_enabled()
+                && self.replay_result_summary.event_oracle_enabled())
+            .then(|| {
+                self.try_factored_lower_projection_mutation_oracle(
+                    lower_record,
+                    &mutation,
+                    &independent_supports,
+                )
+            });
         if let Some(fence) = publication_fence.as_deref_mut() {
             self.defer_scheme_projection_mutation(fence, mutation);
         } else {
@@ -3154,6 +3313,10 @@ impl ConstraintMachine {
             pending_links.push((support, clause));
         }
         if pending_links.is_empty() {
+            #[cfg(any(test, debug_assertions))]
+            if let Some(result) = lower_projection_oracle {
+                self.observe_factored_lower_projection_result(result);
+            }
             return;
         }
         self.commit_record_proof_clause_link_batch_with_fence(
@@ -3161,6 +3324,10 @@ impl ConstraintMachine {
             pending_links,
             publication_fence,
         );
+        #[cfg(any(test, debug_assertions))]
+        if let Some(result) = lower_projection_oracle {
+            self.observe_factored_lower_projection_result(result);
+        }
     }
 
     fn bootstrap_independent_projection_supports(
