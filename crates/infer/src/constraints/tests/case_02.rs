@@ -847,9 +847,24 @@ fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
     }
 }
 
+fn assert_upper_record_claim_roots_are_unique(machine: &ConstraintMachine) {
+    for (record, claims) in &machine.bounds.claims_by_upper_record {
+        let roots = claims
+            .iter()
+            .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+            .collect::<FxHashSet<_>>();
+        assert_eq!(
+            roots.len(),
+            claims.len(),
+            "upper record {record:?} contains two active claims for one coverage root"
+        );
+    }
+}
+
 #[test]
 fn unweighted_row_claim_move_displaces_the_same_root_destination_claim() {
     let fixture = moved_root_collision_fixture();
+    assert_upper_record_claim_roots_are_unique(&fixture.machine);
     assert_eq!(
         fixture.machine.bounds.claims_by_upper_record[&fixture.destination],
         vec![fixture.root],
@@ -871,6 +886,53 @@ fn unweighted_row_claim_move_displaces_the_same_root_destination_claim() {
         fixture.machine.bounds.upper_replay_claims[fixture.displaced.0 as usize],
         fixture.displaced_record,
         "displacement removes only active indexes; historical lineage stays append-only"
+    );
+}
+
+#[test]
+fn non_collision_claim_moves_preserve_unique_roots_across_records() {
+    let mut machine = ConstraintMachine::new();
+    let upper = machine.alloc_neg(Neg::Var(TypeVar(20)));
+    let origin = OriginId::unknown_internal();
+    let records = [TypeVar(21), TypeVar(22), TypeVar(23)].map(|owner| {
+        machine
+            .bounds
+            .add_upper(
+                owner,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id
+    });
+    let roots = [0, 1].map(|index| {
+        machine
+            .bounds
+            .original_upper_replay_claim(
+                records[index],
+                ConstraintRecordId(60_000 + index as u32),
+                UpperReplayClaimKind::Direct,
+            )
+            .claim
+    });
+
+    for (claim, destination) in [
+        (roots[0], records[2]),
+        (roots[1], records[2]),
+        (roots[0], records[1]),
+        (roots[1], records[1]),
+    ] {
+        machine
+            .bounds
+            .move_upper_replay_claim(claim, destination);
+        assert_upper_record_claim_roots_are_unique(&machine);
+    }
+    assert_eq!(
+        machine.bounds.claims_by_upper_record[&records[1]]
+            .iter()
+            .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+            .collect::<FxHashSet<_>>(),
+        roots.into_iter().collect()
     );
 }
 

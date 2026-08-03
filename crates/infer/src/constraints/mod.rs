@@ -841,6 +841,71 @@ mod canonical_projection_key {
     }
 }
 
+#[allow(dead_code, reason = "RCPF-D4-0d wires canonical upper-claim writers")]
+mod canonical_upper_claim_key {
+    use super::UpperReplayClaimId;
+    use std::cmp::Ordering;
+
+    pub(super) fn cmp(left: UpperReplayClaimId, right: UpperReplayClaimId) -> Ordering {
+        left.cmp(&right)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        const ROOTS: [UpperReplayClaimId; 5] = [
+            UpperReplayClaimId(0),
+            UpperReplayClaimId(1),
+            UpperReplayClaimId(7),
+            UpperReplayClaimId(u32::MAX - 1),
+            UpperReplayClaimId(u32::MAX),
+        ];
+
+        #[test]
+        fn canonical_upper_claim_cmp_is_reflexive() {
+            for root in ROOTS {
+                assert_eq!(cmp(root, root), Ordering::Equal);
+            }
+        }
+
+        #[test]
+        fn canonical_upper_claim_cmp_is_antisymmetric_and_identity_exact() {
+            for left in ROOTS {
+                for right in ROOTS {
+                    assert_eq!(cmp(left, right), cmp(right, left).reverse());
+                    assert_eq!(cmp(left, right) == Ordering::Equal, left == right);
+                }
+            }
+        }
+
+        #[test]
+        fn canonical_upper_claim_cmp_is_transitive() {
+            for left in ROOTS {
+                for middle in ROOTS {
+                    for right in ROOTS {
+                        if cmp(left, middle) != Ordering::Greater
+                            && cmp(middle, right) != Ordering::Greater
+                        {
+                            assert_ne!(cmp(left, right), Ordering::Greater);
+                        }
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn canonical_upper_claim_cmp_is_the_total_ascending_root_order() {
+            for (lower_index, lower) in ROOTS.into_iter().enumerate() {
+                for higher in ROOTS.into_iter().skip(lower_index + 1) {
+                    assert_eq!(cmp(lower, higher), Ordering::Less);
+                    assert_eq!(cmp(higher, lower), Ordering::Greater);
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 std::thread_local! {
     static CANONICAL_PROJECTION_INSERTION_CENSUS: std::cell::Cell<(usize, usize)> =
