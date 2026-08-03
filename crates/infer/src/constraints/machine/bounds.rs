@@ -11093,11 +11093,14 @@ mod mutation_tests {
                         self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap());
                     assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
                 }
-                let replay_parent_roots = self.machine.upper_record_replay_claim_parents(
+                let upper_replay_parents = self.machine.upper_record_replay_claim_parents(
                     self.lower, upper_record, &[],
-                ).iter().map(|parent| {
+                );
+                let replay_parent_roots = upper_replay_parents.iter().map(|parent| {
                     self.machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
                 }).collect::<Vec<_>>();
+                let lower_replay_parents =
+                    self.machine.lower_record_replay_claim_parents(lower_record);
                 let qualified = self.machine.scheme_projectable_lowers(self.target)
                     .find(|entry| entry.record == lower_record).expect("target-late lower remains projectable").reason;
                 let generalized = GeneralizedCompactRoot {
@@ -11172,6 +11175,12 @@ mod mutation_tests {
                 let publication = TargetLatePublicationSnapshot {
                     published_claims,
                     target_claims: self.machine.bounds.claims_by_upper_record[&upper_record].clone(),
+                    upper_replay_parents,
+                    lower_replay_parents,
+                    lower_claims: self.machine.bounds.scheme_projection_claims_by_lower_record
+                        [&lower_record].clone(),
+                    lower_proofs: self.machine.bounds.projection_proofs_by_lower_record
+                        [&lower_record].clone(),
                     claim_arena: self.machine.bounds.upper_replay_claims.clone(),
                     final_epoch: self.epoch_checkpoint(),
                 };
@@ -11242,6 +11251,10 @@ mod mutation_tests {
         struct TargetLatePublicationSnapshot {
             published_claims: Vec<UpperReplayClaimId>,
             target_claims: Vec<UpperReplayClaimId>,
+            upper_replay_parents: ReplayClaimParents,
+            lower_replay_parents: ReplayClaimParents,
+            lower_claims: Vec<UpperReplayClaimId>,
+            lower_proofs: Vec<SchemeProjectionProof>,
             claim_arena: Vec<UpperReplayClaim>,
             final_epoch: TargetLateEpochCheckpoint,
         }
@@ -11446,9 +11459,9 @@ mod mutation_tests {
                     assert_eq!(rollback_epochs, factored_epochs,
                         "LegacyRollback changed global/provenance/owner epochs");
                     assert_eq!(rollback_run.publication, factored.publication,
-                        "LegacyRollback changed exact claim publication or derived allocation");
+                        "LegacyRollback changed exact replay-parent reads, canonical upper/lower storage, claim publication, or derived allocation");
                     assert_eq!(rollback_run.consumer, factored.consumer,
-                        "LegacyRollback changed the target-late consumer chain");
+                        "LegacyRollback changed the downstream target-late consumer chain");
                 }
             }
         }
