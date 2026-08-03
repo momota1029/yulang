@@ -8,7 +8,7 @@ use crate::constraints::replay_factored::ReplayFactoredOracleMismatch;
 use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
 use crate::constraints::replay_factored::{
     ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
-    ReplayParentDraftId,
+    ReplayParentDraftId, ReplayResultSummaryDelta,
 };
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -19,6 +19,8 @@ std::thread_local! {
         const { std::cell::Cell::new(0) };
     static RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
+    static RCPF_D2C_EVENT_ORACLE_PROBES: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
 }
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
@@ -1125,6 +1127,10 @@ impl ConstraintMachine {
     /// has already committed and never depends on this result.
     #[cfg(any(test, debug_assertions))]
     fn observe_factored_replay_event_boundary(&mut self, result: ConstraintRecordId) {
+        #[cfg(test)]
+        RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| {
+            probes.set(probes.get().saturating_add(1));
+        });
         if !self.replay_factored_writes_enabled()
             || !self.replay_result_summary.event_oracle_enabled()
         {
@@ -2401,6 +2407,8 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
+        let factored_admission = factored_drafts.is_some();
+        let phase_b_enabled = factored_admission && self.replay_factored_writes_enabled();
         let mut inserted_parents = Vec::new();
         for parent in parents {
             let coverage_root =
@@ -2427,6 +2435,24 @@ impl ConstraintMachine {
             self.publish_claim_qualified_parent_admission(snapshot);
             inserted_parents.push(parent);
         }
+        if phase_b_enabled
+            && materialize_existing_target
+            && let Some(lower_record) = self.lower_record_for_constraint(result)
+        {
+            self.register_claim_parent_clause_links(lower_record, &inserted_parents);
+        }
+        let summary_delta = factored_drafts.map(|factored_drafts| {
+            self.observe_factored_replay_parent_admission(
+                result,
+                replay,
+                parents,
+                &inserted_parents,
+                factored_drafts,
+            )
+        });
+        if factored_admission && self.replay_factored_terminal_failure().is_some() {
+            return;
+        }
         // Newly enqueued constraints consume this metadata during their bound admission.
         // Queue-suppressed duplicates need the eager path because no later admission will run.
         if materialize_existing_target {
@@ -2440,14 +2466,10 @@ impl ConstraintMachine {
                 },
             );
         }
-        if let Some(factored_drafts) = factored_drafts {
-            self.observe_factored_replay_parent_admission(
-                result,
-                replay,
-                parents,
-                &inserted_parents,
-                factored_drafts,
-            );
+        let _summary_delta = summary_delta;
+        if factored_admission {
+            #[cfg(any(test, debug_assertions))]
+            self.observe_factored_replay_event_boundary(result);
         }
     }
 
@@ -2460,18 +2482,22 @@ impl ConstraintMachine {
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
-    ) {
+    ) -> ReplayResultSummaryDelta {
         if !self.replay_factored_writes_enabled() {
-            return;
+            return ReplayResultSummaryDelta::default();
         }
-        if let Err(failure) = self.try_observe_factored_replay_parent_admission(
+        match self.try_observe_factored_replay_parent_admission(
             result,
             replay,
             legacy_parents,
             inserted_parents,
             drafts,
         ) {
-            self.mark_replay_factored_failure(failure);
+            Ok(delta) => delta,
+            Err(failure) => {
+                self.mark_replay_factored_failure(failure);
+                ReplayResultSummaryDelta::default()
+            }
         }
     }
 
@@ -2482,7 +2508,7 @@ impl ConstraintMachine {
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
-    ) -> ReplayFactoredResult<()> {
+    ) -> ReplayFactoredResult<ReplayResultSummaryDelta> {
         let lower_draft = drafts.resolve(drafts.lower)?;
         let upper_draft = drafts.resolve(drafts.upper)?;
         for (side, draft) in [
@@ -2501,7 +2527,7 @@ impl ConstraintMachine {
             }
         }
         if lower_draft.is_none() && upper_draft.is_none() {
-            return Ok(());
+            return Ok(ReplayResultSummaryDelta::default());
         }
         let admission_ordinal = self.replay_occurrences.claim_admission_ordinal()?;
 
@@ -2554,11 +2580,11 @@ impl ConstraintMachine {
                 admission_ordinal,
             )?
         } else if inserted_parents.is_empty() {
-            return Ok(());
+            return Ok(ReplayResultSummaryDelta::default());
         } else {
             return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
         };
-        self.replay_result_summary.try_record_admission(
+        let summary_delta = self.replay_result_summary.try_record_admission(
             result,
             occurrence_id,
             replay,
@@ -2577,9 +2603,7 @@ impl ConstraintMachine {
                 inserted_parents,
             )?;
         }
-        #[cfg(any(test, debug_assertions))]
-        self.try_compare_factored_replay_event_boundary(result)?;
-        Ok(())
+        Ok(summary_delta)
     }
 
     fn materialize_existing_claim_parents_delta(
@@ -5235,6 +5259,64 @@ mod mutation_tests {
         );
     }
 
+    #[test]
+    fn rcpf_d2c_1_phase_b_failure_blocks_materialization_and_event_oracle() {
+        let mut fixture = cdm_replay_claim_fixture();
+        fixture.machine.enable_replay_factored_event_oracle();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.replay_parent_sets.fail_next_reservation();
+        RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| probes.set(0));
+        let parent = fixture.parent;
+
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            fixture.machine.bounds.claim_parents_by_constraint[&fixture.result].len(),
+            1,
+            "Phase A legacy parent mutation is unconditional"
+        );
+        let support = SchemeProjectionProofSupport::Claimed(fixture.coverage_root);
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .record_proof_clause_link_is_registered(fixture.lower_record, support, clause)
+        );
+        for premise in [replay.lower, replay.upper] {
+            assert!(
+                fixture
+                    .machine
+                    .bounds
+                    .dependent_records_by_premise
+                    .get(&ProofPremise::Record(premise))
+                    .is_some_and(|records| records.contains(&fixture.lower_record))
+            );
+        }
+        assert!(
+            !fixture
+                .machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(fixture.upper_record, fixture.coverage_root))
+        );
+        assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
+    }
+
     fn rcpf_c2_replay_inspection_census(root_count: usize) -> (usize, usize, usize) {
         assert!(root_count > 0);
         let mut fixture = cdm_replay_claim_fixture();
@@ -5897,6 +5979,7 @@ mod mutation_tests {
         let shadow_journal = shadow.machine.activate_method_role_mutations();
         let legacy_journal = legacy.machine.activate_method_role_mutations();
         let shadow_parent = shadow.parent;
+        RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| probes.set(0));
         register_factored_parent_snapshot(
             &mut shadow.machine,
             shadow.result,
@@ -5911,6 +5994,15 @@ mod mutation_tests {
         shadow_journal.finish();
         legacy_journal.finish();
         assert_replay_shadow_does_not_interfere(&shadow, &legacy, shadow_affected, legacy_affected);
+        assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 1);
+        assert!(
+            shadow
+                .machine
+                .bounds
+                .derived_claim_by_record_and_root
+                .contains_key(&(shadow.upper_record, shadow.coverage_root)),
+            "the complete-event oracle runs after eager derived materialization"
+        );
         epoch_sequence.push((shadow.machine.epoch, shadow.machine.provenance_epoch));
 
         let endpoint = shadow.machine.constraint_records[shadow.result.0 as usize]
@@ -6061,9 +6153,16 @@ mod mutation_tests {
     }
 
     #[test]
-    fn rcpf_shadow_failure_does_not_suppress_or_delay_legacy_admission() {
+    fn rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop() {
         let mut shadow = cdm_replay_claim_fixture();
         let mut legacy = cdm_replay_claim_fixture();
+        let projection_claims_before = shadow
+            .machine
+            .bounds
+            .scheme_projection_claims_by_lower_record[&shadow.lower_record]
+            .clone();
+        let projection_proofs_before =
+            shadow.machine.bounds.projection_proofs_by_lower_record[&shadow.lower_record].clone();
         let first = shadow.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(first, legacy.replay(ReplayRule::LowerBoundAdded));
         for fixture in [&mut shadow, &mut legacy] {
@@ -6098,8 +6197,8 @@ mod mutation_tests {
         );
         assert!(shadow.machine.replay_occurrences.occurrences.is_empty());
         assert_eq!(
-            cdm_oracle_ledger_snapshot(&shadow),
-            cdm_oracle_ledger_snapshot(&legacy)
+            shadow.machine.bounds.claim_parents_by_constraint[&shadow.result],
+            legacy.machine.bounds.claim_parents_by_constraint[&legacy.result]
         );
         assert_eq!(
             shadow.machine.bounds.replay_claim_parent_keys,
@@ -6109,53 +6208,19 @@ mod mutation_tests {
             shadow.machine.bounds.qualified_carrier_index,
             legacy.machine.bounds.qualified_carrier_index
         );
-        assert_eq!(shadow.machine.epoch, legacy.machine.epoch);
         assert_eq!(
-            shadow.machine.provenance_epoch,
-            legacy.machine.provenance_epoch
-        );
-        assert_eq!(shadow.machine.queue.len(), legacy.machine.queue.len());
-        assert_eq!(shadow.machine.events.len(), legacy.machine.events.len());
-
-        let second = shadow.replay(ReplayRule::UpperBoundAdded);
-        for fixture in [&mut shadow, &mut legacy] {
-            assert_eq!(
-                fixture
-                    .machine
-                    .merge_replay_derivation(fixture.result, second),
-                ReplayDerivationInsert::Inserted
-            );
-        }
-        let shadow_parent = shadow.parent;
-        register_factored_parent_snapshot(
-            &mut shadow.machine,
-            shadow.result,
-            second,
-            &[shadow_parent],
-        );
-        legacy
-            .machine
-            .register_replay_claim_parents(legacy.result, second, &[legacy.parent], true);
-        assert!(shadow.machine.replay_occurrences.occurrences.is_empty());
-        assert_eq!(
-            cdm_oracle_ledger_snapshot(&shadow),
-            cdm_oracle_ledger_snapshot(&legacy)
+            shadow
+                .machine
+                .bounds
+                .scheme_projection_claims_by_lower_record[&shadow.lower_record],
+            projection_claims_before,
+            "terminal Phase B failure skips eager claim materialization"
         );
         assert_eq!(
-            shadow.machine.bounds.replay_claim_parent_keys,
-            legacy.machine.bounds.replay_claim_parent_keys
+            shadow.machine.bounds.projection_proofs_by_lower_record[&shadow.lower_record],
+            projection_proofs_before,
+            "terminal Phase B failure skips eager projection materialization"
         );
-        assert_eq!(
-            shadow.machine.bounds.qualified_carrier_index,
-            legacy.machine.bounds.qualified_carrier_index
-        );
-        assert_eq!(shadow.machine.epoch, legacy.machine.epoch);
-        assert_eq!(
-            shadow.machine.provenance_epoch,
-            legacy.machine.provenance_epoch
-        );
-        assert_eq!(shadow.machine.queue.len(), legacy.machine.queue.len());
-        assert_eq!(shadow.machine.events.len(), legacy.machine.events.len());
     }
 
     fn rcpf_c3b_replay_parent_admission_census(parent_count: usize) -> (usize, usize) {

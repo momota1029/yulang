@@ -861,6 +861,11 @@ pub(super) struct FirstReplayParentWitness {
     pub(super) admission_ordinal: u64,
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(super) struct ReplayResultSummaryDelta {
+    pub(super) entries: Vec<(UpperReplayClaimId, FirstReplayParentWitness)>,
+}
+
 #[derive(Debug, Default)]
 pub(super) struct ReplayResultSummary {
     pub(super) first_parent_by_root:
@@ -941,7 +946,7 @@ impl ReplayResultSummary {
         inserted_parents: &[ClaimQualifiedParent],
         changed_parent_versions: &[(ReplayClaimParentSide, ParentSetVersionId, bool)],
         bounds: &TypeBounds,
-    ) -> ReplayFactoredResult<()> {
+    ) -> ReplayFactoredResult<ReplayResultSummaryDelta> {
         let mut pending_witnesses = Vec::new();
         let mut pending_roots = FxHashSet::default();
         let mut pending_storage_reserved = false;
@@ -1047,13 +1052,15 @@ impl ReplayResultSummary {
             };
             roots.extend(pending_roots);
         }
-        for (root, witness) in pending_witnesses {
+        for &(root, witness) in &pending_witnesses {
             self.first_parent_by_root.insert((result, root), witness);
         }
         for version in pending_versions {
             self.projected_parent_versions.insert(version);
         }
-        Ok(())
+        Ok(ReplayResultSummaryDelta {
+            entries: pending_witnesses,
+        })
     }
 
     #[cfg(test)]
@@ -1485,11 +1492,18 @@ mod tests {
         let result = ConstraintRecordId(7);
         let mut summary = ReplayResultSummary::default();
 
-        record_summary(&mut summary, &bounds, 0, None).unwrap();
+        assert!(
+            record_summary(&mut summary, &bounds, 0, None)
+                .unwrap()
+                .entries
+                .is_empty()
+        );
         assert_eq!(summary.first_parent_by_root.capacity(), 0);
         assert_eq!(summary.first_parent_roots_by_result.capacity(), 0);
 
-        record_summary(&mut summary, &bounds, 1, Some(0)).unwrap();
+        let delta = record_summary(&mut summary, &bounds, 1, Some(0)).unwrap();
+        assert_eq!(delta.entries.len(), 1);
+        assert_eq!(delta.entries[0].0, UpperReplayClaimId(0));
         assert_eq!(
             summary.roots_for_result(result).collect::<FxHashSet<_>>(),
             FxHashSet::from_iter([UpperReplayClaimId(0)])
@@ -1503,7 +1517,9 @@ mod tests {
         assert_eq!(witness.parent_claim, UpperReplayClaimId(0));
         assert_eq!(witness.admission_ordinal, 1);
 
-        record_summary(&mut summary, &bounds, 2, Some(1)).unwrap();
+        let delta = record_summary(&mut summary, &bounds, 2, Some(1)).unwrap();
+        assert_eq!(delta.entries.len(), 1);
+        assert_eq!(delta.entries[0].0, UpperReplayClaimId(1));
         assert_eq!(
             summary.roots_for_result(result).collect::<FxHashSet<_>>(),
             FxHashSet::from_iter([UpperReplayClaimId(0), UpperReplayClaimId(1)])
@@ -1593,7 +1609,7 @@ mod tests {
         bounds: &TypeBounds,
         ordinal: u64,
         claim: Option<u32>,
-    ) -> ReplayFactoredResult<()> {
+    ) -> ReplayFactoredResult<ReplayResultSummaryDelta> {
         let replay = BinaryReplayDerivation {
             pivot: TypeVar(0),
             lower: BoundRecordId(0),
