@@ -1025,12 +1025,201 @@ category/DFS/insertion-order traversal契約は変更せず、そこへ
 渡されるgeneralized edge insertion orderだけをcanonicalにする。
 global scan・per-read sort・per-event full resortは導入しない。
 
+## 12. RCPF-D4 Gate 2の解消: upper claim canonical ordering（2026-08-03、ユーザ承認済み）
+
+RCPF-D3b着地後、RCPF-D4-0（§7の2つのstop gateに対するread-only
+事前検証）を実施したところ、Gate 1（`LegacyRollback`下でのepoch列
+再現）はPASSしたが、Gate 2（historical root orderへの
+consumer-visibleな依存が無いこと）はUNVERIFIEDと判定された。
+続くRCPF-D4-0b（Gate 2解消に必要と特定された唯一のfixtureの実装・
+実行）で、Gate 2は**FAIL**と確定した。本節はこのFAILに対する
+設計改訂であり、ユーザが「もちろん．そのように進めてください」
+（2026-08-03）と明示的に承認したことを受けて確定する。
+
+### 12.1 発見されたgapの詳細
+
+`register_constraint_upper_replay_claims`（bounds.rs）は、upper
+recordのreplay claimsをtarget-late materializationする際、
+`claim_parents_by_constraint[result]`をそのresultの実際の
+historical admission順（replay・structural・reduction route全kind
+混在）で走査する。この順序は`claims_by_upper_record`への格納順に
+そのまま反映され、`upper_record_replay_claim_parents`の出力順として
+later replayへ露出する。
+
+伝播経路（fixtureが実際に踏んだ実行時経路）:
+
+```text
+register_constraint_upper_replay_claims
+  → claims_by_upper_record（historical順で格納）
+  → upper_record_replay_claim_parents（uncovered_claims → covered_claims）
+  → lower_bound_replay_actions（Lower parentsの後にUpper parentsを追加）
+  → push_replay_constraint_or_prefilter（BoundReplayAction.claim_parentsへ保持）
+  → apply_bound_replay_actions_impl
+  → register_replay_claim_parents_with_factored_drafts（順に反復・publish）
+```
+
+RCPF-D4-0bのfixture
+`target_late_mixed_roots_do_not_expose_historical_order_to_later_replay`
+（`crates/infer/src/constraints/machine/bounds.rs`、commit
+`df6511fb`）は、固定した2つのroot（1つはreplay-sourced parent、
+1つはnon-replay-sourced parent）を両方のcross-root admission順で
+target-late materializeし、同一root内の勝者（`FirstQualifiedParentSource`）
+をreplay-first／non-replay-firstの両方で固定した上で、
+`upper_record_replay_claim_parents`が返すroot順を比較した。
+legacy側・factored reconstruction側とも、root集合・同一root勝者・
+lower-projection再構成は完全に一致するにもかかわらず、cross-root
+の相対順だけが admission順によって`[root_a, root_b]`と
+`[root_b, root_a]`に分かれ、assertionが失敗する。
+
+**これはlegacyとfactoredの不一致ではない。** 両方の
+`ReplayReadAuthority`（`Factored`・`LegacyRollback`）は、
+materialization時にroot順を並べ替える処理を持たないため、
+どちらのauthorityでも同じhistorical-order依存を再現する。§9・§10の
+gapとは種類が異なり、「どちらが正しいlineageか」の問題ではなく、
+「そもそも両方とも、本来consumer-invariantであるべき箇所で
+admission順を露出している」という、RCPF cutoverとは独立した
+既存挙動の問題である。
+
+### 12.2 決定の要約
+
+`claims_by_upper_record`の格納順を、historical admission順ではなく
+**`coverage_root: UpperReplayClaimId`昇順**のcanonical orderへ
+固定する。`claim_parents_by_constraint`（Phase A、same-root
+first-wins評価の根拠であり§9のcross-kind winner mapが依拠する
+historical evidenceそのもの）は一切変更しない——target-late
+materializationは引き続きこれをhistorical順で走査してよい。
+変更するのは、その結果を`claims_by_upper_record`へ格納する際の
+**格納順**であり、これによりconsumerへ渡る境界だけがcanonicalになる。
+
+既存のLower-before-Upper・uncovered-before-covered という
+category順序は変更しない。category内で、異なるroot同士の相対順だけが
+admission順からcoverage_root昇順へ変わる。同一root内の勝者選択
+（§9のcross-kind winner map、`FirstQualifiedParentSource`）は
+一切変更しない。
+
+### 12.3 Canonical key
+
+§11.2のような複数variantのtotal orderは不要。upper claimは
+必ずいずれかの`coverage_root`を持つため、キーは単純である。
+
+```text
+upper claim canonical key = upper_replay_claims[claim].coverage_root
+order = ascending UpperReplayClaimId
+```
+
+§11の`canonical_projection_key`モジュール（root/carrier比較器）は
+再利用しない——lower projectionのindependent-carrier比較機構は
+upper claimには存在しない概念であり、流用は誤った複雑化になる。
+新しい専用helperを`TypeBounds`に置く。
+
+### 12.4 Legacy側の変更
+
+`claims_by_upper_record`への唯一の格納経路として、以下3箇所の
+直接`Vec::push`を、共通のcanonical-position insertion helperへ
+置き換える。
+
+- `original_upper_replay_claim`（`crates/infer/src/constraints/mod.rs`）
+- `derived_upper_replay_claim`（同上）
+- `move_upper_replay_claim`（同上、`row_effect.rs`から呼ばれる
+  claim-move writer）
+
+```text
+insert_upper_record_claim_canonical(record, claim):
+    root = coverage_root(claim)
+    claims_by_upper_record[record] を root で binary search
+    root が既に存在する:
+        既存entryをより新しいclaim IDへin-place update
+        （position は変えない）
+    root が存在しない:
+        canonical position へ Vec::insert
+```
+
+読み出し側（`uncovered_claims`・`covered_claims`・
+`upper_record_replay_claim_parents`）は変更しない——格納が
+canonicalであれば、既存のfilter-only実装がそのままroot昇順の
+部分列を返す。read-time sortは導入しない。理由は§11.3と同じで、
+これらはreplay planningのround-local hot pathで繰り返し読まれる
+経路であり、read毎のsortは許容できない。
+
+### 12.5 実装前に閉じる必要がある未決定事項
+
+Codex `gpt-5.6-sol` xhighの調査（読み取り専用）で、以下が実装前の
+必須確認事項として特定された。いずれも「回避策で埋める」のではなく、
+実装スライスの中で明示的に検証する。
+
+1. **Moved-root destination collision**: `move_upper_replay_claim`が、
+   移動先recordに既に同じ`coverage_root`のclaimが存在するケースへ
+   到達しうるかを特定する。到達不能なら invariant として明示する。
+   到達可能なら、どちらのclaimが生き残るかの明示的なlineage-survivor
+   規則を新たに定義する（未定義のまま「新しい方で上書き」等を
+   実装で決め打ちしない）。
+2. **Epoch/publication列の等価性**: canonical順とhistorical順で、
+   owner/global/provenance epoch列およびderived claim IDの割り当て
+   順が変わらないことを確認する。`register_replay_claim_parents_with_factored_drafts`
+   がroot順に沿って逐次publishするため、cross-root canonicalization
+   はepoch発行順・derived ID割り当て順を変える可能性がある。
+3. **同一root勝者とLower/Upper優先順位の不変性**: §9の
+   cross-kind winner map・Lower-before-Upper契約が、この変更の
+   前後で一致することを確認する。
+4. **RCPF-D4-0bのfixtureが変更後にPASSすること**: 
+   `target_late_mixed_roots_do_not_expose_historical_order_to_later_replay`
+   が、replay-wins・non-replay-wins両方の同一root勝者ケースで、
+   両方のcross-root admission順に対し同一の`replay_parent_roots`を
+   返すことを確認する。
+5. **D4-0bが未到達だった残り6項目の再検証**: D4-0bのfixtureは
+   項目1（replay-parent sequence）で停止したため、
+   `SchemeProjectableLowerReason`・generalized witness parents/
+   incoming edges・occurrence sidecar roots/anchors・portable
+   node/edge/source-site sequence・full/tight-budget explanations・
+   duplicate-span survivor/primary spanの6項目は未検証のまま
+   残っている。canonical ordering導入後、これら全てを同じfixtureで
+   再検証する。
+
+### 12.6 実装スライスの再分割
+
+1. **RCPF-D4-0c — Canonical upper-claim key oracle、shadow-only**:
+   `coverage_root`比較器、key-law tests、moved-root collision
+   到達可能性の特性評価（テストによる網羅、または到達不能の
+   構造的根拠の明示）。production consumer変更なし。約80〜140行。
+2. **RCPF-D4-0d — Legacy upper-claim storage cutover**: 3つの
+   writer全てをcanonical-position insertion helperへ切り替える
+   独立behavior commit。§11.5と同様、これはRCPF authority
+   cutoverとは無関係な既存legacy挙動の変更であり、
+   base/after診断差分の分類（proof/causeの集合差は不許可、
+   canonical keyで説明できる順序差は確認対象、それ以外はstop）と
+   insertion census（Vec length分布、移動entry数）を実施する。
+   約80〜160 net行。
+3. **RCPF-D4-0e — Gate 2再検証**: RCPF-D4-0bのfixtureが
+   PASSへ転じることを確認し、§12.5項目5の残り6項目を同じfixtureへ
+   追加して全項目を検証する。加えて`LegacyRollback`下でのepoch/
+   publication列比較（§12.5項目2）を行う。約150〜250行、規模次第で
+   さらに分割する。
+4. **RCPF-D4（再開）**: §12.6の3スライスが全て通った後、本書§5・
+   §11.6が定義する本来のRCPF-D4（authority cutover）へ進む。
+
+### 12.7 Invariant 23との整合
+
+ordinal・timestamp・admission event順を新たに永続化しない。
+`claims_by_upper_record`はcoverage_rootという既存のcanonical
+identityだけから並び替えられ、historical sequenceの記録・
+再構成手段を持たない。同じfinal root集合へ至る任意の admission
+permutationは同じ格納順になる。§9の同一root winner選択・
+`claim_parents_by_constraint`のhistorical evidence（Phase Aの
+evaluation根拠）は変更しない——変更するのはそこからderiveされる
+`claims_by_upper_record`の格納順だけである。global scan・per-read
+sort・per-event full resortは導入しない。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
 ユーザ包括的事前承認済み（2026-08-03）。本書は設計判断の正本として扱う。
-実装は本書§5のRCPF-D1〜D4スライス、§9のRCPF-D3a-0a/D3a-0b、および
-§11のRCPF-D3b-0a〜D3b-2を含む再分割スライス順に従って着手してよい。
+実装は本書§5のRCPF-D1〜D4スライス、§9のRCPF-D3a-0a/D3a-0b、
+§11のRCPF-D3b-0a〜D3b-2、および§12のRCPF-D4-0c〜D4-0eを含む
+再分割スライス順に従って着手してよい。
 §11.5のblast radius評価（既存legacy診断挙動の変更を伴う）について、
-D3b-0d着手前にユーザーへ改めて確認すること。
+D3b-0d着手前にユーザーへ改めて確認すること——この確認は完了済み
+（2026-08-03、D3b-0dはユーザ承認を得て着地済み）。§12.6の
+RCPF-D4-0d（upper claim storageのlegacy挙動変更）についても、
+D3b-0dと同種のblast radiusを持つため、着手前にユーザーへ改めて
+確認すること。
