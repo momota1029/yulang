@@ -841,7 +841,6 @@ mod canonical_projection_key {
     }
 }
 
-#[allow(dead_code, reason = "RCPF-D4-0d wires canonical upper-claim writers")]
 mod canonical_upper_claim_key {
     use super::UpperReplayClaimId;
     use std::cmp::Ordering;
@@ -910,6 +909,8 @@ mod canonical_upper_claim_key {
 std::thread_local! {
     static CANONICAL_PROJECTION_INSERTION_CENSUS: std::cell::Cell<(usize, usize)> =
         const { std::cell::Cell::new((0, 0)) };
+    static CANONICAL_UPPER_CLAIM_INSERTION_CENSUS: std::cell::Cell<(usize, usize)> =
+        const { std::cell::Cell::new((0, 0)) };
 }
 
 #[cfg(test)]
@@ -925,6 +926,24 @@ pub(crate) fn canonical_projection_insertion_census() -> (usize, usize) {
 #[cfg(test)]
 fn record_canonical_projection_insertion_moves(moves: usize) {
     CANONICAL_PROJECTION_INSERTION_CENSUS.with(|census| {
+        let (total, maximum) = census.get();
+        census.set((total + moves, maximum.max(moves)));
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn reset_canonical_upper_claim_insertion_census() {
+    CANONICAL_UPPER_CLAIM_INSERTION_CENSUS.set((0, 0));
+}
+
+#[cfg(test)]
+pub(crate) fn canonical_upper_claim_insertion_census() -> (usize, usize) {
+    CANONICAL_UPPER_CLAIM_INSERTION_CENSUS.get()
+}
+
+#[cfg(test)]
+fn record_canonical_upper_claim_insertion_moves(moves: usize) {
+    CANONICAL_UPPER_CLAIM_INSERTION_CENSUS.with(|census| {
         let (total, maximum) = census.get();
         census.set((total + moves, maximum.max(moves)));
     });
@@ -2540,6 +2559,27 @@ impl TypeBounds {
         self.bounds_mut(var).epoch = epoch;
     }
 
+    fn insert_upper_record_claim_canonical(
+        &mut self,
+        record: BoundRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        let incoming_root = self.upper_replay_claims[claim.0 as usize].coverage_root;
+        let upper_replay_claims = &self.upper_replay_claims;
+        let claims = self.claims_by_upper_record.entry(record).or_default();
+        match claims.binary_search_by(|existing| {
+            let existing_root = upper_replay_claims[existing.0 as usize].coverage_root;
+            canonical_upper_claim_key::cmp(existing_root, incoming_root)
+        }) {
+            Ok(position) => claims[position] = claim,
+            Err(position) => {
+                #[cfg(test)]
+                record_canonical_upper_claim_insertion_moves(claims.len() - position);
+                claims.insert(position, claim);
+            }
+        }
+    }
+
     fn original_upper_replay_claim(
         &mut self,
         record: BoundRecordId,
@@ -2585,10 +2625,7 @@ impl TypeBounds {
         });
         self.original_claim_by_record_and_producer.insert(key, id);
         self.register_original_claim_mirror(producer_constraint, id);
-        self.claims_by_upper_record
-            .entry(record)
-            .or_default()
-            .push(id);
+        self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation =
             self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
         self.register_original_claim_standalone_link(producer_constraint, id);
@@ -2661,10 +2698,7 @@ impl TypeBounds {
         });
         self.derived_claim_by_record_and_root
             .insert((record, root), id);
-        self.claims_by_upper_record
-            .entry(record)
-            .or_default()
-            .push(id);
+        self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation = lower_record
             .map(|lower_record| self.link_scheme_projection_claim(lower_record, id))
             .unwrap_or(SchemeProjectionMutation::None);
@@ -2893,12 +2927,10 @@ impl TypeBounds {
         }
         // Once the Original root reaches this record, the existing materialization contract makes
         // it canonical for `(record, root)`; the displaced child remains append-only history.
-        let displaced = (lineage == UpperReplayClaimLineage::Original)
-            .then(|| {
-                self.derived_claim_by_record_and_root
-                    .remove(&(new_record, coverage_root))
-            })
-            .flatten();
+        if lineage == UpperReplayClaimLineage::Original {
+            self.derived_claim_by_record_and_root
+                .remove(&(new_record, coverage_root));
+        }
         let replay_claim = &mut self.upper_replay_claims[claim.0 as usize];
         replay_claim.current_record = new_record;
         replay_claim.source = source;
@@ -2914,14 +2946,7 @@ impl TypeBounds {
                     .insert((new_record, coverage_root), claim);
             }
         }
-        let claims = self.claims_by_upper_record.entry(new_record).or_default();
-        if let Some(position) = displaced
-            .and_then(|displaced| claims.iter().position(|candidate| *candidate == displaced))
-        {
-            claims[position] = claim;
-        } else if !claims.contains(&claim) {
-            claims.push(claim);
-        }
+        self.insert_upper_record_claim_canonical(new_record, claim);
     }
 
     fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {

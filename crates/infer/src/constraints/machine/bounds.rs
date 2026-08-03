@@ -8698,6 +8698,123 @@ mod mutation_tests {
     }
 
     #[test]
+    fn canonical_upper_claim_insertion_census_and_read_subsequences_are_root_ordered() {
+        use crate::constraints::{
+            canonical_upper_claim_insertion_census,
+            reset_canonical_upper_claim_insertion_census,
+        };
+
+        reset_canonical_upper_claim_insertion_census();
+        let mut machine = ConstraintMachine::new();
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(70)));
+        let origin = OriginId::unknown_internal();
+        let target = machine
+            .bounds
+            .add_upper(
+                TypeVar(71),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let roots = (0..8)
+            .map(|index| {
+                let parent_record = machine
+                    .bounds
+                    .add_upper(
+                        TypeVar(80 + index),
+                        upper,
+                        ConstraintWeights::empty(),
+                        BoundDerivation::Origin(origin),
+                    )
+                    .id;
+                machine
+                    .bounds
+                    .original_upper_replay_claim(
+                        parent_record,
+                        ConstraintRecordId(70_000 + index),
+                        UpperReplayClaimKind::Direct,
+                    )
+                    .claim
+            })
+            .collect::<Vec<_>>();
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(72),
+            lower: target,
+            upper: target,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        for index in [7, 0, 6, 1, 5, 2, 4, 3] {
+            let root = roots[index];
+            machine.bounds.derived_upper_replay_claim(
+                target,
+                root,
+                ConstraintRecordId(71_000 + index as u32),
+                |depth| UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim: root,
+                    parent_side: ReplayClaimParentSide::Upper,
+                    replay,
+                    depth,
+                },
+            );
+        }
+
+        let claim_roots = |machine: &ConstraintMachine, claims: Vec<UpperReplayClaimId>| {
+            claims
+                .into_iter()
+                .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            claim_roots(
+                &machine,
+                machine.bounds.claims_by_upper_record[&target].clone(),
+            ),
+            roots
+        );
+        let mut record_lengths = machine
+            .bounds
+            .claims_by_upper_record
+            .values()
+            .map(Vec::len)
+            .collect::<Vec<_>>();
+        record_lengths.sort_unstable();
+        assert_eq!(record_lengths, vec![1, 1, 1, 1, 1, 1, 1, 1, 8]);
+        let percentile = |percentile: usize| {
+            record_lengths[(record_lengths.len() * percentile).div_ceil(100) - 1]
+        };
+        assert_eq!(
+            (*record_lengths.last().unwrap(), percentile(95), percentile(99)),
+            (8, 8, 8)
+        );
+        assert_eq!(canonical_upper_claim_insertion_census(), (16, 4));
+
+        for (index, root) in roots.iter().copied().enumerate().skip(5) {
+            machine.bounds.live_coverage_by_root.insert(
+                root,
+                vec![UnweightedRowReductionRecordId(72_000 + index as u32)],
+            );
+        }
+        assert_eq!(
+            claim_roots(&machine, machine.bounds.uncovered_claims(target)),
+            roots[..5]
+        );
+        assert_eq!(
+            claim_roots(&machine, machine.bounds.covered_claims(target)),
+            roots[5..]
+        );
+        let lower = machine.alloc_pos(Pos::Var(TypeVar(73)));
+        let replay_parent_roots = machine
+            .upper_record_replay_claim_parents(lower, target, &[])
+            .iter()
+            .map(|parent| {
+                machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(replay_parent_roots, roots);
+    }
+
+    #[test]
     fn moved_root_collision_reconstructs_original_full_and_delta_lineage() {
         let mut fixture = cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
