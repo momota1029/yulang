@@ -9451,6 +9451,164 @@ mod mutation_tests {
         remove_journal.finish();
     }
 
+    #[rustfmt::skip]
+    mod rcpf_d3b_0b_1_tests {
+        use super::*;
+        use crate::constraints::canonical_projection_key::{self, Key};
+
+        #[derive(Clone, Copy)]
+        enum Event { Replay, NonReplay, Independent(usize) }
+
+        struct Fixture {
+            machine: ConstraintMachine,
+            result: ConstraintRecordId,
+            lower_record: BoundRecordId,
+            source: TypeVar,
+            target: TypeVar,
+            upper: NegId,
+            replay: BinaryReplayDerivation,
+            row: RowDerivationId,
+            roots: [UpperReplayClaimId; 2],
+            origins: [OriginId; 2],
+        }
+
+        impl Fixture {
+            fn new() -> Self {
+                let mut machine = ConstraintMachine::new();
+                let source = TypeVar(0);
+                let target = TypeVar(1);
+                let lower = machine.alloc_pos(Pos::Var(source));
+                let upper = machine.alloc_neg(Neg::Var(target));
+                let result = ConstraintRecordId(0);
+                machine.constraint_records.push(ConstraintRecord {
+                    key: SubtypeConstraintKey { lower, upper, weights: ConstraintWeights::empty() },
+                    root_origins: Vec::new(), structural_derivations: Vec::new(),
+                    row_derivations: Vec::new(), replay_derivations: Vec::new(),
+                    scheme_instantiation_derivations: Vec::new(), scheme_instantiation_routes: Vec::new(),
+                    canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
+                });
+                let parent_record = machine.bounds.add_upper(
+                    TypeVar(2), upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
+                ).id;
+                let roots = [81_000, 81_001].map(|producer| {
+                    let registration = machine.bounds.original_upper_replay_claim(
+                        parent_record, ConstraintRecordId(producer), UpperReplayClaimKind::Direct,
+                    );
+                    assert_eq!(registration.scheme_projection_mutation, SchemeProjectionMutation::None);
+                    registration.claim
+                });
+                let lower_record = machine.bounds.add_lower(
+                    target, lower, ConstraintWeights::empty(), BoundDerivation::Constraint(result),
+                ).id;
+                assert!(!machine.bounds.scheme_projection_claims_by_lower_record.contains_key(&lower_record));
+                assert!(!machine.bounds.projection_proofs_by_lower_record.contains_key(&lower_record));
+                let origins = [ConstraintOriginKind::Field, ConstraintOriginKind::Return]
+                    .map(|kind| machine.alloc_source_boundary(kind).origin());
+                Self {
+                    machine, result, lower_record, source, target, upper,
+                    replay: BinaryReplayDerivation {
+                        pivot: target, lower: lower_record, upper: parent_record,
+                        rule: ReplayRule::LowerBoundAdded,
+                    },
+                    row: RowDerivationId(0), roots, origins,
+                }
+            }
+
+            fn admit(&mut self, event: Event) {
+                match event {
+                    Event::Replay => {
+                        assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
+                        self.machine.register_replay_claim_parents(
+                            self.result, self.replay,
+                            &[SideTaggedReplayClaim { claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower }], true,
+                        );
+                    }
+                    Event::NonReplay => {
+                        self.machine.constraint_records[self.result.0 as usize].row_derivations.push(self.row);
+                        self.machine.register_reduction_route_claim_parent(self.result, self.row, self.roots[1]);
+                    }
+                    Event::Independent(index) => self.machine.add_lower_bound(
+                        self.target, self.machine.constraint_records[self.result.0 as usize].key.lower,
+                        ConstraintWeights::empty(), BoundDerivation::Origin(self.origins[index]),
+                    ),
+                }
+            }
+
+            fn root(&self, claim: UpperReplayClaimId) -> UpperReplayClaimId {
+                self.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+            }
+
+            fn snapshot(&self) -> (Vec<UpperReplayClaimId>, Vec<SchemeProjectionProofSupport>, Vec<Key>) {
+                let claims = self.machine.bounds.scheme_projection_claims_by_lower_record[&self.lower_record].clone();
+                let supports = self.machine.bounds.projection_proofs_by_lower_record[&self.lower_record]
+                    .iter().map(|proof| proof.support).collect::<Vec<_>>();
+                let keys = supports.iter().map(|support| match support {
+                    SchemeProjectionProofSupport::Claimed(claim) => Key::Claimed(self.root(*claim)),
+                    SchemeProjectionProofSupport::Independent(carrier) => Key::Independent(*carrier),
+                }).collect();
+                (claims, supports, keys)
+            }
+        }
+
+        fn permutations() -> Vec<[usize; 4]> {
+            let mut result = Vec::new();
+            for a in 0..4 { for b in 0..4 { for c in 0..4 { for d in 0..4 {
+                if a != b && a != c && a != d && b != c && b != d && c != d { result.push([a, b, c, d]); }
+            }}}}
+            result
+        }
+
+        #[test]
+        fn canonical_projection_sequence_is_invariant_across_all_four_event_permutations() {
+            let events = [Event::Replay, Event::NonReplay, Event::Independent(0), Event::Independent(1)];
+            let orders = permutations();
+            assert_eq!(orders.len(), 24);
+            let mut expected = None;
+            let mut raw_orders = Vec::new();
+            for order in orders {
+                let mut fixture = Fixture::new();
+                for index in order { fixture.admit(events[index]); }
+                let (claims, supports, keys) = fixture.snapshot();
+                assert_eq!((claims.len(), supports.len()), (2, 4), "event order: {order:?}, supports: {supports:?}");
+                assert_eq!(claims.iter().map(|claim| fixture.root(*claim)).collect::<FxHashSet<_>>(), FxHashSet::from_iter(fixture.roots));
+                let claim_keys = claims.iter().map(|claim| Key::Claimed(fixture.root(*claim))).collect::<Vec<_>>();
+                assert_eq!(canonical_projection_key::normalize_clone(&claim_keys), fixture.roots.map(Key::Claimed));
+                if !raw_orders.contains(&keys) { raw_orders.push(keys.clone()); }
+                let normalized = canonical_projection_key::normalize_clone(&keys);
+                assert_eq!(normalized, vec![Key::Claimed(fixture.roots[0]), Key::Claimed(fixture.roots[1]),
+                    Key::Independent(ProjectionProofCarrier::Origin(fixture.origins[0])),
+                    Key::Independent(ProjectionProofCarrier::Origin(fixture.origins[1]))]);
+                assert_eq!(normalized, *expected.get_or_insert_with(|| normalized.clone()));
+            }
+            assert!(raw_orders.len() > 1, "the oracle must observe legacy admission order before normalization");
+        }
+
+        #[test]
+        fn same_root_replacement_preserves_raw_and_canonical_positions() {
+            let mut fixture = Fixture::new();
+            for event in [Event::NonReplay, Event::Independent(0), Event::Replay, Event::Independent(1)] { fixture.admit(event); }
+            let (before_claims, before_supports, before_keys) = fixture.snapshot();
+            let root = fixture.roots[0];
+            let claim_position = before_claims.iter().position(|claim| fixture.root(*claim) == root).unwrap();
+            let proof_position = before_keys.iter().position(|key| *key == Key::Claimed(root)).unwrap();
+            let replacement_record = fixture.machine.bounds.add_upper(
+                fixture.source, fixture.upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
+            ).id;
+            fixture.machine.register_constraint_upper_replay_claims(replacement_record, Some(fixture.result));
+            let (after_claims, after_supports, after_keys) = fixture.snapshot();
+            assert_ne!(before_claims[claim_position], after_claims[claim_position]);
+            assert_eq!(fixture.root(after_claims[claim_position]), root);
+            assert!(matches!((before_supports[proof_position], after_supports[proof_position]),
+                (SchemeProjectionProofSupport::Claimed(before), SchemeProjectionProofSupport::Claimed(after)) if before != after));
+            assert_eq!(after_keys.iter().position(|key| *key == Key::Claimed(root)), Some(proof_position));
+            let before_normalized = canonical_projection_key::normalize_clone(&before_keys);
+            let after_normalized = canonical_projection_key::normalize_clone(&after_keys);
+            assert_eq!(before_normalized, after_normalized);
+            assert_eq!(before_normalized.iter().position(|key| *key == Key::Claimed(root)),
+                after_normalized.iter().position(|key| *key == Key::Claimed(root)));
+        }
+    }
+
     fn changed_keys(mutations: Vec<MethodRoleMutation>) -> Vec<DependencyKey> {
         mutations
             .into_iter()
