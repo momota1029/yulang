@@ -2,10 +2,12 @@ use super::*;
 
 use std::hash::{Hash, Hasher};
 
-#[cfg(any(test, debug_assertions))]
-use crate::constraints::replay_factored::{FirstReplayParentWitness, ReplayFactoredOracleMismatch};
 #[cfg(test)]
 use crate::constraints::replay_factored::ReplayFactoredShadowStatus;
+#[cfg(any(test, debug_assertions))]
+use crate::constraints::replay_factored::{
+    FirstQualifiedParentSource, FirstReplayParentWitness, ReplayFactoredOracleMismatch,
+};
 use crate::constraints::replay_factored::{
     ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
     ReplayParentDraftId, ReplayResultSummaryDelta,
@@ -1362,6 +1364,50 @@ impl ConstraintMachine {
         self.replay_result_summary.enable_evaluator_oracle();
     }
 
+    #[cfg(any(test, debug_assertions))]
+    fn try_compare_first_qualified_parent_sources(
+        &self,
+        result: ConstraintRecordId,
+    ) -> ReplayFactoredResult<()> {
+        let parents = self
+            .bounds
+            .claim_parents_by_constraint
+            .get(&result)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut legacy = FxHashMap::default();
+        legacy
+            .try_reserve(parents.len())
+            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        for &parent in parents {
+            let claim = parent.parent_claim();
+            let root = self
+                .bounds
+                .canonical_coverage_root(claim)
+                .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))?;
+            let source = match parent {
+                ClaimQualifiedParent::ReplayConstraint { .. } => FirstQualifiedParentSource::Replay,
+                ClaimQualifiedParent::StructuralConstraint { .. }
+                | ClaimQualifiedParent::ReductionRouteConstraint { .. } => {
+                    FirstQualifiedParentSource::NonReplay(parent)
+                }
+            };
+            legacy.entry(root).or_insert(source);
+        }
+        for (root, source) in legacy {
+            if self
+                .replay_result_summary
+                .first_qualified_parent_source(result, root)?
+                != Some(source)
+            {
+                return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage,
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// Run the expensive dual-write comparison only at a complete admission boundary. A
     /// mismatch quarantines the observer exactly like a shadow allocation failure; legacy state
     /// has already committed and never depends on this result.
@@ -1566,6 +1612,7 @@ impl ConstraintMachine {
                 ReplayFactoredOracleMismatch::FirstReplayWitness,
             ));
         }
+        self.try_compare_first_qualified_parent_sources(result)?;
 
         let mut legacy_clauses = FxHashMap::default();
         legacy_clauses
@@ -2071,6 +2118,7 @@ impl ConstraintMachine {
         self.bounds.push_claim_qualified_parent(constraint, parent);
         self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
+        self.observe_first_qualified_parent_source(constraint, parent);
         ClaimQualifiedParentAdmissionSnapshot { inclusion_before }
     }
 
@@ -2185,6 +2233,22 @@ impl ConstraintMachine {
         if let Err(failure) = self
             .non_replay_claim_parents_by_constraint
             .try_admit(result, parent)
+        {
+            self.mark_replay_factored_failure(failure);
+        }
+    }
+
+    fn observe_first_qualified_parent_source(
+        &mut self,
+        result: ConstraintRecordId,
+        parent: ClaimQualifiedParent,
+    ) {
+        if !self.replay_factored_writes_enabled() {
+            return;
+        }
+        if let Err(failure) = self
+            .replay_result_summary
+            .try_record_first_qualified_parent_source(result, parent, &self.bounds)
         {
             self.mark_replay_factored_failure(failure);
         }
@@ -5404,6 +5468,86 @@ mod mutation_tests {
     }
 
     #[test]
+    fn rcpf_d3a_0b_cross_kind_winner_matches_legacy_for_both_orders_and_kinds() {
+        for (replay_first, structural) in
+            [(true, true), (false, true), (true, false), (false, false)]
+        {
+            let mut fixture = cdm_replay_claim_fixture();
+            let (result, root) = (fixture.result, fixture.coverage_root);
+            let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+            let replay_parent = ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: root,
+                parent_side: ReplayClaimParentSide::Lower,
+                replay,
+            };
+            let non_replay = if structural {
+                ClaimQualifiedParent::StructuralConstraint {
+                    parent_claim: root,
+                    derivation: StructuralDerivation {
+                        parent: result,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    },
+                }
+            } else {
+                ClaimQualifiedParent::ReductionRouteConstraint {
+                    parent_claim: root,
+                    derivation: RowDerivationId(72_000),
+                }
+            };
+            let ordered = if replay_first {
+                [replay_parent, non_replay]
+            } else {
+                [non_replay, replay_parent]
+            };
+            for parent in ordered {
+                fixture.machine.admit_claim_qualified_parent(result, parent);
+            }
+            let comparison = fixture
+                .machine
+                .try_compare_first_qualified_parent_sources(result);
+            assert_eq!(comparison, Ok(()));
+        }
+    }
+
+    #[test]
+    fn rcpf_d3a_0b_winner_failure_follows_legacy_parent_and_route_commit() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let (result, root) = (fixture.result, fixture.coverage_root);
+        let dependent = fixture.upper_record;
+        fixture
+            .machine
+            .bounds
+            .insert_dependent_record_edge(ProofPremise::Constraint(result), dependent);
+        let parent = ClaimQualifiedParent::ReductionRouteConstraint {
+            parent_claim: root,
+            derivation: RowDerivationId(72_001),
+        };
+        fixture
+            .machine
+            .replay_result_summary
+            .fail_next_source_reservation();
+
+        fixture.machine.admit_claim_qualified_parent(result, parent);
+
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert_eq!(
+            fixture.machine.bounds.claim_parents_by_constraint[&result],
+            vec![parent]
+        );
+        let root_dependents =
+            &fixture.machine.bounds.dependent_records_by_premise[&ProofPremise::RootCoverage(root)];
+        assert!(root_dependents.contains(&dependent));
+        let winner = fixture
+            .machine
+            .replay_result_summary
+            .first_qualified_parent_source(result, root);
+        assert_eq!(winner, Ok(None));
+    }
+
+    #[test]
     fn rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles() {
         let mut fixture = cdm_replay_claim_fixture_with_authority(
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed),
@@ -5458,6 +5602,11 @@ mod mutation_tests {
                 .evaluator_oracle_enabled()
         );
         assert_eq!(fixture.machine.replay_factored_terminal_failure(), None);
+        let winner = fixture
+            .machine
+            .replay_result_summary
+            .first_qualified_parent_source(fixture.result, fixture.coverage_root);
+        assert_eq!(winner, Ok(None));
         assert_eq!(
             fixture.machine.replay_read_authority(),
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed)

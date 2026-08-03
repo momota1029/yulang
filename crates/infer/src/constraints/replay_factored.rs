@@ -1129,7 +1129,7 @@ impl ReplayResultSummary {
     }
 
     #[cfg(test)]
-    fn fail_next_source_reservation(&mut self) {
+    pub(super) fn fail_next_source_reservation(&mut self) {
         self.fail_next_source_reservation = true;
     }
 
