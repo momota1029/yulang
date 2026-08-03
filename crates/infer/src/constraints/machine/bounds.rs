@@ -10347,6 +10347,7 @@ mod mutation_tests {
         use crate::constraints::{
             canonical_projection_insertion_census, reset_canonical_projection_insertion_census,
         };
+        use crate::SourceSpan;
         use crate::constraints::explain::{
             PortableProvenanceExport, PortableProvenanceExportBudget, PortableProvenanceExportRoot,
         };
@@ -10563,11 +10564,12 @@ mod mutation_tests {
             replay: BinaryReplayDerivation,
             roots: [UpperReplayClaimId; 2],
             rows: [RowDerivationId; 2],
+            boundaries: [SourceBoundaryId; 2],
         }
 
         impl TargetLateFixture {
-            fn new() -> Self {
-                let mut machine = ConstraintMachine::new();
+            fn new_with_authority(authority: ReplayReadAuthority) -> Self {
+                let mut machine = ConstraintMachine::new_with_replay_read_authority(authority);
                 machine.enable_replay_factored_event_oracle();
                 let source = TypeVar(0);
                 let target = TypeVar(1);
@@ -10583,11 +10585,10 @@ mod mutation_tests {
                     canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
                 };
                 machine.constraint_records.extend([record.clone(), record.clone(), record]);
-                for (producer, kind) in [ConstraintOriginKind::Annotation, ConstraintOriginKind::Pattern]
-                    .into_iter().enumerate()
-                {
-                    let origin = machine.alloc_source_boundary(kind).origin();
-                    machine.constraint_records[producer + 1].root_origins.push(origin);
+                let sources = [ConstraintOriginKind::Annotation, ConstraintOriginKind::Pattern]
+                    .map(|kind| machine.alloc_source_boundary(kind));
+                for (producer, source) in [1_usize, 2].into_iter().zip(sources) {
+                    machine.constraint_records[producer].root_origins.push(source.origin());
                 }
                 let parent_upper = machine.bounds.add_upper(
                     pivot, upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
@@ -10604,7 +10605,17 @@ mod mutation_tests {
                         pivot, lower: replay_lower, upper: parent_upper, rule: ReplayRule::LowerBoundAdded,
                     },
                     roots, rows: [RowDerivationId(90_000), RowDerivationId(90_001)],
+                    boundaries: sources.map(|source| source.boundary()),
                 }
+            }
+
+            fn epoch_checkpoint(&self) -> TargetLateEpochCheckpoint {
+                let owner_epoch = |var| self.machine.bounds.of(var).map(VarBounds::epoch);
+                (
+                    self.machine.epoch,
+                    self.machine.provenance_epoch,
+                    [owner_epoch(self.source), owner_epoch(self.target), owner_epoch(self.replay.pivot)],
+                )
             }
 
             fn admit_replay(&mut self) {
@@ -10623,33 +10634,217 @@ mod mutation_tests {
                 self.machine.register_reduction_route_claim_parent(self.result, row, self.roots[index]);
             }
 
-            fn materialize(mut self) -> ([UpperReplayClaimId; 2], Vec<UpperReplayClaimId>) {
+            fn materialize(mut self) -> TargetLateMaterialized {
                 let upper_record = self.machine.bounds.add_upper(
                     self.source, self.upper, ConstraintWeights::empty(), BoundDerivation::Constraint(self.result),
                 ).id;
-                self.machine.register_constraint_upper_replay_claims(upper_record, Some(self.result));
+                let published_claims = self.machine
+                    .register_constraint_upper_replay_claims(upper_record, Some(self.result));
                 let lower_record = self.machine.bounds.add_lower(
                     self.target, self.lower, ConstraintWeights::empty(), BoundDerivation::Constraint(self.result),
                 ).id;
                 self.machine.register_lower_projection_derivation(
                     lower_record, Some(self.result), BoundDerivation::Constraint(self.result),
                 );
-                assert_eq!(
-                    self.machine.try_upper_materialization_lineages_from_parents(
+                let legacy_lower = self.machine.try_legacy_record_lower_projection(lower_record).unwrap();
+                if self.machine.replay_read_authority() == ReplayReadAuthority::Factored {
+                    assert_eq!(self.machine.try_upper_materialization_lineages_from_parents(
                         upper_record, self.result,
                         self.machine.bounds.claim_parents_by_constraint[&self.result].iter().copied(), false,
-                    ),
-                    self.machine.try_factored_upper_materialization_full(upper_record, self.result),
-                );
-                self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap();
-                assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+                    ), self.machine.try_factored_upper_materialization_full(upper_record, self.result));
+                    assert_eq!(legacy_lower,
+                        self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap());
+                    assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+                }
                 let replay_parent_roots = self.machine.upper_record_replay_claim_parents(
                     self.lower, upper_record, &[],
                 ).iter().map(|parent| {
                     self.machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
-                }).collect();
-                (self.roots, replay_parent_roots)
+                }).collect::<Vec<_>>();
+                let qualified = self.machine.scheme_projectable_lowers(self.target)
+                    .find(|entry| entry.record == lower_record).expect("target-late lower remains projectable").reason;
+                let generalized = GeneralizedCompactRoot {
+                    compact: CompactRoot::default(), role_predicates: Vec::new(), quantifiers: Vec::new(),
+                    stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
+                };
+                let (drafts, completeness) = capture_generalized_witnesses(
+                    &self.machine, self.target, &generalized,
+                );
+                let parents = drafts.iter().flat_map(|draft| &draft.incoming)
+                    .flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>();
+                let scheme = self.machine.alloc_generalized_scheme_record(
+                    poly::expr::DefId(0), 0, drafts.clone(), completeness,
+                );
+                let witnesses = self.machine.generalized_scheme_record(scheme)
+                    .expect("target-late oracle scheme").witnesses.clone();
+                // Mirror `append_generalized_occurrences`: store each witness's exact parent carriers.
+                let occurrence_roots = witnesses.iter().map(|witness| {
+                    let witness = self.machine.generalized_scheme_witness(*witness)
+                        .expect("target-late occurrence witness");
+                    let mut roots = Vec::new();
+                    for parent in witness.incoming.iter().flat_map(|edge| &edge.parents) {
+                        let Some(carriers) = self.machine.generalization_parent_carriers(*parent) else {
+                            continue;
+                        };
+                        let candidates = match carriers {
+                            GeneralizationParentCarriers::Constraint(id) =>
+                                vec![PortableProvenanceExportRoot::Constraint(id)],
+                            GeneralizationParentCarriers::Bound(id) =>
+                                vec![PortableProvenanceExportRoot::Bound(id)],
+                            GeneralizationParentCarriers::ReplayEvidence { lower, upper } => vec![
+                                PortableProvenanceExportRoot::Bound(lower),
+                                PortableProvenanceExportRoot::Bound(upper),
+                            ],
+                            GeneralizationParentCarriers::Origin(id) =>
+                                vec![PortableProvenanceExportRoot::Origin(id)],
+                            GeneralizationParentCarriers::RowDerivation(id) =>
+                                vec![PortableProvenanceExportRoot::RowDerivation(id)],
+                            GeneralizationParentCarriers::GeneralizedWitness(id) =>
+                                vec![PortableProvenanceExportRoot::GeneralizedWitness(id)],
+                        };
+                        for root in candidates {
+                            if !roots.contains(&root) { roots.push(root); }
+                        }
+                    }
+                    roots
+                }).collect::<Vec<_>>();
+                let portable_roots = occurrence_roots.iter().flatten().copied().collect::<Vec<_>>();
+                let portable = self.portable_snapshot(&portable_roots, false);
+                let mut root_offset = 0;
+                let occurrence_anchors = occurrence_roots.iter().map(|roots| {
+                    let anchors = portable.export.root_anchors[root_offset..root_offset + roots.len()].to_vec();
+                    root_offset += roots.len();
+                    anchors
+                }).collect::<Vec<_>>();
+                let anchors = portable.export.root_anchors.iter().flatten().copied().collect::<Vec<_>>();
+                let tight_explanation = explain_portable_subtype(
+                    &portable.export.snapshot, &anchors, &anchors,
+                    PortableExplanationBudget { max_edges: 0, ..PortableExplanationBudget::default() },
+                );
+                let duplicate = self.portable_snapshot(&portable_roots, true).explanation;
+                let mut duplicate_survivors = Vec::new();
+                for cause in &duplicate.lower_sites {
+                    if !duplicate_survivors.iter().any(|survivor: &DiagnosticTypeCause| {
+                        survivor.source_span == cause.source_span
+                    }) {
+                        duplicate_survivors.push(cause.clone());
+                    }
+                }
+                let duplicate_primary = duplicate_survivors.first()
+                    .map(|cause| cause.source_span.clone());
+                let publication = TargetLatePublicationSnapshot {
+                    published_claims,
+                    target_claims: self.machine.bounds.claims_by_upper_record[&upper_record].clone(),
+                    claim_arena: self.machine.bounds.upper_replay_claims.clone(),
+                    final_epoch: self.epoch_checkpoint(),
+                };
+                TargetLateMaterialized {
+                    roots: self.roots,
+                    consumer: TargetLateConsumerSnapshot {
+                        lower_record,
+                        replay_parent_roots,
+                        lower_claimed_roots: legacy_lower.canonical.claimed_roots,
+                        lower_proof_keys: legacy_lower.canonical.proof_keys,
+                        generalized: ConsumerSnapshot { qualified, drafts, parents, completeness },
+                        occurrence_roots,
+                        occurrence_anchors,
+                        portable,
+                        tight_explanation,
+                        duplicate_causes: duplicate.lower_sites,
+                        duplicate_survivors,
+                        duplicate_primary,
+                    },
+                    publication,
+                }
             }
+
+            fn portable_snapshot(&self, roots: &[PortableProvenanceExportRoot],
+                duplicate_span: bool) -> PortableConsumerSnapshot {
+                let boundaries = self.boundaries;
+                let export = self.machine.export_portable_provenance(
+                    roots, PortableProvenanceExportBudget::default(), move |boundary, _| {
+                        let start = if duplicate_span && boundaries.contains(&boundary) {
+                            10
+                        } else {
+                            boundary.0 * 2
+                        };
+                        Some(PortableSourceLocation {
+                            module: vec!["rcpf-target-late".to_string()],
+                            range: PortableByteRange { start, end: start + 1 },
+                        })
+                    },
+                ).expect("target-late portable export");
+                let anchors = export.root_anchors.iter().flatten().copied().collect::<Vec<_>>();
+                let explanation = explain_portable_subtype(
+                    &export.snapshot, &anchors, &anchors, PortableExplanationBudget::default(),
+                );
+                PortableConsumerSnapshot { export, explanation }
+            }
+        }
+
+        type TargetLateEpochCheckpoint =
+            (ConstraintEpoch, ProvenanceEpoch, [Option<ConstraintEpoch>; 3]);
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct TargetLateConsumerSnapshot {
+            lower_record: BoundRecordId,
+            replay_parent_roots: Vec<UpperReplayClaimId>,
+            lower_claimed_roots: Vec<UpperReplayClaimId>,
+            lower_proof_keys: Vec<Key>,
+            generalized: ConsumerSnapshot,
+            occurrence_roots: Vec<Vec<PortableProvenanceExportRoot>>,
+            occurrence_anchors: Vec<Vec<Option<poly::provenance::ProvenanceAnchor>>>,
+            portable: PortableConsumerSnapshot,
+            tight_explanation: DiagnosticSubtypeExplanation,
+            duplicate_causes: Vec<DiagnosticTypeCause>,
+            duplicate_survivors: Vec<DiagnosticTypeCause>,
+            duplicate_primary: Option<SourceSpan>,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct TargetLatePublicationSnapshot {
+            published_claims: Vec<UpperReplayClaimId>,
+            target_claims: Vec<UpperReplayClaimId>,
+            claim_arena: Vec<UpperReplayClaim>,
+            final_epoch: TargetLateEpochCheckpoint,
+        }
+
+        struct TargetLateMaterialized {
+            roots: [UpperReplayClaimId; 2],
+            consumer: TargetLateConsumerSnapshot,
+            publication: TargetLatePublicationSnapshot,
+        }
+
+        fn run_target_late(
+            replay_wins_same_root: bool,
+            root_a_before_root_b: bool,
+            authority: ReplayReadAuthority,
+        ) -> (Vec<TargetLateEpochCheckpoint>, TargetLateMaterialized) {
+            let mut fixture = TargetLateFixture::new_with_authority(authority);
+            let mut epochs = vec![fixture.epoch_checkpoint()];
+            let order: [u8; 3] = match (replay_wins_same_root, root_a_before_root_b) {
+                (true, true) => [0, 1, 2],
+                (true, false) => [2, 0, 1],
+                (false, true) => [1, 0, 2],
+                (false, false) => [2, 1, 0],
+            };
+            for event in order {
+                match event {
+                    0 => fixture.admit_replay(),
+                    1 => fixture.admit_non_replay(0),
+                    2 => fixture.admit_non_replay(1),
+                    _ => unreachable!(),
+                }
+                epochs.push(fixture.epoch_checkpoint());
+            }
+            if authority == ReplayReadAuthority::Factored {
+                let winner = fixture.machine.replay_result_summary
+                    .first_qualified_parent_source(fixture.result, fixture.roots[0]).unwrap();
+                assert_eq!(matches!(winner, Some(FirstQualifiedParentSource::Replay)), replay_wins_same_root);
+            }
+            let materialized = fixture.materialize();
+            epochs.push(materialized.publication.final_epoch);
+            (epochs, materialized)
         }
 
         #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10728,40 +10923,95 @@ mod mutation_tests {
             for replay_wins_same_root in [true, false] {
                 let mut expected = None;
                 for root_a_before_root_b in [true, false] {
-                    let mut fixture = TargetLateFixture::new();
-                    match (replay_wins_same_root, root_a_before_root_b) {
-                        (true, true) => {
-                            fixture.admit_replay();
-                            fixture.admit_non_replay(0);
-                            fixture.admit_non_replay(1);
-                        }
-                        (true, false) => {
-                            fixture.admit_non_replay(1);
-                            fixture.admit_replay();
-                            fixture.admit_non_replay(0);
-                        }
-                        (false, true) => {
-                            fixture.admit_non_replay(0);
-                            fixture.admit_replay();
-                            fixture.admit_non_replay(1);
-                        }
-                        (false, false) => {
-                            fixture.admit_non_replay(1);
-                            fixture.admit_non_replay(0);
-                            fixture.admit_replay();
-                        }
-                    }
-                    let winner = fixture.machine.replay_result_summary
-                        .first_qualified_parent_source(fixture.result, fixture.roots[0]).unwrap();
-                    assert_eq!(matches!(winner, Some(FirstQualifiedParentSource::Replay)), replay_wins_same_root);
-                    let (roots, replay_parent_roots) = fixture.materialize();
-                    assert_eq!(replay_parent_roots.len(), 2);
-                    assert_eq!(replay_parent_roots.iter().copied().collect::<FxHashSet<_>>(), roots.into_iter().collect());
-                    assert_eq!(
-                        replay_parent_roots,
-                        *expected.get_or_insert_with(|| replay_parent_roots.clone()),
-                        "target-late later replay exposed cross-root admission order; replay same-root winner: {replay_wins_same_root}",
+                    let (_, materialized) = run_target_late(
+                        replay_wins_same_root, root_a_before_root_b, ReplayReadAuthority::Factored,
                     );
+                    let roots = materialized.roots;
+                    let snapshot = materialized.consumer;
+                    assert_eq!(snapshot.replay_parent_roots, roots);
+                    assert_eq!(snapshot.lower_claimed_roots, roots);
+                    assert_eq!(snapshot.lower_proof_keys,
+                        roots.map(Key::Claimed));
+                    let SchemeProjectableLowerReason::Qualified {
+                        uncovered_claims, independent_supports,
+                    } = &snapshot.generalized.qualified else {
+                        panic!("target-late lower must remain claim-qualified")
+                    };
+                    assert_eq!(uncovered_claims, &roots);
+                    assert!(independent_supports.is_empty());
+                    let qualified = qualified_parents(
+                        &snapshot.generalized.qualified, snapshot.lower_record,
+                    );
+                    assert_eq!(lower_draft(&snapshot.generalized).incoming.iter()
+                        .flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>(), qualified);
+                    assert_eq!(snapshot.generalized.parents.len(), qualified.len() * 2,
+                        "the root lower and recursive-lower drafts retain the same exact parents");
+                    assert!(snapshot.generalized.parents.chunks(qualified.len())
+                        .all(|parents| parents == qualified));
+                    assert_eq!(snapshot.generalized.completeness, ProvenanceCompleteness::Incomplete);
+                    assert!(snapshot.generalized.drafts.iter()
+                        .all(|draft| draft.completeness == ProvenanceCompleteness::Complete));
+                    assert_eq!(snapshot.occurrence_roots.len(), snapshot.occurrence_anchors.len());
+                    assert_eq!(snapshot.portable.export.root_anchors.len(),
+                        snapshot.occurrence_roots.iter().map(Vec::len).sum::<usize>());
+                    let occurrence_pair = [1, 2].map(|id| PortableProvenanceExportRoot::Constraint(ConstraintRecordId(id)));
+                    assert!(snapshot.occurrence_roots.iter()
+                        .all(|occurrence| occurrence.as_slice() == occurrence_pair));
+                    assert!(snapshot.occurrence_anchors.iter().all(|anchors| {
+                        anchors.len() == roots.len() && anchors.iter().all(Option::is_some)
+                    }));
+                    assert_eq!(snapshot.portable.export.snapshot.completeness(), PortableCompleteness::Complete);
+                    assert_eq!(snapshot.portable.export.snapshot.truncation(), None);
+                    assert_eq!(snapshot.portable.export.snapshot.source_sites().len(), roots.len());
+                    assert_eq!(snapshot.portable.explanation.lower_sites.iter()
+                        .map(|cause| cause.role).collect::<Vec<_>>(), vec![
+                            DiagnosticTypeCauseRole::RequiredByAnnotation,
+                            DiagnosticTypeCauseRole::RequiredByPattern,
+                        ]);
+                    assert_eq!(snapshot.portable.explanation.upper_sites,
+                        snapshot.portable.explanation.lower_sites);
+                    assert_eq!(snapshot.portable.explanation.completeness,
+                        DiagnosticExplanationCompleteness::Complete);
+                    assert_eq!(snapshot.tight_explanation.completeness,
+                        DiagnosticExplanationCompleteness::TruncatedByBudget);
+                    assert_eq!(snapshot.tight_explanation.truncation,
+                        Some(DiagnosticExplanationTruncationReason::EdgeBudget { limit: 0 }));
+                    assert_eq!(snapshot.tight_explanation.lower_sites,
+                        snapshot.portable.explanation.lower_sites[..snapshot.tight_explanation.lower_sites.len()]);
+                    assert_eq!(snapshot.duplicate_causes.len(), roots.len());
+                    assert_eq!(snapshot.duplicate_causes[0].source_span,
+                        snapshot.duplicate_causes[1].source_span);
+                    assert_eq!([snapshot.duplicate_causes[0].role, snapshot.duplicate_causes[1].role], [DiagnosticTypeCauseRole::RequiredByAnnotation, DiagnosticTypeCauseRole::RequiredByPattern]);
+                    assert_eq!(snapshot.duplicate_survivors, snapshot.duplicate_causes[..1]);
+                    assert_eq!(snapshot.duplicate_primary,
+                        Some(snapshot.duplicate_causes[0].source_span.clone()));
+                    assert_eq!(snapshot,
+                        *expected.get_or_insert_with(|| snapshot.clone()),
+                        "target-late consumer chain exposed cross-root admission order; replay same-root winner: {replay_wins_same_root}",
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn target_late_legacy_rollback_reproduces_epoch_publication_and_consumer_sequences() {
+            let rollback = ReplayReadAuthority::LegacyRollback(
+                ReplayFactoredShadowFailure::AllocationFailed,
+            );
+            for replay_wins_same_root in [true, false] {
+                for root_a_before_root_b in [true, false] {
+                    let (factored_epochs, factored) = run_target_late(
+                        replay_wins_same_root, root_a_before_root_b, ReplayReadAuthority::Factored,
+                    );
+                    let (rollback_epochs, rollback_run) = run_target_late(
+                        replay_wins_same_root, root_a_before_root_b, rollback,
+                    );
+                    assert_eq!(rollback_epochs, factored_epochs,
+                        "LegacyRollback changed global/provenance/owner epochs");
+                    assert_eq!(rollback_run.publication, factored.publication,
+                        "LegacyRollback changed exact claim publication or derived allocation");
+                    assert_eq!(rollback_run.consumer, factored.consumer,
+                        "LegacyRollback changed the target-late consumer chain");
                 }
             }
         }
