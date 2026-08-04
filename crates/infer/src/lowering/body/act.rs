@@ -246,10 +246,13 @@ impl BodyLowerer {
             )
             .collect::<Vec<_>>();
         let mut catalog = crate::module_table::typed_act_catalog::TypedActTemplateCatalog::new();
-        let embedded_shadow_active = catalog_source
+        let embedded_profile_active = catalog_source
             == super::act_copy_census::ActTemplateCatalogSource::Embedded
             && crate::typed_act_bundle::has_current_cold_shadow_profile();
-        let embedded_catalog = embedded_shadow_active.then(|| {
+        let embedded_cutover_active =
+            embedded_profile_active && crate::typed_act_bundle::cold_typed_act_cutover_active();
+        let embedded_shadow_active = embedded_profile_active && !embedded_cutover_active;
+        let embedded_catalog = embedded_profile_active.then(|| {
             crate::typed_act_bundle::current_cold_shadow_catalog(&self.modules)
                 .map_err(|error| format!("catalog rehydration: {error:?}"))?
                 .ok_or_else(|| "catalog rehydration: scoped profile missing".to_string())
@@ -331,7 +334,69 @@ impl BodyLowerer {
             } else {
                 None
             };
-            if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix
+            if embedded_cutover_active
+                && !super::act_copy_census::force_legacy_typed_act_template_path()
+            {
+                let attempt = (|| {
+                    let catalog = embedded_catalog
+                        .as_ref()
+                        .expect("active embedded cutover initializes a catalog result")
+                        .as_ref()
+                        .map_err(|_| super::act_copy_census::ActTemplateAttemptOutcome::Miss)?;
+                    let substitution = self
+                        .modules
+                        .nominal_act_instance_substitution(id)
+                        .ok_or(super::act_copy_census::ActTemplateAttemptOutcome::Miss)?;
+                    let entry = catalog
+                        .entry(kind, substitution.template_root_act)
+                        .ok_or(super::act_copy_census::ActTemplateAttemptOutcome::Miss)?;
+                    if super::act_copy_census::force_typed_act_template_fallback() {
+                        return Err(super::act_copy_census::ActTemplateAttemptOutcome::Fallback);
+                    }
+                    entry
+                        .prepare(substitution, &self.modules, |_| true)
+                        .map_err(|_| super::act_copy_census::ActTemplateAttemptOutcome::Fallback)
+                })();
+                match attempt {
+                    Ok(prepared) => {
+                        let installed = prepared.commit(&mut self.session, &mut self.labels);
+                        debug_assert!(
+                            installed
+                                .member_defs
+                                .iter()
+                                .all(|def| self.session.is_finalized_template_def(*def))
+                        );
+                        let outcome = super::act_copy_census::ActTemplateAttemptOutcome::Eligible;
+                        super::act_copy_census::record_act_template_attempt(
+                            kind,
+                            catalog_source,
+                            outcome,
+                        );
+                        crate::typed_act_bundle::record_cold_typed_act_attempt(
+                            kind,
+                            crate::typed_act_bundle::ColdTypedActAttemptOutcome::Eligible,
+                        );
+                        continue;
+                    }
+                    Err(outcome) => {
+                        super::act_copy_census::record_act_template_attempt(
+                            kind,
+                            catalog_source,
+                            outcome,
+                        );
+                        let cold_outcome = match outcome {
+                            super::act_copy_census::ActTemplateAttemptOutcome::Miss => {
+                                crate::typed_act_bundle::ColdTypedActAttemptOutcome::Miss
+                            }
+                            super::act_copy_census::ActTemplateAttemptOutcome::Fallback => {
+                                crate::typed_act_bundle::ColdTypedActAttemptOutcome::Fallback
+                            }
+                            _ => unreachable!("embedded rejection is miss or fallback"),
+                        };
+                        crate::typed_act_bundle::record_cold_typed_act_attempt(kind, cold_outcome);
+                    }
+                }
+            } else if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix
                 && !super::act_copy_census::force_legacy_typed_act_template_path()
             {
                 let substitution = self.modules.nominal_act_instance_substitution(id);
@@ -385,6 +450,9 @@ impl BodyLowerer {
             let previous_source_spans = std::mem::replace(&mut self.record_source_spans, false);
             let mut method_cursor = 0usize;
             super::act_copy_census::record_legacy_act_copy_lowering(kind, catalog_source);
+            if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Embedded {
+                crate::typed_act_bundle::record_cold_typed_act_legacy_lowering();
+            }
             self.lower_act_body_contents(
                 &copy.body,
                 companion,
@@ -422,6 +490,7 @@ impl BodyLowerer {
                 .map_err(|error| format!("legacy capture after analysis drain: {error:?}"))?;
                 crate::typed_act_bundle::compare_shadow_snapshots(&embedded, &legacy)
             });
+            crate::typed_act_bundle::record_cold_typed_act_shadow_result(pending.kind, &comparison);
             match comparison {
                 Ok(()) => {
                     super::act_copy_census::record_embedded_shadow_comparison(pending.kind, true)

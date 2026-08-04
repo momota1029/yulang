@@ -371,7 +371,7 @@ fn build_poly_and_compiled_unit_from_collected_sources_with_timing(
     let diagnostic_sources = RuntimeDiagnosticSources::from_collected_sources(&files);
     let loaded = load_collected_sources(files.clone());
     let mut lowering =
-        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(&loaded)
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_catalog(&loaded)
             .map_err(RouteError::Lower)?;
     suppress_test_module_runtime_roots(&mut lowering);
     let application_provenance = lowering.application_provenance().clone();
@@ -5303,7 +5303,7 @@ fn build_poly_from_loaded_files_with_lowering_timing(
     loaded: Vec<sources::LoadedFile>,
 ) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let mut lowering =
-        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(&loaded)
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_catalog(&loaded)
             .map_err(RouteError::Lower)?;
     suppress_test_module_runtime_roots(&mut lowering);
     let lowering_timing = lowering.timing;

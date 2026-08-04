@@ -79,7 +79,43 @@ impl SccMachine {
     }
 
     pub fn seed_quantified_def(&mut self, def: DefId) {
-        self.quantified.entry(def).or_insert(TypeVar(u32::MAX));
+        if self.quantified.contains_key(&def) {
+            return;
+        }
+
+        let seeded_root = TypeVar(u32::MAX);
+        let Some(component) = self.graph.component_of(def) else {
+            self.quantified.insert(def, seeded_root);
+            return;
+        };
+
+        // A finalized template can be installed after suffix lowering has already resolved uses
+        // against its destination shell. Such a shell has no source-lowered body of its own, but
+        // it can already have incoming SCC edges. Promote that placeholder through the graph's
+        // normal removal path so those edges become InstantiateUse events and their predecessors
+        // can settle. Do not emit QuantifyComponent for the template itself: its closed scheme was
+        // imported by the installer and must not be generalized again from the sentinel root.
+        self.graph.register_def(def, seeded_root);
+        self.graph.finish_def(def);
+        let removed = self.graph.remove_ready_component(component).expect(
+            "a pre-finalized definition may only replace an edge-only placeholder component",
+        );
+        assert_eq!(
+            removed.members,
+            vec![def],
+            "a pre-finalized definition may not replace a merged open component"
+        );
+        self.quantified.insert(def, seeded_root);
+        for use_edge in removed.incoming_uses {
+            if let Some(use_value) = use_edge.use_value {
+                self.events.push(SccEvent::InstantiateUse {
+                    parent: use_edge.parent,
+                    target: use_edge.target,
+                    use_value,
+                });
+            }
+        }
+        self.settle_components(removed.predecessors);
     }
 
     pub fn finish_def(&mut self, def: DefId) {
@@ -610,6 +646,38 @@ mod tests {
                 use_value: TypeVar(3),
             }]
         );
+    }
+
+    #[test]
+    fn seeding_finalized_target_releases_existing_placeholder_edge() {
+        let mut machine = SccMachine::new();
+        machine.register_def(DefId(1), TypeVar(10));
+        machine.use_resolved(SccInput::UseResolved {
+            parent: DefId(1),
+            target: DefId(2),
+            use_value: TypeVar(12),
+        });
+        machine.finish_def(DefId(1));
+        machine.take_events();
+
+        machine.seed_quantified_def(DefId(2));
+
+        assert_eq!(
+            machine.take_events(),
+            vec![
+                SccEvent::InstantiateUse {
+                    parent: DefId(1),
+                    target: DefId(2),
+                    use_value: TypeVar(12),
+                },
+                SccEvent::QuantifyComponent {
+                    component: vec![DefId(1)],
+                    roots: vec![TypeVar(10)],
+                },
+            ]
+        );
+        assert!(machine.is_quantified(DefId(1)));
+        assert!(machine.is_quantified(DefId(2)));
     }
 
     #[test]

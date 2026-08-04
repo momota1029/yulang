@@ -4653,6 +4653,110 @@ fn compatible_run_populates_control_ir_cache() {
 }
 
 #[test]
+fn m1_8_empty_user_cache_cold_run_uses_embedded_typed_act_catalog() {
+    let entry = write_entry("m1-8-empty-user-cache", m1_8_cold_cutover_source());
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("empty-cache");
+    assert!(!cache_root.exists());
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [2]\n");
+    assert!(compiled_unit_cache_file_count(&cache_root) > 0);
+    assert_eq!(poly_cache_file_count(&cache_root), 1);
+    assert_eq!(control_cache_file_count(&cache_root), 1);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn m1_8_no_cache_cli_cold_run_leaves_user_cache_empty() {
+    let entry = write_entry("m1-8-no-cache", m1_8_cold_cutover_source());
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("disabled-cache");
+
+    let output = yulang_command()
+        .env("YULANG_CACHE_DIR", &cache_root)
+        .arg("--std-root")
+        .arg(repo_lib_root())
+        .arg("--no-cache")
+        .arg("run")
+        .arg("--print-roots")
+        .arg(&entry)
+        .output()
+        .unwrap();
+
+    assert_success(&output);
+    assert_eq!(stdout(&output), "run roots [2]\n");
+    assert_eq!(compiled_unit_cache_file_count(&cache_root), 0);
+    assert_eq!(poly_cache_file_count(&cache_root), 0);
+    assert_eq!(control_cache_file_count(&cache_root), 0);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn m1_8_first_cli_invocation_populates_then_reuses_cold_artifacts() {
+    let entry = write_entry("m1-8-first-invocation", m1_8_cold_cutover_source());
+    let root = entry.parent().unwrap().to_path_buf();
+    let cache_root = root.join("first-invocation-cache");
+
+    let run = || {
+        yulang_command()
+            .env("YULANG_CACHE_DIR", &cache_root)
+            .arg("--std-root")
+            .arg(repo_lib_root())
+            .arg("run")
+            .arg("--print-roots")
+            .arg(&entry)
+            .output()
+            .unwrap()
+    };
+    let first = run();
+    assert_success(&first);
+    assert_eq!(stdout(&first), "run roots [2]\n");
+    let after_first = (
+        compiled_unit_cache_file_count(&cache_root),
+        poly_cache_file_count(&cache_root),
+        control_cache_file_count(&cache_root),
+    );
+    assert!(after_first.0 > 0);
+    assert_eq!(after_first.1, 1);
+    assert_eq!(after_first.2, 1);
+
+    let second = run();
+    assert_success(&second);
+    assert_eq!(stdout(&second), "run roots [2]\n");
+    assert_eq!(
+        (
+            compiled_unit_cache_file_count(&cache_root),
+            poly_cache_file_count(&cache_root),
+            control_cache_file_count(&cache_root),
+        ),
+        after_first,
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+fn m1_8_cold_cutover_source() -> &'static str {
+    concat!(
+        "my state =\n",
+        "  my $value = 1\n",
+        "  &value = $value + 1\n",
+        "  sub 'done:\n",
+        "    'done.return $value\n",
+        "state\n",
+    )
+}
+
+#[test]
 fn compatible_runtime_phase_timings_report_cache_route() {
     let entry = write_entry("runtime-phase-cache-route", "1\n");
     let root = entry.parent().unwrap().to_path_buf();

@@ -806,6 +806,47 @@ fn m1_7_full_std_embedded_catalog_matches_live_capture_and_cold_legacy() {
     }
 }
 
+#[test]
+fn m1_8_full_std_canonical_var_and_label_sub_are_cold_eligible() {
+    let bundle = crate::typed_act_bundle::TypedActTemplateBundle::decode(include_bytes!(
+        "../../../../yulang/assets/typed_act_templates.bin"
+    ))
+    .expect("decode checked-in typed-act bundle");
+    let source = concat!(
+        "use std::prelude::*\n",
+        "mod std;\n",
+        "my state =\n",
+        "  my $value = 1\n",
+        "  &value = $value\n",
+        "  $value\n",
+        "my escaped = sub 'done:\n",
+        "  'done.return state\n",
+        "escaped\n",
+    );
+    let files = repository_std_loaded(source);
+    let profile = crate::typed_act_bundle::profile_for_loaded_files(&bundle, &files)
+        .expect("repository std selects FullStd");
+    let (output, census) =
+        crate::typed_act_bundle::with_cold_typed_act_template_cutover(profile, || {
+            capture_synthetic_act_copy_census(|| lower_loaded_files(&files).unwrap())
+        });
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eligible_cell(
+        census.cell(
+            SyntheticActCopyKind::Var,
+            ActTemplateCatalogSource::Embedded,
+        ),
+        1,
+    );
+    assert_eligible_cell(
+        census.cell(
+            SyntheticActCopyKind::LabelSub,
+            ActTemplateCatalogSource::Embedded,
+        ),
+        1,
+    );
+}
+
 fn m1_runtime_output(
     arena: &poly::expr::Arena,
     provenance: &poly::provenance::SubtypeProvenanceSidecar,

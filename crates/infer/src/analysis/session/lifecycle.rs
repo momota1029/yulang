@@ -215,7 +215,6 @@ impl AnalysisSession {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn is_finalized_template_def(&self, def: DefId) -> bool {
         self.finalized_template_scheme_defs.contains(&def) && self.scc.is_quantified(def)
     }

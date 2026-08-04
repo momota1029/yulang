@@ -219,6 +219,29 @@ pub enum TypedActTemplateBundleError {
 std::thread_local! {
     static COLD_SHADOW_PROFILE: RefCell<Option<Arc<TypedActTemplateBundleProfile>>> =
         const { RefCell::new(None) };
+    static COLD_SHADOW_REPORT: RefCell<Option<ColdTypedActShadowReport>> =
+        const { RefCell::new(None) };
+    static COLD_TYPED_ACT_CUTOVER: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Cross-crate observation seam for proving an embedded profile before cold cutover.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ColdTypedActShadowReport {
+    pub var_passed: usize,
+    pub label_sub_passed: usize,
+    pub var_eligible: usize,
+    pub label_sub_eligible: usize,
+    pub misses: usize,
+    pub fallbacks: usize,
+    pub legacy_lowerings: usize,
+    pub failures: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ColdTypedActAttemptOutcome {
+    Eligible,
+    Miss,
+    Fallback,
 }
 
 impl TypedActTemplateBundle {
@@ -276,6 +299,123 @@ pub fn with_cold_typed_act_template_shadow<T>(
     let output = run();
     drop(reset);
     output
+}
+
+pub fn with_cold_typed_act_template_shadow_report<T>(
+    profile: Arc<TypedActTemplateBundleProfile>,
+    run: impl FnOnce() -> T,
+) -> (T, ColdTypedActShadowReport) {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            COLD_SHADOW_REPORT.with(|slot| {
+                slot.borrow_mut().take();
+            });
+        }
+    }
+    COLD_SHADOW_REPORT.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "nested cold typed-act shadow report"
+        );
+        slot.replace(Some(ColdTypedActShadowReport::default()));
+    });
+    let reset = Reset;
+    let output = with_cold_typed_act_template_shadow(profile, run);
+    let report = COLD_SHADOW_REPORT.with(|slot| {
+        slot.borrow_mut()
+            .take()
+            .expect("cold typed-act shadow report remains installed")
+    });
+    std::mem::forget(reset);
+    (output, report)
+}
+
+pub fn with_cold_typed_act_template_cutover<T>(
+    profile: Arc<TypedActTemplateBundleProfile>,
+    run: impl FnOnce() -> T,
+) -> T {
+    struct Reset(bool);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            COLD_TYPED_ACT_CUTOVER.with(|flag| flag.set(self.0));
+        }
+    }
+    let reset = Reset(COLD_TYPED_ACT_CUTOVER.with(|flag| flag.replace(true)));
+    let output = with_cold_typed_act_template_shadow(profile, run);
+    drop(reset);
+    output
+}
+
+pub fn with_cold_typed_act_template_cutover_report<T>(
+    profile: Arc<TypedActTemplateBundleProfile>,
+    run: impl FnOnce() -> T,
+) -> (T, ColdTypedActShadowReport) {
+    COLD_SHADOW_REPORT.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "nested cold typed-act cutover report"
+        );
+        slot.replace(Some(ColdTypedActShadowReport::default()));
+    });
+    let output = with_cold_typed_act_template_cutover(profile, run);
+    let report = COLD_SHADOW_REPORT.with(|slot| {
+        slot.borrow_mut()
+            .take()
+            .expect("cold typed-act cutover report remains installed")
+    });
+    (output, report)
+}
+
+pub(crate) fn record_cold_typed_act_shadow_result(
+    kind: SyntheticActCopyKind,
+    result: &Result<(), String>,
+) {
+    COLD_SHADOW_REPORT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let Some(report) = slot.as_mut() else {
+            return;
+        };
+        match (kind, result) {
+            (SyntheticActCopyKind::Var, Ok(())) => report.var_passed += 1,
+            (SyntheticActCopyKind::LabelSub, Ok(())) => report.label_sub_passed += 1,
+            (kind, Err(detail)) => report.failures.push(format!("{kind:?}: {detail}")),
+        }
+    });
+}
+
+pub(crate) fn cold_typed_act_cutover_active() -> bool {
+    COLD_TYPED_ACT_CUTOVER.with(std::cell::Cell::get)
+}
+
+pub(crate) fn record_cold_typed_act_attempt(
+    kind: SyntheticActCopyKind,
+    outcome: ColdTypedActAttemptOutcome,
+) {
+    COLD_SHADOW_REPORT.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let Some(report) = slot.as_mut() else {
+            return;
+        };
+        match (kind, outcome) {
+            (SyntheticActCopyKind::Var, ColdTypedActAttemptOutcome::Eligible) => {
+                report.var_eligible += 1
+            }
+            (SyntheticActCopyKind::LabelSub, ColdTypedActAttemptOutcome::Eligible) => {
+                report.label_sub_eligible += 1
+            }
+            (_, ColdTypedActAttemptOutcome::Miss) => report.misses += 1,
+            (_, ColdTypedActAttemptOutcome::Fallback) => report.fallbacks += 1,
+        }
+    });
+}
+
+pub(crate) fn record_cold_typed_act_legacy_lowering() {
+    COLD_SHADOW_REPORT.with(|slot| {
+        if let Some(report) = slot.borrow_mut().as_mut() {
+            report.legacy_lowerings += 1;
+        }
+    });
 }
 
 pub fn profile_for_loaded_files(
