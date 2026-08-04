@@ -1729,7 +1729,20 @@ Rollback:
 
 ### RCPF-E: Clause-link consumer切替
 
-変更:
+**着地済み（2026-08-05）**。実装は
+[[2026-08-05-rcpf-e-clause-link-attribution-and-ordering-addendum]]
+（ユーザ承認済み・正本）の Gap 1（claimed attribution の source-partitioned
+union）・Gap 2（A1 preflight の event-local ordering、Factored A1 失敗時の
+Phase A 無条件維持）に従い、E2a〜E2e のスライスで完了した
+（`00a962b9` writer-boundary 分類 → `a9bafe72` test fixture authority 是正
+→ `38147643` Phase B 後の snapshot sealing → `220a2fb4` union read + oracle
+→ `159dbb02` A1 preflight 安定化）。§11 の4項目は Codex `gpt-5.6-sol` xhigh
+による read-only closure 検証（2026-08-05）で全て PASS 確認済み。
+scoped `constraints::` suite は既知4件のみで green。定量性能 gate（下記
+12.62B比較、§12目標）は E 後に再計測が必要（未完了）。RCPF-F 着手前提の
+soak（quarantine addendum §3.6）も未実施——F は別途着手判断が必要。
+
+変更（実施済み）:
 
 - Replay claimed linkをfactored relationへ切り替える。
 - claimed flat fail-openを`attributed_claim_supports`へ切り替える。
