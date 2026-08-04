@@ -34,6 +34,7 @@ impl BodyLowerer {
         let mut method_cursor = 0usize;
         let previous_scope = self.local_method_scope.replace(companion);
         if let Some(copy) = self.act_copy_lowering_context(module, &decl) {
+            let previous_source_module = self.copied_source_module.replace(copy.source_module);
             self.lower_act_body_contents(
                 &copy.body,
                 companion,
@@ -43,6 +44,7 @@ impl BodyLowerer {
                 copy.type_name_aliases.as_slice(),
                 ActBodyLoweringMode::CopiedSourceExport,
             );
+            self.copied_source_module = previous_source_module;
         }
         if let Some(body) = crate::act_decl_body(node) {
             self.lower_act_body_contents(
@@ -253,6 +255,7 @@ impl BodyLowerer {
                 continue;
             };
             let previous_scope = self.local_method_scope.replace(companion);
+            let previous_source_module = self.copied_source_module.replace(copy.source_module);
             let previous_suppression = std::mem::replace(&mut self.suppress_runtime_roots, true);
             let previous_source_spans = std::mem::replace(&mut self.record_source_spans, false);
             let mut method_cursor = 0usize;
@@ -273,6 +276,7 @@ impl BodyLowerer {
             );
             self.record_source_spans = previous_source_spans;
             self.suppress_runtime_roots = previous_suppression;
+            self.copied_source_module = previous_source_module;
             self.local_method_scope = previous_scope;
         }
     }
@@ -345,10 +349,12 @@ impl BodyLowerer {
         decl: &ModuleTypeDecl,
     ) -> Option<ActCopyLoweringContext> {
         let copy = self.modules.resolved_act_copy(decl.id)?;
-        let source_node = self.modules.act_template(copy.source)?;
+        let source = self.modules.type_decl_by_id(copy.source)?;
+        let source_node = self.modules.act_template(source.id)?;
         let body = crate::act_decl_body(source_node)?;
         Some(ActCopyLoweringContext {
             body,
+            source_module: source.module,
             type_var_aliases: copy.type_var_aliases.clone(),
             type_name_aliases: self.act_copy_type_name_aliases(decl, copy.source),
         })

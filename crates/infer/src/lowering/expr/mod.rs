@@ -25,6 +25,9 @@ pub struct ExprLowerer<'a> {
     pub(super) type_var_aliases: Vec<(String, String)>,
     pub(super) type_name_aliases: Vec<(String, TypeDeclId)>,
     pub(super) local_method_scope: Option<ModuleId>,
+    // Fresh copied members resolve in `module` first. This fallback retains the template's
+    // lexical namespace for genuinely external relative references in the copied CST.
+    pub(super) copied_source_module: Option<ModuleId>,
     pub(super) recursive_self_value: Option<TypeVar>,
     pub(super) synthetic_var_acts: Vec<SyntheticVarActUse>,
     pub(super) synthetic_var_act_cursor: usize,
@@ -76,6 +79,7 @@ impl<'a> ExprLowerer<'a> {
             type_var_aliases: Vec::new(),
             type_name_aliases: Vec::new(),
             local_method_scope: None,
+            copied_source_module: None,
             recursive_self_value: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
@@ -121,6 +125,7 @@ impl<'a> ExprLowerer<'a> {
             type_var_aliases: Vec::new(),
             type_name_aliases: Vec::new(),
             local_method_scope: None,
+            copied_source_module: None,
             recursive_self_value: None,
             synthetic_var_acts,
             synthetic_var_act_cursor: 0,
@@ -157,6 +162,11 @@ impl<'a> ExprLowerer<'a> {
 
     pub fn with_local_method_scope(mut self, scope: Option<ModuleId>) -> Self {
         self.local_method_scope = scope;
+        self
+    }
+
+    pub fn with_copied_source_module(mut self, module: Option<ModuleId>) -> Self {
+        self.copied_source_module = module;
         self
     }
 

@@ -1234,6 +1234,7 @@ pub(super) struct BodyLowerer {
     #[cfg(test)]
     binding_publication_commits: FxHashMap<DefId, usize>,
     pub(super) local_method_scope: Option<ModuleId>,
+    pub(super) copied_source_module: Option<ModuleId>,
     pub(super) prefix_runtime: BodyLoweringPrefixRuntime,
     pub(super) record_source_spans: bool,
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
@@ -1648,6 +1649,7 @@ impl BodyLowerer {
             #[cfg(test)]
             binding_publication_commits: FxHashMap::default(),
             local_method_scope: None,
+            copied_source_module: None,
             prefix_runtime: BodyLoweringPrefixRuntime::default(),
             record_source_spans: true,
             suppress_runtime_roots: false,
@@ -2341,6 +2343,7 @@ impl BodyLowerer {
         .with_source_file(self.source_file.clone())
         .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
+        .with_copied_source_module(self.copied_source_module)
         .with_parent_type_annotation(has_type_annotation)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
@@ -2456,6 +2459,7 @@ impl BodyLowerer {
         .with_source_file(self.source_file.clone())
         .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
+        .with_copied_source_module(self.copied_source_module)
         .with_self_alias(self_alias.clone())
         .with_type_var_aliases(type_var_aliases)
         .with_type_name_aliases(type_name_aliases)

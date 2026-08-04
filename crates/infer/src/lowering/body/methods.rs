@@ -97,6 +97,7 @@ impl BodyLowerer {
         .with_source_file(self.source_file.clone())
         .with_source_spans(self.record_source_spans)
         .with_local_method_scope(self.local_method_scope)
+        .with_copied_source_module(self.copied_source_module)
         .with_type_var_aliases(type_var_aliases)
         .with_type_name_aliases(type_name_aliases)
         .lower_act_method_body_expr(

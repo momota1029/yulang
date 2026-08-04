@@ -1401,10 +1401,40 @@ impl<'a> ExprLowerer<'a> {
         effect_op: &CatchEffectOp,
         effect_pattern: &Cst,
     ) -> Result<Option<ActOperationDecl>, LoweringError> {
-        match self
-            .modules
-            .value_path_at(self.module, &effect_op.path, self.site)
-        {
+        let resolved = self.resolve_catch_operation_decl_in(
+            self.module,
+            self.site,
+            effect_op,
+            effect_pattern,
+        )?;
+        if resolved.is_some() {
+            return Ok(resolved);
+        }
+        // Internal operations must bind to the fresh destination family, so destination lookup
+        // stays authoritative. Only an unresolved external spelling falls back to the namespace
+        // in which the copied template CST was authored.
+        let Some(source_module) = self
+            .copied_source_module
+            .filter(|source| *source != self.module)
+        else {
+            return Ok(None);
+        };
+        self.resolve_catch_operation_decl_in(
+            source_module,
+            module_path_lookup_site(),
+            effect_op,
+            effect_pattern,
+        )
+    }
+
+    fn resolve_catch_operation_decl_in(
+        &self,
+        module: ModuleId,
+        site: ModuleOrder,
+        effect_op: &CatchEffectOp,
+        effect_pattern: &Cst,
+    ) -> Result<Option<ActOperationDecl>, LoweringError> {
+        match self.modules.value_path_at(module, &effect_op.path, site) {
             Lookup::Found(target) => {
                 if let Some(decl) = self.modules.act_operation_decl_by_def(target) {
                     return Ok(Some(decl));
@@ -1429,12 +1459,10 @@ impl<'a> ExprLowerer<'a> {
         let Some(operation) = effect_op.operation.as_ref() else {
             return Ok(None);
         };
-        match self.modules.act_operation_decl_at(
-            self.module,
-            &effect_op.family_path,
-            operation,
-            self.site,
-        ) {
+        match self
+            .modules
+            .act_operation_decl_at(module, &effect_op.family_path, operation, site)
+        {
             Lookup::Found(decl) => Ok(Some(decl)),
             Lookup::Private(access) => Err(LoweringError::PrivateAccess {
                 source_range: crate::source_range_for_name(effect_pattern, &access.name),

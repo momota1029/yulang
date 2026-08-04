@@ -403,6 +403,7 @@ pub(super) fn module_path_lookup_site() -> ModuleOrder {
 
 pub(super) struct ActCopyLoweringContext {
     pub(super) body: Cst,
+    pub(super) source_module: ModuleId,
     pub(super) type_var_aliases: Vec<(String, String)>,
     pub(super) type_name_aliases: Vec<(String, TypeDeclId)>,
 }

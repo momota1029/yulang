@@ -106,6 +106,38 @@ fn m1_0_census_distinguishes_cold_embedded_and_warm_prefix_legacy_routes() {
 }
 
 #[test]
+fn legacy_act_copy_resolves_external_types_from_the_template_namespace() {
+    let prefix = std_prefix();
+    let (cold_label, _) = cold_case(&label_source(1));
+    let (warm_label, _) = warm_case(&prefix, &label_source(1));
+    let expected_label_sub = concat!(
+        "'a [\"<synthetic-act>\"('b & 'a & 'c), ",
+        "std::control::flow::sub('c & 'a & 'b); 'd] -> ['d] 'a | 'b | 'c",
+    );
+    for (route, output) in [("cold", &cold_label), ("warm", &warm_label)] {
+        let destination = output.modules.synthetic_sub_label_act_copy_ids()[0];
+        let view =
+            normalized_legacy_scheme_view(output, SyntheticActCopyKind::LabelSub, destination);
+        assert_eq!(
+            view.iter()
+                .find_map(|(name, scheme)| (name == "sub").then_some(scheme.as_str())),
+            Some(expected_label_sub),
+            "{route} legacy label_sub copy must retain the canonical external family",
+        );
+    }
+
+    let (cold_var, _) = cold_case(&var_source(1));
+    let destination = cold_var.modules.synthetic_var_act_copy_ids()[0];
+    let view = normalized_legacy_scheme_view(&cold_var, SyntheticActCopyKind::Var, destination);
+    assert!(
+        view.iter().any(|(name, scheme)| {
+            name == "var_ref" && scheme.contains("std::control::var::ref")
+        }),
+        "var's already-canonical external ref path must remain unchanged: {view:?}",
+    );
+}
+
+#[test]
 fn m1_0_legacy_cost_fixtures_pin_warm_and_cold_var_and_label_sub_slopes() {
     let prefix = std_prefix();
     let mut var_timings = Vec::new();
