@@ -294,6 +294,225 @@ fn m1_2_captures_and_substitutes_closed_var_and_label_sub_scheme_graphs() {
     }));
 }
 
+#[test]
+fn m1_3_clones_var_and_label_sub_body_graphs_with_mixed_catch_identity_parity() {
+    let (output, _) = cold_case(&mixed_source(2));
+    let var_destinations = output.modules.synthetic_var_act_copy_ids();
+    let label_destinations = output.modules.synthetic_sub_label_act_copy_ids();
+    assert_body_graph_parity(&output, &var_destinations, "run");
+    assert_body_graph_parity(&output, &label_destinations, "return");
+
+    let destination = label_destinations[0];
+    let substitution = output
+        .modules
+        .nominal_act_instance_substitution(destination)
+        .unwrap();
+    let identity = template_for_instance(&output, destination);
+    let typed = TypedActTemplate::capture(identity, &output.session.poly).unwrap();
+    let body = typed
+        .capture_body(
+            identity,
+            &output.session.poly,
+            &output.modules,
+            &output.labels,
+        )
+        .unwrap_or_else(|error| {
+            panic!(
+                "body capture {error:?}; labels={:?}",
+                output.labels.def_labels().collect::<Vec<_>>()
+            )
+        });
+    let product = body.apply(substitution).unwrap();
+    let source_return = identity
+        .value_members
+        .iter()
+        .find(|member| member.name == Name("return".into()))
+        .unwrap();
+    let NominalActValueMemberKind::Operation {
+        operation_path: source_return_path,
+    } = &source_return.kind
+    else {
+        panic!("label_sub.return must be an operation");
+    };
+    let destination_return_path = crate::namespace_path(
+        substitution
+            .operation_path_map
+            .get(source_return_path)
+            .unwrap(),
+    );
+    let destination_return = substitution.def_map[&source_return.source];
+    let detached_return = product
+        .member_destinations
+        .iter()
+        .find_map(|(detached, destination)| {
+            (*destination == destination_return).then_some(*detached)
+        })
+        .unwrap();
+    let external_return = StableExternalReferenceKey::Operation {
+        family: vec!["std".into(), "control".into(), "flow".into(), "sub".into()],
+        name: "return".into(),
+    };
+    let mut local_arms = 0;
+    let mut external_arms = 0;
+    for (expr_index, expr) in product.arena.exprs().iter().enumerate() {
+        let Expr::Catch(_, arms) = expr else { continue };
+        for (arm_index, arm) in arms.iter().enumerate() {
+            let Some(operation) = &arm.operation else {
+                continue;
+            };
+            let site = crate::module_table::typed_act_body::CatchSite {
+                expr: poly::expr::ExprId(expr_index as u32),
+                arm: arm_index,
+            };
+            if operation.def == Some(detached_return) {
+                local_arms += 1;
+                assert_eq!(operation.path, destination_return_path);
+                assert!(!product.external_catches.contains_key(&site));
+            }
+            if product.external_catches.get(&site) == Some(&external_return) {
+                external_arms += 1;
+                assert_eq!(
+                    operation.path,
+                    vec!["std", "control", "flow", "sub", "return"]
+                        .into_iter()
+                        .map(str::to_string)
+                        .collect::<Vec<_>>()
+                );
+                assert_eq!(operation.def, None);
+            }
+        }
+    }
+    assert_eq!(local_arms, 1, "fresh label_sub.return catch arm");
+    assert_eq!(external_arms, 1, "canonical sub.return catch arm");
+}
+
+fn assert_body_graph_parity(output: &BodyLowering, destinations: &[TypeDeclId], recursive: &str) {
+    assert_eq!(destinations.len(), 2);
+    let identity = template_for_instance(output, destinations[0]);
+    let typed = TypedActTemplate::capture(identity, &output.session.poly).unwrap();
+    let body = typed
+        .capture_body(
+            identity,
+            &output.session.poly,
+            &output.modules,
+            &output.labels,
+        )
+        .unwrap_or_else(|error| {
+            panic!(
+                "{recursive} body capture {error:?}; labels={:?}",
+                output.labels.def_labels().collect::<Vec<_>>()
+            )
+        });
+    assert_eq!(body.members.len(), identity.value_members.len());
+    let census = body.census();
+    match recursive {
+        "run" => {
+            assert_eq!(census.effect_operations, 2);
+            assert_eq!(census.constructors, 0);
+            assert_eq!(census.nominal_record_shapes, 0);
+            assert_eq!(census.external_catches, 0);
+            assert!(census.external_refs > 0);
+        }
+        "return" => {
+            assert_eq!(census.effect_operations, 1);
+            assert_eq!(census.constructors, 1);
+            assert_eq!(census.nominal_record_shapes, 1);
+            assert_eq!(census.external_catches, 1);
+        }
+        _ => unreachable!(),
+    }
+    for destination in destinations {
+        let substitution = output
+            .modules
+            .nominal_act_instance_substitution(*destination)
+            .unwrap();
+        let product = body.apply(substitution).unwrap();
+        for member in &identity.value_members {
+            let NominalActValueMemberKind::Operation { operation_path } = &member.kind else {
+                continue;
+            };
+            let destination_def = substitution.def_map[&member.source];
+            let detached_def = product
+                .member_destinations
+                .iter()
+                .find_map(|(detached, destination)| {
+                    (*destination == destination_def).then_some(*detached)
+                })
+                .unwrap();
+            assert_eq!(
+                product.arena.effect_operations[&detached_def].path,
+                crate::namespace_path(&substitution.operation_path_map[operation_path]),
+                "{} operation metadata path",
+                member.name.0,
+            );
+        }
+        for nominal in &identity.nominal_types {
+            let destination_path =
+                crate::namespace_path(&substitution.type_path_map[&nominal.source_path]);
+            if nominal.role == NominalActTypeRole::NestedDeclaration {
+                assert!(
+                    product
+                        .arena
+                        .nominal_record_shapes
+                        .contains_key(&destination_path)
+                );
+                assert!(
+                    product
+                        .arena
+                        .constructors
+                        .values()
+                        .any(|constructor| constructor.owner_path == destination_path)
+                );
+            }
+        }
+        let legacy_identity = output
+            .modules
+            .nominal_act_identity_for_test(*destination)
+            .unwrap();
+        let legacy = typed
+            .capture_body(
+                &legacy_identity,
+                &output.session.poly,
+                &output.modules,
+                &output.labels,
+            )
+            .unwrap();
+        assert_eq!(product.census(), legacy.census());
+
+        let source_member = identity
+            .value_members
+            .iter()
+            .find(|member| member.name == Name(recursive.into()))
+            .unwrap();
+        let destination_member = substitution.def_map[&source_member.source];
+        let detached_member = product
+            .member_destinations
+            .iter()
+            .find_map(|(detached, destination)| {
+                (*destination == destination_member).then_some(*detached)
+            })
+            .unwrap();
+        assert!(
+            product
+                .arena
+                .refs()
+                .iter()
+                .any(|target| *target == Some(detached_member))
+                || product.arena.exprs().iter().any(|expr| {
+                    let Expr::Catch(_, arms) = expr else {
+                        return false;
+                    };
+                    arms.iter().any(|arm| {
+                        arm.operation
+                            .as_ref()
+                            .is_some_and(|operation| operation.def == Some(detached_member))
+                    })
+                }),
+            "{recursive} must retain an internal recursive/local-operation reference"
+        );
+    }
+}
+
 fn type_at_path(output: &BodyLowering, path: &[&str]) -> ModuleTypeDecl {
     let path = path
         .iter()

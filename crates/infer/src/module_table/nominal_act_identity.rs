@@ -103,6 +103,14 @@ impl ModuleTable {
         self.nominal_act_instance_substitutions.values()
     }
 
+    #[cfg(test)]
+    pub(crate) fn nominal_act_identity_for_test(
+        &self,
+        root: TypeDeclId,
+    ) -> Option<NominalActTemplateIdentity> {
+        self.collect_nominal_act_identity(root)
+    }
+
     pub(super) fn remap_nominal_act_identity_defs(&mut self, import: &CompiledRuntimeImport) {
         for identity in self.nominal_act_template_identities.values_mut() {
             for member in &mut identity.value_members {

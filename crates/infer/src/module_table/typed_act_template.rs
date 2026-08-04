@@ -151,6 +151,29 @@ impl super::ModuleTable {
         }
         None
     }
+
+    pub(crate) fn stable_operation_reference_key(
+        &self,
+        path: &[String],
+    ) -> Option<StableExternalReferenceKey> {
+        let mut matches = self
+            .act_op_defs
+            .values()
+            .filter_map(|operation| {
+                let effect = self.type_decl_by_id(operation.effect)?;
+                let family = path_names(&self.type_decl_path(&effect));
+                let mut operation_path = family.clone();
+                operation_path.push(operation.name.0.clone());
+                operation_path
+                    .ends_with(path)
+                    .then(|| StableExternalReferenceKey::Operation {
+                        family,
+                        name: operation.name.0.clone(),
+                    })
+            })
+            .collect::<FxHashSet<_>>();
+        (matches.len() == 1).then(|| matches.drain().next().unwrap())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -484,7 +507,7 @@ mod tests {
     }
 }
 
-fn member_key(
+pub(super) fn member_key(
     identity: &NominalActTemplateIdentity,
     member: &super::nominal_act_identity::NominalActTemplateValueIdentity,
     root_path: &[String],
@@ -517,11 +540,11 @@ fn member_key(
     })
 }
 
-fn path_names(path: &sources::Path) -> Vec<String> {
+pub(super) fn path_names(path: &sources::Path) -> Vec<String> {
     path.segments.iter().map(|name| name.0.clone()).collect()
 }
 
-struct NominalTypeGraphCloner<'a> {
+pub(super) struct NominalTypeGraphCloner<'a> {
     source: &'a TypeArena,
     target: &'a mut TypeArena,
     paths: &'a FxHashMap<Vec<String>, Vec<String>>,
@@ -532,7 +555,7 @@ struct NominalTypeGraphCloner<'a> {
 }
 
 impl<'a> NominalTypeGraphCloner<'a> {
-    fn new(
+    pub(super) fn new(
         source: &'a TypeArena,
         target: &'a mut TypeArena,
         paths: &'a FxHashMap<Vec<String>, Vec<String>>,
@@ -549,7 +572,7 @@ impl<'a> NominalTypeGraphCloner<'a> {
         }
     }
 
-    fn clone_scheme(&mut self, scheme: &Scheme) -> Scheme {
+    pub(super) fn clone_scheme(&mut self, scheme: &Scheme) -> Scheme {
         Scheme {
             quantifiers: scheme.quantifiers.clone(),
             role_predicates: scheme
