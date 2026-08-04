@@ -2533,6 +2533,8 @@ impl ConstraintMachine {
             return Ok(());
         }
 
+        self.try_compare_factored_claimed_attribution_union()?;
+
         type ParentKey = (
             UpperReplayClaimId,
             ReplayClaimParentSide,
@@ -2936,6 +2938,31 @@ impl ConstraintMachine {
                     ));
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// The legacy attribution set stays all-source during RCPF-E, while the Factored consumer
+    /// view is partitioned at writer boundaries. Two-way membership proves exact set equality
+    /// without allocating a temporary union in this debug/test-only event oracle.
+    #[cfg(any(test, debug_assertions))]
+    fn try_compare_factored_claimed_attribution_union(&self) -> ReplayFactoredResult<()> {
+        let legacy = &self.bounds.attributed_claim_supports;
+        let replay = &self
+            .replay_clause_projection
+            .replay_attributed_claim_supports;
+        let flat_retained = &self.bounds.flat_retained_attributed_claim_supports;
+        let legacy_is_covered = legacy
+            .iter()
+            .all(|key| replay.contains(key) || flat_retained.contains(key));
+        let union_is_legacy = replay
+            .iter()
+            .chain(flat_retained)
+            .all(|key| legacy.contains(key));
+        if !legacy_is_covered || !union_is_legacy {
+            return Err(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::ClaimedAttributionUnion,
+            ));
         }
         Ok(())
     }
@@ -8696,11 +8723,18 @@ mod mutation_tests {
         );
         assert_eq!(fixture.machine.bounds.attributed_claim_supports, all_source);
 
+        let attribution_keys = [
+            original_key,
+            replay_key,
+            structural_key,
+            reduction_key,
+            evidence_key,
+        ];
         let production_results = |machine: &ConstraintMachine| {
             [ReplayEvaluatorSource::Legacy, ReplayEvaluatorSource::Factored]
                 .map(|source| {
                     let evaluator = SchemeProjectionEvaluator::with_replay_source(machine, source);
-                    all_source.iter().all(|&(record, root)| {
+                    attribution_keys.map(|(record, root)| {
                         evaluator.support_has_clause_link(
                             record,
                             SchemeProjectionProofSupport::Claimed(root),
@@ -8708,19 +8742,68 @@ mod mutation_tests {
                     })
                 })
         };
-        let before = production_results(&fixture.machine);
+        assert_eq!(production_results(&fixture.machine), [[true; 5]; 2]);
+        fixture
+            .machine
+            .try_compare_factored_claimed_attribution_union()
+            .expect("the five-source writer partition must reconstruct the all-source relation");
+
         let shadow = std::mem::take(
             &mut fixture
                 .machine
                 .bounds
                 .flat_retained_attributed_claim_supports,
         );
-        assert_eq!(production_results(&fixture.machine), before);
-        assert_eq!(before, [true, true]);
+        assert_eq!(
+            production_results(&fixture.machine),
+            [[true; 5], [false, true, false, false, false]],
+            "Legacy remains all-source while Factored reads replay OR flat-retained attribution"
+        );
+        assert!(matches!(
+            fixture
+                .machine
+                .try_compare_factored_claimed_attribution_union(),
+            Err(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::ClaimedAttributionUnion
+            ))
+        ));
         fixture
             .machine
             .bounds
             .flat_retained_attributed_claim_supports = shadow;
+        assert_eq!(production_results(&fixture.machine), [[true; 5]; 2]);
+    }
+
+    #[test]
+    fn rcpf_e2b_claimed_attribution_union_mismatch_quarantines_event_oracle() {
+        let mut fixture = cdm_replay_claim_fixture();
+        fixture.machine.enable_replay_factored_event_oracle();
+        let original_key = *fixture
+            .machine
+            .bounds
+            .flat_retained_attributed_claim_supports
+            .iter()
+            .next()
+            .expect("the fixture starts with one Original attribution");
+        assert!(
+            fixture
+                .machine
+                .bounds
+                .flat_retained_attributed_claim_supports
+                .remove(&original_key)
+        );
+
+        mark_next_replay_soak_failure_as_intentional();
+        fixture
+            .machine
+            .observe_factored_replay_event_boundary(fixture.result);
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Failed(ReplayFactoredShadowFailure::OracleMismatch(
+                ReplayFactoredOracleMismatch::ClaimedAttributionUnion
+            ))
+        );
     }
 
     fn assert_replay_shadow_does_not_interfere(

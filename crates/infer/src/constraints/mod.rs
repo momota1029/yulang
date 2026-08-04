@@ -1455,10 +1455,23 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
                     return false;
                 };
-                self.machine
-                    .bounds
-                    .attributed_claim_supports
-                    .contains(&(record, root))
+                match self.replay_source {
+                    ReplayEvaluatorSource::Legacy => self
+                        .machine
+                        .bounds
+                        .attributed_claim_supports
+                        .contains(&(record, root)),
+                    ReplayEvaluatorSource::Factored => {
+                        self.machine
+                            .replay_clause_projection
+                            .has_attributed_claim_support(record, root)
+                            || self
+                                .machine
+                                .bounds
+                                .flat_retained_attributed_claim_supports
+                                .contains(&(record, root))
+                    }
+                }
             }
             independent => self
                 .machine

@@ -121,6 +121,7 @@ pub(crate) enum ReplayFactoredOracleMismatch {
     ClauseMapping,
     ExactClauseLinks,
     AttributedRoots,
+    ClaimedAttributionUnion,
     ReplayDependencyEdges,
     DerivedReplayLineage,
 }
