@@ -102,6 +102,10 @@ struct ClaimQualifiedParentAdmissionSnapshot {
     inclusion_before: FxHashMap<BoundRecordId, bool>,
 }
 
+/// A committed Phase-A clause-link mutation whose after-view has not been evaluated yet.
+///
+/// Factored clause projection must reach the same event boundary before this snapshot is sealed;
+/// otherwise the evaluator can observe the new flat link against the previous factored view.
 struct ClauseLinkBatchAdmissionSnapshot {
     lower_record: BoundRecordId,
     was_included: bool,
@@ -964,8 +968,12 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links(lower_record, &parents);
-            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
+            self.register_claim_parent_clause_links_after_factored_projection(
+                producer,
+                lower_record,
+                &parents,
+                None,
+            );
         }
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
@@ -1013,12 +1021,12 @@ impl ConstraintMachine {
     ) -> Vec<UpperReplayClaimId> {
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
             if !replay_clause_work_precommitted {
-                self.register_claim_parent_clause_links_with_fence(
+                self.register_claim_parent_clause_links_after_factored_projection(
+                    producer,
                     lower_record,
                     parents,
                     publication_fence.as_deref_mut(),
                 );
-                self.observe_factored_replay_clause_projection(producer, lower_record, parents);
             }
         }
         let mut claims = Vec::new();
@@ -2237,20 +2245,21 @@ impl ConstraintMachine {
         );
     }
 
+    #[cfg(test)]
     fn register_claim_parent_clause_links(
         &mut self,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
-        self.register_claim_parent_clause_links_with_fence(lower_record, parents, None);
+        let snapshot = self.commit_claim_parent_clause_links_mutation(lower_record, parents);
+        self.seal_record_proof_clause_link_batch(snapshot, None);
     }
 
-    fn register_claim_parent_clause_links_with_fence(
+    fn commit_claim_parent_clause_links_mutation(
         &mut self,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
-        publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
-    ) {
+    ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
         #[cfg(test)]
         RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(|probes| {
             probes.set(probes.get().saturating_add(1));
@@ -2305,12 +2314,22 @@ impl ConstraintMachine {
                 attribution_source,
             ));
         }
-        if !pending_links.is_empty() {
-            self.commit_record_proof_clause_link_batch_with_fence(
-                lower_record,
-                pending_links,
-                publication_fence,
-            );
+        self.commit_record_proof_clause_link_batch_mutation(lower_record, pending_links)
+    }
+
+    fn register_claim_parent_clause_links_after_factored_projection(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+        publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
+    ) {
+        // Phase A is unconditional. Only after Phase B has made the factored occurrence/link view
+        // current may the pending after-view be evaluated and published.
+        let snapshot = self.commit_claim_parent_clause_links_mutation(lower_record, parents);
+        self.observe_factored_replay_clause_projection(result, lower_record, parents);
+        if self.replay_factored_terminal_failure().is_none() {
+            self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
         }
     }
 
@@ -2979,6 +2998,17 @@ impl ConstraintMachine {
         else {
             return;
         };
+        self.seal_record_proof_clause_link_batch(Some(snapshot), publication_fence);
+    }
+
+    fn seal_record_proof_clause_link_batch(
+        &mut self,
+        snapshot: Option<ClauseLinkBatchAdmissionSnapshot>,
+        publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
+    ) {
+        let Some(snapshot) = snapshot else {
+            return;
+        };
         if let Some(fence) = publication_fence {
             let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
                 Ok(intent) => intent,
@@ -3216,12 +3246,12 @@ impl ConstraintMachine {
             }
         }
         if let Some(lower_record) = self.lower_record_for_constraint(result) {
-            self.register_claim_parent_clause_links_with_fence(
+            self.register_claim_parent_clause_links_after_factored_projection(
+                result,
                 lower_record,
                 parents,
                 publication_fence.as_mut(),
             );
-            self.observe_factored_replay_clause_projection(result, lower_record, parents);
         }
         if factored_admission && self.replay_factored_terminal_failure().is_none() {
             let independent_supports = self
@@ -3536,8 +3566,12 @@ impl ConstraintMachine {
             self.observe_factored_lower_projection_full(lower_record, producer);
         }
         if let Some(producer) = producer {
-            self.register_claim_parent_clause_links(lower_record, &parents);
-            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
+            self.register_claim_parent_clause_links_after_factored_projection(
+                producer,
+                lower_record,
+                &parents,
+                None,
+            );
             #[cfg(any(test, debug_assertions))]
             self.observe_factored_replay_event_boundary(producer);
         }
@@ -3578,12 +3612,12 @@ impl ConstraintMachine {
             publication_fence.as_deref_mut(),
         );
         if !replay_clause_work_precommitted {
-            self.register_claim_parent_clause_links_with_fence(
+            self.register_claim_parent_clause_links_after_factored_projection(
+                producer,
                 lower_record,
                 &parents,
                 publication_fence.as_deref_mut(),
             );
-            self.observe_factored_replay_clause_projection(producer, lower_record, &parents);
         }
     }
 
@@ -4175,16 +4209,17 @@ impl ConstraintMachine {
         let clause_projection_parents = bootstrap_clause_projection_parents
             .as_deref()
             .unwrap_or(&inserted_parents);
-        if phase_b_enabled
+        let pending_clause_link_snapshot = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
         {
-            self.register_claim_parent_clause_links_with_fence(
+            self.commit_claim_parent_clause_links_mutation(
                 lower_record,
                 clause_projection_parents,
-                publication_fence.as_mut(),
-            );
-        }
+            )
+        } else {
+            None
+        };
         let summary_delta = factored_drafts.map(|factored_drafts| {
             self.observe_factored_replay_parent_admission(
                 result,
@@ -4195,6 +4230,15 @@ impl ConstraintMachine {
                 factored_drafts,
             )
         });
+        if phase_b_enabled
+            && materialize_existing_target
+            && self.replay_factored_terminal_failure().is_none()
+        {
+            self.seal_record_proof_clause_link_batch(
+                pending_clause_link_snapshot,
+                publication_fence.as_mut(),
+            );
+        }
         if phase_b_enabled
             && materialize_existing_target
             && self.replay_factored_terminal_failure().is_none()
