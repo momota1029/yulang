@@ -466,6 +466,7 @@ name = "infer"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "js-sys",
  "num-bigint",
  "parser",
  "poly",
@@ -1269,6 +1270,7 @@ dependencies = [
  "console_error_panic_hook",
  "control-ir",
  "evidence-vm",
+ "js-sys",
  "mono-runtime",
  "parser",
  "poly",

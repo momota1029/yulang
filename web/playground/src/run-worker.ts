@@ -62,6 +62,7 @@ type WorkerRequestTrace = {
   kind: RunWorkerRequest["kind"];
   started_ms: number;
   finished_ms?: number;
+  duration_ms?: number;
   source_chars?: number;
   ok?: boolean;
   continuation_steps?: number;
@@ -109,7 +110,9 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
   try {
     await wasmReady;
     if (request.kind === "run") {
+      const started = performance.now();
       const output = run(request.source, request.lang);
+      attachRunWorkerWallTime(output, performance.now() - started);
       const continuationSteps = continuationStepsOf(output);
       trace.continuation_steps = continuationSteps;
       lastRunUsedContinuations = continuationSteps > 0;
@@ -122,7 +125,9 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
       });
       return;
     }
+    const started = performance.now();
     const output = warm_std_cache();
+    attachWarmupWorkerWallTime(output, performance.now() - started);
     markCompleted(trace, true);
     postResponse({
       id: request.id,
@@ -152,8 +157,27 @@ async function handleRequest(request: RunWorkerRequest): Promise<void> {
 
 function markCompleted(trace: WorkerRequestTrace, ok: boolean): void {
   trace.finished_ms = Date.now() - workerStartedAt;
+  trace.duration_ms = trace.finished_ms - trace.started_ms;
   trace.ok = ok;
   lastCompleted = { ...trace };
+}
+
+function attachRunWorkerWallTime(output: unknown, elapsedMs: number): void {
+  if (
+    typeof output === "object" &&
+    output !== null &&
+    "timings" in output &&
+    typeof output.timings === "object" &&
+    output.timings !== null
+  ) {
+    Object.assign(output.timings, { worker_wall_ms: elapsedMs });
+  }
+}
+
+function attachWarmupWorkerWallTime(output: unknown, elapsedMs: number): void {
+  if (typeof output === "object" && output !== null) {
+    Object.assign(output, { worker_wall_ms: elapsedMs });
+  }
 }
 
 function debugContext(): WorkerDebugContext {

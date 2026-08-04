@@ -19,6 +19,56 @@ const EMBEDDED_PLAYGROUND_STD_ARTIFACT: &[u8] =
 const EMBEDDED_FULL_STD_ARTIFACT: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/embedded_full_std.yucu"));
 
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy)]
+struct ClockInstant(std::time::Instant);
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, Copy)]
+struct ClockInstant(f64);
+
+impl ClockInstant {
+    fn now() -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Self(std::time::Instant::now())
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Self(js_sys::Date::now())
+        }
+    }
+
+    fn elapsed_ms(self) -> f64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.0.elapsed().as_secs_f64() * 1_000.0
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            (js_sys::Date::now() - self.0).max(0.0)
+        }
+    }
+}
+
+fn duration_ms(duration: std::time::Duration) -> f64 {
+    duration.as_secs_f64() * 1_000.0
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct RunPhaseTimings {
+    source_set_ms: f64,
+    infer_lower_ms: f64,
+    type_render_ms: f64,
+    runtime_lower_ms: f64,
+    evidence_plan_ms: f64,
+    vm_eval_ms: f64,
+    artifact_decode_ms: f64,
+    artifact_decode_cache_hit: bool,
+    compiled_std_artifacts: usize,
+    compiled_std_cache_hit: bool,
+}
+
 thread_local! {
     static RUN_CACHE: RefCell<HashMap<RunCacheKey, RunOutput>> = RefCell::new(HashMap::new());
     static PLAYGROUND_STD_ARTIFACT: RefCell<Option<Option<yulang::cache::CachedCompiledUnitArtifact>>> =
@@ -165,26 +215,31 @@ fn semantic_highlight_spans(
 }
 
 pub fn warm_std_cache_inner() -> WarmupOutput {
+    let started = ClockInstant::now();
     let status = embedded_std_status_inner();
-    let prefix_fallback_reason = warm_embedded_std_prefixes();
+    let (prefix_fallback_reason, prefix_import_ms) = warm_embedded_std_prefixes();
     let fallback_reason = status.fallback_reason.or(prefix_fallback_reason);
     WarmupOutput {
-        source_cache_hits: 0,
-        source_cache_misses: 0,
-        source_cache_clone_ms: 0.0,
-        source_cache_build_ms: 0.0,
+        source_cache_hits: status.cache_hits,
+        source_cache_misses: status.cache_misses,
+        source_cache_clone_ms: status.clone_ms,
+        source_cache_build_ms: prefix_import_ms,
         embedded_std_artifacts: status.artifacts,
         embedded_std_runtime_bindings: status.runtime_bindings,
         embedded_std_artifacts_bytes: status.bytes,
         embedded_std_artifacts_valid: status.valid && fallback_reason.is_none(),
         embedded_std_artifacts_fallback_reason: fallback_reason,
-        total_ms: 0.0,
+        artifact_decode_ms: status.decode_ms,
+        prefix_import_ms,
+        total_ms: started.elapsed_ms(),
+        worker_wall_ms: 0.0,
     }
 }
 
-fn warm_embedded_std_prefixes() -> Option<String> {
+fn warm_embedded_std_prefixes() -> (Option<String>, f64) {
+    let started = ClockInstant::now();
     let mut errors = Vec::new();
-    match embedded_playground_std_artifact() {
+    match embedded_playground_std_artifact().artifact {
         Some(artifact) => {
             if let Err(error) =
                 yulang::warm_embedded_playground_std_compiled_unit_artifact_prefix(artifact)
@@ -194,7 +249,7 @@ fn warm_embedded_std_prefixes() -> Option<String> {
         }
         None => errors.push("embedded playground std artifact failed validation".to_string()),
     }
-    match embedded_full_std_artifact() {
+    match embedded_full_std_artifact().artifact {
         Some(artifact) => {
             if let Err(error) = yulang::warm_embedded_std_compiled_unit_artifact_prefix(artifact) {
                 errors.push(format!("embedded full std prefix: {error}"));
@@ -202,19 +257,27 @@ fn warm_embedded_std_prefixes() -> Option<String> {
         }
         None => errors.push("embedded full std artifact failed validation".to_string()),
     }
-    (!errors.is_empty()).then(|| errors.join("; "))
+    (
+        (!errors.is_empty()).then(|| errors.join("; ")),
+        started.elapsed_ms(),
+    )
 }
 
 pub fn embedded_std_status_inner() -> EmbeddedStdArtifactsOutput {
     let playground = embedded_playground_std_artifact();
     let full = embedded_full_std_artifact();
-    let valid = playground.is_some() && full.is_some();
+    let valid = playground.artifact.is_some() && full.artifact.is_some();
     EmbeddedStdArtifactsOutput {
-        artifacts: usize::from(playground.is_some()) + usize::from(full.is_some()),
+        artifacts: usize::from(playground.artifact.is_some())
+            + usize::from(full.artifact.is_some()),
         runtime_bindings: 0,
         bytes: EMBEDDED_PLAYGROUND_STD_ARTIFACT.len() + EMBEDDED_FULL_STD_ARTIFACT.len(),
         valid,
         fallback_reason: (!valid).then(|| "embedded std artifact failed validation".to_string()),
+        cache_hits: usize::from(playground.cache_hit) + usize::from(full.cache_hit),
+        cache_misses: usize::from(!playground.cache_hit) + usize::from(!full.cache_hit),
+        decode_ms: playground.decode_ms + full.decode_ms,
+        clone_ms: playground.clone_ms + full.clone_ms,
     }
 }
 
@@ -229,6 +292,7 @@ pub fn run_inner(source: &str) -> RunOutput {
 }
 
 pub fn run_inner_with_lang(source: &str, lang: &str) -> RunOutput {
+    let started = ClockInstant::now();
     let print_nth_label = print_nth_label_for_lang(lang);
     let cache_key = RunCacheKey {
         source: source.to_string(),
@@ -237,12 +301,15 @@ pub fn run_inner_with_lang(source: &str, lang: &str) -> RunOutput {
     let cached = RUN_CACHE.with(|cache| cache.borrow().get(&cache_key).cloned());
     if let Some(mut output) = cached {
         if let Some(timings) = output.timings.as_mut() {
-            timings.source_cache_hits += 1;
+            timings.mark_source_cache_hit(started.elapsed_ms());
         }
         return output;
     }
 
-    let output = run_inner_uncached(source, print_nth_label);
+    let mut output = run_inner_uncached(source, print_nth_label);
+    if let Some(timings) = output.timings.as_mut() {
+        timings.mark_source_cache_miss(started.elapsed_ms());
+    }
     if output.cache_safe() {
         RUN_CACHE.with(|cache| {
             cache.borrow_mut().insert(cache_key, output.clone());
@@ -370,8 +437,17 @@ fn run_evidence_from_source_text_without_std(
     source: &str,
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
+    let source_started = ClockInstant::now();
     let files = yulang::collect_local_source_text(PLAYGROUND_ENTRY, source.to_string())?;
-    let output = build_named_runtime_from_collected_sources(files)?;
+    let source_set_ms = source_started.elapsed_ms();
+    let (poly, lowering_timing) =
+        yulang::build_poly_from_collected_sources_with_lowering_timing(files)?;
+    let timing = RunPhaseTimings {
+        source_set_ms,
+        infer_lower_ms: duration_ms(lowering_timing.total),
+        ..RunPhaseTimings::default()
+    };
+    let output = build_named_runtime_from_poly(poly, timing)?;
     run_built_evidence_program(output, print_nth_label)
 }
 
@@ -379,21 +455,46 @@ fn run_evidence_from_source_text_with_embedded_std(
     source: &str,
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
-    let output = match embedded_full_std_artifact() {
+    let EmbeddedArtifactLookup {
+        artifact,
+        cache_hit,
+        decode_ms,
+        ..
+    } = embedded_full_std_artifact();
+    let output = match artifact {
         Some(artifact) => {
-            let mut poly = yulang::build_poly_from_embedded_std_compiled_unit_artifact(
-                artifact,
-                source.to_string(),
-            )?;
+            let (mut poly, lowering_timing) =
+                yulang::build_poly_from_embedded_std_compiled_unit_artifact_with_lowering_timing(
+                    artifact,
+                    source.to_string(),
+                )?;
             attach_playground_runtime_diagnostic_source(&mut poly, source);
-            build_named_runtime_from_poly(poly)?
+            let timing = RunPhaseTimings {
+                infer_lower_ms: duration_ms(lowering_timing.total),
+                artifact_decode_ms: decode_ms,
+                artifact_decode_cache_hit: cache_hit,
+                compiled_std_artifacts: 1,
+                compiled_std_cache_hit: true,
+                ..RunPhaseTimings::default()
+            };
+            build_named_runtime_from_poly(poly, timing)?
         }
         None => {
-            let files = yulang::collect_source_text_with_embedded_std(
-                PLAYGROUND_ENTRY,
-                source.to_string(),
-            )?;
-            build_named_runtime_from_collected_sources(files)?
+            let build_started = ClockInstant::now();
+            let (poly, lowering_timing) =
+                yulang::build_poly_from_source_text_with_embedded_std_with_lowering_timing(
+                    PLAYGROUND_ENTRY,
+                    source.to_string(),
+                )?;
+            let infer_lower_ms = duration_ms(lowering_timing.total);
+            let timing = RunPhaseTimings {
+                source_set_ms: (build_started.elapsed_ms() - infer_lower_ms).max(0.0),
+                infer_lower_ms,
+                artifact_decode_ms: decode_ms,
+                artifact_decode_cache_hit: cache_hit,
+                ..RunPhaseTimings::default()
+            };
+            build_named_runtime_from_poly(poly, timing)?
         }
     };
     run_built_evidence_program(output, print_nth_label)
@@ -403,21 +504,49 @@ fn run_evidence_from_source_text_with_playground_std(
     source: &str,
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
-    let poly = match embedded_playground_std_artifact() {
+    let EmbeddedArtifactLookup {
+        artifact,
+        cache_hit,
+        decode_ms,
+        ..
+    } = embedded_playground_std_artifact();
+    let (poly, timing) = match artifact {
         Some(artifact) => {
-            let mut poly = yulang::build_poly_from_embedded_playground_std_compiled_unit_artifact(
-                artifact,
-                source.to_string(),
-            )?;
+            let (mut poly, lowering_timing) = yulang::
+                build_poly_from_embedded_playground_std_compiled_unit_artifact_with_lowering_timing(
+                    artifact,
+                    source.to_string(),
+                )?;
             attach_playground_runtime_diagnostic_source(&mut poly, source);
-            poly
+            let timing = RunPhaseTimings {
+                infer_lower_ms: duration_ms(lowering_timing.total),
+                artifact_decode_ms: decode_ms,
+                artifact_decode_cache_hit: cache_hit,
+                compiled_std_artifacts: 1,
+                compiled_std_cache_hit: true,
+                ..RunPhaseTimings::default()
+            };
+            (poly, timing)
         }
-        None => yulang::build_poly_from_source_text_with_embedded_playground_std(
-            PLAYGROUND_ENTRY,
-            source.to_string(),
-        )?,
+        None => {
+            let build_started = ClockInstant::now();
+            let (poly, lowering_timing) = yulang::
+                build_poly_from_source_text_with_embedded_playground_std_with_lowering_timing(
+                    PLAYGROUND_ENTRY,
+                    source.to_string(),
+                )?;
+            let infer_lower_ms = duration_ms(lowering_timing.total);
+            let timing = RunPhaseTimings {
+                source_set_ms: (build_started.elapsed_ms() - infer_lower_ms).max(0.0),
+                infer_lower_ms,
+                artifact_decode_ms: decode_ms,
+                artifact_decode_cache_hit: cache_hit,
+                ..RunPhaseTimings::default()
+            };
+            (poly, timing)
+        }
     };
-    let output = build_named_runtime_from_poly(poly)?;
+    let output = build_named_runtime_from_poly(poly, timing)?;
     run_built_evidence_program(output, print_nth_label)
 }
 
@@ -430,27 +559,57 @@ fn attach_playground_runtime_diagnostic_source(output: &mut yulang::BuildPolyOut
     output.diagnostic_sources = yulang::RuntimeDiagnosticSources::from_collected_sources(&[root]);
 }
 
-fn embedded_playground_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+#[derive(Clone)]
+struct EmbeddedArtifactLookup {
+    artifact: Option<yulang::cache::CachedCompiledUnitArtifact>,
+    cache_hit: bool,
+    decode_ms: f64,
+    clone_ms: f64,
+}
+
+fn embedded_playground_std_artifact() -> EmbeddedArtifactLookup {
+    let started = ClockInstant::now();
     PLAYGROUND_STD_ARTIFACT.with(|cache| {
         if let Some(cached) = cache.borrow().as_ref() {
-            return cached.clone();
+            return EmbeddedArtifactLookup {
+                artifact: cached.clone(),
+                cache_hit: true,
+                decode_ms: 0.0,
+                clone_ms: started.elapsed_ms(),
+            };
         }
 
         let decoded = decode_embedded_playground_std_artifact();
         *cache.borrow_mut() = Some(decoded.clone());
-        decoded
+        EmbeddedArtifactLookup {
+            artifact: decoded,
+            cache_hit: false,
+            decode_ms: started.elapsed_ms(),
+            clone_ms: 0.0,
+        }
     })
 }
 
-fn embedded_full_std_artifact() -> Option<yulang::cache::CachedCompiledUnitArtifact> {
+fn embedded_full_std_artifact() -> EmbeddedArtifactLookup {
+    let started = ClockInstant::now();
     FULL_STD_ARTIFACT.with(|cache| {
         if let Some(cached) = cache.borrow().as_ref() {
-            return cached.clone();
+            return EmbeddedArtifactLookup {
+                artifact: cached.clone(),
+                cache_hit: true,
+                decode_ms: 0.0,
+                clone_ms: started.elapsed_ms(),
+            };
         }
 
         let decoded = decode_embedded_full_std_artifact();
         *cache.borrow_mut() = Some(decoded.clone());
-        decoded
+        EmbeddedArtifactLookup {
+            artifact: decoded,
+            cache_hit: false,
+            decode_ms: started.elapsed_ms(),
+            clone_ms: 0.0,
+        }
     })
 }
 
@@ -485,25 +644,25 @@ struct NamedRuntimeBuild {
     output: yulang::BuildControlOutput,
     types: Vec<TypeResult>,
     display: PlaygroundDisplayContext,
-}
-
-fn build_named_runtime_from_collected_sources(
-    files: Vec<yulang::CollectedSource>,
-) -> Result<NamedRuntimeBuild, yulang::RouteError> {
-    let poly = yulang::build_poly_from_collected_sources(files)?;
-    build_named_runtime_from_poly(poly)
+    timing: RunPhaseTimings,
 }
 
 fn build_named_runtime_from_poly(
     poly: yulang::BuildPolyOutput,
+    mut timing: RunPhaseTimings,
 ) -> Result<NamedRuntimeBuild, yulang::RouteError> {
+    let type_started = ClockInstant::now();
     let display = PlaygroundDisplayContext::from_poly(&poly);
     let types = exported_type_results(&poly, &display);
+    timing.type_render_ms = type_started.elapsed_ms();
+    let runtime_started = ClockInstant::now();
     let output = yulang::build_control_from_poly_output(&poly)?;
+    timing.runtime_lower_ms = runtime_started.elapsed_ms();
     Ok(NamedRuntimeBuild {
         output,
         types,
         display,
+        timing,
     })
 }
 
@@ -548,10 +707,13 @@ fn exported_type_result(
 }
 
 fn run_built_evidence_program(
-    build: NamedRuntimeBuild,
+    mut build: NamedRuntimeBuild,
     print_nth_label: &str,
 ) -> Result<WasmRuntimeOutput, WasmRuntimeError> {
+    let plan_started = ClockInstant::now();
     let plan = evidence_vm::build_plan(&build.output.program, &build.output.runtime_evidence);
+    build.timing.evidence_plan_ms = plan_started.elapsed_ms();
+    let eval_started = ClockInstant::now();
     let output = match evidence_vm::run_program_with_plan_print_nth_label(
         &build.output.program,
         &plan,
@@ -568,6 +730,7 @@ fn run_built_evidence_program(
             return Err(WasmRuntimeError::Runtime(diagnostic));
         }
     };
+    build.timing.vm_eval_ms = eval_started.elapsed_ms();
     let runtime_display = build.display.runtime_evidence_context();
     let all_root_value_texts =
         output.root_value_texts_with_display_context(Some(&build.output.labels), &runtime_display);
@@ -585,6 +748,7 @@ fn run_built_evidence_program(
         types: build.types,
         stdout: output.stdout,
         stats: output.evidence_stats,
+        timing: build.timing,
     })
 }
 
@@ -770,6 +934,7 @@ struct WasmRuntimeOutput {
     types: Vec<TypeResult>,
     stdout: String,
     stats: evidence_vm::RuntimeEvidenceRunStats,
+    timing: RunPhaseTimings,
 }
 
 #[derive(Debug)]
@@ -1300,11 +1465,38 @@ pub struct TypeResult {
     pub ty: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RunTimings {
-    pub vm_continuation_steps: usize,
+    pub source_set_ms: f64,
+    pub infer_lower_ms: f64,
+    pub type_render_ms: f64,
+    pub diagnostics_ms: f64,
+    pub export_core_ms: f64,
+    pub runtime_lower_ms: f64,
+    pub monomorphize_ms: f64,
+    pub vm_compile_ms: f64,
+    pub evidence_plan_ms: f64,
+    pub vm_eval_ms: f64,
+    pub artifact_decode_ms: f64,
+    pub artifact_decode_cache_hit: bool,
+    pub total_ms: f64,
+    pub worker_wall_ms: f64,
+    pub files: usize,
+    pub entry_files: usize,
+    pub std_files: usize,
+    pub user_files: usize,
     pub source_cache_hits: usize,
     pub source_cache_misses: usize,
+    pub source_cache_clone_ms: f64,
+    pub source_cache_build_ms: f64,
+    pub compiled_std_artifacts: usize,
+    pub compiled_std_runtime_bindings: usize,
+    pub compiled_std_cache_hit: bool,
+    pub compiled_std_fallback_reason: Option<String>,
+    pub vm_eval_expr_calls: usize,
+    pub vm_max_eval_depth: usize,
+    pub vm_continuation_steps: usize,
+    pub vm_max_continuation_frames: usize,
     pub used_embedded_std: bool,
 }
 
@@ -1402,20 +1594,28 @@ pub struct WarmupOutput {
     pub embedded_std_artifacts_bytes: usize,
     pub embedded_std_artifacts_valid: bool,
     pub embedded_std_artifacts_fallback_reason: Option<String>,
+    pub artifact_decode_ms: f64,
+    pub prefix_import_ms: f64,
     pub total_ms: f64,
+    pub worker_wall_ms: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct EmbeddedStdArtifactsOutput {
     pub artifacts: usize,
     pub runtime_bindings: usize,
     pub bytes: usize,
     pub valid: bool,
     pub fallback_reason: Option<String>,
+    pub cache_hits: usize,
+    pub cache_misses: usize,
+    pub decode_ms: f64,
+    pub clone_ms: f64,
 }
 
 impl RunOutput {
     fn from_check_output(output: yulang::CheckPolyOutput, source: &str) -> Self {
+        let diagnostics_started = ClockInstant::now();
         let diagnostics = diagnostics_from_source_diagnostics(&output.diagnostics, source.len());
         let errors = diagnostics
             .iter()
@@ -1428,12 +1628,11 @@ impl RunOutput {
             results: Vec::new(),
             stdout: String::new(),
             types: Vec::new(),
-            timings: Some(RunTimings {
-                vm_continuation_steps: 0,
-                source_cache_hits: 0,
-                source_cache_misses: 1,
-                used_embedded_std: true,
-            }),
+            timings: Some(RunTimings::diagnostic_only(
+                output.file_count,
+                diagnostics_started.elapsed_ms(),
+                true,
+            )),
             diagnostics,
             errors,
             cache_safe: true,
@@ -1445,6 +1644,7 @@ impl RunOutput {
         source: &str,
         used_embedded_std: bool,
     ) -> Self {
+        let diagnostics_started = ClockInstant::now();
         let diagnostics = diagnostics_from_messages(&output.errors, source.len());
         let results = output
             .results
@@ -1454,6 +1654,14 @@ impl RunOutput {
             .collect::<Vec<_>>();
         let vm_continuation_steps = evidence_vm_continuation_steps(&output.stats);
         let cache_safe = output.stats.is_cache_safe();
+        let timings = RunTimings::from_runtime(
+            output.file_count,
+            output.timing,
+            &output.stats,
+            vm_continuation_steps,
+            diagnostics_started.elapsed_ms(),
+            used_embedded_std,
+        );
         Self {
             ok: diagnostics.is_empty(),
             file_count: output.file_count,
@@ -1461,12 +1669,7 @@ impl RunOutput {
             results,
             stdout: output.stdout,
             types: output.types,
-            timings: Some(RunTimings {
-                vm_continuation_steps,
-                source_cache_hits: 0,
-                source_cache_misses: 1,
-                used_embedded_std,
-            }),
+            timings: Some(timings),
             diagnostics,
             errors: output.errors,
             cache_safe,
@@ -1487,12 +1690,7 @@ impl RunOutput {
             results: Vec::new(),
             stdout: String::new(),
             types: Vec::new(),
-            timings: Some(RunTimings {
-                vm_continuation_steps: 0,
-                source_cache_hits: 0,
-                source_cache_misses: 1,
-                used_embedded_std: false,
-            }),
+            timings: Some(RunTimings::diagnostic_only(0, 0.0, false)),
             diagnostics: vec![diagnostic],
             errors: vec![message],
             cache_safe: false,
@@ -1501,6 +1699,127 @@ impl RunOutput {
 
     fn cache_safe(&self) -> bool {
         self.cache_safe
+    }
+}
+
+impl RunTimings {
+    fn from_runtime(
+        files: usize,
+        phase: RunPhaseTimings,
+        stats: &evidence_vm::RuntimeEvidenceRunStats,
+        vm_continuation_steps: usize,
+        diagnostics_ms: f64,
+        used_embedded_std: bool,
+    ) -> Self {
+        Self {
+            source_set_ms: phase.source_set_ms,
+            infer_lower_ms: phase.infer_lower_ms,
+            type_render_ms: phase.type_render_ms,
+            diagnostics_ms,
+            // The evidence-runtime path has no separate export-core or mono-VM phase.
+            export_core_ms: 0.0,
+            runtime_lower_ms: phase.runtime_lower_ms,
+            monomorphize_ms: 0.0,
+            vm_compile_ms: phase.evidence_plan_ms,
+            evidence_plan_ms: phase.evidence_plan_ms,
+            vm_eval_ms: phase.vm_eval_ms,
+            artifact_decode_ms: phase.artifact_decode_ms,
+            artifact_decode_cache_hit: phase.artifact_decode_cache_hit,
+            total_ms: 0.0,
+            worker_wall_ms: 0.0,
+            files,
+            entry_files: usize::from(files != 0),
+            std_files: if used_embedded_std {
+                files.saturating_sub(1)
+            } else {
+                0
+            },
+            user_files: usize::from(files != 0),
+            source_cache_hits: 0,
+            source_cache_misses: 0,
+            source_cache_clone_ms: 0.0,
+            source_cache_build_ms: 0.0,
+            compiled_std_artifacts: phase.compiled_std_artifacts,
+            compiled_std_runtime_bindings: 0,
+            compiled_std_cache_hit: phase.compiled_std_cache_hit,
+            compiled_std_fallback_reason: (used_embedded_std && phase.compiled_std_artifacts == 0)
+                .then(|| "embedded compiled std artifact unavailable".to_string()),
+            vm_eval_expr_calls: stats.expr_evals,
+            vm_max_eval_depth: stats.max_env_depth,
+            vm_continuation_steps,
+            vm_max_continuation_frames: stats.max_continuation_frames,
+            used_embedded_std,
+        }
+    }
+
+    fn diagnostic_only(files: usize, diagnostics_ms: f64, used_embedded_std: bool) -> Self {
+        Self {
+            source_set_ms: 0.0,
+            infer_lower_ms: 0.0,
+            type_render_ms: 0.0,
+            diagnostics_ms,
+            export_core_ms: 0.0,
+            runtime_lower_ms: 0.0,
+            monomorphize_ms: 0.0,
+            vm_compile_ms: 0.0,
+            evidence_plan_ms: 0.0,
+            vm_eval_ms: 0.0,
+            artifact_decode_ms: 0.0,
+            artifact_decode_cache_hit: false,
+            total_ms: 0.0,
+            worker_wall_ms: 0.0,
+            files,
+            entry_files: usize::from(files != 0),
+            std_files: if used_embedded_std {
+                files.saturating_sub(1)
+            } else {
+                0
+            },
+            user_files: usize::from(files != 0),
+            source_cache_hits: 0,
+            source_cache_misses: 0,
+            source_cache_clone_ms: 0.0,
+            source_cache_build_ms: 0.0,
+            compiled_std_artifacts: 0,
+            compiled_std_runtime_bindings: 0,
+            compiled_std_cache_hit: false,
+            compiled_std_fallback_reason: None,
+            vm_eval_expr_calls: 0,
+            vm_max_eval_depth: 0,
+            vm_continuation_steps: 0,
+            vm_max_continuation_frames: 0,
+            used_embedded_std,
+        }
+    }
+
+    fn mark_source_cache_miss(&mut self, elapsed_ms: f64) {
+        self.source_cache_hits = 0;
+        self.source_cache_misses = 1;
+        self.source_cache_clone_ms = 0.0;
+        self.source_cache_build_ms = elapsed_ms;
+        self.total_ms = elapsed_ms;
+    }
+
+    fn mark_source_cache_hit(&mut self, elapsed_ms: f64) {
+        self.source_set_ms = 0.0;
+        self.infer_lower_ms = 0.0;
+        self.type_render_ms = 0.0;
+        self.diagnostics_ms = 0.0;
+        self.runtime_lower_ms = 0.0;
+        self.vm_compile_ms = 0.0;
+        self.evidence_plan_ms = 0.0;
+        self.vm_eval_ms = 0.0;
+        self.artifact_decode_ms = 0.0;
+        self.artifact_decode_cache_hit = false;
+        self.source_cache_hits = 1;
+        self.source_cache_misses = 0;
+        self.source_cache_clone_ms = elapsed_ms;
+        self.source_cache_build_ms = 0.0;
+        self.vm_eval_expr_calls = 0;
+        self.vm_max_eval_depth = 0;
+        self.vm_continuation_steps = 0;
+        self.vm_max_continuation_frames = 0;
+        self.total_ms = elapsed_ms;
     }
 }
 
@@ -1819,6 +2138,34 @@ mod run_cache_tests {
                 .map(|timing| timing.source_cache_hits),
             Some(1)
         );
+    }
+
+    #[test]
+    fn run_inner_reports_real_phase_and_cache_timings() {
+        clear_std_cache();
+        let first = run_inner("1 + 2\n");
+        let first_timing = first.timings.as_ref().expect("run timings");
+
+        assert!(first.ok, "{first:?}");
+        assert!(first_timing.infer_lower_ms > 0.0, "{first_timing:?}");
+        assert!(first_timing.runtime_lower_ms > 0.0, "{first_timing:?}");
+        assert!(first_timing.evidence_plan_ms > 0.0, "{first_timing:?}");
+        assert!(first_timing.vm_eval_ms > 0.0, "{first_timing:?}");
+        assert!(first_timing.total_ms > 0.0, "{first_timing:?}");
+        assert_eq!(first_timing.source_cache_hits, 0);
+        assert_eq!(first_timing.source_cache_misses, 1);
+        assert_eq!(first_timing.source_cache_build_ms, first_timing.total_ms);
+
+        let second = run_inner("1 + 2\n");
+        let second_timing = second.timings.as_ref().expect("cached run timings");
+        assert!(second.ok, "{second:?}");
+        assert_eq!(second_timing.source_cache_hits, 1);
+        assert_eq!(second_timing.source_cache_misses, 0);
+        assert_eq!(second_timing.infer_lower_ms, 0.0);
+        assert_eq!(second_timing.runtime_lower_ms, 0.0);
+        assert_eq!(second_timing.vm_eval_ms, 0.0);
+        assert!(second_timing.source_cache_clone_ms > 0.0);
+        assert_eq!(second_timing.source_cache_clone_ms, second_timing.total_ms);
     }
 
     #[test]

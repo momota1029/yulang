@@ -57,8 +57,12 @@ type RunTimings = {
     runtime_lower_ms: number;
     monomorphize_ms: number;
     vm_compile_ms: number;
+    evidence_plan_ms: number;
     vm_eval_ms: number;
+    artifact_decode_ms: number;
+    artifact_decode_cache_hit: boolean;
     total_ms: number;
+    worker_wall_ms: number;
     files: number;
     entry_files: number;
     std_files: number;
@@ -75,6 +79,7 @@ type RunTimings = {
     vm_max_eval_depth: number;
     vm_continuation_steps: number;
     vm_max_continuation_frames: number;
+    used_embedded_std: boolean;
 };
 
 type EmbeddedStdArtifactsOutput = {
@@ -83,6 +88,10 @@ type EmbeddedStdArtifactsOutput = {
     bytes: number;
     valid: boolean;
     fallback_reason?: string;
+    cache_hits: number;
+    cache_misses: number;
+    decode_ms: number;
+    clone_ms: number;
 };
 
 type WarmupOutput = {
@@ -95,7 +104,10 @@ type WarmupOutput = {
     embedded_std_artifacts_bytes: number;
     embedded_std_artifacts_valid: boolean;
     embedded_std_artifacts_fallback_reason?: string;
+    artifact_decode_ms: number;
+    prefix_import_ms: number;
     total_ms: number;
+    worker_wall_ms: number;
 };
 
 type RunWorkerRequest =
@@ -115,6 +127,7 @@ type WorkerRequestTrace = {
     kind: RunWorkerRequest["kind"];
     started_ms: number;
     finished_ms?: number;
+    duration_ms?: number;
     source_chars?: number;
     ok?: boolean;
     continuation_steps?: number;

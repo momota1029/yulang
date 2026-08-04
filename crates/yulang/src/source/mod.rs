@@ -1383,6 +1383,16 @@ pub fn build_poly_from_source_text_with_embedded_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_source_text_with_embedded_std_with_lowering_timing(entry, source)
+        .map(|(output, _)| output)
+}
+
+/// Observation-only companion for playground phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_from_source_text_with_embedded_std_with_lowering_timing(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let source = source.into();
     let diagnostic_sources =
         RuntimeDiagnosticSources::from_collected_sources(&[CollectedSource::new(
@@ -1391,6 +1401,7 @@ pub fn build_poly_from_source_text_with_embedded_std(
             source_with_implicit_prelude_only(source.clone()),
         )]);
     let (mut lowering, file_count) = embedded_std_lowering_with_root(source)?;
+    let timing = lowering.timing;
     suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
@@ -1401,25 +1412,39 @@ pub fn build_poly_from_source_text_with_embedded_std(
     let application_provenance = lowering.application_provenance().clone();
     let subtype_provenance = lowering.subtype_provenance().clone();
     let selection_provenance = selection_provenance_from_lowering(&lowering);
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        subtype_provenance,
-        application_provenance,
-        selection_provenance,
-        diagnostic_sources,
-        labels: lowering.labels,
-        host_manifest: Some(host_manifest),
-        file_count,
-        errors,
-    })
+    Ok((
+        BuildPolyOutput {
+            arena: lowering.session.poly,
+            subtype_provenance,
+            application_provenance,
+            selection_provenance,
+            diagnostic_sources,
+            labels: lowering.labels,
+            host_manifest: Some(host_manifest),
+            file_count,
+            errors,
+        },
+        timing,
+    ))
 }
 
 pub fn build_poly_from_embedded_std_compiled_unit_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_embedded_std_compiled_unit_artifact_with_lowering_timing(artifact, source)
+        .map(|(output, _)| output)
+}
+
+/// Observation-only companion for playground phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_from_embedded_std_compiled_unit_artifact_with_lowering_timing(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+    source: impl Into<String>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let (mut lowering, file_count) =
         embedded_std_lowering_with_root_artifact(artifact, source.into())?;
+    let timing = lowering.timing;
     suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
@@ -1430,17 +1455,20 @@ pub fn build_poly_from_embedded_std_compiled_unit_artifact(
     let application_provenance = lowering.application_provenance().clone();
     let subtype_provenance = lowering.subtype_provenance().clone();
     let selection_provenance = selection_provenance_from_lowering(&lowering);
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        subtype_provenance,
-        application_provenance,
-        selection_provenance,
-        diagnostic_sources: RuntimeDiagnosticSources::default(),
-        labels: lowering.labels,
-        host_manifest: Some(host_manifest),
-        file_count,
-        errors,
-    })
+    Ok((
+        BuildPolyOutput {
+            arena: lowering.session.poly,
+            subtype_provenance,
+            application_provenance,
+            selection_provenance,
+            diagnostic_sources: RuntimeDiagnosticSources::default(),
+            labels: lowering.labels,
+            host_manifest: Some(host_manifest),
+            file_count,
+            errors,
+        },
+        timing,
+    ))
 }
 
 pub fn warm_embedded_std_compiled_unit_artifact_prefix(
@@ -1453,6 +1481,16 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
     entry: impl AsRef<FsPath>,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_source_text_with_embedded_playground_std_with_lowering_timing(entry, source)
+        .map(|(output, _)| output)
+}
+
+/// Observation-only companion for playground phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_from_source_text_with_embedded_playground_std_with_lowering_timing(
+    entry: impl AsRef<FsPath>,
+    source: impl Into<String>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let source = source.into();
     let diagnostic_sources =
         RuntimeDiagnosticSources::from_collected_sources(&[CollectedSource::new(
@@ -1461,6 +1499,7 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
             source_with_implicit_prelude_only(source.clone()),
         )]);
     let (mut lowering, file_count) = embedded_playground_std_lowering_with_root(source)?;
+    let timing = lowering.timing;
     suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
@@ -1471,25 +1510,41 @@ pub fn build_poly_from_source_text_with_embedded_playground_std(
     let application_provenance = lowering.application_provenance().clone();
     let subtype_provenance = lowering.subtype_provenance().clone();
     let selection_provenance = selection_provenance_from_lowering(&lowering);
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        subtype_provenance,
-        application_provenance,
-        selection_provenance,
-        diagnostic_sources,
-        labels: lowering.labels,
-        host_manifest: Some(host_manifest),
-        file_count,
-        errors,
-    })
+    Ok((
+        BuildPolyOutput {
+            arena: lowering.session.poly,
+            subtype_provenance,
+            application_provenance,
+            selection_provenance,
+            diagnostic_sources,
+            labels: lowering.labels,
+            host_manifest: Some(host_manifest),
+            file_count,
+            errors,
+        },
+        timing,
+    ))
 }
 
 pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
     artifact: crate::cache::CachedCompiledUnitArtifact,
     source: impl Into<String>,
 ) -> Result<BuildPolyOutput, RouteError> {
+    build_poly_from_embedded_playground_std_compiled_unit_artifact_with_lowering_timing(
+        artifact, source,
+    )
+    .map(|(output, _)| output)
+}
+
+/// Observation-only companion for playground phase telemetry.
+#[doc(hidden)]
+pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact_with_lowering_timing(
+    artifact: crate::cache::CachedCompiledUnitArtifact,
+    source: impl Into<String>,
+) -> Result<(BuildPolyOutput, infer::lowering::BodyLoweringTiming), RouteError> {
     let (mut lowering, file_count) =
         embedded_playground_std_lowering_with_root_artifact(artifact, source.into())?;
+    let timing = lowering.timing;
     suppress_test_module_runtime_roots(&mut lowering);
     let errors = lowering
         .errors
@@ -1500,17 +1555,20 @@ pub fn build_poly_from_embedded_playground_std_compiled_unit_artifact(
     let application_provenance = lowering.application_provenance().clone();
     let subtype_provenance = lowering.subtype_provenance().clone();
     let selection_provenance = selection_provenance_from_lowering(&lowering);
-    Ok(BuildPolyOutput {
-        arena: lowering.session.poly,
-        subtype_provenance,
-        application_provenance,
-        selection_provenance,
-        diagnostic_sources: RuntimeDiagnosticSources::default(),
-        labels: lowering.labels,
-        host_manifest: Some(host_manifest),
-        file_count,
-        errors,
-    })
+    Ok((
+        BuildPolyOutput {
+            arena: lowering.session.poly,
+            subtype_provenance,
+            application_provenance,
+            selection_provenance,
+            diagnostic_sources: RuntimeDiagnosticSources::default(),
+            labels: lowering.labels,
+            host_manifest: Some(host_manifest),
+            file_count,
+            errors,
+        },
+        timing,
+    ))
 }
 
 pub fn warm_embedded_playground_std_compiled_unit_artifact_prefix(
