@@ -1223,3 +1223,104 @@ D3b-0d着手前にユーザーへ改めて確認すること——この確認�
 RCPF-D4-0d（upper claim storageのlegacy挙動変更）についても、
 D3b-0dと同種のblast radiusを持つため、着手前にユーザーへ改めて
 確認すること。
+
+## 13. RCPF-D 全体の完了ステータス（2026-08-04）
+
+本書が定義するRCPF-D（D1〜D4、§9・§11・§12の追補分割を含む）は
+全スライスが着地・push済みである。
+
+### 13.1 着地したスライス
+
+- D1〜D2c（index追加・publication primitive分離・同一event順序）:
+  `e8b17077`〜`fd516b24`
+- D3a（upper materialization adapter + cross-kind winner map、
+  §9追補）: `87afed20`・`fb48c975`・`5f4e03db`・`f72e0df3`
+- §11（lower projection canonical ordering、D3b-0a〜0d）:
+  `db8d0d20`・`532769f9`ほか
+- D3b-1・D3b-2（factored lower-projection adapter・full/delta
+  oracle）: `a6d6ae4d`・`edd2613d`・`f86faf17`・`b81f305c`・
+  `833f0f9a`
+- D4-0（stop gate事前検証、Gate 1 PASS・Gate 2 FAIL発見）: 検証は
+  read-only、発見を受けて§12を起案
+- §12（upper claim canonical ordering、moved-root collisionバグ
+  修正込み）: `df6511fb`（Gate 2 FAIL characterization）・
+  `ef119958`（`move_upper_replay_claim`のindex整合性バグ修正、
+  RCPF固有ではないpre-existing bug）・`5cfd51c1`（D4-0c comparator/
+  key-law/storage-invariant）・`9ad33fa7`（D4-0d legacy storage
+  cutover）・`cd633612`（D4-0e Gate 2再検証、全項目PASS）
+- D4-1〜D4-3（authority cutover本体）: `63c5b5fc`（authority-selected
+  read-plan primitives）・`8290b060`/`8de4b77e`（Phase B health
+  fenceの無条件化）・`cff4bf6e`（D4-3、production consumer側の
+  branchingは不要と結論——`evaluator_source()`が既にauthority駆動、
+  storage層はD4-0d/D3b-0dの時点で内容がauthority非依存になって
+  いたため）
+- D4-4 Part A（quarantine retry end-to-endソーク）: `6e7bb990`、
+  実compilationでのFactored失敗→discard→LegacyRollback再実行が
+  clean legacy-from-startと完全一致することを確認、PASS
+
+### 13.2 D4-3の結論についての補足
+
+D4-3は当初「upper/lower consumerをauthority selectorへ配線する」
+という実装スライスとして計画されていたが、実装を試みた最初の
+試行（未commit、破棄）はD4-2のPhase B plan値（比較専用の論理
+projectionであり、lossless mutation planではない）を誤ってwriter
+経路へ流用し、21件の新規test failureを生んだ。これは「本物の
+失敗」として正しく検知・報告・破棄され、再調査の結果、
+D4-0d・D3b-0dのcanonical ordering cutoverが既に「同一履歴における
+Factored/LegacyRollbackの読み取り内容（exact claim ID含む）を
+完全に一致させる」という性質を満たしていたため、production
+consumer側に新規のbranchingは不要と判明した。異なる履歴間で
+一致しないのはderived claim IDの割り当て番号のみ（意味的内容
+ではなくallocation artifactであり、invariant 23が要求する
+history-independenceの対象外）で、canonical root列・全downstream
+consumer出力はD4-0eで確認済みのとおり完全一致する。
+
+### 13.3 性能実測（2026-08-04、D4-4 Part B）
+
+RCPF全体の当初動機であった`std::text::parse`のlowering時間を、
+D1〜D4着地後に再測定した。
+
+```text
+methodology: 温まったrelease binary、`1 + 2`という最小rootで
+  full std lowering、YULANG_INFER_TIMING=files計測
+std::text::parse:        53.239s
+full body lowering:      55.543s
+analysis drain:          16.844s
+selection resolution:    10.638s
+total internal lowering: 83.048s
+external wall time:      88.11s
+```
+
+RCPF-A期のbaseline（48.705s）比で**9.31%悪化**しており、RCPF文書
+§12の中間目標（15秒）に対し3.55倍、最終製品目標（0.5秒）に対し
+106.48倍、いずれも未達である。この数字を潤色せず、そのまま記録
+する——D1〜D4の一連の作業は正しさ（correctness、authority
+cutoverの安全な着地）を確立したが、当初の性能目標を達成する
+段階にはまだ到達していない。RCPF文書§12が当初から明記していた
+「B+Cは0.5秒到達を保証しない」という留保は的中しており、
+`lower×upper region化`や`lazy pivot solver`など、RCPF文書が
+次の設計対象として挙げていた方向性の検討が必要になる。
+
+### 13.4 RCPF-F着手前提との関係
+
+`notes/design/2026-08-02-rcpf-quarantine-retry-authority-addendum.md`
+§3.6が定めるRCPF-F（legacy ledger物理撤去）の着手前提——
+「C〜E soak期間中のorganic `Failed`発生数ゼロ」を含む広範な
+soak matrix（full infer test、cache on/off、insertion-order系
+fixture、std lowering、portable provenance系characterization、
+wall-time/RSS計測ワークロード）——は、本書のD4-4がカバーした
+範囲（quarantine retry一件のend-to-end soak、std::text::parseの
+timing一回計測）よりも広い。D4-4は正しさの一点（quarantine retry
+parity）と性能の現在地（timing）を確認したに留まり、RCPF-F着手
+判断に必要な広範なsoakはまだ実施していない。
+
+### 13.5 結論
+
+RCPF-D（D1〜D4、§9・§11・§12を含む全追補）は**correctness面で
+完了**した。production authority cutoverは安全に着地し、量的な
+検証（gate、soak、24 permutation oracle等）を通過している。
+一方で**performance面は未達**であり、RCPF全体としての「製品版
+0.5秒」という目標は、RCPF-D単体の完了では実現しない。次の作業は
+（a）RCPF-Fの広範soak実施の要否をユーザーと相談する、または
+（b）性能改善の次段階（region化・lazy solver等）の設計検討へ
+進む、のいずれかをユーザーと相談して決めることになる。
