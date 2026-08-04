@@ -31,6 +31,8 @@ std::thread_local! {
         const { std::cell::Cell::new(0) };
     static RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY: std::cell::Cell<bool> =
         const { std::cell::Cell::new(false) };
+    static RCPF_E2C_FAIL_NEXT_A1_READ: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -109,6 +111,11 @@ struct ClaimQualifiedParentAdmissionSnapshot {
 struct ClauseLinkBatchAdmissionSnapshot {
     lower_record: BoundRecordId,
     was_included: bool,
+}
+
+struct ClaimParentClauseLinkPreflight {
+    legacy_phase_a_links: Vec<RecordProofClauseLinkAdmission>,
+    factored_failure: Option<ReplayFactoredShadowFailure>,
 }
 
 #[derive(Default)]
@@ -2248,15 +2255,18 @@ impl ConstraintMachine {
     #[cfg(test)]
     fn register_claim_parent_clause_links(
         &mut self,
+        result: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
-        let snapshot = self.commit_claim_parent_clause_links_mutation(lower_record, parents);
+        let snapshot =
+            self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
         self.seal_record_proof_clause_link_batch(snapshot, None);
     }
 
     fn commit_claim_parent_clause_links_mutation(
         &mut self,
+        result: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
@@ -2264,8 +2274,26 @@ impl ConstraintMachine {
         RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(|probes| {
             probes.set(probes.get().saturating_add(1));
         });
+        let preflight = self.preflight_claim_parent_clause_links(result, lower_record, parents);
+        let snapshot = self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            preflight.legacy_phase_a_links,
+        );
+        if let Some(failure) = preflight.factored_failure {
+            self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
+        }
+        snapshot
+    }
+
+    fn preflight_claim_parent_clause_links(
+        &self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) -> ClaimParentClauseLinkPreflight {
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
+        let mut factored_failure = None;
         for parent in parents.iter().copied() {
             let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
                 continue;
@@ -2295,10 +2323,31 @@ impl ConstraintMachine {
                 ),
             };
             let support = SchemeProjectionProofSupport::Claimed(root);
-            if self
-                .bounds
-                .record_proof_clause_link_is_registered(lower_record, support, clause)
-            {
+            let already_registered = if factored_failure.is_some() {
+                self.bounds
+                    .record_proof_clause_link_is_registered(lower_record, support, clause)
+            } else {
+                match self.try_authoritative_claim_parent_clause_link_is_registered(
+                    result,
+                    lower_record,
+                    parent,
+                    support,
+                    clause,
+                ) {
+                    Ok(already_registered) => already_registered,
+                    Err(failure) => {
+                        factored_failure = Some(failure);
+                        // The failed attempt is discarded, but Phase A remains a complete legacy
+                        // oracle for the clean LegacyRollback retry.
+                        self.bounds.record_proof_clause_link_is_registered(
+                            lower_record,
+                            support,
+                            clause,
+                        )
+                    }
+                }
+            };
+            if already_registered {
                 continue;
             }
             let batch_link_key = (
@@ -2314,7 +2363,10 @@ impl ConstraintMachine {
                 attribution_source,
             ));
         }
-        self.commit_record_proof_clause_link_batch_mutation(lower_record, pending_links)
+        ClaimParentClauseLinkPreflight {
+            legacy_phase_a_links: pending_links,
+            factored_failure,
+        }
     }
 
     fn register_claim_parent_clause_links_after_factored_projection(
@@ -2326,7 +2378,8 @@ impl ConstraintMachine {
     ) {
         // Phase A is unconditional. Only after Phase B has made the factored occurrence/link view
         // current may the pending after-view be evaluated and published.
-        let snapshot = self.commit_claim_parent_clause_links_mutation(lower_record, parents);
+        let snapshot =
+            self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
         self.observe_factored_replay_clause_projection(result, lower_record, parents);
         if self.replay_factored_terminal_failure().is_none() {
             self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
@@ -2381,6 +2434,11 @@ impl ConstraintMachine {
         replay: BinaryReplayDerivation,
         clause: RecordProofClause,
     ) -> ReplayFactoredResult<bool> {
+        #[cfg(test)]
+        if RCPF_E2C_FAIL_NEXT_A1_READ.with(|fail| fail.replace(false)) {
+            mark_next_replay_soak_failure_as_intentional();
+            return Err(ReplayFactoredShadowFailure::AllocationFailed);
+        }
         let Some(occurrence_id) = self.replay_occurrences.occurrence_id(ReplayOccurrenceKey {
             result,
             carrier: replay,
@@ -4241,6 +4299,7 @@ impl ConstraintMachine {
             && let Some(lower_record) = self.lower_record_for_constraint(result)
         {
             self.commit_claim_parent_clause_links_mutation(
+                result,
                 lower_record,
                 clause_projection_parents,
             )
@@ -7445,7 +7504,11 @@ mod mutation_tests {
 
         fixture
             .machine
-            .register_claim_parent_clause_links(fixture.lower_record, &[parent]);
+            .register_claim_parent_clause_links(
+                fixture.result,
+                fixture.lower_record,
+                &[parent],
+            );
         RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.set(true));
         fixture.machine.observe_factored_replay_clause_projection(
             fixture.result,
@@ -7635,6 +7698,67 @@ mod mutation_tests {
                 .bounds
                 .derived_claim_by_record_and_root
                 .contains_key(&(fixture.upper_record, fixture.coverage_root))
+        );
+        assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
+    }
+
+    #[test]
+    fn rcpf_e2c_a1_read_failure_keeps_legacy_phase_a_before_terminal_stop() {
+        let mut fixture = cdm_replay_claim_fixture();
+        fixture.machine.enable_replay_factored_event_oracle();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        let support = SchemeProjectionProofSupport::Claimed(fixture.coverage_root);
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        assert!(!fixture.machine.bounds.record_proof_clause_link_is_registered(
+            fixture.lower_record,
+            support,
+            clause,
+        ));
+        let publication_before = (fixture.machine.epoch, fixture.machine.provenance_epoch);
+
+        RCPF_E2C_FAIL_NEXT_A1_READ.with(|fail| fail.set(true));
+        RCPF_D2C_EVENT_ORACLE_PROBES.with(|probes| probes.set(0));
+        register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
+
+        assert!(!RCPF_E2C_FAIL_NEXT_A1_READ.with(std::cell::Cell::get));
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::AllocationFailed)
+        );
+        assert!(fixture.machine.bounds.claim_parents_by_constraint[&fixture.result]
+            .iter()
+            .any(|candidate| candidate.parent_claim() == parent.claim));
+        assert!(
+            fixture.machine.bounds.record_proof_clause_link_is_registered(
+                fixture.lower_record,
+                support,
+                clause,
+            ),
+            "Factored A1 failure must not skip the unconditional legacy Phase A link"
+        );
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .clause_by_record_and_occurrence
+                .is_empty(),
+            "terminal A1 failure stops before factored Phase B"
+        );
+        assert_eq!(
+            (fixture.machine.epoch, fixture.machine.provenance_epoch),
+            publication_before,
+            "terminal A1 failure must not publish the failed attempt"
         );
         assert_eq!(RCPF_D2C_EVENT_ORACLE_PROBES.with(std::cell::Cell::get), 0);
     }
@@ -8628,6 +8752,7 @@ mod mutation_tests {
         ));
         let structural_lower = matrix_lower(&mut fixture.machine, fixture.result, 80_002);
         fixture.machine.register_claim_parent_clause_links(
+            fixture.result,
             structural_lower,
             &[ClaimQualifiedParent::StructuralConstraint {
                 parent_claim: structural_claim.claim,
@@ -8656,6 +8781,7 @@ mod mutation_tests {
         ));
         let reduction_lower = matrix_lower(&mut fixture.machine, fixture.result, 80_005);
         fixture.machine.register_claim_parent_clause_links(
+            fixture.result,
             reduction_lower,
             &[ClaimQualifiedParent::ReductionRouteConstraint {
                 parent_claim: reduction_claim.claim,
