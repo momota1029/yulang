@@ -12,10 +12,6 @@ pub(super) enum ActTemplateCatalogSource {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(
-    dead_code,
-    reason = "M1-0 fixes the outcome matrix before M1-1 can produce template outcomes"
-)]
 pub(super) enum ActTemplateAttemptOutcome {
     NotAttempted,
     Eligible,
@@ -54,6 +50,34 @@ impl SyntheticActCopyCensusSnapshot {
 std::thread_local! {
     static TEST_CAPTURE: std::cell::RefCell<Option<SyntheticActCopyCensusSnapshot>> =
         const { std::cell::RefCell::new(None) };
+    static FORCE_LEGACY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FORCE_FALLBACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[inline]
+pub(super) fn force_legacy_typed_act_template_path() -> bool {
+    #[cfg(test)]
+    return FORCE_LEGACY.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    false
+}
+
+#[inline]
+pub(super) fn force_typed_act_template_fallback() -> bool {
+    #[cfg(test)]
+    return FORCE_FALLBACK.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    false
+}
+
+#[cfg(test)]
+pub(super) fn with_legacy_typed_act_template_path<T>(run: impl FnOnce() -> T) -> T {
+    FORCE_LEGACY.with(|flag| with_test_flag(flag, run))
+}
+
+#[cfg(test)]
+pub(super) fn with_forced_typed_act_template_fallback<T>(run: impl FnOnce() -> T) -> T {
+    FORCE_FALLBACK.with(|flag| with_test_flag(flag, run))
 }
 
 #[inline]
@@ -117,6 +141,27 @@ fn update_capture(update: impl FnOnce(&mut SyntheticActCopyCensusSnapshot)) {
             update(snapshot);
         }
     });
+}
+
+#[cfg(test)]
+fn with_test_flag<T>(flag: &std::cell::Cell<bool>, run: impl FnOnce() -> T) -> T {
+    struct Reset<'a> {
+        flag: &'a std::cell::Cell<bool>,
+        previous: bool,
+    }
+    impl Drop for Reset<'_> {
+        fn drop(&mut self) {
+            self.flag.set(self.previous);
+        }
+    }
+
+    let reset = Reset {
+        flag,
+        previous: flag.replace(true),
+    };
+    let output = run();
+    drop(reset);
+    output
 }
 
 #[cfg(test)]

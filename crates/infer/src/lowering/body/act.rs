@@ -243,7 +243,48 @@ impl BodyLowerer {
                 sub_label_ids
                     .into_iter()
                     .map(|id| (super::act_copy_census::SyntheticActCopyKind::LabelSub, id)),
-            );
+            )
+            .collect::<Vec<_>>();
+        let mut catalog = crate::module_table::typed_act_catalog::TypedActTemplateCatalog::new();
+        let mut catalog_misses = FxHashSet::default();
+        if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix {
+            for (kind, id) in &copies {
+                let Some(substitution) = self.modules.nominal_act_instance_substitution(*id) else {
+                    continue;
+                };
+                let key = (*kind, substitution.template_root_act);
+                if catalog.entry(key.0, key.1).is_some() || catalog_misses.contains(&key) {
+                    continue;
+                }
+                let Some(identity) = self
+                    .modules
+                    .nominal_act_template_identity(substitution.template_root_act)
+                    .cloned()
+                else {
+                    catalog_misses.insert(key);
+                    continue;
+                };
+                let captured = catalog.capture(
+                    *kind,
+                    identity,
+                    &self.session.poly,
+                    &self.modules,
+                    &self.labels,
+                );
+                let eligible = captured.is_ok()
+                    && catalog.entry(key.0, key.1).is_some_and(|entry| {
+                        entry
+                            .source_definitions_are_prefix_owned(|def| {
+                                self.prefix_runtime.contains_def(def)
+                            })
+                            .is_ok()
+                    });
+                if !eligible {
+                    catalog_misses.insert(key);
+                }
+            }
+        }
+
         for (kind, id) in copies {
             let Some(decl) = self.modules.type_decl_by_id(id) else {
                 continue;
@@ -254,16 +295,59 @@ impl BodyLowerer {
             let Some(copy) = self.act_copy_lowering_context(decl.module, &decl) else {
                 continue;
             };
+            if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix
+                && !super::act_copy_census::force_legacy_typed_act_template_path()
+            {
+                let substitution = self.modules.nominal_act_instance_substitution(id);
+                let entry = substitution.and_then(|substitution| {
+                    let key = (kind, substitution.template_root_act);
+                    (!catalog_misses.contains(&key))
+                        .then(|| catalog.entry(key.0, key.1))
+                        .flatten()
+                });
+                if let (Some(substitution), Some(entry)) = (substitution, entry) {
+                    let prepared = if super::act_copy_census::force_typed_act_template_fallback() {
+                        None
+                    } else {
+                        entry
+                            .prepare(substitution, &self.modules, |def| {
+                                self.prefix_runtime.contains_def(def)
+                            })
+                            .ok()
+                    };
+                    if let Some(prepared) = prepared {
+                        prepared.commit(&mut self.session, &mut self.labels);
+                        super::act_copy_census::record_act_template_attempt(
+                            kind,
+                            catalog_source,
+                            super::act_copy_census::ActTemplateAttemptOutcome::Eligible,
+                        );
+                        continue;
+                    }
+                    super::act_copy_census::record_act_template_attempt(
+                        kind,
+                        catalog_source,
+                        super::act_copy_census::ActTemplateAttemptOutcome::Fallback,
+                    );
+                } else {
+                    super::act_copy_census::record_act_template_attempt(
+                        kind,
+                        catalog_source,
+                        super::act_copy_census::ActTemplateAttemptOutcome::Miss,
+                    );
+                }
+            } else {
+                super::act_copy_census::record_act_template_attempt(
+                    kind,
+                    catalog_source,
+                    super::act_copy_census::ActTemplateAttemptOutcome::NotAttempted,
+                );
+            }
             let previous_scope = self.local_method_scope.replace(companion);
             let previous_source_module = self.copied_source_module.replace(copy.source_module);
             let previous_suppression = std::mem::replace(&mut self.suppress_runtime_roots, true);
             let previous_source_spans = std::mem::replace(&mut self.record_source_spans, false);
             let mut method_cursor = 0usize;
-            super::act_copy_census::record_act_template_attempt(
-                kind,
-                catalog_source,
-                super::act_copy_census::ActTemplateAttemptOutcome::NotAttempted,
-            );
             super::act_copy_census::record_legacy_act_copy_lowering(kind, catalog_source);
             self.lower_act_body_contents(
                 &copy.body,

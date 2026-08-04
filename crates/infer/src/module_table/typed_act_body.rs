@@ -23,6 +23,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) struct TypedActBodyTemplate {
     pub(crate) arena: PolyArena,
     pub(crate) labels: DumpLabels,
+    pub(crate) source_defs: Vec<DefId>,
     pub(crate) members: Vec<TypedActBodyMember>,
     pub(crate) external_refs: FxHashMap<RefId, StableExternalReferenceKey>,
     pub(crate) external_selects: FxHashMap<SelectId, StableExternalReferenceKey>,
@@ -86,6 +87,7 @@ impl TypedActTemplate {
     ) -> Result<TypedActBodyTemplate, TypedActBodyError> {
         let mut internal_defs = internal_def_closure(identity, source)?;
         let selection = BodySelection::from_members(identity, source, &mut internal_defs)?;
+        let source_defs = sorted(&internal_defs, |id| id.0);
         let paths = identity
             .nominal_types
             .iter()
@@ -124,6 +126,7 @@ impl TypedActTemplate {
         Ok(TypedActBodyTemplate {
             arena: importer.target,
             labels: importer.labels,
+            source_defs,
             members,
             external_refs: importer.external_refs,
             external_selects: importer.external_selects,

@@ -1,6 +1,7 @@
 use super::act_copy_census::{
     ActTemplateCatalogSource, SyntheticActCopyKind, capture_synthetic_act_copy_census,
 };
+use super::stage0_tests::repository_std_loaded;
 use super::*;
 use crate::module_table::nominal_act_identity::{
     NominalActInstanceSubstitution, NominalActTemplateIdentity, NominalActTypeRole,
@@ -83,11 +84,11 @@ fn m1_0_census_distinguishes_cold_embedded_and_warm_prefix_legacy_routes() {
         lower_loaded_files_with_prefix(&prefix, &suffix).unwrap()
     });
     assert!(warm.errors.is_empty(), "warm: {:?}", warm.errors);
-    assert_legacy_cell(
+    assert_eligible_cell(
         warm_census.cell(SyntheticActCopyKind::Var, ActTemplateCatalogSource::Prefix),
         1,
     );
-    assert_legacy_cell(
+    assert_eligible_cell(
         warm_census.cell(
             SyntheticActCopyKind::LabelSub,
             ActTemplateCatalogSource::Prefix,
@@ -109,7 +110,9 @@ fn m1_0_census_distinguishes_cold_embedded_and_warm_prefix_legacy_routes() {
 fn legacy_act_copy_resolves_external_types_from_the_template_namespace() {
     let prefix = std_prefix();
     let (cold_label, _) = cold_case(&label_source(1));
-    let (warm_label, _) = warm_case(&prefix, &label_source(1));
+    let (warm_label, _) = act_copy_census::with_legacy_typed_act_template_path(|| {
+        warm_case(&prefix, &label_source(1))
+    });
     let expected_label_sub = concat!(
         "'a [\"<synthetic-act>\"('b & 'a & 'c), ",
         "std::control::flow::sub('c & 'a & 'b); 'd] -> ['d] 'a | 'b | 'c",
@@ -145,7 +148,9 @@ fn m1_0_legacy_cost_fixtures_pin_warm_and_cold_var_and_label_sub_slopes() {
     let mut cold_var_timings = Vec::new();
     let mut cold_label_timings = Vec::new();
     for count in 1..=3 {
-        let (var, var_census) = warm_case(&prefix, &var_source(count));
+        let (var, var_census) = act_copy_census::with_legacy_typed_act_template_path(|| {
+            warm_case(&prefix, &var_source(count))
+        });
         assert_legacy_cell(
             var_census.cell(SyntheticActCopyKind::Var, ActTemplateCatalogSource::Prefix),
             count,
@@ -158,7 +163,9 @@ fn m1_0_legacy_cost_fixtures_pin_warm_and_cold_var_and_label_sub_slopes() {
         );
         var_timings.push(var.timing.synthetic_act_copy);
 
-        let (label, label_census) = warm_case(&prefix, &label_source(count));
+        let (label, label_census) = act_copy_census::with_legacy_typed_act_template_path(|| {
+            warm_case(&prefix, &label_source(count))
+        });
         assert_legacy_cell(
             label_census.cell(
                 SyntheticActCopyKind::LabelSub,
@@ -432,7 +439,8 @@ fn m1_4_catalog_installs_finalized_var_and_label_sub_instances_before_use_drain(
         "label_case\n",
     );
     let prefix = std_prefix();
-    let (legacy, _) = warm_case(&prefix, source);
+    let (legacy, _) =
+        act_copy_census::with_legacy_typed_act_template_path(|| warm_case(&prefix, source));
     let legacy_runtime = m1_runtime_output(
         &legacy.session.poly,
         legacy.subtype_provenance(),
@@ -634,6 +642,80 @@ fn m1_4_catalog_installs_finalized_var_and_label_sub_instances_before_use_drain(
     assert_eq!(
         m1_runtime_output(&session.poly, legacy.subtype_provenance(), &labels),
         legacy_runtime,
+    );
+}
+
+#[test]
+fn m1_5_precommit_rejection_falls_back_atomically_for_both_copy_kinds() {
+    let prefix = std_prefix();
+    let source = mixed_source(1);
+    let (legacy, _) =
+        act_copy_census::with_legacy_typed_act_template_path(|| warm_case(&prefix, &source));
+    let (fallback, census) =
+        act_copy_census::with_forced_typed_act_template_fallback(|| warm_case(&prefix, &source));
+    assert!(fallback.errors.is_empty(), "{:?}", fallback.errors);
+    assert_eq!(fallback.errors, legacy.errors);
+    for kind in [SyntheticActCopyKind::Var, SyntheticActCopyKind::LabelSub] {
+        let cell = census.cell(kind, ActTemplateCatalogSource::Prefix);
+        assert_eq!(cell.fallback, 1);
+        assert_eq!(cell.legacy_cst_lowerings, 1);
+        assert_eq!(cell.eligible, 0);
+        assert_eq!(cell.miss, 0);
+        assert_eq!(cell.not_attempted, 0);
+        let (legacy_id, fallback_id) = match kind {
+            SyntheticActCopyKind::Var => (
+                legacy.modules.synthetic_var_act_copy_ids()[0],
+                fallback.modules.synthetic_var_act_copy_ids()[0],
+            ),
+            SyntheticActCopyKind::LabelSub => (
+                legacy.modules.synthetic_sub_label_act_copy_ids()[0],
+                fallback.modules.synthetic_sub_label_act_copy_ids()[0],
+            ),
+        };
+        assert_eq!(
+            normalized_legacy_scheme_view(&fallback, kind, fallback_id),
+            normalized_legacy_scheme_view(&legacy, kind, legacy_id),
+        );
+    }
+    assert_eq!(
+        m1_runtime_output(
+            &fallback.session.poly,
+            fallback.subtype_provenance(),
+            &fallback.labels,
+        ),
+        m1_runtime_output(
+            &legacy.session.poly,
+            legacy.subtype_provenance(),
+            &legacy.labels,
+        ),
+    );
+}
+
+#[test]
+fn m1_5_repository_std_canonical_var_and_label_sub_are_warm_eligible() {
+    let prefix_files = repository_std_loaded("use std::prelude::*\nmod std;\n");
+    let prefix = lower_loaded_files_prefix(&prefix_files).expect("canonical repository std prefix");
+    let source = concat!(
+        "my state =\n",
+        "  my $value = 1\n",
+        "  &value = $value\n",
+        "  $value\n",
+        "my escaped = sub 'done:\n",
+        "  'done.return state\n",
+        "escaped\n",
+    );
+    let (output, census) = warm_case(&prefix, source);
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+    assert_eligible_cell(
+        census.cell(SyntheticActCopyKind::Var, ActTemplateCatalogSource::Prefix),
+        1,
+    );
+    assert_eligible_cell(
+        census.cell(
+            SyntheticActCopyKind::LabelSub,
+            ActTemplateCatalogSource::Prefix,
+        ),
+        1,
     );
 }
 
@@ -1156,6 +1238,14 @@ fn assert_legacy_cell(cell: act_copy_census::SyntheticActCopyCensusCell, expecte
     assert_eq!(cell.not_attempted, expected);
     assert_eq!(cell.legacy_cst_lowerings, expected);
     assert_eq!(cell.eligible, 0);
+    assert_eq!(cell.miss, 0);
+    assert_eq!(cell.fallback, 0);
+}
+
+fn assert_eligible_cell(cell: act_copy_census::SyntheticActCopyCensusCell, expected: usize) {
+    assert_eq!(cell.not_attempted, 0);
+    assert_eq!(cell.legacy_cst_lowerings, 0);
+    assert_eq!(cell.eligible, expected);
     assert_eq!(cell.miss, 0);
     assert_eq!(cell.fallback, 0);
 }

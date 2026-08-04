@@ -80,7 +80,6 @@ impl ModuleTable {
             .insert(destination_root_act, substitution);
     }
 
-    #[cfg(test)]
     pub(crate) fn nominal_act_template_identity(
         &self,
         root: TypeDeclId,
@@ -88,7 +87,6 @@ impl ModuleTable {
         self.nominal_act_template_identities.get(&root)
     }
 
-    #[cfg(test)]
     pub(crate) fn nominal_act_instance_substitution(
         &self,
         destination: TypeDeclId,

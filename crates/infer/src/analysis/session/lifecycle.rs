@@ -197,35 +197,22 @@ impl AnalysisSession {
         }
     }
 
-    /// Publish closed typed-template members as already-finalized SCC definitions.
-    ///
-    /// The caller must install each complete `Def::Let` in `poly` first. Validation happens
-    /// before any SCC state changes, so a failed batch cannot expose a placeholder scheme.
-    pub(crate) fn install_finalized_template_defs(
+    /// Commit half of typed-template installation after detached validation has succeeded.
+    pub(crate) fn seed_validated_finalized_template_defs(
         &mut self,
         defs: impl IntoIterator<Item = DefId>,
-    ) -> Result<(), FinalizedTemplateInstallError> {
-        let defs = defs.into_iter().collect::<Vec<_>>();
-        let empty_boundary = ImportedBoundarySubstitution::default();
-        for def in &defs {
-            let Some(Def::Let {
-                scheme: Some(scheme),
-                ..
-            }) = self.poly.defs.get(*def)
-            else {
-                return Err(FinalizedTemplateInstallError::MissingClosedScheme { def: *def });
-            };
-            validate_imported_scheme_for_instantiation(&self.poly.typ, scheme, &empty_boundary)
-                .map_err(|error| FinalizedTemplateInstallError::InvalidScheme {
-                    def: *def,
-                    error,
-                })?;
-        }
+    ) {
         for def in defs {
+            debug_assert!(matches!(
+                self.poly.defs.get(def),
+                Some(Def::Let {
+                    scheme: Some(_),
+                    ..
+                })
+            ));
             self.finalized_template_scheme_defs.insert(def);
             self.scc.seed_quantified_def(def);
         }
-        Ok(())
     }
 
     #[cfg(test)]

@@ -1,9 +1,4 @@
-//! Shared, shadow-only catalog and finalized-instance installation for typed act templates.
-
-#![allow(
-    dead_code,
-    reason = "M1-4 remains a comparison harness until the M1-5 cutover"
-)]
+//! Shared catalog and finalized-instance installation for typed act templates.
 
 use super::ModuleTable;
 use super::nominal_act_identity::{NominalActInstanceSubstitution, NominalActTemplateIdentity};
@@ -13,6 +8,9 @@ use super::typed_act_template::{
     TypedActTemplateError,
 };
 use crate::analysis::{AnalysisSession, FinalizedTemplateInstallError};
+use crate::instantiate::{
+    ImportedBoundarySubstitution, validate_imported_scheme_for_instantiation,
+};
 use crate::{CompiledBoundaryInterface, CompiledRuntimeSurface, TypeDeclId};
 use poly::dump::DumpLabels;
 use poly::expr::{DefId, Expr, SelectResolution};
@@ -29,24 +27,51 @@ pub(crate) struct TypedActTemplateCatalog {
 }
 
 pub(crate) struct TypedActTemplateCatalogEntry {
+    #[allow(dead_code, reason = "retained as the catalog entry's audited identity")]
     pub(crate) kind: SyntheticActCopyKind,
+    #[allow(dead_code, reason = "retained as the catalog entry's audited identity")]
     pub(crate) source_root: TypeDeclId,
+    #[allow(
+        dead_code,
+        reason = "retained for catalog parity and later serialization"
+    )]
     pub(crate) identity: NominalActTemplateIdentity,
     pub(crate) typed: TypedActTemplate,
     pub(crate) body: TypedActBodyTemplate,
 }
 
 pub(crate) struct TypedActInstalledInstance {
+    #[allow(dead_code, reason = "consumed by shadow parity oracles in test builds")]
     pub(crate) schemes: TypedActSchemeInstantiation,
+    #[allow(
+        dead_code,
+        reason = "consumed by lifecycle parity oracles in test builds"
+    )]
     pub(crate) member_defs: Vec<DefId>,
 }
 
+pub(crate) struct PreparedTypedActInstance {
+    surface: CompiledRuntimeSurface,
+    preallocated: Vec<(DefId, DefId)>,
+    external_defs: Vec<(DefId, DefId)>,
+    schemes: TypedActSchemeInstantiation,
+    member_defs: Vec<DefId>,
+}
+
 #[derive(Debug)]
+#[allow(
+    dead_code,
+    reason = "fail-closed production fallback retains detailed rejection evidence for tests and debugging"
+)]
 pub(crate) enum TypedActCatalogError {
     Scheme(TypedActTemplateError),
     Body(TypedActBodyError),
-    MissingEntry,
     MissingExternal(StableExternalReferenceKey),
+    SourceDefinitionOutsidePrefix(DefId),
+    ExternalDefinitionOutsidePrefix {
+        key: StableExternalReferenceKey,
+        def: DefId,
+    },
     UnsupportedExternalSelection(StableExternalReferenceKey),
     Install(FinalizedTemplateInstallError),
 }
@@ -95,14 +120,27 @@ impl TypedActTemplateCatalog {
 }
 
 impl TypedActTemplateCatalogEntry {
-    /// Install one verified detached instance into its already-minted destination member IDs.
-    pub(crate) fn install(
+    pub(crate) fn source_definitions_are_prefix_owned(
+        &self,
+        contains: impl Fn(DefId) -> bool,
+    ) -> Result<(), TypedActCatalogError> {
+        self.body
+            .source_defs
+            .iter()
+            .copied()
+            .find(|def| !contains(*def))
+            .map_or(Ok(()), |def| {
+                Err(TypedActCatalogError::SourceDefinitionOutsidePrefix(def))
+            })
+    }
+
+    /// Validate and detach every fallible input without mutating the live compilation arena.
+    pub(crate) fn prepare(
         &self,
         substitution: &NominalActInstanceSubstitution,
-        session: &mut AnalysisSession,
         modules: &ModuleTable,
-        labels: &mut DumpLabels,
-    ) -> Result<TypedActInstalledInstance, TypedActCatalogError> {
+        external_def_is_eligible: impl Fn(DefId) -> bool,
+    ) -> Result<PreparedTypedActInstance, TypedActCatalogError> {
         let schemes = self
             .typed
             .apply(substitution)
@@ -123,6 +161,12 @@ impl TypedActTemplateCatalogEntry {
             let target = modules
                 .resolve_stable_external_reference_key(key)
                 .ok_or_else(|| TypedActCatalogError::MissingExternal(key.clone()))?;
+            if !external_def_is_eligible(target) {
+                return Err(TypedActCatalogError::ExternalDefinitionOutsidePrefix {
+                    key: key.clone(),
+                    def: target,
+                });
+            }
             let proxy = arena.defs.fresh();
             proxies.insert(key.clone(), proxy);
             external_defs.push((proxy, target));
@@ -174,23 +218,84 @@ impl TypedActTemplateCatalogEntry {
             modules: Vec::new(),
             values: Vec::new(),
         };
-        let preallocated = product.member_destinations.into_iter().collect::<Vec<_>>();
+        let mut preallocated = product.member_destinations.into_iter().collect::<Vec<_>>();
+        preallocated.sort_by_key(|(detached, destination)| (detached.0, destination.0));
         let member_defs = preallocated
             .iter()
             .map(|(_, destination)| *destination)
             .collect::<Vec<_>>();
-        surface.import_into_with_mapped_defs(
-            &mut session.poly,
-            labels,
+        let empty_boundary = ImportedBoundarySubstitution::default();
+        for member in &schemes.members {
+            validate_imported_scheme_for_instantiation(
+                &schemes.types,
+                &member.scheme,
+                &empty_boundary,
+            )
+            .map_err(|error| {
+                TypedActCatalogError::Install(FinalizedTemplateInstallError::InvalidScheme {
+                    def: member.destination,
+                    error,
+                })
+            })?;
+        }
+        for (detached, destination) in &preallocated {
+            let Some(poly::expr::Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) = surface.arena.defs.get(*detached)
+            else {
+                return Err(TypedActCatalogError::Install(
+                    FinalizedTemplateInstallError::MissingClosedScheme { def: *destination },
+                ));
+            };
+            validate_imported_scheme_for_instantiation(&surface.arena.typ, scheme, &empty_boundary)
+                .map_err(|error| {
+                    TypedActCatalogError::Install(FinalizedTemplateInstallError::InvalidScheme {
+                        def: *destination,
+                        error,
+                    })
+                })?;
+        }
+        Ok(PreparedTypedActInstance {
+            surface,
             preallocated,
             external_defs,
-        );
-        session
-            .install_finalized_template_defs(member_defs.iter().copied())
-            .map_err(TypedActCatalogError::Install)?;
-        Ok(TypedActInstalledInstance {
             schemes,
             member_defs,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install(
+        &self,
+        substitution: &NominalActInstanceSubstitution,
+        session: &mut AnalysisSession,
+        modules: &ModuleTable,
+        labels: &mut DumpLabels,
+    ) -> Result<TypedActInstalledInstance, TypedActCatalogError> {
+        Ok(self
+            .prepare(substitution, modules, |_| true)?
+            .commit(session, labels))
+    }
+}
+
+impl PreparedTypedActInstance {
+    /// Infallible commit after `prepare` has validated closure, anchors, and closed schemes.
+    pub(crate) fn commit(
+        self,
+        session: &mut AnalysisSession,
+        labels: &mut DumpLabels,
+    ) -> TypedActInstalledInstance {
+        self.surface.import_into_with_mapped_defs(
+            &mut session.poly,
+            labels,
+            self.preallocated,
+            self.external_defs,
+        );
+        session.seed_validated_finalized_template_defs(self.member_defs.iter().copied());
+        TypedActInstalledInstance {
+            schemes: self.schemes,
+            member_defs: self.member_defs,
+        }
     }
 }
