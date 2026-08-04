@@ -2858,6 +2858,158 @@ mod rcpf_c3a_retry_tests {
             None
         );
     }
+
+    #[test]
+    fn rcpf_d4_4_quarantine_retry_matches_clean_legacy_compilation() {
+        let loaded = sources::load(vec![sources::SourceFile {
+            module_path: Path::default(),
+            source: concat!(
+                "pub identity x = x\n",
+                "pub compose f g x = f (g x)\n",
+                "pub twice f x = f (f x)\n",
+                "type box 'a with:\n",
+                "  struct self:\n",
+                "    item: 'a\n",
+                "role Index 'container 'key:\n",
+                "  type value\n",
+                "  our c.index: 'key -> value\n",
+                "impl Index (box 'a) int:\n",
+                "  type value = bool\n",
+                "  our c.index i = c.item\n",
+            )
+            .into(),
+        }]);
+        let legacy_authority = ReplayReadAuthority::LegacyRollback(FAILURE);
+
+        let clean_legacy = lower_quarantine_fixture_once(&loaded, legacy_authority, false)
+            .expect("the clean legacy control compiles");
+        assert_eq!(clean_legacy.terminal_failure, None);
+
+        let mut authorities = Vec::new();
+        let mut injections = 0usize;
+        let retried = run_replay_compilation_attempt(|authority| {
+            authorities.push(authority);
+            let inject_quarantine = matches!(authority, ReplayReadAuthority::Factored);
+            injections += usize::from(inject_quarantine);
+            lower_quarantine_fixture_once(&loaded, authority, inject_quarantine)
+        })
+        .expect("the quarantined factored attempt retries cleanly");
+
+        assert_eq!(injections, 1);
+        assert_eq!(
+            authorities,
+            [ReplayReadAuthority::Factored, legacy_authority],
+            "the whole compilation retries once with a fresh legacy machine"
+        );
+        assert_eq!(
+            retried.session.infer.constraints().replay_read_authority(),
+            legacy_authority
+        );
+        assert_eq!(
+            retried
+                .session
+                .infer
+                .constraints()
+                .replay_factored_terminal_failure(),
+            None
+        );
+
+        let clean_snapshot = replay_quarantine_parity_snapshot(&clean_legacy.output);
+        let retry_snapshot = replay_quarantine_parity_snapshot(&retried);
+        assert_eq!(clean_snapshot.lowering_errors.len(), 1);
+        assert_eq!(clean_snapshot.diagnostics.diagnostics.len(), 1);
+        assert_eq!(retry_snapshot, clean_snapshot);
+    }
+
+    fn lower_quarantine_fixture_once(
+        files: &[LoadedFile],
+        authority: ReplayReadAuthority,
+        inject_quarantine: bool,
+    ) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
+        let mut injected_failure = None;
+        let mut consumer = |lowerer: &mut BodyLowerer| {
+            if inject_quarantine {
+                assert_eq!(authority, ReplayReadAuthority::Factored);
+                assert_ne!(
+                    lowerer.session.infer.constraints().epoch(),
+                    crate::constraints::ConstraintEpoch::default(),
+                    "inject only after source lowering has admitted real constraints"
+                );
+                injected_failure = Some(FAILURE);
+            }
+        };
+        let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, authority)?;
+        let ReplayCompilationAttempt {
+            output: (output, ()),
+            terminal_failure,
+        } = attempt;
+        Ok(ReplayCompilationAttempt::completed(
+            output,
+            terminal_failure.or(injected_failure),
+        ))
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct ReplayQuarantineParitySnapshot {
+        lowering_errors: Vec<BodyLoweringError>,
+        diagnostics: crate::check::PolyCheckReport,
+        finalized_schemes: Vec<(DefId, String, String)>,
+        poly_dump: String,
+        poly_raw_dump: String,
+        namespace: crate::CompiledNamespaceSurface,
+        lowering_surface: crate::CompiledLoweringSurface,
+        constraint_timing: ConstraintTiming,
+        constraint_epoch: crate::constraints::ConstraintEpoch,
+        provenance_epoch: crate::constraints::ProvenanceEpoch,
+        role_solve_supplemental_epoch: crate::constraints::RoleSolveSupplementalEpoch,
+    }
+
+    fn replay_quarantine_parity_snapshot(output: &BodyLowering) -> ReplayQuarantineParitySnapshot {
+        let mut finalized_schemes = output
+            .session
+            .poly
+            .defs
+            .iter()
+            .filter_map(|(def, item)| match item {
+                poly::expr::Def::Let {
+                    scheme: Some(scheme),
+                    ..
+                } => Some((
+                    def,
+                    poly::dump::format_scheme(&output.session.poly.typ, scheme),
+                    poly::dump::dump_scheme_raw(&output.session.poly.typ, scheme),
+                )),
+                poly::expr::Def::Mod { .. }
+                | poly::expr::Def::Let { .. }
+                | poly::expr::Def::Arg => None,
+            })
+            .collect::<Vec<_>>();
+        finalized_schemes.sort_by_key(|(def, _, _)| def.0);
+
+        let namespace = crate::CompiledNamespaceSurface::from_module_table(&output.modules);
+        let lowering_surface =
+            crate::CompiledLoweringSurface::from_module_table(&output.modules, &namespace);
+        let machine = output.session.infer.constraints();
+        let mut constraint_timing = output.timing.constraint;
+        constraint_timing.drain = Duration::default();
+
+        ReplayQuarantineParitySnapshot {
+            lowering_errors: output.errors.clone(),
+            diagnostics: crate::check::summarize_lowering(output),
+            finalized_schemes,
+            poly_dump: poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels),
+            poly_raw_dump: poly::dump::dump_arena_raw_with_labels(
+                &output.session.poly,
+                &output.labels,
+            ),
+            namespace,
+            lowering_surface,
+            constraint_timing,
+            constraint_epoch: machine.epoch(),
+            provenance_epoch: machine.provenance_epoch(),
+            role_solve_supplemental_epoch: machine.role_solve_supplemental_epoch(),
+        }
+    }
 }
 
 #[cfg(test)]
