@@ -10,6 +10,7 @@ pub mod server;
 pub mod source;
 pub mod stdlib;
 mod time;
+pub mod typed_act_bundle;
 mod yumark_eval;
 #[cfg(not(target_arch = "wasm32"))]
 mod yumark_render_worker;

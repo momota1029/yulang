@@ -3,6 +3,7 @@
 //! M1-1 records the shell correspondence only. Nothing in lowering consumes these maps yet.
 
 use super::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct NominalActTemplateIdentity {
@@ -18,7 +19,7 @@ pub(crate) struct NominalActTemplateTypeIdentity {
     pub role: NominalActTypeRole,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum NominalActTypeRole {
     RootAct,
     NestedDeclaration,
@@ -101,8 +102,7 @@ impl ModuleTable {
         self.nominal_act_instance_substitutions.values()
     }
 
-    #[cfg(test)]
-    pub(crate) fn nominal_act_identity_for_test(
+    pub(crate) fn capture_nominal_act_identity(
         &self,
         root: TypeDeclId,
     ) -> Option<NominalActTemplateIdentity> {

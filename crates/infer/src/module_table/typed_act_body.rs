@@ -19,7 +19,9 @@ use poly::expr::{
     SelectResolution, Stmt,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TypedActBodyTemplate {
     pub(crate) arena: PolyArena,
     pub(crate) labels: DumpLabels,
@@ -30,6 +32,7 @@ pub(crate) struct TypedActBodyTemplate {
     pub(crate) external_catches: FxHashMap<CatchSite, StableExternalReferenceKey>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TypedActBodyMember {
     pub(crate) key: NominalActMemberKey,
     pub(crate) source: DefId,
@@ -60,7 +63,7 @@ pub(crate) struct TypedActBodyCensus {
     pub(crate) nominal_record_shapes: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) struct CatchSite {
     pub(crate) expr: ExprId,
     pub(crate) arm: usize,

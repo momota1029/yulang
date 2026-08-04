@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bincode = "1"
 poly = { path = "../poly" }
 sources = { path = "../sources" }
 parser = { path = "../parser" }
@@ -20,4 +21,3 @@ js-sys = "0.3"
 specialize = { path = "../specialize" }
 control-ir = { path = "../control-ir" }
 evidence-vm = { path = "../evidence-vm" }
-bincode = "1"

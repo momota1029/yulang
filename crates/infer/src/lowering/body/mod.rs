@@ -834,6 +834,14 @@ pub fn lower_loaded_files_prefix(
     lower_loaded_files(files).map(BodyLowering::into_prefix)
 }
 
+/// Generator-only cold lowering route. The explicit legacy gate prevents a checked-in template
+/// bundle from ever validating itself through typed template instantiation.
+pub fn lower_loaded_files_for_typed_act_template_bundle(
+    files: &[LoadedFile],
+) -> Result<BodyLowering, LoadedFilesError> {
+    act_copy_census::with_legacy_typed_act_template_path(|| lower_loaded_files(files))
+}
+
 pub fn lower_loaded_files_with_prefix(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],

@@ -814,7 +814,7 @@ fn assert_body_graph_parity(output: &BodyLowering, destinations: &[TypeDeclId], 
         }
         let legacy_identity = output
             .modules
-            .nominal_act_identity_for_test(*destination)
+            .capture_nominal_act_identity(*destination)
             .unwrap();
         let legacy = typed
             .capture_body(
@@ -944,7 +944,10 @@ fn format_scheme_with_stable_external_keys(
     let external_nominal_paths = external_references
         .iter()
         .filter_map(|key| match key {
-            StableExternalReferenceKey::NominalPath(path) => Some(path),
+            StableExternalReferenceKey::BuiltinType(builtin) => {
+                Some(vec![builtin.surface_name().to_string()])
+            }
+            StableExternalReferenceKey::NominalPath(path) => Some(path.clone()),
             StableExternalReferenceKey::ValuePath(_)
             | StableExternalReferenceKey::Operation { .. }
             | StableExternalReferenceKey::FieldMethod { .. }
@@ -955,14 +958,12 @@ fn format_scheme_with_stable_external_keys(
     let rewrite = |path: &[String]| {
         let stable = external_nominal_paths
             .iter()
-            .copied()
             .find(|external| external.as_slice() == path)
             .or_else(|| {
                 (path.len() == 1)
                     .then(|| {
                         external_nominal_paths
                             .iter()
-                            .copied()
                             .filter(|external| external.last() == path.first())
                             .collect::<Vec<_>>()
                     })

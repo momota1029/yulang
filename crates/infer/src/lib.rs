@@ -43,6 +43,7 @@ mod syntax;
 mod tests_root;
 mod time;
 pub mod typing;
+pub mod typed_act_bundle;
 pub mod uses;
 
 pub use arena::Arena;

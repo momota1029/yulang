@@ -11,8 +11,9 @@ use super::nominal_act_identity::{
 use crate::{DefId, TypeDeclId, TypeMethodReceiver};
 use poly::expr::{Arena as PolyArena, Def};
 use poly::types::{
-    Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType, RolePredicate,
-    RolePredicateArg, Scheme, SchemeRecursiveBound, StackWeight, Subtractability, TypeArena,
+    BuiltinType, Neg, NegId, Neu, NeuId, Pos, PosId, RecordField, RoleAssociatedType,
+    RolePredicate, RolePredicateArg, Scheme, SchemeRecursiveBound, StackWeight, Subtractability,
+    TypeArena,
 };
 #[cfg(test)]
 use poly::types::{SubtractId, TypeVar};
@@ -23,6 +24,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// `source` IDs only identify members inside the capture run. Paths which cross that boundary are
 /// retained as [`StableExternalReferenceKey`] values rather than arena-local definition IDs.
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TypedActTemplate {
     pub(crate) template_root_act: TypeDeclId,
     pub(crate) internal_nominal_paths: Vec<Vec<String>>,
@@ -31,6 +33,7 @@ pub(crate) struct TypedActTemplate {
     pub(crate) external_references: FxHashSet<StableExternalReferenceKey>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct TypedActTemplateMember {
     pub(crate) key: NominalActMemberKey,
     pub(crate) source: DefId,
@@ -60,6 +63,7 @@ pub(crate) enum NominalActMemberKeyKind {
 /// key space which M1-3 body capture will use for value, operation, and field-method references.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub(crate) enum StableExternalReferenceKey {
+    BuiltinType(BuiltinType),
     NominalPath(Vec<String>),
     ValuePath(Vec<String>),
     Operation {
@@ -184,7 +188,8 @@ impl super::ModuleTable {
         key: &StableExternalReferenceKey,
     ) -> Option<DefId> {
         let mut matches = match key {
-            StableExternalReferenceKey::NominalPath(_) => return None,
+            StableExternalReferenceKey::BuiltinType(_)
+            | StableExternalReferenceKey::NominalPath(_) => return None,
             StableExternalReferenceKey::ValuePath(path) => (0..self.nodes.len())
                 .flat_map(|index| {
                     let module = crate::ModuleId(index);
@@ -569,6 +574,44 @@ mod tests {
         assert!(external.contains(&StableExternalReferenceKey::NominalPath(external_path)));
     }
 
+    #[test]
+    fn m1_6_external_nominal_capture_uses_structured_builtin_type_keys() {
+        for builtin in [
+            BuiltinType::Int,
+            BuiltinType::Float,
+            BuiltinType::Bool,
+            BuiltinType::FileHandle,
+            BuiltinType::Unit,
+            BuiltinType::Never,
+        ] {
+            let mut source = TypeArena::new();
+            let predicate = source.alloc_pos(Pos::Con(
+                vec![builtin.surface_name().to_string()],
+                Vec::new(),
+            ));
+            let scheme = Scheme {
+                quantifiers: Vec::new(),
+                role_predicates: Vec::new(),
+                recursive_bounds: Vec::new(),
+                stack_quantifiers: Vec::new(),
+                predicate,
+            };
+            let mut target = TypeArena::new();
+            let mut external = FxHashSet::default();
+            NominalTypeGraphCloner::new(
+                &source,
+                &mut target,
+                &FxHashMap::default(),
+                Some(&mut external),
+            )
+            .clone_scheme(&scheme);
+            assert_eq!(
+                external,
+                FxHashSet::from_iter([StableExternalReferenceKey::BuiltinType(builtin)])
+            );
+        }
+    }
+
     fn all_subtractability_forms(
         internal: &[String],
         external: &[String],
@@ -720,7 +763,13 @@ impl<'a> NominalTypeGraphCloner<'a> {
             return destination.clone();
         }
         if let Some(external_references) = self.external_references.as_deref_mut() {
-            external_references.insert(StableExternalReferenceKey::NominalPath(source.to_vec()));
+            let key = match source {
+                [name] => BuiltinType::from_surface_name(name)
+                    .map(StableExternalReferenceKey::BuiltinType)
+                    .unwrap_or_else(|| StableExternalReferenceKey::NominalPath(source.to_vec())),
+                _ => StableExternalReferenceKey::NominalPath(source.to_vec()),
+            };
+            external_references.insert(key);
         }
         source.to_vec()
     }
