@@ -6,6 +6,7 @@ use crate::module_table::nominal_act_identity::{
     NominalActInstanceSubstitution, NominalActTemplateIdentity, NominalActTypeRole,
     NominalActValueMemberKind,
 };
+use crate::module_table::typed_act_catalog::TypedActTemplateCatalog;
 use crate::module_table::typed_act_template::{
     StableExternalReferenceKey, StableReceiverKind, TypedActTemplate,
 };
@@ -384,6 +385,238 @@ fn m1_3_clones_var_and_label_sub_body_graphs_with_mixed_catch_identity_parity() 
     }
     assert_eq!(local_arms, 1, "fresh label_sub.return catch arm");
     assert_eq!(external_arms, 1, "canonical sub.return catch arm");
+}
+
+#[test]
+fn m1_4_catalog_installs_finalized_var_and_label_sub_instances_before_use_drain() {
+    let source = concat!(
+        "my var_case =\n",
+        "  my $v = 1\n",
+        "  &v = $v\n",
+        "  $v\n",
+        "my label_case = sub 'outer:\n",
+        "  'outer.return 7\n",
+        "var_case\n",
+        "label_case\n",
+    );
+    let prefix = std_prefix();
+    let (legacy, _) = warm_case(&prefix, source);
+    let legacy_runtime = m1_runtime_output(
+        &legacy.session.poly,
+        legacy.subtype_provenance(),
+        &legacy.labels,
+    );
+    let var_destination = legacy.modules.synthetic_var_act_copy_ids()[0];
+    let label_destination = legacy.modules.synthetic_sub_label_act_copy_ids()[0];
+    let var_substitution = legacy
+        .modules
+        .nominal_act_instance_substitution(var_destination)
+        .unwrap()
+        .clone();
+    let label_substitution = legacy
+        .modules
+        .nominal_act_instance_substitution(label_destination)
+        .unwrap()
+        .clone();
+
+    let mut catalog = TypedActTemplateCatalog::new();
+    for (kind, substitution) in [
+        (SyntheticActCopyKind::Var, &var_substitution),
+        (SyntheticActCopyKind::LabelSub, &label_substitution),
+    ] {
+        let identity = legacy
+            .modules
+            .nominal_act_template_identity(substitution.template_root_act)
+            .unwrap()
+            .clone();
+        catalog
+            .capture(
+                kind,
+                identity,
+                &legacy.session.poly,
+                &legacy.modules,
+                &legacy.labels,
+            )
+            .unwrap();
+    }
+
+    // Preserve the actual user bodies and namespace IDs, but return the synthetic members to
+    // their pre-analysis shell state. Session construction must therefore not seed them as prefix
+    // definitions; only the catalog installation below may publish them as finalized.
+    let mut comparison_poly = legacy.session.poly.clone();
+    for destination in var_substitution
+        .def_map
+        .values()
+        .chain(label_substitution.def_map.values())
+        .copied()
+    {
+        let Def::Let { vis, children, .. } = comparison_poly
+            .defs
+            .get(destination)
+            .expect("destination shell")
+            .clone()
+        else {
+            panic!("template member must be a binding shell");
+        };
+        comparison_poly.defs.set(
+            destination,
+            Def::Let {
+                vis,
+                scheme: None,
+                body: None,
+                children,
+            },
+        );
+    }
+    let mut session = AnalysisSession::new(comparison_poly);
+    let mut labels = legacy.labels.clone();
+    let var_entry = catalog
+        .entry(
+            SyntheticActCopyKind::Var,
+            var_substitution.template_root_act,
+        )
+        .unwrap();
+    let label_entry = catalog
+        .entry(
+            SyntheticActCopyKind::LabelSub,
+            label_substitution.template_root_act,
+        )
+        .unwrap();
+    let var_installed = var_entry
+        .install(
+            &var_substitution,
+            &mut session,
+            &legacy.modules,
+            &mut labels,
+        )
+        .unwrap();
+    let label_installed = label_entry
+        .install(
+            &label_substitution,
+            &mut session,
+            &legacy.modules,
+            &mut labels,
+        )
+        .unwrap();
+
+    for (installed, entry) in [(&var_installed, var_entry), (&label_installed, label_entry)] {
+        for member in &installed.schemes.members {
+            let Def::Let {
+                scheme: Some(actual),
+                body,
+                ..
+            } = session.poly.defs.get(member.destination).unwrap()
+            else {
+                panic!("installed member must be closed");
+            };
+            let Def::Let {
+                scheme: Some(expected),
+                body: expected_body,
+                ..
+            } = legacy.session.poly.defs.get(member.destination).unwrap()
+            else {
+                unreachable!();
+            };
+            assert_eq!(
+                format_scheme_with_stable_external_keys(
+                    &session.poly.typ,
+                    actual,
+                    &entry.typed.external_references,
+                ),
+                format_scheme_with_stable_external_keys(
+                    &legacy.session.poly.typ,
+                    expected,
+                    &entry.typed.external_references,
+                ),
+                "catalog scheme parity for {:?}",
+                member.key,
+            );
+            assert_eq!(
+                body.is_some(),
+                expected_body.is_some(),
+                "body parity for {:?}",
+                member.key
+            );
+            assert_eq!(
+                session
+                    .poly
+                    .effect_operations
+                    .contains_key(&member.destination),
+                legacy
+                    .session
+                    .poly
+                    .effect_operations
+                    .contains_key(&member.destination),
+                "effect-operation parity for {:?}",
+                member.key,
+            );
+            assert_eq!(
+                session.poly.constructors.contains_key(&member.destination),
+                legacy
+                    .session
+                    .poly
+                    .constructors
+                    .contains_key(&member.destination),
+                "constructor parity for {:?}",
+                member.key,
+            );
+            assert_eq!(
+                session.poly.field_projections.contains(&member.destination),
+                legacy
+                    .session
+                    .poly
+                    .field_projections
+                    .contains(&member.destination),
+                "field-projection parity for {:?}",
+                member.key,
+            );
+            assert!(session.is_finalized_template_def(member.destination));
+        }
+    }
+
+    // Trace the real queue item at the lifecycle boundary. The target is already quantified at
+    // the instant the first UseResolved item is observed, and no source-lowering lifecycle item
+    // exists for any installed member.
+    let target = var_installed.member_defs[0];
+    let parent = var_installed.member_defs[1];
+    let use_value = session.infer.fresh_type_var_at(TypeLevel::secondary());
+    session.enqueue(AnalysisWork::Scc(SccInput::UseResolved {
+        parent,
+        target,
+        use_value,
+    }));
+    let trace = session.work().iter().cloned().collect::<Vec<_>>();
+    assert!(session.is_finalized_template_def(target));
+    assert!(matches!(
+        trace.first(),
+        Some(AnalysisWork::Scc(SccInput::UseResolved { target: found, .. })) if *found == target
+    ));
+    assert!(!trace.iter().any(|work| matches!(
+        work,
+        AnalysisWork::Scc(SccInput::RegisterDef { def, .. }
+            | SccInput::DefFinished { def }) if var_installed.member_defs.contains(def)
+    )));
+    while session.step() {}
+    assert!(session.take_diagnostics().is_empty());
+    assert!(legacy.errors.is_empty());
+    assert_eq!(
+        m1_runtime_output(&session.poly, legacy.subtype_provenance(), &labels),
+        legacy_runtime,
+    );
+}
+
+fn m1_runtime_output(
+    arena: &poly::expr::Arena,
+    provenance: &poly::provenance::SubtypeProvenanceSidecar,
+    labels: &poly::dump::DumpLabels,
+) -> String {
+    let specialized = specialize::specialize_with_runtime_evidence(arena, provenance)
+        .expect("M1 runtime parity specialization");
+    let control = control_ir::lower(&specialized.program).expect("M1 control lowering");
+    let plan = evidence_vm::build_plan(&control, &specialized.runtime_evidence);
+    evidence_vm::run_program_with_plan(&control, &plan)
+        .expect("M1 evidence VM run")
+        .roots_text_with_labels(Some(labels))
 }
 
 fn assert_body_graph_parity(output: &BodyLowering, destinations: &[TypeDeclId], recursive: &str) {

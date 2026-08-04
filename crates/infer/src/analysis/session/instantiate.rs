@@ -381,12 +381,14 @@ impl AnalysisSession {
         }
         let phase = Instant::now();
         let imported = self.imported_scheme_defs.contains(&target);
-        let origin = if imported {
+        let finalized_template = self.finalized_template_scheme_defs.contains(&target);
+        let validated_finalized = imported || finalized_template;
+        let origin = if validated_finalized {
             crate::constraints::OriginId::unknown_internal()
         } else {
             crate::constraints::OriginId::internal()
         };
-        let generalized_source = (!imported)
+        let generalized_source = (!validated_finalized)
             .then(|| self.generalized_scheme_record(target))
             .flatten();
         let witness_inputs = generalized_source
@@ -405,16 +407,19 @@ impl AnalysisSession {
                 })
             })
             .collect::<Vec<_>>();
-        let (instantiated, projected) = if imported {
+        let (instantiated, projected) = if validated_finalized {
+            let empty_boundary = ImportedBoundarySubstitution::default();
+            let boundary = if imported {
+                &self.imported_boundary
+            } else {
+                &empty_boundary
+            };
             let validation = if let Some(validation) = self.imported_scheme_validations.get(&target)
             {
                 validation.clone()
             } else {
-                let validation = validate_imported_scheme_for_instantiation(
-                    &self.poly.typ,
-                    scheme,
-                    &self.imported_boundary,
-                );
+                let validation =
+                    validate_imported_scheme_for_instantiation(&self.poly.typ, scheme, boundary);
                 self.imported_scheme_validations
                     .insert(target, validation.clone());
                 validation
@@ -435,7 +440,7 @@ impl AnalysisSession {
                     &mut self.infer,
                     TypeLevel::secondary(),
                     scheme,
-                    &self.imported_boundary,
+                    boundary,
                 ),
                 crate::instantiate::InstantiatedSchemeProvenance::default(),
             )

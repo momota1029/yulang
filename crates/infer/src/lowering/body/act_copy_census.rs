@@ -3,11 +3,7 @@
 //! M1-0 records the legacy route before typed templates exist. Later slices can record template
 //! eligibility and fallback in the same matrix without changing the measurement contract.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum SyntheticActCopyKind {
-    Var,
-    LabelSub,
-}
+pub(super) use crate::module_table::typed_act_catalog::SyntheticActCopyKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ActTemplateCatalogSource {

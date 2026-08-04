@@ -84,13 +84,17 @@ impl AnalysisSession {
 
         let mut derived = Vec::with_capacity(projections.len());
         for (index, projection, scheme, required) in projections {
-            let instantiated = if self.imported_scheme_defs.contains(&projection) {
-                if validate_imported_scheme_for_instantiation(
-                    &self.poly.typ,
-                    &scheme,
-                    &self.imported_boundary,
-                )
-                .is_err()
+            let imported = self.imported_scheme_defs.contains(&projection);
+            let finalized_template = self.finalized_template_scheme_defs.contains(&projection);
+            let instantiated = if imported || finalized_template {
+                let empty_boundary = ImportedBoundarySubstitution::default();
+                let boundary = if imported {
+                    &self.imported_boundary
+                } else {
+                    &empty_boundary
+                };
+                if validate_imported_scheme_for_instantiation(&self.poly.typ, &scheme, boundary)
+                    .is_err()
                 {
                     self.reject_nominal_record_shape_obligation(obligation);
                     return;
@@ -100,7 +104,7 @@ impl AnalysisSession {
                     &mut self.infer,
                     TypeLevel::secondary(),
                     &scheme,
-                    &self.imported_boundary,
+                    boundary,
                 )
             } else {
                 instantiate_scheme_with_roles_and_provenance(

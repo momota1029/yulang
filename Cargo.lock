@@ -466,6 +466,8 @@ name = "infer"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "control-ir",
+ "evidence-vm",
  "js-sys",
  "num-bigint",
  "parser",

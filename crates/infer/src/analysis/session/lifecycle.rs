@@ -129,6 +129,7 @@ impl AnalysisSession {
             def_parent_map: DefParentMapCache::default(),
             imported_boundary,
             imported_scheme_defs: FxHashSet::default(),
+            finalized_template_scheme_defs: FxHashSet::default(),
             imported_scheme_validations: FxHashMap::default(),
             imported_scheme_instantiation_failures: Vec::new(),
         };
@@ -194,6 +195,42 @@ impl AnalysisSession {
             );
             self.register_role_impl_candidate(candidate);
         }
+    }
+
+    /// Publish closed typed-template members as already-finalized SCC definitions.
+    ///
+    /// The caller must install each complete `Def::Let` in `poly` first. Validation happens
+    /// before any SCC state changes, so a failed batch cannot expose a placeholder scheme.
+    pub(crate) fn install_finalized_template_defs(
+        &mut self,
+        defs: impl IntoIterator<Item = DefId>,
+    ) -> Result<(), FinalizedTemplateInstallError> {
+        let defs = defs.into_iter().collect::<Vec<_>>();
+        let empty_boundary = ImportedBoundarySubstitution::default();
+        for def in &defs {
+            let Some(Def::Let {
+                scheme: Some(scheme),
+                ..
+            }) = self.poly.defs.get(*def)
+            else {
+                return Err(FinalizedTemplateInstallError::MissingClosedScheme { def: *def });
+            };
+            validate_imported_scheme_for_instantiation(&self.poly.typ, scheme, &empty_boundary)
+                .map_err(|error| FinalizedTemplateInstallError::InvalidScheme {
+                    def: *def,
+                    error,
+                })?;
+        }
+        for def in defs {
+            self.finalized_template_scheme_defs.insert(def);
+            self.scc.seed_quantified_def(def);
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_finalized_template_def(&self, def: DefId) -> bool {
+        self.finalized_template_scheme_defs.contains(&def) && self.scc.is_quantified(def)
     }
 
     /// Queue a unit of analysis work without draining it immediately.

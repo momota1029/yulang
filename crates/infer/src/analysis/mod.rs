@@ -240,8 +240,20 @@ pub struct AnalysisSession {
     def_parent_map: DefParentMapCache,
     imported_boundary: ImportedBoundarySubstitution,
     imported_scheme_defs: FxHashSet<DefId>,
+    finalized_template_scheme_defs: FxHashSet<DefId>,
     imported_scheme_validations: FxHashMap<DefId, Result<(), SchemeInstantiationError>>,
     imported_scheme_instantiation_failures: Vec<ImportedSchemeInstantiationFailure>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FinalizedTemplateInstallError {
+    MissingClosedScheme {
+        def: DefId,
+    },
+    InvalidScheme {
+        def: DefId,
+        error: SchemeInstantiationError,
+    },
 }
 
 /// Inputs whose exact equality makes a repeated no-progress method-role pass redundant.

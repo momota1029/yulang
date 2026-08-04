@@ -226,7 +226,26 @@ impl CompiledRuntimeSurface {
         labels: &mut DumpLabels,
         external_defs: impl IntoIterator<Item = (DefId, DefId)>,
     ) -> CompiledRuntimeImport {
+        self.import_into_with_mapped_defs(target, labels, [], external_defs)
+    }
+
+    /// Import a detached graph while writing selected local definitions into already-minted IDs.
+    ///
+    /// `preallocated_defs` remain part of the imported graph: unlike `external_defs`, their
+    /// definition, scheme, body, and runtime metadata are copied into `target`. This is the
+    /// narrow import boundary needed by nominal-template instances whose namespace shell has
+    /// already allocated the public member IDs.
+    pub(crate) fn import_into_with_mapped_defs(
+        &self,
+        target: &mut PolyArena,
+        labels: &mut DumpLabels,
+        preallocated_defs: impl IntoIterator<Item = (DefId, DefId)>,
+        external_defs: impl IntoIterator<Item = (DefId, DefId)>,
+    ) -> CompiledRuntimeImport {
         let mut import = CompiledRuntimeImport::new();
+        for (source, target) in preallocated_defs {
+            import.defs.insert(source, target);
+        }
         for (source, target) in external_defs {
             import.external_defs.insert(source);
             import.defs.insert(source, target);
@@ -1025,7 +1044,7 @@ fn reserve_def_ids(source: &PolyArena, target: &mut PolyArena, import: &mut Comp
         if import.is_external_def(id) {
             continue;
         }
-        import.defs.insert(id, target.defs.fresh());
+        import.defs.entry(id).or_insert_with(|| target.defs.fresh());
     }
 }
 

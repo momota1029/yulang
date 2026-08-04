@@ -174,6 +174,99 @@ impl super::ModuleTable {
             .collect::<FxHashSet<_>>();
         (matches.len() == 1).then(|| matches.drain().next().unwrap())
     }
+
+    /// Resolve a portable body-reference key in the live namespace.
+    ///
+    /// Capture and resolution intentionally share the same structured namespace metadata. No
+    /// inference rule depends on source spelling, and ambiguous keys fail closed.
+    pub(crate) fn resolve_stable_external_reference_key(
+        &self,
+        key: &StableExternalReferenceKey,
+    ) -> Option<DefId> {
+        let mut matches = match key {
+            StableExternalReferenceKey::NominalPath(_) => return None,
+            StableExternalReferenceKey::ValuePath(path) => (0..self.nodes.len())
+                .flat_map(|index| {
+                    let module = crate::ModuleId(index);
+                    self.module_value_decls(module)
+                        .into_iter()
+                        .map(move |value| (module, value))
+                })
+                .filter(|(module, value)| {
+                    let mut candidate = path_names(&self.module_path(*module));
+                    candidate.push(value.name.0.clone());
+                    &candidate == path
+                })
+                .map(|(_, value)| value.def)
+                .collect::<Vec<_>>(),
+            StableExternalReferenceKey::Operation { family, name } => self
+                .act_op_defs
+                .iter()
+                .filter(|(_, operation)| {
+                    operation.name.0 == *name
+                        && self
+                            .type_decl_by_id(operation.effect)
+                            .is_some_and(|effect| {
+                                path_names(&self.type_decl_path(&effect)) == *family
+                            })
+                })
+                .map(|(def, _)| *def)
+                .collect(),
+            StableExternalReferenceKey::Constructor { owner, name } => self
+                .constructors
+                .iter()
+                .filter(|(def, constructor)| {
+                    self.module_value_decls(constructor.module)
+                        .into_iter()
+                        .any(|value| value.def == **def && value.name.0 == *name)
+                        && self
+                            .type_decl_by_id(constructor.owner)
+                            .is_some_and(|decl| path_names(&self.type_decl_path(&decl)) == *owner)
+                })
+                .map(|(def, _)| *def)
+                .collect(),
+            StableExternalReferenceKey::FieldMethod {
+                owner,
+                name,
+                receiver,
+            } => self
+                .all_type_field_methods()
+                .filter(|method| {
+                    method.name.0 == *name
+                        && stable_receiver(method.receiver_kind) == *receiver
+                        && self
+                            .type_decl_by_id(method.owner)
+                            .is_some_and(|decl| path_names(&self.type_decl_path(&decl)) == *owner)
+                })
+                .map(|method| method.def)
+                .collect(),
+            StableExternalReferenceKey::Method {
+                owner,
+                name,
+                receiver,
+            } => self
+                .all_type_methods()
+                .filter(|method| {
+                    method.name.0 == *name
+                        && stable_receiver(method.receiver_kind) == *receiver
+                        && self
+                            .type_decl_by_id(method.owner)
+                            .is_some_and(|decl| path_names(&self.type_decl_path(&decl)) == *owner)
+                })
+                .map(|method| method.def)
+                .collect(),
+        };
+        matches.sort_by_key(|def| def.0);
+        matches.dedup();
+        (matches.len() == 1).then(|| matches[0])
+    }
+}
+
+fn stable_receiver(receiver: TypeMethodReceiver) -> StableReceiverKind {
+    match receiver {
+        TypeMethodReceiver::Value => StableReceiverKind::Value,
+        TypeMethodReceiver::Ref => StableReceiverKind::Ref,
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

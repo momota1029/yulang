@@ -18,4 +18,6 @@ js-sys = "0.3"
 
 [dev-dependencies]
 specialize = { path = "../specialize" }
+control-ir = { path = "../control-ir" }
+evidence-vm = { path = "../evidence-vm" }
 bincode = "1"
