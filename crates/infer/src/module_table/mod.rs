@@ -1,6 +1,7 @@
 use super::*;
 
 mod compiled;
+pub(crate) mod nominal_act_identity;
 mod query;
 
 impl ModuleTable {
@@ -26,6 +27,8 @@ impl ModuleTable {
             act_type_vars: FxHashMap::default(),
             act_copies: FxHashMap::default(),
             resolved_act_copies: FxHashMap::default(),
+            nominal_act_template_identities: FxHashMap::default(),
+            nominal_act_instance_substitutions: FxHashMap::default(),
             synthetic_var_act_copies: FxHashSet::default(),
             synthetic_var_act_uses: FxHashMap::default(),
             synthetic_sub_label_act_copies: FxHashSet::default(),
@@ -527,6 +530,7 @@ impl ModuleTable {
             std::mem::take(&mut self.synthetic_sub_label_act_uses),
             import,
         );
+        self.remap_nominal_act_identity_defs(import);
         for owners in self.root_expr_owners.values_mut() {
             for owner in owners {
                 remap_optional_def(owner, import);

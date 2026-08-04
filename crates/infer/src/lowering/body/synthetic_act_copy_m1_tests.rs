@@ -2,7 +2,12 @@ use super::act_copy_census::{
     ActTemplateCatalogSource, SyntheticActCopyKind, capture_synthetic_act_copy_census,
 };
 use super::*;
+use crate::module_table::nominal_act_identity::{
+    NominalActInstanceSubstitution, NominalActTemplateIdentity, NominalActTypeRole,
+    NominalActValueMemberKind,
+};
 use poly::expr::Def;
+use rustc_hash::FxHashSet;
 
 const VAR_TEMPLATE: &str = concat!(
     "pub act ref_update 'a:\n",
@@ -183,6 +188,220 @@ fn m1_0_legacy_cost_fixtures_pin_warm_and_cold_var_and_label_sub_slopes() {
         cold_label_timings[2] > cold_label_timings[0],
         "cold label_sub fixture lost its positive cost slope"
     );
+}
+
+#[test]
+fn m1_1_records_complete_var_and_label_sub_nominal_shell_substitutions() {
+    let source = mixed_source(2);
+    let (cold, _) = cold_case(&source);
+    assert_complete_nominal_shell_recording(&cold);
+    let prefix = std_prefix();
+    let (warm, _) = warm_case(&prefix, &source);
+    assert_complete_nominal_shell_recording(&warm);
+}
+
+fn assert_complete_nominal_shell_recording(output: &BodyLowering) {
+    let var_ids = output.modules.synthetic_var_act_copy_ids();
+    let label_ids = output.modules.synthetic_sub_label_act_copy_ids();
+    assert_eq!(var_ids.len(), 2);
+    assert_eq!(label_ids.len(), 2);
+    assert_eq!(
+        output.modules.nominal_act_instance_substitutions().count(),
+        4
+    );
+
+    let var_template = template_for_instance(output, var_ids[0]);
+    assert_eq!(var_template.nominal_types.len(), 1);
+    assert_eq!(
+        var_template.nominal_types[0].role,
+        NominalActTypeRole::RootAct
+    );
+    assert_eq!(
+        member_kind_names(var_template),
+        FxHashSet::from_iter([
+            "operation:get".to_string(),
+            "operation:set".to_string(),
+            "binding:var_ref".to_string(),
+            "binding:run".to_string(),
+        ])
+    );
+
+    let label_template = template_for_instance(output, label_ids[0]);
+    assert_eq!(label_template.nominal_types.len(), 2);
+    let nested_label = label_template
+        .nominal_types
+        .iter()
+        .find(|identity| identity.role == NominalActTypeRole::NestedDeclaration)
+        .expect("label_sub must close over its nested label type");
+    assert_eq!(
+        nested_label.source_path.segments.last(),
+        Some(&Name("label".into()))
+    );
+    assert_eq!(
+        member_kind_names(label_template),
+        FxHashSet::from_iter([
+            "operation:return".to_string(),
+            "constructor:label".to_string(),
+            "field-value:marker".to_string(),
+            "field-ref:marker".to_string(),
+            "binding:control_label".to_string(),
+            "binding:sub".to_string(),
+        ])
+    );
+    assert!(
+        label_template
+            .value_members
+            .iter()
+            .filter(|member| matches!(
+                member.kind,
+                NominalActValueMemberKind::Constructor
+                    | NominalActValueMemberKind::FieldMethod { .. }
+            ))
+            .all(|member| member.owner == nested_label.source)
+    );
+
+    let mut all_destination_defs = FxHashSet::default();
+    for destination in var_ids.into_iter().chain(label_ids) {
+        let substitution = output
+            .modules
+            .nominal_act_instance_substitution(destination)
+            .expect("every synthetic copy must record a shell substitution");
+        let template = output
+            .modules
+            .nominal_act_template_identity(substitution.template_root_act)
+            .expect("each substitution must retain its template identity");
+        assert_complete_substitution(output, template, substitution);
+        for def in substitution.def_map.values() {
+            assert!(
+                all_destination_defs.insert(*def),
+                "separate instances must mint separate destination DefIds"
+            );
+        }
+    }
+}
+
+fn template_for_instance(
+    output: &BodyLowering,
+    destination: TypeDeclId,
+) -> &NominalActTemplateIdentity {
+    let substitution = output
+        .modules
+        .nominal_act_instance_substitution(destination)
+        .expect("synthetic instance substitution");
+    output
+        .modules
+        .nominal_act_template_identity(substitution.template_root_act)
+        .expect("synthetic template identity")
+}
+
+fn member_kind_names(identity: &NominalActTemplateIdentity) -> FxHashSet<String> {
+    identity
+        .value_members
+        .iter()
+        .map(|member| {
+            let kind = match member.kind {
+                NominalActValueMemberKind::Operation { .. } => "operation",
+                NominalActValueMemberKind::Binding => "binding",
+                NominalActValueMemberKind::Constructor => "constructor",
+                NominalActValueMemberKind::FieldMethod {
+                    receiver: TypeMethodReceiver::Value,
+                } => "field-value",
+                NominalActValueMemberKind::FieldMethod {
+                    receiver: TypeMethodReceiver::Ref,
+                } => "field-ref",
+            };
+            format!("{kind}:{}", member.name.0)
+        })
+        .collect()
+}
+
+fn assert_complete_substitution(
+    output: &BodyLowering,
+    template: &NominalActTemplateIdentity,
+    substitution: &NominalActInstanceSubstitution,
+) {
+    assert_eq!(
+        substitution.type_decl_map[&template.root_act],
+        substitution.destination_root_act
+    );
+    assert_eq!(
+        substitution.type_decl_map.len(),
+        template.nominal_types.len()
+    );
+    assert_eq!(
+        substitution.type_path_map.len(),
+        template.nominal_types.len()
+    );
+    assert_eq!(substitution.def_map.len(), template.value_members.len());
+    let operation_count = template
+        .value_members
+        .iter()
+        .filter(|member| matches!(member.kind, NominalActValueMemberKind::Operation { .. }))
+        .count();
+    assert_eq!(substitution.operation_path_map.len(), operation_count);
+
+    for nominal in &template.nominal_types {
+        let destination = substitution.type_decl_map[&nominal.source];
+        let destination_decl = output.modules.type_decl_by_id(destination).unwrap();
+        assert_eq!(
+            substitution.type_path_map[&nominal.source_path],
+            output.modules.type_decl_path(&destination_decl)
+        );
+    }
+    for member in &template.value_members {
+        let actual = substitution.def_map[&member.source];
+        let destination_owner = substitution.type_decl_map[&member.owner];
+        let expected = expected_destination_member(output, substitution, member, destination_owner);
+        assert_eq!(actual, expected, "{}", member.name.0);
+        if let NominalActValueMemberKind::Operation { operation_path } = &member.kind {
+            let destination_decl = output.modules.type_decl_by_id(destination_owner).unwrap();
+            let mut expected_path = output.modules.type_decl_path(&destination_decl);
+            expected_path.segments.push(member.name.clone());
+            assert_eq!(
+                substitution.operation_path_map[operation_path],
+                expected_path
+            );
+        }
+    }
+}
+
+fn expected_destination_member(
+    output: &BodyLowering,
+    substitution: &NominalActInstanceSubstitution,
+    member: &crate::module_table::nominal_act_identity::NominalActTemplateValueIdentity,
+    destination_owner: TypeDeclId,
+) -> DefId {
+    match member.kind {
+        NominalActValueMemberKind::Operation { .. } | NominalActValueMemberKind::Binding => {
+            let companion = output.modules.type_companion(destination_owner).unwrap();
+            output.modules.value_decls(companion, &member.name)[0].def
+        }
+        NominalActValueMemberKind::Constructor => {
+            substitution
+                .type_decl_map
+                .values()
+                .filter_map(|owner| output.modules.type_companion(*owner))
+                .flat_map(|module| output.modules.module_value_decls(module))
+                .find(|decl| {
+                    decl.name == member.name
+                        && output
+                            .modules
+                            .constructor_by_def(decl.def)
+                            .is_some_and(|constructor| constructor.owner == destination_owner)
+                })
+                .expect("destination constructor")
+                .def
+        }
+        NominalActValueMemberKind::FieldMethod { receiver } => {
+            output
+                .modules
+                .type_field_methods(destination_owner)
+                .iter()
+                .find(|method| method.name == member.name && method.receiver_kind == receiver)
+                .expect("destination field method")
+                .def
+        }
+    }
 }
 
 fn warm_case(

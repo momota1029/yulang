@@ -794,6 +794,10 @@ pub struct ModuleTable {
     act_type_vars: FxHashMap<TypeDeclId, Vec<String>>,
     act_copies: FxHashMap<TypeDeclId, ActCopyDecl>,
     resolved_act_copies: FxHashMap<TypeDeclId, ResolvedActCopyDecl>,
+    nominal_act_template_identities:
+        FxHashMap<TypeDeclId, module_table::nominal_act_identity::NominalActTemplateIdentity>,
+    nominal_act_instance_substitutions:
+        FxHashMap<TypeDeclId, module_table::nominal_act_identity::NominalActInstanceSubstitution>,
     synthetic_var_act_copies: FxHashSet<TypeDeclId>,
     synthetic_var_act_uses: FxHashMap<DefId, Vec<SyntheticVarActUse>>,
     synthetic_sub_label_act_copies: FxHashSet<TypeDeclId>,

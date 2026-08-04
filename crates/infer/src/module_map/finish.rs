@@ -353,6 +353,7 @@ impl Lower {
             .into_iter()
             .map(|name| (name.clone(), name))
             .collect();
+        let source_id = source.id;
         self.materialize_act_copy(
             id,
             &dest,
@@ -364,6 +365,8 @@ impl Lower {
             false,
             ActCompanionBlockMode::CopiedSourceInternal,
         );
+        self.modules
+            .record_nominal_act_instance_substitution(source_id, id);
     }
 
     pub(super) fn finalize_synthetic_sub_label_act_copy(&mut self, id: TypeDeclId) {
@@ -382,6 +385,7 @@ impl Lower {
             .into_iter()
             .map(|name| (name.clone(), name))
             .collect();
+        let source_id = source.id;
         self.materialize_act_copy(
             id,
             &dest,
@@ -393,6 +397,8 @@ impl Lower {
             false,
             ActCompanionBlockMode::CopiedSourceInternal,
         );
+        self.modules
+            .record_nominal_act_instance_substitution(source_id, id);
     }
 
     pub(super) fn materialize_act_copy(
