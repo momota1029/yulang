@@ -117,6 +117,10 @@ impl TypedActTemplateCatalog {
     ) -> Option<&TypedActTemplateCatalogEntry> {
         self.entries.get(&(kind, source_root))
     }
+
+    pub(crate) fn insert_entry(&mut self, entry: TypedActTemplateCatalogEntry) {
+        self.entries.insert((entry.kind, entry.source_root), entry);
+    }
 }
 
 impl TypedActTemplateCatalogEntry {

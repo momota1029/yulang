@@ -719,6 +719,93 @@ fn m1_5_repository_std_canonical_var_and_label_sub_are_warm_eligible() {
     );
 }
 
+#[test]
+fn m1_7_full_std_embedded_catalog_matches_live_capture_and_cold_legacy() {
+    let bundle = crate::typed_act_bundle::TypedActTemplateBundle::decode(include_bytes!(
+        "../../../../yulang/assets/typed_act_templates.bin"
+    ))
+    .expect("decode checked-in typed-act bundle");
+    let source = concat!(
+        "use std::prelude::*\n",
+        "mod std;\n",
+        "my state =\n",
+        "  my $value = 1\n",
+        "  &value = $value\n",
+        "  $value\n",
+        "my escaped = sub 'done:\n",
+        "  'done.return state\n",
+        "escaped\n",
+    );
+    let files = repository_std_loaded(source);
+    let profile = crate::typed_act_bundle::profile_for_loaded_files(&bundle, &files)
+        .expect("repository std must select the FullStd profile");
+    assert_eq!(
+        profile.kind,
+        crate::typed_act_bundle::TypedActTemplateProfileKind::FullStd,
+    );
+
+    let ((output, census), embedded_catalog) =
+        crate::typed_act_bundle::with_cold_typed_act_template_shadow(profile.clone(), || {
+            let (output, census) =
+                capture_synthetic_act_copy_census(|| lower_loaded_files(&files).unwrap());
+            let catalog = crate::typed_act_bundle::current_cold_shadow_catalog(&output.modules)
+                .expect("rebind embedded catalog")
+                .expect("cold shadow profile remains scoped");
+            ((output, census), catalog)
+        });
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    for kind in [SyntheticActCopyKind::Var, SyntheticActCopyKind::LabelSub] {
+        let cell = census.cell(kind, ActTemplateCatalogSource::Embedded);
+        assert!(cell.legacy_cst_lowerings > 0, "{kind:?}: {cell:?}");
+        assert_eq!(cell.shadow_failed, 0, "{kind:?}: {cell:?}");
+        assert_eq!(
+            cell.shadow_passed, cell.legacy_cst_lowerings,
+            "every cold legacy copy must match its embedded shadow: {kind:?}",
+        );
+
+        let destination = match kind {
+            SyntheticActCopyKind::Var => output.modules.synthetic_var_act_copy_ids()[0],
+            SyntheticActCopyKind::LabelSub => output.modules.synthetic_sub_label_act_copy_ids()[0],
+        };
+        let substitution = output
+            .modules
+            .nominal_act_instance_substitution(destination)
+            .expect("cold synthetic-copy substitution");
+        let embedded_entry = embedded_catalog
+            .entry(kind, substitution.template_root_act)
+            .expect("embedded catalog entry");
+        let embedded =
+            crate::typed_act_bundle::applied_catalog_entry_snapshot(embedded_entry, substitution)
+                .expect("embedded instance snapshot");
+
+        let identity = output
+            .modules
+            .nominal_act_template_identity(substitution.template_root_act)
+            .expect("live finalized template identity")
+            .clone();
+        let mut live_catalog = TypedActTemplateCatalog::new();
+        live_catalog
+            .capture(
+                kind,
+                identity,
+                &output.session.poly,
+                &output.modules,
+                &output.labels,
+            )
+            .expect("capture live finalized template");
+        let live = crate::typed_act_bundle::applied_catalog_entry_snapshot(
+            live_catalog
+                .entry(kind, substitution.template_root_act)
+                .expect("live capture catalog entry"),
+            substitution,
+        )
+        .expect("live capture instance snapshot");
+        crate::typed_act_bundle::compare_shadow_snapshots(&embedded, &live)
+            .unwrap_or_else(|detail| panic!("embedded/live catalog parity {kind:?}: {detail}"));
+    }
+}
+
 fn m1_runtime_output(
     arena: &poly::expr::Arena,
     provenance: &poly::provenance::SubtypeProvenanceSidecar,

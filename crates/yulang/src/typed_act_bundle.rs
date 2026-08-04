@@ -6,9 +6,29 @@ use infer::typed_act_bundle::{
     SemanticStdManifest, SemanticStdModule, TypedActTemplateBundle, TypedActTemplateBundleError,
     TypedActTemplateProfileKind, capture_profile_from_legacy_lowering,
 };
+use std::sync::OnceLock;
 
 pub const CHECKED_IN_TYPED_ACT_TEMPLATE_BUNDLE: &[u8] =
     include_bytes!("../assets/typed_act_templates.bin");
+
+static DECODED_TYPED_ACT_TEMPLATE_BUNDLE: OnceLock<Option<TypedActTemplateBundle>> =
+    OnceLock::new();
+
+pub(crate) fn lower_loaded_files_with_embedded_typed_act_shadow(
+    files: &[sources::LoadedFile],
+) -> Result<infer::lowering::BodyLowering, infer::LoadedFilesError> {
+    let bundle = DECODED_TYPED_ACT_TEMPLATE_BUNDLE
+        .get_or_init(|| TypedActTemplateBundle::decode(CHECKED_IN_TYPED_ACT_TEMPLATE_BUNDLE).ok());
+    let Some(profile) = bundle
+        .as_ref()
+        .and_then(|bundle| infer::typed_act_bundle::profile_for_loaded_files(bundle, files))
+    else {
+        return infer::lowering::lower_loaded_files(files);
+    };
+    infer::typed_act_bundle::with_cold_typed_act_template_shadow(profile, || {
+        infer::lowering::lower_loaded_files(files)
+    })
+}
 
 pub fn generate_typed_act_template_bundle_bytes() -> Result<Vec<u8>, String> {
     let (full, _) = generate_profile(TypedActTemplateProfileKind::FullStd)?;

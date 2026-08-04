@@ -20,17 +20,49 @@ pub(super) enum ActTemplateAttemptOutcome {
 }
 
 #[cfg(test)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct SyntheticActCopyCensusCell {
     pub not_attempted: usize,
     pub eligible: usize,
     pub miss: usize,
     pub fallback: usize,
     pub legacy_cst_lowerings: usize,
+    pub shadow_passed: usize,
+    pub shadow_failed: usize,
+    pub last_shadow_failure: Option<String>,
+}
+
+#[inline]
+pub(super) fn record_embedded_shadow_comparison(kind: SyntheticActCopyKind, passed: bool) {
+    #[cfg(test)]
+    update_capture(|snapshot| {
+        let cell =
+            &mut snapshot.cells[kind_index(kind)][source_index(ActTemplateCatalogSource::Embedded)];
+        if passed {
+            cell.shadow_passed += 1;
+        } else {
+            cell.shadow_failed += 1;
+        }
+    });
+    #[cfg(not(test))]
+    let _ = (kind, passed);
+}
+
+#[inline]
+pub(super) fn record_embedded_shadow_failure(kind: SyntheticActCopyKind, detail: String) {
+    #[cfg(test)]
+    update_capture(|snapshot| {
+        let cell =
+            &mut snapshot.cells[kind_index(kind)][source_index(ActTemplateCatalogSource::Embedded)];
+        cell.shadow_failed += 1;
+        cell.last_shadow_failure = Some(detail);
+    });
+    #[cfg(not(test))]
+    let _ = (kind, detail);
 }
 
 #[cfg(test)]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct SyntheticActCopyCensusSnapshot {
     cells: [[SyntheticActCopyCensusCell; 2]; 2],
 }
@@ -38,11 +70,11 @@ pub(super) struct SyntheticActCopyCensusSnapshot {
 #[cfg(test)]
 impl SyntheticActCopyCensusSnapshot {
     pub fn cell(
-        self,
+        &self,
         kind: SyntheticActCopyKind,
         source: ActTemplateCatalogSource,
     ) -> SyntheticActCopyCensusCell {
-        self.cells[kind_index(kind)][source_index(source)]
+        self.cells[kind_index(kind)][source_index(source)].clone()
     }
 }
 

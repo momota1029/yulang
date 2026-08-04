@@ -920,7 +920,8 @@ pub fn compiled_unit_artifact_from_loaded_files_with_key(
     loaded: &[sources::LoadedFile],
     key: SourceCacheKey,
 ) -> Result<CachedCompiledUnitArtifact, infer::LoadedFilesError> {
-    let lowering = infer::lowering::lower_loaded_files(loaded)?;
+    let lowering =
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(loaded)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
         files,
         loaded,
@@ -946,7 +947,8 @@ pub fn compiled_unit_artifact_from_loaded_files_with_key_and_cache_interface_tel
     ),
     infer::LoadedFilesError,
 > {
-    let lowering = infer::lowering::lower_loaded_files(loaded)?;
+    let lowering =
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(loaded)?;
     let syntax = sources::CompiledSyntaxSurface::from_loaded_files(loaded);
     let (artifact, telemetry) = compiled_unit_artifact_from_lowering_with_syntax_and_key_inner(
         files,
@@ -986,8 +988,9 @@ pub fn compiled_unit_artifact_from_standalone_source_unit(
         .collect::<Vec<_>>();
     let loaded = source_unit_lowering_loaded_files(files, units, unit)
         .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
-    let lowering = infer::lowering::lower_loaded_files(&loaded)
-        .map_err(SourceUnitCompiledArtifactError::Lower)?;
+    let lowering =
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(&loaded)
+            .map_err(SourceUnitCompiledArtifactError::Lower)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
         &unit_files,
         &loaded,
@@ -1017,8 +1020,9 @@ pub fn compiled_unit_artifact_from_source_unit_closure(
         .collect::<Vec<_>>();
     let loaded = source_unit_closure_lowering_loaded_files(files, units, unit)
         .map_err(SourceUnitCompiledArtifactError::LoweringInput)?;
-    let lowering = infer::lowering::lower_loaded_files(&loaded)
-        .map_err(SourceUnitCompiledArtifactError::Lower)?;
+    let lowering =
+        crate::typed_act_bundle::lower_loaded_files_with_embedded_typed_act_shadow(&loaded)
+            .map_err(SourceUnitCompiledArtifactError::Lower)?;
     Ok(compiled_unit_artifact_from_lowering_with_key(
         &closure_files,
         &loaded,

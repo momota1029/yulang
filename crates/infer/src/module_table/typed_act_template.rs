@@ -643,7 +643,7 @@ mod tests {
     }
 }
 
-pub(super) fn member_key(
+pub(crate) fn member_key(
     identity: &NominalActTemplateIdentity,
     member: &super::nominal_act_identity::NominalActTemplateValueIdentity,
     root_path: &[String],

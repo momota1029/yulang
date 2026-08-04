@@ -1248,6 +1248,13 @@ pub(super) struct BodyLowerer {
     // Synthetic act copy bodies are implementation helpers. Their computed bindings keep
     // BindingFetch for use-site semantics, but they are not source-level runtime roots.
     pub(super) suppress_runtime_roots: bool,
+    pub(super) pending_cold_typed_act_shadows: Vec<PendingColdTypedActShadow>,
+}
+
+pub(super) struct PendingColdTypedActShadow {
+    pub(super) kind: act_copy_census::SyntheticActCopyKind,
+    pub(super) destination: TypeDeclId,
+    pub(super) embedded: Result<Vec<u8>, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1661,6 +1668,7 @@ impl BodyLowerer {
             prefix_runtime: BodyLoweringPrefixRuntime::default(),
             record_source_spans: true,
             suppress_runtime_roots: false,
+            pending_cold_typed_act_shadows: Vec::new(),
         };
         lowerer.collect_declared_role_requirements();
         lowerer.collect_declared_role_input_variances();
@@ -1945,6 +1953,7 @@ impl BodyLowerer {
             // deadlocking the analysis graph.
             self.release_role_impl_component(&component.pending_members);
         }
+        self.compare_pending_cold_typed_act_shadows();
     }
 
     #[cfg(test)]

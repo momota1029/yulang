@@ -246,6 +246,14 @@ impl BodyLowerer {
             )
             .collect::<Vec<_>>();
         let mut catalog = crate::module_table::typed_act_catalog::TypedActTemplateCatalog::new();
+        let embedded_shadow_active = catalog_source
+            == super::act_copy_census::ActTemplateCatalogSource::Embedded
+            && crate::typed_act_bundle::has_current_cold_shadow_profile();
+        let embedded_catalog = embedded_shadow_active.then(|| {
+            crate::typed_act_bundle::current_cold_shadow_catalog(&self.modules)
+                .map_err(|error| format!("catalog rehydration: {error:?}"))?
+                .ok_or_else(|| "catalog rehydration: scoped profile missing".to_string())
+        });
         let mut catalog_misses = FxHashSet::default();
         if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix {
             for (kind, id) in &copies {
@@ -294,6 +302,34 @@ impl BodyLowerer {
             };
             let Some(copy) = self.act_copy_lowering_context(decl.module, &decl) else {
                 continue;
+            };
+            let embedded_shadow = if embedded_shadow_active {
+                Some((|| {
+                    let catalog = embedded_catalog
+                        .as_ref()
+                        .expect("active embedded shadow initializes a catalog result")
+                        .as_ref()
+                        .map_err(Clone::clone)?;
+                    let substitution = self
+                        .modules
+                        .nominal_act_instance_substitution(id)
+                        .ok_or_else(|| "entry lookup: instance substitution missing".to_string())?;
+                    let entry = catalog
+                        .entry(kind, substitution.template_root_act)
+                        .ok_or_else(|| {
+                            format!(
+                                "entry lookup: missing {kind:?}/{:?}",
+                                substitution.template_root_act
+                            )
+                        })?;
+                    entry
+                        .prepare(substitution, &self.modules, |_| true)
+                        .map_err(|error| format!("prepare: {error:?}"))?;
+                    crate::typed_act_bundle::applied_catalog_entry_snapshot(entry, substitution)
+                        .map_err(|error| format!("snapshot build: {error:?}"))
+                })())
+            } else {
+                None
             };
             if catalog_source == super::act_copy_census::ActTemplateCatalogSource::Prefix
                 && !super::act_copy_census::force_legacy_typed_act_template_path()
@@ -362,6 +398,38 @@ impl BodyLowerer {
             self.suppress_runtime_roots = previous_suppression;
             self.copied_source_module = previous_source_module;
             self.local_method_scope = previous_scope;
+            if embedded_shadow_active {
+                self.pending_cold_typed_act_shadows
+                    .push(super::PendingColdTypedActShadow {
+                        kind,
+                        destination: id,
+                        embedded: embedded_shadow
+                            .expect("active embedded shadow records an attempt"),
+                    });
+            }
+        }
+    }
+
+    pub(super) fn compare_pending_cold_typed_act_shadows(&mut self) {
+        for pending in std::mem::take(&mut self.pending_cold_typed_act_shadows) {
+            let comparison = pending.embedded.and_then(|embedded| {
+                let legacy = crate::typed_act_bundle::legacy_instance_snapshot(
+                    pending.destination,
+                    &self.modules,
+                    &self.session.poly,
+                    &self.labels,
+                )
+                .map_err(|error| format!("legacy capture after analysis drain: {error:?}"))?;
+                crate::typed_act_bundle::compare_shadow_snapshots(&embedded, &legacy)
+            });
+            match comparison {
+                Ok(()) => {
+                    super::act_copy_census::record_embedded_shadow_comparison(pending.kind, true)
+                }
+                Err(detail) => {
+                    super::act_copy_census::record_embedded_shadow_failure(pending.kind, detail)
+                }
+            }
         }
     }
 
