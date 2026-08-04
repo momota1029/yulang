@@ -2,10 +2,8 @@
 
 日付: 2026-08-04
 
-状態: **ユーザ確認済み（2026-08-04）。§6の3判断は解決済み。
-拡張スコープ（cold path・sub-label copy）を反映した追加調査
-（Investigation A・B）も完了し、§3・§4を改訂済み。次段階は
-M1-0の実装着手可否をユーザに確認すること**
+状態: **M1-0〜M1-9 全スライス着地・完了（2026-08-04）。
+Mechanism 1 は完全にclose。§7に最終結果を記録**
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
@@ -500,11 +498,85 @@ cold対応をM1-6〜M1-8の必須スライス群として再定義した。）
 - §4実装スライス計画は、上記2件を反映しM1-0〜M1-9の10段階へ
   改訂済み（cold対応をmust-haveのM1-6〜M1-8として明記）。
 
+## 7. 完了報告（2026-08-04、M1-0〜M1-9 全スライス着地）
+
+### 7.1 着地したスライス
+
+- M1-0（契約とmeasurementの固定）: `0fb1bc8a`
+- M1-1（nominal namespace identityとshell mapping）: `0edbfa23`
+- M1-2（scheme/type template capture）: `fe805b1f`
+- M1-3（body/runtime graph clone）: `d297ab01`
+- 独立バグ修正（legacyの`label_sub`外部参照解決、M1-5作業中に
+  発見・修正）: `e5c7b459`
+- M1-4（共有template catalogとinstance lifecycle）: `359d5f54`
+- M1-5（warm production cutover、gate付き——このプロジェクト初の
+  production挙動変更）: `fd535c0b`
+- M1-6（cold bundle形式とgenerator）: `fad04979`
+- M1-7（cold shadow integration）: `7a998ffb`
+- M1-8（cold production cutover、gate付き——2件目のproduction
+  挙動変更。副産物としてSCC lifecycleの実バグを発見・修正）:
+  `472326cf`
+- M1-9（default cutoverとcloseout）: コード変更不要と確認
+  （production temporary gateが存在しないことを確認、検証のみ）
+
+### 7.2 受け入れ基準の達成状況
+
+1. **適格な`var`/`label_sub`のCST re-loweringがゼロ件**:
+   canonical std libraryに対するwarm/cold双方のeligibility test
+   （`m1_5_repository_std_canonical_var_and_label_sub_are_warm_
+   eligible`、`m1_8_full_std_canonical_var_and_label_sub_are_
+   cold_eligible`、PlaygroundStd版）で`eligible=1、miss=0、
+   fallback=0、legacy_cst_lowerings=0`を確認。
+2. **distinctなnominal identityの保持**: 複数instance間で
+   source→destination mappingが正しく分離されることをM1-1の
+   testで確認、runtime isolation testでも独立したget/set
+   familyを確認。
+3. **source familyの漏洩なし**: M1-2の網羅的nominal substitution
+   test、M1-3のmixed local/external catch parity testで確認。
+   template-local familyは常にdestination identityへ置換され、
+   意図的なexternal参照（`std.control.flow.sub.return`等）だけ
+   canonical pathを維持する。
+4. **sub-millisecond級のinstance-materialization**: 実測（warm
+   prefix cache、release native、5回計測の中央値）で
+   - `var`: legacy 27.139ms → typed **0.237ms**（約114倍）
+   - `label_sub`: legacy 2.857ms → typed **0.359ms**（約8倍）
+   両方ともsub-millisecond目標を達成。
+5. **cold/warm出力parity**: M1-7・M1-8のFullStd/PlaygroundStd
+   3-way parity test（embedded typed instantiation・live-prefix
+   capture・legacy CST lowering）が全てgreen。
+
+### 7.3 副産物として発見・修正した独立バグ
+
+本プロジェクトの実装過程で、Mechanism 1自体とは別に、以下の
+production correctnessバグを発見・修正した（いずれもshadow/
+parity検証が実際に効いた実例）:
+
+- **legacy `label_sub`の外部参照解決バグ**（`e5c7b459`）:
+  synthetic copyの再lowering時、相対参照`sub::return`が
+  destination contextで解決できず、raw未解決の短縮pathを記録
+  していた。M1-5のwarm cutover検証中に発見。
+- **SCC lifecycleの実バグ**（`472326cf`内）: `seed_quantified_def`
+  が、既に存在するedge-only placeholder componentを正しく
+  処理せず、predecessorが永久にquantifyされない場合があった。
+  cold cutoverでのみ発現（warm cutoverは早期installのため
+  この経路を通らない）。「missing type scheme」および
+  「MissingRecordField("index")」という2つの異なる症状の
+  共通原因だった。M1-8の実CLIシナリオ検証で発見。
+
+### 7.4 残された作業（本プロジェクトのスコープ外）
+
+- **custom/stale std**: 設計どおりlegacy fallbackとなる。この
+  ケースでのcold高速化はMechanism 1の対象外（§3.3の明示的な
+  スコープ境界どおり）。
+- **Mechanism 2（read-modify-write時のsubtype replay増幅）**:
+  `notes/design/2026-08-04-mutable-reference-performance-
+  investigation.md`の§4で特定した、Mechanism 1とは独立した
+  正しさに関わる領域の問題。本プロジェクトでは対象外のまま。
+  別途専用の調査・設計が必要。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
-本書は設計提案。§6の3件のオープンな判断はユーザの確認を得て
-確定し（2026-08-04）、それを受けたInvestigation A・Bも完了、
-§3・§4へ反映済み。M1-0以降のスライスへの実装着手は、本改訂版を
-ユーザへ提示し確認を得てから行う。
+M1-0〜M1-9 全スライスが着地・検証済み（2026-08-04）。
+Mechanism 1（act-copyオーバーヘッド）は完全にcloseとして扱う。
