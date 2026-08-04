@@ -997,6 +997,45 @@ enum RecordProofClause {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClaimedAttributionSource {
+    CanonicalReplay,
+    FlatRetained,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RecordProofClauseLinkAdmission {
+    support: SchemeProjectionProofSupport,
+    clause: RecordProofClause,
+    claimed_attribution_source: Option<ClaimedAttributionSource>,
+}
+
+impl RecordProofClauseLinkAdmission {
+    fn claimed(
+        root: UpperReplayClaimId,
+        clause: RecordProofClause,
+        source: ClaimedAttributionSource,
+    ) -> Self {
+        Self {
+            support: SchemeProjectionProofSupport::Claimed(root),
+            clause,
+            claimed_attribution_source: Some(source),
+        }
+    }
+
+    fn independent(
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> Self {
+        assert!(matches!(support, SchemeProjectionProofSupport::Independent(_)));
+        Self {
+            support,
+            clause,
+            claimed_attribution_source: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct RecordProofClauseId(u32);
 
@@ -2076,11 +2115,13 @@ mod rcpf_d2c_2b_tests {
         );
         machine.bounds.register_record_proof_clause_link(
             lower_record,
-            support,
-            RecordProofClause::DerivedUnary {
-                carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(20_001)),
-                premise: ProofPremise::Constraint(constraint),
-            },
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(20_001)),
+                    premise: ProofPremise::Constraint(constraint),
+                },
+            ),
         );
 
         let publication_state = |machine: &ConstraintMachine| {
@@ -2153,6 +2194,9 @@ pub struct TypeBounds {
     record_proof_clause_link_keys: FxHashSet<RecordProofClauseLinkKey>,
     // Append-only claimed-support projection of `record_proof_clause_link_keys`.
     attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
+    // Claimed attribution whose exact links remain in the flat relation after RCPF-E/F.
+    flat_retained_attributed_claim_supports:
+        FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
@@ -2192,9 +2236,13 @@ impl TypeBounds {
     fn register_record_proof_clause_link(
         &mut self,
         lower_record: BoundRecordId,
-        support: SchemeProjectionProofSupport,
-        clause: RecordProofClause,
+        admission: RecordProofClauseLinkAdmission,
     ) -> (RecordProofClauseId, bool, bool) {
+        let RecordProofClauseLinkAdmission {
+            support,
+            clause,
+            claimed_attribution_source,
+        } = admission;
         let clause_key = Self::record_proof_clause_key(lower_record, clause);
         let (clause_id, clause_inserted) =
             if let Some(clause_id) = self.record_proof_clause_by_key.get(&clause_key).copied() {
@@ -2226,6 +2274,10 @@ impl TypeBounds {
             if let SchemeProjectionProofSupport::Claimed(root) = support {
                 self.attributed_claim_supports
                     .insert((lower_record, root));
+                if claimed_attribution_source == Some(ClaimedAttributionSource::FlatRetained) {
+                    self.flat_retained_attributed_claim_supports
+                        .insert((lower_record, root));
+                }
             }
             self.record_proof_clause_links_by_lower_record
                 .entry(lower_record)
@@ -2325,8 +2377,11 @@ impl TypeBounds {
         let support = SchemeProjectionProofSupport::Claimed(root);
         self.register_record_proof_clause_link(
             lower_record,
-            support,
-            RecordProofClause::Standalone { support },
+            RecordProofClauseLinkAdmission::claimed(
+                root,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+            ),
         );
     }
 

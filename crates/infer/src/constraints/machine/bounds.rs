@@ -2261,28 +2261,31 @@ impl ConstraintMachine {
             let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
                 continue;
             };
-            let support = SchemeProjectionProofSupport::Claimed(root);
-            let clause = match parent {
-                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+            let (clause, attribution_source) = match parent {
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } => (
                     RecordProofClause::ReplayConjunction {
                         carrier: replay,
                         lower_premise: replay.lower,
                         upper_premise: replay.upper,
-                    }
-                }
-                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    },
+                    ClaimedAttributionSource::CanonicalReplay,
+                ),
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => (
                     RecordProofClause::DerivedUnary {
                         carrier: DerivedUnaryCarrier::Structural(derivation),
                         premise: ProofPremise::Constraint(derivation.parent),
-                    }
-                }
-                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => (
                     RecordProofClause::DerivedUnary {
                         carrier: DerivedUnaryCarrier::ReductionRoute(derivation),
                         premise: ProofPremise::RootCoverage(root),
-                    }
-                }
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
             };
+            let support = SchemeProjectionProofSupport::Claimed(root);
             if self
                 .bounds
                 .record_proof_clause_link_is_registered(lower_record, support, clause)
@@ -2296,7 +2299,11 @@ impl ConstraintMachine {
             if !batch_link_keys.insert(batch_link_key) {
                 continue;
             }
-            pending_links.push((support, clause));
+            pending_links.push(RecordProofClauseLinkAdmission::claimed(
+                root,
+                clause,
+                attribution_source,
+            ));
         }
         if !pending_links.is_empty() {
             self.commit_record_proof_clause_link_batch_with_fence(
@@ -2923,37 +2930,40 @@ impl ConstraintMachine {
         let Some(root) = self.bounds.canonical_coverage_root(parent_claim) else {
             return;
         };
-        let support = SchemeProjectionProofSupport::Claimed(root);
         self.register_record_proof_clause_link(
             lower_record,
-            support,
-            RecordProofClause::ReplayConjunction {
-                carrier: replay,
-                lower_premise: replay.lower,
-                upper_premise: replay.upper,
-            },
+            RecordProofClauseLinkAdmission::claimed(
+                root,
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                },
+                ClaimedAttributionSource::FlatRetained,
+            ),
         );
     }
 
     fn register_record_proof_clause_link(
         &mut self,
         lower_record: BoundRecordId,
-        support: SchemeProjectionProofSupport,
-        clause: RecordProofClause,
+        admission: RecordProofClauseLinkAdmission,
     ) {
+        let support = admission.support;
+        let clause = admission.clause;
         if self
             .bounds
             .record_proof_clause_link_is_registered(lower_record, support, clause)
         {
             return;
         }
-        self.commit_record_proof_clause_link_batch(lower_record, [(support, clause)]);
+        self.commit_record_proof_clause_link_batch(lower_record, [admission]);
     }
 
     fn commit_record_proof_clause_link_batch(
         &mut self,
         lower_record: BoundRecordId,
-        links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
+        links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
     ) {
         self.commit_record_proof_clause_link_batch_with_fence(lower_record, links, None);
     }
@@ -2961,7 +2971,7 @@ impl ConstraintMachine {
     fn commit_record_proof_clause_link_batch_with_fence(
         &mut self,
         lower_record: BoundRecordId,
-        links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
+        links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
         publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
     ) {
         let Some(snapshot) =
@@ -2989,7 +2999,7 @@ impl ConstraintMachine {
     fn commit_record_proof_clause_link_batch_mutation(
         &mut self,
         lower_record: BoundRecordId,
-        links: impl IntoIterator<Item = (SchemeProjectionProofSupport, RecordProofClause)>,
+        links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
         let mut links = links.into_iter().peekable();
         if links.peek().is_none() {
@@ -2998,10 +3008,11 @@ impl ConstraintMachine {
         let was_included = self.scheme_projection_record_is_included(lower_record);
         let mut any_link_inserted = false;
         let mut inserted_clauses = Vec::new();
-        for (support, clause) in links {
+        for admission in links {
+            let clause = admission.clause;
             let (_, clause_inserted, link_inserted) = self
                 .bounds
-                .register_record_proof_clause_link(lower_record, support, clause);
+                .register_record_proof_clause_link(lower_record, admission);
             debug_assert!(
                 link_inserted,
                 "clause-link batch preflight must agree with exact-key insertion"
@@ -3714,7 +3725,9 @@ impl ConstraintMachine {
             if !batch_link_keys.insert(batch_link_key) {
                 continue;
             }
-            pending_links.push((support, clause));
+            pending_links.push(RecordProofClauseLinkAdmission::independent(
+                support, clause,
+            ));
         }
         if pending_links.is_empty() {
             #[cfg(any(test, debug_assertions))]
@@ -6991,11 +7004,13 @@ mod mutation_tests {
             let (dependent, support) = dpn_b_synthetic_projection_record(&mut fixture.machine, 70);
             fixture.machine.register_record_proof_clause_link(
                 dependent,
-                support,
-                RecordProofClause::DerivedUnary {
-                    carrier: dpn_b_synthetic_unary_carrier(70),
-                    premise: ProofPremise::Constraint(result),
-                },
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::DerivedUnary {
+                        carrier: dpn_b_synthetic_unary_carrier(70),
+                        premise: ProofPremise::Constraint(result),
+                    },
+                ),
             );
             dependent
         };
@@ -7126,12 +7141,18 @@ mod mutation_tests {
         let mut publication_fence = ReplayAdmissionPublicationFence::default();
         split.commit_record_proof_clause_link_batch_with_fence(
             split_record,
-            [(split_support, split_clause)],
+            [RecordProofClauseLinkAdmission::independent(
+                split_support,
+                split_clause,
+            )],
             Some(&mut publication_fence),
         );
         combined.commit_record_proof_clause_link_batch(
             combined_record,
-            [(combined_support, combined_clause)],
+            [RecordProofClauseLinkAdmission::independent(
+                combined_support,
+                combined_clause,
+            )],
         );
         assert!(!split.scheme_projection_record_is_included(split_record));
         assert!(!combined.scheme_projection_record_is_included(combined_record));
@@ -7198,11 +7219,13 @@ mod mutation_tests {
         let (dependent, support) = dpn_b_synthetic_projection_record(&mut fixture.machine, 73);
         fixture.machine.register_record_proof_clause_link(
             dependent,
-            support,
-            RecordProofClause::DerivedUnary {
-                carrier: dpn_b_synthetic_unary_carrier(73),
-                premise: ProofPremise::Constraint(result),
-            },
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(73),
+                    premise: ProofPremise::Constraint(result),
+                },
+            ),
         );
         fixture
             .machine
@@ -7397,11 +7420,13 @@ mod mutation_tests {
         );
         machine.bounds.register_record_proof_clause_link(
             lower_record,
-            support,
-            RecordProofClause::DerivedUnary {
-                carrier: dpn_b_synthetic_unary_carrier(72_001),
-                premise: ProofPremise::Constraint(constraint),
-            },
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(72_001),
+                    premise: ProofPremise::Constraint(constraint),
+                },
+            ),
         );
         (machine, lower_record, owner)
     }
@@ -8370,6 +8395,263 @@ mod mutation_tests {
                 .is_empty()
         );
         assert!(factored_replay_clause_link_oracle(&fixture.machine).is_empty());
+    }
+
+    #[test]
+    fn rcpf_e2a_claimed_attribution_matrix_partitions_all_five_sources_at_the_writer() {
+        fn matrix_lower(
+            machine: &mut ConstraintMachine,
+            result: ConstraintRecordId,
+            owner: u32,
+        ) -> BoundRecordId {
+            let lower = machine.constraint_records[result.0 as usize].key.lower;
+            machine
+                .bounds
+                .add_lower(
+                    TypeVar(owner),
+                    lower,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                )
+                .id
+        }
+
+        fn matrix_upper(
+            machine: &mut ConstraintMachine,
+            result: ConstraintRecordId,
+            owner: u32,
+        ) -> BoundRecordId {
+            let upper = machine.constraint_records[result.0 as usize].key.upper;
+            machine
+                .bounds
+                .add_upper(
+                    TypeVar(owner),
+                    upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                )
+                .id
+        }
+
+        fn matrix_root(
+            machine: &mut ConstraintMachine,
+            result: ConstraintRecordId,
+            owner: u32,
+            producer: u32,
+        ) -> UpperReplayClaimId {
+            let record = matrix_upper(machine, result, owner);
+            machine
+                .bounds
+                .original_upper_replay_claim(
+                    record,
+                    ConstraintRecordId(producer),
+                    UpperReplayClaimKind::Direct,
+                )
+                .claim
+        }
+
+        let mut fixture = cdm_replay_claim_fixture();
+        assert_eq!(
+            fixture
+                .machine
+                .bounds
+                .flat_retained_attributed_claim_supports
+                .len(),
+            1,
+            "the direct constraint fixture starts with one Original/Standalone attribution"
+        );
+        assert_eq!(
+            fixture.machine.bounds.attributed_claim_supports,
+            fixture
+                .machine
+                .bounds
+                .flat_retained_attributed_claim_supports
+        );
+        assert!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .replay_attributed_claim_supports
+                .is_empty()
+        );
+        let original_key = *fixture
+            .machine
+            .bounds
+            .flat_retained_attributed_claim_supports
+            .iter()
+            .next()
+            .expect("the Original/Standalone attribution");
+        assert_eq!(
+            fixture.machine.bounds.upper_replay_claims[original_key.1.0 as usize].lineage,
+            UpperReplayClaimLineage::Original
+        );
+
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let replay_parent = fixture.parent;
+        register_factored_parent_snapshot(
+            &mut fixture.machine,
+            fixture.result,
+            replay,
+            &[replay_parent],
+        );
+        let replay_key = (fixture.lower_record, fixture.coverage_root);
+        assert!(fixture.machine.bounds.upper_replay_claims.iter().any(|claim| {
+            claim.coverage_root == fixture.coverage_root
+                && matches!(
+                    claim.lineage,
+                    UpperReplayClaimLineage::ReplayConstraint { .. }
+                )
+        }));
+
+        let structural_root = matrix_root(&mut fixture.machine, fixture.result, 80_000, 80_000);
+        let structural_derivation = StructuralDerivation {
+            parent: fixture.result,
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        let structural_record = matrix_upper(&mut fixture.machine, fixture.result, 80_001);
+        let structural_claim = fixture.machine.bounds.derived_upper_replay_claim(
+            structural_record,
+            structural_root,
+            ConstraintRecordId(80_001),
+            |depth| UpperReplayClaimLineage::StructuralConstraint {
+                parent_claim: structural_root,
+                result: fixture.result,
+                derivation: structural_derivation,
+                depth,
+            },
+        );
+        assert!(matches!(
+            fixture.machine.bounds.upper_replay_claims[structural_claim.claim.0 as usize].lineage,
+            UpperReplayClaimLineage::StructuralConstraint { .. }
+        ));
+        let structural_lower = matrix_lower(&mut fixture.machine, fixture.result, 80_002);
+        fixture.machine.register_claim_parent_clause_links(
+            structural_lower,
+            &[ClaimQualifiedParent::StructuralConstraint {
+                parent_claim: structural_claim.claim,
+                derivation: structural_derivation,
+            }],
+        );
+        let structural_key = (structural_lower, structural_root);
+
+        let reduction_root = matrix_root(&mut fixture.machine, fixture.result, 80_003, 80_002);
+        let reduction_derivation = RowDerivationId(80_003);
+        let reduction_record = matrix_upper(&mut fixture.machine, fixture.result, 80_004);
+        let reduction_claim = fixture.machine.bounds.derived_upper_replay_claim(
+            reduction_record,
+            reduction_root,
+            ConstraintRecordId(80_004),
+            |depth| UpperReplayClaimLineage::ReductionRouteConstraint {
+                parent_claim: reduction_root,
+                result: fixture.result,
+                derivation: reduction_derivation,
+                depth,
+            },
+        );
+        assert!(matches!(
+            fixture.machine.bounds.upper_replay_claims[reduction_claim.claim.0 as usize].lineage,
+            UpperReplayClaimLineage::ReductionRouteConstraint { .. }
+        ));
+        let reduction_lower = matrix_lower(&mut fixture.machine, fixture.result, 80_005);
+        fixture.machine.register_claim_parent_clause_links(
+            reduction_lower,
+            &[ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: reduction_claim.claim,
+                derivation: reduction_derivation,
+            }],
+        );
+        let reduction_key = (reduction_lower, reduction_root);
+
+        let evidence_root = matrix_root(&mut fixture.machine, fixture.result, 80_006, 80_005);
+        let evidence_lower = matrix_lower(&mut fixture.machine, fixture.result, 80_007);
+        let evidence_replay = BinaryReplayDerivation {
+            pivot: TypeVar(80_007),
+            lower: evidence_lower,
+            upper: fixture.machine.bounds.upper_replay_claims[evidence_root.0 as usize]
+                .current_record,
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        let evidence_record = matrix_upper(&mut fixture.machine, fixture.result, 80_008);
+        let evidence_claim = fixture.machine.bounds.derived_upper_replay_claim(
+            evidence_record,
+            evidence_root,
+            ConstraintRecordId(80_006),
+            |depth| UpperReplayClaimLineage::ReplayEvidence {
+                parent_claim: evidence_root,
+                parent_side: ReplayClaimParentSide::Upper,
+                replay: evidence_replay,
+                depth,
+            },
+        );
+        assert!(matches!(
+            fixture.machine.bounds.upper_replay_claims[evidence_claim.claim.0 as usize].lineage,
+            UpperReplayClaimLineage::ReplayEvidence { .. }
+        ));
+        fixture.machine.register_replay_evidence_clause_link(
+            evidence_lower,
+            evidence_claim.claim,
+            evidence_replay,
+        );
+        let evidence_key = (evidence_lower, evidence_root);
+
+        let flat_retained = FxHashSet::from_iter([
+            original_key,
+            structural_key,
+            reduction_key,
+            evidence_key,
+        ]);
+        let replay_attributed = FxHashSet::from_iter([replay_key]);
+        let all_source = flat_retained
+            .union(&replay_attributed)
+            .copied()
+            .collect::<FxHashSet<_>>();
+        assert_eq!(
+            fixture
+                .machine
+                .bounds
+                .flat_retained_attributed_claim_supports,
+            flat_retained
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .replay_clause_projection
+                .replay_attributed_claim_supports,
+            replay_attributed
+        );
+        assert_eq!(fixture.machine.bounds.attributed_claim_supports, all_source);
+
+        let production_results = |machine: &ConstraintMachine| {
+            [ReplayEvaluatorSource::Legacy, ReplayEvaluatorSource::Factored]
+                .map(|source| {
+                    let evaluator = SchemeProjectionEvaluator::with_replay_source(machine, source);
+                    all_source.iter().all(|&(record, root)| {
+                        evaluator.support_has_clause_link(
+                            record,
+                            SchemeProjectionProofSupport::Claimed(root),
+                        )
+                    })
+                })
+        };
+        let before = production_results(&fixture.machine);
+        let shadow = std::mem::take(
+            &mut fixture
+                .machine
+                .bounds
+                .flat_retained_attributed_claim_supports,
+        );
+        assert_eq!(production_results(&fixture.machine), before);
+        assert_eq!(before, [true, true]);
+        fixture
+            .machine
+            .bounds
+            .flat_retained_attributed_claim_supports = shadow;
     }
 
     fn assert_replay_shadow_does_not_interfere(
@@ -9744,11 +10026,13 @@ mod mutation_tests {
         let (dependent, support) = dpn_b_synthetic_projection_record(&mut machine, 6);
         machine.register_record_proof_clause_link(
             dependent,
-            support,
-            RecordProofClause::DerivedUnary {
-                carrier: dpn_b_synthetic_unary_carrier(6),
-                premise: ProofPremise::Constraint(premise),
-            },
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: dpn_b_synthetic_unary_carrier(6),
+                    premise: ProofPremise::Constraint(premise),
+                },
+            ),
         );
         assert_eq!(
             machine.scheme_projection_record_is_included(dependent),
@@ -9838,7 +10122,10 @@ mod mutation_tests {
         );
         let (_, clause_inserted, link_inserted) = machine
             .bounds
-            .register_record_proof_clause_link(record, support, clause);
+            .register_record_proof_clause_link(
+                record,
+                RecordProofClauseLinkAdmission::independent(support, clause),
+            );
         assert!(clause_inserted && link_inserted);
         assert!(
             machine
@@ -9860,7 +10147,10 @@ mod mutation_tests {
         let (_, clause_inserted, link_inserted) =
             machine
                 .bounds
-                .register_record_proof_clause_link(record, other_support, clause);
+                .register_record_proof_clause_link(
+                    record,
+                    RecordProofClauseLinkAdmission::independent(other_support, clause),
+                );
         assert!(!clause_inserted && link_inserted);
         assert!(machine.bounds.record_proof_clause_link_is_registered(
             record,
@@ -9910,7 +10200,10 @@ mod mutation_tests {
     ) {
         let (_, clause_inserted, link_inserted) = machine
             .bounds
-            .register_record_proof_clause_link(record, support, clause);
+            .register_record_proof_clause_link(
+                record,
+                RecordProofClauseLinkAdmission::independent(support, clause),
+            );
         assert!(clause_inserted && link_inserted);
     }
 
