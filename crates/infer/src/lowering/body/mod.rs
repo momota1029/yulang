@@ -8,6 +8,8 @@ mod doc_tests;
 pub(super) mod error_decl;
 #[cfg(test)]
 mod generalize_snapshot_characterization_tests;
+#[cfg(test)]
+mod global_alpha_consequence_census_tests;
 pub(super) mod impl_decl;
 pub(super) mod methods;
 pub(super) mod register;

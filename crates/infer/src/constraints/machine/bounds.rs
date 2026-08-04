@@ -4881,6 +4881,8 @@ impl ConstraintMachine {
         let canonicalization_disposition =
             self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
+            #[cfg(test)]
+            super::global_alpha_census::record_prefiltered_trivial();
             replay.prefiltered += 1;
             replay.stats.trivial += 1;
             replay.trivial_actions.push(BoundReplayAction {
@@ -4896,6 +4898,8 @@ impl ConstraintMachine {
         let seen_before = self.has_canonical_constraint(&constraint);
         self.observe_weighted_routing_consequence_shadow(&constraint, seen_before);
         if seen_before {
+            #[cfg(test)]
+            super::global_alpha_census::record_prefiltered_exact_duplicate();
             replay.prefiltered += 1;
             replay.stats.duplicate += 1;
             replay.prefilter_duplicate.absorb(duplicate_profile);
@@ -5099,8 +5103,16 @@ impl ConstraintMachine {
                 !enqueued,
             );
             if enqueued {
+                #[cfg(test)]
+                super::global_alpha_census::record_accepted_consequence(
+                    self,
+                    &constraint,
+                    action.derivation,
+                );
                 stats.accepted += 1;
             } else {
+                #[cfg(test)]
+                super::global_alpha_census::record_delayed_exact_duplicate();
                 stats.duplicate += 1;
             }
         }

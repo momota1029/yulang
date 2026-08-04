@@ -74,6 +74,11 @@ use trace::{
     ConstraintDrainTrace, trace_bound_replay_progress, trace_bound_replay_start, trace_var_bounds,
 };
 
+#[cfg(test)]
+pub(crate) use machine::global_alpha_census::{
+    GlobalAlphaConsequenceCensusSnapshot, capture_global_alpha_consequence_census,
+};
+
 /// subtype constraint の伝播 machine。
 ///
 /// `TypeArena`、未処理 queue、変数ごとの上下界、subtract fact、outbox event をまとめて所有する。
