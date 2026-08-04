@@ -2,7 +2,10 @@
 
 日付: 2026-08-04
 
-状態: **ユーザ確認待ち（3件のオープンな設計判断）**
+状態: **ユーザ確認済み（2026-08-04）。§6の3判断は解決済み——
+下記のとおりCodexの推奨より広い範囲で確定した。実装スライスは
+この決定を反映するよう§4を改訂する必要がある（本書では未改訂、
+次段階の追加設計で行う）**
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
@@ -280,30 +283,47 @@ parity testを含めて約900〜1,500行。production codeのリスクは
   内容で行う。raw arena IDはrun-localのままでよいが、新経路内
   でのallocationは決定的でなければならない。
 
-## 6. オープンな設計判断（ユーザ確認が必要）
+## 6. オープンな設計判断（2026-08-04、ユーザ確認済み）
 
-1. **対象範囲**: 最初の承認対象を、warm compiled-prefix経路
-   （実際のplayground経路）に明示的に限定するか、それとも
-   Mechanism 1を「閉じた」と呼ぶ前にcold/no-prefix
-   compilationの高速化も必須とするか。
-   **Codexの推奨: warm-firstとし、legacy cold fallbackを残す。**
+1. **対象範囲**: **cold/no-prefix compilationの高速化も含めて
+   Mechanism 1完了とする**（Codexの推奨「warm-firstに限定し、
+   coldはM1-5として別途調査」より広い範囲をユーザが選択）。
+   §3.2の設計提案時点でCodexが指摘していたとおり、cold fast
+   pathには「precompiled std template artifact」か「慎重に
+   境界を絞ったpartial-analysis lifecycle」のいずれかが必要で、
+   現行のlowering契約（全forward referenceが揃うまでanalysisを
+   意図的に遅らせる）と両立させる設計がwarm経路とは別に要る。
+   §4のスライス計画は、M1-5を「必要なら後で」ではなく
+   本プロジェクトの必須スコープとして改訂する必要がある。
 
-2. **適用範囲**: 再利用可能なtemplate engineが最初に受け付ける
-   対象を、synthetic var copyのみに限定するか、synthetic
-   sub-label copyも含めるか。
-   **Codexの推奨: 表現自体は将来拡張できる形にしつつ、まずは
-   var-only適格性から始める。**
+2. **適用範囲**: **sub-label copyも最初から含める**（Codexの
+   推奨「まずvar-onlyから」より広い範囲をユーザが選択）。
+   `NominalActIdentity`/`NominalActSubstitution`等の表現が
+   sub-label copyの実際の構造（var copyとどれだけ形が
+   似ているか、あるいは異なるか）にも対応できるかどうかを、
+   実装着手前に確認する必要がある。
 
-3. **適格性miss時の扱い**: canonicalなcached `var.yu`に対する
-   予期しない適格性missを、release buildではtelemetryの
-   カウントのみに留めるか、testでhard assertionにするか。
-   **Codexの推奨: productionではfail-closed fallback、
-   test/CIではcanonical templateが適格であり続けることを
-   assertする。**
+3. **適格性miss時の扱い**: **Codexの推奨どおり確定**——
+   production（release build）では黙ってlegacy CST lowering
+   へfallbackし処理は継続する。test/CIでは、canonicalな
+   `var.yu`が常に適格であり続けることをhard assertionで検証し、
+   退行を即座に検知する。
+
+これらの決定を受け、実装着手前に以下の追加調査・設計改訂が
+必要である（本書では未実施）:
+
+- sub-label copyの実際のパターン一覧と、var copyとの構造的な
+  異同の調査。
+- cold pathでのtemplate instantiation機構——precompiled
+  artifact方式かpartial-analysis lifecycle方式かの選定と設計。
+- 上記を反映した§4実装スライス計画の改訂（M1-5をmust-haveの
+  スライス群として再定義する）。
 
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
-本書は設計提案であり、§6の3件のオープンな判断についてユーザの
-確認を得てから実装（M1-0以降のスライス）に着手する。
+本書は設計提案であり、§6の3件のオープンな判断はユーザの確認を
+得て確定した（2026-08-04）。cold path・sub-label copyを含めた
+拡張スコープの詳細設計は、別途の追加調査を経てから実装
+（M1-0以降のスライス）に着手する。
