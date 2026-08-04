@@ -584,6 +584,7 @@ fn prepare_warm(prefix: &BodyLoweringPrefix, source: &str) -> PreparedLowering {
     lowerer.lower_synthetic_act_copy_bodies_for(
         append.synthetic_var_act_copy_ids,
         append.synthetic_sub_label_act_copy_ids,
+        super::act_copy_census::ActTemplateCatalogSource::Prefix,
     );
     let shallow_lowering = start.elapsed();
     assert!(lowerer.errors.is_empty(), "warm: {:?}", lowerer.errors);

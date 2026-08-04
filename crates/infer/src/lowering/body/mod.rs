@@ -1,6 +1,7 @@
 //! Extracted lowering implementation.
 
 pub(super) mod act;
+mod act_copy_census;
 pub(super) mod derive_debug;
 pub(super) mod derive_eq;
 mod doc_tests;
@@ -18,6 +19,8 @@ pub(super) mod signature_helpers;
 mod skip_parity_tests;
 #[cfg(test)]
 mod stage0_tests;
+#[cfg(test)]
+mod synthetic_act_copy_m1_tests;
 pub(super) mod synthetic_role_impl;
 #[cfg(test)]
 mod synthetic_role_impl_tests;
@@ -904,6 +907,7 @@ fn lower_loaded_files_with_prefix_once(
     lowerer.lower_synthetic_act_copy_bodies_for(
         append.synthetic_var_act_copy_ids,
         append.synthetic_sub_label_act_copy_ids,
+        act_copy_census::ActTemplateCatalogSource::Prefix,
     );
     measured.synthetic_act_copy = phase_start.elapsed();
     timing.phase(
@@ -998,6 +1002,7 @@ fn lower_root_loaded_file_with_prefix_once(
     lowerer.lower_synthetic_act_copy_bodies_for(
         append.synthetic_var_act_copy_ids,
         append.synthetic_sub_label_act_copy_ids,
+        act_copy_census::ActTemplateCatalogSource::Prefix,
     );
     measured.synthetic_act_copy = phase_start.elapsed();
     timing.phase(

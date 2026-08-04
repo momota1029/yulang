@@ -221,16 +221,28 @@ impl BodyLowerer {
     pub(super) fn lower_synthetic_act_copy_bodies(&mut self) {
         let ids = self.modules.synthetic_var_act_copy_ids();
         let sub_label_ids = self.modules.synthetic_sub_label_act_copy_ids();
-        self.lower_synthetic_act_copy_bodies_for(ids, sub_label_ids);
+        self.lower_synthetic_act_copy_bodies_for(
+            ids,
+            sub_label_ids,
+            super::act_copy_census::ActTemplateCatalogSource::Embedded,
+        );
     }
 
     pub(super) fn lower_synthetic_act_copy_bodies_for(
         &mut self,
-        mut ids: Vec<TypeDeclId>,
+        ids: Vec<TypeDeclId>,
         sub_label_ids: Vec<TypeDeclId>,
+        catalog_source: super::act_copy_census::ActTemplateCatalogSource,
     ) {
-        ids.extend(sub_label_ids);
-        for id in ids {
+        let copies = ids
+            .into_iter()
+            .map(|id| (super::act_copy_census::SyntheticActCopyKind::Var, id))
+            .chain(
+                sub_label_ids
+                    .into_iter()
+                    .map(|id| (super::act_copy_census::SyntheticActCopyKind::LabelSub, id)),
+            );
+        for (kind, id) in copies {
             let Some(decl) = self.modules.type_decl_by_id(id) else {
                 continue;
             };
@@ -244,6 +256,12 @@ impl BodyLowerer {
             let previous_suppression = std::mem::replace(&mut self.suppress_runtime_roots, true);
             let previous_source_spans = std::mem::replace(&mut self.record_source_spans, false);
             let mut method_cursor = 0usize;
+            super::act_copy_census::record_act_template_attempt(
+                kind,
+                catalog_source,
+                super::act_copy_census::ActTemplateAttemptOutcome::NotAttempted,
+            );
+            super::act_copy_census::record_legacy_act_copy_lowering(kind, catalog_source);
             self.lower_act_body_contents(
                 &copy.body,
                 companion,
