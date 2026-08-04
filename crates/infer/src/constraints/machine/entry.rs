@@ -10,6 +10,7 @@ impl ConstraintMachine {
     pub(crate) fn new_with_replay_read_authority(
         replay_read_authority: ReplayReadAuthority,
     ) -> Self {
+        ensure_replay_soak_telemetry_header();
         #[cfg(test)]
         let replay_result_summary = {
             let mut summary = ReplayResultSummary::default();
@@ -100,14 +101,25 @@ impl ConstraintMachine {
     pub(in crate::constraints) fn mark_replay_factored_failure(
         &self,
         failure: ReplayFactoredShadowFailure,
+        operation: ReplayFactoredFailureOperation,
     ) {
-        if matches!(
+        let first_terminal_failure = matches!(
             self.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
-        ) {
+        );
+        record_replay_factored_failure(failure, operation, first_terminal_failure);
+        if first_terminal_failure {
             self.replay_factored_shadow_status
                 .set(ReplayFactoredShadowStatus::Failed(failure));
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn inject_replay_factored_read_failure_for_test(
+        &self,
+        failure: ReplayFactoredShadowFailure,
+    ) {
+        self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
     }
 
     pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {

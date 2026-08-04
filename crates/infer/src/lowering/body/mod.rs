@@ -28,7 +28,10 @@ mod yumark_tests;
 use super::*;
 use crate::analysis::AnalysisTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
-use crate::constraints::{ConstraintTiming, ReplayFactoredShadowFailure, ReplayReadAuthority};
+use crate::constraints::{
+    ConstraintTiming, ReplayFactoredFailureOperation, ReplayFactoredShadowFailure,
+    ReplayReadAuthority, record_legacy_rollback_entry, record_replay_factored_failure,
+};
 use crate::source_range_for_name;
 use register::*;
 use signature_helpers::*;
@@ -643,13 +646,27 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
 struct ReplayCompilationAttempt<T> {
     output: T,
     terminal_failure: Option<ReplayFactoredShadowFailure>,
+    terminal_failure_recorded: bool,
 }
 
 impl<T> ReplayCompilationAttempt<T> {
+    #[cfg(test)]
     fn completed(output: T, terminal_failure: Option<ReplayFactoredShadowFailure>) -> Self {
         Self {
             output,
             terminal_failure,
+            terminal_failure_recorded: false,
+        }
+    }
+
+    fn completed_from_machine(
+        output: T,
+        terminal_failure: Option<ReplayFactoredShadowFailure>,
+    ) -> Self {
+        Self {
+            output,
+            terminal_failure,
+            terminal_failure_recorded: terminal_failure.is_some(),
         }
     }
 }
@@ -663,11 +680,22 @@ fn run_replay_compilation_attempt<T>(
     let Some(failure) = first.terminal_failure else {
         return Ok(first.output);
     };
+    if !first.terminal_failure_recorded {
+        record_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read, true);
+    }
     drop(first.output);
 
+    record_legacy_rollback_entry(failure);
     let retry = attempt(ReplayReadAuthority::LegacyRollback(failure))
         .map_err(|_| LoadedFilesError::ReplayFactoredRetryFailed)?;
-    if retry.terminal_failure.is_some() {
+    if let Some(retry_failure) = retry.terminal_failure {
+        if !retry.terminal_failure_recorded {
+            record_replay_factored_failure(
+                retry_failure,
+                ReplayFactoredFailureOperation::Read,
+                true,
+            );
+        }
         return Err(LoadedFilesError::ReplayFactoredRetryFailed);
     }
     Ok(retry.output)
@@ -679,7 +707,7 @@ fn body_lowering_attempt(output: BodyLowering) -> ReplayCompilationAttempt<BodyL
         .infer
         .constraints()
         .replay_factored_terminal_failure();
-    ReplayCompilationAttempt::completed(output, terminal_failure)
+    ReplayCompilationAttempt::completed_from_machine(output, terminal_failure)
 }
 
 /// 複数 `LoadedFile` を1つの module tree として body lowering する。
@@ -791,7 +819,7 @@ fn lower_loaded_files_with_consumer_once<T>(
         .infer
         .constraints()
         .replay_factored_terminal_failure();
-    Ok(ReplayCompilationAttempt::completed(
+    Ok(ReplayCompilationAttempt::completed_from_machine(
         (output, consumer_output),
         terminal_failure,
     ))
@@ -2767,6 +2795,10 @@ fn top_level_var_binding_source(node: &Cst) -> Option<Name> {
 #[cfg(test)]
 mod rcpf_c3a_retry_tests {
     use super::*;
+    use crate::constraints::{
+        ReplayFactoredFailureOperation, ReplaySoakEventOrigin,
+        capture_replay_soak_test_events, with_intentional_replay_soak_test_injection,
+    };
 
     const FAILURE: ReplayFactoredShadowFailure = ReplayFactoredShadowFailure::AllocationFailed;
 
@@ -2791,20 +2823,22 @@ mod rcpf_c3a_retry_tests {
     fn rcpf_c3a_failed_attempt_is_discarded_before_fresh_legacy_retry() {
         let mut authorities = Vec::new();
         let mut next_identity = 0usize;
-        let output = run_replay_compilation_attempt(|authority| {
-            authorities.push(authority);
-            let identity = next_identity;
-            next_identity += 1;
-            let terminal_failure = (identity == 0).then_some(FAILURE);
-            let state = if identity == 0 {
-                vec!["failed-attempt-only"]
-            } else {
-                vec!["clean-legacy-output"]
-            };
-            Ok(ReplayCompilationAttempt::completed(
-                (identity, state),
-                terminal_failure,
-            ))
+        let output = with_intentional_replay_soak_test_injection(|| {
+            run_replay_compilation_attempt(|authority| {
+                authorities.push(authority);
+                let identity = next_identity;
+                next_identity += 1;
+                let terminal_failure = (identity == 0).then_some(FAILURE);
+                let state = if identity == 0 {
+                    vec!["failed-attempt-only"]
+                } else {
+                    vec!["clean-legacy-output"]
+                };
+                Ok(ReplayCompilationAttempt::completed(
+                    (identity, state),
+                    terminal_failure,
+                ))
+            })
         })
         .expect("the legacy rollback attempt completes");
 
@@ -2823,13 +2857,15 @@ mod rcpf_c3a_retry_tests {
     #[test]
     fn rcpf_c3a_retry_failure_is_a_typed_hard_error() {
         let mut attempt_count = 0usize;
-        let error = run_replay_compilation_attempt::<()>(|_| {
-            attempt_count += 1;
-            if attempt_count == 1 {
-                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
-            } else {
-                Err(LoadedFilesError::MissingRoot)
-            }
+        let error = with_intentional_replay_soak_test_injection(|| {
+            run_replay_compilation_attempt::<()>(|_| {
+                attempt_count += 1;
+                if attempt_count == 1 {
+                    Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
+                } else {
+                    Err(LoadedFilesError::MissingRoot)
+                }
+            })
         })
         .expect_err("an unavailable clean retry is terminal");
 
@@ -2885,15 +2921,20 @@ mod rcpf_c3a_retry_tests {
             .expect("the clean legacy control compiles");
         assert_eq!(clean_legacy.terminal_failure, None);
 
-        let mut authorities = Vec::new();
-        let mut injections = 0usize;
-        let retried = run_replay_compilation_attempt(|authority| {
-            authorities.push(authority);
-            let inject_quarantine = matches!(authority, ReplayReadAuthority::Factored);
-            injections += usize::from(inject_quarantine);
-            lower_quarantine_fixture_once(&loaded, authority, inject_quarantine)
-        })
-        .expect("the quarantined factored attempt retries cleanly");
+        let ((retried, authorities, injections), telemetry) = capture_replay_soak_test_events(|| {
+            with_intentional_replay_soak_test_injection(|| {
+                let mut authorities = Vec::new();
+                let mut injections = 0usize;
+                let retried = run_replay_compilation_attempt(|authority| {
+                    authorities.push(authority);
+                    let inject_quarantine = matches!(authority, ReplayReadAuthority::Factored);
+                    injections += usize::from(inject_quarantine);
+                    lower_quarantine_fixture_once(&loaded, authority, inject_quarantine)
+                })
+                .expect("the quarantined factored attempt retries cleanly");
+                (retried, authorities, injections)
+            })
+        });
 
         assert_eq!(injections, 1);
         assert_eq!(
@@ -2919,6 +2960,24 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(clean_snapshot.lowering_errors.len(), 1);
         assert_eq!(clean_snapshot.diagnostics.diagnostics.len(), 1);
         assert_eq!(retry_snapshot, clean_snapshot);
+        assert_eq!(
+            telemetry.terminal_failures(
+                ReplaySoakEventOrigin::IntentionalTestInjection,
+                ReplayFactoredFailureOperation::Read,
+            ),
+            1,
+        );
+        assert_eq!(
+            telemetry.legacy_rollback_entries(
+                ReplaySoakEventOrigin::IntentionalTestInjection,
+            ),
+            1,
+        );
+        assert_eq!(
+            telemetry.factored_read_errors(ReplaySoakEventOrigin::IntentionalTestInjection),
+            1,
+        );
+        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
     }
 
     fn lower_quarantine_fixture_once(
@@ -2926,7 +2985,6 @@ mod rcpf_c3a_retry_tests {
         authority: ReplayReadAuthority,
         inject_quarantine: bool,
     ) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
-        let mut injected_failure = None;
         let mut consumer = |lowerer: &mut BodyLowerer| {
             if inject_quarantine {
                 assert_eq!(authority, ReplayReadAuthority::Factored);
@@ -2935,18 +2993,24 @@ mod rcpf_c3a_retry_tests {
                     crate::constraints::ConstraintEpoch::default(),
                     "inject only after source lowering has admitted real constraints"
                 );
-                injected_failure = Some(FAILURE);
+                lowerer
+                    .session
+                    .infer
+                    .constraints()
+                    .inject_replay_factored_read_failure_for_test(FAILURE);
             }
         };
         let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, authority)?;
         let ReplayCompilationAttempt {
             output: (output, ()),
             terminal_failure,
+            terminal_failure_recorded,
         } = attempt;
-        Ok(ReplayCompilationAttempt::completed(
+        Ok(ReplayCompilationAttempt {
             output,
-            terminal_failure.or(injected_failure),
-        ))
+            terminal_failure,
+            terminal_failure_recorded,
+        })
     }
 
     #[derive(Debug, PartialEq, Eq)]

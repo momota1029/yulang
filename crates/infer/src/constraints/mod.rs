@@ -14,6 +14,7 @@ pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
 mod portable_explain;
 mod replay_factored;
+mod replay_soak;
 mod row_effect;
 #[cfg(test)]
 mod tests;
@@ -38,6 +39,17 @@ use replay_factored::{
     ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
 };
 pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
+#[cfg(test)]
+pub(crate) use replay_soak::{
+    ReplaySoakEventOrigin, capture_replay_soak_test_events,
+    mark_next_replay_soak_failure_as_intentional,
+    with_intentional_replay_soak_test_injection,
+};
+pub(crate) use replay_soak::{
+    ReplayFactoredFailureOperation, record_legacy_rollback_entry,
+    record_replay_factored_failure,
+};
+use replay_soak::ensure_replay_soak_telemetry_header;
 
 #[cfg(test)]
 pub(crate) use mutation::MethodRoleMutation;
@@ -1132,7 +1144,10 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         match self.eval_record(record) {
             Ok(result) => result,
             Err(failure) => {
-                self.machine.mark_replay_factored_failure(failure);
+                self.machine.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 false
             }
         }
@@ -1564,7 +1579,10 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         match self.eval_record(record) {
             Ok(result) => result,
             Err(failure) => {
-                self.machine.mark_replay_factored_failure(failure);
+                self.machine.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 false
             }
         }
@@ -1789,7 +1807,10 @@ impl ConstraintMachine {
         let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 return;
             }
         };
@@ -2066,6 +2087,7 @@ mod rcpf_d2c_2b_tests {
         };
         let before = publication_state(&machine);
         let journal = machine.activate_method_role_mutations();
+        mark_next_replay_soak_failure_as_intentional();
         machine.apply_scheme_projection_mutation(SchemeProjectionMutation::ProofsChanged {
             lower_record,
             previous_proofs: None,

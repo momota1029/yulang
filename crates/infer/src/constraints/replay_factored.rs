@@ -584,6 +584,7 @@ impl ParentSetArena {
     fn maybe_fail_reservation(&mut self) -> ReplayFactoredResult<()> {
         #[cfg(test)]
         if std::mem::take(&mut self.fail_next_reservation) {
+            super::mark_next_replay_soak_failure_as_intentional();
             return Err(ReplayFactoredShadowFailure::AllocationFailed);
         }
         Ok(())
@@ -772,6 +773,7 @@ impl NonReplayClaimParentStore {
             }
             #[cfg(test)]
             if std::mem::take(&mut self.fail_next_reservation) {
+                super::mark_next_replay_soak_failure_as_intentional();
                 return Err(ReplayFactoredShadowFailure::AllocationFailed);
             }
             parents
@@ -783,6 +785,7 @@ impl NonReplayClaimParentStore {
 
         #[cfg(test)]
         if std::mem::take(&mut self.fail_next_reservation) {
+            super::mark_next_replay_soak_failure_as_intentional();
             return Err(ReplayFactoredShadowFailure::AllocationFailed);
         }
         self.by_constraint
@@ -922,6 +925,7 @@ impl ReplayResultSummary {
         };
         #[cfg(test)]
         if std::mem::take(&mut self.fail_next_source_reservation) {
+            super::mark_next_replay_soak_failure_as_intentional();
             return Err(ReplayFactoredShadowFailure::AllocationFailed);
         }
         self.first_qualified_parent_source_by_root
@@ -1084,6 +1088,7 @@ impl ReplayResultSummary {
                 .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
             #[cfg(test)]
             if std::mem::take(&mut self.fail_next_result_root_reservation) {
+                super::mark_next_replay_soak_failure_as_intentional();
                 return Err(ReplayFactoredShadowFailure::AllocationFailed);
             }
             if new_result {

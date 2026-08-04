@@ -41,6 +41,7 @@ fn rcpf_d2c_should_fail_deferred_evaluation() -> bool {
         };
         if remaining == 1 {
             fail_at.set(None);
+            mark_next_replay_soak_failure_as_intentional();
             true
         } else {
             fail_at.set(Some(remaining - 1));
@@ -1459,21 +1460,30 @@ impl ConstraintMachine {
         let legacy = match legacy {
             Ok(legacy) => legacy,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Oracle,
+                );
                 return;
             }
         };
         let factored = match factored {
             Ok(factored) => factored,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Oracle,
+                );
                 return;
             }
         };
         if legacy != factored {
-            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::OracleMismatch(
-                ReplayFactoredOracleMismatch::DerivedReplayLineage,
-            ));
+            self.mark_replay_factored_failure(
+                ReplayFactoredShadowFailure::OracleMismatch(
+                    ReplayFactoredOracleMismatch::DerivedReplayLineage,
+                ),
+                ReplayFactoredFailureOperation::Oracle,
+            );
         }
     }
 
@@ -1703,6 +1713,7 @@ impl ConstraintMachine {
     fn try_d4_pre_consumer_query(&self) -> ReplayFactoredResult<()> {
         #[cfg(test)]
         if RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY.with(|fail| fail.replace(false)) {
+            mark_next_replay_soak_failure_as_intentional();
             return Err(ReplayFactoredShadowFailure::AllocationFailed);
         }
         Ok(())
@@ -2183,7 +2194,10 @@ impl ConstraintMachine {
     #[cfg(any(test, debug_assertions))]
     fn observe_factored_lower_projection_result(&self, result: ReplayFactoredResult<()>) {
         if let Err(failure) = result {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Oracle,
+            );
         }
     }
 
@@ -2305,7 +2319,10 @@ impl ConstraintMachine {
         if let Err(failure) =
             self.try_project_factored_replay_clause_parents(result, lower_record, parents)
         {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Write,
+            );
         }
     }
 
@@ -2317,6 +2334,7 @@ impl ConstraintMachine {
     ) -> ReplayFactoredResult<()> {
         #[cfg(test)]
         if RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.replace(false)) {
+            mark_next_replay_soak_failure_as_intentional();
             return Err(ReplayFactoredShadowFailure::AllocationFailed);
         }
         self.replay_clause_projection.try_project_replay_parents(
@@ -2412,7 +2430,10 @@ impl ConstraintMachine {
             return;
         }
         if let Err(failure) = self.try_compare_factored_replay_event_boundary(result) {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Oracle,
+            );
         }
     }
 
@@ -2891,7 +2912,10 @@ impl ConstraintMachine {
             let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
                 Ok(intent) => intent,
                 Err(failure) => {
-                    self.mark_replay_factored_failure(failure);
+                    self.mark_replay_factored_failure(
+                        failure,
+                        ReplayFactoredFailureOperation::Read,
+                    );
                     return;
                 }
             };
@@ -2972,7 +2996,10 @@ impl ConstraintMachine {
         let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 return;
             }
         };
@@ -3139,7 +3166,10 @@ impl ConstraintMachine {
                 parents,
                 &independent_supports,
             ) {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
             }
         }
         publication_fence
@@ -3222,7 +3252,10 @@ impl ConstraintMachine {
         let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 return;
             }
         };
@@ -3248,7 +3281,10 @@ impl ConstraintMachine {
             return;
         }
         if let Err(failure) = fence.try_push(intent) {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Write,
+            );
         }
     }
 
@@ -3262,13 +3298,19 @@ impl ConstraintMachine {
         }
         #[cfg(test)]
         if rcpf_d2c_should_fail_deferred_evaluation() {
-            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::AllocationFailed);
+            self.mark_replay_factored_failure(
+                ReplayFactoredShadowFailure::AllocationFailed,
+                ReplayFactoredFailureOperation::Read,
+            );
             return;
         }
         let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 return;
             }
         };
@@ -3291,13 +3333,19 @@ impl ConstraintMachine {
         }
         #[cfg(test)]
         if rcpf_d2c_should_fail_deferred_evaluation() {
-            self.mark_replay_factored_failure(ReplayFactoredShadowFailure::AllocationFailed);
+            self.mark_replay_factored_failure(
+                ReplayFactoredShadowFailure::AllocationFailed,
+                ReplayFactoredFailureOperation::Read,
+            );
             return;
         }
         let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Read,
+                );
                 return;
             }
         };
@@ -3327,7 +3375,10 @@ impl ConstraintMachine {
             .non_replay_claim_parents_by_constraint
             .try_admit(result, parent)
         {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Write,
+            );
         }
     }
 
@@ -3343,7 +3394,10 @@ impl ConstraintMachine {
             .replay_result_summary
             .try_record_first_qualified_parent_source(result, parent, &self.bounds)
         {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Write,
+            );
         }
     }
 
@@ -4075,7 +4129,10 @@ impl ConstraintMachine {
                 },
             )
         {
-            self.mark_replay_factored_failure(failure);
+            self.mark_replay_factored_failure(
+                failure,
+                ReplayFactoredFailureOperation::Write,
+            );
         }
         if factored_admission && self.replay_factored_terminal_failure().is_some() {
             return;
@@ -4156,13 +4213,19 @@ impl ConstraintMachine {
                         clause_projection_parents,
                     )
                 {
-                    self.mark_replay_factored_failure(failure);
+                    self.mark_replay_factored_failure(
+                        failure,
+                        ReplayFactoredFailureOperation::Write,
+                    );
                     return ReplayResultSummaryDelta::default();
                 }
                 delta
             }
             Err(failure) => {
-                self.mark_replay_factored_failure(failure);
+                self.mark_replay_factored_failure(
+                    failure,
+                    ReplayFactoredFailureOperation::Write,
+                );
                 ReplayResultSummaryDelta::default()
             }
         }
@@ -7281,6 +7344,7 @@ mod mutation_tests {
                 machine.bounds.of(owner).unwrap().epoch(),
             );
             let journal = machine.activate_method_role_mutations();
+            mark_next_replay_soak_failure_as_intentional();
             match publication {
                 "qualified-parent" => {
                     let snapshot = ClaimQualifiedParentAdmissionSnapshot {
@@ -7758,6 +7822,7 @@ mod mutation_tests {
         assert!(shared.states.is_empty());
 
         assert_eq!(machine.replay_factored_terminal_failure(), None);
+        mark_next_replay_soak_failure_as_intentional();
         assert!(
             !machine.scheme_projection_record_is_included(record),
             "the terminal attempt returns an inert value that C3a will discard"
@@ -8406,6 +8471,7 @@ mod mutation_tests {
             .first_parent_by_root
             .clear();
 
+        mark_next_replay_soak_failure_as_intentional();
         register_factored_parent_snapshot(&mut fixture.machine, fixture.result, replay, &[parent]);
 
         assert_eq!(
@@ -11810,6 +11876,7 @@ mod mutation_tests {
                 .get_mut(&fixture.lower_record).unwrap().clear();
             fixture.machine.bounds.projection_proofs_by_lower_record
                 .get_mut(&fixture.lower_record).unwrap().clear();
+            mark_next_replay_soak_failure_as_intentional();
             fixture.machine.register_lower_projection_derivation(
                 fixture.lower_record, Some(fixture.result), BoundDerivation::Constraint(fixture.result),
             );
