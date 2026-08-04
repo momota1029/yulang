@@ -238,10 +238,68 @@ countによる「除去可能量」の定量化には、追加のtooling整備�
 実装設計・スライス分割はここでは行わない。次の段階として、
 まずMechanism 1の設計文書を別途起こすことを想定する。
 
+## 7. Mechanism 1 の完結と Mechanism 2 の追加調査結果（2026-08-04）
+
+### 7.1 Mechanism 1 は完結
+
+`notes/design/2026-08-04-mutable-reference-act-template-instantiation.md`
+のM1-0〜M1-9が全て着地・検証済み（commit `d32081e6`）。実測で
+`var`は27.139ms→0.237ms（約114倍）、`label_sub`は2.857ms→
+0.359ms（約8倍）まで改善し、sub-millisecond目標を達成した。
+詳細は同文書§7を参照。
+
+### 7.2 Mechanism 2: global alpha consequence census の結果
+
+本書§6.2で提案した「alpha正規化後のsemantic consequence count」
+instrumentationを実装し（`crates/infer/src/constraints/machine/
+global_alpha_census.rs`、commit `9cae9e4a`、test-only・
+production挙動変更なし）、RMW×3ケースで実測した。
+
+**分類結果**（926件のaccepted consequence、10,744件のpair
+candidate中）:
+
+| 分類 | 件数 |
+|---|---:|
+| exact duplicate/trivial | 9,818 |
+| locally isomorphic だが globally distinct | 898 |
+| globally alpha-equivalent | **0** |
+| genuinely novel | 28 |
+
+このprojectが既に信頼している`interface_oracle`のalpha同値機構
+との parity check は428,275件比較して不一致0件——censusの判定
+自体は既存の信頼できる機構と一致しており、独自に緩いalpha同値を
+発明して重複を水増ししているわけではない。
+
+**結論**: acceptされた926件のうち、globally alpha-equivalentな
+ものは1件もなかった。898件の「局所的に同型」なconsequenceは、
+このprojectのalpha同値モデル（`interface_oracle`のtestが明示的に
+検証している「共有された変数とその分割は別物」という規則）の
+もとでは、実際には別々の変数共有関係を運んでおり、まとめることは
+安全なalpha-renamingではなく意味論そのものを変えてしまう。
+
+つまり、**現行の信頼できるalpha同値意味論のもとでは、RMW連鎖の
+コスト増加は除去可能な重複ではなく、必要な仕事に見える**。
+`notes/design/2026-07-16-constraint-replay-dedup-investigation.md`
+が警告していた「過去の簡略化がexported schemeを壊した」という
+懸念が、今回も実測で裏付けられた形になる。
+
+### 7.3 今後の方向性（Mechanism 2、未着手）
+
+dedup／簡略化という角度での対処は、少なくとも今回のalpha視点
+からは根拠を得られなかった。今後の対処を検討するなら、方向性は
+「重複を消す」ではなく別の角度になる可能性が高い——例えば
+invariant reference/effect hubがboundを蓄積していく構造自体を
+見直し、そもそも組み合わせなければならないpair数を数学的に
+減らす設計（本書§6.2で触れた「fresh instanceの扱いを変える」
+に近い）。これは新たな設計判断であり、本書・本追記のいずれも
+その設計自体には着手していない。
+
 ---
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査を統合）
 
-本書は根本原因調査の記録であり、具体的な実装計画はまだ含まない。
-次段階（Mechanism 1の設計着手、Mechanism 2の追加調査着手）は
-ユーザへの確認を経てから進める。
+本書は根本原因調査の記録である。§7でMechanism 1の完結と
+Mechanism 2のglobal alpha census実測結果を追記した（2026-08-04）。
+Mechanism 2の具体的な対処設計は、本書の時点ではまだ着手していない
+——「重複除去」という角度が実測により否定された以上、次に進む
+なら新しい設計方針についてユーザへの確認を経てから行う。
