@@ -4089,6 +4089,13 @@ impl ConstraintMachine {
         parents: &[SideTaggedReplayClaim],
         materialize_existing_target: bool,
     ) {
+        assert!(
+            matches!(
+                self.replay_read_authority(),
+                ReplayReadAuthority::LegacyRollback(_)
+            ),
+            "the legacy-only replay-parent helper requires LegacyRollback authority"
+        );
         self.register_replay_claim_parents_with_factored_drafts(
             result,
             replay,
@@ -5131,6 +5138,13 @@ impl ConstraintMachine {
 
     #[cfg(test)]
     fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
+        assert!(
+            matches!(
+                self.replay_read_authority(),
+                ReplayReadAuthority::LegacyRollback(_)
+            ),
+            "the legacy-only replay-action helper requires LegacyRollback authority"
+        );
         self.apply_bound_replay_actions_impl(actions, None)
     }
 
@@ -5315,6 +5329,13 @@ impl ConstraintMachine {
         duplicates: BoundReplayActions,
         trivial: BoundReplayActions,
     ) {
+        assert!(
+            matches!(
+                self.replay_read_authority(),
+                ReplayReadAuthority::LegacyRollback(_)
+            ),
+            "the legacy-only prefiltered-replay helper requires LegacyRollback authority"
+        );
         self.apply_prefiltered_replay_provenance_impl(duplicates, trivial, None);
     }
 
@@ -5877,6 +5898,10 @@ impl ConstraintMachine {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    fn legacy_rollback_test_authority() -> ReplayReadAuthority {
+        ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed)
+    }
 
     fn replay_plan_actions(replay: &BoundReplayPlan) -> impl Iterator<Item = &BoundReplayAction> {
         replay
@@ -8690,7 +8715,8 @@ mod mutation_tests {
     #[test]
     fn rcpf_event_oracle_is_opt_in_and_shadow_writes_do_not_interfere() {
         let mut shadow = cdm_replay_claim_fixture();
-        let mut legacy = cdm_replay_claim_fixture();
+        let mut legacy =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         shadow.machine.enable_replay_factored_event_oracle();
         let mut epoch_sequence = Vec::new();
 
@@ -8890,7 +8916,8 @@ mod mutation_tests {
     #[test]
     fn rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop() {
         let mut shadow = cdm_replay_claim_fixture();
-        let mut legacy = cdm_replay_claim_fixture();
+        let mut legacy =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let projection_claims_before = shadow
             .machine
             .bounds
@@ -8960,7 +8987,8 @@ mod mutation_tests {
 
     fn rcpf_c3b_replay_parent_admission_census(parent_count: usize) -> (usize, usize) {
         assert!(parent_count > 0);
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -9080,7 +9108,8 @@ mod mutation_tests {
 
     #[test]
     fn replay_claim_parent_dedup_keeps_each_exact_replay_carrier() {
-        let mut machine = ConstraintMachine::new();
+        let mut machine =
+            ConstraintMachine::new_with_replay_read_authority(legacy_rollback_test_authority());
         let source = TypeVar(0);
         let target = TypeVar(1);
         let lower = machine.alloc_pos(Pos::Var(source));
@@ -9160,7 +9189,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_a_9_1_current_eager_path_matches_bulk_oracle() {
-        let mut current = cdm_replay_claim_fixture();
+        let mut current =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = current.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             current
@@ -9175,7 +9205,8 @@ mod mutation_tests {
             true,
         );
 
-        let mut oracle = cdm_replay_claim_fixture();
+        let mut oracle =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = oracle.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             oracle
@@ -9202,7 +9233,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_a_9_4_independent_then_claimed_keeps_both_occurrences() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let independent = fixture.replay(ReplayRule::LowerBoundAdded);
         let bootstrap_claimed = fixture.replay(ReplayRule::UpperBoundAdded);
         assert_eq!(
@@ -9272,7 +9304,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let first = fixture.replay(ReplayRule::LowerBoundAdded);
         let second = fixture.replay(ReplayRule::UpperBoundAdded);
         assert_eq!(
@@ -9425,7 +9458,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -10218,7 +10252,8 @@ mod mutation_tests {
     #[test]
     #[should_panic(expected = "qualified carrier index diverged from claim-parent linear scan")]
     fn cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -10248,7 +10283,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let source = TypeVar(60);
         let target = TypeVar(61);
         let lower = fixture.machine.alloc_pos(Pos::Var(source));
@@ -10289,7 +10325,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -10318,7 +10355,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::UpperBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -10372,7 +10410,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_structural_admission_emits_structural_carrier_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -10425,7 +10464,8 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_one_sided_lower_emits_bound_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let target = TypeVar(63);
         let lower = fixture
             .machine
@@ -10597,7 +10637,8 @@ mod mutation_tests {
     }
 
     fn dpn_linear_registration_census(link_events: usize) -> DpnRegistrationCensus {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let baseline = dpn_registration_census(&fixture.machine);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -10862,7 +10903,8 @@ mod mutation_tests {
     }
 
     fn cdm_carrier_order_snapshot(order: [ReplayRule; 2]) -> CdmCarrierOrderSnapshot {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         for rule in order {
             let replay = fixture.replay(rule);
             assert_eq!(
@@ -10995,7 +11037,8 @@ mod mutation_tests {
     }
 
     fn cdm_linear_materialization_census(link_events: usize) -> CdmMaterializationCensus {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -11052,7 +11095,8 @@ mod mutation_tests {
     fn cdm_linear_qualified_carrier_index_census(
         link_events: usize,
     ) -> (CdmMaterializationCensus, usize) {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let baseline = cdm_materialization_census(&fixture);
         let indexed_baseline = fixture
             .machine
@@ -11342,9 +11386,11 @@ mod mutation_tests {
                 match event {
                     Event::Replay => {
                         assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
-                        self.machine.register_replay_claim_parents(
-                            self.result, self.replay,
-                            &[SideTaggedReplayClaim { claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower }], true,
+                        let parent = SideTaggedReplayClaim {
+                            claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower,
+                        };
+                        register_factored_parent_snapshot(
+                            &mut self.machine, self.result, self.replay, &[parent],
                         );
                     }
                     Event::NonReplay => {
