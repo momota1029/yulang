@@ -2347,6 +2347,67 @@ impl ConstraintMachine {
         )
     }
 
+    fn try_factored_replay_clause_link_is_registered(
+        &self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        root: UpperReplayClaimId,
+        replay: BinaryReplayDerivation,
+        clause: RecordProofClause,
+    ) -> ReplayFactoredResult<bool> {
+        let Some(occurrence_id) = self.replay_occurrences.occurrence_id(ReplayOccurrenceKey {
+            result,
+            carrier: replay,
+        }) else {
+            return Ok(false);
+        };
+        let clause_key = TypeBounds::record_proof_clause_key(lower_record, clause);
+        let Some(clause_id) = self
+            .bounds
+            .record_proof_clause_by_key
+            .get(&clause_key)
+            .copied()
+        else {
+            return Ok(false);
+        };
+        self.replay_clause_projection.try_has_exact_replay_link(
+            lower_record,
+            occurrence_id,
+            root,
+            clause_id,
+            &self.replay_parent_sets,
+            &self.replay_occurrences,
+        )
+    }
+
+    fn try_authoritative_claim_parent_clause_link_is_registered(
+        &self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        parent: ClaimQualifiedParent,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> ReplayFactoredResult<bool> {
+        match (self.replay_read_authority(), parent, support) {
+            (
+                ReplayReadAuthority::Factored,
+                ClaimQualifiedParent::ReplayConstraint { replay, .. },
+                SchemeProjectionProofSupport::Claimed(root),
+            ) => self.try_factored_replay_clause_link_is_registered(
+                result,
+                lower_record,
+                root,
+                replay,
+                clause,
+            ),
+            _ => Ok(self.bounds.record_proof_clause_link_is_registered(
+                lower_record,
+                support,
+                clause,
+            )),
+        }
+    }
+
     #[cfg(any(test, debug_assertions))]
     #[allow(
         dead_code,
@@ -7918,6 +7979,29 @@ mod mutation_tests {
             factored_replay_clause_link_oracle(&fixture.machine).len(),
             1
         );
+        let replay_clause = RecordProofClause::ReplayConjunction {
+            carrier: first,
+            lower_premise: first.lower,
+            upper_premise: first.upper,
+        };
+        let replay_parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: root,
+            parent_side: ReplayClaimParentSide::Lower,
+            replay: first,
+        };
+        assert_eq!(
+            fixture
+                .machine
+                .try_authoritative_claim_parent_clause_link_is_registered(
+                    fixture.result,
+                    fixture.lower_record,
+                    replay_parent,
+                    SchemeProjectionProofSupport::Claimed(root),
+                    replay_clause,
+                ),
+            Ok(true),
+            "the Factored A1 predicate reads the occurrence parent sets"
+        );
         let single_root = fixture
             .machine
             .try_factored_upper_materialization_full(fixture.upper_record, fixture.result)
@@ -7933,6 +8017,19 @@ mod mutation_tests {
             TypeVar(90),
             endpoint,
             ConstraintRecordId(30_000),
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .try_factored_replay_clause_link_is_registered(
+                    fixture.result,
+                    fixture.lower_record,
+                    late_root,
+                    first,
+                    replay_clause,
+                ),
+            Ok(false),
+            "an occurrence does not acquire a link before the root delta commits"
         );
         apply_factored_canonical_duplicate_snapshot(
             &mut fixture.machine,
@@ -7956,6 +8053,19 @@ mod mutation_tests {
         assert_eq!(
             factored_replay_clause_link_oracle(&fixture.machine).len(),
             2
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .try_factored_replay_clause_link_is_registered(
+                    fixture.result,
+                    fixture.lower_record,
+                    late_root,
+                    first,
+                    replay_clause,
+                ),
+            Ok(true),
+            "the exact predicate observes a late root without another clause"
         );
         assert!(
             fixture

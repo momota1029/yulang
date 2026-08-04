@@ -1153,6 +1153,47 @@ pub(super) struct ReplayClauseProjection {
 }
 
 impl ReplayClauseProjection {
+    pub(super) fn has_attributed_claim_support(
+        &self,
+        lower_record: BoundRecordId,
+        root: UpperReplayClaimId,
+    ) -> bool {
+        self.replay_attributed_claim_supports
+            .contains(&(lower_record, root))
+    }
+
+    pub(super) fn try_has_exact_replay_link(
+        &self,
+        lower_record: BoundRecordId,
+        occurrence_id: ReplayOccurrenceId,
+        root: UpperReplayClaimId,
+        clause: RecordProofClauseId,
+        parent_sets: &ParentSetArena,
+        occurrences: &ReplayOccurrenceStore,
+    ) -> ReplayFactoredResult<bool> {
+        let Some(projected_clause) = self
+            .clause_by_record_and_occurrence
+            .get(&(lower_record, occurrence_id))
+            .copied()
+        else {
+            return Ok(false);
+        };
+        if projected_clause != clause {
+            return Err(
+                ReplayFactoredShadowFailure::ReplayClauseProjectionMismatch {
+                    record: lower_record,
+                    occurrence: occurrence_id,
+                    expected: projected_clause,
+                    actual: clause,
+                },
+            );
+        }
+        let occurrence = occurrences.occurrence(occurrence_id)?;
+        let lower_contains = parent_sets.contains(occurrence.lower_parents, root)?;
+        let upper_contains = parent_sets.contains(occurrence.upper_parents, root)?;
+        Ok(lower_contains || upper_contains)
+    }
+
     pub(super) fn try_project_replay_parents(
         &mut self,
         result: ConstraintRecordId,
