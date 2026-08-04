@@ -6,7 +6,10 @@ use crate::module_table::nominal_act_identity::{
     NominalActInstanceSubstitution, NominalActTemplateIdentity, NominalActTypeRole,
     NominalActValueMemberKind,
 };
-use poly::expr::Def;
+use crate::module_table::typed_act_template::{
+    StableExternalReferenceKey, StableReceiverKind, TypedActTemplate,
+};
+use poly::expr::{Def, Expr};
 use rustc_hash::FxHashSet;
 
 const VAR_TEMPLATE: &str = concat!(
@@ -198,6 +201,216 @@ fn m1_1_records_complete_var_and_label_sub_nominal_shell_substitutions() {
     let prefix = std_prefix();
     let (warm, _) = warm_case(&prefix, &source);
     assert_complete_nominal_shell_recording(&warm);
+}
+
+#[test]
+fn m1_2_captures_and_substitutes_closed_var_and_label_sub_scheme_graphs() {
+    let (output, _) = cold_case(&mixed_source(2));
+    assert_typed_scheme_template_round_trip(
+        &output,
+        output.modules.synthetic_var_act_copy_ids(),
+        &[vec!["std", "control", "var", "ref"]],
+    );
+    assert_typed_scheme_template_round_trip(
+        &output,
+        output.modules.synthetic_sub_label_act_copy_ids(),
+        &[vec!["std", "control", "flow", "sub"]],
+    );
+
+    // Scheme capture emits nominal/effect paths today. These additional stable variants reserve
+    // body-reference keys without smuggling arena-local DefIds into the M1-3 format.
+    let expected_body_external_keys = FxHashSet::from_iter([
+        StableExternalReferenceKey::Method {
+            owner: vec!["std".into(), "control".into(), "var".into(), "ref".into()],
+            name: "update".into(),
+            receiver: StableReceiverKind::Value,
+        },
+        StableExternalReferenceKey::Operation {
+            family: vec![
+                "std".into(),
+                "control".into(),
+                "var".into(),
+                "ref_update".into(),
+            ],
+            name: "update".into(),
+        },
+        StableExternalReferenceKey::Operation {
+            family: vec!["std".into(), "control".into(), "flow".into(), "sub".into()],
+            name: "return".into(),
+        },
+    ]);
+    let ref_type = type_at_path(&output, &["std", "control", "var", "ref"]);
+    let ref_update_type = type_at_path(&output, &["std", "control", "var", "ref_update"]);
+    let sub_type = type_at_path(&output, &["std", "control", "flow", "sub"]);
+    let ref_update = output.modules.value_decls(
+        output.modules.type_companion(ref_update_type.id).unwrap(),
+        &Name("update".into()),
+    )[0]
+    .def;
+    let sub_return = output.modules.value_decls(
+        output.modules.type_companion(sub_type.id).unwrap(),
+        &Name("return".into()),
+    )[0]
+    .def;
+    let ref_update_method = output
+        .modules
+        .type_methods(ref_type.id)
+        .iter()
+        .find(|method| method.name == Name("update".into()))
+        .unwrap()
+        .def;
+    let actual_body_external_keys = FxHashSet::from_iter([
+        output
+            .modules
+            .stable_external_reference_key(ref_update_method)
+            .unwrap(),
+        output
+            .modules
+            .stable_external_reference_key(ref_update)
+            .unwrap(),
+        output
+            .modules
+            .stable_external_reference_key(sub_return)
+            .unwrap(),
+    ]);
+    assert_eq!(actual_body_external_keys, expected_body_external_keys);
+    assert!(
+        output
+            .session
+            .poly
+            .refs()
+            .iter()
+            .any(|target| *target == Some(ref_update))
+    );
+    assert!(output.session.poly.exprs().iter().any(|expr| {
+        let Expr::Catch(_, arms) = expr else {
+            return false;
+        };
+        arms.iter().any(|arm| {
+            arm.operation
+                .as_ref()
+                .is_some_and(|operation| operation.def == Some(sub_return))
+        })
+    }));
+}
+
+fn type_at_path(output: &BodyLowering, path: &[&str]) -> ModuleTypeDecl {
+    let path = path
+        .iter()
+        .map(|segment| Name((*segment).into()))
+        .collect::<Vec<_>>();
+    output
+        .modules
+        .type_path_at(
+            output.modules.root_id(),
+            &path,
+            ModuleOrder::from_index(u32::MAX),
+        )
+        .found()
+        .expect("stable external type path")
+}
+
+fn assert_typed_scheme_template_round_trip(
+    output: &BodyLowering,
+    destinations: Vec<TypeDeclId>,
+    expected_external_paths: &[Vec<&str>],
+) {
+    assert_eq!(destinations.len(), 2);
+    let identity = template_for_instance(output, destinations[0]);
+    let template = TypedActTemplate::capture(identity, &output.session.poly)
+        .expect("finalized template schemes must form a closed detached graph");
+    assert_eq!(template.members.len(), identity.value_members.len());
+    assert!(template.types.node_len() > 0);
+    assert!(template.types.node_len() < output.session.poly.typ.node_len());
+    for expected in expected_external_paths {
+        let expected = StableExternalReferenceKey::NominalPath(
+            expected
+                .iter()
+                .map(|segment| (*segment).to_string())
+                .collect(),
+        );
+        assert!(
+            template.external_references.contains(&expected),
+            "missing stable external type reference {expected:?}; actual={:?}",
+            template.external_references,
+        );
+    }
+
+    for destination in destinations {
+        let substitution = output
+            .modules
+            .nominal_act_instance_substitution(destination)
+            .expect("M1-1 substitution");
+        let instantiated = template.apply(substitution).expect("shadow scheme import");
+        assert_eq!(instantiated.destination_root_act, destination);
+        assert_eq!(instantiated.members.len(), identity.value_members.len());
+        for member in &instantiated.members {
+            let Some(Def::Let {
+                scheme: Some(actual),
+                ..
+            }) = output.session.poly.defs.get(member.destination)
+            else {
+                panic!("destination member must retain its legacy finalized scheme");
+            };
+            assert_eq!(
+                format_scheme_with_stable_external_keys(
+                    &instantiated.types,
+                    &member.scheme,
+                    &template.external_references,
+                ),
+                format_scheme_with_stable_external_keys(
+                    &output.session.poly.typ,
+                    actual,
+                    &template.external_references,
+                ),
+                "shadow scheme diverged for {:?}",
+                member.key,
+            );
+        }
+    }
+}
+
+fn format_scheme_with_stable_external_keys(
+    types: &poly::types::TypeArena,
+    scheme: &poly::types::Scheme,
+    external_references: &FxHashSet<StableExternalReferenceKey>,
+) -> String {
+    let external_nominal_paths = external_references
+        .iter()
+        .filter_map(|key| match key {
+            StableExternalReferenceKey::NominalPath(path) => Some(path),
+            StableExternalReferenceKey::ValuePath(_)
+            | StableExternalReferenceKey::Operation { .. }
+            | StableExternalReferenceKey::FieldMethod { .. }
+            | StableExternalReferenceKey::Method { .. }
+            | StableExternalReferenceKey::Constructor { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    let rewrite = |path: &[String]| {
+        let stable = external_nominal_paths
+            .iter()
+            .copied()
+            .find(|external| external.as_slice() == path)
+            .or_else(|| {
+                (path.len() == 1)
+                    .then(|| {
+                        external_nominal_paths
+                            .iter()
+                            .copied()
+                            .filter(|external| external.last() == path.first())
+                            .collect::<Vec<_>>()
+                    })
+                    .and_then(|matches| (matches.len() == 1).then(|| matches[0]))
+            });
+        stable
+            .map(|stable| {
+                std::iter::once("<external>".to_string())
+                    .chain(stable.iter().cloned())
+                    .collect()
+            })
+            .unwrap_or_else(|| path.to_vec())
+    };
+    poly::dump::format_scheme_with_path_rewriter(types, scheme, &rewrite)
 }
 
 fn assert_complete_nominal_shell_recording(output: &BodyLowering) {

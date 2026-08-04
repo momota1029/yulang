@@ -3,6 +3,7 @@ use super::*;
 mod compiled;
 pub(crate) mod nominal_act_identity;
 mod query;
+pub(crate) mod typed_act_template;
 
 impl ModuleTable {
     pub(super) fn new() -> Self {
