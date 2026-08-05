@@ -577,6 +577,21 @@ fn positive_aliases_within_scheme(
     out
 }
 
+#[cfg(test)]
+pub(crate) fn positive_aliases_within_scheme_for_cpk_test(
+    machine: &ConstraintMachine,
+    allowed: impl IntoIterator<Item = TypeVar>,
+    var: TypeVar,
+) -> Vec<TypeVar> {
+    positive_aliases_within_scheme(
+        machine,
+        &allowed.into_iter().collect(),
+        &mut FxHashMap::default(),
+        &mut FxHashSet::default(),
+        var,
+    )
+}
+
 fn alias_neutral_constraint(weights: &ConstraintWeights) -> bool {
     alias_neutral_weight(&weights.left.to_stack_weight())
 }

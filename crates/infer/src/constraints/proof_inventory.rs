@@ -78,7 +78,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-2's test-only legacy parity reconstruction adds two reviewed row-derivation reads.
     ("row_derivations", 55),
     ("generalized_schemes", 9),
-    ("generalized_witnesses", 10),
+    // Slice B's test-only four-consumer oracle invokes the reviewed generalized-witness reader.
+    ("generalized_witnesses", 11),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
     // CPK-6a adds one reviewed production-store scheme-instantiation writer read.
     ("scheme_instantiations", 18),

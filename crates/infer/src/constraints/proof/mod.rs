@@ -3619,6 +3619,156 @@ mod tests {
         );
     }
 
+    #[test]
+    fn cpk_gap_1_mixed_claim_fixture_matches_all_four_legacy_consumers_exactly() {
+        let (machine, endpoint, owner, _) =
+            ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let raw_records = machine
+            .bounds()
+            .of(owner)
+            .expect("fixture owner")
+            .generalized_projection_lowers()
+            .map(|(record, bound)| (record, bound.pos, bound.weights.clone()))
+            .collect::<Vec<_>>();
+        let legacy_entries = machine
+            .scheme_projectable_lowers(owner)
+            .map(|entry| {
+                (
+                    entry.record,
+                    entry.bound.pos,
+                    entry.bound.weights.clone(),
+                    entry.reason,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut round = ProjectionEvaluationRound::new();
+        let cpk_entries = raw_records
+            .iter()
+            .filter_map(|(record, pos, weights)| {
+                let decision = machine
+                    .proof_store
+                    .project_lower(&machine, *record, &mut round)
+                    .expect("mixed fixture has complete CPK projection metadata");
+                match decision {
+                    ProjectionDecision::Excluded => None,
+                    ProjectionDecision::Unclaimed => Some((
+                        *record,
+                        *pos,
+                        weights.clone(),
+                        SchemeProjectableLowerReason::Unclaimed,
+                    )),
+                    ProjectionDecision::Included { supports } => Some((
+                        *record,
+                        *pos,
+                        weights.clone(),
+                        SchemeProjectableLowerReason::Qualified {
+                            uncovered_claims: supports
+                                .uncovered_claims
+                                .iter()
+                                .map(|support| support.representative_claim)
+                                .collect(),
+                            independent_supports: supports.independent_supports,
+                        },
+                    )),
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            cpk_entries, legacy_entries,
+            "project_lower must preserve owner-internal record/bound/support order"
+        );
+
+        let (record, _, _, reason) = cpk_entries
+            .iter()
+            .find(|(_, pos, _, _)| {
+                matches!(machine.types().pos(*pos), Pos::Var(found) if *found == endpoint)
+            })
+            .expect("mixed fixture target record");
+        let SchemeProjectableLowerReason::Qualified {
+            uncovered_claims,
+            independent_supports,
+        } = reason
+        else {
+            panic!("mixed fixture target must be qualified");
+        };
+        let (decision, _) = project_lower_for_test(&machine, *record);
+        let ProjectionDecision::Included { supports } = decision.expect("complete CPK decision")
+        else {
+            panic!("mixed fixture target must be included");
+        };
+        assert_eq!(
+            supports
+                .uncovered_claims
+                .iter()
+                .map(|support| support.representative_claim)
+                .collect::<Vec<_>>(),
+            *uncovered_claims,
+        );
+        assert_eq!(supports.independent_supports, *independent_supports);
+        assert!(supports
+            .uncovered_claims
+            .windows(2)
+            .all(|pair| pair[0].coverage_root.0 < pair[1].coverage_root.0));
+
+        let compact = crate::compact::compact_type_var_for_scheme(&machine, owner);
+        assert_eq!(
+            compact,
+            crate::compact::compact_type_var(&machine, owner),
+            "every raw lower selected by CPK must produce the exact raw compact root"
+        );
+        let aliases = crate::generalize::positive_aliases_within_scheme_for_cpk_test(
+            &machine,
+            [endpoint],
+            owner,
+        );
+        assert_eq!(aliases, vec![endpoint]);
+
+        let generalized = crate::generalize::GeneralizedCompactRoot {
+            compact: crate::compact::CompactRoot::default(),
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        };
+        let (witnesses, completeness) =
+            crate::generalize::capture_generalized_witnesses(&machine, owner, &generalized);
+        assert_eq!(
+            completeness,
+            ProvenanceCompleteness::Incomplete,
+            "PUSP-C keeps whole-scheme completeness incomplete even when exact parents survive",
+        );
+        let expected_parents = supports
+            .uncovered_claims
+            .iter()
+            .map(|support| GeneralizationParent::BoundClaim {
+                bound: *record,
+                claim: support.representative_claim,
+            })
+            .chain(supports.independent_supports.iter().map(|carrier| {
+                GeneralizationParent::BoundProjectionProof {
+                    bound: *record,
+                    carrier: *carrier,
+                }
+            }))
+            .collect::<Vec<_>>();
+        for role in [
+            GeneralizedWitnessRole::LowerBound,
+            GeneralizedWitnessRole::ConstraintRelation,
+        ] {
+            let actual = witnesses
+                .iter()
+                .find(|draft| draft.path == GeneralizedTypePath::default() && draft.role == role)
+                .expect("mixed fixture root witness")
+                .incoming
+                .iter()
+                .flat_map(|edge| &edge.parents)
+                .copied()
+                .collect::<Vec<_>>();
+            assert_eq!(actual, expected_parents, "exact witness parent order for {role:?}");
+        }
+    }
+
     fn cpk_4_projection_record(
         machine: &mut ConstraintMachine,
         ordinal: u32,
