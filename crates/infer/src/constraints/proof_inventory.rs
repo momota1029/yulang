@@ -59,8 +59,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. CPK-6a adds one reviewed
-    // production-store projection writer read; it is not a new legacy consumer.
-    ("projection_proofs_by_lower_record", 47),
+    // production-store projection writer read; Slice B adds one reviewed test-only empty-ledger
+    // seed. Neither is a new production legacy consumer.
+    ("projection_proofs_by_lower_record", 48),
     ("scheme_projection_lower_records_by_root", 5),
     ("scheme_projection_lower_record_memberships", 4),
     ("record_proof_clauses", 6),
@@ -79,7 +80,7 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("row_derivations", 55),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle invokes the reviewed generalized-witness reader.
-    ("generalized_witnesses", 11),
+    ("generalized_witnesses", 12),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
     // CPK-6a adds one reviewed production-store scheme-instantiation writer read.
     ("scheme_instantiations", 18),

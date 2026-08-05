@@ -3769,6 +3769,247 @@ mod tests {
         }
     }
 
+    fn assert_single_lower_matches_all_four_legacy_consumers(
+        machine: &ConstraintMachine,
+        owner: TypeVar,
+        record: BoundRecordId,
+        expected: ProjectionDecision,
+    ) {
+        let (actual, _) = project_lower_for_test(machine, record);
+        assert_eq!(actual, Ok(expected.clone()));
+        let entries = machine.scheme_projectable_lowers(owner).collect::<Vec<_>>();
+        match &expected {
+            ProjectionDecision::Excluded => assert!(entries.is_empty()),
+            ProjectionDecision::Unclaimed => {
+                assert_eq!(entries.len(), 1);
+                assert_eq!(entries[0].record, record);
+                assert_eq!(entries[0].reason, SchemeProjectableLowerReason::Unclaimed);
+            }
+            ProjectionDecision::Included { supports } => {
+                assert_eq!(entries.len(), 1);
+                assert_eq!(entries[0].record, record);
+                assert_eq!(
+                    entries[0].reason,
+                    SchemeProjectableLowerReason::Qualified {
+                        uncovered_claims: supports
+                            .uncovered_claims
+                            .iter()
+                            .map(|support| support.representative_claim)
+                            .collect(),
+                        independent_supports: supports.independent_supports.clone(),
+                    }
+                );
+            }
+        }
+
+        if !matches!(expected, ProjectionDecision::Excluded) {
+            assert_eq!(
+                crate::compact::compact_type_var_for_scheme(machine, owner),
+                crate::compact::compact_type_var(machine, owner),
+            );
+        }
+        assert!(crate::generalize::positive_aliases_within_scheme_for_cpk_test(
+            machine,
+            std::iter::empty(),
+            owner,
+        )
+        .is_empty());
+
+        let generalized = crate::generalize::GeneralizedCompactRoot {
+            compact: crate::compact::CompactRoot::default(),
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        };
+        let (witnesses, _) =
+            crate::generalize::capture_generalized_witnesses(machine, owner, &generalized);
+        let actual_parents = witnesses
+            .iter()
+            .find(|draft| {
+                draft.path == GeneralizedTypePath::default()
+                    && draft.role == GeneralizedWitnessRole::LowerBound
+            })
+            .map(|draft| {
+                draft
+                    .incoming
+                    .iter()
+                    .flat_map(|edge| &edge.parents)
+                    .copied()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let expected_parents = match expected {
+            ProjectionDecision::Excluded => Vec::new(),
+            ProjectionDecision::Unclaimed => vec![GeneralizationParent::Bound(record)],
+            ProjectionDecision::Included { supports } => supports
+                .uncovered_claims
+                .into_iter()
+                .map(|support| GeneralizationParent::BoundClaim {
+                    bound: record,
+                    claim: support.representative_claim,
+                })
+                .chain(supports.independent_supports.into_iter().map(|carrier| {
+                    GeneralizationParent::BoundProjectionProof {
+                        bound: record,
+                        carrier,
+                    }
+                }))
+                .collect(),
+        };
+        assert_eq!(actual_parents, expected_parents);
+    }
+
+    fn record_test_origin(
+        machine: &mut ConstraintMachine,
+        record: BoundRecordId,
+        origin: OriginId,
+    ) {
+        machine.proof_store.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Bound(record)),
+            ProofCause::Bound(BoundDerivation::Origin(origin)),
+            vec![ProofParent::Origin(origin)],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_legacy_consumers() {
+        let mut no_ledger = cpk_oracle_machine();
+        let no_ledger_record = cpk_gap_1_projection_record(&mut no_ledger, 20);
+        let no_ledger_owner = no_ledger.bounds.record(no_ledger_record).unwrap().owner();
+        let before = (
+            no_ledger.proof_store.projection_supports.len(),
+            no_ledger.proof_store.projection_formulas.len(),
+        );
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &no_ledger,
+            no_ledger_owner,
+            no_ledger_record,
+            ProjectionDecision::Unclaimed,
+        );
+        assert_eq!(
+            before,
+            (
+                no_ledger.proof_store.projection_supports.len(),
+                no_ledger.proof_store.projection_formulas.len(),
+            ),
+            "the no-claim query must allocate no persistent proof state",
+        );
+
+        no_ledger
+            .bounds
+            .projection_proofs_by_lower_record
+            .insert(no_ledger_record, Vec::new());
+        no_ledger
+            .bounds
+            .scheme_projection_claimed_lower_owners
+            .insert(no_ledger_owner);
+        no_ledger
+            .proof_store
+            .projection_supports
+            .insert(no_ledger_record, Vec::new());
+        no_ledger
+            .proof_store
+            .projection_formulas
+            .insert(no_ledger_record, Vec::new());
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &no_ledger,
+            no_ledger_owner,
+            no_ledger_record,
+            ProjectionDecision::Unclaimed,
+        );
+
+        let mut standalone = cpk_oracle_machine();
+        let standalone_record = cpk_gap_1_projection_record(&mut standalone, 21);
+        let standalone_owner = standalone.bounds.record(standalone_record).unwrap().owner();
+        let origin = OriginId(50_021);
+        record_test_origin(&mut standalone, standalone_record, origin);
+        let carrier = ProjectionProofCarrier::Origin(origin);
+        let support = cpk_4_add_independent_support(&mut standalone, standalone_record, carrier);
+        standalone.register_cpk_projection_clause_for_test(
+            standalone_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &standalone,
+            standalone_owner,
+            standalone_record,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            },
+        );
+
+        let mut derived = cpk_oracle_machine();
+        let lower = derived.alloc_pos(Pos::Var(TypeVar(61_000)));
+        let upper = derived.alloc_neg(Neg::Var(TypeVar(61_001)));
+        derived.subtype(lower, upper, OriginId::unknown_internal());
+        let constraint = derived
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("derived-unary fixture constraint");
+        let derived_record = cpk_gap_1_projection_record(&mut derived, 22);
+        let derived_owner = derived.bounds.record(derived_record).unwrap().owner();
+        let origin = OriginId(50_022);
+        record_test_origin(&mut derived, derived_record, origin);
+        let carrier = ProjectionProofCarrier::Origin(origin);
+        let support = cpk_4_add_independent_support(&mut derived, derived_record, carrier);
+        derived.register_cpk_projection_clause_for_test(
+            derived_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: constraint,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(constraint),
+                },
+            ),
+        );
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &derived,
+            derived_owner,
+            derived_record,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            },
+        );
+
+        let mut incomplete = cpk_oracle_machine();
+        let incomplete_record = cpk_gap_1_projection_record(&mut incomplete, 23);
+        let incomplete_owner = incomplete.bounds.record(incomplete_record).unwrap().owner();
+        let carrier = ProjectionProofCarrier::Incomplete;
+        let support = cpk_4_add_independent_support(&mut incomplete, incomplete_record, carrier);
+        incomplete.register_cpk_projection_clause_for_test(
+            incomplete_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &incomplete,
+            incomplete_owner,
+            incomplete_record,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            },
+        );
+    }
+
     fn cpk_4_projection_record(
         machine: &mut ConstraintMachine,
         ordinal: u32,
