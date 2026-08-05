@@ -645,6 +645,25 @@ fn proof_occurrence_shadow_len() -> usize {
     SHADOW_STORE.with(|store| store.borrow().occurrences.len())
 }
 
+impl ProofOccurrenceStore {
+    fn record_occurrence(
+        &mut self,
+        result: ProofResult,
+        cause: ProofCause,
+        parents: Vec<ProofParent>,
+        completeness: ProvenanceCompleteness,
+    ) {
+        let event = self.occurrences.len();
+        self.occurrences.push(ProofOccurrence {
+            result,
+            cause,
+            parents,
+            event,
+            completeness,
+        });
+    }
+}
+
 #[cfg(test)]
 fn record_shadow_occurrence(
     result: ProofResult,
@@ -656,15 +675,9 @@ fn record_shadow_occurrence(
         return;
     }
     SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        let event = store.occurrences.len();
-        store.occurrences.push(ProofOccurrence {
-            result,
-            cause,
-            parents,
-            event,
-            completeness,
-        });
+        store
+            .borrow_mut()
+            .record_occurrence(result, cause, parents, completeness);
     });
 }
 
@@ -1571,12 +1584,10 @@ pub(super) fn record_reduction_route_shadow(
 
 #[cfg(test)]
 pub(crate) fn record_constraint_root_shadow(result: ConstraintRecordId, origin: OriginId) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::Root(origin),
-        vec![ProofParent::Origin(origin)],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_constraint_root(result, origin));
 }
 
 #[cfg(test)]
@@ -1584,17 +1595,12 @@ pub(crate) fn record_structural_shadow(
     result: ConstraintRecordId,
     derivation: StructuralDerivation,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::Structural(derivation),
-        vec![ProofParent::Semantic(SemanticFactRef::Constraint(
-            derivation.parent,
-        ))],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_structural(result, derivation));
 }
 
-#[cfg(test)]
 fn row_parent(parent: RowDerivationParent) -> ProofParent {
     match parent {
         RowDerivationParent::Constraint(id) => {
@@ -1614,13 +1620,10 @@ fn row_parent(parent: RowDerivationParent) -> ProofParent {
 
 #[cfg(test)]
 pub(crate) fn record_row_definition_shadow(id: RowDerivationId, derivation: RowDerivation) {
-    let parents = derivation.parents.iter().copied().map(row_parent).collect();
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
-        ProofCause::RowDefinition(derivation),
-        parents,
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_row_definition(id, derivation));
 }
 
 #[cfg(test)]
@@ -1628,17 +1631,12 @@ pub(crate) fn record_row_constraint_shadow(
     result: ConstraintRecordId,
     derivation: RowDerivationId,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::RowConstraint(derivation),
-        vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
-            derivation,
-        ))],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_row_constraint(result, derivation));
 }
 
-#[cfg(test)]
 fn bound_derivation_parents(derivation: &BoundDerivation) -> Vec<ProofParent> {
     match derivation {
         BoundDerivation::Constraint(id) => {
@@ -1658,22 +1656,187 @@ fn bound_derivation_parents(derivation: &BoundDerivation) -> Vec<ProofParent> {
     }
 }
 
+impl ProofOccurrenceStore {
+    pub(crate) fn record_constraint_root(
+        &mut self,
+        result: ConstraintRecordId,
+        origin: OriginId,
+    ) {
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::Root(origin),
+            vec![ProofParent::Origin(origin)],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_structural(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+    ) {
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::Structural(derivation),
+            vec![ProofParent::Semantic(SemanticFactRef::Constraint(
+                derivation.parent,
+            ))],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_row_definition(
+        &mut self,
+        id: RowDerivationId,
+        derivation: RowDerivation,
+    ) {
+        let parents = derivation.parents.iter().copied().map(row_parent).collect();
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
+            ProofCause::RowDefinition(derivation),
+            parents,
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_row_constraint(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+    ) {
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::RowConstraint(derivation),
+            vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
+                derivation,
+            ))],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_bound(&mut self, result: BoundRecordId, derivation: BoundDerivation) {
+        if matches!(
+            derivation,
+            BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
+        ) {
+            return;
+        }
+        let parents = bound_derivation_parents(&derivation);
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Bound(result)),
+            ProofCause::Bound(derivation),
+            parents,
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_bound_disposition(
+        &mut self,
+        id: BoundDispositionRecordId,
+        result: Option<BoundRecordId>,
+        disposition: BoundDispositionRecord,
+    ) {
+        self.record_occurrence(
+            result.map_or(ProofResult::BoundDisposition(id), |result| {
+                ProofResult::Semantic(SemanticFactRef::Bound(result))
+            }),
+            ProofCause::BoundDisposition(disposition),
+            Vec::new(),
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_subtract(
+        &mut self,
+        result: SubtractFactRecordId,
+        derivation: SubtractFactDerivation,
+    ) {
+        let origin = match derivation {
+            SubtractFactDerivation::Declaration(origin)
+            | SubtractFactDerivation::Import(origin)
+            | SubtractFactDerivation::Internal(origin) => origin,
+        };
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Subtract(result)),
+            ProofCause::Subtract(derivation),
+            vec![ProofParent::Origin(origin)],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_scheme_instantiation_record(
+        &mut self,
+        result: SchemeInstantiationId,
+        record: SchemeInstantiationRecord,
+    ) {
+        let completeness = record.completeness;
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(result)),
+            ProofCause::SchemeInstantiationRecord(record),
+            Vec::new(),
+            completeness,
+        );
+    }
+
+    pub(crate) fn record_scheme_instantiation_derivation(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: SchemeInstantiationDerivation,
+    ) {
+        let parents = vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                derivation.instantiation,
+            )),
+            ProofParent::GeneralizedWitness(derivation.source_witness),
+        ];
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::SchemeInstantiationDerivation(derivation),
+            parents,
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_scheme_instantiation_route(
+        &mut self,
+        result: ConstraintRecordId,
+        route: SchemeInstantiationRoute,
+    ) {
+        let parents = vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                route.derivation.instantiation,
+            )),
+            ProofParent::GeneralizedWitness(route.derivation.source_witness),
+        ];
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::SchemeInstantiationRoute(route),
+            parents,
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(crate) fn record_constraint_disposition(
+        &mut self,
+        result: ConstraintRecordId,
+        disposition: ConstraintCanonicalizationDisposition,
+    ) {
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::ConstraintDisposition(disposition),
+            Vec::new(),
+            ProvenanceCompleteness::Complete,
+        );
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn record_bound_shadow(result: BoundRecordId, derivation: BoundDerivation) {
-    if matches!(
-        derivation,
-        BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
-    ) {
+    if !proof_occurrence_shadow_is_active() {
         // Replay occurrences, including evidence-only replay bounds, start in CPK-3.
         return;
     }
-    let parents = bound_derivation_parents(&derivation);
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Bound(result)),
-        ProofCause::Bound(derivation),
-        parents,
-        ProvenanceCompleteness::Complete,
-    );
+    SHADOW_STORE.with(|store| store.borrow_mut().record_bound(result, derivation));
 }
 
 #[cfg(test)]
@@ -1682,14 +1845,14 @@ pub(crate) fn record_bound_disposition_shadow(
     result: Option<BoundRecordId>,
     disposition: BoundDispositionRecord,
 ) {
-    record_shadow_occurrence(
-        result.map_or(ProofResult::BoundDisposition(id), |result| {
-            ProofResult::Semantic(SemanticFactRef::Bound(result))
-        }),
-        ProofCause::BoundDisposition(disposition),
-        Vec::new(),
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_bound_disposition(id, result, disposition)
+    });
 }
 
 #[cfg(test)]
@@ -1697,17 +1860,10 @@ pub(crate) fn record_subtract_shadow(
     result: SubtractFactRecordId,
     derivation: SubtractFactDerivation,
 ) {
-    let origin = match derivation {
-        SubtractFactDerivation::Declaration(origin)
-        | SubtractFactDerivation::Import(origin)
-        | SubtractFactDerivation::Internal(origin) => origin,
-    };
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Subtract(result)),
-        ProofCause::Subtract(derivation),
-        vec![ProofParent::Origin(origin)],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_subtract(result, derivation));
 }
 
 #[cfg(test)]
@@ -1715,12 +1871,14 @@ pub(crate) fn record_scheme_instantiation_record_shadow(
     result: SchemeInstantiationId,
     record: SchemeInstantiationRecord,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(result)),
-        ProofCause::SchemeInstantiationRecord(record.clone()),
-        Vec::new(),
-        record.completeness,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_scheme_instantiation_record(result, record)
+    });
 }
 
 #[cfg(test)]
@@ -1728,17 +1886,14 @@ pub(crate) fn record_scheme_instantiation_derivation_shadow(
     result: ConstraintRecordId,
     derivation: SchemeInstantiationDerivation,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::SchemeInstantiationDerivation(derivation.clone()),
-        vec![
-            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
-                derivation.instantiation,
-            )),
-            ProofParent::GeneralizedWitness(derivation.source_witness),
-        ],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_scheme_instantiation_derivation(result, derivation)
+    });
 }
 
 #[cfg(test)]
@@ -1746,17 +1901,14 @@ pub(crate) fn record_scheme_instantiation_route_shadow(
     result: ConstraintRecordId,
     route: SchemeInstantiationRoute,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::SchemeInstantiationRoute(route.clone()),
-        vec![
-            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
-                route.derivation.instantiation,
-            )),
-            ProofParent::GeneralizedWitness(route.derivation.source_witness),
-        ],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_scheme_instantiation_route(result, route)
+    });
 }
 
 #[cfg(test)]
@@ -1764,12 +1916,14 @@ pub(crate) fn record_constraint_disposition_shadow(
     result: ConstraintRecordId,
     disposition: ConstraintCanonicalizationDisposition,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::ConstraintDisposition(disposition),
-        Vec::new(),
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_constraint_disposition(result, disposition)
+    });
 }
 
 #[cfg(test)]
