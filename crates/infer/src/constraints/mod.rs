@@ -151,7 +151,8 @@ pub struct ConstraintMachine {
     #[cfg(test)]
     cdm_lower_delta_census: CdmLowerDeltaCensus,
     #[cfg(test)]
-    semantic_execution_trace: Option<semantic_execution_snapshot::SemanticExecutionTrace>,
+    semantic_execution_trace:
+        Option<RefCell<semantic_execution_snapshot::SemanticExecutionTrace>>,
 }
 
 #[cfg(test)]
@@ -1954,7 +1955,6 @@ impl ConstraintMachine {
                 SchemeProjectionPublicationIntent::None
             });
         }
-
         let mut affected_records = self
             .bounds
             .dependent_records_by_premise
@@ -1976,6 +1976,12 @@ impl ConstraintMachine {
                 affected_owners.insert(owner);
             }
         }
+        #[cfg(test)]
+        self.record_semantic_projectability_transition(
+            lower_record,
+            was_included,
+            is_included,
+        );
         if let Some(owner) = self.active_projection_record_owner(lower_record) {
             affected_owners.insert(owner);
         }
@@ -1992,12 +1998,25 @@ impl ConstraintMachine {
     ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
         let mut after_round = SchemeProjectionEvaluationRound::new(self);
         let mut affected_owners = FxHashSet::default();
+        #[cfg(test)]
+        let mut semantic_transitions = Vec::new();
         for (record, was_included) in before {
-            if *was_included != after_round.eval_record(*record)?
-                && let Some(owner) = self.active_projection_record_owner(*record)
-            {
-                affected_owners.insert(owner);
+            let is_included = after_round.eval_record(*record)?;
+            if *was_included != is_included {
+                #[cfg(test)]
+                semantic_transitions.push((*record, *was_included, is_included));
+                if let Some(owner) = self.active_projection_record_owner(*record) {
+                    affected_owners.insert(owner);
+                }
             }
+        }
+        #[cfg(test)]
+        for (record, was_included, is_included) in semantic_transitions {
+            self.record_semantic_projectability_transition(
+                record,
+                was_included,
+                is_included,
+            );
         }
         Ok(if affected_owners.is_empty() {
             SchemeProjectionPublicationIntent::None
@@ -2050,13 +2069,21 @@ impl ConstraintMachine {
         if before.is_empty() {
             return;
         }
-        let affected_owners = before
-            .into_iter()
-            .filter(|(record, was_included)| {
-                *was_included != self.scheme_projection_record_is_included(*record)
-            })
-            .filter_map(|(record, _)| self.active_projection_record_owner(record))
-            .collect::<FxHashSet<_>>();
+        let mut affected_owners = FxHashSet::default();
+        for (record, was_included) in before {
+            let is_included = self.scheme_projection_record_is_included(record);
+            if was_included != is_included {
+                #[cfg(test)]
+                self.record_semantic_projectability_transition(
+                    record,
+                    was_included,
+                    is_included,
+                );
+                if let Some(owner) = self.active_projection_record_owner(record) {
+                    affected_owners.insert(owner);
+                }
+            }
+        }
         if !affected_owners.is_empty() {
             self.record_scheme_projection_mutation(affected_owners);
         }
@@ -2088,6 +2115,10 @@ impl ConstraintMachine {
     }
 
     fn record_scheme_projection_mutation(&mut self, owners: FxHashSet<TypeVar>) {
+        #[cfg(test)]
+        let semantic_owner_order = owners.iter().copied().collect::<Vec<_>>();
+        #[cfg(test)]
+        let semantic_before_epoch = self.epoch;
         for owner in &owners {
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations
@@ -2103,6 +2134,12 @@ impl ConstraintMachine {
             self.bounds.record_var_epoch(owner, epoch);
         }
         self.bump_provenance_epoch();
+        #[cfg(test)]
+        self.record_semantic_owner_invalidations(
+            &semantic_owner_order,
+            semantic_before_epoch,
+            epoch,
+        );
     }
 }
 

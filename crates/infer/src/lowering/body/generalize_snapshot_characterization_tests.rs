@@ -7,6 +7,11 @@ use crate::analysis::{
     with_generalize_role_snapshot_reuse_enabled_for_new_sessions,
     with_generalize_snapshot_characterization_for_new_sessions,
 };
+use crate::constraints::{
+    SemanticExecutionSnapshot, SemanticOutputSnapshot, SccExecutionSnapshot,
+    with_semantic_execution_snapshot_capture_for_new_machines,
+};
+use crate::interface_oracle::{BoundaryInterface, SchemeAlphaView};
 use poly::expr::SelectId;
 use poly::types::RolePredicate;
 
@@ -575,6 +580,85 @@ impl ProductionParitySnapshot {
     }
 }
 
+fn semantic_execution_snapshot_from_lowering(
+    output: &mut BodyLowering,
+) -> SemanticExecutionSnapshot {
+    let alpha_equivalence_view = output
+        .session
+        .poly
+        .defs
+        .iter()
+        .filter_map(|(def, item)| match item {
+            Def::Let {
+                scheme: Some(scheme),
+                ..
+            } => Some((
+                def,
+                format!(
+                    "{:?}",
+                    SchemeAlphaView::characterize_current_scheme(
+                        output.session.infer.constraints().types(),
+                        scheme,
+                        BoundaryInterface::EMPTY,
+                    )
+                    .view
+                ),
+            )),
+            Def::Mod { .. } | Def::Let { .. } | Def::Arg => None,
+        })
+        .collect::<Vec<_>>();
+    let parity = ProductionParitySnapshot::capture(output);
+    let scc = SccExecutionSnapshot {
+        stats: parity.scc_stats,
+        events: parity.scc_events.clone(),
+        generalization_restart_census: parity.generalization_restarts.as_entries(),
+    };
+    let semantic_output = SemanticOutputSnapshot {
+        finalized_schemes: parity.finalized_schemes,
+        alpha_equivalence_view,
+        role_predicates: parity
+            .residual_role_predicates
+            .into_iter()
+            .map(|(def, predicates)| {
+                (
+                    def,
+                    predicates
+                        .into_iter()
+                        .map(|predicate| format!("{predicate:?}"))
+                        .collect(),
+                )
+            })
+            .collect(),
+        unresolved_selections: parity
+            .unresolved_selections
+            .into_iter()
+            .map(|selection| format!("{selection:?}"))
+            .collect(),
+        lowering_errors: parity
+            .lowering_errors
+            .into_iter()
+            .map(|error| format!("{error:?}"))
+            .collect(),
+        diagnostics: vec![format!("{:?}", parity.diagnostics)],
+        poly_arena_dump: format!("{}\n-- raw --\n{}", parity.poly_dump, parity.poly_raw_dump),
+        compiled_surfaces: vec![
+            format!("{:?}", parity.namespace),
+            format!("{:?}", parity.lowering_surface),
+            parity.runtime_arena_dump,
+            parity.runtime_raw_arena_dump,
+            format!("{:?}", parity.runtime_boundary),
+            format!("{:?}", parity.runtime_labels),
+            format!("{:?}", parity.runtime_modules),
+            format!("{:?}", parity.runtime_values),
+        ],
+    };
+    output
+        .session
+        .infer
+        .constraints()
+        .semantic_execution_snapshot(scc, semantic_output)
+}
+
 #[derive(Debug, PartialEq, Eq)]
 struct GeneralizationRestartCensus {
     iterations: usize,
@@ -622,6 +706,55 @@ impl GeneralizationRestartCensus {
             top_role_restarts: timing.generalize_top_restart_role_restarts,
         }
     }
+
+    fn as_entries(&self) -> Vec<(String, usize)> {
+        vec![
+            ("iterations".into(), self.iterations),
+            ("merge-restarts".into(), self.merge_restarts),
+            ("subtype-restarts".into(), self.subtype_restarts),
+            ("cast-restarts".into(), self.cast_restarts),
+            ("role-restarts".into(), self.role_restarts),
+            ("roots-with-restarts".into(), self.roots_with_restarts),
+            (
+                "max-iterations-per-root".into(),
+                self.max_iterations_per_root,
+            ),
+            (
+                "max-restarts-per-root".into(),
+                self.max_restarts_per_root,
+            ),
+            ("top-iterations".into(), self.top_iterations),
+            ("top-total-restarts".into(), self.top_total_restarts),
+            ("top-merge-restarts".into(), self.top_merge_restarts),
+            ("top-subtype-restarts".into(), self.top_subtype_restarts),
+            ("top-cast-restarts".into(), self.top_cast_restarts),
+            ("top-role-restarts".into(), self.top_role_restarts),
+        ]
+    }
+}
+
+#[test]
+fn cpk_0a_lowering_adapter_reuses_full_parity_snapshot_surfaces() {
+    let case = CharacterizationCase::standalone(
+        "cpk-0a-adapter",
+        "my identity = \\value -> value\nmy result = identity 1\n",
+    );
+    let mut output = with_semantic_execution_snapshot_capture_for_new_machines(|| case.lower());
+    assert!(output.errors.is_empty(), "{:?}", output.errors);
+
+    let snapshot = semantic_execution_snapshot_from_lowering(&mut output);
+
+    assert!(!snapshot.queue_events.is_empty());
+    assert!(!snapshot.constraints.is_empty());
+    assert!(!snapshot.bounds.is_empty());
+    assert!(!snapshot.scc.events.is_empty());
+    assert!(!snapshot.output.finalized_schemes.is_empty());
+    assert_eq!(
+        snapshot.output.alpha_equivalence_view.len(),
+        snapshot.output.finalized_schemes.len(),
+    );
+    assert!(!snapshot.output.poly_arena_dump.is_empty());
+    assert_eq!(snapshot.output.compiled_surfaces.len(), 8);
 }
 
 fn assert_text_eq(case: &str, dimension: &str, without_shadow: &str, with_shadow: &str) {

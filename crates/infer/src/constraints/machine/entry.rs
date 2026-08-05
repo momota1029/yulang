@@ -86,7 +86,7 @@ impl ConstraintMachine {
             cdm_lower_delta_census: CdmLowerDeltaCensus::default(),
             #[cfg(test)]
             semantic_execution_trace:
-                semantic_execution_snapshot::trace_for_new_constraint_machine(),
+                semantic_execution_snapshot::trace_cell_for_new_constraint_machine(),
         }
     }
 
@@ -1071,13 +1071,35 @@ impl ConstraintMachine {
         upper: NegId,
         origin: Option<OriginId>,
     ) -> EnqueueSubtypeResult {
+        #[cfg(test)]
+        let semantic_attempt = self.semantic_subtype_admission_attempt(
+            lower,
+            &weights,
+            upper,
+            None,
+            semantic_execution_snapshot::SemanticAdmissionSource::Ordinary,
+        );
         let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
+            #[cfg(test)]
+            self.record_semantic_subtype_admission(
+                semantic_attempt,
+                semantic_execution_snapshot::SemanticAdmissionOutcome::Trivial,
+            );
             return EnqueueSubtypeResult::Trivial;
         };
         let enqueued = self.enqueue_canonical_subtype_with_origin(constraint.clone(), origin);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
+        #[cfg(test)]
+        self.record_semantic_subtype_admission(
+            semantic_attempt,
+            if enqueued {
+                semantic_execution_snapshot::SemanticAdmissionOutcome::Enqueued
+            } else {
+                semantic_execution_snapshot::SemanticAdmissionOutcome::CanonicalDuplicate
+            },
+        );
         if enqueued {
             EnqueueSubtypeResult::Enqueued
         } else {
@@ -1161,11 +1183,34 @@ impl ConstraintMachine {
         constraint: SubtypeConstraintKey,
         derivation: BinaryReplayDerivation,
     ) -> (bool, ReplayDerivationInsert) {
+        #[cfg(test)]
+        let semantic_attempt = self.semantic_subtype_admission_attempt(
+            constraint.lower,
+            &constraint.weights,
+            constraint.upper,
+            None,
+            semantic_execution_snapshot::SemanticAdmissionSource::Replay,
+        );
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let record_id = *entry.get();
                 let inserted = self.merge_replay_derivation(record_id, derivation);
                 self.timing.record_subtype_duplicate_admission();
+                #[cfg(test)]
+                self.record_semantic_subtype_admission(
+                    semantic_attempt,
+                    match inserted {
+                        ReplayDerivationInsert::Inserted => {
+                            semantic_execution_snapshot::SemanticAdmissionOutcome::EvidenceOnly
+                        }
+                        ReplayDerivationInsert::Duplicate => {
+                            semantic_execution_snapshot::SemanticAdmissionOutcome::CanonicalDuplicate
+                        }
+                        ReplayDerivationInsert::Incomplete => {
+                            semantic_execution_snapshot::SemanticAdmissionOutcome::Rejected
+                        }
+                    },
+                );
                 return (false, inserted);
             }
             Entry::Vacant(entry) => {
@@ -1214,6 +1259,15 @@ impl ConstraintMachine {
         #[cfg(test)]
         self.record_semantic_queue_enqueue(&work);
         self.queue.push_back(work);
+        #[cfg(test)]
+        self.record_semantic_subtype_admission(
+            semantic_attempt,
+            if inserted == ReplayDerivationInsert::Incomplete {
+                semantic_execution_snapshot::SemanticAdmissionOutcome::EnqueuedWithRejectedEvidence
+            } else {
+                semantic_execution_snapshot::SemanticAdmissionOutcome::Enqueued
+            },
+        );
         (true, inserted)
     }
 
@@ -1380,11 +1434,24 @@ impl ConstraintMachine {
         parent: ConstraintRecordId,
         rule: StructuralDerivationRule,
     ) -> bool {
+        #[cfg(test)]
+        let semantic_attempt = self.semantic_subtype_admission_attempt(
+            lower,
+            &weights,
+            upper,
+            Some(parent),
+            semantic_execution_snapshot::SemanticAdmissionSource::Structural,
+        );
         self.timing.record_structural_derivation(rule);
         let scheme_routes = self.structural_scheme_routes(parent, rule);
         let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
+            #[cfg(test)]
+            self.record_semantic_subtype_admission(
+                semantic_attempt,
+                semantic_execution_snapshot::SemanticAdmissionOutcome::Trivial,
+            );
             return false;
         };
         let derivation = StructuralDerivation { parent, rule };
@@ -1407,6 +1474,15 @@ impl ConstraintMachine {
                 self.merge_scheme_instantiation_routes(record_id, scheme_routes);
                 self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
+                #[cfg(test)]
+                self.record_semantic_subtype_admission(
+                    semantic_attempt,
+                    if provenance_changed {
+                        semantic_execution_snapshot::SemanticAdmissionOutcome::EvidenceOnly
+                    } else {
+                        semantic_execution_snapshot::SemanticAdmissionOutcome::CanonicalDuplicate
+                    },
+                );
                 return false;
             }
             Entry::Vacant(entry) => {
@@ -1435,6 +1511,11 @@ impl ConstraintMachine {
         #[cfg(test)]
         self.record_semantic_queue_enqueue(&work);
         self.queue.push_back(work);
+        #[cfg(test)]
+        self.record_semantic_subtype_admission(
+            semantic_attempt,
+            semantic_execution_snapshot::SemanticAdmissionOutcome::Enqueued,
+        );
         true
     }
 
@@ -1545,22 +1626,50 @@ impl ConstraintMachine {
         upper: NegId,
         derivation: RowDerivationId,
     ) -> bool {
+        #[cfg(test)]
+        let semantic_attempt = self.semantic_subtype_admission_attempt(
+            lower,
+            &weights,
+            upper,
+            None,
+            semantic_execution_snapshot::SemanticAdmissionSource::Row,
+        );
         let disposition = self.terminal_weight_erasure_disposition(lower, &weights, upper);
         let Some(constraint) = self.canonical_subtype_constraint(lower, weights, upper) else {
             self.timing.record_subtype_trivial_admission();
+            #[cfg(test)]
+            self.record_semantic_subtype_admission(
+                semantic_attempt,
+                semantic_execution_snapshot::SemanticAdmissionOutcome::Trivial,
+            );
             return false;
         };
         let record_id = match self.canonical_constraints.entry(constraint.clone()) {
             Entry::Occupied(entry) => {
                 let record_id = *entry.get();
+                #[cfg(test)]
+                let mut derivation_inserted = false;
                 let derivations =
                     &mut self.constraint_records[record_id.0 as usize].row_derivations;
                 if !derivations.contains(&derivation) {
                     derivations.push(derivation);
+                    #[cfg(test)]
+                    {
+                        derivation_inserted = true;
+                    }
                     self.bump_provenance_epoch();
                 }
                 self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
+                #[cfg(test)]
+                self.record_semantic_subtype_admission(
+                    semantic_attempt,
+                    if derivation_inserted {
+                        semantic_execution_snapshot::SemanticAdmissionOutcome::EvidenceOnly
+                    } else {
+                        semantic_execution_snapshot::SemanticAdmissionOutcome::CanonicalDuplicate
+                    },
+                );
                 return false;
             }
             Entry::Vacant(entry) => {
@@ -1587,6 +1696,11 @@ impl ConstraintMachine {
         #[cfg(test)]
         self.record_semantic_queue_enqueue(&work);
         self.queue.push_back(work);
+        #[cfg(test)]
+        self.record_semantic_subtype_admission(
+            semantic_attempt,
+            semantic_execution_snapshot::SemanticAdmissionOutcome::Enqueued,
+        );
         true
     }
 

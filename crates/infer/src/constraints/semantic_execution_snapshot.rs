@@ -33,6 +33,10 @@ pub(super) fn trace_for_new_constraint_machine() -> Option<SemanticExecutionTrac
         .then(SemanticExecutionTrace::default)
 }
 
+pub(super) fn trace_cell_for_new_constraint_machine() -> Option<RefCell<SemanticExecutionTrace>> {
+    trace_for_new_constraint_machine().map(RefCell::new)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SemanticExecutionSnapshot {
     pub(crate) queue_events: Vec<SemanticQueueEvent>,
@@ -48,6 +52,11 @@ pub(crate) struct SemanticExecutionSnapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum SemanticQueueEvent {
+    Admission {
+        ordinal: usize,
+        attempt: SemanticSubtypeAdmissionSnapshot,
+        outcome: SemanticAdmissionOutcome,
+    },
     Enqueued {
         ordinal: usize,
         work: SemanticWorkSnapshot,
@@ -56,6 +65,34 @@ pub(crate) enum SemanticQueueEvent {
         ordinal: usize,
         work: SemanticWorkSnapshot,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SemanticAdmissionSource {
+    Ordinary,
+    Replay,
+    Structural,
+    Row,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SemanticAdmissionOutcome {
+    Enqueued,
+    CanonicalDuplicate,
+    Trivial,
+    EvidenceOnly,
+    Rejected,
+    EnqueuedWithRejectedEvidence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SemanticSubtypeAdmissionSnapshot {
+    pub(crate) lower: PosId,
+    pub(crate) upper: NegId,
+    pub(crate) weights: ConstraintWeights,
+    pub(crate) canonical: Option<SubtypeConstraintKey>,
+    pub(crate) producer: Option<ConstraintRecordId>,
+    pub(crate) source: SemanticAdmissionSource,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,6 +217,27 @@ pub(crate) struct PublicationSnapshot {
     pub(crate) final_provenance_epoch: u64,
     pub(crate) final_role_solve_supplemental_epoch: u64,
     pub(crate) projectability_included_owners: Vec<TypeVar>,
+    pub(crate) owner_invalidations: Vec<OwnerInvalidationSnapshot>,
+    pub(crate) projectability_transitions: Vec<ProjectabilityTransitionSnapshot>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct OwnerInvalidationSnapshot {
+    pub(crate) ordinal: usize,
+    pub(crate) owner: TypeVar,
+    pub(crate) before_constraint_epoch: u64,
+    pub(crate) after_constraint_epoch: u64,
+    pub(crate) provenance_epoch: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ProjectabilityTransitionSnapshot {
+    pub(crate) ordinal: usize,
+    pub(crate) lower_record: BoundRecordId,
+    pub(crate) was_included: bool,
+    pub(crate) is_included: bool,
+    pub(crate) constraint_epoch: u64,
+    pub(crate) provenance_epoch: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -216,11 +274,32 @@ pub(super) struct SemanticExecutionTrace {
     queue_events: Vec<SemanticQueueEvent>,
     publication_events: Vec<ConstraintEvent>,
     epoch_events: Vec<SemanticEpochEvent>,
+    owner_invalidations: Vec<OwnerInvalidationSnapshot>,
+    projectability_transitions: Vec<ProjectabilityTransitionSnapshot>,
+    next_admission_ordinal: usize,
     next_enqueue_ordinal: usize,
     next_dequeue_ordinal: usize,
 }
 
 impl ConstraintMachine {
+    pub(super) fn semantic_subtype_admission_attempt(
+        &self,
+        lower: PosId,
+        weights: &ConstraintWeights,
+        upper: NegId,
+        producer: Option<ConstraintRecordId>,
+        source: SemanticAdmissionSource,
+    ) -> SemanticSubtypeAdmissionSnapshot {
+        SemanticSubtypeAdmissionSnapshot {
+            lower,
+            upper,
+            weights: weights.clone(),
+            canonical: self.canonical_subtype_constraint(lower, weights.clone(), upper),
+            producer,
+            source,
+        }
+    }
+
     pub(crate) fn semantic_execution_snapshot(
         &self,
         scc: SccExecutionSnapshot,
@@ -229,7 +308,8 @@ impl ConstraintMachine {
         let trace = self
             .semantic_execution_trace
             .as_ref()
-            .expect("SemanticExecutionSnapshot capture must be explicitly enabled");
+            .expect("SemanticExecutionSnapshot capture must be explicitly enabled")
+            .borrow();
         let queue_admitted = trace
             .queue_events
             .iter()
@@ -302,6 +382,8 @@ impl ConstraintMachine {
             final_provenance_epoch: self.provenance_epoch.as_u64(),
             final_role_solve_supplemental_epoch: self.role_solve_supplemental_epoch.as_u64(),
             projectability_included_owners,
+            owner_invalidations: trace.owner_invalidations.clone(),
+            projectability_transitions: trace.projectability_transitions.clone(),
         };
         SemanticExecutionSnapshot {
             queue_events: trace.queue_events.clone(),
@@ -391,10 +473,11 @@ impl ConstraintMachine {
     }
 
     pub(super) fn record_semantic_queue_enqueue(&mut self, work: &ConstraintWork) {
-        let Some(trace) = self.semantic_execution_trace.as_mut() else {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
             return;
         };
         let work = semantic_work_snapshot(work, &self.constraint_records);
+        let mut trace = trace.borrow_mut();
         let ordinal = trace.next_enqueue_ordinal;
         trace.next_enqueue_ordinal = ordinal.saturating_add(1);
         trace
@@ -403,10 +486,11 @@ impl ConstraintMachine {
     }
 
     pub(super) fn record_semantic_queue_dequeue(&mut self, work: &ConstraintWork) {
-        let Some(trace) = self.semantic_execution_trace.as_mut() else {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
             return;
         };
         let work = semantic_work_snapshot(work, &self.constraint_records);
+        let mut trace = trace.borrow_mut();
         let ordinal = trace.next_dequeue_ordinal;
         trace.next_dequeue_ordinal = ordinal.saturating_add(1);
         trace
@@ -415,22 +499,91 @@ impl ConstraintMachine {
     }
 
     pub(super) fn record_semantic_publication_events(&mut self) {
-        let Some(trace) = self.semantic_execution_trace.as_mut() else {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
             return;
         };
-        trace.publication_events.extend(self.events.iter().cloned());
+        trace
+            .borrow_mut()
+            .publication_events
+            .extend(self.events.iter().cloned());
     }
 
     pub(super) fn record_semantic_epoch_event(&mut self, kind: SemanticEpochKind) {
-        let Some(trace) = self.semantic_execution_trace.as_mut() else {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
             return;
         };
-        trace.epoch_events.push(SemanticEpochEvent {
+        trace.borrow_mut().epoch_events.push(SemanticEpochEvent {
             kind,
             constraint: self.epoch.as_u64(),
             provenance: self.provenance_epoch.as_u64(),
             role_solve_supplemental: self.role_solve_supplemental_epoch.as_u64(),
         });
+    }
+
+    pub(super) fn record_semantic_subtype_admission(
+        &self,
+        attempt: SemanticSubtypeAdmissionSnapshot,
+        outcome: SemanticAdmissionOutcome,
+    ) {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
+            return;
+        };
+        let mut trace = trace.borrow_mut();
+        let ordinal = trace.next_admission_ordinal;
+        trace.next_admission_ordinal = ordinal.saturating_add(1);
+        trace.queue_events.push(SemanticQueueEvent::Admission {
+            ordinal,
+            attempt,
+            outcome,
+        });
+    }
+
+    pub(super) fn record_semantic_owner_invalidations(
+        &self,
+        owners: &[TypeVar],
+        before_constraint_epoch: ConstraintEpoch,
+        after_constraint_epoch: ConstraintEpoch,
+    ) {
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
+            return;
+        };
+        let mut trace = trace.borrow_mut();
+        for owner in owners {
+            let ordinal = trace.owner_invalidations.len();
+            trace.owner_invalidations.push(OwnerInvalidationSnapshot {
+                ordinal,
+                owner: *owner,
+                before_constraint_epoch: before_constraint_epoch.as_u64(),
+                after_constraint_epoch: after_constraint_epoch.as_u64(),
+                provenance_epoch: self.provenance_epoch.as_u64(),
+            });
+        }
+    }
+
+    pub(super) fn record_semantic_projectability_transition(
+        &self,
+        lower_record: BoundRecordId,
+        was_included: bool,
+        is_included: bool,
+    ) {
+        if was_included == is_included {
+            return;
+        }
+        let Some(trace) = self.semantic_execution_trace.as_ref() else {
+            return;
+        };
+        let mut trace = trace.borrow_mut();
+        let ordinal = trace.projectability_transitions.len();
+        trace
+            .projectability_transitions
+            .push(ProjectabilityTransitionSnapshot {
+                ordinal,
+                lower_record,
+                was_included,
+                is_included,
+                constraint_epoch: self.epoch.as_u64(),
+                provenance_epoch: self.provenance_epoch.as_u64(),
+            });
     }
 }
 
@@ -468,6 +621,55 @@ mod tests {
             let pivot_pos = machine.alloc_pos(Pos::Var(pivot));
             let upper = machine.alloc_neg(Neg::Con(vec!["upper".into()], Vec::new()));
             machine.subtype(pivot_pos, upper, OriginId::unknown_internal());
+
+            machine.subtype(lower, pivot_neg, OriginId::unknown_internal());
+            let bottom = machine.alloc_pos(Pos::Bot);
+            machine.subtype(bottom, upper, OriginId::unknown_internal());
+
+            let lower_record = machine.bounds.of(pivot).unwrap().lower_record_ids()[0];
+            let upper_record = machine.bounds.of(pivot).unwrap().upper_record_ids()[0];
+            let replay_result = machine
+                .canonical_subtype_constraint(lower, ConstraintWeights::empty(), upper)
+                .expect("the replay consequence is canonical");
+            let (enqueued, insertion) = machine.enqueue_replay_subtype(
+                replay_result,
+                BinaryReplayDerivation {
+                    pivot,
+                    lower: lower_record,
+                    upper: upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+            );
+            assert!(!enqueued);
+            assert_eq!(insertion, ReplayDerivationInsert::Inserted);
+
+            machine.replay_derivation_budget.max_bytes_proxy =
+                machine.replay_derivation_storage.bytes_proxy;
+            let (enqueued, insertion) = machine.enqueue_replay_subtype(
+                SubtypeConstraintKey {
+                    lower,
+                    upper,
+                    weights: ConstraintWeights::empty(),
+                },
+                BinaryReplayDerivation {
+                    pivot: TypeVar(1),
+                    lower: lower_record,
+                    upper: upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+            );
+            assert!(!enqueued);
+            assert_eq!(insertion, ReplayDerivationInsert::Incomplete);
+
+            let publication_intent = machine
+                .try_evaluate_record_inclusion_publication(
+                    lower_record,
+                    false,
+                    true,
+                    false,
+                )
+                .expect("the fixture projection read is complete");
+            machine.publish_scheme_projection_intent(publication_intent);
 
             machine.subtract_fact(
                 pivot,
@@ -509,6 +711,19 @@ mod tests {
                 .filter(|event| matches!(event, SemanticQueueEvent::Dequeued { .. }))
                 .count(),
         );
+        let outcomes = snapshot
+            .queue_events
+            .iter()
+            .filter_map(|event| match event {
+                SemanticQueueEvent::Admission { outcome, .. } => Some(*outcome),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(outcomes.contains(&SemanticAdmissionOutcome::Enqueued));
+        assert!(outcomes.contains(&SemanticAdmissionOutcome::CanonicalDuplicate));
+        assert!(outcomes.contains(&SemanticAdmissionOutcome::Trivial));
+        assert!(outcomes.contains(&SemanticAdmissionOutcome::EvidenceOnly));
+        assert!(outcomes.contains(&SemanticAdmissionOutcome::Rejected));
         assert_eq!(
             snapshot.canonical_constraint_count,
             snapshot.constraints.len()
@@ -524,6 +739,8 @@ mod tests {
         assert_eq!(snapshot.row.subtract_facts.len(), 1);
         assert!(!snapshot.publication.constraint_events.is_empty());
         assert!(!snapshot.publication.epochs.is_empty());
+        assert!(!snapshot.publication.owner_invalidations.is_empty());
+        assert!(!snapshot.publication.projectability_transitions.is_empty());
         assert!(!snapshot.scc.events.is_empty());
         assert_eq!(snapshot.output.finalized_schemes[0].0, DefId(0));
 
