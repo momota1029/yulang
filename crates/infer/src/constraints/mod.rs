@@ -17,6 +17,11 @@ mod proof_inventory;
 pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
 mod portable_explain;
+#[allow(
+    dead_code,
+    reason = "CPK-1 establishes the proof seam before CPK-2 connects production events"
+)]
+pub(crate) mod proof;
 mod replay_factored;
 mod replay_soak;
 mod row_effect;
@@ -432,7 +437,7 @@ struct RowResidualKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct UnweightedRowReductionRecordId(u32);
+pub(crate) struct UnweightedRowReductionRecordId(u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct UnweightedRowReductionRecord {
