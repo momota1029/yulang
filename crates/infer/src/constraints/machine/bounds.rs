@@ -3072,6 +3072,15 @@ impl ConstraintMachine {
         self.commit_record_proof_clause_link_batch(lower_record, [admission]);
     }
 
+    #[cfg(test)]
+    pub(in crate::constraints) fn register_cpk_projection_clause_for_test(
+        &mut self,
+        lower_record: BoundRecordId,
+        admission: RecordProofClauseLinkAdmission,
+    ) {
+        self.register_record_proof_clause_link(lower_record, admission);
+    }
+
     fn commit_record_proof_clause_link_batch(
         &mut self,
         lower_record: BoundRecordId,

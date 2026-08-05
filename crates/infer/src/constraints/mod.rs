@@ -1942,7 +1942,20 @@ impl ConstraintMachine {
                 // proves that the record's inclusion result is unchanged.
                 match (was_fail_open, is_fail_open) {
                     (true, true) | (false, false) => {
-                        Ok(SchemeProjectionPublicationIntent::MetadataOnly)
+                        let intent = SchemeProjectionPublicationIntent::MetadataOnly;
+                        #[cfg(test)]
+                        {
+                            let included = evaluator.eval_record(lower_record)?;
+                            proof::compare_projection_publication_shadow(
+                                self,
+                                lower_record,
+                                included,
+                                included,
+                                true,
+                                &intent,
+                            );
+                        }
+                        Ok(intent)
                     }
                     (true, false) => {
                         let is_included = evaluator.eval_record(lower_record)?;
@@ -1977,11 +1990,21 @@ impl ConstraintMachine {
         metadata_changed: bool,
     ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
         if was_included == is_included {
-            return Ok(if metadata_changed {
+            let intent = if metadata_changed {
                 SchemeProjectionPublicationIntent::MetadataOnly
             } else {
                 SchemeProjectionPublicationIntent::None
-            });
+            };
+            #[cfg(test)]
+            proof::compare_projection_publication_shadow(
+                self,
+                lower_record,
+                was_included,
+                is_included,
+                metadata_changed,
+                &intent,
+            );
+            return Ok(intent);
         }
         let mut affected_records = self
             .bounds
@@ -2013,11 +2036,21 @@ impl ConstraintMachine {
         if let Some(owner) = self.active_projection_record_owner(lower_record) {
             affected_owners.insert(owner);
         }
-        Ok(if affected_owners.is_empty() {
+        let intent = if affected_owners.is_empty() {
             SchemeProjectionPublicationIntent::MetadataOnly
         } else {
             SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
-        })
+        };
+        #[cfg(test)]
+        proof::compare_projection_publication_shadow(
+            self,
+            lower_record,
+            was_included,
+            is_included,
+            metadata_changed,
+            &intent,
+        );
+        Ok(intent)
     }
 
     fn try_evaluate_projection_inclusion_snapshot(

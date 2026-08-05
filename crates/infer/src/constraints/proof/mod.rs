@@ -496,6 +496,24 @@ struct ShadowProjectabilityObservation {
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShadowProjectionPublicationClass {
+    None,
+    MetadataOnly,
+    InclusionFlip,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShadowProjectionPublicationObservation {
+    lower_record: BoundRecordId,
+    legacy_class: ShadowProjectionPublicationClass,
+    shadow_class: ShadowProjectionPublicationClass,
+    legacy_affected_owners: Vec<TypeVar>,
+    shadow_affected_owners: Vec<TypeVar>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RowReductionOccurrence {
     pub(crate) state: UnweightedRowReductionRecordId,
     pub(crate) root_claim: Option<UpperReplayClaimId>,
@@ -527,6 +545,7 @@ pub(crate) struct ProofOccurrenceStoreSnapshot {
     projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ShadowProjectionClause>>,
     projectability_observations: Vec<ShadowProjectabilityObservation>,
+    projection_publication_observations: Vec<ShadowProjectionPublicationObservation>,
 }
 
 #[cfg(test)]
@@ -544,6 +563,7 @@ impl Default for ProofOccurrenceStoreSnapshot {
             projection_supports: FxHashMap::default(),
             projection_formulas: FxHashMap::default(),
             projectability_observations: Vec::new(),
+            projection_publication_observations: Vec::new(),
         }
     }
 }
@@ -1035,6 +1055,111 @@ pub(super) fn compare_projection_record_shadow(
             .borrow_mut()
             .projectability_observations
             .push(observation);
+    });
+}
+
+#[cfg(test)]
+pub(super) fn compare_projection_publication_shadow(
+    machine: &ConstraintMachine,
+    lower_record: BoundRecordId,
+    was_included: bool,
+    is_included: bool,
+    metadata_changed: bool,
+    legacy_intent: &SchemeProjectionPublicationIntent,
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    if machine
+        .bounds
+        .projection_proofs_by_lower_record
+        .keys()
+        .any(|record| !snapshot.projection_supports.contains_key(record))
+        || machine
+            .bounds
+            .record_proof_clause_links_by_lower_record
+            .keys()
+            .any(|record| !snapshot.projection_formulas.contains_key(record))
+        || machine.bounds.upper_replay_claims.len() != snapshot.upper_claims.len()
+    {
+        // Capture began after an input writer event, so the shadow cannot classify this event.
+        return;
+    }
+
+    let mut current = ShadowProjectionEvaluator::new(machine, &snapshot);
+    let shadow_is_included = current.eval_record(lower_record);
+    assert_eq!(
+        shadow_is_included, is_included,
+        "CPK-4 publication oracle observed divergent current projectability",
+    );
+
+    let mut shadow_affected_owners = FxHashSet::default();
+    if was_included != shadow_is_included {
+        for (index, record) in machine.bounds.records.iter().enumerate() {
+            if record.direction() != BoundDirection::Lower
+                || record.state() == BoundRecordState::Tombstone
+            {
+                continue;
+            }
+            let record_id = BoundRecordId(index as u32);
+            let mut before = ShadowProjectionEvaluator::new(machine, &snapshot);
+            before.record_overrides.insert(lower_record, was_included);
+            let before = before.eval_record(record_id);
+            let mut after = ShadowProjectionEvaluator::new(machine, &snapshot);
+            let after = after.eval_record(record_id);
+            if before != after {
+                shadow_affected_owners.insert(record.owner());
+            }
+        }
+    }
+
+    let (legacy_class, legacy_affected_owners) = match legacy_intent {
+        SchemeProjectionPublicationIntent::None => (
+            ShadowProjectionPublicationClass::None,
+            FxHashSet::default(),
+        ),
+        SchemeProjectionPublicationIntent::MetadataOnly => (
+            ShadowProjectionPublicationClass::MetadataOnly,
+            FxHashSet::default(),
+        ),
+        SchemeProjectionPublicationIntent::OwnersChanged(owners) => (
+            ShadowProjectionPublicationClass::InclusionFlip,
+            owners.clone(),
+        ),
+    };
+    let shadow_class = if !shadow_affected_owners.is_empty() {
+        ShadowProjectionPublicationClass::InclusionFlip
+    } else if metadata_changed {
+        ShadowProjectionPublicationClass::MetadataOnly
+    } else {
+        ShadowProjectionPublicationClass::None
+    };
+    assert_eq!(
+        shadow_affected_owners, legacy_affected_owners,
+        "CPK-4 affected-owner set diverged",
+    );
+    assert_eq!(
+        shadow_class, legacy_class,
+        "CPK-4 projection publication class diverged",
+    );
+
+    let sorted = |owners: FxHashSet<TypeVar>| {
+        let mut owners = owners.into_iter().collect::<Vec<_>>();
+        owners.sort_by_key(|owner| owner.0);
+        owners
+    };
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .projection_publication_observations
+            .push(ShadowProjectionPublicationObservation {
+                lower_record,
+                legacy_class,
+                shadow_class,
+                legacy_affected_owners: sorted(legacy_affected_owners),
+                shadow_affected_owners: sorted(shadow_affected_owners),
+            });
     });
 }
 
@@ -1714,6 +1839,49 @@ fn assert_replay_shadow_parity(
 mod tests {
     use super::*;
 
+    fn cpk_4_projection_record(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+    ) -> (BoundRecordId, ProjectionProofCarrier) {
+        let endpoint = machine.alloc_pos(Pos::Con(
+            vec![format!("cpk-4-projection-{ordinal}")],
+            Vec::new(),
+        ));
+        let record = machine
+            .bounds
+            .add_lower(
+                TypeVar(30_000 + ordinal),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        (
+            record,
+            ProjectionProofCarrier::ConstraintOrigin {
+                constraint: ConstraintRecordId(30_000 + ordinal),
+                origin: OriginId::unknown_internal(),
+            },
+        )
+    }
+
+    fn cpk_4_add_independent_support(
+        machine: &mut ConstraintMachine,
+        record: BoundRecordId,
+        carrier: ProjectionProofCarrier,
+    ) -> SchemeProjectionProofSupport {
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .insert(record, Vec::new());
+        let mutation = machine
+            .bounds
+            .update_scheme_projection_proofs(record, &[], &[carrier]);
+        machine.apply_scheme_projection_mutation(mutation);
+        support
+    }
+
     struct CpkReplayAdmissionFixture {
         machine: ConstraintMachine,
         result: ConstraintRecordId,
@@ -2133,6 +2301,218 @@ mod tests {
             observation.legacy == observation.shadow
                 && observation.legacy_cycle_cut == observation.shadow_cycle_cut
         }));
+        assert!(snapshot
+            .projection_publication_observations
+            .iter()
+            .all(|observation| {
+                observation.legacy_class == observation.shadow_class
+                    && observation.legacy_affected_owners
+                        == observation.shadow_affected_owners
+            }));
+    }
+
+    #[test]
+    fn cpk_4_standalone_only_is_projectable_and_metadata_only() {
+        let ((machine, record), snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut machine = ConstraintMachine::new();
+            let (record, carrier) = cpk_4_projection_record(&mut machine, 1);
+            let support = cpk_4_add_independent_support(&mut machine, record, carrier);
+            machine.register_cpk_projection_clause_for_test(
+                record,
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::Standalone { support },
+                ),
+            );
+            assert!(machine.scheme_projection_record_is_included(record));
+            (machine, record)
+        });
+
+        assert_eq!(
+            snapshot.projection_formulas[&record],
+            vec![ShadowProjectionClause::Standalone {
+                support: snapshot.projection_supports[&record][0],
+                attribution: None,
+            }],
+        );
+        assert!(snapshot
+            .projectability_observations
+            .iter()
+            .any(|observation| observation.record == record && observation.shadow));
+        assert!(snapshot.projection_publication_observations.iter().any(
+            |observation| observation.lower_record == record
+                && observation.legacy_class == ShadowProjectionPublicationClass::MetadataOnly
+                && observation.legacy_affected_owners.is_empty()
+        ));
+        assert_eq!(
+            machine.scheme_projection_record_is_included(record),
+            true,
+        );
+    }
+
+    #[test]
+    fn cpk_4_derived_unary_only_cycle_flips_inclusion_and_owner() {
+        let ((machine, record, dependent, expected_owners), snapshot) =
+            capture_proof_occurrence_shadow(|| {
+            let mut machine = ConstraintMachine::new();
+            let (record, carrier) = cpk_4_projection_record(&mut machine, 2);
+            let owner = machine.bounds.record(record).unwrap().owner();
+            let support = cpk_4_add_independent_support(&mut machine, record, carrier);
+
+            let (dependent, dependent_carrier) = cpk_4_projection_record(&mut machine, 4);
+            let dependent_owner = machine.bounds.record(dependent).unwrap().owner();
+            let dependent_support =
+                cpk_4_add_independent_support(&mut machine, dependent, dependent_carrier);
+            machine.register_cpk_projection_clause_for_test(
+                dependent,
+                RecordProofClauseLinkAdmission::independent(
+                    dependent_support,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent: ConstraintRecordId(32_001),
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        }),
+                        premise: ProofPremise::Record(record),
+                    },
+                ),
+            );
+            machine.register_cpk_projection_clause_for_test(
+                record,
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent: ConstraintRecordId(32_000),
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        }),
+                        premise: ProofPremise::Record(record),
+                    },
+                ),
+            );
+            assert!(!machine.scheme_projection_record_is_included(record));
+            assert!(!machine.scheme_projection_record_is_included(dependent));
+            (machine, record, dependent, vec![owner, dependent_owner])
+        });
+
+        assert!(matches!(
+            snapshot.projection_formulas[&record].as_slice(),
+            [ShadowProjectionClause::DerivedUnary { .. }]
+        ));
+        let publication = snapshot
+            .projection_publication_observations
+            .iter()
+            .find(|observation| {
+                observation.lower_record == record
+                    && observation.legacy_class
+                        == ShadowProjectionPublicationClass::InclusionFlip
+            })
+            .expect("the self-cycle must publish an inclusion flip");
+        assert_eq!(publication.legacy_affected_owners, expected_owners);
+        assert_eq!(publication.shadow_affected_owners, expected_owners);
+        assert!(!machine.scheme_projection_record_is_included(record));
+        assert!(!machine.scheme_projection_record_is_included(dependent));
+    }
+
+    #[test]
+    fn cpk_4_no_claim_record_passthrough_has_no_formula_or_publication() {
+        let ((machine, record), snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut machine = ConstraintMachine::new();
+            let (record, _) = cpk_4_projection_record(&mut machine, 3);
+            assert!(machine.scheme_projection_record_is_included(record));
+            (machine, record)
+        });
+
+        assert!(!snapshot.projection_supports.contains_key(&record));
+        assert!(!snapshot.projection_formulas.contains_key(&record));
+        assert!(snapshot.projection_publication_observations.is_empty());
+        assert!(snapshot
+            .projectability_observations
+            .iter()
+            .any(|observation| observation.record == record && observation.shadow));
+        assert!(machine.scheme_projection_record_is_included(record));
+    }
+
+    #[test]
+    fn cpk_4_five_source_attribution_matrix_is_writer_classified() {
+        let (_, snapshot) = capture_proof_occurrence_shadow(|| {
+            let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
+            let replay = BinaryReplayDerivation {
+                pivot: TypeVar(40_000),
+                lower: BoundRecordId(40_001),
+                upper: BoundRecordId(40_002),
+                rule: ReplayRule::LowerBoundAdded,
+            };
+            let entries = [
+                RecordProofClauseLinkAdmission::claimed(
+                    UpperReplayClaimId(0),
+                    RecordProofClause::Standalone {
+                        support: support(UpperReplayClaimId(0)),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                RecordProofClauseLinkAdmission::claimed(
+                    UpperReplayClaimId(1),
+                    RecordProofClause::ReplayConjunction {
+                        carrier: replay,
+                        lower_premise: replay.lower,
+                        upper_premise: replay.upper,
+                    },
+                    ClaimedAttributionSource::CanonicalReplay,
+                ),
+                RecordProofClauseLinkAdmission::claimed(
+                    UpperReplayClaimId(2),
+                    RecordProofClause::ReplayConjunction {
+                        carrier: replay,
+                        lower_premise: replay.lower,
+                        upper_premise: replay.upper,
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                RecordProofClauseLinkAdmission::claimed(
+                    UpperReplayClaimId(3),
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent: ConstraintRecordId(40_003),
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        }),
+                        premise: ProofPremise::Constraint(ConstraintRecordId(40_003)),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                RecordProofClauseLinkAdmission::claimed(
+                    UpperReplayClaimId(4),
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(40_004)),
+                        premise: ProofPremise::RootCoverage(UpperReplayClaimId(4)),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+            ];
+            for (index, admission) in entries.into_iter().enumerate() {
+                record_projection_clause_shadow(BoundRecordId(index as u32), admission);
+            }
+        });
+
+        let actual = snapshot
+            .projection_formulas
+            .values()
+            .flatten()
+            .filter_map(|clause| match *clause {
+                ShadowProjectionClause::Standalone { attribution, .. }
+                | ShadowProjectionClause::DerivedUnary { attribution, .. }
+                | ShadowProjectionClause::ReplayConjunction { attribution, .. } => attribution,
+            })
+            .collect::<FxHashSet<_>>();
+        assert_eq!(
+            actual,
+            FxHashSet::from_iter([
+                ProjectionLineage::Original,
+                ProjectionLineage::ReplayConstraint,
+                ProjectionLineage::ReplayEvidence,
+                ProjectionLineage::StructuralConstraint,
+                ProjectionLineage::ReductionRouteConstraint,
+            ]),
+        );
     }
 
     #[test]
