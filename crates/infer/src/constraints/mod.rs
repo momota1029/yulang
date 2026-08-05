@@ -1835,6 +1835,7 @@ impl ConstraintMachine {
             return false;
         }
         let is_empty = states.is_empty();
+        self.proof_store.record_live_coverage(root, state, false);
         #[cfg(test)]
         proof::record_live_coverage_shadow(root, state, false);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
@@ -1853,6 +1854,7 @@ impl ConstraintMachine {
         let was_empty = states.is_empty();
         states.push(state);
         let is_empty = states.is_empty();
+        self.proof_store.record_live_coverage(root, state, true);
         #[cfg(test)]
         proof::record_live_coverage_shadow(root, state, true);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);

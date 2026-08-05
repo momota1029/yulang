@@ -1569,6 +1569,63 @@ impl ProofOccurrenceStore {
             ProvenanceCompleteness::Complete,
         );
     }
+
+    pub(super) fn record_row_reduction(
+        &mut self,
+        state: UnweightedRowReductionRecordId,
+        record: &UnweightedRowReductionRecord,
+        root_claim: Option<UpperReplayClaimId>,
+    ) {
+        self.row_reductions.push(RowReductionOccurrence {
+            state,
+            root_claim,
+            provenance: record.provenance_head,
+            current_record: record.current_reduced_upper.record,
+        });
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::RowReduction(state)),
+            ProofCause::RowReduction {
+                derivation: record.provenance_head,
+                root_claim,
+            },
+            vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
+                record.provenance_head,
+            ))],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(super) fn record_live_coverage(
+        &mut self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+        active: bool,
+    ) {
+        if active {
+            self.live_coverage.insert((root, state));
+        } else {
+            self.live_coverage.remove(&(root, state));
+        }
+    }
+
+    pub(super) fn record_reduction_route(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+        parent_claim: UpperReplayClaimId,
+    ) {
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::ReductionRoute {
+                derivation,
+                parent_claim,
+            },
+            vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
+                derivation,
+            ))],
+            ProvenanceCompleteness::Complete,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1600,24 +1657,10 @@ pub(super) fn record_row_reduction_shadow(
         return;
     }
     SHADOW_STORE.with(|store| {
-        store.borrow_mut().row_reductions.push(RowReductionOccurrence {
-            state,
-            root_claim,
-            provenance: record.provenance_head,
-            current_record: record.current_reduced_upper.record,
-        });
+        store
+            .borrow_mut()
+            .record_row_reduction(state, record, root_claim)
     });
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::RowReduction(state)),
-        ProofCause::RowReduction {
-            derivation: record.provenance_head,
-            root_claim,
-        },
-        vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
-            record.provenance_head,
-        ))],
-        ProvenanceCompleteness::Complete,
-    );
 }
 
 #[cfg(test)]
@@ -1629,14 +1672,7 @@ pub(super) fn record_live_coverage_shadow(
     if !proof_occurrence_shadow_is_active() {
         return;
     }
-    SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        if active {
-            store.live_coverage.insert((root, state));
-        } else {
-            store.live_coverage.remove(&(root, state));
-        }
-    });
+    SHADOW_STORE.with(|store| store.borrow_mut().record_live_coverage(root, state, active));
 }
 
 #[cfg(test)]
@@ -1645,17 +1681,14 @@ pub(super) fn record_reduction_route_shadow(
     derivation: RowDerivationId,
     parent_claim: UpperReplayClaimId,
 ) {
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::ReductionRoute {
-            derivation,
-            parent_claim,
-        },
-        vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
-            derivation,
-        ))],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_reduction_route(result, derivation, parent_claim)
+    });
 }
 
 #[cfg(test)]

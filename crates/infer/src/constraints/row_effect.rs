@@ -504,6 +504,11 @@ impl ConstraintMachine {
             self.insert_scheme_projection_live_coverage_state(claim, id);
             claim
         });
+        self.proof_store.record_row_reduction(
+            id,
+            &self.unweighted_row_reduction_records[id.0 as usize],
+            root_claim,
+        );
         #[cfg(test)]
         proof::record_row_reduction_shadow(
             id,

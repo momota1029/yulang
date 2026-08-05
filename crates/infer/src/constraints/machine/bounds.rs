@@ -4823,6 +4823,8 @@ impl ConstraintMachine {
             target_record,
             Some(carrier),
         );
+        self.proof_store
+            .record_reduction_route(result, derivation, claim);
         #[cfg(test)]
         proof::record_reduction_route_shadow(result, derivation, claim);
         if self.replay_factored_terminal_failure().is_some() {
