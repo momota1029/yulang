@@ -330,7 +330,6 @@ impl UnweightedRowReductionRecord {
     }
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProofOccurrence {
     pub(crate) result: ProofResult,
@@ -340,7 +339,6 @@ pub(crate) struct ProofOccurrence {
     pub(crate) completeness: ProvenanceCompleteness,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ProofResult {
     Semantic(SemanticFactRef),
@@ -350,7 +348,6 @@ pub(crate) enum ProofResult {
     BoundDisposition(BoundDispositionRecordId),
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProofCause {
     Root(OriginId),
@@ -377,7 +374,6 @@ pub(crate) enum ProofCause {
     },
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ProjectionLineage {
     Original,
@@ -387,7 +383,6 @@ pub(crate) enum ProjectionLineage {
     ReductionRouteConstraint,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct ReplayProofParent {
     pub(crate) side: ReplayClaimParentSide,
@@ -396,7 +391,6 @@ pub(crate) struct ReplayProofParent {
     pub(crate) lineage: ProjectionLineage,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReplayProofOccurrence {
     pub(crate) result: ConstraintRecordId,
@@ -406,7 +400,6 @@ pub(crate) struct ReplayProofOccurrence {
     pub(crate) first_event: usize,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ReplayAdmissionDisposition {
     NewSemantic,
@@ -461,7 +454,6 @@ struct ShadowReplayEventObservation {
     accepted_results: Vec<ConstraintRecordId>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayAdmissionEvent {
     pub(crate) result: Option<ConstraintRecordId>,
@@ -469,7 +461,6 @@ pub(crate) struct ReplayAdmissionEvent {
     pub(crate) disposition: ReplayAdmissionDisposition,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayFirstWitness {
     pub(crate) carrier: BinaryReplayDerivation,
@@ -477,7 +468,6 @@ pub(crate) struct ReplayFirstWitness {
     pub(crate) representative_claim: UpperReplayClaimId,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UpperClaimOccurrence {
     pub(crate) claim: UpperReplayClaimId,
@@ -487,9 +477,8 @@ pub(crate) struct UpperClaimOccurrence {
     pub(crate) current_record: BoundRecordId,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShadowProjectionClause {
+enum ProjectionClause {
     Standalone {
         support: SchemeProjectionProofSupport,
         attribution: Option<ProjectionLineage>,
@@ -509,8 +498,7 @@ enum ShadowProjectionClause {
     },
 }
 
-#[cfg(test)]
-impl ShadowProjectionClause {
+impl ProjectionClause {
     fn support(self) -> SchemeProjectionProofSupport {
         match self {
             Self::Standalone { support, .. }
@@ -556,7 +544,6 @@ struct ShadowProjectionPublicationObservation {
     shadow_affected_owners: Vec<TypeVar>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RowReductionOccurrence {
     pub(crate) state: UnweightedRowReductionRecordId,
@@ -565,7 +552,6 @@ pub(crate) struct RowReductionOccurrence {
     pub(crate) current_record: BoundRecordId,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ProofParent {
     Semantic(SemanticFactRef),
@@ -574,9 +560,8 @@ pub(crate) enum ProofParent {
     GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ProofOccurrenceStoreSnapshot {
+pub(crate) struct ProofOccurrenceStore {
     pub(crate) occurrences: Vec<ProofOccurrence>,
     pub(crate) replay_finite_map: Vec<ReplayProofOccurrence>,
     pub(crate) replay_admissions: Vec<ReplayAdmissionEvent>,
@@ -587,15 +572,18 @@ pub(crate) struct ProofOccurrenceStoreSnapshot {
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     pub(crate) replay_coverage_connected: bool,
     projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
-    projection_formulas: FxHashMap<BoundRecordId, Vec<ShadowProjectionClause>>,
+    projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
+    #[cfg(test)]
     projectability_observations: Vec<ShadowProjectabilityObservation>,
+    #[cfg(test)]
     projection_publication_observations: Vec<ShadowProjectionPublicationObservation>,
+    #[cfg(test)]
     replay_route_observations: Vec<ShadowReplayRouteObservation>,
+    #[cfg(test)]
     replay_event_observations: Vec<ShadowReplayEventObservation>,
 }
 
-#[cfg(test)]
-impl Default for ProofOccurrenceStoreSnapshot {
+impl Default for ProofOccurrenceStore {
     fn default() -> Self {
         Self {
             occurrences: Vec::new(),
@@ -608,9 +596,13 @@ impl Default for ProofOccurrenceStoreSnapshot {
             replay_coverage_connected: true,
             projection_supports: FxHashMap::default(),
             projection_formulas: FxHashMap::default(),
+            #[cfg(test)]
             projectability_observations: Vec::new(),
+            #[cfg(test)]
             projection_publication_observations: Vec::new(),
+            #[cfg(test)]
             replay_route_observations: Vec::new(),
+            #[cfg(test)]
             replay_event_observations: Vec::new(),
         }
     }
@@ -619,13 +611,13 @@ impl Default for ProofOccurrenceStoreSnapshot {
 #[cfg(test)]
 thread_local! {
     static SHADOW_CAPTURE_DEPTH: Cell<usize> = const { Cell::new(0) };
-    static SHADOW_STORE: RefCell<ProofOccurrenceStoreSnapshot> = RefCell::default();
+    static SHADOW_STORE: RefCell<ProofOccurrenceStore> = RefCell::default();
 }
 
 #[cfg(test)]
 pub(crate) fn capture_proof_occurrence_shadow<R>(
     f: impl FnOnce() -> R,
-) -> (R, ProofOccurrenceStoreSnapshot) {
+) -> (R, ProofOccurrenceStore) {
     struct Reset(usize);
     impl Drop for Reset {
         fn drop(&mut self) {
@@ -635,7 +627,7 @@ pub(crate) fn capture_proof_occurrence_shadow<R>(
 
     let previous = SHADOW_CAPTURE_DEPTH.get();
     assert_eq!(previous, 0, "CPK proof shadow capture is not nestable");
-    SHADOW_STORE.with(|store| *store.borrow_mut() = ProofOccurrenceStoreSnapshot::default());
+    SHADOW_STORE.with(|store| *store.borrow_mut() = ProofOccurrenceStore::default());
     SHADOW_CAPTURE_DEPTH.set(1);
     let _reset = Reset(previous);
     let value = f();
@@ -776,12 +768,12 @@ pub(super) fn record_projection_clause_shadow(
         ) => Some(ProjectionLineage::ReplayEvidence),
     };
     let clause = match admission.clause {
-        RecordProofClause::Standalone { .. } => ShadowProjectionClause::Standalone {
+        RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
             support: admission.support,
             attribution,
         },
         RecordProofClause::DerivedUnary { carrier, premise } => {
-            ShadowProjectionClause::DerivedUnary {
+            ProjectionClause::DerivedUnary {
                 support: admission.support,
                 carrier,
                 premise,
@@ -792,7 +784,7 @@ pub(super) fn record_projection_clause_shadow(
             carrier,
             lower_premise,
             upper_premise,
-        } => ShadowProjectionClause::ReplayConjunction {
+        } => ProjectionClause::ReplayConjunction {
             support: admission.support,
             carrier,
             lower: lower_premise,
@@ -813,7 +805,7 @@ pub(super) fn record_projection_clause_shadow(
 #[cfg(test)]
 struct ShadowProjectionEvaluator<'a> {
     machine: &'a ConstraintMachine,
-    store: &'a ProofOccurrenceStoreSnapshot,
+    store: &'a ProofOccurrenceStore,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
     record_overrides: FxHashMap<BoundRecordId, bool>,
     root_overrides: FxHashMap<UpperReplayClaimId, bool>,
@@ -822,7 +814,7 @@ struct ShadowProjectionEvaluator<'a> {
 
 #[cfg(test)]
 impl<'a> ShadowProjectionEvaluator<'a> {
-    fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStoreSnapshot) -> Self {
+    fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStore) -> Self {
         Self {
             machine,
             store,
@@ -890,13 +882,13 @@ impl<'a> ShadowProjectionEvaluator<'a> {
         })
     }
 
-    fn eval_clause(&mut self, clause: ShadowProjectionClause) -> bool {
+    fn eval_clause(&mut self, clause: ProjectionClause) -> bool {
         match clause {
-            ShadowProjectionClause::Standalone { support, .. } => {
+            ProjectionClause::Standalone { support, .. } => {
                 self.support_is_qualifying(support)
             }
-            ShadowProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
-            ShadowProjectionClause::ReplayConjunction { lower, upper, .. } => {
+            ProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
+            ProjectionClause::ReplayConjunction { lower, upper, .. } => {
                 self.eval_record(lower) && self.eval_record(upper)
             }
         }
@@ -1946,7 +1938,7 @@ fn legacy_cpk2_shadow_expected(machine: &ConstraintMachine) -> Vec<ProofOccurren
 #[cfg(test)]
 fn assert_non_replay_shadow_parity(
     machine: &ConstraintMachine,
-    snapshot: &ProofOccurrenceStoreSnapshot,
+    snapshot: &ProofOccurrenceStore,
 ) {
     assert!(snapshot.replay_coverage_connected, "CPK-3 connects replay coverage");
     assert_eq!(
@@ -1971,7 +1963,7 @@ fn assert_non_replay_shadow_parity(
 #[cfg(test)]
 fn assert_replay_shadow_parity(
     machine: &ConstraintMachine,
-    snapshot: &ProofOccurrenceStoreSnapshot,
+    snapshot: &ProofOccurrenceStore,
 ) {
     assert!(snapshot.replay_coverage_connected);
     assert_eq!(
@@ -2520,7 +2512,7 @@ mod tests {
                 .projection_formulas
                 .values()
                 .flatten()
-                .any(|clause| matches!(clause, ShadowProjectionClause::ReplayConjunction { .. })),
+                .any(|clause| matches!(clause, ProjectionClause::ReplayConjunction { .. })),
             "the representative fixture must exercise replay-conjunction support",
         );
         assert!(
@@ -2560,7 +2552,7 @@ mod tests {
 
         assert_eq!(
             snapshot.projection_formulas[&record],
-            vec![ShadowProjectionClause::Standalone {
+            vec![ProjectionClause::Standalone {
                 support: snapshot.projection_supports[&record][0],
                 attribution: None,
             }],
@@ -2626,7 +2618,7 @@ mod tests {
 
         assert!(matches!(
             snapshot.projection_formulas[&record].as_slice(),
-            [ShadowProjectionClause::DerivedUnary { .. }]
+            [ProjectionClause::DerivedUnary { .. }]
         ));
         let publication = snapshot
             .projection_publication_observations
@@ -2728,9 +2720,9 @@ mod tests {
             .values()
             .flatten()
             .filter_map(|clause| match *clause {
-                ShadowProjectionClause::Standalone { attribution, .. }
-                | ShadowProjectionClause::DerivedUnary { attribution, .. }
-                | ShadowProjectionClause::ReplayConjunction { attribution, .. } => attribution,
+                ProjectionClause::Standalone { attribution, .. }
+                | ProjectionClause::DerivedUnary { attribution, .. }
+                | ProjectionClause::ReplayConjunction { attribution, .. } => attribution,
             })
             .collect::<FxHashSet<_>>();
         assert_eq!(
@@ -2763,7 +2755,7 @@ mod tests {
             .subtype(lower, upper, OriginId::unknown_internal());
     }
 
-    fn assert_cpk_5_event_count_parity(snapshot: &ProofOccurrenceStoreSnapshot) {
+    fn assert_cpk_5_event_count_parity(snapshot: &ProofOccurrenceStore) {
         assert!(!snapshot.replay_event_observations.is_empty());
         assert!(snapshot.replay_event_observations.iter().all(|observation| {
             observation.legacy_input_count == observation.shadow_input_count

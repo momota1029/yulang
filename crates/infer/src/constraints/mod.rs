@@ -116,6 +116,8 @@ pub struct ConstraintMachine {
     replay_result_summary: ReplayResultSummary,
     replay_clause_projection: ReplayClauseProjection,
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
+    #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
+    proof_store: proof::ProofOccurrenceStore,
     replay_read_authority: ReplayReadAuthority,
     replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,

@@ -30,6 +30,7 @@ impl ConstraintMachine {
             replay_result_summary,
             replay_clause_projection: ReplayClauseProjection::default(),
             non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
+            proof_store: proof::ProofOccurrenceStore::default(),
             replay_read_authority,
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
             var_adjacency: FxHashMap::default(),
