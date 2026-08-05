@@ -58,8 +58,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("scheme_projection_claims_by_lower_record", 24),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
-    // adds one routing-shadow capture-readiness read.
-    ("projection_proofs_by_lower_record", 46),
+    // adds one routing-shadow capture-readiness read. CPK-6a adds one reviewed
+    // production-store projection writer read; it is not a new legacy consumer.
+    ("projection_proofs_by_lower_record", 47),
     ("scheme_projection_lower_records_by_root", 5),
     ("scheme_projection_lower_record_memberships", 4),
     ("record_proof_clauses", 6),
@@ -79,11 +80,13 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("generalized_schemes", 9),
     ("generalized_witnesses", 10),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
-    ("scheme_instantiations", 17),
+    // CPK-6a adds one reviewed production-store scheme-instantiation writer read.
+    ("scheme_instantiations", 18),
     // CPK-3 adds reviewed test-only claim hooks and lineage parity reads; CPK-4 adds
     // shadow-evaluator and capture-readiness reads; CPK-5 adds routing readiness.
-    // None is a new production authority.
-    ("upper_replay_claims", 87),
+    // CPK-6a adds five reviewed production-store upper-claim writer reads. None
+    // is a new production read authority.
+    ("upper_replay_claims", 92),
     ("claims_by_upper_record", 14),
     // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
     ("live_coverage_by_root", 10),

@@ -1435,11 +1435,9 @@ pub(super) fn record_replay_admission_shadow(
         return;
     }
     SHADOW_STORE.with(|store| {
-        store.borrow_mut().replay_admissions.push(ReplayAdmissionEvent {
-            result,
-            carrier,
-            disposition,
-        });
+        store
+            .borrow_mut()
+            .record_replay_admission(result, carrier, disposition)
     });
 }
 
@@ -1454,15 +1452,44 @@ pub(super) fn record_replay_parent_snapshot_shadow(
         return;
     }
     SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        let index = store
+        store
+            .borrow_mut()
+            .record_replay_parent_snapshot(bounds, result, carrier, parents)
+    });
+}
+
+impl ProofOccurrenceStore {
+    pub(super) fn record_replay_admission(
+        &mut self,
+        result: Option<ConstraintRecordId>,
+        carrier: BinaryReplayDerivation,
+        disposition: ReplayAdmissionDisposition,
+    ) {
+        self.replay_admissions.push(ReplayAdmissionEvent {
+            result,
+            carrier,
+            disposition,
+        });
+    }
+
+    pub(super) fn record_replay_parent_snapshot(
+        &mut self,
+        bounds: &TypeBounds,
+        result: ConstraintRecordId,
+        carrier: BinaryReplayDerivation,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        if parents.is_empty() {
+            return;
+        }
+        let index = self
             .replay_finite_map
             .iter()
             .position(|entry| entry.result == result && entry.carrier == carrier)
             .unwrap_or_else(|| {
-                let index = store.replay_finite_map.len();
-                let first_event = store.replay_admissions.len();
-                store.replay_finite_map.push(ReplayProofOccurrence {
+                let index = self.replay_finite_map.len();
+                let first_event = self.replay_admissions.len();
+                self.replay_finite_map.push(ReplayProofOccurrence {
                     result,
                     carrier,
                     lower_parents: Vec::new(),
@@ -1489,16 +1516,16 @@ pub(super) fn record_replay_parent_snapshot_shadow(
             };
             let target = match parent_side {
                 ReplayClaimParentSide::Lower => {
-                    &mut store.replay_finite_map[index].lower_parents
+                    &mut self.replay_finite_map[index].lower_parents
                 }
                 ReplayClaimParentSide::Upper => {
-                    &mut store.replay_finite_map[index].upper_parents
+                    &mut self.replay_finite_map[index].upper_parents
                 }
             };
             if !target.iter().any(|entry| entry.coverage_root == claim.coverage_root) {
                 target.push(proof_parent);
             }
-            store
+            self
                 .first_replay_witnesses
                 .entry((result, claim.coverage_root))
                 .or_insert(ReplayFirstWitness {
@@ -1507,16 +1534,41 @@ pub(super) fn record_replay_parent_snapshot_shadow(
                     representative_claim: parent_claim,
                 });
         }
-    });
-    record_shadow_occurrence(
-        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-        ProofCause::Replay(carrier),
-        vec![
-            ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
-            ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
-        ],
-        ProvenanceCompleteness::Complete,
-    );
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::Replay(carrier),
+            vec![
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
+            ],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(super) fn record_replay_evidence(
+        &mut self,
+        result: BoundRecordId,
+        carrier: BinaryReplayDerivation,
+    ) {
+        self.record_occurrence(
+            ProofResult::EvidenceBound(result),
+            ProofCause::ReplayEvidence(carrier),
+            vec![
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
+            ],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(super) fn record_replay_drop(&mut self, id: ReplayDropRecordId, record: ReplayDropRecord) {
+        self.record_occurrence(
+            ProofResult::TrivialReplay(id),
+            ProofCause::ReplayDrop(record),
+            Vec::new(),
+            ProvenanceCompleteness::Complete,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1524,25 +1576,18 @@ pub(super) fn record_replay_evidence_shadow(
     result: BoundRecordId,
     carrier: BinaryReplayDerivation,
 ) {
-    record_shadow_occurrence(
-        ProofResult::EvidenceBound(result),
-        ProofCause::ReplayEvidence(carrier),
-        vec![
-            ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
-            ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
-        ],
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_replay_evidence(result, carrier));
 }
 
 #[cfg(test)]
 pub(super) fn record_replay_drop_shadow(id: ReplayDropRecordId, record: ReplayDropRecord) {
-    record_shadow_occurrence(
-        ProofResult::TrivialReplay(id),
-        ProofCause::ReplayDrop(record),
-        Vec::new(),
-        ProvenanceCompleteness::Complete,
-    );
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| store.borrow_mut().record_replay_drop(id, record));
 }
 
 #[cfg(test)]

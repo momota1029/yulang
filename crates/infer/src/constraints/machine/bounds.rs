@@ -4453,6 +4453,12 @@ impl ConstraintMachine {
             }
             inserted_parents.push(parent);
         }
+        self.proof_store.record_replay_parent_snapshot(
+            &self.bounds,
+            result,
+            replay,
+            &inserted_parents,
+        );
         #[cfg(test)]
         proof::record_replay_parent_snapshot_shadow(
             &self.bounds,
@@ -5529,22 +5535,29 @@ impl ConstraintMachine {
                     }),
                 );
             }
+            let admission_disposition = match (enqueued, disposition) {
+                (_, ReplayDerivationInsert::Incomplete) => {
+                    proof::ReplayAdmissionDisposition::Incomplete
+                }
+                (true, _) => proof::ReplayAdmissionDisposition::NewSemantic,
+                (false, ReplayDerivationInsert::Inserted) => {
+                    proof::ReplayAdmissionDisposition::CanonicalDuplicate
+                }
+                (false, ReplayDerivationInsert::Duplicate) => {
+                    proof::ReplayAdmissionDisposition::ExactDuplicate
+                }
+            };
+            let replay_result = self.canonical_constraints.get(&constraint).copied();
+            self.proof_store.record_replay_admission(
+                replay_result,
+                action.derivation,
+                admission_disposition,
+            );
             #[cfg(test)]
             proof::record_replay_admission_shadow(
-                self.canonical_constraints.get(&constraint).copied(),
+                replay_result,
                 action.derivation,
-                match (enqueued, disposition) {
-                    (_, ReplayDerivationInsert::Incomplete) => {
-                        proof::ReplayAdmissionDisposition::Incomplete
-                    }
-                    (true, _) => proof::ReplayAdmissionDisposition::NewSemantic,
-                    (false, ReplayDerivationInsert::Inserted) => {
-                        proof::ReplayAdmissionDisposition::CanonicalDuplicate
-                    }
-                    (false, ReplayDerivationInsert::Duplicate) => {
-                        proof::ReplayAdmissionDisposition::ExactDuplicate
-                    }
-                },
+                admission_disposition,
             );
             self.merge_constraint_canonicalization_disposition(
                 &constraint,
@@ -5651,16 +5664,30 @@ impl ConstraintMachine {
                 self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
             }
+            let admission_disposition = if evidence_complete {
+                proof::ReplayAdmissionDisposition::EvidenceOnly
+            } else {
+                proof::ReplayAdmissionDisposition::Incomplete
+            };
+            self.proof_store.record_replay_admission(
+                None,
+                action.derivation,
+                admission_disposition,
+            );
+            if evidence_complete && lower_edge_inserted {
+                self.proof_store
+                    .record_replay_evidence(lower_record, action.derivation);
+            }
+            if evidence_complete && upper_edge_inserted {
+                self.proof_store
+                    .record_replay_evidence(upper_record, action.derivation);
+            }
             #[cfg(test)]
             {
                 proof::record_replay_admission_shadow(
                     None,
                     action.derivation,
-                    if evidence_complete {
-                        proof::ReplayAdmissionDisposition::EvidenceOnly
-                    } else {
-                        proof::ReplayAdmissionDisposition::Incomplete
-                    },
+                    admission_disposition,
                 );
                 if evidence_complete && lower_edge_inserted {
                     proof::record_replay_evidence_shadow(lower_record, action.derivation);
@@ -5760,21 +5787,25 @@ impl ConstraintMachine {
                     }),
                 );
             }
+            let admission_disposition = match disposition {
+                ReplayDerivationInsert::Inserted => {
+                    proof::ReplayAdmissionDisposition::CanonicalDuplicate
+                }
+                ReplayDerivationInsert::Duplicate => {
+                    proof::ReplayAdmissionDisposition::ExactDuplicate
+                }
+                ReplayDerivationInsert::Incomplete => proof::ReplayAdmissionDisposition::Incomplete,
+            };
+            self.proof_store.record_replay_admission(
+                Some(result),
+                action.derivation,
+                admission_disposition,
+            );
             #[cfg(test)]
             proof::record_replay_admission_shadow(
                 Some(result),
                 action.derivation,
-                match disposition {
-                    ReplayDerivationInsert::Inserted => {
-                        proof::ReplayAdmissionDisposition::CanonicalDuplicate
-                    }
-                    ReplayDerivationInsert::Duplicate => {
-                        proof::ReplayAdmissionDisposition::ExactDuplicate
-                    }
-                    ReplayDerivationInsert::Incomplete => {
-                        proof::ReplayAdmissionDisposition::Incomplete
-                    }
-                },
+                admission_disposition,
             );
             self.merge_constraint_canonicalization_disposition(
                 &action.constraint,
@@ -5793,22 +5824,28 @@ impl ConstraintMachine {
                 derivation: action.derivation,
             };
             let disposition = self.intern_replay_drop(drop.clone());
+            let admission_disposition = match disposition {
+                ReplayDerivationInsert::Inserted => proof::ReplayAdmissionDisposition::Trivial,
+                ReplayDerivationInsert::Duplicate => {
+                    proof::ReplayAdmissionDisposition::ExactDuplicate
+                }
+                ReplayDerivationInsert::Incomplete => proof::ReplayAdmissionDisposition::Incomplete,
+            };
+            self.proof_store.record_replay_admission(
+                None,
+                action.derivation,
+                admission_disposition,
+            );
+            if disposition == ReplayDerivationInsert::Inserted {
+                let id = self.replay_drop_index[&drop];
+                self.proof_store.record_replay_drop(id, drop.clone());
+            }
             #[cfg(test)]
             {
                 proof::record_replay_admission_shadow(
                     None,
                     action.derivation,
-                    match disposition {
-                        ReplayDerivationInsert::Inserted => {
-                            proof::ReplayAdmissionDisposition::Trivial
-                        }
-                        ReplayDerivationInsert::Duplicate => {
-                            proof::ReplayAdmissionDisposition::ExactDuplicate
-                        }
-                        ReplayDerivationInsert::Incomplete => {
-                            proof::ReplayAdmissionDisposition::Incomplete
-                        }
-                    },
+                    admission_disposition,
                 );
                 if disposition == ReplayDerivationInsert::Inserted {
                     let id = self.replay_drop_index[&drop];
