@@ -202,16 +202,23 @@ impl ParentSetArena {
         self.version_record(base)?;
 
         let mut accepted_roots = FxHashSet::default();
-        accepted_roots
-            .try_reserve(draft.claims.len())
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         let mut accepted_entries = Vec::new();
-        accepted_entries
-            .try_reserve(draft.claims.len())
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+        let mut storage_reserved = false;
         for &claim in &draft.claims {
             let root = replay_parent_coverage_root(bounds, claim)?;
-            if self.contains(base, root)? || !accepted_roots.insert(root) {
+            if self.contains(base, root)? {
+                continue;
+            }
+            if !storage_reserved {
+                accepted_roots
+                    .try_reserve(draft.claims.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                accepted_entries
+                    .try_reserve(draft.claims.len())
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                storage_reserved = true;
+            }
+            if !accepted_roots.insert(root) {
                 continue;
             }
             accepted_entries.push(ParentSetEntry {

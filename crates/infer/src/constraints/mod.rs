@@ -2860,6 +2860,12 @@ impl TypeBounds {
         };
         let owner = record.owner;
         if claims_to_link.is_empty()
+            && independent_supports.is_empty()
+            && self.scheme_projection_claimed_lower_owners.contains(&owner)
+        {
+            return SchemeProjectionMutation::None;
+        }
+        if claims_to_link.is_empty()
             && !self
                 .projection_proofs_by_lower_record
                 .contains_key(&lower_record)
