@@ -5737,6 +5737,77 @@ impl ConstraintMachine {
         }
     }
 
+    #[cfg(test)]
+    pub(in crate::constraints) fn apply_cpk_trivial_replay_for_test(
+        &mut self,
+        attempted: SubtypeConstraintKey,
+        derivation: BinaryReplayDerivation,
+    ) {
+        let mut replay = BoundReplayPlan::default();
+        self.push_replay_constraint_or_prefilter(
+            attempted.lower,
+            attempted.weights.clone(),
+            attempted.upper,
+            derivation,
+            ReplayClaimParents::new(),
+            &mut replay,
+        );
+        assert_eq!(replay.trivial_actions.len(), 1);
+        assert!(replay.duplicate_actions.is_empty());
+        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+            replay.duplicate_actions,
+            replay.trivial_actions,
+            &replay.parent_drafts,
+        );
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn apply_cpk_evidence_only_replay_for_test(
+        &mut self,
+        constraint: SubtypeConstraintKey,
+        derivation: BinaryReplayDerivation,
+    ) {
+        let mut actions = BoundReplayActions::new();
+        actions.push(BoundReplayAction {
+            constraint,
+            derivation,
+            claim_parents: ReplayClaimParents::new(),
+            lower_parents: ReplayParentDraftId::EMPTY,
+            upper_parents: ReplayParentDraftId::EMPTY,
+            canonicalization_disposition: None,
+        });
+        self.apply_bound_replay_evidence_actions(actions);
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn apply_cpk_replay_parent_arrival_for_test(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: BinaryReplayDerivation,
+        claim: UpperReplayClaimId,
+    ) {
+        let constraint = self.constraint_records[result.0 as usize].key.clone();
+        let mut replay = BoundReplayPlan::default();
+        self.push_replay_constraint_or_prefilter(
+            constraint.lower,
+            constraint.weights,
+            constraint.upper,
+            derivation,
+            ReplayClaimParents::from_iter([SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            }]),
+            &mut replay,
+        );
+        assert_eq!(replay.duplicate_actions.len(), 1);
+        assert!(replay.trivial_actions.is_empty());
+        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+            replay.duplicate_actions,
+            replay.trivial_actions,
+            &replay.parent_drafts,
+        );
+    }
+
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {
         matches!(self.types.pos(lower), Pos::Var(_)) && matches!(self.types.neg(upper), Neg::Var(_))
     }

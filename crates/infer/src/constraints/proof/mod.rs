@@ -1252,6 +1252,87 @@ fn assert_replay_shadow_parity(
 mod tests {
     use super::*;
 
+    struct CpkReplayAdmissionFixture {
+        machine: ConstraintMachine,
+        result: ConstraintRecordId,
+        carrier: BinaryReplayDerivation,
+        coverage_root: UpperReplayClaimId,
+    }
+
+    fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
+        let mut machine = ConstraintMachine::new();
+        let origin = OriginId::unknown_internal();
+        let source = TypeVar(0);
+        let target = TypeVar(1);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        machine.subtype(lower, upper, origin);
+        let result = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the replay fixture relation is canonical");
+        let lower_record = machine.bounds.of(target).unwrap().lower_record_ids()[0];
+        let upper_record = machine.bounds.of(source).unwrap().upper_record_ids()[0];
+        let parent_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(2),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let registration = machine.bounds.original_upper_replay_claim(
+            parent_record,
+            ConstraintRecordId(10_000),
+            UpperReplayClaimKind::Direct,
+        );
+        machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+        CpkReplayAdmissionFixture {
+            machine,
+            result,
+            carrier: BinaryReplayDerivation {
+                pivot: source,
+                lower: lower_record,
+                upper: upper_record,
+                rule: ReplayRule::LowerBoundAdded,
+            },
+            coverage_root: registration.claim,
+        }
+    }
+
+    fn add_same_root_replay_claim(
+        fixture: &mut CpkReplayAdmissionFixture,
+        owner: TypeVar,
+        producer: ConstraintRecordId,
+    ) -> UpperReplayClaimId {
+        let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .upper;
+        let record = fixture
+            .machine
+            .bounds
+            .add_upper(
+                owner,
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        fixture
+            .machine
+            .bounds
+            .derived_upper_replay_claim(record, fixture.coverage_root, producer, |depth| {
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim: fixture.coverage_root,
+                    parent_side: ReplayClaimParentSide::Lower,
+                    result: fixture.result,
+                    replay: fixture.carrier,
+                    depth,
+                }
+            })
+            .claim
+    }
+
     fn cpk_3_replay_fixture() -> ConstraintMachine {
         let mut machine = ConstraintMachine::new();
         let origin = OriginId::unknown_internal();
@@ -1416,6 +1497,153 @@ mod tests {
             SemanticOutputSnapshot::default(),
         );
         assert_eq!(active_semantic, inactive_semantic);
+    }
+
+    #[test]
+    fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
+        let ((machine, expected_drop), snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut fixture = cpk_3_replay_admission_fixture();
+            let attempted = SubtypeConstraintKey {
+                lower: fixture.machine.alloc_pos(Pos::Bot),
+                upper: fixture.machine.constraint_records[fixture.result.0 as usize]
+                    .key
+                    .upper,
+                weights: ConstraintWeights::empty(),
+            };
+            let expected_drop = ReplayDropRecord {
+                attempted: attempted.clone(),
+                derivation: fixture.carrier,
+            };
+            fixture
+                .machine
+                .apply_cpk_trivial_replay_for_test(attempted, fixture.carrier);
+            (fixture.machine, expected_drop)
+        });
+
+        assert_eq!(
+            machine.replay_drop_records.as_slice(),
+            &[expected_drop.clone()]
+        );
+        assert!(snapshot.replay_admissions.iter().any(|event| {
+            event.result.is_none()
+                && event.carrier == expected_drop.derivation
+                && event.disposition == ReplayAdmissionDisposition::Trivial
+        }));
+        assert!(snapshot.occurrences.iter().any(|occurrence| {
+            occurrence.result == ProofResult::TrivialReplay(ReplayDropRecordId(0))
+                && occurrence.cause == ProofCause::ReplayDrop(expected_drop.clone())
+        }));
+        assert_replay_shadow_parity(&machine, &snapshot);
+    }
+
+    #[test]
+    fn cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow() {
+        let ((machine, carrier), snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut fixture = cpk_3_replay_admission_fixture();
+            let constraint = SubtypeConstraintKey {
+                lower: fixture.machine.alloc_pos(Pos::Var(TypeVar(10))),
+                upper: fixture.machine.alloc_neg(Neg::Var(TypeVar(11))),
+                weights: ConstraintWeights::empty(),
+            };
+            fixture
+                .machine
+                .apply_cpk_evidence_only_replay_for_test(constraint, fixture.carrier);
+            (fixture.machine, fixture.carrier)
+        });
+
+        assert!(snapshot.replay_admissions.iter().any(|event| {
+            event.result.is_none()
+                && event.carrier == carrier
+                && event.disposition == ReplayAdmissionDisposition::EvidenceOnly
+        }));
+        let legacy_records = machine
+            .bounds
+            .records
+            .iter()
+            .enumerate()
+            .filter_map(|(index, record)| {
+                record
+                    .derivations
+                    .contains(&BoundDerivation::ReplayEvidence(carrier))
+                    .then_some(BoundRecordId(index as u32))
+            })
+            .collect::<FxHashSet<_>>();
+        let shadow_records = snapshot
+            .occurrences
+            .iter()
+            .filter_map(|occurrence| match (&occurrence.result, &occurrence.cause) {
+                (ProofResult::EvidenceBound(record), ProofCause::ReplayEvidence(replay))
+                    if *replay == carrier =>
+                {
+                    Some(*record)
+                }
+                _ => None,
+            })
+            .collect::<FxHashSet<_>>();
+        assert_eq!(legacy_records.len(), 2);
+        assert_eq!(shadow_records, legacy_records);
+        assert_replay_shadow_parity(&machine, &snapshot);
+    }
+
+    #[test]
+    fn cpk_3_replay_first_winner_matches_factored_for_every_parent_arrival_order() {
+        let permutations = [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ];
+        for order in permutations {
+            let ((machine, result, root, claims), snapshot) =
+                capture_proof_occurrence_shadow(|| {
+                    let mut fixture = cpk_3_replay_admission_fixture();
+                    let claims = [
+                        fixture.coverage_root,
+                        add_same_root_replay_claim(
+                            &mut fixture,
+                            TypeVar(20),
+                            ConstraintRecordId(20_000),
+                        ),
+                        add_same_root_replay_claim(
+                            &mut fixture,
+                            TypeVar(21),
+                            ConstraintRecordId(20_001),
+                        ),
+                    ];
+                    for index in order {
+                        fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                            fixture.result,
+                            fixture.carrier,
+                            claims[index],
+                        );
+                    }
+                    (
+                        fixture.machine,
+                        fixture.result,
+                        fixture.coverage_root,
+                        claims,
+                    )
+                });
+
+            assert_replay_shadow_parity(&machine, &snapshot);
+            let first = snapshot.first_replay_witnesses[&(result, root)];
+            assert_eq!(
+                first.representative_claim, claims[order[0]],
+                "the event-first claim must remain representative for order {order:?}"
+            );
+            let occurrence = snapshot
+                .replay_finite_map
+                .iter()
+                .find(|occurrence| occurrence.result == result)
+                .expect("the permutation produces one exact replay occurrence");
+            assert_eq!(occurrence.lower_parents.len(), 1);
+            assert_eq!(
+                occurrence.lower_parents[0].representative_claim,
+                claims[order[0]]
+            );
+        }
     }
 
     #[test]
