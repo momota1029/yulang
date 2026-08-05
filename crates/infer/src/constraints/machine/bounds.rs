@@ -276,6 +276,12 @@ impl ConstraintMachine {
             derivation,
             disposition,
         });
+        #[cfg(test)]
+        proof::record_bound_disposition_shadow(
+            id,
+            tombstone,
+            self.bound_dispositions[id.0 as usize].clone(),
+        );
         if let Some(bound) = tombstone {
             self.bounds.records[bound.0 as usize].disposition = Some(id);
         }
@@ -800,6 +806,8 @@ impl ConstraintMachine {
                 let derivation = BoundDerivation::SchemeInstantiation(derivation);
                 if !record.derivations.contains(&derivation) {
                     record.derivations.push(derivation.clone());
+                    #[cfg(test)]
+                    proof::record_bound_shadow(id, derivation.clone());
                     inserted_derivations.push(derivation);
                 }
             }

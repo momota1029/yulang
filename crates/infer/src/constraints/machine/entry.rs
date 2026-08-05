@@ -217,6 +217,11 @@ impl ConstraintMachine {
             use_value,
             completeness,
         });
+        #[cfg(test)]
+        proof::record_scheme_instantiation_record_shadow(
+            id,
+            self.scheme_instantiations[id.0 as usize].clone(),
+        );
         self.timing.scheme_instantiations.records += 1;
         self.bump_provenance_epoch();
         id
@@ -557,6 +562,8 @@ impl ConstraintMachine {
             return false;
         }
         roots.push(origin);
+        #[cfg(test)]
+        proof::record_constraint_root_shadow(record, origin);
         self.register_constraint_projection_carrier_delta(
             record,
             &[],
@@ -793,6 +800,8 @@ impl ConstraintMachine {
     ) {
         let considered = routes.len();
         let mut inserted_derivations = Vec::new();
+        #[cfg(test)]
+        let mut inserted_routes = Vec::new();
         let (inserted, incoming) = {
             let mut inserted = 0usize;
             let target = &mut self.constraint_records[record.0 as usize];
@@ -809,6 +818,8 @@ impl ConstraintMachine {
                         inserted += 1;
                     }
                 } else if !target.scheme_instantiation_routes.contains(&route) {
+                    #[cfg(test)]
+                    inserted_routes.push(route.clone());
                     target.scheme_instantiation_routes.push(route);
                     inserted += 1;
                 }
@@ -829,6 +840,8 @@ impl ConstraintMachine {
             self.bump_provenance_epoch();
         }
         for derivation in inserted_derivations {
+            #[cfg(test)]
+            proof::record_scheme_instantiation_derivation_shadow(record, derivation.clone());
             self.register_constraint_projection_carrier_delta(
                 record,
                 &[],
@@ -838,6 +851,19 @@ impl ConstraintMachine {
                 },
             );
         }
+        #[cfg(test)]
+        for route in inserted_routes {
+            proof::record_scheme_instantiation_route_shadow(record, route);
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn merge_scheme_instantiation_routes_for_test(
+        &mut self,
+        record: ConstraintRecordId,
+        routes: Vec<SchemeInstantiationRoute>,
+    ) {
+        self.merge_scheme_instantiation_routes(record, routes);
     }
 
     fn structural_scheme_routes(
@@ -1162,7 +1188,9 @@ impl ConstraintMachine {
         let dispositions =
             &mut self.constraint_records[record_id.0 as usize].canonicalization_dispositions;
         if !dispositions.contains(&disposition) {
-            dispositions.push(disposition);
+            dispositions.push(disposition.clone());
+            #[cfg(test)]
+            proof::record_constraint_disposition_shadow(record_id, disposition);
             self.bump_provenance_epoch();
         }
     }
@@ -1385,6 +1413,8 @@ impl ConstraintMachine {
                     }
                 }
                 if let Some(origin) = inserted_origin {
+                    #[cfg(test)]
+                    proof::record_constraint_root_shadow(existing_record_id, origin);
                     self.register_constraint_projection_carrier_delta(
                         existing_record_id,
                         &[],
@@ -1416,6 +1446,10 @@ impl ConstraintMachine {
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        #[cfg(test)]
+        if let Some(origin) = origin {
+            proof::record_constraint_root_shadow(record_id, origin);
+        }
         if origin.is_some() {
             self.bump_provenance_epoch();
         }
@@ -1465,6 +1499,10 @@ impl ConstraintMachine {
                     derivations.push(derivation);
                     derivation_inserted = true;
                 }
+                #[cfg(test)]
+                if derivation_inserted {
+                    proof::record_structural_shadow(record_id, derivation);
+                }
                 let parent_changed =
                     self.merge_structural_claim_parents(record_id, derivation, derivation_inserted);
                 let provenance_changed = derivation_inserted || parent_changed;
@@ -1503,6 +1541,8 @@ impl ConstraintMachine {
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        #[cfg(test)]
+        proof::record_structural_shadow(record_id, derivation);
         self.merge_structural_claim_parents(record_id, derivation, true);
         self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
@@ -1547,6 +1587,10 @@ impl ConstraintMachine {
         if !derivations.contains(&derivation) {
             derivations.push(derivation);
             derivation_inserted = true;
+        }
+        #[cfg(test)]
+        if derivation_inserted {
+            proof::record_structural_shadow(record_id, derivation);
         }
         let parent_changed =
             self.merge_structural_claim_parents(record_id, derivation, derivation_inserted);
@@ -1613,7 +1657,9 @@ impl ConstraintMachine {
         }
         let id = RowDerivationId(self.row_derivations.len() as u32);
         self.row_derivation_index.insert(derivation.clone(), id);
-        self.row_derivations.push(derivation);
+        self.row_derivations.push(derivation.clone());
+        #[cfg(test)]
+        proof::record_row_definition_shadow(id, derivation);
         self.timing.record_row_derivation(rule, true);
         self.bump_provenance_epoch();
         id
@@ -1659,6 +1705,10 @@ impl ConstraintMachine {
                     }
                     self.bump_provenance_epoch();
                 }
+                #[cfg(test)]
+                if derivation_inserted {
+                    proof::record_row_constraint_shadow(record_id, derivation);
+                }
                 self.merge_constraint_canonicalization_disposition(&constraint, disposition);
                 self.timing.record_subtype_duplicate_admission();
                 #[cfg(test)]
@@ -1690,6 +1740,8 @@ impl ConstraintMachine {
             canonicalization_dispositions: Vec::new(),
             replay_provenance: ProvenanceCompleteness::Complete,
         });
+        #[cfg(test)]
+        proof::record_row_constraint_shadow(record_id, derivation);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
         let work = ConstraintWork::Subtype(record_id);
@@ -1839,6 +1891,10 @@ impl ConstraintMachine {
     ) {
         let id = fact.id;
         let insertion = self.subtracts.insert(effect, fact, derivation);
+        #[cfg(test)]
+        if insertion.provenance_changed {
+            proof::record_subtract_shadow(insertion.id, derivation);
+        }
         if insertion.provenance_changed {
             self.bump_provenance_epoch();
         }

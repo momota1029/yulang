@@ -67,12 +67,15 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("attributed_claim_supports", 33),
     ("flat_retained_attributed_claim_supports", 12),
     ("dependent_records_by_premise", 23),
-    ("origins", 134),
+    // CPK-2's test-only legacy parity reconstruction adds one reviewed root-origin read.
+    ("origins", 135),
     ("source_boundaries", 7),
-    ("row_derivations", 53),
+    // CPK-2's test-only legacy parity reconstruction adds two reviewed row-derivation reads.
+    ("row_derivations", 55),
     ("generalized_schemes", 9),
     ("generalized_witnesses", 10),
-    ("scheme_instantiations", 15),
+    // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
+    ("scheme_instantiations", 17),
     ("upper_replay_claims", 78),
     ("claims_by_upper_record", 14),
     ("live_coverage_by_root", 9),
@@ -84,6 +87,11 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
 ];
 
 const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
+    // Test-only CPK shadow parity consumer; never a production authority.
+    (
+        "constraints/proof/mod.rs",
+        "legacy_cpk2_shadow_expected",
+    ),
     // Source boundary and constraint derivation.
     ("constraints/machine/entry.rs", "alloc_source_boundary"),
     (

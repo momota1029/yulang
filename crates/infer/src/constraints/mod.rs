@@ -2617,6 +2617,8 @@ impl TypeBounds {
         requested_state: BoundRecordState,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
+        #[cfg(test)]
+        let shadow_derivation = derivation.clone();
         if let Some(id) = self.canonical.get(&key).copied() {
             let record = &mut self.records[id.0 as usize];
             let provenance_changed = if record.derivations.contains(&derivation) {
@@ -2655,6 +2657,10 @@ impl TypeBounds {
                     }
                 }
             }
+            #[cfg(test)]
+            if provenance_changed {
+                proof::record_bound_shadow(id, shadow_derivation);
+            }
             return BoundInsertResult {
                 id,
                 semantic_changed: promoted,
@@ -2674,6 +2680,8 @@ impl TypeBounds {
             derivations: vec![derivation],
             disposition: None,
         });
+        #[cfg(test)]
+        proof::record_bound_shadow(id, shadow_derivation);
         let bounds = self.bounds_mut(owner);
         match (endpoint, requested_state) {
             (BoundEndpoint::Lower(pos), BoundRecordState::Ordinary) => {

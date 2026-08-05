@@ -1,9 +1,8 @@
 //! Constraint Proof Kernel boundary.
 //!
-//! CPK-1 only defines read-only adapters over current semantic records and their legacy proof
-//! payloads. It owns no store, receives no production events, and cannot mutate the semantic
-//! machine. Later CPK slices build behind this boundary without changing worklist identity or
-//! ordering.
+//! CPK-1 defines read-only adapters over current semantic records and their legacy proof payloads.
+//! CPK-2 adds a test-only occurrence shadow below that seam. It does not own production state,
+//! receive replay occurrences, or influence worklist identity and ordering.
 
 use super::*;
 
@@ -12,7 +11,10 @@ use super::*;
 pub(crate) enum SemanticFactRef {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    Subtract(SubtractFactRecordId),
+    RowDerivation(RowDerivationId),
     RowReduction(UnweightedRowReductionRecordId),
+    SchemeInstantiation(SchemeInstantiationId),
 }
 
 /// Semantic portion of a canonical subtype constraint.
@@ -329,8 +331,664 @@ impl UnweightedRowReductionRecord {
 }
 
 #[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ProofOccurrence {
+    pub(crate) result: ProofResult,
+    pub(crate) cause: ProofCause,
+    pub(crate) parents: Vec<ProofParent>,
+    pub(crate) event: usize,
+    pub(crate) completeness: ProvenanceCompleteness,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ProofResult {
+    Semantic(SemanticFactRef),
+    /// Some rejected/equivalent admissions have no newly persisted semantic bound.
+    BoundDisposition(BoundDispositionRecordId),
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ProofCause {
+    Root(OriginId),
+    Structural(StructuralDerivation),
+    RowDefinition(RowDerivation),
+    RowConstraint(RowDerivationId),
+    ConstraintDisposition(ConstraintCanonicalizationDisposition),
+    Bound(BoundDerivation),
+    BoundDisposition(BoundDispositionRecord),
+    Subtract(SubtractFactDerivation),
+    SchemeInstantiationRecord(SchemeInstantiationRecord),
+    SchemeInstantiationDerivation(SchemeInstantiationDerivation),
+    SchemeInstantiationRoute(SchemeInstantiationRoute),
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ProofParent {
+    Semantic(SemanticFactRef),
+    Origin(OriginId),
+    LowerFilter(LowerFilterRecordId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ProofOccurrenceStoreSnapshot {
+    pub(crate) occurrences: Vec<ProofOccurrence>,
+    /// Replay is intentionally deferred to CPK-3; consumers must not infer coverage from absence.
+    pub(crate) replay_coverage_connected: bool,
+}
+
+#[cfg(test)]
+thread_local! {
+    static SHADOW_CAPTURE_DEPTH: Cell<usize> = const { Cell::new(0) };
+    static SHADOW_STORE: RefCell<ProofOccurrenceStoreSnapshot> = RefCell::default();
+}
+
+#[cfg(test)]
+pub(crate) fn capture_proof_occurrence_shadow<R>(
+    f: impl FnOnce() -> R,
+) -> (R, ProofOccurrenceStoreSnapshot) {
+    struct Reset(usize);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            SHADOW_CAPTURE_DEPTH.set(self.0);
+        }
+    }
+
+    let previous = SHADOW_CAPTURE_DEPTH.get();
+    assert_eq!(previous, 0, "CPK proof shadow capture is not nestable");
+    SHADOW_STORE.with(|store| *store.borrow_mut() = ProofOccurrenceStoreSnapshot::default());
+    SHADOW_CAPTURE_DEPTH.set(1);
+    let _reset = Reset(previous);
+    let value = f();
+    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    (value, snapshot)
+}
+
+#[cfg(test)]
+pub(crate) fn proof_occurrence_shadow_is_active() -> bool {
+    SHADOW_CAPTURE_DEPTH.get() != 0
+}
+
+#[cfg(test)]
+fn proof_occurrence_shadow_len() -> usize {
+    SHADOW_STORE.with(|store| store.borrow().occurrences.len())
+}
+
+#[cfg(test)]
+fn record_shadow_occurrence(
+    result: ProofResult,
+    cause: ProofCause,
+    parents: Vec<ProofParent>,
+    completeness: ProvenanceCompleteness,
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        let mut store = store.borrow_mut();
+        let event = store.occurrences.len();
+        store.occurrences.push(ProofOccurrence {
+            result,
+            cause,
+            parents,
+            event,
+            completeness,
+        });
+    });
+}
+
+#[cfg(test)]
+pub(crate) fn record_constraint_root_shadow(result: ConstraintRecordId, origin: OriginId) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::Root(origin),
+        vec![ProofParent::Origin(origin)],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_structural_shadow(
+    result: ConstraintRecordId,
+    derivation: StructuralDerivation,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::Structural(derivation),
+        vec![ProofParent::Semantic(SemanticFactRef::Constraint(
+            derivation.parent,
+        ))],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+fn row_parent(parent: RowDerivationParent) -> ProofParent {
+    match parent {
+        RowDerivationParent::Constraint(id) => {
+            ProofParent::Semantic(SemanticFactRef::Constraint(id))
+        }
+        RowDerivationParent::Bound(id) => ProofParent::Semantic(SemanticFactRef::Bound(id)),
+        RowDerivationParent::SubtractFact(id) => {
+            ProofParent::Semantic(SemanticFactRef::Subtract(id))
+        }
+        RowDerivationParent::RowDerivation(id) => {
+            ProofParent::Semantic(SemanticFactRef::RowDerivation(id))
+        }
+        RowDerivationParent::LowerFilter(id) => ProofParent::LowerFilter(id),
+        RowDerivationParent::Origin(id) => ProofParent::Origin(id),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn record_row_definition_shadow(id: RowDerivationId, derivation: RowDerivation) {
+    let parents = derivation.parents.iter().copied().map(row_parent).collect();
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
+        ProofCause::RowDefinition(derivation),
+        parents,
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_row_constraint_shadow(
+    result: ConstraintRecordId,
+    derivation: RowDerivationId,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::RowConstraint(derivation),
+        vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
+            derivation,
+        ))],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+fn bound_derivation_parents(derivation: &BoundDerivation) -> Vec<ProofParent> {
+    match derivation {
+        BoundDerivation::Constraint(id) => {
+            vec![ProofParent::Semantic(SemanticFactRef::Constraint(*id))]
+        }
+        BoundDerivation::Origin(id) => vec![ProofParent::Origin(*id)],
+        BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay => Vec::new(),
+        BoundDerivation::Row(id) => {
+            vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(*id))]
+        }
+        BoundDerivation::SchemeInstantiation(derivation) => vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                derivation.instantiation,
+            )),
+            ProofParent::GeneralizedWitness(derivation.source_witness),
+        ],
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn record_bound_shadow(result: BoundRecordId, derivation: BoundDerivation) {
+    if matches!(
+        derivation,
+        BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
+    ) {
+        // Replay occurrences, including evidence-only replay bounds, start in CPK-3.
+        return;
+    }
+    let parents = bound_derivation_parents(&derivation);
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Bound(result)),
+        ProofCause::Bound(derivation),
+        parents,
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_bound_disposition_shadow(
+    id: BoundDispositionRecordId,
+    result: Option<BoundRecordId>,
+    disposition: BoundDispositionRecord,
+) {
+    record_shadow_occurrence(
+        result.map_or(ProofResult::BoundDisposition(id), |result| {
+            ProofResult::Semantic(SemanticFactRef::Bound(result))
+        }),
+        ProofCause::BoundDisposition(disposition),
+        Vec::new(),
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_subtract_shadow(
+    result: SubtractFactRecordId,
+    derivation: SubtractFactDerivation,
+) {
+    let origin = match derivation {
+        SubtractFactDerivation::Declaration(origin)
+        | SubtractFactDerivation::Import(origin)
+        | SubtractFactDerivation::Internal(origin) => origin,
+    };
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Subtract(result)),
+        ProofCause::Subtract(derivation),
+        vec![ProofParent::Origin(origin)],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_scheme_instantiation_record_shadow(
+    result: SchemeInstantiationId,
+    record: SchemeInstantiationRecord,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(result)),
+        ProofCause::SchemeInstantiationRecord(record.clone()),
+        Vec::new(),
+        record.completeness,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_scheme_instantiation_derivation_shadow(
+    result: ConstraintRecordId,
+    derivation: SchemeInstantiationDerivation,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::SchemeInstantiationDerivation(derivation.clone()),
+        vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                derivation.instantiation,
+            )),
+            ProofParent::GeneralizedWitness(derivation.source_witness),
+        ],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_scheme_instantiation_route_shadow(
+    result: ConstraintRecordId,
+    route: SchemeInstantiationRoute,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::SchemeInstantiationRoute(route.clone()),
+        vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                route.derivation.instantiation,
+            )),
+            ProofParent::GeneralizedWitness(route.derivation.source_witness),
+        ],
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+pub(crate) fn record_constraint_disposition_shadow(
+    result: ConstraintRecordId,
+    disposition: ConstraintCanonicalizationDisposition,
+) {
+    record_shadow_occurrence(
+        ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+        ProofCause::ConstraintDisposition(disposition),
+        Vec::new(),
+        ProvenanceCompleteness::Complete,
+    );
+}
+
+#[cfg(test)]
+fn occurrence_without_event(
+    result: ProofResult,
+    cause: ProofCause,
+    parents: Vec<ProofParent>,
+    completeness: ProvenanceCompleteness,
+) -> ProofOccurrence {
+    ProofOccurrence {
+        result,
+        cause,
+        parents,
+        event: 0,
+        completeness,
+    }
+}
+
+#[cfg(test)]
+fn legacy_cpk2_shadow_expected(machine: &ConstraintMachine) -> Vec<ProofOccurrence> {
+    let mut occurrences = Vec::new();
+    for (index, record) in machine.constraint_records.iter().enumerate() {
+        let id = ConstraintRecordId(index as u32);
+        let result = ProofResult::Semantic(SemanticFactRef::Constraint(id));
+        occurrences.extend(record.root_origins.iter().copied().map(|origin| {
+            occurrence_without_event(
+                result,
+                ProofCause::Root(origin),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            )
+        }));
+        occurrences.extend(record.structural_derivations.iter().copied().map(|derivation| {
+            occurrence_without_event(
+                result,
+                ProofCause::Structural(derivation),
+                vec![ProofParent::Semantic(SemanticFactRef::Constraint(
+                    derivation.parent,
+                ))],
+                ProvenanceCompleteness::Complete,
+            )
+        }));
+        occurrences.extend(record.row_derivations.iter().copied().map(|derivation| {
+            occurrence_without_event(
+                result,
+                ProofCause::RowConstraint(derivation),
+                vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
+                    derivation,
+                ))],
+                ProvenanceCompleteness::Complete,
+            )
+        }));
+        occurrences.extend(record.canonicalization_dispositions.iter().cloned().map(
+            |disposition| {
+                occurrence_without_event(
+                    result,
+                    ProofCause::ConstraintDisposition(disposition),
+                    Vec::new(),
+                    ProvenanceCompleteness::Complete,
+                )
+            },
+        ));
+        occurrences.extend(record.scheme_instantiation_derivations.iter().cloned().map(
+            |derivation| {
+                occurrence_without_event(
+                    result,
+                    ProofCause::SchemeInstantiationDerivation(derivation.clone()),
+                    vec![
+                        ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                            derivation.instantiation,
+                        )),
+                        ProofParent::GeneralizedWitness(derivation.source_witness),
+                    ],
+                    ProvenanceCompleteness::Complete,
+                )
+            },
+        ));
+        occurrences.extend(record.scheme_instantiation_routes.iter().cloned().map(|route| {
+            occurrence_without_event(
+                result,
+                ProofCause::SchemeInstantiationRoute(route.clone()),
+                vec![
+                    ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
+                        route.derivation.instantiation,
+                    )),
+                    ProofParent::GeneralizedWitness(route.derivation.source_witness),
+                ],
+                ProvenanceCompleteness::Complete,
+            )
+        }));
+    }
+    for (index, record) in machine.bounds.records.iter().enumerate() {
+        let id = BoundRecordId(index as u32);
+        occurrences.extend(record.derivations.iter().filter_map(|derivation| {
+            if matches!(
+                derivation,
+                BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
+            ) {
+                return None;
+            }
+            Some(occurrence_without_event(
+                ProofResult::Semantic(SemanticFactRef::Bound(id)),
+                ProofCause::Bound(derivation.clone()),
+                bound_derivation_parents(derivation),
+                ProvenanceCompleteness::Complete,
+            ))
+        }));
+    }
+    for (index, record) in machine.bound_dispositions.iter().enumerate() {
+        let id = BoundDispositionRecordId(index as u32);
+        let bound = machine.bounds.records.iter().enumerate().find_map(|(index, bound)| {
+            (bound.disposition == Some(id)).then_some(BoundRecordId(index as u32))
+        });
+        occurrences.push(occurrence_without_event(
+            bound.map_or(ProofResult::BoundDisposition(id), |bound| {
+                ProofResult::Semantic(SemanticFactRef::Bound(bound))
+            }),
+            ProofCause::BoundDisposition(record.clone()),
+            Vec::new(),
+            ProvenanceCompleteness::Complete,
+        ));
+    }
+    for (index, record) in machine.subtracts.records.iter().enumerate() {
+        let id = SubtractFactRecordId(index as u32);
+        occurrences.extend(record.derivations.iter().copied().map(|derivation| {
+            let origin = match derivation {
+                SubtractFactDerivation::Declaration(origin)
+                | SubtractFactDerivation::Import(origin)
+                | SubtractFactDerivation::Internal(origin) => origin,
+            };
+            occurrence_without_event(
+                ProofResult::Semantic(SemanticFactRef::Subtract(id)),
+                ProofCause::Subtract(derivation),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            )
+        }));
+    }
+    occurrences.extend(machine.row_derivations.iter().cloned().enumerate().map(
+        |(index, derivation)| {
+            let id = RowDerivationId(index as u32);
+            let parents = derivation.parents.iter().copied().map(row_parent).collect();
+            occurrence_without_event(
+                ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
+                ProofCause::RowDefinition(derivation),
+                parents,
+                ProvenanceCompleteness::Complete,
+            )
+        },
+    ));
+    occurrences.extend(machine.scheme_instantiations.iter().cloned().enumerate().map(
+        |(index, record)| {
+            occurrence_without_event(
+                ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(
+                    SchemeInstantiationId(index as u32),
+                )),
+                ProofCause::SchemeInstantiationRecord(record.clone()),
+                Vec::new(),
+                record.completeness,
+            )
+        },
+    ));
+    occurrences
+}
+
+#[cfg(test)]
+fn assert_non_replay_shadow_parity(
+    machine: &ConstraintMachine,
+    snapshot: &ProofOccurrenceStoreSnapshot,
+) {
+    assert!(!snapshot.replay_coverage_connected, "replay belongs to CPK-3");
+    assert_eq!(
+        snapshot.occurrences.iter().map(|entry| entry.event).collect::<Vec<_>>(),
+        (0..snapshot.occurrences.len()).collect::<Vec<_>>(),
+        "shadow occurrence ordinals must preserve writer order",
+    );
+    let mut actual = snapshot.occurrences.clone();
+    for occurrence in &mut actual {
+        occurrence.event = 0;
+    }
+    for expected in legacy_cpk2_shadow_expected(machine) {
+        let position = actual
+            .iter()
+            .position(|actual| actual == &expected)
+            .unwrap_or_else(|| panic!("missing CPK shadow occurrence: {expected:#?}"));
+        actual.swap_remove(position);
+    }
+    assert!(actual.is_empty(), "unexpected CPK shadow occurrences: {actual:#?}");
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cpk_2_non_replay_shadow_matches_legacy_and_is_off_by_default() {
+        let (_, empty) = capture_proof_occurrence_shadow(|| {});
+        assert!(empty.occurrences.is_empty());
+        assert!(!proof_occurrence_shadow_is_active());
+
+        let mut inactive_machine = ConstraintMachine::new();
+        let inactive_lower = inactive_machine.alloc_pos(Pos::Var(TypeVar(0)));
+        let inactive_upper = inactive_machine.alloc_neg(Neg::Var(TypeVar(1)));
+        inactive_machine.subtype(
+            inactive_lower,
+            inactive_upper,
+            OriginId::unknown_internal(),
+        );
+        assert_eq!(
+            proof_occurrence_shadow_len(),
+            0,
+            "inactive shadow hooks must not retain an occurrence",
+        );
+
+        let (machine, snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut machine = ConstraintMachine::new();
+            let origin = OriginId::unknown_internal();
+            let lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+            let upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+            machine.subtype(lower, upper, origin);
+            let parent = machine
+                .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+                .expect("root constraint");
+
+            let structural_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
+            let structural_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
+            assert!(machine.enqueue_derived_subtype(
+                structural_lower,
+                ConstraintWeights::empty(),
+                structural_upper,
+                parent,
+                StructuralDerivationRule::FunctionReturn,
+            ));
+            machine.drain();
+            let structural = machine
+                .constraint_record_id(
+                    structural_lower,
+                    ConstraintWeights::empty(),
+                    structural_upper,
+                )
+                .expect("structural constraint");
+
+            let row = machine.intern_row_derivation(
+                RowDerivationRule::RowItemMatch,
+                vec![RowDerivationParent::Constraint(parent)],
+                Vec::new(),
+            );
+            let row_lower = machine.alloc_pos(Pos::Var(TypeVar(14)));
+            let row_upper = machine.alloc_neg(Neg::Var(TypeVar(15)));
+            assert!(machine.enqueue_row_derived_subtype(
+                row_lower,
+                ConstraintWeights::empty(),
+                row_upper,
+                row,
+            ));
+            machine.drain();
+
+            machine.subtract_fact(TypeVar(16), SubtractId(7), Subtractability::All);
+
+            let instantiation = machine.intern_scheme_instantiation(
+                GeneralizedSchemeRecordId(0),
+                DefId(0),
+                DefId(1),
+                TypeVar(17),
+                ProvenanceCompleteness::Complete,
+            );
+            let derivation = SchemeInstantiationDerivation {
+                instantiation,
+                source_witness: GeneralizedSchemeWitnessId(0),
+                path: GeneralizedTypePath::default(),
+            };
+            machine.merge_scheme_instantiation_routes_for_test(
+                structural,
+                vec![
+                    SchemeInstantiationRoute {
+                        derivation: derivation.clone(),
+                        remaining: GeneralizedTypePath::default(),
+                    },
+                    SchemeInstantiationRoute {
+                        derivation,
+                        remaining: GeneralizedTypePath(vec![
+                            GeneralizedTypePathStep::FunctionReturn,
+                        ]),
+                    },
+                ],
+            );
+
+            let alternate = machine.alloc_source_boundary(ConstraintOriginKind::Annotation);
+            assert!(machine.attach_root_origin_to_existing_subtype(
+                lower,
+                upper,
+                alternate.origin,
+            ));
+            let before_duplicate = proof_occurrence_shadow_len();
+            assert!(!machine.attach_root_origin_to_existing_subtype(
+                lower,
+                upper,
+                alternate.origin,
+            ));
+            assert_eq!(
+                proof_occurrence_shadow_len(),
+                before_duplicate,
+                "an exact metadata duplicate must not create an occurrence",
+            );
+            machine
+        });
+
+        assert_non_replay_shadow_parity(&machine, &snapshot);
+        for predicate in [
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::Root(_))),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::Structural(_))),
+            snapshot.occurrences.iter().any(|entry| {
+                matches!(
+                    entry.cause,
+                    ProofCause::RowDefinition(_) | ProofCause::RowConstraint(_)
+                )
+            }),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::Bound(_))),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::Subtract(_))),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::SchemeInstantiationRecord(_))),
+            snapshot.occurrences.iter().any(|entry| {
+                matches!(entry.cause, ProofCause::SchemeInstantiationDerivation(_))
+            }),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::SchemeInstantiationRoute(_))),
+        ] {
+            assert!(predicate, "each CPK-2 non-replay source must be exercised");
+        }
+        assert!(!snapshot.replay_coverage_connected);
+    }
 
     #[test]
     fn cpk_1_semantic_view_and_legacy_payload_match_embedded_records() {
