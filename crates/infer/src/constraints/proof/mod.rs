@@ -410,12 +410,18 @@ pub(crate) enum ReplayAdmissionDisposition {
     Incomplete,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShadowReplayRouting {
+pub(crate) enum ReplayRouting {
     Generic,
     IncrementalOnly,
     SkipAlreadyCovered,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PreparedReplayRoute {
+    pub(crate) routing: ReplayRouting,
+    pub(crate) lower_parent_roots: FxHashSet<UpperReplayClaimId>,
+    pub(crate) upper_parent_roots: FxHashSet<UpperReplayClaimId>,
 }
 
 #[cfg(test)]
@@ -430,8 +436,8 @@ pub(super) struct ReplayRoutingShadowToken {
 struct ShadowReplayRouteObservation {
     lower: BoundRecordId,
     upper: BoundRecordId,
-    legacy: ShadowReplayRouting,
-    shadow: ShadowReplayRouting,
+    legacy: ReplayRouting,
+    shadow: ReplayRouting,
     lower_parent_roots: usize,
     upper_parent_roots: usize,
 }
@@ -844,10 +850,86 @@ impl ProofOccurrenceStore {
             formula.sort_by_key(|clause| clause.category_rank());
         }
     }
+
+    /// Prepare the CPK replay decision without changing semantic routing.
+    ///
+    /// CPK-6a only compiles this query into production. No production consumer reads its result
+    /// until the later authority-cutover slice.
+    pub(super) fn prepare_replay_route(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        lower_is_var: bool,
+        incremental_routes: &[UnweightedRowReductionReplayRoute],
+    ) -> PreparedReplayRoute {
+        let upper_claims = self
+            .upper_claims
+            .iter()
+            .filter(|claim| claim.current_record == upper)
+            .collect::<Vec<_>>();
+        let covered = |claim: &&UpperClaimOccurrence| {
+            self.live_coverage
+                .iter()
+                .any(|(root, _)| *root == claim.coverage_root)
+        };
+        let requires_generic =
+            upper_claims.is_empty() || upper_claims.iter().any(|claim| !covered(claim));
+        let uncovered_upper_roots = upper_claims
+            .iter()
+            .filter(|claim| !covered(claim))
+            .map(|claim| claim.coverage_root)
+            .collect::<FxHashSet<_>>();
+        let fallback_covered_roots = if lower_is_var {
+            upper_claims
+                .iter()
+                .filter(|claim| covered(claim))
+                .filter(|claim| {
+                    !incremental_routes.iter().any(|route| {
+                        route.upper_record == upper && route.claim == Some(claim.claim)
+                    })
+                })
+                .map(|claim| claim.coverage_root)
+                .collect::<FxHashSet<_>>()
+        } else {
+            FxHashSet::default()
+        };
+        let has_incremental_route = incremental_routes
+            .iter()
+            .any(|route| route.upper_record == upper);
+        let routing = if requires_generic {
+            ReplayRouting::Generic
+        } else if has_incremental_route || !fallback_covered_roots.is_empty() {
+            ReplayRouting::IncrementalOnly
+        } else {
+            ReplayRouting::SkipAlreadyCovered
+        };
+        let lower_parent_roots = self
+            .projection_supports
+            .get(&lower)
+            .into_iter()
+            .flatten()
+            .filter_map(|support| match support {
+                SchemeProjectionProofSupport::Claimed(claim) => self
+                    .upper_claims
+                    .iter()
+                    .find(|candidate| candidate.claim == *claim)
+                    .map(|claim| claim.coverage_root),
+                SchemeProjectionProofSupport::Independent(_) => None,
+            })
+            .collect();
+        let upper_parent_roots = uncovered_upper_roots
+            .union(&fallback_covered_roots)
+            .copied()
+            .collect();
+        PreparedReplayRoute {
+            routing,
+            lower_parent_roots,
+            upper_parent_roots,
+        }
+    }
 }
 
-#[cfg(test)]
-struct ShadowProjectionEvaluator<'a> {
+pub(super) struct CpkProjectionEvaluator<'a> {
     machine: &'a ConstraintMachine,
     store: &'a ProofOccurrenceStore,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
@@ -856,9 +938,8 @@ struct ShadowProjectionEvaluator<'a> {
     cycle_cuts: usize,
 }
 
-#[cfg(test)]
-impl<'a> ShadowProjectionEvaluator<'a> {
-    fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStore) -> Self {
+impl<'a> CpkProjectionEvaluator<'a> {
+    pub(super) fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStore) -> Self {
         Self {
             machine,
             store,
@@ -869,7 +950,7 @@ impl<'a> ShadowProjectionEvaluator<'a> {
         }
     }
 
-    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+    pub(super) fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if let Some(result) = self.record_overrides.get(&record) {
             return *result;
         }
@@ -1098,6 +1179,10 @@ impl<'a> ShadowProjectionEvaluator<'a> {
         self.states.insert(node, ProofEvalState::Done(result));
         result
     }
+
+    pub(super) fn cycle_cuts(&self) -> usize {
+        self.cycle_cuts
+    }
 }
 
 #[cfg(test)]
@@ -1120,14 +1205,14 @@ pub(super) fn compare_projection_record_shadow(
         // Capture began after this record's writer events; it is not a complete shadow view.
         return;
     }
-    let mut evaluator = ShadowProjectionEvaluator::new(machine, &snapshot);
+    let mut evaluator = CpkProjectionEvaluator::new(machine, &snapshot);
     let shadow_result = evaluator.eval_record(record);
     let observation = ShadowProjectabilityObservation {
         record,
         legacy: legacy_result,
         shadow: shadow_result,
         legacy_cycle_cut: legacy_cycle_cuts != 0,
-        shadow_cycle_cut: evaluator.cycle_cuts != 0,
+        shadow_cycle_cut: evaluator.cycle_cuts() != 0,
     };
     assert_eq!(shadow_result, legacy_result, "CPK-4 projectability diverged");
     assert_eq!(
@@ -1171,7 +1256,7 @@ pub(super) fn compare_projection_publication_shadow(
         return;
     }
 
-    let mut current = ShadowProjectionEvaluator::new(machine, &snapshot);
+    let mut current = CpkProjectionEvaluator::new(machine, &snapshot);
     let shadow_is_included = current.eval_record(lower_record);
     assert_eq!(
         shadow_is_included, is_included,
@@ -1187,10 +1272,10 @@ pub(super) fn compare_projection_publication_shadow(
                 continue;
             }
             let record_id = BoundRecordId(index as u32);
-            let mut before = ShadowProjectionEvaluator::new(machine, &snapshot);
+            let mut before = CpkProjectionEvaluator::new(machine, &snapshot);
             before.record_overrides.insert(lower_record, was_included);
             let before = before.eval_record(record_id);
-            let mut after = ShadowProjectionEvaluator::new(machine, &snapshot);
+            let mut after = CpkProjectionEvaluator::new(machine, &snapshot);
             let after = after.eval_record(record_id);
             if before != after {
                 shadow_affected_owners.insert(record.owner());
@@ -1288,69 +1373,15 @@ pub(super) fn compare_replay_route_shadow(
         .iter()
         .any(|route| route.upper_record == upper);
     let legacy = if legacy_requires_generic {
-        ShadowReplayRouting::Generic
+        ReplayRouting::Generic
     } else if legacy_pair_replay || has_incremental_route {
-        ShadowReplayRouting::IncrementalOnly
+        ReplayRouting::IncrementalOnly
     } else {
-        ShadowReplayRouting::SkipAlreadyCovered
+        ReplayRouting::SkipAlreadyCovered
     };
 
-    let upper_claims = snapshot
-        .upper_claims
-        .iter()
-        .filter(|claim| claim.current_record == upper)
-        .collect::<Vec<_>>();
-    let covered = |claim: &&UpperClaimOccurrence| {
-        snapshot
-            .live_coverage
-            .iter()
-            .any(|(root, _)| *root == claim.coverage_root)
-    };
-    let shadow_requires_generic = upper_claims.is_empty()
-        || upper_claims.iter().any(|claim| !covered(claim));
-    let uncovered_upper_roots = upper_claims
-        .iter()
-        .filter(|claim| !covered(claim))
-        .map(|claim| claim.coverage_root)
-        .collect::<FxHashSet<_>>();
-    let fallback_covered_roots = if lower_is_var {
-        upper_claims
-            .iter()
-            .filter(|claim| covered(claim))
-            .filter(|claim| {
-                !incremental_routes.iter().any(|route| {
-                    route.upper_record == upper && route.claim == Some(claim.claim)
-                })
-            })
-            .map(|claim| claim.coverage_root)
-            .collect::<FxHashSet<_>>()
-    } else {
-        FxHashSet::default()
-    };
-    let shadow = if shadow_requires_generic {
-        ShadowReplayRouting::Generic
-    } else if has_incremental_route || !fallback_covered_roots.is_empty() {
-        ShadowReplayRouting::IncrementalOnly
-    } else {
-        ShadowReplayRouting::SkipAlreadyCovered
-    };
-    assert_eq!(shadow, legacy, "CPK-5 replay routing diverged");
-
-    let lower_parent_roots = snapshot
-        .projection_supports
-        .get(&lower)
-        .into_iter()
-        .flatten()
-        .filter_map(|support| match support {
-            SchemeProjectionProofSupport::Claimed(claim) => snapshot
-                .upper_claims
-                .iter()
-                .find(|candidate| candidate.claim == *claim)
-                .map(|claim| claim.coverage_root),
-            SchemeProjectionProofSupport::Independent(_) => None,
-        })
-        .collect::<FxHashSet<_>>()
-        .len();
+    let prepared = snapshot.prepare_replay_route(lower, upper, lower_is_var, incremental_routes);
+    assert_eq!(prepared.routing, legacy, "CPK-5 replay routing diverged");
     SHADOW_STORE.with(|store| {
         store
             .borrow_mut()
@@ -1359,11 +1390,9 @@ pub(super) fn compare_replay_route_shadow(
                 lower,
                 upper,
                 legacy,
-                shadow,
-                lower_parent_roots,
-                upper_parent_roots: uncovered_upper_roots
-                    .union(&fallback_covered_roots)
-                    .count(),
+                shadow: prepared.routing,
+                lower_parent_roots: prepared.lower_parent_roots.len(),
+                upper_parent_roots: prepared.upper_parent_roots.len(),
             });
     });
 }
@@ -1383,7 +1412,7 @@ pub(super) fn finish_replay_routing_shadow(
         let shadow_input_count = store.replay_route_observations[token.routes_before..]
             .iter()
             .filter(|observation| {
-                observation.shadow != ShadowReplayRouting::SkipAlreadyCovered
+                observation.shadow != ReplayRouting::SkipAlreadyCovered
             })
             .count();
         let accepted_results = store.replay_admissions[token.admissions_before..]
@@ -3035,8 +3064,8 @@ mod tests {
         });
 
         assert!(snapshot.replay_route_observations.iter().any(|observation| {
-            observation.legacy == ShadowReplayRouting::Generic
-                && observation.shadow == ShadowReplayRouting::Generic
+            observation.legacy == ReplayRouting::Generic
+                && observation.shadow == ReplayRouting::Generic
         }));
         assert_cpk_5_event_count_parity(&snapshot);
     }
@@ -3044,8 +3073,8 @@ mod tests {
     #[test]
     fn cpk_5_incremental_only_and_skip_routes_match_legacy() {
         for (lower_is_var, expected) in [
-            (true, ShadowReplayRouting::IncrementalOnly),
-            (false, ShadowReplayRouting::SkipAlreadyCovered),
+            (true, ReplayRouting::IncrementalOnly),
+            (false, ReplayRouting::SkipAlreadyCovered),
         ] {
             let ((parent_record, machine), snapshot) = capture_proof_occurrence_shadow(|| {
                 let mut fixture = cpk_3_replay_admission_fixture();
