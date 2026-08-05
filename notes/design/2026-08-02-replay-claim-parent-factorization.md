@@ -1742,6 +1742,23 @@ scoped `constraints::` suite は既知4件のみで green。定量性能 gate（
 12.62B比較、§12目標）は E 後に再計測が必要（未完了）。RCPF-F 着手前提の
 soak（quarantine addendum §3.6）も未実施——F は別途着手判断が必要。
 
+**追記（2026-08-05、branch `rcpf-f-bold-attempt` での見落とし発見）**:
+上記 closure 検証は §11 の4項目（evaluator・claimed attribution・exact
+link predicate・legacy link の oracle 化）の narrow scope では正しかったが、
+RCPF-F 実装を実際に試みる過程で、`claim_parents_by_constraint` の
+Replay variant entries を無条件（authority 分岐なし）に読む production
+consumer が他に5箇所残っていると判明した——`register_constraint_upper_replay_claims`
+（upper claim materialization、通常の `add_upper_bound` 経路から直接
+呼ばれる）、`register_premise_dependency_chain`（dependency-chain
+propagation）、`register_lower_projection_derivation`（lower projection
+初期化）、`register_existing_constraint_lower_projection_delta`（lower
+projection ledger bootstrap）、bound-vs-carrier delta 分類（parent 列の
+長さ比較）。これらは §11 の4項目のいずれにも該当しないため、今回の
+closure 検証のスコープ外だった。RCPF-F（legacy ledger 物理撤去）は、
+この5箇所を Factored 側から供給する consumer cutover（RCPF-C〜E と
+同種のパターン）を先に終えるまで着手できない。実削除は行っていない
+（branch 上で read-only 確認のみ、何も commit せず branch は削除済み）。
+
 変更（実施済み）:
 
 - Replay claimed linkをfactored relationへ切り替える。
