@@ -3516,6 +3516,109 @@ mod tests {
         );
     }
 
+    #[test]
+    fn cpk_original_standalone_writer_matches_legacy_on_mixed_projection_fixture() {
+        let (machine, endpoint, owner, _) =
+            ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let record = machine
+            .bounds()
+            .of(owner)
+            .expect("fixture owner")
+            .generalized_projection_lowers()
+            .find_map(|(record, bound)| {
+                matches!(machine.types().pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                    .then_some(record)
+            })
+            .expect("mixed fixture lower record");
+        let cpk = machine.proof_store.projection_formulas[&record]
+            .iter()
+            .copied()
+            .map(|clause| match clause {
+                ProjectionClause::Standalone { support, .. } => {
+                    (support, RecordProofClause::Standalone { support })
+                }
+                ProjectionClause::DerivedUnary {
+                    support,
+                    carrier,
+                    premise,
+                    ..
+                } => (
+                    support,
+                    RecordProofClause::DerivedUnary { carrier, premise },
+                ),
+                ProjectionClause::ReplayConjunction {
+                    support,
+                    carrier,
+                    lower,
+                    upper,
+                    ..
+                } => (
+                    support,
+                    RecordProofClause::ReplayConjunction {
+                        carrier,
+                        lower_premise: lower,
+                        upper_premise: upper,
+                    },
+                ),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(cpk.len(), 2, "fixture has one clause per canonical root");
+        for (support, clause) in &cpk {
+            assert!(
+                machine
+                    .bounds
+                    .record_proof_clause_link_is_registered(record, *support, *clause),
+                "each CPK formula entry must be the exact legacy clause link",
+            );
+        }
+        assert!(matches!(
+            machine.proof_store.projection_formulas[&record].as_slice(),
+            [
+                ProjectionClause::Standalone {
+                    attribution: Some(ProjectionLineage::Original),
+                    ..
+                },
+                ProjectionClause::DerivedUnary {
+                    attribution: Some(ProjectionLineage::ReductionRouteConstraint),
+                    ..
+                }
+            ]
+        ));
+
+        let legacy_reason = machine
+            .scheme_projectable_lowers(owner)
+            .find(|entry| entry.record == record)
+            .expect("legacy includes the mixed record")
+            .reason;
+        let (decision, _) = project_lower_for_test(&machine, record);
+        let SchemeProjectableLowerReason::Qualified {
+            uncovered_claims,
+            independent_supports,
+        } = legacy_reason
+        else {
+            panic!("mixed fixture must be qualified");
+        };
+        assert_eq!(
+            decision,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: uncovered_claims
+                        .into_iter()
+                        .map(|representative_claim| ProjectionClaimSupport {
+                            coverage_root: machine
+                                .proof_store
+                                .upper_claim(representative_claim)
+                                .expect("legacy representative is mirrored into CPK")
+                                .coverage_root,
+                            representative_claim,
+                        })
+                        .collect(),
+                    independent_supports,
+                },
+            })
+        );
+    }
+
     fn cpk_4_projection_record(
         machine: &mut ConstraintMachine,
         ordinal: u32,

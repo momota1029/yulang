@@ -551,6 +551,7 @@ struct UpperReplayClaim {
 struct UpperReplayClaimRegistration {
     claim: UpperReplayClaimId,
     scheme_projection_mutation: SchemeProjectionMutation,
+    standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
 }
 
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
@@ -1943,6 +1944,19 @@ impl ConstraintMachine {
             .record_projection_supports(*lower_record, proofs);
     }
 
+    fn record_original_claim_standalone_link_in_proof_store(
+        &mut self,
+        registration: &UpperReplayClaimRegistration,
+    ) {
+        let Some((lower_record, admission)) = registration.standalone_link else {
+            return;
+        };
+        self.proof_store
+            .record_projection_clause(lower_record, admission);
+        #[cfg(test)]
+        proof::record_projection_clause_shadow(lower_record, admission);
+    }
+
     fn try_evaluate_scheme_projection_mutation(
         &self,
         mutation: SchemeProjectionMutation,
@@ -2511,26 +2525,26 @@ impl TypeBounds {
         &mut self,
         producer: ConstraintRecordId,
         claim: UpperReplayClaimId,
-    ) {
+    ) -> Option<(BoundRecordId, RecordProofClauseLinkAdmission)> {
         let Some(lower_record) = self
             .scheme_projection_lower_record_by_constraint
             .get(&producer)
             .copied()
         else {
-            return;
+            return None;
         };
         let Some(root) = self.canonical_coverage_root(claim) else {
-            return;
+            return None;
         };
         let support = SchemeProjectionProofSupport::Claimed(root);
-        self.register_record_proof_clause_link(
-            lower_record,
-            RecordProofClauseLinkAdmission::claimed(
-                root,
-                RecordProofClause::Standalone { support },
-                ClaimedAttributionSource::FlatRetained,
-            ),
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            root,
+            RecordProofClause::Standalone { support },
+            ClaimedAttributionSource::FlatRetained,
         );
+        let (_, _, link_inserted) =
+            self.register_record_proof_clause_link(lower_record, admission);
+        link_inserted.then_some((lower_record, admission))
     }
 
     fn register_linked_record_dependency_edges(
@@ -2833,10 +2847,12 @@ impl TypeBounds {
             self.register_original_claim_mirror(producer_constraint, claim);
             let scheme_projection_mutation =
                 self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
-            self.register_original_claim_standalone_link(producer_constraint, claim);
+            let standalone_link =
+                self.register_original_claim_standalone_link(producer_constraint, claim);
             return UpperReplayClaimRegistration {
                 claim,
                 scheme_projection_mutation,
+                standalone_link,
             };
         }
         assert!(
@@ -2868,10 +2884,12 @@ impl TypeBounds {
         self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation =
             self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
-        self.register_original_claim_standalone_link(producer_constraint, id);
+        let standalone_link =
+            self.register_original_claim_standalone_link(producer_constraint, id);
         UpperReplayClaimRegistration {
             claim: id,
             scheme_projection_mutation,
+            standalone_link,
         }
     }
 
@@ -2903,6 +2921,7 @@ impl TypeBounds {
             return UpperReplayClaimRegistration {
                 claim: root,
                 scheme_projection_mutation,
+                standalone_link: None,
             };
         }
         if let Some(claim) = self
@@ -2917,6 +2936,7 @@ impl TypeBounds {
             return UpperReplayClaimRegistration {
                 claim,
                 scheme_projection_mutation,
+                standalone_link: None,
             };
         }
         let bound = &self.records[record.0 as usize];
@@ -2947,6 +2967,7 @@ impl TypeBounds {
         UpperReplayClaimRegistration {
             claim: id,
             scheme_projection_mutation,
+            standalone_link: None,
         }
     }
 

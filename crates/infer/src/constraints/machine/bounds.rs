@@ -1057,6 +1057,7 @@ impl ConstraintMachine {
             self.proof_store.record_upper_claim(
                 &self.bounds.upper_replay_claims[registration.claim.0 as usize],
             );
+            self.record_original_claim_standalone_link_in_proof_store(&registration);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             claims.push(registration.claim);
         }
