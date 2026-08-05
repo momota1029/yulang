@@ -84,9 +84,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("scheme_instantiations", 18),
     // CPK-3 adds reviewed test-only claim hooks and lineage parity reads; CPK-4 adds
     // shadow-evaluator and capture-readiness reads; CPK-5 adds routing readiness.
-    // CPK-6a adds five reviewed production-store upper-claim writer reads. None
-    // is a new production read authority.
-    ("upper_replay_claims", 92),
+    // CPK-6a adds five reviewed production-store upper-claim writer reads and
+    // three fixture-only mirrors for low-level TypeBounds claim construction.
+    // None is a new production read authority.
+    ("upper_replay_claims", 95),
     ("claims_by_upper_record", 14),
     // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
     ("live_coverage_by_root", 10),

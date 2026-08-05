@@ -118,6 +118,8 @@ pub struct ConstraintMachine {
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
+    #[cfg(test)]
+    cpk_proof_oracle_active: bool,
     replay_read_authority: ReplayReadAuthority,
     replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,

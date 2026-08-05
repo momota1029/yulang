@@ -785,6 +785,7 @@ impl ConstraintMachine {
         }
         #[cfg(test)]
         proof::finish_replay_routing_shadow(
+            self,
             routing_shadow,
             BoundDirection::Lower,
             replay.input_count,
@@ -950,6 +951,7 @@ impl ConstraintMachine {
         self.apply_bound_replay_evidence_actions(replay.evidence_actions);
         #[cfg(test)]
         proof::finish_replay_routing_shadow(
+            self,
             routing_shadow,
             BoundDirection::Upper,
             replay.input_count,
@@ -5063,7 +5065,7 @@ impl ConstraintMachine {
             return BoundReplayPlan::default();
         };
         #[cfg(test)]
-        let routing_shadow = proof::begin_replay_routing_shadow();
+        let routing_shadow = proof::begin_replay_routing_shadow(self);
         let uppers = bounds
             .projection_upper_records()
             .map(|(record, upper)| (record, upper.clone()))
@@ -5237,7 +5239,7 @@ impl ConstraintMachine {
             return BoundReplayPlan::default();
         };
         #[cfg(test)]
-        let routing_shadow = proof::begin_replay_routing_shadow();
+        let routing_shadow = proof::begin_replay_routing_shadow(self);
         let requires_generic = self.upper_record_requires_generic_replay(upper_record);
         let replay_input_count = if requires_generic {
             bounds.projection_lowers().count()

@@ -580,13 +580,13 @@ pub(crate) struct ProofOccurrenceStore {
     projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
     #[cfg(test)]
-    projectability_observations: Vec<ShadowProjectabilityObservation>,
+    projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
-    projection_publication_observations: Vec<ShadowProjectionPublicationObservation>,
+    projection_publication_observations: RefCell<Vec<ShadowProjectionPublicationObservation>>,
     #[cfg(test)]
-    replay_route_observations: Vec<ShadowReplayRouteObservation>,
+    replay_route_observations: RefCell<Vec<ShadowReplayRouteObservation>>,
     #[cfg(test)]
-    replay_event_observations: Vec<ShadowReplayEventObservation>,
+    replay_event_observations: RefCell<Vec<ShadowReplayEventObservation>>,
 }
 
 impl Default for ProofOccurrenceStore {
@@ -603,13 +603,13 @@ impl Default for ProofOccurrenceStore {
             projection_supports: FxHashMap::default(),
             projection_formulas: FxHashMap::default(),
             #[cfg(test)]
-            projectability_observations: Vec::new(),
+            projectability_observations: RefCell::default(),
             #[cfg(test)]
-            projection_publication_observations: Vec::new(),
+            projection_publication_observations: RefCell::default(),
             #[cfg(test)]
-            replay_route_observations: Vec::new(),
+            replay_route_observations: RefCell::default(),
             #[cfg(test)]
-            replay_event_observations: Vec::new(),
+            replay_event_observations: RefCell::default(),
         }
     }
 }
@@ -1192,10 +1192,10 @@ pub(super) fn compare_projection_record_shadow(
     legacy_result: bool,
     legacy_cycle_cuts: usize,
 ) {
-    if !proof_occurrence_shadow_is_active() {
+    if !machine.cpk_proof_oracle_active {
         return;
     }
-    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    let snapshot = &machine.proof_store;
     if machine
         .bounds
         .projection_proofs_by_lower_record
@@ -1219,12 +1219,10 @@ pub(super) fn compare_projection_record_shadow(
         observation.shadow_cycle_cut, observation.legacy_cycle_cut,
         "CPK-4 cycle-cut behavior diverged"
     );
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .projectability_observations
-            .push(observation);
-    });
+    snapshot
+        .projectability_observations
+        .borrow_mut()
+        .push(observation);
 }
 
 #[cfg(test)]
@@ -1236,10 +1234,10 @@ pub(super) fn compare_projection_publication_shadow(
     metadata_changed: bool,
     legacy_intent: &SchemeProjectionPublicationIntent,
 ) {
-    if !proof_occurrence_shadow_is_active() {
+    if !machine.cpk_proof_oracle_active {
         return;
     }
-    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    let snapshot = &machine.proof_store;
     if machine
         .bounds
         .projection_proofs_by_lower_record
@@ -1318,32 +1316,33 @@ pub(super) fn compare_projection_publication_shadow(
         owners.sort_by_key(|owner| owner.0);
         owners
     };
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .projection_publication_observations
-            .push(ShadowProjectionPublicationObservation {
-                lower_record,
-                legacy_class,
-                shadow_class,
-                legacy_affected_owners: sorted(legacy_affected_owners),
-                shadow_affected_owners: sorted(shadow_affected_owners),
-            });
-    });
+    snapshot
+        .projection_publication_observations
+        .borrow_mut()
+        .push(ShadowProjectionPublicationObservation {
+            lower_record,
+            legacy_class,
+            shadow_class,
+            legacy_affected_owners: sorted(legacy_affected_owners),
+            shadow_affected_owners: sorted(shadow_affected_owners),
+        });
 }
 
 #[cfg(test)]
-pub(super) fn begin_replay_routing_shadow() -> Option<ReplayRoutingShadowToken> {
-    if !proof_occurrence_shadow_is_active() {
+pub(super) fn begin_replay_routing_shadow(
+    machine: &ConstraintMachine,
+) -> Option<ReplayRoutingShadowToken> {
+    if !machine.cpk_proof_oracle_active {
         return None;
     }
-    Some(SHADOW_STORE.with(|store| {
-        let store = store.borrow();
-        ReplayRoutingShadowToken {
-            routes_before: store.replay_route_observations.len(),
-            admissions_before: store.replay_admissions.len(),
-        }
-    }))
+    Some(ReplayRoutingShadowToken {
+        routes_before: machine
+            .proof_store
+            .replay_route_observations
+            .borrow()
+            .len(),
+        admissions_before: machine.proof_store.replay_admissions.len(),
+    })
 }
 
 #[cfg(test)]
@@ -1356,10 +1355,10 @@ pub(super) fn compare_replay_route_shadow(
     legacy_requires_generic: bool,
     legacy_pair_replay: bool,
 ) {
-    if !proof_occurrence_shadow_is_active() {
+    if !machine.cpk_proof_oracle_active {
         return;
     }
-    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    let snapshot = &machine.proof_store;
     if machine.bounds.upper_replay_claims.len() != snapshot.upper_claims.len()
         || (machine
             .bounds
@@ -1382,23 +1381,22 @@ pub(super) fn compare_replay_route_shadow(
 
     let prepared = snapshot.prepare_replay_route(lower, upper, lower_is_var, incremental_routes);
     assert_eq!(prepared.routing, legacy, "CPK-5 replay routing diverged");
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .replay_route_observations
-            .push(ShadowReplayRouteObservation {
-                lower,
-                upper,
-                legacy,
-                shadow: prepared.routing,
-                lower_parent_roots: prepared.lower_parent_roots.len(),
-                upper_parent_roots: prepared.upper_parent_roots.len(),
-            });
-    });
+    snapshot
+        .replay_route_observations
+        .borrow_mut()
+        .push(ShadowReplayRouteObservation {
+            lower,
+            upper,
+            legacy,
+            shadow: prepared.routing,
+            lower_parent_roots: prepared.lower_parent_roots.len(),
+            upper_parent_roots: prepared.upper_parent_roots.len(),
+        });
 }
 
 #[cfg(test)]
 pub(super) fn finish_replay_routing_shadow(
+    machine: &ConstraintMachine,
     token: Option<ReplayRoutingShadowToken>,
     direction: BoundDirection,
     legacy_input_count: usize,
@@ -1407,51 +1405,50 @@ pub(super) fn finish_replay_routing_shadow(
     let Some(token) = token else {
         return;
     };
-    SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        let shadow_input_count = store.replay_route_observations[token.routes_before..]
+    let store = &machine.proof_store;
+    let shadow_input_count = store.replay_route_observations.borrow()[token.routes_before..]
             .iter()
             .filter(|observation| {
                 observation.shadow != ReplayRouting::SkipAlreadyCovered
             })
             .count();
-        let accepted_results = store.replay_admissions[token.admissions_before..]
-            .iter()
-            .filter_map(|admission| {
-                (admission.disposition == ReplayAdmissionDisposition::NewSemantic)
-                    .then_some(admission.result)
-                    .flatten()
-            })
-            .collect::<Vec<_>>();
-        let shadow_accepted_count = accepted_results.len();
-        assert!(accepted_results.iter().all(|result| {
+    let accepted_results = store.replay_admissions[token.admissions_before..]
+        .iter()
+        .filter_map(|admission| {
+            (admission.disposition == ReplayAdmissionDisposition::NewSemantic)
+                .then_some(admission.result)
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    let shadow_accepted_count = accepted_results.len();
+    assert!(accepted_results.iter().all(|result| {
             store
                 .replay_finite_map
                 .iter()
                 .any(|occurrence| occurrence.result == *result)
         }), "CPK-5 accepted replay result is missing from the shadow finite map");
-        assert_eq!(
-            shadow_input_count, legacy_input_count,
-            "CPK-5 replay input count diverged",
-        );
-        assert_eq!(
-            shadow_accepted_count, legacy_accepted_count,
-            "CPK-5 replay accepted count diverged",
-        );
-        store
-            .replay_event_observations
-            .push(ShadowReplayEventObservation {
-                direction: match direction {
-                    BoundDirection::Lower => ShadowReplayDirection::Lower,
-                    BoundDirection::Upper => ShadowReplayDirection::Upper,
-                },
-                legacy_input_count,
-                shadow_input_count,
-                legacy_accepted_count,
-                shadow_accepted_count,
-                accepted_results,
-            });
-    });
+    assert_eq!(
+        shadow_input_count, legacy_input_count,
+        "CPK-5 replay input count diverged",
+    );
+    assert_eq!(
+        shadow_accepted_count, legacy_accepted_count,
+        "CPK-5 replay accepted count diverged",
+    );
+    store
+        .replay_event_observations
+        .borrow_mut()
+        .push(ShadowReplayEventObservation {
+            direction: match direction {
+                BoundDirection::Lower => ShadowReplayDirection::Lower,
+                BoundDirection::Upper => ShadowReplayDirection::Upper,
+            },
+            legacy_input_count,
+            shadow_input_count,
+            legacy_accepted_count,
+            shadow_accepted_count,
+            accepted_results,
+        });
 }
 
 #[cfg(test)]
@@ -2349,6 +2346,12 @@ fn assert_replay_shadow_parity(
 mod tests {
     use super::*;
 
+    fn cpk_oracle_machine() -> ConstraintMachine {
+        let mut machine = ConstraintMachine::new();
+        machine.cpk_proof_oracle_active = true;
+        machine
+    }
+
     fn cpk_4_projection_record(
         machine: &mut ConstraintMachine,
         ordinal: u32,
@@ -2402,7 +2405,7 @@ mod tests {
     }
 
     fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
-        let mut machine = ConstraintMachine::new();
+        let mut machine = cpk_oracle_machine();
         let origin = OriginId::unknown_internal();
         let source = TypeVar(0);
         let target = TypeVar(1);
@@ -2427,6 +2430,9 @@ mod tests {
             parent_record,
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
+        );
+        machine.proof_store.record_upper_claim(
+            &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
         );
         machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         CpkReplayAdmissionFixture {
@@ -2462,7 +2468,7 @@ mod tests {
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             )
             .id;
-        fixture
+        let registration = fixture
             .machine
             .bounds
             .derived_upper_replay_claim(record, fixture.coverage_root, producer, |depth| {
@@ -2473,12 +2479,15 @@ mod tests {
                     replay: fixture.carrier,
                     depth,
                 }
-            })
-            .claim
+            });
+        fixture.machine.proof_store.record_upper_claim(
+            &fixture.machine.bounds.upper_replay_claims[registration.claim.0 as usize],
+        );
+        registration.claim
     }
 
     fn cpk_3_replay_fixture() -> ConstraintMachine {
-        let mut machine = ConstraintMachine::new();
+        let mut machine = cpk_oracle_machine();
         let origin = OriginId::unknown_internal();
         let a = machine.alloc_pos(Pos::Var(TypeVar(30)));
         let p1_upper = machine.alloc_neg(Neg::Var(TypeVar(31)));
@@ -2586,11 +2595,14 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(origin),
             );
-            let _ = machine.bounds.derived_upper_replay_claim(
+            let registration = machine.bounds.derived_upper_replay_claim(
                 insertion.id,
                 root_claim,
                 producer,
                 |_| lineage,
+            );
+            machine.proof_store.record_upper_claim(
+                &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
             );
         }
         machine
@@ -2600,9 +2612,9 @@ mod tests {
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
         let inactive =
             with_semantic_execution_snapshot_capture_for_new_machines(cpk_3_replay_fixture);
-        let (active, snapshot) = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            capture_proof_occurrence_shadow(cpk_3_replay_fixture)
-        });
+        let active =
+            with_semantic_execution_snapshot_capture_for_new_machines(cpk_3_replay_fixture);
+        let snapshot = active.proof_store.clone();
 
         assert_replay_shadow_parity(&active, &snapshot);
         assert!(!snapshot.replay_finite_map.is_empty());
@@ -2645,24 +2657,23 @@ mod tests {
 
     #[test]
     fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
-        let ((machine, expected_drop), snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut fixture = cpk_3_replay_admission_fixture();
-            let attempted = SubtypeConstraintKey {
-                lower: fixture.machine.alloc_pos(Pos::Bot),
-                upper: fixture.machine.constraint_records[fixture.result.0 as usize]
-                    .key
-                    .upper,
-                weights: ConstraintWeights::empty(),
-            };
-            let expected_drop = ReplayDropRecord {
-                attempted: attempted.clone(),
-                derivation: fixture.carrier,
-            };
-            fixture
-                .machine
-                .apply_cpk_trivial_replay_for_test(attempted, fixture.carrier);
-            (fixture.machine, expected_drop)
-        });
+        let mut fixture = cpk_3_replay_admission_fixture();
+        let attempted = SubtypeConstraintKey {
+            lower: fixture.machine.alloc_pos(Pos::Bot),
+            upper: fixture.machine.constraint_records[fixture.result.0 as usize]
+                .key
+                .upper,
+            weights: ConstraintWeights::empty(),
+        };
+        let expected_drop = ReplayDropRecord {
+            attempted: attempted.clone(),
+            derivation: fixture.carrier,
+        };
+        fixture
+            .machine
+            .apply_cpk_trivial_replay_for_test(attempted, fixture.carrier);
+        let machine = fixture.machine;
+        let snapshot = machine.proof_store.clone();
 
         assert_eq!(
             machine.replay_drop_records.as_slice(),
@@ -2682,18 +2693,18 @@ mod tests {
 
     #[test]
     fn cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow() {
-        let ((machine, carrier), snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut fixture = cpk_3_replay_admission_fixture();
-            let constraint = SubtypeConstraintKey {
-                lower: fixture.machine.alloc_pos(Pos::Var(TypeVar(10))),
-                upper: fixture.machine.alloc_neg(Neg::Var(TypeVar(11))),
-                weights: ConstraintWeights::empty(),
-            };
-            fixture
-                .machine
-                .apply_cpk_evidence_only_replay_for_test(constraint, fixture.carrier);
-            (fixture.machine, fixture.carrier)
-        });
+        let mut fixture = cpk_3_replay_admission_fixture();
+        let constraint = SubtypeConstraintKey {
+            lower: fixture.machine.alloc_pos(Pos::Var(TypeVar(10))),
+            upper: fixture.machine.alloc_neg(Neg::Var(TypeVar(11))),
+            weights: ConstraintWeights::empty(),
+        };
+        fixture
+            .machine
+            .apply_cpk_evidence_only_replay_for_test(constraint, fixture.carrier);
+        let carrier = fixture.carrier;
+        let machine = fixture.machine;
+        let snapshot = machine.proof_store.clone();
 
         assert!(snapshot.replay_admissions.iter().any(|event| {
             event.result.is_none()
@@ -2740,36 +2751,31 @@ mod tests {
             [2, 1, 0],
         ];
         for order in permutations {
-            let ((machine, result, root, claims), snapshot) =
-                capture_proof_occurrence_shadow(|| {
-                    let mut fixture = cpk_3_replay_admission_fixture();
-                    let claims = [
-                        fixture.coverage_root,
-                        add_same_root_replay_claim(
-                            &mut fixture,
-                            TypeVar(20),
-                            ConstraintRecordId(20_000),
-                        ),
-                        add_same_root_replay_claim(
-                            &mut fixture,
-                            TypeVar(21),
-                            ConstraintRecordId(20_001),
-                        ),
-                    ];
-                    for index in order {
-                        fixture.machine.apply_cpk_replay_parent_arrival_for_test(
-                            fixture.result,
-                            fixture.carrier,
-                            claims[index],
-                        );
-                    }
-                    (
-                        fixture.machine,
-                        fixture.result,
-                        fixture.coverage_root,
-                        claims,
-                    )
-                });
+            let mut fixture = cpk_3_replay_admission_fixture();
+            let claims = [
+                fixture.coverage_root,
+                add_same_root_replay_claim(
+                    &mut fixture,
+                    TypeVar(20),
+                    ConstraintRecordId(20_000),
+                ),
+                add_same_root_replay_claim(
+                    &mut fixture,
+                    TypeVar(21),
+                    ConstraintRecordId(20_001),
+                ),
+            ];
+            for index in order {
+                fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                    fixture.result,
+                    fixture.carrier,
+                    claims[index],
+                );
+            }
+            let result = fixture.result;
+            let root = fixture.coverage_root;
+            let machine = fixture.machine;
+            let snapshot = machine.proof_store.clone();
 
             assert_replay_shadow_parity(&machine, &snapshot);
             let first = snapshot.first_replay_witnesses[&(result, root)];
@@ -2792,7 +2798,8 @@ mod tests {
 
     #[test]
     fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
-        let (machine, snapshot) = capture_proof_occurrence_shadow(cpk_3_replay_fixture);
+        let machine = cpk_3_replay_fixture();
+        let snapshot = machine.proof_store.clone();
 
         assert_replay_shadow_parity(&machine, &snapshot);
         assert!(
@@ -2808,15 +2815,20 @@ mod tests {
             "the representative fixture must exercise replay-conjunction support",
         );
         assert!(
-            !snapshot.projectability_observations.is_empty(),
+            !snapshot.projectability_observations.borrow().is_empty(),
             "legacy production evaluation must invoke the CPK-4 shadow oracle",
         );
-        assert!(snapshot.projectability_observations.iter().all(|observation| {
+        assert!(snapshot
+            .projectability_observations
+            .borrow()
+            .iter()
+            .all(|observation| {
             observation.legacy == observation.shadow
                 && observation.legacy_cycle_cut == observation.shadow_cycle_cut
         }));
         assert!(snapshot
             .projection_publication_observations
+            .borrow()
             .iter()
             .all(|observation| {
                 observation.legacy_class == observation.shadow_class
@@ -2827,20 +2839,18 @@ mod tests {
 
     #[test]
     fn cpk_4_standalone_only_is_projectable_and_metadata_only() {
-        let ((machine, record), snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut machine = ConstraintMachine::new();
-            let (record, carrier) = cpk_4_projection_record(&mut machine, 1);
-            let support = cpk_4_add_independent_support(&mut machine, record, carrier);
-            machine.register_cpk_projection_clause_for_test(
-                record,
-                RecordProofClauseLinkAdmission::independent(
-                    support,
-                    RecordProofClause::Standalone { support },
-                ),
-            );
-            assert!(machine.scheme_projection_record_is_included(record));
-            (machine, record)
-        });
+        let mut machine = cpk_oracle_machine();
+        let (record, carrier) = cpk_4_projection_record(&mut machine, 1);
+        let support = cpk_4_add_independent_support(&mut machine, record, carrier);
+        machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        assert!(machine.scheme_projection_record_is_included(record));
+        let snapshot = machine.proof_store.clone();
 
         assert_eq!(
             snapshot.projection_formulas[&record],
@@ -2851,9 +2861,10 @@ mod tests {
         );
         assert!(snapshot
             .projectability_observations
+            .borrow()
             .iter()
             .any(|observation| observation.record == record && observation.shadow));
-        assert!(snapshot.projection_publication_observations.iter().any(
+        assert!(snapshot.projection_publication_observations.borrow().iter().any(
             |observation| observation.lower_record == record
                 && observation.legacy_class == ShadowProjectionPublicationClass::MetadataOnly
                 && observation.legacy_affected_owners.is_empty()
@@ -2866,9 +2877,7 @@ mod tests {
 
     #[test]
     fn cpk_4_derived_unary_only_cycle_flips_inclusion_and_owner() {
-        let ((machine, record, dependent, expected_owners), snapshot) =
-            capture_proof_occurrence_shadow(|| {
-            let mut machine = ConstraintMachine::new();
+        let mut machine = cpk_oracle_machine();
             let (record, carrier) = cpk_4_projection_record(&mut machine, 2);
             let owner = machine.bounds.record(record).unwrap().owner();
             let support = cpk_4_add_independent_support(&mut machine, record, carrier);
@@ -2905,15 +2914,15 @@ mod tests {
             );
             assert!(!machine.scheme_projection_record_is_included(record));
             assert!(!machine.scheme_projection_record_is_included(dependent));
-            (machine, record, dependent, vec![owner, dependent_owner])
-        });
+        let expected_owners = vec![owner, dependent_owner];
+        let snapshot = machine.proof_store.clone();
 
         assert!(matches!(
             snapshot.projection_formulas[&record].as_slice(),
             [ProjectionClause::DerivedUnary { .. }]
         ));
-        let publication = snapshot
-            .projection_publication_observations
+        let publications = snapshot.projection_publication_observations.borrow();
+        let publication = publications
             .iter()
             .find(|observation| {
                 observation.lower_record == record
@@ -2929,18 +2938,20 @@ mod tests {
 
     #[test]
     fn cpk_4_no_claim_record_passthrough_has_no_formula_or_publication() {
-        let ((machine, record), snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut machine = ConstraintMachine::new();
-            let (record, _) = cpk_4_projection_record(&mut machine, 3);
-            assert!(machine.scheme_projection_record_is_included(record));
-            (machine, record)
-        });
+        let mut machine = cpk_oracle_machine();
+        let (record, _) = cpk_4_projection_record(&mut machine, 3);
+        assert!(machine.scheme_projection_record_is_included(record));
+        let snapshot = machine.proof_store.clone();
 
         assert!(!snapshot.projection_supports.contains_key(&record));
         assert!(!snapshot.projection_formulas.contains_key(&record));
-        assert!(snapshot.projection_publication_observations.is_empty());
+        assert!(snapshot
+            .projection_publication_observations
+            .borrow()
+            .is_empty());
         assert!(snapshot
             .projectability_observations
+            .borrow()
             .iter()
             .any(|observation| observation.record == record && observation.shadow));
         assert!(machine.scheme_projection_record_is_included(record));
@@ -2948,7 +2959,7 @@ mod tests {
 
     #[test]
     fn cpk_4_five_source_attribution_matrix_is_writer_classified() {
-        let (_, snapshot) = capture_proof_occurrence_shadow(|| {
+        let mut machine = cpk_oracle_machine();
             let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
             let replay = BinaryReplayDerivation {
                 pivot: TypeVar(40_000),
@@ -3003,9 +3014,11 @@ mod tests {
                 ),
             ];
             for (index, admission) in entries.into_iter().enumerate() {
-                record_projection_clause_shadow(BoundRecordId(index as u32), admission);
+                machine
+                    .proof_store
+                    .record_projection_clause(BoundRecordId(index as u32), admission);
             }
-        });
+        let snapshot = machine.proof_store.clone();
 
         let actual = snapshot
             .projection_formulas
@@ -3048,8 +3061,12 @@ mod tests {
     }
 
     fn assert_cpk_5_event_count_parity(snapshot: &ProofOccurrenceStore) {
-        assert!(!snapshot.replay_event_observations.is_empty());
-        assert!(snapshot.replay_event_observations.iter().all(|observation| {
+        assert!(!snapshot.replay_event_observations.borrow().is_empty());
+        assert!(snapshot
+            .replay_event_observations
+            .borrow()
+            .iter()
+            .all(|observation| {
             observation.legacy_input_count == observation.shadow_input_count
                 && observation.legacy_accepted_count == observation.shadow_accepted_count
         }));
@@ -3057,13 +3074,11 @@ mod tests {
 
     #[test]
     fn cpk_5_generic_route_matches_legacy_and_counts() {
-        let (_, snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut fixture = cpk_3_replay_admission_fixture();
-            cpk_5_trigger_lower_route(&mut fixture, false);
-            fixture.machine
-        });
+        let mut fixture = cpk_3_replay_admission_fixture();
+        cpk_5_trigger_lower_route(&mut fixture, false);
+        let snapshot = fixture.machine.proof_store.clone();
 
-        assert!(snapshot.replay_route_observations.iter().any(|observation| {
+        assert!(snapshot.replay_route_observations.borrow().iter().any(|observation| {
             observation.legacy == ReplayRouting::Generic
                 && observation.shadow == ReplayRouting::Generic
         }));
@@ -3076,17 +3091,17 @@ mod tests {
             (true, ReplayRouting::IncrementalOnly),
             (false, ReplayRouting::SkipAlreadyCovered),
         ] {
-            let ((parent_record, machine), snapshot) = capture_proof_occurrence_shadow(|| {
-                let mut fixture = cpk_3_replay_admission_fixture();
-                fixture.machine.insert_scheme_projection_live_coverage_state(
-                    fixture.coverage_root,
-                    UnweightedRowReductionRecordId(41_000),
-                );
-                cpk_5_trigger_lower_route(&mut fixture, lower_is_var);
-                (fixture.parent_record, fixture.machine)
-            });
+            let mut fixture = cpk_3_replay_admission_fixture();
+            fixture.machine.insert_scheme_projection_live_coverage_state(
+                fixture.coverage_root,
+                UnweightedRowReductionRecordId(41_000),
+            );
+            cpk_5_trigger_lower_route(&mut fixture, lower_is_var);
+            let parent_record = fixture.parent_record;
+            let machine = fixture.machine;
+            let snapshot = machine.proof_store.clone();
 
-            assert!(snapshot.replay_route_observations.iter().any(|observation| {
+            assert!(snapshot.replay_route_observations.borrow().iter().any(|observation| {
                 observation.upper == parent_record
                     && observation.legacy == expected
                     && observation.shadow == expected
@@ -3096,6 +3111,7 @@ mod tests {
                 machine.timing.lower_replay_accepted + machine.timing.upper_replay_accepted,
                 snapshot
                     .replay_event_observations
+                    .borrow()
                     .iter()
                     .map(|observation| observation.legacy_accepted_count)
                     .sum::<usize>(),
@@ -3115,31 +3131,31 @@ mod tests {
         ];
         let mut routing = Vec::new();
         for order in permutations {
-            let ((result, root), snapshot) = capture_proof_occurrence_shadow(|| {
-                let mut fixture = cpk_3_replay_admission_fixture();
-                let claims = [
-                    fixture.coverage_root,
-                    add_same_root_replay_claim(
-                        &mut fixture,
-                        TypeVar(42_000),
-                        ConstraintRecordId(42_000),
-                    ),
-                    add_same_root_replay_claim(
-                        &mut fixture,
-                        TypeVar(42_001),
-                        ConstraintRecordId(42_001),
-                    ),
-                ];
-                for index in order {
-                    fixture.machine.apply_cpk_replay_parent_arrival_for_test(
-                        fixture.result,
-                        fixture.carrier,
-                        claims[index],
-                    );
-                }
-                cpk_5_trigger_lower_route(&mut fixture, false);
-                (fixture.result, fixture.coverage_root)
-            });
+            let mut fixture = cpk_3_replay_admission_fixture();
+            let claims = [
+                fixture.coverage_root,
+                add_same_root_replay_claim(
+                    &mut fixture,
+                    TypeVar(42_000),
+                    ConstraintRecordId(42_000),
+                ),
+                add_same_root_replay_claim(
+                    &mut fixture,
+                    TypeVar(42_001),
+                    ConstraintRecordId(42_001),
+                ),
+            ];
+            for index in order {
+                fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                    fixture.result,
+                    fixture.carrier,
+                    claims[index],
+                );
+            }
+            cpk_5_trigger_lower_route(&mut fixture, false);
+            let result = fixture.result;
+            let root = fixture.coverage_root;
+            let snapshot = fixture.machine.proof_store.clone();
             assert_eq!(
                 snapshot.first_replay_witnesses[&(result, root)].representative_claim,
                 snapshot.replay_finite_map
@@ -3153,6 +3169,7 @@ mod tests {
             routing.push(
                 snapshot
                     .replay_route_observations
+                    .borrow()
                     .iter()
                     .map(|observation| observation.shadow)
                     .collect::<Vec<_>>(),
@@ -3181,8 +3198,7 @@ mod tests {
             "inactive shadow hooks must not retain an occurrence",
         );
 
-        let (machine, snapshot) = capture_proof_occurrence_shadow(|| {
-            let mut machine = ConstraintMachine::new();
+        let mut machine = ConstraintMachine::new();
             let origin = OriginId::unknown_internal();
             let lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
             let upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
@@ -3260,19 +3276,18 @@ mod tests {
                 upper,
                 alternate.origin,
             ));
-            let before_duplicate = proof_occurrence_shadow_len();
+            let before_duplicate = machine.proof_store.occurrences.len();
             assert!(!machine.attach_root_origin_to_existing_subtype(
                 lower,
                 upper,
                 alternate.origin,
             ));
             assert_eq!(
-                proof_occurrence_shadow_len(),
+                machine.proof_store.occurrences.len(),
                 before_duplicate,
                 "an exact metadata duplicate must not create an occurrence",
             );
-            machine
-        });
+        let snapshot = machine.proof_store.clone();
 
         assert_non_replay_shadow_parity(&machine, &snapshot);
         for predicate in [
