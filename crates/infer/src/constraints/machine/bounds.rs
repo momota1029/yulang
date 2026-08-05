@@ -10989,6 +10989,80 @@ mod mutation_tests {
     }
 
     #[test]
+    fn cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let mut replay_plan = BoundReplayPlan::default();
+        let mut action = cdm_replay_action(&fixture, key, replay);
+        action.lower_parents = replay_plan.intern_parent_draft(
+            &action.claim_parents,
+            ReplayClaimParentSide::Lower,
+        );
+        action.upper_parents = replay_plan.intern_parent_draft(
+            &action.claim_parents,
+            ReplayClaimParentSide::Upper,
+        );
+        let mut actions = BoundReplayActions::new();
+        actions.push(action);
+        assert_eq!(
+            fixture
+                .machine
+                .apply_bound_replay_actions_with_parent_drafts(
+                    actions,
+                    &replay_plan.parent_drafts,
+                )
+                .duplicate,
+            1,
+            "the fixture must exercise canonical-duplicate replay admission",
+        );
+        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+            fixture.lower_record,
+            &[],
+            &[ProjectionProofCarrier::Origin(OriginId::unknown_internal())],
+        );
+        fixture.machine.apply_scheme_projection_mutation(mutation);
+
+        let child_lower = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["cpk-0b-structural".into()], Vec::new()));
+        let child_upper = fixture.machine.alloc_neg(Neg::Var(TypeVar(62)));
+        assert!(fixture.machine.enqueue_derived_subtype(
+            child_lower,
+            ConstraintWeights::empty(),
+            child_upper,
+            fixture.result,
+            StructuralDerivationRule::FunctionReturn,
+        ));
+        fixture.machine.drain();
+
+        let snapshot = fixture.machine.logical_proof_snapshot();
+        assert!(snapshot.occurrences.len() >= 2);
+        assert!(!snapshot.claim_relation.is_empty());
+        assert!(snapshot
+            .claim_relation
+            .windows(2)
+            .all(|pair| pair[0] <= pair[1]));
+        assert!(!snapshot.projection.is_empty());
+        assert!(snapshot
+            .projection
+            .iter()
+            .any(|entry| !entry.supports.is_empty() && !entry.clauses.is_empty()));
+        assert!(!snapshot.dependencies.is_empty());
+        assert!(!snapshot.portable.snapshot.nodes().is_empty());
+        assert_eq!(
+            snapshot.portable.roots.len(),
+            snapshot.portable.root_anchors.len()
+        );
+        let rendered = format!("{snapshot:?}");
+        assert!(rendered.contains("Claimed"));
+        assert!(rendered.contains("Independent"));
+        assert!(rendered.contains("Structural"));
+    }
+
+    #[test]
     fn cdm_d_9_3_one_sided_lower_emits_bound_delta() {
         let mut fixture =
             cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());

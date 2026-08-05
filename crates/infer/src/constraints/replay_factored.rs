@@ -910,6 +910,17 @@ pub(super) struct ReplayResultSummary {
 }
 
 impl ReplayResultSummary {
+    #[cfg(test)]
+    pub(super) fn test_first_qualified_parent_source(
+        &self,
+        result: ConstraintRecordId,
+        root: UpperReplayClaimId,
+    ) -> Option<FirstQualifiedParentSource> {
+        self.first_qualified_parent_source_by_root
+            .get(&(result, root))
+            .copied()
+    }
+
     pub(super) fn try_record_first_qualified_parent_source(
         &mut self,
         result: ConstraintRecordId,

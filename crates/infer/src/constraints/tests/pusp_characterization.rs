@@ -15,6 +15,7 @@ use crate::lowering::{
 };
 use crate::{ModuleOrder, Name};
 use poly::expr::{Def, DefId, Expr, Pat};
+use poly::provenance::{PortableByteRange, PortableSourceLocation};
 use poly::types::{Neg, Pos, TypeVar};
 
 const JUNCTION_STD: &str = concat!(
@@ -146,6 +147,44 @@ fn pusp_c_concrete_argument_witness_points_to_original_parameter_upper_bound() {
             ..
         }
     )));
+}
+
+#[test]
+fn cpk_0b_captures_generalized_witnesses_and_located_portable_sources() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    ));
+    let snapshot = output
+        .session
+        .infer
+        .constraints()
+        .logical_proof_snapshot_with_source_locations(|boundary, _| {
+            Some(PortableSourceLocation {
+                module: vec!["cpk-0b-pusp".into()],
+                range: PortableByteRange {
+                    start: boundary.0,
+                    end: boundary.0.saturating_add(1),
+                },
+            })
+        });
+
+    assert!(!snapshot.generalized.schemes.is_empty());
+    assert!(!snapshot.generalized.witnesses.is_empty());
+    assert!(snapshot
+        .generalized
+        .witnesses
+        .iter()
+        .any(|witness| !witness.incoming.is_empty()));
+    assert!(snapshot
+        .portable
+        .snapshot
+        .source_sites()
+        .iter()
+        .any(|site| site.location.is_some()));
 }
 
 #[test]

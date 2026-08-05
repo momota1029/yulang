@@ -10,6 +10,8 @@ mod directed_weight;
 #[allow(dead_code)]
 pub(crate) mod explain;
 mod machine;
+#[cfg(test)]
+mod logical_proof_snapshot;
 pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
 mod portable_explain;
@@ -89,6 +91,9 @@ pub(crate) use semantic_execution_snapshot::{
     SemanticExecutionSnapshot, SemanticOutputSnapshot, SccExecutionSnapshot,
     with_semantic_execution_snapshot_capture_for_new_machines,
 };
+#[cfg(test)]
+#[allow(unused_imports, reason = "CPK-0b fixtures consume this shared snapshot type incrementally")]
+pub(crate) use logical_proof_snapshot::LogicalProofSnapshot;
 
 /// subtype constraint の伝播 machine。
 ///
