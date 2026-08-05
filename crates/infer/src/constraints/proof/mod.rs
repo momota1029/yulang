@@ -419,6 +419,50 @@ pub(crate) enum ReplayAdmissionDisposition {
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShadowReplayRouting {
+    Generic,
+    IncrementalOnly,
+    SkipAlreadyCovered,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ReplayRoutingShadowToken {
+    routes_before: usize,
+    admissions_before: usize,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ShadowReplayRouteObservation {
+    lower: BoundRecordId,
+    upper: BoundRecordId,
+    legacy: ShadowReplayRouting,
+    shadow: ShadowReplayRouting,
+    lower_parent_roots: usize,
+    upper_parent_roots: usize,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShadowReplayDirection {
+    Lower,
+    Upper,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShadowReplayEventObservation {
+    direction: ShadowReplayDirection,
+    legacy_input_count: usize,
+    shadow_input_count: usize,
+    legacy_accepted_count: usize,
+    shadow_accepted_count: usize,
+    accepted_results: Vec<ConstraintRecordId>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayAdmissionEvent {
     pub(crate) result: Option<ConstraintRecordId>,
     pub(crate) carrier: BinaryReplayDerivation,
@@ -546,6 +590,8 @@ pub(crate) struct ProofOccurrenceStoreSnapshot {
     projection_formulas: FxHashMap<BoundRecordId, Vec<ShadowProjectionClause>>,
     projectability_observations: Vec<ShadowProjectabilityObservation>,
     projection_publication_observations: Vec<ShadowProjectionPublicationObservation>,
+    replay_route_observations: Vec<ShadowReplayRouteObservation>,
+    replay_event_observations: Vec<ShadowReplayEventObservation>,
 }
 
 #[cfg(test)]
@@ -564,6 +610,8 @@ impl Default for ProofOccurrenceStoreSnapshot {
             projection_formulas: FxHashMap::default(),
             projectability_observations: Vec::new(),
             projection_publication_observations: Vec::new(),
+            replay_route_observations: Vec::new(),
+            replay_event_observations: Vec::new(),
         }
     }
 }
@@ -1159,6 +1207,184 @@ pub(super) fn compare_projection_publication_shadow(
                 shadow_class,
                 legacy_affected_owners: sorted(legacy_affected_owners),
                 shadow_affected_owners: sorted(shadow_affected_owners),
+            });
+    });
+}
+
+#[cfg(test)]
+pub(super) fn begin_replay_routing_shadow() -> Option<ReplayRoutingShadowToken> {
+    if !proof_occurrence_shadow_is_active() {
+        return None;
+    }
+    Some(SHADOW_STORE.with(|store| {
+        let store = store.borrow();
+        ReplayRoutingShadowToken {
+            routes_before: store.replay_route_observations.len(),
+            admissions_before: store.replay_admissions.len(),
+        }
+    }))
+}
+
+#[cfg(test)]
+pub(super) fn compare_replay_route_shadow(
+    machine: &ConstraintMachine,
+    lower: BoundRecordId,
+    upper: BoundRecordId,
+    lower_is_var: bool,
+    incremental_routes: &[UnweightedRowReductionReplayRoute],
+    legacy_requires_generic: bool,
+    legacy_pair_replay: bool,
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    if machine.bounds.upper_replay_claims.len() != snapshot.upper_claims.len()
+        || (machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .contains_key(&lower)
+            && !snapshot.projection_supports.contains_key(&lower))
+    {
+        return;
+    }
+    let has_incremental_route = incremental_routes
+        .iter()
+        .any(|route| route.upper_record == upper);
+    let legacy = if legacy_requires_generic {
+        ShadowReplayRouting::Generic
+    } else if legacy_pair_replay || has_incremental_route {
+        ShadowReplayRouting::IncrementalOnly
+    } else {
+        ShadowReplayRouting::SkipAlreadyCovered
+    };
+
+    let upper_claims = snapshot
+        .upper_claims
+        .iter()
+        .filter(|claim| claim.current_record == upper)
+        .collect::<Vec<_>>();
+    let covered = |claim: &&UpperClaimOccurrence| {
+        snapshot
+            .live_coverage
+            .iter()
+            .any(|(root, _)| *root == claim.coverage_root)
+    };
+    let shadow_requires_generic = upper_claims.is_empty()
+        || upper_claims.iter().any(|claim| !covered(claim));
+    let uncovered_upper_roots = upper_claims
+        .iter()
+        .filter(|claim| !covered(claim))
+        .map(|claim| claim.coverage_root)
+        .collect::<FxHashSet<_>>();
+    let fallback_covered_roots = if lower_is_var {
+        upper_claims
+            .iter()
+            .filter(|claim| covered(claim))
+            .filter(|claim| {
+                !incremental_routes.iter().any(|route| {
+                    route.upper_record == upper && route.claim == Some(claim.claim)
+                })
+            })
+            .map(|claim| claim.coverage_root)
+            .collect::<FxHashSet<_>>()
+    } else {
+        FxHashSet::default()
+    };
+    let shadow = if shadow_requires_generic {
+        ShadowReplayRouting::Generic
+    } else if has_incremental_route || !fallback_covered_roots.is_empty() {
+        ShadowReplayRouting::IncrementalOnly
+    } else {
+        ShadowReplayRouting::SkipAlreadyCovered
+    };
+    assert_eq!(shadow, legacy, "CPK-5 replay routing diverged");
+
+    let lower_parent_roots = snapshot
+        .projection_supports
+        .get(&lower)
+        .into_iter()
+        .flatten()
+        .filter_map(|support| match support {
+            SchemeProjectionProofSupport::Claimed(claim) => snapshot
+                .upper_claims
+                .iter()
+                .find(|candidate| candidate.claim == *claim)
+                .map(|claim| claim.coverage_root),
+            SchemeProjectionProofSupport::Independent(_) => None,
+        })
+        .collect::<FxHashSet<_>>()
+        .len();
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .replay_route_observations
+            .push(ShadowReplayRouteObservation {
+                lower,
+                upper,
+                legacy,
+                shadow,
+                lower_parent_roots,
+                upper_parent_roots: uncovered_upper_roots
+                    .union(&fallback_covered_roots)
+                    .count(),
+            });
+    });
+}
+
+#[cfg(test)]
+pub(super) fn finish_replay_routing_shadow(
+    token: Option<ReplayRoutingShadowToken>,
+    direction: BoundDirection,
+    legacy_input_count: usize,
+    legacy_accepted_count: usize,
+) {
+    let Some(token) = token else {
+        return;
+    };
+    SHADOW_STORE.with(|store| {
+        let mut store = store.borrow_mut();
+        let shadow_input_count = store.replay_route_observations[token.routes_before..]
+            .iter()
+            .filter(|observation| {
+                observation.shadow != ShadowReplayRouting::SkipAlreadyCovered
+            })
+            .count();
+        let accepted_results = store.replay_admissions[token.admissions_before..]
+            .iter()
+            .filter_map(|admission| {
+                (admission.disposition == ReplayAdmissionDisposition::NewSemantic)
+                    .then_some(admission.result)
+                    .flatten()
+            })
+            .collect::<Vec<_>>();
+        let shadow_accepted_count = accepted_results.len();
+        assert!(accepted_results.iter().all(|result| {
+            store
+                .replay_finite_map
+                .iter()
+                .any(|occurrence| occurrence.result == *result)
+        }), "CPK-5 accepted replay result is missing from the shadow finite map");
+        assert_eq!(
+            shadow_input_count, legacy_input_count,
+            "CPK-5 replay input count diverged",
+        );
+        assert_eq!(
+            shadow_accepted_count, legacy_accepted_count,
+            "CPK-5 replay accepted count diverged",
+        );
+        store
+            .replay_event_observations
+            .push(ShadowReplayEventObservation {
+                direction: match direction {
+                    BoundDirection::Lower => ShadowReplayDirection::Lower,
+                    BoundDirection::Upper => ShadowReplayDirection::Upper,
+                },
+                legacy_input_count,
+                shadow_input_count,
+                legacy_accepted_count,
+                shadow_accepted_count,
+                accepted_results,
             });
     });
 }
@@ -1887,6 +2113,8 @@ mod tests {
         result: ConstraintRecordId,
         carrier: BinaryReplayDerivation,
         coverage_root: UpperReplayClaimId,
+        parent_owner: TypeVar,
+        parent_record: BoundRecordId,
     }
 
     fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
@@ -1927,6 +2155,8 @@ mod tests {
                 rule: ReplayRule::LowerBoundAdded,
             },
             coverage_root: registration.claim,
+            parent_owner: TypeVar(2),
+            parent_record,
         }
     }
 
@@ -2513,6 +2743,138 @@ mod tests {
                 ProjectionLineage::ReductionRouteConstraint,
             ]),
         );
+    }
+
+    fn cpk_5_trigger_lower_route(
+        fixture: &mut CpkReplayAdmissionFixture,
+        lower_is_var: bool,
+    ) {
+        let lower = if lower_is_var {
+            fixture.machine.alloc_pos(Pos::Var(TypeVar(41_000)))
+        } else {
+            fixture.machine.alloc_pos(Pos::Con(
+                vec!["cpk-5-lower".into()],
+                Vec::new(),
+            ))
+        };
+        let upper = fixture.machine.alloc_neg(Neg::Var(fixture.parent_owner));
+        fixture
+            .machine
+            .subtype(lower, upper, OriginId::unknown_internal());
+    }
+
+    fn assert_cpk_5_event_count_parity(snapshot: &ProofOccurrenceStoreSnapshot) {
+        assert!(!snapshot.replay_event_observations.is_empty());
+        assert!(snapshot.replay_event_observations.iter().all(|observation| {
+            observation.legacy_input_count == observation.shadow_input_count
+                && observation.legacy_accepted_count == observation.shadow_accepted_count
+        }));
+    }
+
+    #[test]
+    fn cpk_5_generic_route_matches_legacy_and_counts() {
+        let (_, snapshot) = capture_proof_occurrence_shadow(|| {
+            let mut fixture = cpk_3_replay_admission_fixture();
+            cpk_5_trigger_lower_route(&mut fixture, false);
+            fixture.machine
+        });
+
+        assert!(snapshot.replay_route_observations.iter().any(|observation| {
+            observation.legacy == ShadowReplayRouting::Generic
+                && observation.shadow == ShadowReplayRouting::Generic
+        }));
+        assert_cpk_5_event_count_parity(&snapshot);
+    }
+
+    #[test]
+    fn cpk_5_incremental_only_and_skip_routes_match_legacy() {
+        for (lower_is_var, expected) in [
+            (true, ShadowReplayRouting::IncrementalOnly),
+            (false, ShadowReplayRouting::SkipAlreadyCovered),
+        ] {
+            let ((parent_record, machine), snapshot) = capture_proof_occurrence_shadow(|| {
+                let mut fixture = cpk_3_replay_admission_fixture();
+                fixture.machine.insert_scheme_projection_live_coverage_state(
+                    fixture.coverage_root,
+                    UnweightedRowReductionRecordId(41_000),
+                );
+                cpk_5_trigger_lower_route(&mut fixture, lower_is_var);
+                (fixture.parent_record, fixture.machine)
+            });
+
+            assert!(snapshot.replay_route_observations.iter().any(|observation| {
+                observation.upper == parent_record
+                    && observation.legacy == expected
+                    && observation.shadow == expected
+            }));
+            assert_cpk_5_event_count_parity(&snapshot);
+            assert_eq!(
+                machine.timing.lower_replay_accepted + machine.timing.upper_replay_accepted,
+                snapshot
+                    .replay_event_observations
+                    .iter()
+                    .map(|observation| observation.legacy_accepted_count)
+                    .sum::<usize>(),
+            );
+        }
+    }
+
+    #[test]
+    fn cpk_5_routing_is_invariant_across_same_root_parent_arrival_orders() {
+        let permutations = [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ];
+        let mut routing = Vec::new();
+        for order in permutations {
+            let ((result, root), snapshot) = capture_proof_occurrence_shadow(|| {
+                let mut fixture = cpk_3_replay_admission_fixture();
+                let claims = [
+                    fixture.coverage_root,
+                    add_same_root_replay_claim(
+                        &mut fixture,
+                        TypeVar(42_000),
+                        ConstraintRecordId(42_000),
+                    ),
+                    add_same_root_replay_claim(
+                        &mut fixture,
+                        TypeVar(42_001),
+                        ConstraintRecordId(42_001),
+                    ),
+                ];
+                for index in order {
+                    fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                        fixture.result,
+                        fixture.carrier,
+                        claims[index],
+                    );
+                }
+                cpk_5_trigger_lower_route(&mut fixture, false);
+                (fixture.result, fixture.coverage_root)
+            });
+            assert_eq!(
+                snapshot.first_replay_witnesses[&(result, root)].representative_claim,
+                snapshot.replay_finite_map
+                    .iter()
+                    .find(|occurrence| occurrence.result == result)
+                    .unwrap()
+                    .lower_parents[0]
+                    .representative_claim,
+            );
+            assert_cpk_5_event_count_parity(&snapshot);
+            routing.push(
+                snapshot
+                    .replay_route_observations
+                    .iter()
+                    .map(|observation| observation.shadow)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        assert!(routing.windows(2).all(|pair| pair[0] == pair[1]));
     }
 
     #[test]

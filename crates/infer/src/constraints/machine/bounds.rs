@@ -84,6 +84,8 @@ struct BoundReplayPlan {
     evidence_actions: BoundReplayActions,
     duplicate_actions: BoundReplayActions,
     trivial_actions: BoundReplayActions,
+    #[cfg(test)]
+    routing_shadow: Option<proof::ReplayRoutingShadowToken>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -710,6 +712,8 @@ impl ConstraintMachine {
             &weights,
             &incremental_routes,
         );
+        #[cfg(test)]
+        let routing_shadow = replay.routing_shadow;
         let mut planned_incremental_actions = FxHashSet::default();
         for route in &incremental_routes {
             let generic_replay_covers_route =
@@ -770,6 +774,13 @@ impl ConstraintMachine {
                 route.claim,
             );
         }
+        #[cfg(test)]
+        proof::finish_replay_routing_shadow(
+            routing_shadow,
+            BoundDirection::Lower,
+            replay.input_count,
+            replay.stats.accepted,
+        );
         self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_lower_bound_added(
             replay.input_count,
@@ -911,6 +922,8 @@ impl ConstraintMachine {
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
         let mut replay = self.upper_bound_replay_actions(source, insertion.id, neg, &weights);
+        #[cfg(test)]
+        let routing_shadow = replay.routing_shadow;
         self.apply_prefiltered_replay_provenance_with_parent_drafts(
             replay.duplicate_actions,
             replay.trivial_actions,
@@ -921,6 +934,13 @@ impl ConstraintMachine {
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
         self.apply_bound_replay_evidence_actions(replay.evidence_actions);
+        #[cfg(test)]
+        proof::finish_replay_routing_shadow(
+            routing_shadow,
+            BoundDirection::Upper,
+            replay.input_count,
+            replay.stats.accepted,
+        );
         self.record_upper_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
         self.timing.record_upper_bound_added(
             replay.input_count,
@@ -5011,6 +5031,8 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(target) else {
             return BoundReplayPlan::default();
         };
+        #[cfg(test)]
+        let routing_shadow = proof::begin_replay_routing_shadow();
         let uppers = bounds
             .projection_upper_records()
             .map(|(record, upper)| (record, upper.clone()))
@@ -5023,6 +5045,16 @@ impl ConstraintMachine {
                 let upper_claim_parents =
                     self.upper_record_replay_claim_parents(pos, *record, incremental_routes);
                 let should_replay = requires_generic || !upper_claim_parents.is_empty();
+                #[cfg(test)]
+                proof::compare_replay_route_shadow(
+                    self,
+                    lower_record,
+                    *record,
+                    matches!(self.types.pos(pos), Pos::Var(_)),
+                    incremental_routes,
+                    requires_generic,
+                    should_replay,
+                );
                 let mut claim_parents = lower_claim_parents.clone();
                 claim_parents.extend(upper_claim_parents);
                 (*record, (should_replay, claim_parents))
@@ -5034,6 +5066,8 @@ impl ConstraintMachine {
             .count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
+            #[cfg(test)]
+            routing_shadow,
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
@@ -5171,6 +5205,8 @@ impl ConstraintMachine {
         let Some(bounds) = self.bounds.of(source) else {
             return BoundReplayPlan::default();
         };
+        #[cfg(test)]
+        let routing_shadow = proof::begin_replay_routing_shadow();
         let requires_generic = self.upper_record_requires_generic_replay(upper_record);
         let replay_input_count = if requires_generic {
             bounds.projection_lowers().count()
@@ -5179,8 +5215,22 @@ impl ConstraintMachine {
         };
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
+            #[cfg(test)]
+            routing_shadow,
             ..BoundReplayPlan::default()
         };
+        #[cfg(test)]
+        for (lower_record, lower) in bounds.projection_lower_records() {
+            proof::compare_replay_route_shadow(
+                self,
+                lower_record,
+                upper_record,
+                matches!(self.types.pos(lower.pos), Pos::Var(_)),
+                &[],
+                requires_generic,
+                requires_generic,
+            );
+        }
         trace_bound_replay_start("upper", source, replay_input_count);
         if !requires_generic {
             return replay;
