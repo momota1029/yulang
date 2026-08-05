@@ -1821,6 +1821,8 @@ impl ConstraintMachine {
             return false;
         }
         let is_empty = states.is_empty();
+        #[cfg(test)]
+        proof::record_live_coverage_shadow(root, state, false);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
         true
     }
@@ -1837,6 +1839,8 @@ impl ConstraintMachine {
         let was_empty = states.is_empty();
         states.push(state);
         let is_empty = states.is_empty();
+        #[cfg(test)]
+        proof::record_live_coverage_shadow(root, state, true);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
         true
     }
@@ -2788,6 +2792,8 @@ impl TypeBounds {
             coverage_root: id,
             lineage: UpperReplayClaimLineage::Original,
         });
+        #[cfg(test)]
+        proof::record_upper_claim_shadow(&self.upper_replay_claims[id.0 as usize]);
         self.original_claim_by_record_and_producer.insert(key, id);
         self.register_original_claim_mirror(producer_constraint, id);
         self.insert_upper_record_claim_canonical(record, id);
@@ -2861,6 +2867,8 @@ impl TypeBounds {
             coverage_root: root,
             lineage,
         });
+        #[cfg(test)]
+        proof::record_upper_claim_shadow(&self.upper_replay_claims[id.0 as usize]);
         self.derived_claim_by_record_and_root
             .insert((record, root), id);
         self.insert_upper_record_claim_canonical(record, id);

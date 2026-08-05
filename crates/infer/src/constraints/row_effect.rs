@@ -498,6 +498,12 @@ impl ConstraintMachine {
             self.insert_scheme_projection_live_coverage_state(claim, id);
             claim
         });
+        #[cfg(test)]
+        proof::record_row_reduction_shadow(
+            id,
+            &self.unweighted_row_reduction_records[id.0 as usize],
+            root_claim,
+        );
         self.register_unweighted_row_reduction_owner(
             materialization.record,
             id,
@@ -507,6 +513,15 @@ impl ConstraintMachine {
             state: id,
             root_claim,
         }
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn register_unweighted_row_reduction_for_test(
+        &mut self,
+        record: UnweightedRowReductionRecord,
+    ) -> (UnweightedRowReductionRecordId, Option<UpperReplayClaimId>) {
+        let registration = self.register_unweighted_row_reduction(record);
+        (registration.state, registration.root_claim)
     }
 
     fn enqueue_initial_unmatched_reduction_subtype(

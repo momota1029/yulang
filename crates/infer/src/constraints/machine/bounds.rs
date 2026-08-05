@@ -4399,6 +4399,13 @@ impl ConstraintMachine {
             }
             inserted_parents.push(parent);
         }
+        #[cfg(test)]
+        proof::record_replay_parent_snapshot_shadow(
+            &self.bounds,
+            result,
+            replay,
+            &inserted_parents,
+        );
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
@@ -4756,6 +4763,8 @@ impl ConstraintMachine {
             target_record,
             Some(carrier),
         );
+        #[cfg(test)]
+        proof::record_reduction_route_shadow(result, derivation, claim);
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
@@ -5436,6 +5445,23 @@ impl ConstraintMachine {
                     }),
                 );
             }
+            #[cfg(test)]
+            proof::record_replay_admission_shadow(
+                self.canonical_constraints.get(&constraint).copied(),
+                action.derivation,
+                match (enqueued, disposition) {
+                    (_, ReplayDerivationInsert::Incomplete) => {
+                        proof::ReplayAdmissionDisposition::Incomplete
+                    }
+                    (true, _) => proof::ReplayAdmissionDisposition::NewSemantic,
+                    (false, ReplayDerivationInsert::Inserted) => {
+                        proof::ReplayAdmissionDisposition::CanonicalDuplicate
+                    }
+                    (false, ReplayDerivationInsert::Duplicate) => {
+                        proof::ReplayAdmissionDisposition::ExactDuplicate
+                    }
+                },
+            );
             self.merge_constraint_canonicalization_disposition(
                 &constraint,
                 action.canonicalization_disposition,
@@ -5541,6 +5567,24 @@ impl ConstraintMachine {
                 self.timing.record_evidence_upper_bound_added();
                 self.record_effective_bounds_mutation(source);
             }
+            #[cfg(test)]
+            {
+                proof::record_replay_admission_shadow(
+                    None,
+                    action.derivation,
+                    if evidence_complete {
+                        proof::ReplayAdmissionDisposition::EvidenceOnly
+                    } else {
+                        proof::ReplayAdmissionDisposition::Incomplete
+                    },
+                );
+                if evidence_complete && lower_edge_inserted {
+                    proof::record_replay_evidence_shadow(lower_record, action.derivation);
+                }
+                if evidence_complete && upper_edge_inserted {
+                    proof::record_replay_evidence_shadow(upper_record, action.derivation);
+                }
+            }
             if evidence_complete {
                 for parent in action.claim_parents {
                     let producer = self.bounds.upper_replay_claims[parent.claim.0 as usize]
@@ -5629,6 +5673,22 @@ impl ConstraintMachine {
                     }),
                 );
             }
+            #[cfg(test)]
+            proof::record_replay_admission_shadow(
+                Some(result),
+                action.derivation,
+                match disposition {
+                    ReplayDerivationInsert::Inserted => {
+                        proof::ReplayAdmissionDisposition::CanonicalDuplicate
+                    }
+                    ReplayDerivationInsert::Duplicate => {
+                        proof::ReplayAdmissionDisposition::ExactDuplicate
+                    }
+                    ReplayDerivationInsert::Incomplete => {
+                        proof::ReplayAdmissionDisposition::Incomplete
+                    }
+                },
+            );
             self.merge_constraint_canonicalization_disposition(
                 &action.constraint,
                 action.canonicalization_disposition,
@@ -5641,10 +5701,33 @@ impl ConstraintMachine {
             );
         }
         for action in trivial {
-            let disposition = self.intern_replay_drop(ReplayDropRecord {
+            let drop = ReplayDropRecord {
                 attempted: action.constraint,
                 derivation: action.derivation,
-            });
+            };
+            let disposition = self.intern_replay_drop(drop.clone());
+            #[cfg(test)]
+            {
+                proof::record_replay_admission_shadow(
+                    None,
+                    action.derivation,
+                    match disposition {
+                        ReplayDerivationInsert::Inserted => {
+                            proof::ReplayAdmissionDisposition::Trivial
+                        }
+                        ReplayDerivationInsert::Duplicate => {
+                            proof::ReplayAdmissionDisposition::ExactDuplicate
+                        }
+                        ReplayDerivationInsert::Incomplete => {
+                            proof::ReplayAdmissionDisposition::Incomplete
+                        }
+                    },
+                );
+                if disposition == ReplayDerivationInsert::Inserted {
+                    let id = self.replay_drop_index[&drop];
+                    proof::record_replay_drop_shadow(id, drop);
+                }
+            }
             self.timing.record_replay_derivation_edge(
                 disposition == ReplayDerivationInsert::Inserted,
                 disposition == ReplayDerivationInsert::Duplicate,

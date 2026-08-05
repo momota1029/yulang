@@ -76,12 +76,17 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("generalized_witnesses", 10),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
     ("scheme_instantiations", 17),
-    ("upper_replay_claims", 78),
+    // CPK-3 adds reviewed test-only claim hooks and lineage parity reads, not a new authority.
+    ("upper_replay_claims", 84),
     ("claims_by_upper_record", 14),
-    ("live_coverage_by_root", 9),
-    ("replay_parent_sets", 20),
-    ("replay_occurrences", 50),
-    ("replay_result_summary", 43),
+    // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
+    ("live_coverage_by_root", 10),
+    // CPK-3's test-only parity oracle adds one reviewed parent-set read.
+    ("replay_parent_sets", 21),
+    // CPK-3's test-only finite-map/first-witness oracle adds four reviewed occurrence reads.
+    ("replay_occurrences", 54),
+    // CPK-3's test-only first-witness parity oracle adds one reviewed summary read.
+    ("replay_result_summary", 44),
     ("replay_clause_projection", 34),
     ("non_replay_claim_parents_by_constraint", 9),
 ];
