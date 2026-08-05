@@ -2,7 +2,7 @@
 
 日付: 2026-08-05
 
-状態: **ユーザ承認待ち**
+状態: **ユーザ承認済み（2026-08-05）**
 
 著者: Claude (Sonnet 5)、Codex `gpt-5.6-sol`（xhigh）の調査・設計提案に基づき統合・記述。
 
@@ -955,5 +955,5 @@ CPK-0 の writer/consumer inventory と、Bound/Carrier の legacy 不一致解�
 
 著者: Claude (Sonnet 5)（Codex `gpt-5.6-sol` xhigh の調査・設計提案を統合）
 
-ユーザ承認待ち。承認後、CPK-0（contract inventory and baseline）から
-着手する。
+ユーザ承認済み（2026-08-05）。本書は設計判断の正本として扱う。
+CPK-0（contract inventory and baseline）から着手してよい。
