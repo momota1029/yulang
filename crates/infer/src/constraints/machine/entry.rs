@@ -84,6 +84,9 @@ impl ConstraintMachine {
             replay_routing_shadow: ReplayRoutingShadow::from_env().map(RefCell::new),
             #[cfg(test)]
             cdm_lower_delta_census: CdmLowerDeltaCensus::default(),
+            #[cfg(test)]
+            semantic_execution_trace:
+                semantic_execution_snapshot::trace_for_new_constraint_machine(),
         }
     }
 
@@ -423,6 +426,8 @@ impl ConstraintMachine {
     }
 
     pub fn take_events(&mut self) -> Vec<ConstraintEvent> {
+        #[cfg(test)]
+        self.record_semantic_publication_events();
         std::mem::take(&mut self.events)
     }
 
@@ -894,15 +899,17 @@ impl ConstraintMachine {
     ) {
         self.timing.record_subtract_fact_call();
         self.observe_type_var(effect);
-        self.queue
-            .push_back(ConstraintWork::SubtractFact(QueuedSubtractFact {
-                effect,
-                fact: SubtractFact {
-                    id,
-                    subtractability,
-                },
-                derivation: SubtractFactDerivation::Internal(OriginId::unknown_internal()),
-            }));
+        let work = ConstraintWork::SubtractFact(QueuedSubtractFact {
+            effect,
+            fact: SubtractFact {
+                id,
+                subtractability,
+            },
+            derivation: SubtractFactDerivation::Internal(OriginId::unknown_internal()),
+        });
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         self.drain();
     }
 
@@ -940,15 +947,17 @@ impl ConstraintMachine {
         }
         self.timing.record_subtract_fact_call();
         self.observe_type_var(effect);
-        self.queue
-            .push_back(ConstraintWork::SubtractFact(QueuedSubtractFact {
-                effect,
-                fact: SubtractFact {
-                    id,
-                    subtractability,
-                },
-                derivation: SubtractFactDerivation::Declaration(origin),
-            }));
+        let work = ConstraintWork::SubtractFact(QueuedSubtractFact {
+            effect,
+            fact: SubtractFact {
+                id,
+                subtractability,
+            },
+            derivation: SubtractFactDerivation::Declaration(origin),
+        });
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         self.drain();
     }
 
@@ -987,6 +996,8 @@ impl ConstraintMachine {
             let Some(work) = self.queue.pop_front() else {
                 break;
             };
+            #[cfg(test)]
+            self.record_semantic_queue_dequeue(&work);
             trace.work(&work, self);
             work_items += 1;
             match &work {
@@ -1199,7 +1210,10 @@ impl ConstraintMachine {
             },
         });
         self.bump_provenance_epoch();
-        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        let work = ConstraintWork::Subtype(record_id);
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         (true, inserted)
     }
 
@@ -1351,7 +1365,10 @@ impl ConstraintMachine {
         if origin.is_some() {
             self.bump_provenance_epoch();
         }
-        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        let work = ConstraintWork::Subtype(record_id);
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         true
     }
 
@@ -1414,7 +1431,10 @@ impl ConstraintMachine {
         self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
-        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        let work = ConstraintWork::Subtype(record_id);
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         true
     }
 
@@ -1563,7 +1583,10 @@ impl ConstraintMachine {
         });
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
-        self.queue.push_back(ConstraintWork::Subtype(record_id));
+        let work = ConstraintWork::Subtype(record_id);
+        #[cfg(test)]
+        self.record_semantic_queue_enqueue(&work);
+        self.queue.push_back(work);
         true
     }
 
@@ -1755,11 +1778,19 @@ impl ConstraintMachine {
 
     pub(in crate::constraints) fn bump_epoch(&mut self) -> ConstraintEpoch {
         self.epoch.bump();
+        #[cfg(test)]
+        self.record_semantic_epoch_event(
+            semantic_execution_snapshot::SemanticEpochKind::Constraint,
+        );
         self.epoch
     }
 
     pub(in crate::constraints) fn bump_provenance_epoch(&mut self) -> ProvenanceEpoch {
         self.provenance_epoch.bump();
+        #[cfg(test)]
+        self.record_semantic_epoch_event(
+            semantic_execution_snapshot::SemanticEpochKind::Provenance,
+        );
         self.provenance_epoch
     }
 
@@ -1767,6 +1798,10 @@ impl ConstraintMachine {
         &mut self,
     ) -> RoleSolveSupplementalEpoch {
         self.role_solve_supplemental_epoch.bump();
+        #[cfg(test)]
+        self.record_semantic_epoch_event(
+            semantic_execution_snapshot::SemanticEpochKind::RoleSolveSupplemental,
+        );
         self.role_solve_supplemental_epoch
     }
 

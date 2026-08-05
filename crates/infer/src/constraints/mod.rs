@@ -17,6 +17,8 @@ mod replay_factored;
 mod replay_soak;
 mod row_effect;
 #[cfg(test)]
+mod semantic_execution_snapshot;
+#[cfg(test)]
 mod tests;
 mod timing;
 mod trace;
@@ -77,6 +79,15 @@ use trace::{
 #[cfg(test)]
 pub(crate) use machine::global_alpha_census::{
     GlobalAlphaConsequenceCensusSnapshot, capture_global_alpha_consequence_census,
+};
+#[cfg(test)]
+#[allow(
+    unused_imports,
+    reason = "CPK-0a exposes one shared baseline vocabulary to later fixture slices"
+)]
+pub(crate) use semantic_execution_snapshot::{
+    SemanticExecutionSnapshot, SemanticOutputSnapshot, SccExecutionSnapshot,
+    with_semantic_execution_snapshot_capture_for_new_machines,
 };
 
 /// subtype constraint の伝播 machine。
@@ -139,6 +150,8 @@ pub struct ConstraintMachine {
     replay_routing_shadow: Option<RefCell<ReplayRoutingShadow>>,
     #[cfg(test)]
     cdm_lower_delta_census: CdmLowerDeltaCensus,
+    #[cfg(test)]
+    semantic_execution_trace: Option<semantic_execution_snapshot::SemanticExecutionTrace>,
 }
 
 #[cfg(test)]
