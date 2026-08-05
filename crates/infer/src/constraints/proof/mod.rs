@@ -681,7 +681,6 @@ fn record_shadow_occurrence(
     });
 }
 
-#[cfg(test)]
 fn projection_lineage(lineage: UpperReplayClaimLineage) -> ProjectionLineage {
     match lineage {
         UpperReplayClaimLineage::Original => ProjectionLineage::Original,
@@ -701,15 +700,7 @@ pub(super) fn record_upper_claim_shadow(claim: &UpperReplayClaim) {
     if !proof_occurrence_shadow_is_active() {
         return;
     }
-    SHADOW_STORE.with(|store| {
-        store.borrow_mut().upper_claims.push(UpperClaimOccurrence {
-            claim: claim.id,
-            coverage_root: claim.coverage_root,
-            lineage: projection_lineage(claim.lineage),
-            producer: claim.producer_constraint,
-            current_record: claim.current_record,
-        });
-    });
+    SHADOW_STORE.with(|store| store.borrow_mut().record_upper_claim(claim));
 }
 
 #[cfg(test)]
@@ -717,17 +708,36 @@ pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
     if !proof_occurrence_shadow_is_active() {
         return;
     }
-    SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        let Some(existing) = store
+    SHADOW_STORE.with(|store| store.borrow_mut().update_upper_claim(claim));
+}
+
+impl ProofOccurrenceStore {
+    pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
+        if let Some(existing) = self
             .upper_claims
             .iter_mut()
             .find(|existing| existing.claim == claim.id)
-        else {
+        {
+            existing.current_record = claim.current_record;
             return;
-        };
+        }
+        self.upper_claims.push(UpperClaimOccurrence {
+            claim: claim.id,
+            coverage_root: claim.coverage_root,
+            lineage: projection_lineage(claim.lineage),
+            producer: claim.producer_constraint,
+            current_record: claim.current_record,
+        });
+    }
+
+    pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
+        let existing = self
+            .upper_claims
+            .iter_mut()
+            .find(|existing| existing.claim == claim.id)
+            .expect("a moved upper claim must already exist in the CPK store");
         existing.current_record = claim.current_record;
-    });
+    }
 }
 
 #[cfg(test)]

@@ -278,6 +278,11 @@ impl ConstraintMachine {
             derivation,
             disposition,
         });
+        self.proof_store.record_bound_disposition(
+            id,
+            tombstone,
+            self.bound_dispositions[id.0 as usize].clone(),
+        );
         #[cfg(test)]
         proof::record_bound_disposition_shadow(
             id,
@@ -667,6 +672,10 @@ impl ConstraintMachine {
         let insertion = self
             .bounds
             .add_lower(target, pos, weights.clone(), derivation.clone());
+        if insertion.provenance_changed {
+            self.proof_store
+                .record_bound(insertion.id, derivation.clone());
+        }
         if let Some(before) = premise_inclusion_before {
             self.publish_projection_inclusion_snapshot(before);
         }
@@ -817,6 +826,7 @@ impl ConstraintMachine {
                 let derivation = BoundDerivation::SchemeInstantiation(derivation);
                 if !record.derivations.contains(&derivation) {
                     record.derivations.push(derivation.clone());
+                    self.proof_store.record_bound(id, derivation.clone());
                     #[cfg(test)]
                     proof::record_bound_shadow(id, derivation.clone());
                     inserted_derivations.push(derivation);
@@ -890,6 +900,10 @@ impl ConstraintMachine {
         let insertion = self
             .bounds
             .add_upper(source, neg, weights.clone(), derivation.clone());
+        if insertion.provenance_changed {
+            self.proof_store
+                .record_bound(insertion.id, derivation.clone());
+        }
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
         self.record_bound_disposition(
             BoundDirection::Upper,
@@ -1038,6 +1052,9 @@ impl ConstraintMachine {
                 producer,
                 UpperReplayClaimKind::Direct,
             );
+            self.proof_store.record_upper_claim(
+                &self.bounds.upper_replay_claims[registration.claim.0 as usize],
+            );
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             claims.push(registration.claim);
         }
@@ -1135,6 +1152,9 @@ impl ConstraintMachine {
                     }
                 }),
         };
+        self.proof_store.record_upper_claim(
+            &self.bounds.upper_replay_claims[registration.claim.0 as usize],
+        );
         if let Some(fence) = publication_fence {
             self.defer_scheme_projection_mutation(fence, registration.scheme_projection_mutation);
         } else {
@@ -5660,6 +5680,9 @@ impl ConstraintMachine {
                             replay: action.derivation,
                             depth,
                         },
+                    );
+                    self.proof_store.record_upper_claim(
+                        &self.bounds.upper_replay_claims[registration.claim.0 as usize],
                     );
                     self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
                     self.register_replay_evidence_clause_link(

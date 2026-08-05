@@ -456,6 +456,9 @@ impl ConstraintMachine {
             if let Some(claim) = self.bounds.reduction_claim_by_state.get(&state_id).copied() {
                 self.bounds
                     .move_upper_replay_claim(claim, materialization.record);
+                self.proof_store.update_upper_claim(
+                    &self.bounds.upper_replay_claims[claim.0 as usize],
+                );
             }
             self.register_unweighted_row_reduction_owner(
                 materialization.record,
@@ -491,6 +494,9 @@ impl ConstraintMachine {
                 materialization.record,
                 producer,
                 UpperReplayClaimKind::Reduced(id),
+            );
+            self.proof_store.record_upper_claim(
+                &self.bounds.upper_replay_claims[registration.claim.0 as usize],
             );
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             let claim = registration.claim;
@@ -591,7 +597,10 @@ impl ConstraintMachine {
         };
         let insertion =
             self.bounds
-                .add_upper(record.owner(), neg, record.weights().clone(), derivation);
+                .add_upper(record.owner(), neg, record.weights().clone(), derivation.clone());
+        if insertion.provenance_changed {
+            self.proof_store.record_bound(insertion.id, derivation);
+        }
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
     }
 
@@ -708,6 +717,10 @@ impl ConstraintMachine {
         let insertion = self
             .bounds
             .add_upper(source, neg, weights.clone(), derivation.clone());
+        if insertion.provenance_changed {
+            self.proof_store
+                .record_bound(insertion.id, derivation.clone());
+        }
         self.record_bound_provenance(insertion, BoundDirection::Upper, false);
         self.record_bound_disposition(
             BoundDirection::Upper,
