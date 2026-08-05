@@ -56,7 +56,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("qualified_carrier_index", 26),
     ("structural_claim_parent_keys", 2),
     ("scheme_projection_claims_by_lower_record", 24),
-    ("projection_proofs_by_lower_record", 41),
+    // CPK-4 adds two reviewed test-only reads: the writer-boundary shadow
+    // support snapshot and its late-capture readiness gate.
+    ("projection_proofs_by_lower_record", 43),
     ("scheme_projection_lower_records_by_root", 5),
     ("scheme_projection_lower_record_memberships", 4),
     ("record_proof_clauses", 6),
@@ -76,8 +78,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("generalized_witnesses", 10),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
     ("scheme_instantiations", 17),
-    // CPK-3 adds reviewed test-only claim hooks and lineage parity reads, not a new authority.
-    ("upper_replay_claims", 84),
+    // CPK-3 adds reviewed test-only claim hooks and lineage parity reads; CPK-4 adds one
+    // test-only shadow-evaluator read. Neither is a new production authority.
+    ("upper_replay_claims", 85),
     ("claims_by_upper_record", 14),
     // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
     ("live_coverage_by_root", 10),

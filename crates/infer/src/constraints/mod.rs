@@ -1239,6 +1239,18 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         if top_level {
             #[cfg(any(test, debug_assertions))]
             self.compare_factored_top_level_result(record, result);
+            #[cfg(test)]
+            if self.record_result_overrides.is_empty()
+                && self.root_result_overrides.is_empty()
+                && self.proof_overrides.is_empty()
+            {
+                proof::compare_projection_record_shadow(
+                    self.machine,
+                    record,
+                    result,
+                    self.cycle_cuts,
+                );
+            }
         }
         Ok(result)
     }
@@ -3070,6 +3082,11 @@ impl TypeBounds {
         if !metadata_changed {
             return SchemeProjectionMutation::None;
         }
+        #[cfg(test)]
+        proof::record_projection_supports_shadow(
+            lower_record,
+            &self.projection_proofs_by_lower_record[&lower_record],
+        );
         SchemeProjectionMutation::ProofsChanged {
             lower_record,
             previous_proofs,
@@ -3126,6 +3143,8 @@ impl TypeBounds {
             }
         }
         self.insert_upper_record_claim_canonical(new_record, claim);
+        #[cfg(test)]
+        proof::update_upper_claim_shadow(&self.upper_replay_claims[claim.0 as usize]);
     }
 
     fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {

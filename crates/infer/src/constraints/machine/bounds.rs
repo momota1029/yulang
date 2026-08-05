@@ -3143,6 +3143,8 @@ impl ConstraintMachine {
             if !link_inserted {
                 continue;
             }
+            #[cfg(test)]
+            proof::record_projection_clause_shadow(lower_record, admission);
             any_link_inserted = true;
             if clause_inserted {
                 inserted_clauses.push(clause);

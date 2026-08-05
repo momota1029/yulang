@@ -439,6 +439,59 @@ pub(crate) struct UpperClaimOccurrence {
     pub(crate) claim: UpperReplayClaimId,
     pub(crate) coverage_root: UpperReplayClaimId,
     pub(crate) lineage: ProjectionLineage,
+    pub(crate) producer: ConstraintRecordId,
+    pub(crate) current_record: BoundRecordId,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShadowProjectionClause {
+    Standalone {
+        support: SchemeProjectionProofSupport,
+        attribution: Option<ProjectionLineage>,
+    },
+    DerivedUnary {
+        support: SchemeProjectionProofSupport,
+        carrier: DerivedUnaryCarrier,
+        premise: ProofPremise,
+        attribution: Option<ProjectionLineage>,
+    },
+    ReplayConjunction {
+        support: SchemeProjectionProofSupport,
+        carrier: BinaryReplayDerivation,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        attribution: Option<ProjectionLineage>,
+    },
+}
+
+#[cfg(test)]
+impl ShadowProjectionClause {
+    fn support(self) -> SchemeProjectionProofSupport {
+        match self {
+            Self::Standalone { support, .. }
+            | Self::DerivedUnary { support, .. }
+            | Self::ReplayConjunction { support, .. } => support,
+        }
+    }
+
+    fn category_rank(self) -> u8 {
+        match self {
+            Self::Standalone { .. } => 0,
+            Self::DerivedUnary { .. } => 1,
+            Self::ReplayConjunction { .. } => 2,
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ShadowProjectabilityObservation {
+    record: BoundRecordId,
+    legacy: bool,
+    shadow: bool,
+    legacy_cycle_cut: bool,
+    shadow_cycle_cut: bool,
 }
 
 #[cfg(test)]
@@ -471,6 +524,9 @@ pub(crate) struct ProofOccurrenceStoreSnapshot {
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     pub(crate) replay_coverage_connected: bool,
+    projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
+    projection_formulas: FxHashMap<BoundRecordId, Vec<ShadowProjectionClause>>,
+    projectability_observations: Vec<ShadowProjectabilityObservation>,
 }
 
 #[cfg(test)]
@@ -485,6 +541,9 @@ impl Default for ProofOccurrenceStoreSnapshot {
             row_reductions: Vec::new(),
             live_coverage: FxHashSet::default(),
             replay_coverage_connected: true,
+            projection_supports: FxHashMap::default(),
+            projection_formulas: FxHashMap::default(),
+            projectability_observations: Vec::new(),
         }
     }
 }
@@ -574,7 +633,408 @@ pub(super) fn record_upper_claim_shadow(claim: &UpperReplayClaim) {
             claim: claim.id,
             coverage_root: claim.coverage_root,
             lineage: projection_lineage(claim.lineage),
+            producer: claim.producer_constraint,
+            current_record: claim.current_record,
         });
+    });
+}
+
+#[cfg(test)]
+pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        let mut store = store.borrow_mut();
+        let Some(existing) = store
+            .upper_claims
+            .iter_mut()
+            .find(|existing| existing.claim == claim.id)
+        else {
+            return;
+        };
+        existing.current_record = claim.current_record;
+    });
+}
+
+#[cfg(test)]
+pub(super) fn record_projection_supports_shadow(
+    lower_record: BoundRecordId,
+    proofs: &[SchemeProjectionProof],
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    SHADOW_STORE.with(|store| {
+        store.borrow_mut().projection_supports.insert(
+            lower_record,
+            proofs.iter().map(|proof| proof.support).collect(),
+        );
+    });
+}
+
+#[cfg(test)]
+pub(super) fn record_projection_clause_shadow(
+    lower_record: BoundRecordId,
+    admission: RecordProofClauseLinkAdmission,
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    let attribution = match (admission.clause, admission.claimed_attribution_source) {
+        (_, None) => None,
+        (RecordProofClause::Standalone { .. }, Some(_)) => Some(ProjectionLineage::Original),
+        (
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::Structural(_),
+                ..
+            },
+            Some(_),
+        ) => Some(ProjectionLineage::StructuralConstraint),
+        (
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(_),
+                ..
+            },
+            Some(_),
+        ) => Some(ProjectionLineage::ReductionRouteConstraint),
+        (
+            RecordProofClause::ReplayConjunction { .. },
+            Some(ClaimedAttributionSource::CanonicalReplay),
+        ) => Some(ProjectionLineage::ReplayConstraint),
+        (
+            RecordProofClause::ReplayConjunction { .. },
+            Some(ClaimedAttributionSource::FlatRetained),
+        ) => Some(ProjectionLineage::ReplayEvidence),
+    };
+    let clause = match admission.clause {
+        RecordProofClause::Standalone { .. } => ShadowProjectionClause::Standalone {
+            support: admission.support,
+            attribution,
+        },
+        RecordProofClause::DerivedUnary { carrier, premise } => {
+            ShadowProjectionClause::DerivedUnary {
+                support: admission.support,
+                carrier,
+                premise,
+                attribution,
+            }
+        }
+        RecordProofClause::ReplayConjunction {
+            carrier,
+            lower_premise,
+            upper_premise,
+        } => ShadowProjectionClause::ReplayConjunction {
+            support: admission.support,
+            carrier,
+            lower: lower_premise,
+            upper: upper_premise,
+            attribution,
+        },
+    };
+    SHADOW_STORE.with(|store| {
+        let mut store = store.borrow_mut();
+        let formula = store.projection_formulas.entry(lower_record).or_default();
+        if !formula.contains(&clause) {
+            formula.push(clause);
+            formula.sort_by_key(|clause| clause.category_rank());
+        }
+    });
+}
+
+#[cfg(test)]
+struct ShadowProjectionEvaluator<'a> {
+    machine: &'a ConstraintMachine,
+    store: &'a ProofOccurrenceStoreSnapshot,
+    states: FxHashMap<ProofEvalNode, ProofEvalState>,
+    record_overrides: FxHashMap<BoundRecordId, bool>,
+    root_overrides: FxHashMap<UpperReplayClaimId, bool>,
+    cycle_cuts: usize,
+}
+
+#[cfg(test)]
+impl<'a> ShadowProjectionEvaluator<'a> {
+    fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStoreSnapshot) -> Self {
+        Self {
+            machine,
+            store,
+            states: FxHashMap::default(),
+            record_overrides: FxHashMap::default(),
+            root_overrides: FxHashMap::default(),
+            cycle_cuts: 0,
+        }
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        if let Some(result) = self.record_overrides.get(&record) {
+            return *result;
+        }
+        let node = ProofEvalNode::Record(record);
+        if let Some(result) = self.enter(node) {
+            return result;
+        }
+        let result = self.eval_record_uncached(record);
+        self.finish(node, result)
+    }
+
+    fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
+        let Some(bound) = self.machine.bounds.record(record) else {
+            return true;
+        };
+        if bound.state() == BoundRecordState::Tombstone {
+            return true;
+        }
+        if bound.direction() == BoundDirection::Upper {
+            let claims = self
+                .store
+                .upper_claims
+                .iter()
+                .filter(|claim| claim.current_record == record)
+                .collect::<Vec<_>>();
+            return claims.is_empty()
+                || claims
+                    .into_iter()
+                    .any(|claim| self.eval_root_coverage(claim.claim));
+        }
+
+        let Some(supports) = self.store.projection_supports.get(&record) else {
+            return true;
+        };
+        if supports.is_empty() {
+            return true;
+        }
+        let clauses = self.store.projection_formulas.get(&record);
+        if supports.iter().copied().any(|support| {
+            self.support_is_qualifying(support)
+                && !clauses.is_some_and(|clauses| {
+                    clauses.iter().copied().any(|clause| {
+                        self.supports_match(support, clause.support())
+                    })
+                })
+        }) {
+            return true;
+        }
+        clauses.is_some_and(|clauses| {
+            clauses
+                .iter()
+                .copied()
+                .any(|clause| self.eval_clause(clause))
+        })
+    }
+
+    fn eval_clause(&mut self, clause: ShadowProjectionClause) -> bool {
+        match clause {
+            ShadowProjectionClause::Standalone { support, .. } => {
+                self.support_is_qualifying(support)
+            }
+            ShadowProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
+            ShadowProjectionClause::ReplayConjunction { lower, upper, .. } => {
+                self.eval_record(lower) && self.eval_record(upper)
+            }
+        }
+    }
+
+    fn eval_premise(&mut self, premise: ProofPremise) -> bool {
+        match premise {
+            ProofPremise::Record(record) => self.eval_record(record),
+            ProofPremise::Constraint(constraint) => self.eval_constraint(constraint),
+            ProofPremise::RootCoverage(root) => self.eval_root_coverage(root),
+        }
+    }
+
+    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> bool {
+        let node = ProofEvalNode::Constraint(constraint);
+        if let Some(result) = self.enter(node) {
+            return result;
+        }
+        let result = self.eval_constraint_uncached(constraint);
+        self.finish(node, result)
+    }
+
+    fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
+        if self
+            .machine
+            .constraint_records
+            .get(constraint.0 as usize)
+            .is_none()
+        {
+            return true;
+        }
+        let mut has_source = false;
+        if let Some(lower_record) = self.machine.lower_record_for_constraint(constraint) {
+            has_source = true;
+            if self.eval_record(lower_record) {
+                return true;
+            }
+        }
+        let replay_carriers = self
+            .store
+            .replay_finite_map
+            .iter()
+            .filter(|occurrence| occurrence.result == constraint)
+            .map(|occurrence| occurrence.carrier)
+            .collect::<Vec<_>>();
+        for replay in replay_carriers {
+            has_source = true;
+            if self.eval_record(replay.lower) && self.eval_record(replay.upper) {
+                return true;
+            }
+        }
+        let non_replay = self
+            .store
+            .occurrences
+            .iter()
+            .filter(|occurrence| {
+                occurrence.result
+                    == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
+            })
+            .filter_map(|occurrence| match occurrence.cause {
+                ProofCause::Structural(derivation) => Some(Ok(derivation.parent)),
+                ProofCause::ReductionRoute { parent_claim, .. } => Some(Err(parent_claim)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for source in non_replay {
+            has_source = true;
+            let projectable = match source {
+                Ok(parent) => self.eval_constraint(parent),
+                Err(root) => self.eval_root_coverage(root),
+            };
+            if projectable {
+                return true;
+            }
+        }
+        let producer_roots = self
+            .store
+            .upper_claims
+            .iter()
+            .filter(|claim| {
+                claim.producer == constraint && claim.lineage == ProjectionLineage::Original
+            })
+            .map(|claim| claim.claim)
+            .collect::<Vec<_>>();
+        for root in producer_roots {
+            has_source = true;
+            if self.eval_root_coverage(root) {
+                return true;
+            }
+        }
+        !has_source
+    }
+
+    fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
+        let Some(root) = self
+            .store
+            .upper_claims
+            .iter()
+            .find(|candidate| candidate.claim == claim)
+            .map(|claim| claim.coverage_root)
+        else {
+            return true;
+        };
+        if let Some(result) = self.root_overrides.get(&root) {
+            return *result;
+        }
+        !self
+            .store
+            .live_coverage
+            .iter()
+            .any(|(candidate, _)| *candidate == root)
+    }
+
+    fn support_is_qualifying(&self, support: SchemeProjectionProofSupport) -> bool {
+        match support {
+            SchemeProjectionProofSupport::Independent(_) => true,
+            SchemeProjectionProofSupport::Claimed(claim) => self.eval_root_coverage(claim),
+        }
+    }
+
+    fn supports_match(
+        &self,
+        left: SchemeProjectionProofSupport,
+        right: SchemeProjectionProofSupport,
+    ) -> bool {
+        match (left, right) {
+            (
+                SchemeProjectionProofSupport::Independent(left),
+                SchemeProjectionProofSupport::Independent(right),
+            ) => left == right,
+            (
+                SchemeProjectionProofSupport::Claimed(left),
+                SchemeProjectionProofSupport::Claimed(right),
+            ) => {
+                let root = |claim| {
+                    self.store
+                        .upper_claims
+                        .iter()
+                        .find(|candidate| candidate.claim == claim)
+                        .map(|claim| claim.coverage_root)
+                };
+                root(left).is_some() && root(left) == root(right)
+            }
+            _ => false,
+        }
+    }
+
+    fn enter(&mut self, node: ProofEvalNode) -> Option<bool> {
+        match self.states.get(&node).copied() {
+            Some(ProofEvalState::Done(result)) => Some(result),
+            Some(ProofEvalState::Visiting) => {
+                self.cycle_cuts += 1;
+                Some(false)
+            }
+            None => {
+                self.states.insert(node, ProofEvalState::Visiting);
+                None
+            }
+        }
+    }
+
+    fn finish(&mut self, node: ProofEvalNode, result: bool) -> bool {
+        self.states.insert(node, ProofEvalState::Done(result));
+        result
+    }
+}
+
+#[cfg(test)]
+pub(super) fn compare_projection_record_shadow(
+    machine: &ConstraintMachine,
+    record: BoundRecordId,
+    legacy_result: bool,
+    legacy_cycle_cuts: usize,
+) {
+    if !proof_occurrence_shadow_is_active() {
+        return;
+    }
+    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
+    if machine
+        .bounds
+        .projection_proofs_by_lower_record
+        .contains_key(&record)
+        && !snapshot.projection_supports.contains_key(&record)
+    {
+        // Capture began after this record's writer events; it is not a complete shadow view.
+        return;
+    }
+    let mut evaluator = ShadowProjectionEvaluator::new(machine, &snapshot);
+    let shadow_result = evaluator.eval_record(record);
+    let observation = ShadowProjectabilityObservation {
+        record,
+        legacy: legacy_result,
+        shadow: shadow_result,
+        legacy_cycle_cut: legacy_cycle_cuts != 0,
+        shadow_cycle_cut: evaluator.cycle_cuts != 0,
+    };
+    assert_eq!(shadow_result, legacy_result, "CPK-4 projectability diverged");
+    assert_eq!(
+        observation.shadow_cycle_cut, observation.legacy_cycle_cut,
+        "CPK-4 cycle-cut behavior diverged"
+    );
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .projectability_observations
+            .push(observation);
     });
 }
 
@@ -1233,6 +1693,8 @@ fn assert_replay_shadow_parity(
             claim: claim.id,
             coverage_root: claim.coverage_root,
             lineage: projection_lineage(claim.lineage),
+            producer: claim.producer_constraint,
+            current_record: claim.current_record,
         }));
     }
     assert_eq!(
@@ -1644,6 +2106,33 @@ mod tests {
                 claims[order[0]]
             );
         }
+    }
+
+    #[test]
+    fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
+        let (machine, snapshot) = capture_proof_occurrence_shadow(cpk_3_replay_fixture);
+
+        assert_replay_shadow_parity(&machine, &snapshot);
+        assert!(
+            !snapshot.projection_formulas.is_empty(),
+            "the production clause-link writers must populate the CPK projection formula",
+        );
+        assert!(
+            snapshot
+                .projection_formulas
+                .values()
+                .flatten()
+                .any(|clause| matches!(clause, ShadowProjectionClause::ReplayConjunction { .. })),
+            "the representative fixture must exercise replay-conjunction support",
+        );
+        assert!(
+            !snapshot.projectability_observations.is_empty(),
+            "legacy production evaluation must invoke the CPK-4 shadow oracle",
+        );
+        assert!(snapshot.projectability_observations.iter().all(|observation| {
+            observation.legacy == observation.shadow
+                && observation.legacy_cycle_cut == observation.shadow_cycle_cut
+        }));
     }
 
     #[test]
