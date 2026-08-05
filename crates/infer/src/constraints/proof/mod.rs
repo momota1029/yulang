@@ -6,6 +6,145 @@
 
 use super::*;
 
+/// One canonical claimed support returned by [`ProofOccurrenceStore::project_lower`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ProjectionClaimSupport {
+    pub(crate) coverage_root: UpperReplayClaimId,
+    pub(crate) representative_claim: UpperReplayClaimId,
+}
+
+/// All currently qualifying supports for one included lower record.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct ProjectionSupportSet {
+    pub(crate) uncovered_claims: Vec<ProjectionClaimSupport>,
+    pub(crate) independent_supports: Vec<ProjectionProofCarrier>,
+}
+
+/// Fallible projection result for one active lower record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ProjectionDecision {
+    Unclaimed,
+    Excluded,
+    Included { supports: ProjectionSupportSet },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ProjectionSupportIdentity {
+    Claimed(ProjectionClaimSupport),
+    Independent(ProjectionProofCarrier),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ProofFactRef {
+    Semantic(SemanticFactRef),
+    ProjectionSupports(BoundRecordId),
+    ProjectionFormula(BoundRecordId),
+    ProjectionSupport {
+        record: BoundRecordId,
+        support: ProjectionSupportIdentity,
+    },
+    UpperClaim(UpperReplayClaimId),
+    CoverageRoot(UpperReplayClaimId),
+    Origin(OriginId),
+    RowDerivation(RowDerivationId),
+    RowReduction(UnweightedRowReductionRecordId),
+    GeneralizedWitness(GeneralizedSchemeWitnessId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MandatoryProofField {
+    SupportIdentity,
+    RepresentativeClaim,
+    CoverageRoot,
+    LiveCoverage,
+    Formula,
+    FormulaPremise,
+    ExactCarrier,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProjectionInvariantViolation {
+    OrphanFormula,
+    DuplicateClaimedRoot,
+    DuplicateIndependentCarrier,
+    RepresentativeRootMismatch,
+    FormulaSupportMismatch,
+    FormulaCategoryOrder,
+    VisitingStateEscaped,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProofOperation {
+    ProjectLowerPreflight,
+    ProjectLowerSupportCollection,
+    ProjectLowerEvaluation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ProofFailure {
+    MissingSemanticFact {
+        fact: SemanticFactRef,
+    },
+    InvalidProjectionTarget {
+        record: BoundRecordId,
+        direction: BoundDirection,
+        state: BoundRecordState,
+    },
+    MissingProofFact {
+        fact: ProofFactRef,
+    },
+    DanglingProofReference {
+        owner: ProofFactRef,
+        target: ProofFactRef,
+    },
+    IncompleteMandatoryData {
+        owner: ProofFactRef,
+        field: MandatoryProofField,
+    },
+    NonCanonicalProjectionOrder {
+        record: BoundRecordId,
+    },
+    ProjectionInvariantViolation {
+        record: BoundRecordId,
+        kind: ProjectionInvariantViolation,
+    },
+    ResourceExhausted {
+        operation: ProofOperation,
+    },
+}
+
+/// Memo and cycle-cut state shared only within one immutable projection traversal.
+pub(crate) struct ProjectionEvaluationRound<'a> {
+    states: FxHashMap<ProofEvalNode, ProofEvalState>,
+    memo_sharing_disabled: bool,
+    terminal_failure: Option<ProofFailure>,
+    cycle_cuts: usize,
+    snapshot: std::marker::PhantomData<&'a ()>,
+}
+
+impl ProjectionEvaluationRound<'_> {
+    pub(crate) fn new() -> Self {
+        Self {
+            states: FxHashMap::default(),
+            memo_sharing_disabled: false,
+            terminal_failure: None,
+            cycle_cuts: 0,
+            snapshot: std::marker::PhantomData,
+        }
+    }
+
+    #[cfg(test)]
+    fn cycle_cuts(&self) -> usize {
+        self.cycle_cuts
+    }
+}
+
+impl Default for ProjectionEvaluationRound<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Stable reference from proof state to a semantic fact owned by the constraint machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum SemanticFactRef {
@@ -131,6 +270,8 @@ pub(crate) trait SemanticFactView {
         &self,
         id: UnweightedRowReductionRecordId,
     ) -> Option<SemanticRowReductionRecordRef<'_>>;
+
+    fn lower_record_for_constraint(&self, id: ConstraintRecordId) -> Option<BoundRecordId>;
 }
 
 impl SemanticFactView for ConstraintMachine {
@@ -154,6 +295,10 @@ impl SemanticFactView for ConstraintMachine {
         self.unweighted_row_reduction_records
             .get(id.0 as usize)
             .map(UnweightedRowReductionRecord::semantic_ref)
+    }
+
+    fn lower_record_for_constraint(&self, id: ConstraintRecordId) -> Option<BoundRecordId> {
+        ConstraintMachine::lower_record_for_constraint(self, id)
     }
 }
 
@@ -518,6 +663,38 @@ impl ProjectionClause {
             Self::Standalone { .. } => 0,
             Self::DerivedUnary { .. } => 1,
             Self::ReplayConjunction { .. } => 2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ResolvedProjectionSupport {
+    Claimed(ProjectionClaimSupport),
+    Independent(ProjectionProofCarrier),
+}
+
+impl ResolvedProjectionSupport {
+    fn same_key(self, other: Self) -> bool {
+        match self {
+            Self::Claimed(left) => {
+                matches!(other, Self::Claimed(right) if left.coverage_root == right.coverage_root)
+            }
+            Self::Independent(left) => {
+                matches!(other, Self::Independent(right) if left == right)
+            }
+        }
+    }
+
+    fn cmp(self, other: Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Claimed(left), Self::Claimed(right)) => {
+                left.coverage_root.cmp(&right.coverage_root)
+            }
+            (Self::Claimed(_), Self::Independent(_)) => std::cmp::Ordering::Less,
+            (Self::Independent(_), Self::Claimed(_)) => std::cmp::Ordering::Greater,
+            (Self::Independent(left), Self::Independent(right)) => {
+                canonical_projection_key::carrier_cmp(&left, &right)
+            }
         }
     }
 }
@@ -935,10 +1112,693 @@ impl ProofOccurrenceStore {
             upper_parent_roots,
         }
     }
+
+    pub(crate) fn project_lower<'a>(
+        &'a self,
+        view: &'a impl SemanticFactView,
+        record: BoundRecordId,
+        round: &mut ProjectionEvaluationRound<'a>,
+    ) -> Result<ProjectionDecision, ProofFailure> {
+        if let Some(failure) = &round.terminal_failure {
+            return Err(failure.clone());
+        }
+
+        let result = self.project_lower_inner(view, record, round);
+        if let Err(failure) = &result {
+            round.states.clear();
+            round.terminal_failure = Some(failure.clone());
+        }
+        result
+    }
+
+    fn project_lower_inner(
+        &self,
+        view: &impl SemanticFactView,
+        record: BoundRecordId,
+        round: &mut ProjectionEvaluationRound<'_>,
+    ) -> Result<ProjectionDecision, ProofFailure> {
+        let Some(bound) = view.bound(record) else {
+            return Err(ProofFailure::MissingSemanticFact {
+                fact: SemanticFactRef::Bound(record),
+            });
+        };
+        if bound.direction() != BoundDirection::Lower
+            || bound.state() == BoundRecordState::Tombstone
+        {
+            return Err(ProofFailure::InvalidProjectionTarget {
+                record,
+                direction: bound.direction(),
+                state: bound.state(),
+            });
+        }
+
+        let supports = self.projection_supports.get(&record);
+        let formula = self.projection_formulas.get(&record);
+        let has_supports = supports.is_some_and(|supports| !supports.is_empty());
+        let has_formula = formula.is_some_and(|formula| !formula.is_empty());
+        match (has_supports, has_formula) {
+            (false, false) => return Ok(ProjectionDecision::Unclaimed),
+            (false, true) => {
+                return Err(ProofFailure::ProjectionInvariantViolation {
+                    record,
+                    kind: ProjectionInvariantViolation::OrphanFormula,
+                });
+            }
+            (true, false) => {
+                return Err(ProofFailure::MissingProofFact {
+                    fact: ProofFactRef::ProjectionFormula(record),
+                });
+            }
+            (true, true) => {}
+        }
+
+        let mut preflight = ProjectionPreflight::new(self, view, record);
+        preflight.validate_record(record, ProofFactRef::ProjectionSupports(record))?;
+
+        let supports = supports.expect("non-empty supports were classified above");
+        let claimed_count = supports
+            .iter()
+            .filter(|support| matches!(support, SchemeProjectionProofSupport::Claimed(_)))
+            .count();
+        let independent_count = supports.len() - claimed_count;
+        let mut payload = ProjectionSupportSet::default();
+        payload
+            .uncovered_claims
+            .try_reserve_exact(claimed_count)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerSupportCollection,
+            })?;
+        payload
+            .independent_supports
+            .try_reserve_exact(independent_count)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerSupportCollection,
+            })?;
+        for support in supports {
+            match *support {
+                SchemeProjectionProofSupport::Claimed(claim) => {
+                    let resolved = preflight.resolve_claim(
+                        record,
+                        claim,
+                        ProofFactRef::ProjectionSupports(record),
+                    )?;
+                    if !self
+                        .live_coverage
+                        .iter()
+                        .any(|(root, _)| *root == resolved.coverage_root)
+                    {
+                        payload.uncovered_claims.push(resolved);
+                    }
+                }
+                SchemeProjectionProofSupport::Independent(carrier) => {
+                    payload.independent_supports.push(carrier);
+                }
+            }
+        }
+
+        let evaluation_nodes =
+            preflight.checked_records.len() + preflight.checked_constraints.len();
+        let sharing_was_disabled = round.memo_sharing_disabled;
+        let mut states = if sharing_was_disabled {
+            FxHashMap::default()
+        } else {
+            std::mem::take(&mut round.states)
+        };
+        states
+            .try_reserve(evaluation_nodes.saturating_sub(states.len()))
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerEvaluation,
+            })?;
+        let mut evaluator = CpkProjectionEvaluator::new(view, self);
+        evaluator.states = states;
+        let included = evaluator.eval_record(record);
+        if evaluator
+            .states
+            .values()
+            .any(|state| *state == ProofEvalState::Visiting)
+        {
+            return Err(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::VisitingStateEscaped,
+            });
+        }
+        let cycle_cuts = evaluator.cycle_cuts();
+        round.cycle_cuts += cycle_cuts;
+        if cycle_cuts != 0 {
+            round.memo_sharing_disabled = true;
+            round.states.clear();
+        } else if !sharing_was_disabled {
+            round.states = std::mem::take(&mut evaluator.states);
+        }
+
+        Ok(if included {
+            ProjectionDecision::Included { supports: payload }
+        } else {
+            ProjectionDecision::Excluded
+        })
+    }
+}
+
+struct ProjectionPreflight<'a> {
+    store: &'a ProofOccurrenceStore,
+    view: &'a dyn SemanticFactView,
+    target_record: BoundRecordId,
+    visiting_records: FxHashSet<BoundRecordId>,
+    checked_records: FxHashSet<BoundRecordId>,
+    visiting_constraints: FxHashSet<ConstraintRecordId>,
+    checked_constraints: FxHashSet<ConstraintRecordId>,
+}
+
+impl<'a> ProjectionPreflight<'a> {
+    fn new(
+        store: &'a ProofOccurrenceStore,
+        view: &'a dyn SemanticFactView,
+        target_record: BoundRecordId,
+    ) -> Self {
+        Self {
+            store,
+            view,
+            target_record,
+            visiting_records: FxHashSet::default(),
+            checked_records: FxHashSet::default(),
+            visiting_constraints: FxHashSet::default(),
+            checked_constraints: FxHashSet::default(),
+        }
+    }
+
+    fn validate_record(
+        &mut self,
+        record: BoundRecordId,
+        owner: ProofFactRef,
+    ) -> Result<(), ProofFailure> {
+        let Some(bound) = self.view.bound(record) else {
+            return Err(self.dangling(
+                owner,
+                ProofFactRef::Semantic(SemanticFactRef::Bound(record)),
+            ));
+        };
+        if bound.state() == BoundRecordState::Tombstone
+            || self.checked_records.contains(&record)
+            || !self.visiting_records.insert(record)
+        {
+            return Ok(());
+        }
+
+        let result = match bound.direction() {
+            BoundDirection::Upper => {
+                let claims = self
+                    .store
+                    .upper_claims
+                    .iter()
+                    .filter(|claim| claim.current_record == record)
+                    .map(|claim| claim.claim)
+                    .collect::<Vec<_>>();
+                for claim in claims {
+                    self.validate_claim_reference(owner, claim)?;
+                }
+                Ok(())
+            }
+            BoundDirection::Lower => self.validate_projection_record(record),
+        };
+        self.visiting_records.remove(&record);
+        if result.is_ok() {
+            self.checked_records.insert(record);
+        }
+        result
+    }
+
+    fn validate_projection_record(&mut self, record: BoundRecordId) -> Result<(), ProofFailure> {
+        let supports = self.store.projection_supports.get(&record);
+        let clauses = self.store.projection_formulas.get(&record);
+        let has_supports = supports.is_some_and(|supports| !supports.is_empty());
+        let has_clauses = clauses.is_some_and(|clauses| !clauses.is_empty());
+        match (has_supports, has_clauses) {
+            (false, false) => return Ok(()),
+            (false, true) => {
+                return Err(ProofFailure::ProjectionInvariantViolation {
+                    record,
+                    kind: ProjectionInvariantViolation::OrphanFormula,
+                });
+            }
+            (true, false) => {
+                return Err(ProofFailure::MissingProofFact {
+                    fact: ProofFactRef::ProjectionFormula(record),
+                });
+            }
+            (true, true) => {}
+        }
+
+        let supports = supports.expect("non-empty supports were classified above");
+        let clauses = clauses.expect("non-empty clauses were classified above");
+        let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
+        resolved.try_reserve_exact(supports.len()).map_err(|_| {
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            }
+        })?;
+        for support in supports {
+            let support = self.resolve_support(record, *support)?;
+            if let Some(previous) = resolved.last().copied() {
+                match previous.cmp(support) {
+                    std::cmp::Ordering::Less => {}
+                    std::cmp::Ordering::Equal => {
+                        let kind = match support {
+                            ResolvedProjectionSupport::Claimed(_) => {
+                                ProjectionInvariantViolation::DuplicateClaimedRoot
+                            }
+                            ResolvedProjectionSupport::Independent(_) => {
+                                ProjectionInvariantViolation::DuplicateIndependentCarrier
+                            }
+                        };
+                        return Err(ProofFailure::ProjectionInvariantViolation { record, kind });
+                    }
+                    std::cmp::Ordering::Greater => {
+                        return Err(ProofFailure::NonCanonicalProjectionOrder { record });
+                    }
+                }
+            }
+            resolved.push(support);
+        }
+
+        if clauses
+            .windows(2)
+            .any(|pair| pair[0].category_rank() > pair[1].category_rank())
+        {
+            return Err(ProofFailure::NonCanonicalProjectionOrder { record });
+        }
+
+        let mut matched = Vec::new();
+        matched
+            .try_reserve_exact(resolved.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            })?;
+        matched.resize(resolved.len(), false);
+        for clause in clauses.iter().copied() {
+            let clause_support = self.resolve_support(record, clause.support())?;
+            let Some(index) = resolved
+                .iter()
+                .position(|support| support.same_key(clause_support))
+            else {
+                return Err(ProofFailure::ProjectionInvariantViolation {
+                    record,
+                    kind: ProjectionInvariantViolation::OrphanFormula,
+                });
+            };
+            matched[index] = true;
+            self.validate_clause(record, clause)?;
+        }
+        if matched.iter().any(|matched| !matched) {
+            return Err(ProofFailure::MissingProofFact {
+                fact: ProofFactRef::ProjectionFormula(record),
+            });
+        }
+        Ok(())
+    }
+
+    fn resolve_support(
+        &mut self,
+        record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+    ) -> Result<ResolvedProjectionSupport, ProofFailure> {
+        match support {
+            SchemeProjectionProofSupport::Claimed(claim) => self
+                .resolve_claim(record, claim, ProofFactRef::ProjectionSupports(record))
+                .map(ResolvedProjectionSupport::Claimed),
+            SchemeProjectionProofSupport::Independent(carrier) => {
+                self.validate_carrier(record, carrier)?;
+                Ok(ResolvedProjectionSupport::Independent(carrier))
+            }
+        }
+    }
+
+    fn resolve_claim(
+        &mut self,
+        record: BoundRecordId,
+        claim: UpperReplayClaimId,
+        owner: ProofFactRef,
+    ) -> Result<ProjectionClaimSupport, ProofFailure> {
+        let Some(representative) = self.store.upper_claim(claim) else {
+            return Err(self.dangling(owner, ProofFactRef::UpperClaim(claim)));
+        };
+        let root = representative.coverage_root;
+        let Some(root_claim) = self.store.upper_claim(root) else {
+            return Err(self.dangling(owner, ProofFactRef::CoverageRoot(root)));
+        };
+        if root_claim.coverage_root != root {
+            return Err(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::RepresentativeRootMismatch,
+            });
+        }
+        self.validate_bound_reference(owner, representative.current_record)?;
+        self.validate_bound_reference(owner, root_claim.current_record)?;
+        for (_, state) in self
+            .store
+            .live_coverage
+            .iter()
+            .filter(|(candidate, _)| *candidate == root)
+        {
+            if self.view.row_reduction(*state).is_none() {
+                return Err(self.dangling(owner, ProofFactRef::RowReduction(*state)));
+            }
+        }
+        Ok(ProjectionClaimSupport {
+            coverage_root: root,
+            representative_claim: claim,
+        })
+    }
+
+    fn validate_clause(
+        &mut self,
+        record: BoundRecordId,
+        clause: ProjectionClause,
+    ) -> Result<(), ProofFailure> {
+        let owner = ProofFactRef::ProjectionFormula(record);
+        match clause {
+            ProjectionClause::Standalone { .. } => Ok(()),
+            ProjectionClause::DerivedUnary {
+                carrier, premise, ..
+            } => {
+                match carrier {
+                    DerivedUnaryCarrier::Structural(derivation) => {
+                        self.validate_constraint(derivation.parent, owner)?;
+                    }
+                    DerivedUnaryCarrier::ReductionRoute(derivation) => {
+                        self.validate_row_derivation(owner, derivation)?;
+                    }
+                }
+                self.validate_premise(owner, premise)
+            }
+            ProjectionClause::ReplayConjunction {
+                carrier,
+                lower,
+                upper,
+                ..
+            } => {
+                self.validate_bound_reference(owner, carrier.lower)?;
+                self.validate_bound_reference(owner, carrier.upper)?;
+                self.validate_record(lower, owner)?;
+                self.validate_record(upper, owner)
+            }
+        }
+    }
+
+    fn validate_premise(
+        &mut self,
+        owner: ProofFactRef,
+        premise: ProofPremise,
+    ) -> Result<(), ProofFailure> {
+        match premise {
+            ProofPremise::Record(record) => self.validate_record(record, owner),
+            ProofPremise::Constraint(constraint) => self.validate_constraint(constraint, owner),
+            ProofPremise::RootCoverage(root) => {
+                self.validate_claim_reference(owner, root).map(|_| ())
+            }
+        }
+    }
+
+    fn validate_constraint(
+        &mut self,
+        constraint: ConstraintRecordId,
+        owner: ProofFactRef,
+    ) -> Result<(), ProofFailure> {
+        if self.view.constraint(constraint).is_none() {
+            return Err(self.dangling(
+                owner,
+                ProofFactRef::Semantic(SemanticFactRef::Constraint(constraint)),
+            ));
+        }
+        if self.checked_constraints.contains(&constraint)
+            || !self.visiting_constraints.insert(constraint)
+        {
+            return Ok(());
+        }
+
+        let result = (|| {
+            if let Some(lower) = self.view.lower_record_for_constraint(constraint) {
+                self.validate_record(lower, owner)?;
+            }
+            let replays = self
+                .store
+                .replay_finite_map
+                .iter()
+                .filter(|occurrence| occurrence.result == constraint)
+                .map(|occurrence| occurrence.carrier)
+                .collect::<Vec<_>>();
+            for replay in replays {
+                self.validate_record(replay.lower, owner)?;
+                self.validate_record(replay.upper, owner)?;
+            }
+            let sources = self
+                .store
+                .occurrences
+                .iter()
+                .filter(|occurrence| {
+                    occurrence.result
+                        == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
+                })
+                .filter_map(|occurrence| match occurrence.cause {
+                    ProofCause::Structural(derivation) => Some(Ok(derivation.parent)),
+                    ProofCause::ReductionRoute { parent_claim, .. } => Some(Err(parent_claim)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for source in sources {
+                match source {
+                    Ok(parent) => self.validate_constraint(parent, owner)?,
+                    Err(root) => {
+                        self.validate_claim_reference(owner, root)?;
+                    }
+                }
+            }
+            let roots = self
+                .store
+                .upper_claims
+                .iter()
+                .filter(|claim| {
+                    claim.producer == constraint && claim.lineage == ProjectionLineage::Original
+                })
+                .map(|claim| claim.claim)
+                .collect::<Vec<_>>();
+            for root in roots {
+                self.validate_claim_reference(owner, root)?;
+            }
+            Ok(())
+        })();
+        self.visiting_constraints.remove(&constraint);
+        if result.is_ok() {
+            self.checked_constraints.insert(constraint);
+        }
+        result
+    }
+
+    fn validate_carrier(
+        &mut self,
+        record: BoundRecordId,
+        carrier: ProjectionProofCarrier,
+    ) -> Result<(), ProofFailure> {
+        let owner = ProofFactRef::ProjectionSupport {
+            record,
+            support: ProjectionSupportIdentity::Independent(carrier),
+        };
+        let missing_carrier = || ProofFailure::DanglingProofReference {
+            owner: ProofFactRef::ProjectionSupports(record),
+            target: owner,
+        };
+        match carrier {
+            ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => {
+                if self.view.constraint(constraint).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(constraint)),
+                    ));
+                }
+                if !self.store.occurrences.iter().any(|occurrence| {
+                        occurrence.result
+                            == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
+                            && matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
+                    }) {
+                    return Err(self.dangling(owner, ProofFactRef::Origin(origin)));
+                }
+            }
+            ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
+                if self.view.constraint(result).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(result)),
+                    ));
+                }
+                if self.view.constraint(derivation.parent).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(derivation.parent)),
+                    ));
+                }
+                if !self.store.occurrences.iter().any(|occurrence| {
+                        occurrence.result
+                            == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                            && matches!(&occurrence.cause, ProofCause::Structural(candidate) if *candidate == derivation)
+                    }) {
+                    return Err(missing_carrier());
+                }
+            }
+            ProjectionProofCarrier::ReplayConstraint { result, derivation } => {
+                if self.view.constraint(result).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(result)),
+                    ));
+                }
+                self.validate_bound_reference(owner, derivation.lower)?;
+                self.validate_bound_reference(owner, derivation.upper)?;
+                if !self.store.replay_finite_map.iter().any(|occurrence| {
+                    occurrence.result == result && occurrence.carrier == derivation
+                }) {
+                    return Err(missing_carrier());
+                }
+            }
+            ProjectionProofCarrier::RowConstraint { result, derivation } => {
+                if self.view.constraint(result).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(result)),
+                    ));
+                }
+                self.validate_row_derivation(owner, derivation)?;
+                if !self.store.occurrences.iter().any(|occurrence| {
+                        occurrence.result
+                            == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                            && matches!(occurrence.cause, ProofCause::RowConstraint(candidate) if candidate == derivation)
+                    }) {
+                    return Err(missing_carrier());
+                }
+            }
+            ProjectionProofCarrier::SchemeInstantiationConstraint {
+                result,
+                source_witness,
+            } => {
+                if self.view.constraint(result).is_none() {
+                    return Err(self.dangling(
+                        owner,
+                        ProofFactRef::Semantic(SemanticFactRef::Constraint(result)),
+                    ));
+                }
+                if !self.store.occurrences.iter().any(|occurrence| {
+                    occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                        && match &occurrence.cause {
+                            ProofCause::SchemeInstantiationDerivation(derivation) => {
+                                derivation.source_witness == source_witness
+                            }
+                            ProofCause::SchemeInstantiationRoute(route) => {
+                                route.derivation.source_witness == source_witness
+                            }
+                            _ => false,
+                        }
+                }) {
+                    return Err(
+                        self.dangling(owner, ProofFactRef::GeneralizedWitness(source_witness))
+                    );
+                }
+            }
+            ProjectionProofCarrier::Origin(origin) => {
+                if !self.has_origin(origin) {
+                    return Err(self.dangling(owner, ProofFactRef::Origin(origin)));
+                }
+            }
+            ProjectionProofCarrier::ReplayEvidence(derivation) => {
+                self.validate_bound_reference(owner, derivation.lower)?;
+                self.validate_bound_reference(owner, derivation.upper)?;
+                if !self.store.occurrences.iter().any(|occurrence| {
+                        matches!(&occurrence.cause, ProofCause::ReplayEvidence(candidate) if *candidate == derivation)
+                    }) {
+                    return Err(missing_carrier());
+                }
+            }
+            ProjectionProofCarrier::Row(derivation) => {
+                self.validate_row_derivation(owner, derivation)?;
+            }
+            ProjectionProofCarrier::SchemeInstantiation(witness) => {
+                if !self.has_generalized_witness(witness) {
+                    return Err(self.dangling(owner, ProofFactRef::GeneralizedWitness(witness)));
+                }
+            }
+            ProjectionProofCarrier::Incomplete => {}
+        }
+        Ok(())
+    }
+
+    fn validate_claim_reference(
+        &mut self,
+        owner: ProofFactRef,
+        claim: UpperReplayClaimId,
+    ) -> Result<ProjectionClaimSupport, ProofFailure> {
+        self.resolve_claim(self.target_record, claim, owner)
+    }
+
+    fn validate_bound_reference(
+        &self,
+        owner: ProofFactRef,
+        record: BoundRecordId,
+    ) -> Result<(), ProofFailure> {
+        self.view.bound(record).map(|_| ()).ok_or_else(|| {
+            self.dangling(
+                owner,
+                ProofFactRef::Semantic(SemanticFactRef::Bound(record)),
+            )
+        })
+    }
+
+    fn validate_row_derivation(
+        &self,
+        owner: ProofFactRef,
+        derivation: RowDerivationId,
+    ) -> Result<(), ProofFailure> {
+        self.has_row_derivation(derivation)
+            .then_some(())
+            .ok_or_else(|| self.dangling(owner, ProofFactRef::RowDerivation(derivation)))
+    }
+
+    fn has_origin(&self, origin: OriginId) -> bool {
+        self.store.occurrences.iter().any(|occurrence| {
+            matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
+                || matches!(occurrence.cause, ProofCause::Bound(BoundDerivation::Origin(candidate)) if candidate == origin)
+                || occurrence
+                    .parents
+                    .iter()
+                    .any(|parent| *parent == ProofParent::Origin(origin))
+        })
+    }
+
+    fn has_row_derivation(&self, derivation: RowDerivationId) -> bool {
+        self.store.occurrences.iter().any(|occurrence| {
+            occurrence.result == ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation))
+        })
+    }
+
+    fn has_generalized_witness(&self, witness: GeneralizedSchemeWitnessId) -> bool {
+        self.store.occurrences.iter().any(|occurrence| {
+            occurrence
+                .parents
+                .iter()
+                .any(|parent| *parent == ProofParent::GeneralizedWitness(witness))
+        })
+    }
+
+    fn dangling(&self, owner: ProofFactRef, target: ProofFactRef) -> ProofFailure {
+        ProofFailure::DanglingProofReference { owner, target }
+    }
+}
+
+impl ProofOccurrenceStore {
+    fn upper_claim(&self, claim: UpperReplayClaimId) -> Option<&UpperClaimOccurrence> {
+        let index = self.upper_claim_index.get(&claim).copied()?;
+        self.upper_claims.get(index)
+    }
 }
 
 pub(super) struct CpkProjectionEvaluator<'a> {
-    machine: &'a ConstraintMachine,
+    view: &'a dyn SemanticFactView,
     store: &'a ProofOccurrenceStore,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
     record_overrides: FxHashMap<BoundRecordId, bool>,
@@ -947,9 +1807,12 @@ pub(super) struct CpkProjectionEvaluator<'a> {
 }
 
 impl<'a> CpkProjectionEvaluator<'a> {
-    pub(super) fn new(machine: &'a ConstraintMachine, store: &'a ProofOccurrenceStore) -> Self {
+    pub(super) fn new(
+        view: &'a dyn SemanticFactView,
+        store: &'a ProofOccurrenceStore,
+    ) -> Self {
         Self {
-            machine,
+            view,
             store,
             states: FxHashMap::default(),
             record_overrides: FxHashMap::default(),
@@ -971,7 +1834,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
     }
 
     fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
-        let Some(bound) = self.machine.bounds.record(record) else {
+        let Some(bound) = self.view.bound(record) else {
             return true;
         };
         if bound.state() == BoundRecordState::Tombstone {
@@ -1045,16 +1908,11 @@ impl<'a> CpkProjectionEvaluator<'a> {
     }
 
     fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
-        if self
-            .machine
-            .constraint_records
-            .get(constraint.0 as usize)
-            .is_none()
-        {
+        if self.view.constraint(constraint).is_none() {
             return true;
         }
         let mut has_source = false;
-        if let Some(lower_record) = self.machine.lower_record_for_constraint(constraint) {
+        if let Some(lower_record) = self.view.lower_record_for_constraint(constraint) {
             has_source = true;
             if self.eval_record(lower_record) {
                 return true;
@@ -2360,6 +3218,302 @@ mod tests {
         let mut machine = ConstraintMachine::new();
         machine.cpk_proof_oracle_active = true;
         machine
+    }
+
+    fn project_lower_for_test(
+        machine: &ConstraintMachine,
+        record: BoundRecordId,
+    ) -> (
+        Result<ProjectionDecision, ProofFailure>,
+        ProjectionEvaluationRound<'_>,
+    ) {
+        let mut round = ProjectionEvaluationRound::new();
+        let decision = machine
+            .proof_store
+            .project_lower(machine, record, &mut round);
+        (decision, round)
+    }
+
+    fn cpk_gap_1_projection_record(machine: &mut ConstraintMachine, ordinal: u32) -> BoundRecordId {
+        cpk_4_projection_record(machine, 50_000 + ordinal).0
+    }
+
+    fn cpk_gap_1_set_supports_and_formula(
+        machine: &mut ConstraintMachine,
+        record: BoundRecordId,
+        supports: Vec<SchemeProjectionProofSupport>,
+        clauses: Vec<ProjectionClause>,
+    ) {
+        machine
+            .proof_store
+            .projection_supports
+            .insert(record, supports);
+        machine
+            .proof_store
+            .projection_formulas
+            .insert(record, clauses);
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_missing_semantic_record() {
+        let machine = cpk_oracle_machine();
+        let missing = BoundRecordId(u32::MAX);
+        let (actual, _) = project_lower_for_test(&machine, missing);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::MissingSemanticFact {
+                fact: SemanticFactRef::Bound(missing),
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_preserves_no_ledger_unclaimed() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 0);
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(actual, Ok(ProjectionDecision::Unclaimed));
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_orphan_formula() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 1);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        machine.proof_store.projection_formulas.insert(
+            record,
+            vec![ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            }],
+        );
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::OrphanFormula,
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_support_without_formula() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 2);
+        machine.proof_store.projection_supports.insert(
+            record,
+            vec![SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Incomplete,
+            )],
+        );
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::MissingProofFact {
+                fact: ProofFactRef::ProjectionFormula(record),
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_dangling_claim() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 3);
+        let claim = UpperReplayClaimId(50_003);
+        let support = SchemeProjectionProofSupport::Claimed(claim);
+        cpk_gap_1_set_supports_and_formula(
+            &mut machine,
+            record,
+            vec![support],
+            vec![ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            }],
+        );
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::DanglingProofReference {
+                owner: ProofFactRef::ProjectionSupports(record),
+                target: ProofFactRef::UpperClaim(claim),
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_duplicate_coverage_root() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 4);
+        let root = UpperReplayClaimId(0);
+        let representative = UpperReplayClaimId(1);
+        for (claim, coverage_root) in [(root, root), (representative, root)] {
+            let index = machine.proof_store.upper_claims.len();
+            machine.proof_store.upper_claims.push(UpperClaimOccurrence {
+                claim,
+                coverage_root,
+                lineage: ProjectionLineage::Original,
+                producer: ConstraintRecordId(50_004),
+                current_record: record,
+            });
+            machine.proof_store.upper_claim_index.insert(claim, index);
+        }
+        let supports = vec![
+            SchemeProjectionProofSupport::Claimed(root),
+            SchemeProjectionProofSupport::Claimed(representative),
+        ];
+        let clauses = supports
+            .iter()
+            .copied()
+            .map(|support| ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            })
+            .collect();
+        cpk_gap_1_set_supports_and_formula(&mut machine, record, supports, clauses);
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::DuplicateClaimedRoot,
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_formula_matches_claimed_support_by_coverage_root() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 9);
+        let root = UpperReplayClaimId(0);
+        let representative = UpperReplayClaimId(1);
+        for (claim, coverage_root) in [(root, root), (representative, root)] {
+            let index = machine.proof_store.upper_claims.len();
+            machine.proof_store.upper_claims.push(UpperClaimOccurrence {
+                claim,
+                coverage_root,
+                lineage: ProjectionLineage::Original,
+                producer: ConstraintRecordId(50_009),
+                current_record: record,
+            });
+            machine.proof_store.upper_claim_index.insert(claim, index);
+        }
+        let stored_support = SchemeProjectionProofSupport::Claimed(representative);
+        let formula_support = SchemeProjectionProofSupport::Claimed(root);
+        cpk_gap_1_set_supports_and_formula(
+            &mut machine,
+            record,
+            vec![stored_support],
+            vec![ProjectionClause::Standalone {
+                support: formula_support,
+                attribution: None,
+            }],
+        );
+
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: vec![ProjectionClaimSupport {
+                        coverage_root: root,
+                        representative_claim: representative,
+                    }],
+                    independent_supports: Vec::new(),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_rejects_noncanonical_support_order() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 5);
+        let high = OriginId(50_005);
+        let low = OriginId(50_004);
+        for origin in [high, low] {
+            machine.proof_store.record_occurrence(
+                ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(origin.0))),
+                ProofCause::Root(origin),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            );
+        }
+        let supports = vec![
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(high)),
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(low)),
+        ];
+        let clauses = supports
+            .iter()
+            .copied()
+            .map(|support| ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            })
+            .collect();
+        cpk_gap_1_set_supports_and_formula(&mut machine, record, supports, clauses);
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::NonCanonicalProjectionOrder { record })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_project_lower_cycle_cuts_only_the_circular_route() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 6);
+        let other = cpk_gap_1_projection_record(&mut machine, 7);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(50_006),
+            lower: record,
+            upper: other,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        cpk_gap_1_set_supports_and_formula(
+            &mut machine,
+            record,
+            vec![support],
+            vec![ProjectionClause::ReplayConjunction {
+                support,
+                carrier: replay,
+                lower: record,
+                upper: other,
+                attribution: None,
+            }],
+        );
+        let (actual, round) = project_lower_for_test(&machine, record);
+        assert_eq!(actual, Ok(ProjectionDecision::Excluded));
+        assert_eq!(round.cycle_cuts(), 1);
+        assert!(round.memo_sharing_disabled);
+    }
+
+    #[test]
+    fn cpk_gap_1_incomplete_is_a_normal_independent_support() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 8);
+        let carrier = ProjectionProofCarrier::Incomplete;
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        cpk_gap_1_set_supports_and_formula(
+            &mut machine,
+            record,
+            vec![support],
+            vec![ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            }],
+        );
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            })
+        );
     }
 
     fn cpk_4_projection_record(
