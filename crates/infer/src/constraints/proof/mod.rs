@@ -570,10 +570,12 @@ pub(crate) enum ProofParent {
 pub(crate) struct ProofOccurrenceStore {
     pub(crate) occurrences: Vec<ProofOccurrence>,
     pub(crate) replay_finite_map: Vec<ReplayProofOccurrence>,
+    replay_finite_map_index: FxHashMap<(ConstraintRecordId, BinaryReplayDerivation), usize>,
     pub(crate) replay_admissions: Vec<ReplayAdmissionEvent>,
     pub(crate) first_replay_witnesses:
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness>,
     pub(crate) upper_claims: Vec<UpperClaimOccurrence>,
+    upper_claim_index: FxHashMap<UpperReplayClaimId, usize>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     pub(crate) replay_coverage_connected: bool,
@@ -594,9 +596,11 @@ impl Default for ProofOccurrenceStore {
         Self {
             occurrences: Vec::new(),
             replay_finite_map: Vec::new(),
+            replay_finite_map_index: FxHashMap::default(),
             replay_admissions: Vec::new(),
             first_replay_witnesses: FxHashMap::default(),
             upper_claims: Vec::new(),
+            upper_claim_index: FxHashMap::default(),
             row_reductions: Vec::new(),
             live_coverage: FxHashSet::default(),
             replay_coverage_connected: true,
@@ -719,14 +723,11 @@ pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
 
 impl ProofOccurrenceStore {
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
-        if let Some(existing) = self
-            .upper_claims
-            .iter_mut()
-            .find(|existing| existing.claim == claim.id)
-        {
-            existing.current_record = claim.current_record;
+        if let Some(index) = self.upper_claim_index.get(&claim.id).copied() {
+            self.upper_claims[index].current_record = claim.current_record;
             return;
         }
+        let index = self.upper_claims.len();
         self.upper_claims.push(UpperClaimOccurrence {
             claim: claim.id,
             coverage_root: claim.coverage_root,
@@ -734,15 +735,16 @@ impl ProofOccurrenceStore {
             producer: claim.producer_constraint,
             current_record: claim.current_record,
         });
+        self.upper_claim_index.insert(claim.id, index);
     }
 
     pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
-        let existing = self
-            .upper_claims
-            .iter_mut()
-            .find(|existing| existing.claim == claim.id)
+        let index = self
+            .upper_claim_index
+            .get(&claim.id)
+            .copied()
             .expect("a moved upper claim must already exist in the CPK store");
-        existing.current_record = claim.current_record;
+        self.upper_claims[index].current_record = claim.current_record;
     }
 }
 
@@ -845,9 +847,15 @@ impl ProofOccurrenceStore {
         },
     };
         let formula = self.projection_formulas.entry(lower_record).or_default();
-        if !formula.contains(&clause) {
+        // The legacy clause-link admission has already established exact-key uniqueness before
+        // this writer runs. Preserve its stable category order without rescanning and resorting
+        // the complete per-record formula for every admitted link.
+        let rank = clause.category_rank();
+        if formula.last().is_none_or(|last| last.category_rank() <= rank) {
             formula.push(clause);
-            formula.sort_by_key(|clause| clause.category_rank());
+        } else {
+            let position = formula.partition_point(|existing| existing.category_rank() <= rank);
+            formula.insert(position, clause);
         }
     }
 
@@ -1508,10 +1516,11 @@ impl ProofOccurrenceStore {
         if parents.is_empty() {
             return;
         }
+        let key = (result, carrier);
         let index = self
-            .replay_finite_map
-            .iter()
-            .position(|entry| entry.result == result && entry.carrier == carrier)
+            .replay_finite_map_index
+            .get(&key)
+            .copied()
             .unwrap_or_else(|| {
                 let index = self.replay_finite_map.len();
                 let first_event = self.replay_admissions.len();
@@ -1522,6 +1531,7 @@ impl ProofOccurrenceStore {
                     upper_parents: Vec::new(),
                     first_event,
                 });
+                self.replay_finite_map_index.insert(key, index);
                 index
             });
         for parent in parents {
