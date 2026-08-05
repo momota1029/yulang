@@ -11063,6 +11063,58 @@ mod mutation_tests {
     }
 
     #[test]
+    fn cpk_0c_fixture_matrix_captures_semantic_and_logical_baselines() {
+        let mut fixture = with_semantic_execution_snapshot_capture_for_new_machines(|| {
+            cdm_replay_claim_fixture()
+        });
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let apply_replay = |fixture: &mut CdmReplayClaimFixture| {
+            let mut replay_plan = BoundReplayPlan::default();
+            let mut action = cdm_replay_action(fixture, key.clone(), replay);
+            action.lower_parents = replay_plan.intern_parent_draft(
+                &action.claim_parents,
+                ReplayClaimParentSide::Lower,
+            );
+            action.upper_parents = replay_plan.intern_parent_draft(
+                &action.claim_parents,
+                ReplayClaimParentSide::Upper,
+            );
+            let mut actions = BoundReplayActions::new();
+            actions.push(action);
+            fixture
+                .machine
+                .apply_bound_replay_actions_with_parent_drafts(
+                    actions,
+                    &replay_plan.parent_drafts,
+                )
+        };
+        assert_eq!(apply_replay(&mut fixture).duplicate, 1);
+
+        let logical_before_noop = fixture.machine.logical_proof_snapshot();
+        assert_eq!(apply_replay(&mut fixture).duplicate, 1);
+        let logical_after_noop = fixture.machine.logical_proof_snapshot();
+        assert_eq!(
+            logical_after_noop, logical_before_noop,
+            "duplicate/no-op replay must not change the logical proof baseline"
+        );
+
+        let scc = crate::scc::SccMachine::new();
+        let semantic = fixture.machine.semantic_execution_snapshot(
+            SccExecutionSnapshot::new(scc.stats(), Vec::new()),
+            SemanticOutputSnapshot::default(),
+        );
+        assert!(!semantic.queue_events.is_empty());
+        assert!(!semantic.constraints.is_empty());
+        assert!(!semantic.bounds.is_empty());
+        assert!(!logical_after_noop.occurrences.is_empty());
+        assert!(!logical_after_noop.claim_relation.is_empty());
+        assert!(!logical_after_noop.projection.is_empty());
+    }
+
+    #[test]
     fn cdm_d_9_3_one_sided_lower_emits_bound_delta() {
         let mut fixture =
             cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());

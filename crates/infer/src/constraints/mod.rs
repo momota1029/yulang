@@ -12,6 +12,8 @@ pub(crate) mod explain;
 mod machine;
 #[cfg(test)]
 mod logical_proof_snapshot;
+#[cfg(test)]
+mod proof_inventory;
 pub(crate) mod mutation;
 pub(crate) mod ocast_eligibility;
 mod portable_explain;
