@@ -1905,6 +1905,7 @@ impl ConstraintMachine {
     }
 
     fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
+        self.record_projection_mutation_in_proof_store(&mutation);
         let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
             Ok(intent) => intent,
             Err(failure) => {
@@ -1919,6 +1920,23 @@ impl ConstraintMachine {
             return;
         }
         self.publish_scheme_projection_intent(intent);
+    }
+
+    fn record_projection_mutation_in_proof_store(
+        &mut self,
+        mutation: &SchemeProjectionMutation,
+    ) {
+        let SchemeProjectionMutation::ProofsChanged { lower_record, .. } = mutation else {
+            return;
+        };
+        let proofs = self
+            .bounds
+            .projection_proofs_by_lower_record
+            .get(lower_record)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        self.proof_store
+            .record_projection_supports(*lower_record, proofs);
     }
 
     fn try_evaluate_scheme_projection_mutation(

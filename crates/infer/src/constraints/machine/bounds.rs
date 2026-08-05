@@ -3192,6 +3192,8 @@ impl ConstraintMachine {
             if !link_inserted {
                 continue;
             }
+            self.proof_store
+                .record_projection_clause(lower_record, admission);
             #[cfg(test)]
             proof::record_projection_clause_shadow(lower_record, admission);
             any_link_inserted = true;
@@ -3695,6 +3697,7 @@ impl ConstraintMachine {
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
+        self.record_projection_mutation_in_proof_store(&mutation);
         #[cfg(test)]
         if rcpf_d2c_should_fail_deferred_evaluation() {
             self.mark_replay_factored_failure(

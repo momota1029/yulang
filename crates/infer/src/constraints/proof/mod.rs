@@ -749,10 +749,9 @@ pub(super) fn record_projection_supports_shadow(
         return;
     }
     SHADOW_STORE.with(|store| {
-        store.borrow_mut().projection_supports.insert(
-            lower_record,
-            proofs.iter().map(|proof| proof.support).collect(),
-        );
+        store
+            .borrow_mut()
+            .record_projection_supports(lower_record, proofs)
     });
 }
 
@@ -764,7 +763,31 @@ pub(super) fn record_projection_clause_shadow(
     if !proof_occurrence_shadow_is_active() {
         return;
     }
-    let attribution = match (admission.clause, admission.claimed_attribution_source) {
+    SHADOW_STORE.with(|store| {
+        store
+            .borrow_mut()
+            .record_projection_clause(lower_record, admission)
+    });
+}
+
+impl ProofOccurrenceStore {
+    pub(super) fn record_projection_supports(
+        &mut self,
+        lower_record: BoundRecordId,
+        proofs: &[SchemeProjectionProof],
+    ) {
+        self.projection_supports.insert(
+            lower_record,
+            proofs.iter().map(|proof| proof.support).collect(),
+        );
+    }
+
+    pub(super) fn record_projection_clause(
+        &mut self,
+        lower_record: BoundRecordId,
+        admission: RecordProofClauseLinkAdmission,
+    ) {
+        let attribution = match (admission.clause, admission.claimed_attribution_source) {
         (_, None) => None,
         (RecordProofClause::Standalone { .. }, Some(_)) => Some(ProjectionLineage::Original),
         (
@@ -790,7 +813,7 @@ pub(super) fn record_projection_clause_shadow(
             Some(ClaimedAttributionSource::FlatRetained),
         ) => Some(ProjectionLineage::ReplayEvidence),
     };
-    let clause = match admission.clause {
+        let clause = match admission.clause {
         RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
             support: admission.support,
             attribution,
@@ -815,14 +838,12 @@ pub(super) fn record_projection_clause_shadow(
             attribution,
         },
     };
-    SHADOW_STORE.with(|store| {
-        let mut store = store.borrow_mut();
-        let formula = store.projection_formulas.entry(lower_record).or_default();
+        let formula = self.projection_formulas.entry(lower_record).or_default();
         if !formula.contains(&clause) {
             formula.push(clause);
             formula.sort_by_key(|clause| clause.category_rank());
         }
-    });
+    }
 }
 
 #[cfg(test)]
