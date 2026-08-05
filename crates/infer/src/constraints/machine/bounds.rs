@@ -3216,27 +3216,116 @@ impl ConstraintMachine {
         dependent: BoundRecordId,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
     ) {
-        self.bounds.insert_dependent_record_edge(premise, dependent);
-        let ProofPremise::Constraint(constraint) = premise else {
+        // Factored occurrence lookup is fallible, so finish the whole graph-local read before
+        // publishing any dependency edge from this chain.
+        let visited_before = visited_constraints.clone();
+        let mut authoritative_visited = visited_before.clone();
+        let mut pending_premises = FxHashSet::default();
+        if let Err(failure) = self.try_collect_premise_dependency_chain(
+            premise,
+            self.replay_read_authority(),
+            &mut authoritative_visited,
+            &mut pending_premises,
+        ) {
+            self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
             return;
+        }
+
+        #[cfg(any(test, debug_assertions))]
+        if self.replay_factored_writes_enabled()
+            && self.replay_result_summary.event_oracle_enabled()
+        {
+            let mut legacy_visited = visited_before;
+            let mut legacy_premises = FxHashSet::default();
+            let legacy_authority = ReplayReadAuthority::LegacyRollback(
+                ReplayFactoredShadowFailure::AllocationFailed,
+            );
+            let legacy = self.try_collect_premise_dependency_chain(
+                premise,
+                legacy_authority,
+                &mut legacy_visited,
+                &mut legacy_premises,
+            );
+            if legacy.is_err() || legacy_premises != pending_premises {
+                self.mark_replay_factored_failure(
+                    ReplayFactoredShadowFailure::OracleMismatch(
+                        ReplayFactoredOracleMismatch::ReplayDependencyEdges,
+                    ),
+                    ReplayFactoredFailureOperation::Oracle,
+                );
+                return;
+            }
+        }
+
+        *visited_constraints = authoritative_visited;
+        for pending in pending_premises {
+            self.bounds.insert_dependent_record_edge(pending, dependent);
+        }
+    }
+
+    fn try_collect_premise_dependency_chain(
+        &self,
+        premise: ProofPremise,
+        authority: ReplayReadAuthority,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        pending_premises: &mut FxHashSet<ProofPremise>,
+    ) -> ReplayFactoredResult<()> {
+        pending_premises.insert(premise);
+        let ProofPremise::Constraint(constraint) = premise else {
+            return Ok(());
         };
         // Record nodes publish their own inclusion changes, so only record-free constraint chains
         // are expanded here. The pass-local set bounds structural cycles without evaluating them.
         if !visited_constraints.insert(constraint) {
-            return;
+            return Ok(());
         }
         if let Some(lower_record) = self.lower_record_for_constraint(constraint) {
-            self.bounds
-                .insert_dependent_record_edge(ProofPremise::Record(lower_record), dependent);
+            pending_premises.insert(ProofPremise::Record(lower_record));
         }
-        let parents = self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&constraint)
-            .cloned()
-            .unwrap_or_default();
-        for parent in parents {
-            self.register_claim_parent_dependency_chain(parent, dependent, visited_constraints);
+        match authority {
+            ReplayReadAuthority::Factored => {
+                let occurrence_ids = self.replay_occurrences_for_result(constraint);
+                let mut replay_carriers = Vec::new();
+                replay_carriers
+                    .try_reserve(occurrence_ids.size_hint().0)
+                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+                for occurrence_id in occurrence_ids {
+                    let occurrence = self.replay_occurrence(occurrence_id)?;
+                    if occurrence.result != constraint {
+                        return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
+                    }
+                    replay_carriers.push(occurrence.carrier);
+                }
+
+                for replay in replay_carriers {
+                    pending_premises.insert(ProofPremise::Record(replay.lower));
+                    pending_premises.insert(ProofPremise::Record(replay.upper));
+                }
+                for parent in self.non_replay_claim_parents_for_result(constraint) {
+                    self.try_collect_claim_parent_dependency_chain(
+                        parent,
+                        authority,
+                        visited_constraints,
+                        pending_premises,
+                    )?;
+                }
+            }
+            ReplayReadAuthority::LegacyRollback(_) => {
+                let parents = self
+                    .bounds
+                    .claim_parents_by_constraint
+                    .get(&constraint)
+                    .cloned()
+                    .unwrap_or_default();
+                for parent in parents {
+                    self.try_collect_claim_parent_dependency_chain(
+                        parent,
+                        authority,
+                        visited_constraints,
+                        pending_premises,
+                    )?;
+                }
+            }
         }
         if let Some(root_claim) = self
             .bounds
@@ -3245,9 +3334,38 @@ impl ConstraintMachine {
             .copied()
             && let Some(root) = self.bounds.canonical_coverage_root(root_claim)
         {
-            self.bounds
-                .insert_dependent_record_edge(ProofPremise::RootCoverage(root), dependent);
+            pending_premises.insert(ProofPremise::RootCoverage(root));
         }
+        Ok(())
+    }
+
+    fn try_collect_claim_parent_dependency_chain(
+        &self,
+        parent: ClaimQualifiedParent,
+        authority: ReplayReadAuthority,
+        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
+        pending_premises: &mut FxHashSet<ProofPremise>,
+    ) -> ReplayFactoredResult<()> {
+        match parent {
+            ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                pending_premises.insert(ProofPremise::Record(replay.lower));
+                pending_premises.insert(ProofPremise::Record(replay.upper));
+            }
+            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                self.try_collect_premise_dependency_chain(
+                    ProofPremise::Constraint(derivation.parent),
+                    authority,
+                    visited_constraints,
+                    pending_premises,
+                )?;
+            }
+            ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
+                if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
+                    pending_premises.insert(ProofPremise::RootCoverage(root));
+                }
+            }
+        }
+        Ok(())
     }
 
     fn register_claim_parent_dependency_chain(
@@ -8930,6 +9048,161 @@ mod mutation_tests {
                 ReplayFactoredOracleMismatch::ClaimedAttributionUnion
             ))
         );
+    }
+
+    #[test]
+    fn rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle() {
+        let mut fixture = cdm_replay_claim_fixture();
+        fixture.machine.enable_replay_factored_event_oracle();
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        let parent = fixture.parent;
+        register_factored_parent_snapshot(
+            &mut fixture.machine,
+            fixture.result,
+            replay,
+            &[parent],
+        );
+
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let dependent = fixture
+            .machine
+            .bounds
+            .add_lower(
+                TypeVar(89_000),
+                key.lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let mut visited = FxHashSet::default();
+        fixture.machine.register_premise_dependency_chain(
+            ProofPremise::Constraint(fixture.result),
+            dependent,
+            &mut visited,
+        );
+
+        assert_eq!(
+            fixture.machine.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Active
+        );
+        for premise in [
+            ProofPremise::Constraint(fixture.result),
+            ProofPremise::Record(fixture.lower_record),
+            ProofPremise::Record(replay.lower),
+            ProofPremise::Record(replay.upper),
+        ] {
+            assert!(
+                fixture
+                    .machine
+                    .bounds
+                    .dependent_records_by_premise
+                    .get(&premise)
+                    .is_some_and(|dependents| dependents.contains(&dependent)),
+                "Factored dependency-chain plan omitted {premise:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rcpf_f_consumer_2_factored_lookup_failure_commits_no_dependency_edges() {
+        let mut fixture = cdm_replay_claim_fixture();
+        let missing = crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX);
+        fixture
+            .machine
+            .replay_occurrences
+            .by_result
+            .insert(fixture.result, vec![missing]);
+        let before = fixture
+            .machine
+            .bounds
+            .dependent_records_by_premise
+            .clone();
+        let mut visited = FxHashSet::default();
+
+        mark_next_replay_soak_failure_as_intentional();
+        fixture.machine.register_premise_dependency_chain(
+            ProofPremise::Constraint(fixture.result),
+            fixture.lower_record,
+            &mut visited,
+        );
+
+        assert_eq!(
+            fixture.machine.replay_factored_terminal_failure(),
+            Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
+                missing
+            ))
+        );
+        assert_eq!(
+            fixture.machine.bounds.dependent_records_by_premise,
+            before,
+            "Factored dependency-chain lookup must finish before any edge mutation"
+        );
+        assert!(visited.is_empty());
+    }
+
+    #[test]
+    fn rcpf_f_consumer_2_legacy_rollback_ignores_factored_occurrence_corruption() {
+        let mut fixture =
+            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+        let replay = fixture.replay(ReplayRule::LowerBoundAdded);
+        assert_eq!(
+            fixture
+                .machine
+                .merge_replay_derivation(fixture.result, replay),
+            ReplayDerivationInsert::Inserted
+        );
+        fixture.machine.register_replay_claim_parents(
+            fixture.result,
+            replay,
+            &[fixture.parent],
+            true,
+        );
+        fixture.machine.replay_occurrences.by_result.insert(
+            fixture.result,
+            vec![crate::constraints::replay_factored::ReplayOccurrenceId(
+                u32::MAX,
+            )],
+        );
+        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+            .key
+            .clone();
+        let dependent = fixture
+            .machine
+            .bounds
+            .add_lower(
+                TypeVar(89_001),
+                key.lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let mut visited = FxHashSet::default();
+
+        fixture.machine.register_premise_dependency_chain(
+            ProofPremise::Constraint(fixture.result),
+            dependent,
+            &mut visited,
+        );
+
+        assert_eq!(fixture.machine.replay_factored_terminal_failure(), None);
+        for premise in [replay.lower, replay.upper] {
+            assert!(
+                fixture
+                    .machine
+                    .bounds
+                    .dependent_records_by_premise
+                    .get(&ProofPremise::Record(premise))
+                    .is_some_and(|dependents| dependents.contains(&dependent))
+            );
+        }
     }
 
     fn assert_replay_shadow_does_not_interfere(
