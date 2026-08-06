@@ -95,6 +95,25 @@ struct BoundReplayApplyStats {
     trivial: usize,
 }
 
+fn incremental_route_key(route: &UnweightedRowReductionReplayRoute) -> proof::IncrementalRouteKey {
+    proof::IncrementalRouteKey {
+        upper: route.upper,
+        upper_record: route.upper_record,
+        provenance: route.provenance,
+        claim: route.claim,
+    }
+}
+
+fn replay_claim_parents(parents: &proof::PreparedReplayParentSet) -> ReplayClaimParents {
+    parents
+        .iter()
+        .map(|parent| SideTaggedReplayClaim {
+            claim: parent.representative_claim,
+            parent_side: parent.side,
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy)]
 struct FactoredReplayParentDrafts<'plan> {
     parent_drafts: &'plan [ReplayParentDraft],
@@ -721,48 +740,56 @@ impl ConstraintMachine {
             &weights,
             &incremental_routes,
         );
+        if self.proof_terminal_failure().is_some() {
+            return;
+        }
         #[cfg(test)]
         let routing_shadow = replay.routing_shadow;
-        let mut planned_incremental_actions = FxHashSet::default();
-        for route in &incremental_routes {
-            let generic_replay_covers_route =
-                self.bounds
-                    .record(route.upper_record)
-                    .is_some_and(|record| {
-                        record.endpoint() == BoundEndpoint::Upper(route.upper)
-                            && self.upper_record_requires_generic_replay(route.upper_record)
+        if matches!(
+            self.proof_read_authority(),
+            proof::ProofReadAuthority::LegacyRollback(_)
+        ) {
+            let mut planned_incremental_actions = FxHashSet::default();
+            for route in &incremental_routes {
+                let generic_replay_covers_route =
+                    self.bounds
+                        .record(route.upper_record)
+                        .is_some_and(|record| {
+                            record.endpoint() == BoundEndpoint::Upper(route.upper)
+                                && self.upper_record_requires_generic_replay(route.upper_record)
+                        });
+                let derivation = BinaryReplayDerivation {
+                    pivot: target,
+                    lower: insertion.id,
+                    upper: route.upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                };
+                if generic_replay_covers_route
+                    || !planned_incremental_actions.insert((route.upper, derivation))
+                {
+                    continue;
+                }
+                replay.input_count += 1;
+                replay.generated += 1;
+                if self.is_var_var_replay(pos, route.upper) {
+                    replay.var_var += 1;
+                }
+                let mut claim_parents = self.lower_record_replay_claim_parents(insertion.id);
+                if let Some(claim) = route.claim {
+                    claim_parents.push(SideTaggedReplayClaim {
+                        claim,
+                        parent_side: ReplayClaimParentSide::Upper,
                     });
-            let derivation = BinaryReplayDerivation {
-                pivot: target,
-                lower: insertion.id,
-                upper: route.upper_record,
-                rule: ReplayRule::LowerBoundAdded,
-            };
-            if generic_replay_covers_route
-                || !planned_incremental_actions.insert((route.upper, derivation))
-            {
-                continue;
+                }
+                self.push_replay_constraint_or_prefilter(
+                    pos,
+                    weights.clone(),
+                    route.upper,
+                    derivation,
+                    claim_parents,
+                    &mut replay,
+                );
             }
-            replay.input_count += 1;
-            replay.generated += 1;
-            if self.is_var_var_replay(pos, route.upper) {
-                replay.var_var += 1;
-            }
-            let mut claim_parents = self.lower_record_replay_claim_parents(insertion.id);
-            if let Some(claim) = route.claim {
-                claim_parents.push(SideTaggedReplayClaim {
-                    claim,
-                    parent_side: ReplayClaimParentSide::Upper,
-                });
-            }
-            self.push_replay_constraint_or_prefilter(
-                pos,
-                weights.clone(),
-                route.upper,
-                derivation,
-                claim_parents,
-                &mut replay,
-            );
         }
         self.apply_prefiltered_replay_provenance_with_parent_drafts(
             replay.duplicate_actions,
@@ -938,6 +965,9 @@ impl ConstraintMachine {
         trace_var_bounds("after upper", source, self.bounds.of(source), &self.types);
 
         let mut replay = self.upper_bound_replay_actions(source, insertion.id, neg, &weights);
+        if self.proof_terminal_failure().is_some() {
+            return;
+        }
         #[cfg(test)]
         let routing_shadow = replay.routing_shadow;
         self.apply_prefiltered_replay_provenance_with_parent_drafts(
@@ -5105,6 +5135,202 @@ impl ConstraintMachine {
         weights: &ConstraintWeights,
         incremental_routes: &[UnweightedRowReductionReplayRoute],
     ) -> BoundReplayPlan {
+        match self.proof_read_authority() {
+            proof::ProofReadAuthority::Cpk => self
+                .cpk_lower_bound_replay_actions(
+                    target,
+                    lower_record,
+                    pos,
+                    weights,
+                    incremental_routes,
+                )
+                .unwrap_or_else(|failure| {
+                    self.mark_proof_terminal_failure(failure);
+                    BoundReplayPlan::default()
+                }),
+            proof::ProofReadAuthority::LegacyRollback(_) => self
+                .legacy_lower_bound_replay_actions(
+                    target,
+                    lower_record,
+                    pos,
+                    weights,
+                    incremental_routes,
+                ),
+        }
+    }
+
+    fn cpk_lower_bound_replay_actions(
+        &self,
+        target: TypeVar,
+        lower_record: BoundRecordId,
+        pos: PosId,
+        weights: &ConstraintWeights,
+        incremental_routes: &[UnweightedRowReductionReplayRoute],
+    ) -> Result<BoundReplayPlan, proof::ProofFailure> {
+        let Some(bounds) = self.bounds.of(target) else {
+            return Ok(BoundReplayPlan::default());
+        };
+        #[cfg(test)]
+        let routing_shadow = proof::begin_replay_routing_shadow(self);
+        let upper_count = bounds.projection_upper_records().count();
+        let mut uppers = Vec::new();
+        uppers
+            .try_reserve(upper_count)
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        uppers.extend(
+            bounds
+                .projection_upper_records()
+                .map(|(record, upper)| (record, upper.clone())),
+        );
+
+        let mut routes_by_upper =
+            FxHashMap::<BoundRecordId, Vec<proof::IncrementalRouteKey>>::default();
+        routes_by_upper
+            .try_reserve(incremental_routes.len())
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for route in incremental_routes {
+            let routes = routes_by_upper.entry(route.upper_record).or_default();
+            routes
+                .try_reserve(1)
+                .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                    operation: proof::ProofOperation::PrepareReplayRouteBatch,
+                })?;
+            routes.push(incremental_route_key(route));
+        }
+
+        let mut prepared_routes = Vec::new();
+        prepared_routes
+            .try_reserve(uppers.len())
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for (upper_record, upper) in &uppers {
+            let incremental = routes_by_upper
+                .get(upper_record)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            let prepared = self.proof_store.prepare_replay_route(
+                self,
+                lower_record,
+                *upper_record,
+                incremental,
+            )?;
+            #[cfg(test)]
+            {
+                let requires_generic = self.upper_record_requires_generic_replay(*upper_record);
+                let upper_claim_parents = self.upper_record_replay_claim_parents(
+                    pos,
+                    *upper_record,
+                    incremental_routes,
+                );
+                let should_replay = requires_generic || !upper_claim_parents.is_empty();
+                let mut claim_parents = self.lower_record_replay_claim_parents(lower_record);
+                claim_parents.extend(upper_claim_parents);
+                proof::compare_replay_route_shadow(
+                    self,
+                    lower_record,
+                    *upper_record,
+                    incremental_routes,
+                    requires_generic,
+                    should_replay,
+                    &claim_parents,
+                );
+            }
+            prepared_routes.push((*upper_record, upper.clone(), prepared));
+        }
+
+        let pair_count = prepared_routes
+            .iter()
+            .filter(|(_, _, route)| route.proof_event.pair_replay.is_some())
+            .count();
+        let incremental_count = prepared_routes
+            .iter()
+            .map(|(_, _, route)| route.proof_event.incremental_replays.len())
+            .sum::<usize>();
+        let replay_input_count = pair_count + incremental_count;
+        let mut replay = BoundReplayPlan {
+            input_count: replay_input_count,
+            #[cfg(test)]
+            routing_shadow,
+            ..BoundReplayPlan::default()
+        };
+        trace_bound_replay_start("lower", target, replay_input_count);
+        for (index, (upper_record, upper, prepared)) in prepared_routes.iter().enumerate() {
+            let Some(parents) = &prepared.proof_event.pair_replay else {
+                continue;
+            };
+            trace_bound_replay_progress("lower", target, index);
+            let replay_weights = weights.compose_for_replay(&upper.weights);
+            if self.is_var_var_replay(pos, upper.neg) {
+                replay.var_var += 1;
+            }
+            replay.generated += 1;
+            self.push_replay_constraint_or_prefilter(
+                pos,
+                replay_weights,
+                upper.neg,
+                BinaryReplayDerivation {
+                    pivot: target,
+                    lower: lower_record,
+                    upper: *upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+                replay_claim_parents(parents),
+                &mut replay,
+            );
+        }
+
+        let mut residual_by_key = FxHashMap::default();
+        residual_by_key
+            .try_reserve(incremental_count)
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for (_, _, prepared) in &prepared_routes {
+            for incremental in &prepared.proof_event.incremental_replays {
+                residual_by_key.insert(
+                    (incremental.route.upper, incremental.route.upper_record),
+                    incremental,
+                );
+            }
+        }
+        for route in incremental_routes {
+            let Some(prepared) = residual_by_key.remove(&(route.upper, route.upper_record)) else {
+                continue;
+            };
+            replay.generated += 1;
+            if self.is_var_var_replay(pos, prepared.route.upper) {
+                replay.var_var += 1;
+            }
+            self.push_replay_constraint_or_prefilter(
+                pos,
+                weights.clone(),
+                prepared.route.upper,
+                BinaryReplayDerivation {
+                    pivot: target,
+                    lower: lower_record,
+                    upper: prepared.route.upper_record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+                replay_claim_parents(&prepared.parents),
+                &mut replay,
+            );
+        }
+        Ok(replay)
+    }
+
+    fn legacy_lower_bound_replay_actions(
+        &self,
+        target: TypeVar,
+        lower_record: BoundRecordId,
+        pos: PosId,
+        weights: &ConstraintWeights,
+        incremental_routes: &[UnweightedRowReductionReplayRoute],
+    ) -> BoundReplayPlan {
         let Some(bounds) = self.bounds.of(target) else {
             return BoundReplayPlan::default();
         };
@@ -5273,6 +5499,118 @@ impl ConstraintMachine {
     }
 
     fn upper_bound_replay_actions(
+        &self,
+        source: TypeVar,
+        upper_record: BoundRecordId,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> BoundReplayPlan {
+        match self.proof_read_authority() {
+            proof::ProofReadAuthority::Cpk => self
+                .cpk_upper_bound_replay_actions(source, upper_record, neg, weights)
+                .unwrap_or_else(|failure| {
+                    self.mark_proof_terminal_failure(failure);
+                    BoundReplayPlan::default()
+                }),
+            proof::ProofReadAuthority::LegacyRollback(_) => {
+                self.legacy_upper_bound_replay_actions(source, upper_record, neg, weights)
+            }
+        }
+    }
+
+    fn cpk_upper_bound_replay_actions(
+        &self,
+        source: TypeVar,
+        upper_record: BoundRecordId,
+        neg: NegId,
+        weights: &ConstraintWeights,
+    ) -> Result<BoundReplayPlan, proof::ProofFailure> {
+        let Some(bounds) = self.bounds.of(source) else {
+            return Ok(BoundReplayPlan::default());
+        };
+        #[cfg(test)]
+        let routing_shadow = proof::begin_replay_routing_shadow(self);
+        let lower_count = bounds.projection_lower_records().count();
+        let mut lowers = Vec::new();
+        lowers
+            .try_reserve(lower_count)
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        lowers.extend(
+            bounds
+                .projection_lower_records()
+                .map(|(record, lower)| (record, lower.clone())),
+        );
+        let mut prepared_routes = Vec::new();
+        prepared_routes
+            .try_reserve(lowers.len())
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for (lower_record, lower) in &lowers {
+            let prepared = self.proof_store.prepare_replay_route(
+                self,
+                *lower_record,
+                upper_record,
+                &[],
+            )?;
+            #[cfg(test)]
+            {
+                let requires_generic = self.upper_record_requires_generic_replay(upper_record);
+                let mut claim_parents = self.lower_record_replay_claim_parents(*lower_record);
+                claim_parents.extend(self.uncovered_upper_replay_claim_parents(upper_record));
+                proof::compare_replay_route_shadow(
+                    self,
+                    *lower_record,
+                    upper_record,
+                    &[],
+                    requires_generic,
+                    requires_generic,
+                    &claim_parents,
+                );
+            }
+            prepared_routes.push((*lower_record, lower.clone(), prepared));
+        }
+        let replay_input_count = prepared_routes
+            .iter()
+            .filter(|(_, _, route)| route.proof_event.pair_replay.is_some())
+            .count();
+        let mut replay = BoundReplayPlan {
+            input_count: replay_input_count,
+            #[cfg(test)]
+            routing_shadow,
+            ..BoundReplayPlan::default()
+        };
+        trace_bound_replay_start("upper", source, replay_input_count);
+        for (index, (lower_record, lower, prepared)) in prepared_routes.iter().enumerate() {
+            let Some(parents) = &prepared.proof_event.pair_replay else {
+                continue;
+            };
+            trace_bound_replay_progress("upper", source, index);
+            let replay_weights = lower.weights.compose_for_replay(weights);
+            if self.is_var_var_replay(lower.pos, neg) {
+                replay.var_var += 1;
+            }
+            replay.generated += 1;
+            self.push_replay_constraint_or_prefilter(
+                lower.pos,
+                replay_weights,
+                neg,
+                BinaryReplayDerivation {
+                    pivot: source,
+                    lower: *lower_record,
+                    upper: upper_record,
+                    rule: ReplayRule::UpperBoundAdded,
+                },
+                replay_claim_parents(parents),
+                &mut replay,
+            );
+        }
+        Ok(replay)
+    }
+
+    fn legacy_upper_bound_replay_actions(
         &self,
         source: TypeVar,
         upper_record: BoundRecordId,
