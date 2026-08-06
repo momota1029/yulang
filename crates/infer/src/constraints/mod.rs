@@ -1903,17 +1903,38 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
-        let Some(states) = self.bounds.live_coverage_by_root.get_mut(&root) else {
+        let transition = self
+            .proof_store
+            .prepare_live_coverage_transition(root, state, false);
+        let legacy_transition =
+            if let Some(states) = self.bounds.live_coverage_by_root.get_mut(&root) {
+                let was_empty = states.is_empty();
+                let old_len = states.len();
+                states.retain(|candidate| *candidate != state);
+                if states.len() == old_len {
+                    proof::PreparedLiveCoverageTransition::Unchanged
+                } else {
+                    proof::PreparedLiveCoverageTransition::Changed {
+                        root,
+                        state,
+                        active: false,
+                        was_empty,
+                        is_empty: states.is_empty(),
+                    }
+                }
+            } else {
+                proof::PreparedLiveCoverageTransition::Unchanged
+            };
+        debug_assert_eq!(transition, legacy_transition);
+        self.proof_store.record_prepared_live_coverage(transition);
+        let proof::PreparedLiveCoverageTransition::Changed {
+            was_empty,
+            is_empty,
+            ..
+        } = transition
+        else {
             return false;
         };
-        let was_empty = states.is_empty();
-        let old_len = states.len();
-        states.retain(|candidate| *candidate != state);
-        if states.len() == old_len {
-            return false;
-        }
-        let is_empty = states.is_empty();
-        self.proof_store.record_live_coverage(root, state, false);
         #[cfg(test)]
         proof::record_live_coverage_shadow(root, state, false);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
@@ -1925,14 +1946,33 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
+        let transition = self
+            .proof_store
+            .prepare_live_coverage_transition(root, state, true);
         let states = self.bounds.live_coverage_by_root.entry(root).or_default();
-        if states.contains(&state) {
-            return false;
-        }
         let was_empty = states.is_empty();
-        states.push(state);
-        let is_empty = states.is_empty();
-        self.proof_store.record_live_coverage(root, state, true);
+        let legacy_transition = if states.contains(&state) {
+            proof::PreparedLiveCoverageTransition::Unchanged
+        } else {
+            states.push(state);
+            proof::PreparedLiveCoverageTransition::Changed {
+                root,
+                state,
+                active: true,
+                was_empty,
+                is_empty: false,
+            }
+        };
+        debug_assert_eq!(transition, legacy_transition);
+        self.proof_store.record_prepared_live_coverage(transition);
+        let proof::PreparedLiveCoverageTransition::Changed {
+            was_empty,
+            is_empty,
+            ..
+        } = transition
+        else {
+            return false;
+        };
         #[cfg(test)]
         proof::record_live_coverage_shadow(root, state, true);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);

@@ -873,6 +873,18 @@ pub(crate) struct RowReductionOccurrence {
     pub(crate) current_record: BoundRecordId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PreparedLiveCoverageTransition {
+    Unchanged,
+    Changed {
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+        active: bool,
+        was_empty: bool,
+        is_empty: bool,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ProofParent {
     Semantic(SemanticFactRef),
@@ -3329,32 +3341,73 @@ impl ProofOccurrenceStore {
         );
     }
 
+    pub(super) fn prepare_live_coverage_transition(
+        &self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+        active: bool,
+    ) -> PreparedLiveCoverageTransition {
+        let states = self.live_states_by_coverage_root.get(&root);
+        let contains = states.is_some_and(|states| states.contains(&state));
+        if active == contains {
+            return PreparedLiveCoverageTransition::Unchanged;
+        }
+        PreparedLiveCoverageTransition::Changed {
+            root,
+            state,
+            active,
+            was_empty: states.is_none_or(FxHashSet::is_empty),
+            is_empty: !active && states.is_some_and(|states| states.len() == 1),
+        }
+    }
+
+    pub(super) fn record_prepared_live_coverage(
+        &mut self,
+        transition: PreparedLiveCoverageTransition,
+    ) {
+        let PreparedLiveCoverageTransition::Changed {
+            root,
+            state,
+            active,
+            ..
+        } = transition
+        else {
+            return;
+        };
+        if active {
+            let occurrence_inserted = self.live_coverage.insert((root, state));
+            let index_inserted = self
+                .live_states_by_coverage_root
+                .entry(root)
+                .or_default()
+                .insert(state);
+            debug_assert!(occurrence_inserted && index_inserted);
+            return;
+        }
+        let occurrence_removed = self.live_coverage.remove(&(root, state));
+        let remove_root_entry = {
+            let states = self
+                .live_states_by_coverage_root
+                .get_mut(&root)
+                .expect("live coverage index must mirror the flat occurrence set");
+            let index_removed = states.remove(&state);
+            debug_assert!(occurrence_removed && index_removed);
+            states.is_empty()
+        };
+        if remove_root_entry {
+            self.live_states_by_coverage_root.remove(&root);
+        }
+    }
+
     pub(super) fn record_live_coverage(
         &mut self,
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
         active: bool,
-    ) {
-        if active {
-            if self.live_coverage.insert((root, state)) {
-                self.live_states_by_coverage_root
-                    .entry(root)
-                    .or_default()
-                    .insert(state);
-            }
-        } else if self.live_coverage.remove(&(root, state)) {
-            let remove_root_entry = {
-                let states = self
-                    .live_states_by_coverage_root
-                    .get_mut(&root)
-                    .expect("live coverage index must mirror the flat occurrence set");
-                states.remove(&state);
-                states.is_empty()
-            };
-            if remove_root_entry {
-                self.live_states_by_coverage_root.remove(&root);
-            }
-        }
+    ) -> PreparedLiveCoverageTransition {
+        let transition = self.prepare_live_coverage_transition(root, state, active);
+        self.record_prepared_live_coverage(transition);
+        transition
     }
 
     pub(super) fn record_reduction_route(
@@ -4822,6 +4875,47 @@ mod tests {
                 .live_states_by_coverage_root
                 .contains_key(&root),
             "empty live-state sets canonicalize to no root entry",
+        );
+    }
+
+    #[test]
+    fn cpk_8b_live_coverage_transition_is_owned_by_the_cpk_index() {
+        let mut store = ProofOccurrenceStore::default();
+        let root = UpperReplayClaimId(71_000);
+        let state = UnweightedRowReductionRecordId(71_000);
+        let insertion = store.prepare_live_coverage_transition(root, state, true);
+        assert_eq!(
+            insertion,
+            PreparedLiveCoverageTransition::Changed {
+                root,
+                state,
+                active: true,
+                was_empty: true,
+                is_empty: false,
+            },
+        );
+        store.record_prepared_live_coverage(insertion);
+        assert_eq!(
+            store.prepare_live_coverage_transition(root, state, true),
+            PreparedLiveCoverageTransition::Unchanged,
+            "the CPK index owns exact duplicate classification",
+        );
+
+        let removal = store.prepare_live_coverage_transition(root, state, false);
+        assert_eq!(
+            removal,
+            PreparedLiveCoverageTransition::Changed {
+                root,
+                state,
+                active: false,
+                was_empty: false,
+                is_empty: true,
+            },
+        );
+        store.record_prepared_live_coverage(removal);
+        assert_eq!(
+            store.prepare_live_coverage_transition(root, state, false),
+            PreparedLiveCoverageTransition::Unchanged,
         );
     }
 

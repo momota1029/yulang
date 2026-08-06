@@ -23,9 +23,10 @@
 // - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
 //   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
 //   parent drafts/RCPF plus CPK projection-support and routing-parent mirrors.
-// - live_coverage_by_root and scheme_projection_claims_by_lower_record: writers live-coverage
-//   insert/remove and projection-link admission; readers legacy projectability/routing and CPK
-//   project_lower/prepare_replay_route mirrors.
+// - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
+//   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
+//   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
+//   migration mirror read by legacy projectability/routing.
 // - projection proofs/clauses/attributed supports/dependent-record edges: writers projection
 //   delta, clause-link and dependency-chain admission; readers legacy formula evaluation and CPK
 //   proof formulas/supports. These remain a writer-dependency closure, not proof-only deletion.
