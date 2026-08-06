@@ -3964,6 +3964,41 @@ mod tests {
         assert_eq!(actual_parents, expected_parents);
     }
 
+    fn legacy_projection_decision(
+        machine: &ConstraintMachine,
+        owner: TypeVar,
+        record: BoundRecordId,
+    ) -> ProjectionDecision {
+        let Some(entry) = machine
+            .scheme_projectable_lowers(owner)
+            .find(|entry| entry.record == record)
+        else {
+            return ProjectionDecision::Excluded;
+        };
+        match entry.reason {
+            SchemeProjectableLowerReason::Unclaimed => ProjectionDecision::Unclaimed,
+            SchemeProjectableLowerReason::Qualified {
+                uncovered_claims,
+                independent_supports,
+            } => ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: uncovered_claims
+                        .into_iter()
+                        .map(|representative_claim| ProjectionClaimSupport {
+                            coverage_root: machine
+                                .proof_store
+                                .upper_claim(representative_claim)
+                                .expect("legacy claim must exist in the CPK store")
+                                .coverage_root,
+                            representative_claim,
+                        })
+                        .collect(),
+                    independent_supports,
+                },
+            },
+        }
+    }
+
     fn record_test_origin(
         machine: &mut ConstraintMachine,
         record: BoundRecordId,
@@ -4261,6 +4296,269 @@ mod tests {
             }),
             "portable generalized witnesses must not fabricate the qualified bound as a parent",
         );
+    }
+
+    #[test]
+    fn cpk_gap_1_five_lineages_project_through_the_real_formula_graph() {
+        // CPK-4's writer matrix separately pins the five source-to-lineage mappings. Here each
+        // attribution is placed on the same well-formed formula shape so this query/consumer
+        // oracle isolates the required fact that attribution metadata never changes projection.
+        let mut machine = cpk_oracle_machine();
+        let lineages = [
+            ProjectionLineage::Original,
+            ProjectionLineage::ReplayConstraint,
+            ProjectionLineage::ReplayEvidence,
+            ProjectionLineage::StructuralConstraint,
+            ProjectionLineage::ReductionRouteConstraint,
+        ];
+        for (index, lineage) in lineages.into_iter().enumerate() {
+            let record = cpk_gap_1_projection_record(&mut machine, 31 + index as u32);
+            let carrier = ProjectionProofCarrier::Incomplete;
+            let support = cpk_4_add_independent_support(&mut machine, record, carrier);
+            machine.register_cpk_projection_clause_for_test(
+                record,
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::Standalone { support },
+                ),
+            );
+            let [ProjectionClause::Standalone { attribution, .. }] = machine
+                .proof_store
+                .projection_formulas
+                .get_mut(&record)
+                .expect("five-lineage formula")
+                .as_mut_slice()
+            else {
+                panic!("five-lineage fixture must stay standalone");
+            };
+            *attribution = Some(lineage);
+            let owner = machine.bounds.record(record).unwrap().owner();
+            assert_single_lower_matches_all_four_legacy_consumers(
+                &machine,
+                owner,
+                record,
+                ProjectionDecision::Included {
+                    supports: ProjectionSupportSet {
+                        uncovered_claims: Vec::new(),
+                        independent_supports: vec![carrier],
+                    },
+                },
+            );
+        }
+    }
+
+    fn make_same_root_projection_included(
+        order: [usize; 3],
+    ) -> (CpkReplayAdmissionFixture, [UpperReplayClaimId; 3], BoundRecordId) {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        let claims = [
+            fixture.coverage_root,
+            add_same_root_replay_claim(
+                &mut fixture,
+                TypeVar(62_000),
+                ConstraintRecordId(62_000),
+            ),
+            add_same_root_replay_claim(
+                &mut fixture,
+                TypeVar(62_001),
+                ConstraintRecordId(62_001),
+            ),
+        ];
+        for index in order {
+            fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                fixture.result,
+                fixture.carrier,
+                claims[index],
+            );
+        }
+        let record = fixture.carrier.lower;
+        let support = SchemeProjectionProofSupport::Claimed(claims[order[0]]);
+        fixture.machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                fixture.coverage_root,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+        );
+        (fixture, claims, record)
+    }
+
+    #[test]
+    fn cpk_gap_1_same_root_representative_replacement_matches_all_consumers() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        let replacement_claim = add_same_root_replay_claim(
+            &mut fixture,
+            TypeVar(63_000),
+            ConstraintRecordId(63_000),
+        );
+        let record = cpk_gap_1_projection_record(&mut fixture.machine, 40);
+        let owner = fixture.machine.bounds.record(record).unwrap().owner();
+        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+            record,
+            &[fixture.coverage_root],
+            &[],
+        );
+        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture.machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                fixture.coverage_root,
+                RecordProofClause::Standalone {
+                    support: SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
+                },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+        );
+        let before = legacy_projection_decision(&fixture.machine, owner, record);
+        let ProjectionDecision::Included { supports } = before else {
+            panic!("same-root fixture must be included");
+        };
+        let before_representative = supports
+            .uncovered_claims
+            .iter()
+            .find(|support| support.coverage_root == fixture.coverage_root)
+            .expect("same-root support")
+            .representative_claim;
+        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+            record,
+            &[replacement_claim],
+            &[],
+        );
+        fixture.machine.apply_scheme_projection_mutation(mutation);
+        let expected = legacy_projection_decision(&fixture.machine, owner, record);
+        let ProjectionDecision::Included { supports } = &expected else {
+            panic!("replacement must preserve inclusion");
+        };
+        let replacement = supports
+            .uncovered_claims
+            .iter()
+            .find(|support| support.coverage_root == fixture.coverage_root)
+            .expect("replacement support");
+        assert_ne!(replacement.representative_claim, before_representative);
+        assert_eq!(replacement.representative_claim, replacement_claim);
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &fixture.machine,
+            owner,
+            record,
+            expected,
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape() {
+        let permutations = [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0],
+        ];
+        let mut canonical_decision = None;
+        for order in permutations {
+            let (fixture, _claims, record) = make_same_root_projection_included(order);
+            let owner = fixture.machine.bounds.record(record).unwrap().owner();
+            let expected = legacy_projection_decision(&fixture.machine, owner, record);
+            let (actual, _) = project_lower_for_test(&fixture.machine, record);
+            assert_eq!(actual, Ok(expected.clone()), "arrival order {order:?}");
+            assert_single_lower_matches_all_four_legacy_consumers(
+                &fixture.machine,
+                owner,
+                record,
+                expected.clone(),
+            );
+            let ProjectionDecision::Included { supports } = expected else {
+                panic!("permutation fixture must be included");
+            };
+            let representative = supports
+                .uncovered_claims
+                .iter()
+                .find(|support| support.coverage_root == fixture.coverage_root)
+                .expect("same-root permutation support");
+            assert_eq!(representative.coverage_root, fixture.coverage_root);
+            let decision = ProjectionDecision::Included { supports };
+            assert_eq!(
+                decision,
+                *canonical_decision.get_or_insert_with(|| decision.clone()),
+                "the full project_lower payload must be invariant for {order:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn cpk_gap_1_every_proof_failure_is_attempt_terminal() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 30);
+        let owner = ProofFactRef::ProjectionSupports(record);
+        let failures = [
+            ProofFailure::MissingSemanticFact {
+                fact: SemanticFactRef::Bound(record),
+            },
+            ProofFailure::InvalidProjectionTarget {
+                record,
+                direction: BoundDirection::Upper,
+                state: BoundRecordState::Ordinary,
+            },
+            ProofFailure::MissingProofFact {
+                fact: ProofFactRef::ProjectionFormula(record),
+            },
+            ProofFailure::DanglingProofReference {
+                owner,
+                target: ProofFactRef::CoverageRoot(UpperReplayClaimId(60_000)),
+            },
+            ProofFailure::IncompleteMandatoryData {
+                owner,
+                field: MandatoryProofField::ExactCarrier,
+            },
+            ProofFailure::NonCanonicalProjectionOrder { record },
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            },
+        ];
+        for failure in failures {
+            let mut round = ProjectionEvaluationRound::new();
+            round.terminal_failure = Some(failure.clone());
+            assert_eq!(
+                machine.proof_store.project_lower(&machine, record, &mut round),
+                Err(failure.clone()),
+            );
+            assert_eq!(
+                machine.proof_store.project_lower(&machine, record, &mut round),
+                Err(failure),
+                "an attempt-terminal failure must remain sticky",
+            );
+        }
+        for kind in [
+            ProjectionInvariantViolation::OrphanFormula,
+            ProjectionInvariantViolation::DuplicateClaimedRoot,
+            ProjectionInvariantViolation::DuplicateIndependentCarrier,
+            ProjectionInvariantViolation::RepresentativeRootMismatch,
+            ProjectionInvariantViolation::FormulaSupportMismatch,
+            ProjectionInvariantViolation::FormulaCategoryOrder,
+            ProjectionInvariantViolation::VisitingStateEscaped,
+        ] {
+            let failure = ProofFailure::ProjectionInvariantViolation { record, kind };
+            let mut round = ProjectionEvaluationRound::new();
+            round.terminal_failure = Some(failure.clone());
+            assert_eq!(
+                machine.proof_store.project_lower(&machine, record, &mut round),
+                Err(failure),
+            );
+        }
+        for operation in [
+            ProofOperation::ProjectLowerPreflight,
+            ProofOperation::ProjectLowerSupportCollection,
+            ProofOperation::ProjectLowerEvaluation,
+        ] {
+            let failure = ProofFailure::ResourceExhausted { operation };
+            let mut round = ProjectionEvaluationRound::new();
+            round.terminal_failure = Some(failure.clone());
+            assert_eq!(
+                machine.proof_store.project_lower(&machine, record, &mut round),
+                Err(failure),
+            );
+        }
     }
 
     fn cpk_4_projection_record(
