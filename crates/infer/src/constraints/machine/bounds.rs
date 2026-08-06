@@ -6487,6 +6487,12 @@ mod mutation_tests {
         ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed)
     }
 
+    fn legacy_rollback_proof_authority() -> proof::ProofReadAuthority {
+        proof::ProofReadAuthority::LegacyRollback(proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::PrepareReplayRoutePreflight,
+        })
+    }
+
     fn replay_plan_actions(replay: &BoundReplayPlan) -> impl Iterator<Item = &BoundReplayAction> {
         replay
             .actions
@@ -6612,7 +6618,10 @@ mod mutation_tests {
 
     #[test]
     fn lower_and_upper_replay_planning_capture_legacy_parent_drafts() {
-        let mut machine = ConstraintMachine::new();
+        let mut machine = ConstraintMachine::new_with_read_authorities(
+            ReplayReadAuthority::Factored,
+            legacy_rollback_proof_authority(),
+        );
         let pivot = TypeVar(0);
         let lower_parent_owner = TypeVar(1);
         let lower = machine.alloc_pos(Pos::Var(TypeVar(2)));
@@ -9906,7 +9915,10 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c3b_terminal_failure_stops_drain_before_the_next_queued_work() {
-        let mut machine = ConstraintMachine::new();
+        let mut machine = ConstraintMachine::new_with_read_authorities(
+            ReplayReadAuthority::Factored,
+            legacy_rollback_proof_authority(),
+        );
         let pivot = TypeVar(91_000);
         let replay_target = TypeVar(91_001);
         let first_source = TypeVar(91_002);
