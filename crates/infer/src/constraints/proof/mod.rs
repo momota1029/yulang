@@ -4070,7 +4070,16 @@ mod tests {
     use super::*;
 
     fn cpk_oracle_machine() -> ConstraintMachine {
-        let mut machine = ConstraintMachine::new();
+        cpk_oracle_machine_with_authority(ProofReadAuthority::Cpk)
+    }
+
+    fn cpk_oracle_machine_with_authority(
+        proof_read_authority: ProofReadAuthority,
+    ) -> ConstraintMachine {
+        let mut machine = ConstraintMachine::new_with_read_authorities(
+            ReplayReadAuthority::Factored,
+            proof_read_authority,
+        );
         machine.cpk_proof_oracle_active = true;
         machine
     }
@@ -6248,7 +6257,13 @@ mod tests {
     }
 
     fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
-        let mut machine = cpk_oracle_machine();
+        cpk_3_replay_admission_fixture_with_authority(ProofReadAuthority::Cpk)
+    }
+
+    fn cpk_3_replay_admission_fixture_with_authority(
+        proof_read_authority: ProofReadAuthority,
+    ) -> CpkReplayAdmissionFixture {
+        let mut machine = cpk_oracle_machine_with_authority(proof_read_authority);
         let origin = OriginId::unknown_internal();
         let source = TypeVar(0);
         let target = TypeVar(1);
@@ -8090,7 +8105,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "CPK-7 replay routing shadow preflight failed")]
     fn cpk_7_shadow_oracle_rejects_claim_index_corruption() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_replay_admission_fixture_with_authority(
+            ProofReadAuthority::LegacyRollback(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRoutePreflight,
+            }),
+        );
         assert_eq!(
             fixture.machine.bounds.upper_replay_claims.len(),
             fixture.machine.proof_store.upper_claims.len(),
@@ -8107,6 +8126,65 @@ mod tests {
         );
 
         cpk_5_trigger_lower_route(&mut fixture, false);
+    }
+
+    #[test]
+    fn cpk_7_cpk_authority_preflight_rejects_claim_index_corruption() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        assert_eq!(fixture.machine.proof_read_authority(), &ProofReadAuthority::Cpk);
+        let lower = fixture.machine.alloc_pos(Pos::Con(
+            vec!["cpk-7-corrupt-index-lower".into()],
+            Vec::new(),
+        ));
+        fixture.machine.add_lower_bound(
+            fixture.parent_owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let lower_record = fixture
+            .machine
+            .bounds
+            .of(fixture.parent_owner)
+            .expect("the parent owner must retain the new lower")
+            .lower_record_ids()
+            .iter()
+            .copied()
+            .find(|record| {
+                fixture
+                    .machine
+                    .bounds
+                    .record(*record)
+                    .is_some_and(|record| record.endpoint() == BoundEndpoint::Lower(lower))
+            })
+            .expect("the production lower writer must expose its semantic record");
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .upper_claim_index
+                .remove(&fixture.coverage_root)
+                .is_some(),
+            "the fixture must corrupt an existing CPK claim index entry",
+        );
+
+        let failure = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(
+                &fixture.machine,
+                lower_record,
+                fixture.parent_record,
+                &[],
+            )
+            .expect_err("CPK authority preflight must reject internal claim-index corruption");
+        assert!(matches!(
+            failure,
+            ProofFailure::DanglingProofReference {
+                target: ProofFactRef::UpperClaim(claim),
+                ..
+            } if claim == fixture.coverage_root
+        ));
     }
 
     #[test]
