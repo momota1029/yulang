@@ -3303,11 +3303,15 @@ impl TypeBounds {
         }
     }
 
-    fn move_upper_replay_claim(&mut self, claim: UpperReplayClaimId, new_record: BoundRecordId) {
+    fn move_upper_replay_claim(
+        &mut self,
+        claim: UpperReplayClaimId,
+        new_record: BoundRecordId,
+    ) -> proof::PreparedUpperClaimMove {
         let replay_claim = &self.upper_replay_claims[claim.0 as usize];
         let old_record = replay_claim.current_record;
         if old_record == new_record {
-            return;
+            return proof::prepare_upper_claim_move(replay_claim);
         }
         let producer_constraint = replay_claim.producer_constraint;
         let coverage_root = replay_claim.coverage_root;
@@ -3355,6 +3359,7 @@ impl TypeBounds {
         self.insert_upper_record_claim_canonical(new_record, claim);
         #[cfg(test)]
         proof::update_upper_claim_shadow(&self.upper_replay_claims[claim.0 as usize]);
+        proof::prepare_upper_claim_move(&self.upper_replay_claims[claim.0 as usize])
     }
 
     fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {

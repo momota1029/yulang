@@ -223,7 +223,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // admission removes two production CPK-writer re-reads and adds one reviewed transaction-local
     // snapshot read plus one test-only mutation proving that the event cannot observe later flat
     // state. Derived admission then removes the two remaining production CPK-writer re-reads.
-    // None is a new production read authority.
+    // Claim move freezes claim/current-record at flat-mutation completion, replacing its only
+    // production CPK-writer re-read with one transaction-local snapshot read; the strengthened
+    // atomicity fixture mutates the flat claim afterward to prove the event is closed. The total
+    // lexical count therefore stays unchanged. None is a new production read authority.
     ("upper_replay_claims", 105),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.

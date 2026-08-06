@@ -454,11 +454,11 @@ impl ConstraintMachine {
                 state.provenance_head = successor;
             }
             if let Some(claim) = self.bounds.reduction_claim_by_state.get(&state_id).copied() {
-                self.bounds
+                let mutation = self
+                    .bounds
                     .move_upper_replay_claim(claim, materialization.record);
-                self.proof_store.update_upper_claim(
-                    &self.bounds.upper_replay_claims[claim.0 as usize],
-                );
+                self.proof_store
+                    .record_prepared_upper_claim_move(mutation);
             }
             self.register_unweighted_row_reduction_owner(
                 materialization.record,

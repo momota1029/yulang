@@ -772,6 +772,13 @@ pub(super) struct PreparedUpperClaimAdmission {
     occurrence: UpperClaimOccurrence,
 }
 
+/// Claim-location mutation frozen by the flat claim transaction before publication to CPK.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct PreparedUpperClaimMove {
+    claim: UpperReplayClaimId,
+    current_record: BoundRecordId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectionClause {
     Standalone {
@@ -1063,6 +1070,13 @@ pub(super) fn prepare_upper_claim_admission(
     }
 }
 
+pub(super) fn prepare_upper_claim_move(claim: &UpperReplayClaim) -> PreparedUpperClaimMove {
+    PreparedUpperClaimMove {
+        claim: claim.id,
+        current_record: claim.current_record,
+    }
+}
+
 #[cfg(test)]
 pub(super) fn record_upper_claim_shadow(claim: &UpperReplayClaim) {
     if !proof_occurrence_shadow_is_active() {
@@ -1102,19 +1116,28 @@ impl ProofOccurrenceStore {
         self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
     }
 
+    #[cfg(test)]
     pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
+        let mutation = prepare_upper_claim_move(claim);
+        self.record_prepared_upper_claim_move(mutation);
+    }
+
+    pub(super) fn record_prepared_upper_claim_move(
+        &mut self,
+        mutation: PreparedUpperClaimMove,
+    ) {
         let index = self
             .upper_claim_index
-            .get(&claim.id)
+            .get(&mutation.claim)
             .copied()
             .expect("a moved upper claim must already exist in the CPK store");
         let old_record = self.upper_claims[index].current_record;
-        if old_record == claim.current_record {
+        if old_record == mutation.current_record {
             return;
         }
-        self.remove_claim_from_upper_record_index(old_record, claim.id);
-        self.upper_claims[index].current_record = claim.current_record;
-        self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
+        self.remove_claim_from_upper_record_index(old_record, mutation.claim);
+        self.upper_claims[index].current_record = mutation.current_record;
+        self.insert_claim_into_upper_record_index(mutation.current_record, mutation.claim);
     }
 
     fn insert_claim_into_upper_record_index(
@@ -4847,9 +4870,11 @@ mod tests {
         );
 
         let (new_record, existing_claim) = cpk_7_record_original_claim(&mut machine, 1);
-        let mut moved_claim = machine.bounds.upper_replay_claims[claim.0 as usize].clone();
-        moved_claim.current_record = new_record;
-        machine.proof_store.update_upper_claim(&moved_claim);
+        let mutation = machine.bounds.move_upper_replay_claim(claim, new_record);
+        machine.bounds.upper_replay_claims[claim.0 as usize].current_record = old_record;
+        machine
+            .proof_store
+            .record_prepared_upper_claim_move(mutation);
         assert!(!machine.proof_store.claims_by_upper_record.contains_key(&old_record));
         assert_eq!(
             machine.proof_store.claims_by_upper_record.get(&new_record),
@@ -4877,7 +4902,7 @@ mod tests {
             Some(&vec![claim]),
         );
 
-        let root = moved_claim.coverage_root;
+        let root = claim;
         let state = UnweightedRowReductionRecordId(70_000);
         machine.proof_store.record_live_coverage(root, state, true);
         machine.proof_store.record_live_coverage(root, state, true);
