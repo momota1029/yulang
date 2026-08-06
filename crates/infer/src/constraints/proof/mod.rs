@@ -7369,6 +7369,91 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_generic_route_preserves_all_uncovered_upper_roots() {
+        let mut machine = cpk_oracle_machine();
+        let owner = TypeVar(73_200);
+        let upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-multi-root-upper".into()],
+            Vec::new(),
+        ));
+        let origin = OriginId::unknown_internal();
+        let producers = ["first", "second"].map(|suffix| {
+            let lower = machine.alloc_pos(Pos::Con(
+                vec!["cpk-7-multi-root-producer".into(), suffix.into()],
+                Vec::new(),
+            ));
+            let upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-multi-root-result".into(), suffix.into()],
+                Vec::new(),
+            ));
+            machine.subtype(lower, upper, origin);
+            machine
+                .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+                .expect("the producer relation is canonical")
+        });
+        let mut roots = producers.map(|producer| {
+            machine.add_upper_bound(
+                owner,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Constraint(producer),
+            );
+            machine.bounds.root_claim_by_producer_constraint[&producer]
+        });
+        roots.sort();
+        let upper_records = roots.map(|root| {
+            let claim = &machine.bounds.upper_replay_claims[root.0 as usize];
+            assert_eq!(claim.coverage_root, root);
+            claim.current_record
+        });
+        assert_eq!(upper_records[0], upper_records[1]);
+
+        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let lower = machine.alloc_pos(Pos::Con(
+            vec!["cpk-7-multi-root-lower".into()],
+            Vec::new(),
+        ));
+        machine.add_lower_bound(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        );
+
+        let observations = machine.proof_store.replay_route_observations.borrow();
+        let observation = observations[routes_before..]
+            .iter()
+            .find(|observation| observation.upper == upper_records[0])
+            .expect("the natural lower event reaches the multi-root upper record");
+        assert_eq!(observation.legacy, ReplayRouting::Generic);
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        let parents = observation
+            .shadow_prepared
+            .proof_event
+            .pair_replay
+            .as_ref()
+            .expect("uncovered upper roots require generic pair replay");
+        assert!(parents.lower.as_slice().is_empty());
+        assert_eq!(
+            parents.upper.as_slice(),
+            roots.map(|root| PreparedReplayParent {
+                side: ReplayClaimParentSide::Upper,
+                coverage_root: root,
+                representative_claim: root,
+                lineage: ProjectionLineage::Original,
+            }),
+            "every uncovered root is retained once in canonical root order",
+        );
+        assert!(observation
+            .shadow_prepared
+            .proof_event
+            .incremental_replays
+            .is_empty());
+        drop(observations);
+        assert_cpk_5_event_count_parity(&machine.proof_store);
+    }
+
+    #[test]
     fn cpk_5_generic_route_matches_legacy_and_counts() {
         let mut fixture = cpk_3_replay_admission_fixture();
         cpk_5_trigger_lower_route(&mut fixture, false);
