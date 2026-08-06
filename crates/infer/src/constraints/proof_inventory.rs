@@ -79,8 +79,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("source_boundaries", 7),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed row-derivation reads.
     // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers and two
-    // direct row-attachment writes in favor of the reviewed mirrored admission API.
-    ("row_derivations", 51),
+    // direct row-attachment writes in favor of the reviewed mirrored admission API. The CPK-7
+    // endpoint correction adds one test-only semantic row-provenance merge assertion.
+    ("row_derivations", 52),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
@@ -95,9 +96,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // adds four reviewed test-only reads while switching those fixtures to mirrored admission.
     // CPK-7 Slice A adds two reviewed test-only reads for index write/move atomicity fixtures;
     // Slice B adds one reviewed routing fault-fixture read. Slice C adds one test-only Legacy
-    // normalization read for exact prepared-parent parity; it is not a production authority.
+    // normalization read for exact prepared-parent parity. The endpoint-decoupling correction
+    // adds two test-only claim-move assertions; none is a production authority.
     // None is a new production read authority.
-    ("upper_replay_claims", 103),
+    ("upper_replay_claims", 105),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // Routing authority remains Legacy in both slices.
