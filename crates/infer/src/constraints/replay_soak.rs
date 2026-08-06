@@ -1,4 +1,4 @@
-//! Opt-in process telemetry for the RCPF-F quarantine soak gate.
+//! Opt-in process telemetry for the RCPF-F and CPK-8 quarantine soak gates.
 //!
 //! Ordinary compilation pays one cached environment lookup per constraint-machine construction.
 //! Counters and the file sink are touched only on terminal failure/read-error/retry paths.
@@ -8,9 +8,11 @@ use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use super::ReplayFactoredShadowFailure;
+use super::proof::ProofOperation;
+use super::{ProofFailure, ReplayFactoredShadowFailure};
 
 pub(crate) const RCPF_SOAK_TELEMETRY_VERSION: u32 = 1;
+pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(not(debug_assertions), allow(dead_code))]
@@ -32,6 +34,9 @@ pub(crate) struct ReplaySoakTelemetrySnapshot {
     terminal_failures: [u64; 6],
     legacy_rollback_entries: [u64; 2],
     factored_read_errors: [u64; 2],
+    proof_terminal_failures: [u64; 12],
+    proof_legacy_rollback_entries: [u64; 2],
+    proof_retry_failures: [u64; 2],
 }
 
 impl ReplaySoakTelemetrySnapshot {
@@ -55,18 +60,46 @@ impl ReplaySoakTelemetrySnapshot {
     }
 
     #[cfg(test)]
+    pub(crate) fn proof_terminal_failures(
+        self,
+        origin: ReplaySoakEventOrigin,
+        operation: ProofOperation,
+    ) -> u64 {
+        self.proof_terminal_failures[proof_terminal_index(origin, operation)]
+    }
+
+    #[cfg(test)]
+    pub(crate) fn proof_legacy_rollback_entries(self, origin: ReplaySoakEventOrigin) -> u64 {
+        self.proof_legacy_rollback_entries[origin_index(origin)]
+    }
+
+    #[cfg(test)]
+    pub(crate) fn proof_retry_failures(self, origin: ReplaySoakEventOrigin) -> u64 {
+        self.proof_retry_failures[origin_index(origin)]
+    }
+
+    #[cfg(test)]
     pub(crate) fn total_for_origin(self, origin: ReplaySoakEventOrigin) -> u64 {
         let start = origin_index(origin) * 3;
         self.terminal_failures[start..start + 3].iter().sum::<u64>()
             + self.legacy_rollback_entries[origin_index(origin)]
             + self.factored_read_errors[origin_index(origin)]
+            + self.proof_terminal_failures[origin_index(origin) * 6..origin_index(origin) * 6 + 6]
+                .iter()
+                .sum::<u64>()
+            + self.proof_legacy_rollback_entries[origin_index(origin)]
+            + self.proof_retry_failures[origin_index(origin)]
     }
 }
 
 static TERMINAL_FAILURES: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
 static LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static FACTORED_READ_ERRORS: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
+static PROOF_TERMINAL_FAILURES: [AtomicU64; 12] = [const { AtomicU64::new(0) }; 12];
+static PROOF_LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
+static PROOF_RETRY_FAILURES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
+static PROOF_TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
 #[cfg(test)]
 std::thread_local! {
@@ -83,6 +116,7 @@ std::thread_local! {
 
 pub(crate) fn ensure_replay_soak_telemetry_header() {
     let _ = telemetry_sink();
+    let _ = proof_telemetry_sink();
 }
 
 pub(crate) fn record_replay_factored_failure(
@@ -123,6 +157,38 @@ pub(crate) fn record_legacy_rollback_entry(failure: ReplayFactoredShadowFailure)
     emit_event("legacy_rollback_entry", origin, None, Some(failure));
 }
 
+/// Record the first sticky CPK terminal failure for one compilation attempt.
+/// The caller owns the first-failure check so repeated reads after the machine has already
+/// failed cannot inflate the organic soak census.
+pub(crate) fn record_proof_terminal_failure(operation: ProofOperation, failure: &ProofFailure) {
+    let origin = current_event_origin();
+    PROOF_TERMINAL_FAILURES[proof_terminal_index(origin, operation)].fetch_add(1, Ordering::Relaxed);
+    update_test_capture(|snapshot| {
+        snapshot.proof_terminal_failures[proof_terminal_index(origin, operation)] += 1;
+    });
+    emit_proof_event("proof_terminal_failure", origin, Some(operation), Some(failure));
+}
+
+/// Record the first CPK failure that selected a fresh LegacyRollback retry machine.
+pub(crate) fn record_proof_legacy_rollback_entry(failure: &ProofFailure) {
+    let origin = current_event_origin();
+    PROOF_LEGACY_ROLLBACK_ENTRIES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
+    update_test_capture(|snapshot| {
+        snapshot.proof_legacy_rollback_entries[origin_index(origin)] += 1;
+    });
+    emit_proof_event("proof_legacy_rollback_entry", origin, None, Some(failure));
+}
+
+/// Record a CPK terminal failure from the fresh LegacyRollback retry attempt.
+pub(crate) fn record_proof_retry_failure() {
+    let origin = current_event_origin();
+    PROOF_RETRY_FAILURES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
+    update_test_capture(|snapshot| {
+        snapshot.proof_retry_failures[origin_index(origin)] += 1;
+    });
+    emit_proof_event("proof_retry_failure", origin, None, None);
+}
+
 pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
     ReplaySoakTelemetrySnapshot {
         terminal_failures: std::array::from_fn(|index| {
@@ -133,6 +199,15 @@ pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
         }),
         factored_read_errors: std::array::from_fn(|index| {
             FACTORED_READ_ERRORS[index].load(Ordering::Relaxed)
+        }),
+        proof_terminal_failures: std::array::from_fn(|index| {
+            PROOF_TERMINAL_FAILURES[index].load(Ordering::Relaxed)
+        }),
+        proof_legacy_rollback_entries: std::array::from_fn(|index| {
+            PROOF_LEGACY_ROLLBACK_ENTRIES[index].load(Ordering::Relaxed)
+        }),
+        proof_retry_failures: std::array::from_fn(|index| {
+            PROOF_RETRY_FAILURES[index].load(Ordering::Relaxed)
         }),
     }
 }
@@ -209,6 +284,21 @@ fn terminal_index(
     origin_index(origin) * 3 + operation_index(operation)
 }
 
+fn proof_operation_index(operation: ProofOperation) -> usize {
+    match operation {
+        ProofOperation::ProjectLowerPreflight => 0,
+        ProofOperation::ProjectLowerSupportCollection => 1,
+        ProofOperation::ProjectLowerEvaluation => 2,
+        ProofOperation::PrepareReplayRoutePreflight => 3,
+        ProofOperation::PrepareReplayRouteParentCollection => 4,
+        ProofOperation::PrepareReplayRouteBatch => 5,
+    }
+}
+
+fn proof_terminal_index(origin: ReplaySoakEventOrigin, operation: ProofOperation) -> usize {
+    origin_index(origin) * 6 + proof_operation_index(operation)
+}
+
 fn update_test_capture(update: impl FnOnce(&mut ReplaySoakTelemetrySnapshot)) {
     #[cfg(test)]
     TEST_CAPTURE.with(|capture| {
@@ -251,6 +341,38 @@ fn telemetry_sink() -> Option<&'static Mutex<File>> {
         .as_ref()
 }
 
+fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
+    PROOF_TELEMETRY_SINK
+        .get_or_init(|| {
+            let path = std::env::var_os("YULANG_CPK_SOAK_TELEMETRY_PATH")?;
+            match OpenOptions::new().create(true).append(true).open(&path) {
+                Ok(mut file) => {
+                    let _ = writeln!(
+                        file,
+                        "CPK_SOAK_HEADER version={} pid={} commit={} build_profile={} workload={} generalize_compact_cache={} source_cache={}",
+                        CPK_SOAK_TELEMETRY_VERSION,
+                        std::process::id(),
+                        metadata("YULANG_CPK_SOAK_COMMIT"),
+                        build_profile(),
+                        metadata("YULANG_CPK_SOAK_WORKLOAD"),
+                        generalize_compact_cache_mode(),
+                        metadata("YULANG_CPK_SOAK_SOURCE_CACHE_MODE"),
+                    );
+                    write_proof_tally(&mut file, replay_soak_telemetry_snapshot());
+                    Some(Mutex::new(file))
+                }
+                Err(error) => {
+                    eprintln!(
+                        "CPK_SOAK_ERROR telemetry_path={} error={error}",
+                        path.to_string_lossy()
+                    );
+                    None
+                }
+            }
+        })
+        .as_ref()
+}
+
 fn emit_event(
     event: &str,
     origin: ReplaySoakEventOrigin,
@@ -268,6 +390,25 @@ fn emit_event(
         "RCPF_SOAK_EVENT event={event} origin={origin:?} operation={operation:?} failure={failure:?}"
     );
     write_tally(&mut file, replay_soak_telemetry_snapshot());
+}
+
+fn emit_proof_event(
+    event: &str,
+    origin: ReplaySoakEventOrigin,
+    operation: Option<ProofOperation>,
+    failure: Option<&ProofFailure>,
+) {
+    let Some(sink) = proof_telemetry_sink() else {
+        return;
+    };
+    let Ok(mut file) = sink.lock() else {
+        return;
+    };
+    let _ = writeln!(
+        file,
+        "CPK_SOAK_EVENT event={event} origin={origin:?} operation={operation:?} failure={failure:?}"
+    );
+    write_proof_tally(&mut file, replay_soak_telemetry_snapshot());
 }
 
 fn write_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
@@ -294,12 +435,56 @@ fn write_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
     );
 }
 
+fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
+    let _ = writeln!(
+        file,
+        concat!(
+            "CPK_SOAK_TALLY version={} ",
+            "terminal_organic_project_preflight={} ",
+            "terminal_organic_project_supports={} ",
+            "terminal_organic_project_evaluation={} ",
+            "terminal_organic_route_preflight={} ",
+            "terminal_organic_route_parents={} ",
+            "terminal_organic_route_batch={} ",
+            "terminal_injected_project_preflight={} ",
+            "terminal_injected_project_supports={} ",
+            "terminal_injected_project_evaluation={} ",
+            "terminal_injected_route_preflight={} ",
+            "terminal_injected_route_parents={} ",
+            "terminal_injected_route_batch={} ",
+            "rollback_organic={} rollback_injected={} ",
+            "retry_failure_organic={} retry_failure_injected={}"
+        ),
+        CPK_SOAK_TELEMETRY_VERSION,
+        snapshot.proof_terminal_failures[0],
+        snapshot.proof_terminal_failures[1],
+        snapshot.proof_terminal_failures[2],
+        snapshot.proof_terminal_failures[3],
+        snapshot.proof_terminal_failures[4],
+        snapshot.proof_terminal_failures[5],
+        snapshot.proof_terminal_failures[6],
+        snapshot.proof_terminal_failures[7],
+        snapshot.proof_terminal_failures[8],
+        snapshot.proof_terminal_failures[9],
+        snapshot.proof_terminal_failures[10],
+        snapshot.proof_terminal_failures[11],
+        snapshot.proof_legacy_rollback_entries[0],
+        snapshot.proof_legacy_rollback_entries[1],
+        snapshot.proof_retry_failures[0],
+        snapshot.proof_retry_failures[1],
+    );
+}
+
 fn metadata(name: &str) -> String {
     std::env::var(name)
         .unwrap_or_else(|_| "missing".to_string())
         .split_whitespace()
         .collect::<Vec<_>>()
         .join("_")
+}
+
+fn build_profile() -> &'static str {
+    if cfg!(debug_assertions) { "debug" } else { "release" }
 }
 
 fn generalize_compact_cache_mode() -> &'static str {

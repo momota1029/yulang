@@ -36,6 +36,7 @@ use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::constraints::{
     ConstraintTiming, ProofFailure, ProofReadAuthority, ReplayFactoredFailureOperation,
     ReplayFactoredShadowFailure, ReplayReadAuthority, record_legacy_rollback_entry,
+    record_proof_legacy_rollback_entry, record_proof_retry_failure,
     record_replay_factored_failure,
 };
 use crate::source_range_for_name;
@@ -699,6 +700,9 @@ fn run_replay_compilation_attempt<T>(
         }
         record_legacy_rollback_entry(failure);
     }
+    if let Some(failure) = proof_failure.as_ref() {
+        record_proof_legacy_rollback_entry(failure);
+    }
     drop(first.output);
 
     let replay_authority = replay_failure.map_or(
@@ -725,6 +729,7 @@ fn run_replay_compilation_attempt<T>(
         return Err(LoadedFilesError::ReplayFactoredRetryFailed);
     }
     if retry.proof_terminal_failure.is_some() {
+        record_proof_retry_failure();
         return Err(LoadedFilesError::ProofKernelRetryFailed);
     }
     Ok(retry.output)
@@ -2959,19 +2964,23 @@ mod rcpf_c3a_retry_tests {
         };
         let mut authorities = Vec::new();
         let mut next_identity = 0usize;
-        let output = run_replay_compilation_attempt(|replay_authority, proof_authority| {
-            assert_eq!(replay_authority, ReplayReadAuthority::Factored);
-            authorities.push(proof_authority);
-            let identity = next_identity;
-            next_identity += 1;
-            Ok(ReplayCompilationAttempt {
-                output: identity,
-                terminal_failure: None,
-                proof_terminal_failure: (identity == 0).then_some(failure.clone()),
-                terminal_failure_recorded: false,
+        let (result, telemetry) = capture_replay_soak_test_events(|| {
+            with_intentional_replay_soak_test_injection(|| {
+                run_replay_compilation_attempt(|replay_authority, proof_authority| {
+                    assert_eq!(replay_authority, ReplayReadAuthority::Factored);
+                    authorities.push(proof_authority);
+                    let identity = next_identity;
+                    next_identity += 1;
+                    Ok(ReplayCompilationAttempt {
+                        output: identity,
+                        terminal_failure: None,
+                        proof_terminal_failure: (identity == 0).then_some(failure.clone()),
+                        terminal_failure_recorded: false,
+                    })
+                })
             })
-        })
-        .expect("the fresh legacy proof attempt completes");
+        });
+        let output = result.expect("the fresh legacy proof attempt completes");
 
         assert_eq!(output, 1);
         assert_eq!(next_identity, 2, "retry constructs a fresh attempt");
@@ -2982,6 +2991,57 @@ mod rcpf_c3a_retry_tests {
                 ProofReadAuthority::LegacyRollback(failure),
             ]
         );
+        assert_eq!(
+            telemetry.proof_legacy_rollback_entries(
+                ReplaySoakEventOrigin::IntentionalTestInjection,
+            ),
+            1,
+        );
+        assert_eq!(
+            telemetry.proof_legacy_rollback_entries(ReplaySoakEventOrigin::Organic),
+            0,
+        );
+        assert_eq!(
+            telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
+            0,
+            "a successful fresh LegacyRollback attempt is not a retry failure",
+        );
+    }
+
+    #[test]
+    fn cpk_8a_intentional_proof_retry_failure_is_counted_separately() {
+        let failure = ProofFailure::ResourceExhausted {
+            operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
+        };
+        let mut attempts = 0usize;
+        let (error, telemetry) = capture_replay_soak_test_events(|| {
+            with_intentional_replay_soak_test_injection(|| {
+                run_replay_compilation_attempt::<()>(|_, _| {
+                    attempts += 1;
+                    Ok(ReplayCompilationAttempt {
+                        output: (),
+                        terminal_failure: None,
+                        proof_terminal_failure: Some(failure.clone()),
+                        terminal_failure_recorded: false,
+                    })
+                })
+            })
+            .expect_err("a proof failure in the fresh retry is terminal")
+        });
+
+        assert_eq!(attempts, 2);
+        assert_eq!(error, LoadedFilesError::ProofKernelRetryFailed);
+        assert_eq!(
+            telemetry.proof_legacy_rollback_entries(
+                ReplaySoakEventOrigin::IntentionalTestInjection,
+            ),
+            1,
+        );
+        assert_eq!(
+            telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
+            1,
+        );
+        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
     }
 
     #[test]

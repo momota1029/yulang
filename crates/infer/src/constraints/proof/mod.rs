@@ -4068,6 +4068,7 @@ fn assert_replay_shadow_parity(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constraints::{ReplaySoakEventOrigin, capture_replay_soak_test_events};
 
     fn cpk_oracle_machine() -> ConstraintMachine {
         cpk_oracle_machine_with_authority(ProofReadAuthority::Cpk)
@@ -8185,6 +8186,68 @@ mod tests {
                 ..
             } if claim == fixture.coverage_root
         ));
+    }
+
+    #[test]
+    fn cpk_8a_cpk_terminal_failure_telemetry_counts_first_organic_failure_once() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .upper_claim_index
+                .remove(&fixture.coverage_root)
+                .is_some(),
+            "the fixture must corrupt an existing CPK claim index entry",
+        );
+
+        let ((), telemetry) = capture_replay_soak_test_events(|| {
+            cpk_5_trigger_lower_route(&mut fixture, false);
+            cpk_5_trigger_lower_route(&mut fixture, true);
+        });
+
+        assert!(matches!(
+            fixture.machine.proof_terminal_failure(),
+            Some(ProofFailure::DanglingProofReference { .. }),
+        ));
+        assert_eq!(
+            telemetry.proof_terminal_failures(
+                ReplaySoakEventOrigin::Organic,
+                ProofOperation::PrepareReplayRouteBatch,
+            ),
+            1,
+            "the sticky terminal failure must be counted only once",
+        );
+        assert_eq!(
+            telemetry.proof_terminal_failures(
+                ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofOperation::PrepareReplayRouteBatch,
+            ),
+            0,
+        );
+        assert_eq!(
+            telemetry.proof_legacy_rollback_entries(ReplaySoakEventOrigin::Organic),
+            0,
+            "a direct machine test has not selected a fresh retry authority",
+        );
+    }
+
+    #[test]
+    fn cpk_8a_successful_cpk_route_emits_no_proof_failure_telemetry() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        let ((), telemetry) = capture_replay_soak_test_events(|| {
+            cpk_5_trigger_lower_route(&mut fixture, false);
+        });
+
+        assert_eq!(
+            telemetry.total_for_origin(ReplaySoakEventOrigin::Organic),
+            0,
+            "a normal successful CPK route must not resemble an organic soak failure",
+        );
+        assert_eq!(
+            telemetry.total_for_origin(ReplaySoakEventOrigin::IntentionalTestInjection),
+            0,
+        );
     }
 
     #[test]

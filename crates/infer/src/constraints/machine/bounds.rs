@@ -5145,7 +5145,10 @@ impl ConstraintMachine {
                     incremental_routes,
                 )
                 .unwrap_or_else(|failure| {
-                    self.mark_proof_terminal_failure(failure);
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::PrepareReplayRouteBatch,
+                        failure,
+                    );
                     BoundReplayPlan::default()
                 }),
             proof::ProofReadAuthority::LegacyRollback(_) => self
@@ -5509,7 +5512,10 @@ impl ConstraintMachine {
             proof::ProofReadAuthority::Cpk => self
                 .cpk_upper_bound_replay_actions(source, upper_record, neg, weights)
                 .unwrap_or_else(|failure| {
-                    self.mark_proof_terminal_failure(failure);
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::PrepareReplayRouteBatch,
+                        failure,
+                    );
                     BoundReplayPlan::default()
                 }),
             proof::ProofReadAuthority::LegacyRollback(_) => {

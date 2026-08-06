@@ -122,10 +122,12 @@ impl ConstraintMachine {
 
     pub(in crate::constraints) fn mark_proof_terminal_failure(
         &self,
+        operation: proof::ProofOperation,
         failure: proof::ProofFailure,
     ) {
         let mut terminal = self.proof_terminal_failure.borrow_mut();
         if terminal.is_none() {
+            record_proof_terminal_failure(operation, &failure);
             *terminal = Some(failure);
         }
     }
