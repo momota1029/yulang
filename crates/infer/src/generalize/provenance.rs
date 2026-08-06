@@ -108,7 +108,9 @@ impl<'a> WitnessCollector<'a> {
                 self.add_parent(path, role, GeneralizationParent::Bound(record));
             }
             WitnessParents::Selected(parents) => {
-                debug_assert!(!parents.is_empty());
+                // An empty qualified selection means the formula proved this lower relation but
+                // no direct support currently contributes provenance. Keep it parentless rather
+                // than fabricating the raw Bound(record) parent used by an unclaimed relation.
                 for parent in parents {
                     self.add_parent(path, role, *parent);
                 }

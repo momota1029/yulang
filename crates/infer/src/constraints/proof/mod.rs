@@ -4010,6 +4010,156 @@ mod tests {
         );
     }
 
+    #[test]
+    fn cpk_gap_1_included_empty_keeps_generalized_witness_parentless() {
+        let (mut machine, endpoint, owner, _) =
+            ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let record = machine
+            .bounds()
+            .of(owner)
+            .expect("fixture owner")
+            .generalized_projection_lowers()
+            .find_map(|(record, bound)| {
+                matches!(machine.types().pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                    .then_some(record)
+            })
+            .expect("mixed fixture lower record");
+        let ProjectionDecision::Included { supports } =
+            project_lower_for_test(&machine, record).0.expect("complete initial projection")
+        else {
+            panic!("mixed fixture must start included");
+        };
+        let uncovered = supports.uncovered_claims[0];
+
+        // Add a formula route whose premise remains true after every direct claimed support is
+        // covered. This is the reachable Included(empty) shape pinned by addendum section 4.4.
+        let premise = cpk_gap_1_projection_record(&mut machine, 24);
+        machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                uncovered.coverage_root,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: ConstraintRecordId(0),
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Record(premise),
+                },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+        );
+        let state = machine
+            .proof_store
+            .live_coverage
+            .iter()
+            .next()
+            .expect("fixture has a live reduction state")
+            .1;
+        assert!(machine.insert_scheme_projection_live_coverage_state(
+            uncovered.coverage_root,
+            state,
+        ));
+        assert_eq!(
+            project_lower_for_test(&machine, record).0,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet::default(),
+            }),
+        );
+        assert_eq!(
+            machine
+                .scheme_projectable_lowers(owner)
+                .find(|entry| entry.record == record)
+                .expect("legacy formula still includes the record")
+                .reason,
+            SchemeProjectableLowerReason::Qualified {
+                uncovered_claims: Vec::new(),
+                independent_supports: Vec::new(),
+            },
+        );
+
+        let generalized = crate::generalize::GeneralizedCompactRoot {
+            compact: crate::compact::CompactRoot::default(),
+            role_predicates: Vec::new(),
+            quantifiers: Vec::new(),
+            stack_quantifiers: Vec::new(),
+            substitutions: Vec::new(),
+            sandwiches: Vec::new(),
+        };
+        let (drafts, completeness) =
+            crate::generalize::capture_generalized_witnesses(&machine, owner, &generalized);
+        assert_eq!(completeness, ProvenanceCompleteness::Incomplete);
+        assert!(drafts.iter().flat_map(|draft| &draft.incoming).flat_map(|edge| {
+            &edge.parents
+        }).all(|parent| match parent {
+            GeneralizationParent::Bound(found)
+            | GeneralizationParent::BoundClaim { bound: found, .. }
+            | GeneralizationParent::BoundProjectionProof { bound: found, .. } => *found != record,
+            GeneralizationParent::Constraint(_) => true,
+        }), "Included(empty) must not fabricate any parent for the qualified record");
+
+        machine.alloc_generalized_scheme_record(
+            poly::expr::DefId(0),
+            0,
+            drafts,
+            completeness,
+        );
+        let snapshot = machine.logical_proof_snapshot();
+        assert!(
+            snapshot
+                .generalized
+                .witnesses
+                .iter()
+                .flat_map(|witness| &witness.incoming)
+                .flat_map(|edge| &edge.parents)
+                .all(|parent| match parent {
+                    crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::Bound(found)
+                    | crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundClaim { bound: found, .. }
+                    | crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundProjectionProof { bound: found, .. } => *found != record.0 as usize,
+                    crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::Constraint(_) => true,
+                }),
+            "stored witnesses must retain the absence of a fallback bound parent",
+        );
+        let target_root = snapshot
+            .portable
+            .roots
+            .iter()
+            .position(|root| {
+                matches!(
+                    root,
+                    crate::constraints::logical_proof_snapshot::CanonicalPortableRoot::Bound(
+                        found
+                    ) if *found == record.0 as usize
+                )
+            })
+            .expect("portable target-bound root");
+        let target_anchor = snapshot.portable.root_anchors[target_root]
+            .expect("portable target-bound anchor");
+        let target_node = snapshot.portable.snapshot.anchors()[target_anchor].node;
+        let witness_nodes = snapshot
+            .portable
+            .roots
+            .iter()
+            .enumerate()
+            .filter_map(|(index, root)| {
+                matches!(
+                    root,
+                    crate::constraints::logical_proof_snapshot::CanonicalPortableRoot::GeneralizedWitness(_)
+                )
+                .then(|| {
+                    let anchor = snapshot.portable.root_anchors[index]
+                        .expect("portable generalized-witness anchor");
+                    snapshot.portable.snapshot.anchors()[anchor].node
+                })
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            snapshot.portable.snapshot.edges().iter().all(|edge| {
+                !witness_nodes.contains(&edge.child) || !edge.parents.contains(&target_node)
+            }),
+            "portable generalized witnesses must not fabricate the qualified bound as a parent",
+        );
+    }
+
     fn cpk_4_projection_record(
         machine: &mut ConstraintMachine,
         ordinal: u32,
