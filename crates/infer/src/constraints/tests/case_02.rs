@@ -3402,7 +3402,7 @@ fn mpc_a_9_5_legacy_unattributed_claim_link_fails_open() {
 
     assert_eq!(
         machine
-            .scheme_projectable_lowers(owner)
+            .legacy_scheme_projectable_lowers_for_test(owner)
             .find(|candidate| candidate.record == lower_record)
             .map(|candidate| candidate.reason),
         Some(SchemeProjectableLowerReason::Qualified {

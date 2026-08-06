@@ -50,6 +50,7 @@ use replay_factored::{
     ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
 };
 pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
+pub(crate) use proof::{ProofFailure, ProofReadAuthority};
 #[cfg(test)]
 pub(crate) use replay_soak::{
     ReplaySoakEventOrigin, capture_replay_soak_test_events,
@@ -118,6 +119,8 @@ pub struct ConstraintMachine {
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
+    proof_read_authority: proof::ProofReadAuthority,
+    proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
     #[cfg(test)]
     cpk_proof_oracle_active: bool,
     replay_read_authority: ReplayReadAuthority,
@@ -1741,6 +1744,61 @@ impl ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
+        let lowers = match self.proof_read_authority() {
+            proof::ProofReadAuthority::Cpk => self.cpk_scheme_projectable_lowers(var),
+            proof::ProofReadAuthority::LegacyRollback(_) => {
+                self.legacy_scheme_projectable_lowers(var)
+            }
+        };
+        lowers.into_iter()
+    }
+
+    fn cpk_scheme_projectable_lowers(&self, var: TypeVar) -> Vec<SchemeProjectableLower<'_>> {
+        if self.proof_terminal_failure().is_some() {
+            return Vec::new();
+        }
+        let records = self
+            .bounds
+            .vars
+            .get(var.0 as usize)
+            .and_then(Option::as_ref)
+            .into_iter()
+            .flat_map(VarBounds::projection_lower_records);
+        let mut round = proof::ProjectionEvaluationRound::new();
+        let mut lowers = Vec::new();
+        for (record, bound) in records {
+            let decision = match self.proof_store.project_lower(self, record, &mut round) {
+                Ok(decision) => decision,
+                Err(failure) => {
+                    lowers.clear();
+                    self.mark_proof_terminal_failure(failure);
+                    break;
+                }
+            };
+            let reason = match decision {
+                proof::ProjectionDecision::Excluded => continue,
+                proof::ProjectionDecision::Unclaimed => SchemeProjectableLowerReason::Unclaimed,
+                proof::ProjectionDecision::Included { supports } => {
+                    SchemeProjectableLowerReason::Qualified {
+                        uncovered_claims: supports
+                            .uncovered_claims
+                            .into_iter()
+                            .map(|support| support.representative_claim)
+                            .collect(),
+                        independent_supports: supports.independent_supports,
+                    }
+                }
+            };
+            lowers.push(SchemeProjectableLower {
+                record,
+                bound,
+                reason,
+            });
+        }
+        lowers
+    }
+
+    fn legacy_scheme_projectable_lowers(&self, var: TypeVar) -> Vec<SchemeProjectableLower<'_>> {
         let bounds = &self.bounds;
         let claimed_owner = bounds.scheme_projection_claimed_lower_owners.contains(&var);
         let records = bounds
@@ -1750,7 +1808,8 @@ impl ConstraintMachine {
             .into_iter()
             .flat_map(VarBounds::projection_lower_records);
         let mut evaluation_round = SchemeProjectionEvaluationRound::new(self);
-        records.filter_map(move |(record, bound)| {
+        records
+            .filter_map(move |(record, bound)| {
             let Some(proofs) = claimed_owner
                 .then(|| bounds.projection_proofs_by_lower_record.get(&record))
                 .flatten()
@@ -1815,7 +1874,16 @@ impl ConstraintMachine {
                     independent_supports,
                 },
             })
-        })
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn legacy_scheme_projectable_lowers_for_test(
+        &self,
+        var: TypeVar,
+    ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
+        self.legacy_scheme_projectable_lowers(var).into_iter()
     }
 
     /// Remove one state from the live coverage index without defining a new expiry policy.

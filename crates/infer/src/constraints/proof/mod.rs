@@ -6,6 +6,13 @@
 
 use super::*;
 
+/// Projection representation selected once for one `ConstraintMachine` lifetime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ProofReadAuthority {
+    Cpk,
+    LegacyRollback(ProofFailure),
+}
+
 /// One canonical claimed support returned by [`ProofOccurrenceStore::project_lower`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct ProjectionClaimSupport {
@@ -3586,7 +3593,7 @@ mod tests {
         ));
 
         let legacy_reason = machine
-            .scheme_projectable_lowers(owner)
+            .legacy_scheme_projectable_lowers_for_test(owner)
             .find(|entry| entry.record == record)
             .expect("legacy includes the mixed record")
             .reason;
@@ -3656,7 +3663,7 @@ mod tests {
             .map(|(record, bound)| (record, bound.pos, bound.weights.clone()))
             .collect::<Vec<_>>();
         let legacy_entries = machine
-            .scheme_projectable_lowers(owner)
+            .legacy_scheme_projectable_lowers_for_test(owner)
             .map(|entry| {
                 (
                     entry.record,
@@ -3880,7 +3887,9 @@ mod tests {
     ) {
         let (actual, _) = project_lower_for_test(machine, record);
         assert_eq!(actual, Ok(expected.clone()));
-        let entries = machine.scheme_projectable_lowers(owner).collect::<Vec<_>>();
+        let entries = machine
+            .legacy_scheme_projectable_lowers_for_test(owner)
+            .collect::<Vec<_>>();
         match &expected {
             ProjectionDecision::Excluded => assert!(entries.is_empty()),
             ProjectionDecision::Unclaimed => {
@@ -3970,7 +3979,7 @@ mod tests {
         record: BoundRecordId,
     ) -> ProjectionDecision {
         let Some(entry) = machine
-            .scheme_projectable_lowers(owner)
+            .legacy_scheme_projectable_lowers_for_test(owner)
             .find(|entry| entry.record == record)
         else {
             return ProjectionDecision::Excluded;
@@ -4205,7 +4214,7 @@ mod tests {
         );
         assert_eq!(
             machine
-                .scheme_projectable_lowers(owner)
+                .legacy_scheme_projectable_lowers_for_test(owner)
                 .find(|entry| entry.record == record)
                 .expect("legacy formula still includes the record")
                 .reason,
