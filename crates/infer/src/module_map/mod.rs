@@ -1759,7 +1759,7 @@ pub enum LoadedFilesError {
     DuplicateModulePath { module_path: ModulePath },
     MissingModulePath { module_path: ModulePath },
     ReplayFactoredRetryFailed,
-    ProofKernelRetryFailed,
+    ProofKernelFailed,
 }
 
 impl fmt::Display for LoadedFilesError {
@@ -1780,10 +1780,9 @@ impl fmt::Display for LoadedFilesError {
                 f,
                 "factored replay state failed and a clean legacy rollback attempt could not complete"
             ),
-            Self::ProofKernelRetryFailed => write!(
-                f,
-                "proof kernel state failed and a clean legacy rollback attempt could not complete"
-            ),
+            Self::ProofKernelFailed => {
+                write!(f, "proof kernel state failed; the compilation attempt was discarded")
+            }
         }
     }
 }

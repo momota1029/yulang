@@ -170,6 +170,9 @@ pub(crate) fn record_proof_terminal_failure(operation: ProofOperation, failure: 
 }
 
 /// Record the first CPK failure that selected a fresh LegacyRollback retry machine.
+// CPK-8D seals every production caller. Keep this counter writable until the
+// post-seal soak has proved the removed transition stays unreachable.
+#[allow(dead_code)]
 pub(crate) fn record_proof_legacy_rollback_entry(failure: &ProofFailure) {
     let origin = current_event_origin();
     PROOF_LEGACY_ROLLBACK_ENTRIES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
@@ -180,6 +183,7 @@ pub(crate) fn record_proof_legacy_rollback_entry(failure: &ProofFailure) {
 }
 
 /// Record a CPK terminal failure from the fresh LegacyRollback retry attempt.
+#[allow(dead_code)]
 pub(crate) fn record_proof_retry_failure() {
     let origin = current_event_origin();
     PROOF_RETRY_FAILURES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);

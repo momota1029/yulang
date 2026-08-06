@@ -59,7 +59,6 @@ pub(crate) use replay_soak::{
 };
 pub(crate) use replay_soak::{
     ReplayFactoredFailureOperation, record_legacy_rollback_entry,
-    record_proof_legacy_rollback_entry, record_proof_retry_failure,
     record_proof_terminal_failure, record_replay_factored_failure,
 };
 use replay_soak::ensure_replay_soak_telemetry_header;

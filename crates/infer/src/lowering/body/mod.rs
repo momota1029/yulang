@@ -36,7 +36,6 @@ use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::constraints::{
     ConstraintTiming, ProofFailure, ProofReadAuthority, ReplayFactoredFailureOperation,
     ReplayFactoredShadowFailure, ReplayReadAuthority, record_legacy_rollback_entry,
-    record_proof_legacy_rollback_entry, record_proof_retry_failure,
     record_replay_factored_failure,
 };
 use crate::source_range_for_name;
@@ -689,35 +688,28 @@ fn run_replay_compilation_attempt<T>(
     ) -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
 ) -> Result<T, LoadedFilesError> {
     let first = attempt(ReplayReadAuthority::Factored, ProofReadAuthority::Cpk)?;
-    if first.terminal_failure.is_none() && first.proof_terminal_failure.is_none() {
+    if first.proof_terminal_failure.is_some() {
+        drop(first.output);
+        return Err(LoadedFilesError::ProofKernelFailed);
+    }
+    let Some(replay_failure) = first.terminal_failure else {
         return Ok(first.output);
+    };
+    if !first.terminal_failure_recorded {
+        record_replay_factored_failure(
+            replay_failure,
+            ReplayFactoredFailureOperation::Read,
+            true,
+        );
     }
-    let replay_failure = first.terminal_failure;
-    let proof_failure = first.proof_terminal_failure.clone();
-    if let Some(failure) = replay_failure {
-        if !first.terminal_failure_recorded {
-            record_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read, true);
-        }
-        record_legacy_rollback_entry(failure);
-    }
-    if let Some(failure) = proof_failure.as_ref() {
-        record_proof_legacy_rollback_entry(failure);
-    }
+    record_legacy_rollback_entry(replay_failure);
     drop(first.output);
 
-    let replay_authority = replay_failure.map_or(
-        ReplayReadAuthority::Factored,
-        ReplayReadAuthority::LegacyRollback,
-    );
-    let proof_authority = proof_failure
-        .clone()
-        .map_or(ProofReadAuthority::Cpk, ProofReadAuthority::LegacyRollback);
-    let retry_error = if proof_failure.is_some() {
-        LoadedFilesError::ProofKernelRetryFailed
-    } else {
-        LoadedFilesError::ReplayFactoredRetryFailed
-    };
-    let retry = attempt(replay_authority, proof_authority).map_err(|_| retry_error.clone())?;
+    let retry = attempt(
+        ReplayReadAuthority::LegacyRollback(replay_failure),
+        ProofReadAuthority::Cpk,
+    )
+    .map_err(|_| LoadedFilesError::ReplayFactoredRetryFailed)?;
     if let Some(retry_failure) = retry.terminal_failure {
         if !retry.terminal_failure_recorded {
             record_replay_factored_failure(
@@ -729,8 +721,8 @@ fn run_replay_compilation_attempt<T>(
         return Err(LoadedFilesError::ReplayFactoredRetryFailed);
     }
     if retry.proof_terminal_failure.is_some() {
-        record_proof_retry_failure();
-        return Err(LoadedFilesError::ProofKernelRetryFailed);
+        drop(retry.output);
+        return Err(LoadedFilesError::ProofKernelFailed);
     }
     Ok(retry.output)
 }
@@ -2958,7 +2950,7 @@ mod rcpf_c3a_retry_tests {
     }
 
     #[test]
-    fn cpk_6b_failed_attempt_is_discarded_before_fresh_legacy_retry() {
+    fn cpk_8d_proof_failure_discards_attempt_without_legacy_retry() {
         let failure = ProofFailure::ResourceExhausted {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
@@ -2980,22 +2972,16 @@ mod rcpf_c3a_retry_tests {
                 })
             })
         });
-        let output = result.expect("the fresh legacy proof attempt completes");
+        let error = result.expect_err("the failed CPK proof attempt is terminal");
 
-        assert_eq!(output, 1);
-        assert_eq!(next_identity, 2, "retry constructs a fresh attempt");
-        assert_eq!(
-            authorities,
-            [
-                ProofReadAuthority::Cpk,
-                ProofReadAuthority::LegacyRollback(failure),
-            ]
-        );
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
+        assert_eq!(next_identity, 1, "proof failure must not start a retry");
+        assert_eq!(authorities, [ProofReadAuthority::Cpk]);
         assert_eq!(
             telemetry.proof_legacy_rollback_entries(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
             ),
-            1,
+            0,
         );
         assert_eq!(
             telemetry.proof_legacy_rollback_entries(ReplaySoakEventOrigin::Organic),
@@ -3004,12 +2990,12 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(
             telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
             0,
-            "a successful fresh LegacyRollback attempt is not a retry failure",
+            "the authority seal must not enter the removed proof retry path",
         );
     }
 
     #[test]
-    fn cpk_8a_intentional_proof_retry_failure_is_counted_separately() {
+    fn cpk_8d_proof_failure_is_typed_hard_error_without_retry_telemetry() {
         let failure = ProofFailure::ResourceExhausted {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
@@ -3026,22 +3012,59 @@ mod rcpf_c3a_retry_tests {
                     })
                 })
             })
-            .expect_err("a proof failure in the fresh retry is terminal")
+            .expect_err("the first proof failure is terminal")
         });
 
-        assert_eq!(attempts, 2);
-        assert_eq!(error, LoadedFilesError::ProofKernelRetryFailed);
+        assert_eq!(attempts, 1);
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert_eq!(
             telemetry.proof_legacy_rollback_entries(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
             ),
-            1,
+            0,
         );
         assert_eq!(
             telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
-            1,
+            0,
         );
         assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
+    }
+
+    #[test]
+    fn cpk_8d_proof_failure_during_rcpf_retry_does_not_start_a_proof_retry() {
+        let failure = ProofFailure::ResourceExhausted {
+            operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
+        };
+        let mut authorities = Vec::new();
+        let error = with_intentional_replay_soak_test_injection(|| {
+            run_replay_compilation_attempt::<()>(|replay_authority, proof_authority| {
+                authorities.push((replay_authority, proof_authority));
+                if authorities.len() == 1 {
+                    Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
+                } else {
+                    Ok(ReplayCompilationAttempt {
+                        output: (),
+                        terminal_failure: None,
+                        proof_terminal_failure: Some(failure.clone()),
+                        terminal_failure_recorded: false,
+                    })
+                }
+            })
+        })
+        .expect_err("proof failure during the RCPF retry is terminal");
+
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
+        assert_eq!(
+            authorities,
+            [
+                (ReplayReadAuthority::Factored, ProofReadAuthority::Cpk),
+                (
+                    ReplayReadAuthority::LegacyRollback(FAILURE),
+                    ProofReadAuthority::Cpk,
+                ),
+            ],
+            "the RCPF retry remains, but it must not chain into a proof retry",
+        );
     }
 
     #[test]
