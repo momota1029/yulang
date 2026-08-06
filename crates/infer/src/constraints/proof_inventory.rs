@@ -146,11 +146,12 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // adds two test-only claim-move assertions. Slice C item 2 adds one test-only read proving
     // two uncovered roots share one physical upper record. Item 16 adds one test-only outer-
     // census assertion before corrupting the CPK claim index; none is a production authority.
-    // CPK-8B freezes original-claim admission in UpperReplayClaimRegistration, removing the two
-    // production CPK-writer re-reads and adding one reviewed transaction-local snapshot read plus
-    // one test-only mutation proving that the frozen event cannot observe later flat state.
+    // CPK-8B freezes original/derived claim admission in UpperReplayClaimRegistration. Original
+    // admission removes two production CPK-writer re-reads and adds one reviewed transaction-local
+    // snapshot read plus one test-only mutation proving that the event cannot observe later flat
+    // state. Derived admission then removes the two remaining production CPK-writer re-reads.
     // None is a new production read authority.
-    ("upper_replay_claims", 107),
+    ("upper_replay_claims", 105),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // Routing authority remains Legacy in both slices.

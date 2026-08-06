@@ -1186,9 +1186,8 @@ impl ConstraintMachine {
                     }
                 }),
         };
-        self.proof_store.record_upper_claim(
-            &self.bounds.upper_replay_claims[registration.claim.0 as usize],
-        );
+        self.proof_store
+            .record_prepared_upper_claim(&registration.proof_admission);
         if let Some(fence) = publication_fence {
             self.defer_scheme_projection_mutation(fence, registration.scheme_projection_mutation);
         } else {
@@ -6104,9 +6103,8 @@ impl ConstraintMachine {
                             depth,
                         },
                     );
-                    self.proof_store.record_upper_claim(
-                        &self.bounds.upper_replay_claims[registration.claim.0 as usize],
-                    );
+                    self.proof_store
+                        .record_prepared_upper_claim(&registration.proof_admission);
                     self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
                     self.register_replay_evidence_clause_link(
                         lower_record,
