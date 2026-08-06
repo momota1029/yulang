@@ -5944,6 +5944,38 @@ mod tests {
             record,
             expected,
         );
+        let upper = fixture
+            .machine
+            .alloc_neg(Neg::Con(vec!["cpk-7-representative".into()], Vec::new()));
+        fixture.machine.add_upper_bound(
+            owner,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let observations = fixture
+            .machine
+            .proof_store
+            .replay_route_observations
+            .borrow();
+        let observation = observations
+            .iter()
+            .rev()
+            .find(|observation| observation.lower == record)
+            .expect("the replacement fixture must route the claimed lower");
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        assert_eq!(
+            observation
+                .shadow_prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .expect("the no-claim upper requires Generic replay")
+                .lower
+                .as_slice()[0]
+                .representative_claim,
+            replacement_claim,
+        );
     }
 
     #[test]
