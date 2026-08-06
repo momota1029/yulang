@@ -6441,6 +6441,75 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_routes_all_five_lineages_exactly() {
+        for (offset, lineage) in [
+            ProjectionLineage::Original,
+            ProjectionLineage::ReplayConstraint,
+            ProjectionLineage::ReplayEvidence,
+            ProjectionLineage::StructuralConstraint,
+            ProjectionLineage::ReductionRouteConstraint,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut machine = cpk_3_replay_fixture();
+            let claim = machine
+                .proof_store
+                .upper_claims
+                .iter()
+                .find(|claim| {
+                    claim.lineage == lineage
+                        && machine
+                            .proof_store
+                            .live_states_by_coverage_root
+                            .contains_key(&claim.coverage_root)
+                })
+                .cloned()
+                .expect("the replay fixture must materialize every live lineage");
+            let owner = machine
+                .bounds
+                .record(claim.current_record)
+                .expect("the representative claim must point at a semantic upper record")
+                .owner;
+            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+            let lower = machine.alloc_pos(Pos::Var(TypeVar(91_000 + offset as u32)));
+            machine.add_lower_bound(
+                owner,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            );
+
+            let observations = machine.proof_store.replay_route_observations.borrow();
+            let observation = observations[routes_before..]
+                .iter()
+                .find(|observation| observation.upper == claim.current_record)
+                .expect("the natural lower event must compare the lineage's upper record");
+            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+            let routed_lineages = observation
+                .shadow_prepared
+                .proof_event
+                .pair_replay
+                .iter()
+                .flat_map(PreparedReplayParentSet::iter)
+                .chain(
+                    observation
+                        .shadow_prepared
+                        .proof_event
+                        .incremental_replays
+                        .iter()
+                        .flat_map(|replay| replay.parents.iter()),
+                )
+                .map(|parent| parent.lineage)
+                .collect::<FxHashSet<_>>();
+            assert!(
+                routed_lineages.contains(&lineage),
+                "the exact prepared route must retain {lineage:?} attribution",
+            );
+        }
+    }
+
+    #[test]
     fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
         let mut fixture = cpk_3_replay_admission_fixture();
         let attempted = SubtypeConstraintKey {
