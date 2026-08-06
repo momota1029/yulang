@@ -3875,13 +3875,9 @@ fn dpn_b_9_5_late_constraint_route_retriggers_dependent_record() {
         .epoch();
     let journal = fixture.machine.activate_method_role_mutations();
 
-    fixture.machine.admit_claim_qualified_parent(
-        parent,
-        ClaimQualifiedParent::ReductionRouteConstraint {
-            parent_claim: direct_claim,
-            derivation: route,
-        },
-    );
+    fixture
+        .machine
+        .register_reduction_route_claim_parent(parent, route, direct_claim);
 
     assert_eq!(
         projection_count(&fixture.machine, fixture.target, fixture.lower_record,),
