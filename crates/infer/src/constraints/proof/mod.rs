@@ -6807,6 +6807,134 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_duplicate_decoupled_incremental_routes_keep_first_seen_action() {
+        let run = |order: [usize; 2]| {
+            let mut machine = cpk_oracle_machine();
+            let source = TypeVar(72_200);
+            let current_upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-dedup-current".into()],
+                Vec::new(),
+            ));
+            let original_upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-dedup-original".into()],
+                Vec::new(),
+            ));
+            let matched_upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-dedup-matched".into()],
+                Vec::new(),
+            ));
+            let producers = [0, 1]
+                .map(|index| cpk_7_admit_inert_constraint(&mut machine, 120 + index, "dedup"));
+            let roots = producers.map(|producer| {
+                machine.add_upper_bound(
+                    source,
+                    current_upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Constraint(producer),
+                );
+                machine.bounds.root_claim_by_producer_constraint[&producer]
+            });
+            let upper_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == source
+                        && record.endpoint() == BoundEndpoint::Upper(current_upper))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the duplicate routes share one materialization record");
+            let provenance = producers.map(|producer| {
+                machine.intern_row_derivation(
+                    RowDerivationRule::UnweightedReduction,
+                    vec![RowDerivationParent::Constraint(producer)],
+                    Vec::new(),
+                )
+            });
+            let mut states = [UnweightedRowReductionRecordId(u32::MAX); 2];
+            for index in order {
+                let (state, registered_root) = machine.register_unweighted_row_reduction_for_test(
+                    UnweightedRowReductionRecord {
+                        source,
+                        producer_constraint: Some(producers[index]),
+                        original_items: vec![matched_upper],
+                        original_tail: current_upper,
+                        original_upper,
+                        consumed_items: Vec::new(),
+                        remaining_items: vec![matched_upper],
+                        current_reduced_upper: UnweightedRowReductionMaterialization {
+                            endpoint: current_upper,
+                            record: upper_record,
+                        },
+                        processed_lower_records: FxHashSet::default(),
+                        provenance_head: provenance[index],
+                    },
+                );
+                states[index] = state;
+                assert_eq!(registered_root, Some(roots[index]));
+            }
+
+            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+            let lower = machine.alloc_pos(Pos::Con(
+                vec!["cpk-7-dedup-matched".into()],
+                Vec::new(),
+            ));
+            machine.add_lower_bound(
+                source,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            );
+
+            let observation = machine.proof_store.replay_route_observations.borrow()
+                [routes_before..]
+                .iter()
+                .find(|observation| observation.upper == upper_record)
+                .cloned()
+                .expect("the natural lower event reaches the duplicate route group");
+            assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
+            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+            let incremental = &observation.shadow_prepared.proof_event.incremental_replays;
+            assert_eq!(incremental.len(), 1);
+            assert_eq!(incremental[0].route.upper, original_upper);
+            assert_eq!(incremental[0].route.upper_record, upper_record);
+            assert_eq!(incremental[0].route.claim, Some(roots[order[0]]));
+            assert_ne!(
+                machine.bounds.record(upper_record).unwrap().endpoint(),
+                BoundEndpoint::Upper(original_upper),
+                "the exact-key dedup also covers the matched decoupled route shape",
+            );
+
+            let result = machine
+                .constraint_record_id(lower, ConstraintWeights::empty(), original_upper)
+                .expect("the first-seen semantic action is admitted once");
+            let merged = &machine.constraint_records[result.0 as usize].row_derivations;
+            for state in states {
+                let successor = machine.unweighted_row_reduction_records[state.0 as usize]
+                    .provenance_head;
+                assert!(
+                    merged.contains(&successor),
+                    "deduping semantic work must not drop either row-provenance merge",
+                );
+            }
+            assert_eq!(
+                machine
+                    .proof_store
+                    .replay_event_observations
+                    .borrow()
+                    .last()
+                    .expect("the natural event records exact work counts")
+                    .legacy_input_count,
+                1,
+            );
+        };
+
+        run([0, 1]);
+        run([1, 0]);
+    }
+
+    #[test]
     fn cpk_7_shadow_claim_move_keeps_decoupled_incremental_route() {
         let mut fixture = cpk_7_two_stage_row_claim_move_fixture();
         let observation = cpk_7_run_second_row_stage(&mut fixture);
