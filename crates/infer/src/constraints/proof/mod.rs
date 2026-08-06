@@ -3621,8 +3621,33 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_mixed_claim_fixture_matches_all_four_legacy_consumers_exactly() {
-        let (machine, endpoint, owner, _) =
+        let (mut machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let mixed_record = machine
+            .bounds()
+            .of(owner)
+            .expect("fixture owner")
+            .generalized_projection_lowers()
+            .find_map(|(record, bound)| {
+                matches!(machine.types().pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                    .then_some(record)
+            })
+            .expect("mixed fixture target record");
+        let independent = ProjectionProofCarrier::Incomplete;
+        let independent_support = SchemeProjectionProofSupport::Independent(independent);
+        let mutation = machine
+            .bounds
+            .update_scheme_projection_proofs(mixed_record, &[], &[independent]);
+        machine.apply_scheme_projection_mutation(mutation);
+        machine.register_cpk_projection_clause_for_test(
+            mixed_record,
+            RecordProofClauseLinkAdmission::independent(
+                independent_support,
+                RecordProofClause::Standalone {
+                    support: independent_support,
+                },
+            ),
+        );
         let raw_records = machine
             .bounds()
             .of(owner)
@@ -3705,6 +3730,8 @@ mod tests {
             *uncovered_claims,
         );
         assert_eq!(supports.independent_supports, *independent_supports);
+        assert!(!supports.uncovered_claims.is_empty());
+        assert_eq!(supports.independent_supports, vec![independent]);
         assert!(supports
             .uncovered_claims
             .windows(2)
@@ -3767,6 +3794,82 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(actual, expected_parents, "exact witness parent order for {role:?}");
         }
+    }
+
+    #[test]
+    fn cpk_gap_1_replay_conjunction_matches_all_four_legacy_consumers() {
+        let mut included = cpk_oracle_machine();
+        let included_record = cpk_gap_1_projection_record(&mut included, 25);
+        let included_owner = included.bounds.record(included_record).unwrap().owner();
+        let lower = cpk_gap_1_projection_record(&mut included, 26);
+        let upper = cpk_gap_1_projection_record(&mut included, 27);
+        let carrier = ProjectionProofCarrier::Incomplete;
+        let support = cpk_4_add_independent_support(&mut included, included_record, carrier);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(50_025),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        included.register_cpk_projection_clause_for_test(
+            included_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: lower,
+                    upper_premise: upper,
+                },
+            ),
+        );
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &included,
+            included_owner,
+            included_record,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            },
+        );
+
+        let mut excluded = cpk_oracle_machine();
+        let excluded_record = cpk_gap_1_projection_record(&mut excluded, 28);
+        let excluded_owner = excluded.bounds.record(excluded_record).unwrap().owner();
+        let other = cpk_gap_1_projection_record(&mut excluded, 29);
+        let support = cpk_4_add_independent_support(&mut excluded, excluded_record, carrier);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(50_028),
+            lower: excluded_record,
+            upper: other,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        excluded.register_cpk_projection_clause_for_test(
+            excluded_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: excluded_record,
+                    upper_premise: other,
+                },
+            ),
+        );
+        let mut round = ProjectionEvaluationRound::new();
+        assert_eq!(
+            excluded
+                .proof_store
+                .project_lower(&excluded, excluded_record, &mut round),
+            Ok(ProjectionDecision::Excluded),
+        );
+        assert_eq!(round.cycle_cuts(), 1);
+        assert_single_lower_matches_all_four_legacy_consumers(
+            &excluded,
+            excluded_owner,
+            excluded_record,
+            ProjectionDecision::Excluded,
+        );
     }
 
     fn assert_single_lower_matches_all_four_legacy_consumers(
