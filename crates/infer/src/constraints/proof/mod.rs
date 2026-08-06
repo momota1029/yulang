@@ -3102,12 +3102,15 @@ pub(super) fn finish_replay_routing_shadow(
             .sum();
     let admissions = store.replay_admissions[token.admissions_before..].to_vec();
     let shadow_generated_count = admissions.len();
+    let mut accepted_result_set = FxHashSet::default();
     let accepted_results = admissions
         .iter()
         .filter_map(|admission| {
-            (admission.disposition == ReplayAdmissionDisposition::NewSemantic)
-                .then_some(admission.result)
-                .flatten()
+            let result = admission.result?;
+            let accepted = admission.disposition == ReplayAdmissionDisposition::NewSemantic
+                || (admission.disposition == ReplayAdmissionDisposition::Incomplete
+                    && result.0 as usize >= token.canonical_constraints_before);
+            (accepted && accepted_result_set.insert(result)).then_some(result)
         })
         .collect::<Vec<_>>();
     let shadow_accepted_count = accepted_results.len();
@@ -7329,6 +7332,119 @@ mod tests {
                 && observation.admissions.len() == observation.shadow_generated_count
                 && observation.accepted_results.len() == observation.shadow_accepted_count
         }));
+    }
+
+    #[test]
+    fn cpk_7_shadow_natural_events_expose_replay_disposition_matrix() {
+        const EVIDENCE_CHILD: &str = "YULANG_CPK_7_EVIDENCE_ONLY_DISPOSITION_CHILD";
+        if std::env::var_os(EVIDENCE_CHILD).is_some() {
+            let mut machine = cpk_oracle_machine();
+            let a = machine.alloc_pos(Pos::Var(TypeVar(43_102)));
+            let b_upper = machine.alloc_neg(Neg::Var(TypeVar(43_103)));
+            machine.subtype(a, b_upper, OriginId::unknown_internal());
+            let b = machine.alloc_pos(Pos::Var(TypeVar(43_103)));
+            let c_upper = machine.alloc_neg(Neg::Var(TypeVar(43_104)));
+            machine.subtype(b, c_upper, OriginId::unknown_internal());
+            let dispositions = machine
+                .proof_store
+                .replay_event_observations
+                .borrow()
+                .iter()
+                .flat_map(|observation| observation.admissions.iter())
+                .map(|admission| admission.disposition)
+                .collect::<Vec<_>>();
+            assert!(
+                dispositions.contains(&ReplayAdmissionDisposition::EvidenceOnly),
+                "natural evidence-only replay-event dispositions were {dispositions:?}",
+            );
+            return;
+        }
+
+        let mut dispositions = Vec::new();
+        let mut collect = |machine: &ConstraintMachine| {
+            dispositions.extend(
+                machine
+                    .proof_store
+                    .replay_event_observations
+                    .borrow()
+                    .iter()
+                    .flat_map(|observation| observation.admissions.iter())
+                    .map(|admission| admission.disposition),
+            );
+        };
+
+        collect(&cpk_3_replay_fixture());
+
+        let mut trivial = cpk_oracle_machine();
+        let trivial_owner = TypeVar(43_100);
+        let trivial_upper = trivial.alloc_neg(Neg::Con(vec!["cpk-7-trivial".into()], Vec::new()));
+        trivial.add_upper_bound(
+            trivial_owner,
+            trivial_upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let bottom = trivial.alloc_pos(Pos::Bot);
+        trivial.add_lower_bound(
+            trivial_owner,
+            bottom,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        collect(&trivial);
+
+        let mut incomplete = cpk_oracle_machine();
+        incomplete.set_replay_derivation_budget_for_test(0, usize::MAX);
+        let incomplete_owner = TypeVar(43_101);
+        let incomplete_upper = incomplete.alloc_neg(Neg::Con(
+            vec!["cpk-7-incomplete-upper".into()],
+            Vec::new(),
+        ));
+        incomplete.add_upper_bound(
+            incomplete_owner,
+            incomplete_upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let incomplete_lower = incomplete.alloc_pos(Pos::Con(
+            vec!["cpk-7-incomplete-lower".into()],
+            Vec::new(),
+        ));
+        incomplete.add_lower_bound(
+            incomplete_owner,
+            incomplete_lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        collect(&incomplete);
+
+        let required = [
+            ReplayAdmissionDisposition::CanonicalDuplicate,
+            ReplayAdmissionDisposition::Trivial,
+            ReplayAdmissionDisposition::Incomplete,
+        ];
+        assert!(
+            required.iter().all(|disposition| dispositions.contains(disposition)),
+            "natural replay-event dispositions were {dispositions:?}",
+        );
+
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("the evidence-only child uses this test binary"),
+        )
+        .args([
+            "--exact",
+            "constraints::proof::tests::cpk_7_shadow_natural_events_expose_replay_disposition_matrix",
+            "--nocapture",
+        ])
+        .env(EVIDENCE_CHILD, "1")
+        .env("YULANG_REPLAY_EVIDENCE_ONLY_SKIP", "1")
+        .output()
+        .expect("the isolated evidence-only natural-event test must run");
+        assert!(
+            output.status.success(),
+            "isolated evidence-only natural-event test failed:\n{}",
+            String::from_utf8_lossy(&output.stderr),
+        );
     }
 
     #[test]
