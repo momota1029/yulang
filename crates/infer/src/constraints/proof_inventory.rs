@@ -16,6 +16,12 @@
 // D fixture-construction debt: 0; the CPK-6b/CPK-7 hygiene passes migrated every known
 // oracle-active shortcut to a mirrored admission path.
 //
+// These counts classify lexical writer sites, not every caller of a shared fixture. CPK-8B splits
+// the dual-purpose CDM fixture at an explicit proof-state boundary: CPK-0b/0c use the mirrored
+// variant, while the remaining RCPF/CDM callers retain flat-only behavior through a clearly named
+// Legacy-only variant. Those remaining callers still require an individual §6 purpose audit; the
+// rename in this slice is deliberately not recorded as their completed retirement classification.
+//
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
 //   claim move, register_constraint_upper_replay_claims; readers legacy projection/routing and
@@ -51,6 +57,11 @@ const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usiz
 ];
 
 const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 34;
+
+const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
+    "cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end",
+    "cpk_0c_fixture_matrix_captures_semantic_and_logical_baselines",
+];
 
 const REVIEWED_SOURCES: &[(&str, &str)] = &[
     (
@@ -455,11 +466,12 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
 
 #[test]
 fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
+    let bounds_mutation_tests = include_str!("machine/bounds.rs")
+        .split("mod mutation_tests {")
+        .nth(1)
+        .expect("bounds mutation test module");
     let raw_fixture_sources = [
-        include_str!("machine/bounds.rs")
-            .split("mod mutation_tests {")
-            .nth(1)
-            .expect("bounds mutation test module"),
+        bounds_mutation_tests,
         include_str!("proof/mod.rs")
             .split("mod tests {")
             .nth(1)
@@ -502,6 +514,31 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             }),
         "CPK-8A cannot begin the soak with unremediated fixture-construction debt",
     );
+    assert!(
+        bounds_mutation_tests.contains("fn cpk_mirrored_cdm_replay_claim_fixture()"),
+        "the CPK correctness fixture must keep its explicit mirrored admission boundary",
+    );
+    assert!(
+        bounds_mutation_tests.contains("fn legacy_only_cdm_replay_claim_fixture()"),
+        "historical callers must not silently regain an implicit dual-purpose fixture",
+    );
+    for caller in CPK8_CDM_MIRRORED_FIXTURE_CALLERS {
+        let body = bounds_mutation_tests
+            .split(&format!("fn {caller}"))
+            .nth(1)
+            .unwrap_or_else(|| panic!("CPK mirrored fixture caller moved or disappeared: {caller}"))
+            .split("\n    #[test]")
+            .next()
+            .expect("test body");
+        assert!(
+            body.contains("cpk_mirrored_cdm_replay_claim_fixture()"),
+            "{caller} must construct the raw claim through the explicit CPK mirror variant",
+        );
+        assert!(
+            !body.contains("legacy_only_cdm_replay_claim_fixture"),
+            "{caller} must not fall back to the historical flat-only fixture",
+        );
+    }
 }
 
 #[test]

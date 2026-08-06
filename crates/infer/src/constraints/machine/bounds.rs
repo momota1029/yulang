@@ -7484,7 +7484,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c1_query_facade_reuses_the_occurrence_store_indexes() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -7517,7 +7517,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         assert_eq!(
             fixture
                 .machine
@@ -7563,7 +7563,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let reduction = RowDerivationId(70_000);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -7644,7 +7644,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c1_non_replay_store_preserves_structural_and_reduction_exact_dedup() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let reduction = RowDerivationId(70_002);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -7697,7 +7697,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let reduction = RowDerivationId(70_003);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -7736,7 +7736,7 @@ mod mutation_tests {
         for (replay_first, structural) in
             [(true, true), (false, true), (true, false), (false, false)]
         {
-            let mut fixture = cdm_replay_claim_fixture();
+            let mut fixture = legacy_only_cdm_replay_claim_fixture();
             let (result, root) = (fixture.result, fixture.coverage_root);
             let replay = fixture.replay(ReplayRule::LowerBoundAdded);
             let non_replay = if structural {
@@ -7814,7 +7814,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d3a_0b_winner_failure_follows_legacy_parent_and_route_commit() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let (result, root) = (fixture.result, fixture.coverage_root);
         let dependent = fixture.upper_record;
         fixture
@@ -7852,7 +7852,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles() {
-        let mut fixture = cdm_replay_claim_fixture_with_authority(
+        let mut fixture = legacy_only_cdm_replay_claim_fixture_with_authority(
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed),
         );
         let factored_before = replay_factored_storage_census(&fixture.machine);
@@ -7937,8 +7937,8 @@ mod mutation_tests {
     fn rcpf_d2a_legacy_rollback_split_preserves_immediate_publication_sequence() {
         let authority =
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed);
-        let mut split = cdm_replay_claim_fixture_with_authority(authority);
-        let mut combined = cdm_replay_claim_fixture_with_authority(authority);
+        let mut split = legacy_only_cdm_replay_claim_fixture_with_authority(authority);
+        let mut combined = legacy_only_cdm_replay_claim_fixture_with_authority(authority);
 
         let add_result = |fixture: &mut CdmReplayClaimFixture| {
             let lower = fixture
@@ -8159,7 +8159,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d2c_2c_2b_later_phase_c_failure_discards_whole_event_publication() {
-        let mut fixture = cdm_replay_claim_fixture_with_authority(
+        let mut fixture = legacy_only_cdm_replay_claim_fixture_with_authority(
             ReplayReadAuthority::LegacyRollback(ReplayFactoredShadowFailure::AllocationFailed),
         );
         let lower = fixture
@@ -8292,7 +8292,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d2b_factored_clause_projection_failure_keeps_legacy_links_and_edges() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let parent = ClaimQualifiedParent::ReplayConstraint {
             parent_claim: fixture.parent.claim,
@@ -8450,7 +8450,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d2c_1_phase_b_failure_blocks_materialization_and_event_oracle() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
@@ -8508,7 +8508,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_e2c_a1_read_failure_keeps_legacy_phase_a_before_terminal_stop() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
@@ -8602,7 +8602,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d4_replay_pre_consumer_failure_blocks_phase_c_and_publication() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -8637,7 +8637,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d4_non_replay_pre_consumer_failure_blocks_phase_c_and_publication() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let derivation = RowDerivationId(72_100);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -8674,7 +8674,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_d2c_2a_clause_projection_failure_stops_before_materialization() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
@@ -8719,7 +8719,7 @@ mod mutation_tests {
 
     fn rcpf_c2_replay_inspection_census(root_count: usize) -> (usize, usize, usize) {
         assert!(root_count > 0);
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -8776,7 +8776,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_c2_factored_evaluator_uses_structural_and_reduction_flat_sources() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let reduction = RowDerivationId(70_100);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -8997,7 +8997,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_shadow_exact_relation_matches_legacy_across_extensions_and_carriers() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let first = fixture.replay(ReplayRule::LowerBoundAdded);
         let root = fixture.coverage_root;
         apply_factored_canonical_duplicate_snapshot(
@@ -9253,7 +9253,7 @@ mod mutation_tests {
     #[test]
     fn rcpf_summary_first_witness_tracks_legacy_insertion_order() {
         for alternate_first in [false, true] {
-            let mut fixture = cdm_replay_claim_fixture();
+            let mut fixture = legacy_only_cdm_replay_claim_fixture();
             let replay = fixture.replay(ReplayRule::LowerBoundAdded);
             let root = fixture.coverage_root;
             let endpoint = fixture.machine.constraint_records[fixture.result.0 as usize]
@@ -9315,7 +9315,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -9365,7 +9365,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_clause_projection_excludes_evidence_and_trivial_replays() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         fixture.machine.register_replay_evidence_clause_link(
             fixture.lower_record,
@@ -9474,7 +9474,7 @@ mod mutation_tests {
                 .claim
         }
 
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         assert_eq!(
             fixture
                 .machine
@@ -9706,7 +9706,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_e2b_claimed_attribution_union_mismatch_quarantines_event_oracle() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let original_key = *fixture
             .machine
@@ -9738,7 +9738,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
@@ -9799,7 +9799,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_f_consumer_2_factored_lookup_failure_commits_no_dependency_edges() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let missing = crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX);
         fixture
             .machine
@@ -9837,7 +9837,7 @@ mod mutation_tests {
     #[test]
     fn rcpf_f_consumer_2_legacy_rollback_ignores_factored_occurrence_corruption() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -9926,9 +9926,9 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_event_oracle_is_opt_in_and_shadow_writes_do_not_interfere() {
-        let mut shadow = cdm_replay_claim_fixture();
+        let mut shadow = legacy_only_cdm_replay_claim_fixture();
         let mut legacy =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         shadow.machine.enable_replay_factored_event_oracle();
         let mut epoch_sequence = Vec::new();
 
@@ -10091,7 +10091,7 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_event_oracle_mismatch_is_quarantined_after_legacy_noop() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         fixture.machine.enable_replay_factored_event_oracle();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
@@ -10127,9 +10127,9 @@ mod mutation_tests {
 
     #[test]
     fn rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop() {
-        let mut shadow = cdm_replay_claim_fixture();
+        let mut shadow = legacy_only_cdm_replay_claim_fixture();
         let mut legacy =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let projection_claims_before = shadow
             .machine
             .bounds
@@ -10200,7 +10200,7 @@ mod mutation_tests {
     fn rcpf_c3b_replay_parent_admission_census(parent_count: usize) -> (usize, usize) {
         assert!(parent_count > 0);
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -10405,7 +10405,7 @@ mod mutation_tests {
     #[test]
     fn cdm_a_9_1_current_eager_path_matches_bulk_oracle() {
         let mut current =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = current.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             current
@@ -10421,7 +10421,7 @@ mod mutation_tests {
         );
 
         let mut oracle =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = oracle.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             oracle
@@ -10449,7 +10449,7 @@ mod mutation_tests {
     #[test]
     fn cdm_a_9_4_independent_then_claimed_keeps_both_occurrences() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let independent = fixture.replay(ReplayRule::LowerBoundAdded);
         let bootstrap_claimed = fixture.replay(ReplayRule::UpperBoundAdded);
         assert_eq!(
@@ -10520,7 +10520,7 @@ mod mutation_tests {
     #[test]
     fn cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let first = fixture.replay(ReplayRule::LowerBoundAdded);
         let second = fixture.replay(ReplayRule::UpperBoundAdded);
         assert_eq!(
@@ -10674,7 +10674,7 @@ mod mutation_tests {
     #[test]
     fn cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -10956,7 +10956,7 @@ mod mutation_tests {
 
     #[test]
     fn moved_root_collision_reconstructs_original_full_and_delta_lineage() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -11468,7 +11468,7 @@ mod mutation_tests {
     #[should_panic(expected = "qualified carrier index diverged from claim-parent linear scan")]
     fn cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -11499,7 +11499,7 @@ mod mutation_tests {
     #[test]
     fn cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let source = TypeVar(60);
         let target = TypeVar(61);
         let lower = fixture.machine.alloc_pos(Pos::Var(source));
@@ -11541,7 +11541,7 @@ mod mutation_tests {
     #[test]
     fn cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -11571,7 +11571,7 @@ mod mutation_tests {
     #[test]
     fn cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::UpperBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -11598,7 +11598,7 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_reduction_route_emits_row_carrier_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let derivation = RowDerivationId(40_000);
         fixture.machine.constraint_records[fixture.result.0 as usize]
             .row_derivations
@@ -11626,7 +11626,7 @@ mod mutation_tests {
     #[test]
     fn cdm_d_9_3_structural_admission_emits_structural_carrier_delta() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -11679,7 +11679,7 @@ mod mutation_tests {
 
     #[test]
     fn cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = cpk_mirrored_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -11754,7 +11754,7 @@ mod mutation_tests {
     #[test]
     fn cpk_0c_fixture_matrix_captures_semantic_and_logical_baselines() {
         let mut fixture = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            cdm_replay_claim_fixture()
+            cpk_mirrored_cdm_replay_claim_fixture()
         });
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
@@ -11806,7 +11806,7 @@ mod mutation_tests {
     #[test]
     fn cdm_d_9_3_one_sided_lower_emits_bound_delta() {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let target = TypeVar(63);
         let lower = fixture
             .machine
@@ -11856,7 +11856,7 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_evidence_only_emits_replay_evidence_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let source = TypeVar(64);
         let target = TypeVar(65);
         let lower = fixture.machine.alloc_pos(Pos::Var(source));
@@ -11894,7 +11894,7 @@ mod mutation_tests {
 
     #[test]
     fn cdm_d_9_3_promotion_emits_single_bound_derivation_delta() {
-        let mut fixture = cdm_replay_claim_fixture();
+        let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let source = TypeVar(66);
         let target = TypeVar(67);
         let lower = fixture.machine.alloc_pos(Pos::Var(source));
@@ -11979,7 +11979,7 @@ mod mutation_tests {
 
     fn dpn_linear_registration_census(link_events: usize) -> DpnRegistrationCensus {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let baseline = dpn_registration_census(&fixture.machine);
         let key = fixture.machine.constraint_records[fixture.result.0 as usize]
             .key
@@ -12179,12 +12179,35 @@ mod mutation_tests {
         }
     }
 
-    fn cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
-        cdm_replay_claim_fixture_with_authority(ReplayReadAuthority::Factored)
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum CdmReplayClaimFixtureProofState {
+        CpkMirrored,
+        LegacyOnly,
     }
 
-    fn cdm_replay_claim_fixture_with_authority(
+    fn cpk_mirrored_cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
+        build_cdm_replay_claim_fixture(
+            ReplayReadAuthority::Factored,
+            CdmReplayClaimFixtureProofState::CpkMirrored,
+        )
+    }
+
+    fn legacy_only_cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
+        legacy_only_cdm_replay_claim_fixture_with_authority(ReplayReadAuthority::Factored)
+    }
+
+    fn legacy_only_cdm_replay_claim_fixture_with_authority(
         replay_read_authority: ReplayReadAuthority,
+    ) -> CdmReplayClaimFixture {
+        build_cdm_replay_claim_fixture(
+            replay_read_authority,
+            CdmReplayClaimFixtureProofState::LegacyOnly,
+        )
+    }
+
+    fn build_cdm_replay_claim_fixture(
+        replay_read_authority: ReplayReadAuthority,
+        proof_state: CdmReplayClaimFixtureProofState,
     ) -> CdmReplayClaimFixture {
         let mut machine = ConstraintMachine::new_with_replay_read_authority(replay_read_authority);
         let source = TypeVar(0);
@@ -12214,6 +12237,12 @@ mod mutation_tests {
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
         );
+        if proof_state == CdmReplayClaimFixtureProofState::CpkMirrored {
+            machine
+                .proof_store
+                .record_prepared_upper_claim(&registration.proof_admission);
+            machine.record_original_claim_standalone_link_in_proof_store(&registration);
+        }
         machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         let coverage_root = registration.claim;
 
@@ -12245,7 +12274,7 @@ mod mutation_tests {
 
     fn cdm_carrier_order_snapshot(order: [ReplayRule; 2]) -> CdmCarrierOrderSnapshot {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         for rule in order {
             let replay = fixture.replay(rule);
             assert_eq!(
@@ -12379,7 +12408,7 @@ mod mutation_tests {
 
     fn cdm_linear_materialization_census(link_events: usize) -> CdmMaterializationCensus {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
             fixture
@@ -12437,7 +12466,7 @@ mod mutation_tests {
         link_events: usize,
     ) -> (CdmMaterializationCensus, usize) {
         let mut fixture =
-            cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
+            legacy_only_cdm_replay_claim_fixture_with_authority(legacy_rollback_test_authority());
         let baseline = cdm_materialization_census(&fixture);
         let indexed_baseline = fixture
             .machine
@@ -13741,7 +13770,7 @@ mod mutation_tests {
 
         #[test]
         fn factored_record_lower_projection_includes_direct_and_qualified_roots() {
-            let mut fixture = cdm_replay_claim_fixture();
+            let mut fixture = legacy_only_cdm_replay_claim_fixture();
             let replay = fixture.replay(ReplayRule::LowerBoundAdded);
             assert_eq!(fixture.machine.merge_replay_derivation(fixture.result, replay),
                 ReplayDerivationInsert::Inserted);
