@@ -1356,7 +1356,7 @@ impl ProofOccurrenceStore {
                 operation: ProofOperation::PrepareReplayRoutePreflight,
             })?;
         for route in incremental_routes {
-            self.validate_incremental_route_target(lower, upper, upper_endpoint, route, upper_ids)?;
+            self.validate_incremental_route_target(lower, upper, route, upper_ids)?;
             if let Some(claim) = route.claim {
                 handled_incremental_claims.insert(claim);
             }
@@ -1398,33 +1398,35 @@ impl ProofOccurrenceStore {
             .map_err(|_| ProofFailure::ResourceExhausted {
                 operation: ProofOperation::PrepareReplayRoutePreflight,
             })?;
-        if !requires_generic {
-            for route in incremental_routes {
-                let action_key = (route.upper, route.upper_record);
-                if !seen_incremental_actions.insert(action_key) {
-                    continue;
-                }
-                let upper = match route.claim {
-                    None => PreparedReplayParentBlock::Empty,
-                    Some(claim) => {
-                        let parent = self.resolve_prepared_replay_parent(
-                            lower,
-                            upper,
-                            ReplayClaimParentSide::Upper,
-                            claim,
-                            Some(upper),
-                        )?;
-                        PreparedReplayParentBlock::Shared(Arc::from([parent]))
-                    }
-                };
-                prepared_incremental.push(PreparedIncrementalReplay {
-                    route: *route,
-                    parents: PreparedReplayParentSet {
-                        lower: lower_block.clone(),
-                        upper,
-                    },
-                });
+        for route in incremental_routes {
+            let generic_covers = requires_generic && route.upper == upper_endpoint;
+            if generic_covers {
+                continue;
             }
+            let action_key = (route.upper, route.upper_record);
+            if !seen_incremental_actions.insert(action_key) {
+                continue;
+            }
+            let upper = match route.claim {
+                None => PreparedReplayParentBlock::Empty,
+                Some(claim) => {
+                    let parent = self.resolve_prepared_replay_parent(
+                        lower,
+                        upper,
+                        ReplayClaimParentSide::Upper,
+                        claim,
+                        Some(upper),
+                    )?;
+                    PreparedReplayParentBlock::Shared(Arc::from([parent]))
+                }
+            };
+            prepared_incremental.push(PreparedIncrementalReplay {
+                route: *route,
+                parents: PreparedReplayParentSet {
+                    lower: lower_block.clone(),
+                    upper,
+                },
+            });
         }
 
         let pair_replay = if requires_generic || !pair_upper_entries.is_empty() {
@@ -1590,11 +1592,10 @@ impl ProofOccurrenceStore {
         &self,
         lower: BoundRecordId,
         upper: BoundRecordId,
-        upper_endpoint: NegId,
         route: &IncrementalRouteKey,
         upper_claims: &[UpperReplayClaimId],
     ) -> Result<(), ProofFailure> {
-        if route.upper_record != upper || route.upper != upper_endpoint {
+        if route.upper_record != upper {
             return Err(ProofFailure::ReplayRoutingInvariantViolation {
                 lower,
                 upper,
@@ -1648,10 +1649,7 @@ impl ProofOccurrenceStore {
         prepared: &PreparedReplayRoute,
     ) -> Result<(), ProofFailure> {
         let payload_matches = match prepared.routing {
-            ReplayRouting::Generic => {
-                prepared.proof_event.pair_replay.is_some()
-                    && prepared.proof_event.incremental_replays.is_empty()
-            }
+            ReplayRouting::Generic => prepared.proof_event.pair_replay.is_some(),
             ReplayRouting::IncrementalOnly => {
                 prepared.proof_event.pair_replay.is_some()
                     || !prepared.proof_event.incremental_replays.is_empty()
@@ -4404,6 +4402,93 @@ mod tests {
                 .as_slice()[0]
                 .representative_claim,
             variable_claim,
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_b_keeps_covered_decoupled_route_as_incremental_only() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        fixture.machine.proof_store.record_live_coverage(
+            claim,
+            UnweightedRowReductionRecordId(71_000),
+            true,
+        );
+        let residual_endpoint = fixture.machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-original-upper".into()],
+            Vec::new(),
+        ));
+        let mut route = cpk_7_incremental_route(&fixture, Some(claim));
+        route.upper = residual_endpoint;
+
+        let prepared = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[route],
+            )
+            .expect("a covered decoupled route remains incremental work");
+
+        assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
+        assert!(prepared.proof_event.pair_replay.is_none());
+        assert_eq!(prepared.proof_event.incremental_replays.len(), 1);
+        assert_eq!(prepared.proof_event.incremental_replays[0].route, route);
+        assert_eq!(
+            prepared.proof_event.incremental_replays[0]
+                .parents
+                .upper
+                .as_slice()[0]
+                .representative_claim,
+            claim,
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_b_keeps_uncovered_decoupled_route_beside_generic_pair() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        let residual_endpoint = fixture.machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-original-upper".into()],
+            Vec::new(),
+        ));
+        let mut route = cpk_7_incremental_route(&fixture, Some(claim));
+        route.upper = residual_endpoint;
+
+        let prepared = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[route],
+            )
+            .expect("a generic pair retains decoupled residual incremental work");
+
+        assert_eq!(prepared.routing, ReplayRouting::Generic);
+        assert_eq!(
+            prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .expect("uncovered claim requires generic pair replay")
+                .upper
+                .as_slice()[0]
+                .representative_claim,
+            claim,
+        );
+        assert_eq!(prepared.proof_event.incremental_replays.len(), 1);
+        assert_eq!(prepared.proof_event.incremental_replays[0].route, route);
+        assert_eq!(
+            prepared.proof_event.incremental_replays[0]
+                .parents
+                .upper
+                .as_slice()[0]
+                .representative_claim,
+            claim,
         );
     }
 
