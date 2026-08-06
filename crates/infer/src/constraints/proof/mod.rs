@@ -7453,6 +7453,241 @@ mod tests {
         assert_cpk_5_event_count_parity(&machine.proof_store);
     }
 
+    fn cpk_7_admit_inert_constraint(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+        role: &str,
+    ) -> ConstraintRecordId {
+        let lower = machine.alloc_pos(Pos::Con(
+            vec!["cpk-7-sided-parent".into(), role.into(), ordinal.to_string()],
+            Vec::new(),
+        ));
+        let upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-sided-result".into(), role.into(), ordinal.to_string()],
+            Vec::new(),
+        ));
+        assert!(machine.enqueue_subtype(lower, ConstraintWeights::empty(), upper));
+        let record = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the inert fixture constraint is canonical");
+        assert!(
+            machine.queue.pop_back().is_some(),
+            "the fixture removes only its own pending semantic work",
+        );
+        record
+    }
+
+    fn cpk_7_claimed_result(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+    ) -> (ConstraintRecordId, UpperReplayClaimId) {
+        let producer = cpk_7_admit_inert_constraint(machine, ordinal, "producer");
+        let claim_upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-sided-claim".into(), ordinal.to_string()],
+            Vec::new(),
+        ));
+        machine.add_upper_bound(
+            TypeVar(73_300 + ordinal),
+            claim_upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        );
+        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+
+        let result = cpk_7_admit_inert_constraint(machine, ordinal, "result");
+        let derivation = machine.intern_row_derivation(
+            RowDerivationRule::UnweightedReduction,
+            vec![RowDerivationParent::Constraint(producer)],
+            Vec::new(),
+        );
+        let key = machine.constraint_records[result.0 as usize].key.clone();
+        assert!(!machine.enqueue_row_derived_subtype(
+            key.lower,
+            key.weights,
+            key.upper,
+            derivation,
+        ));
+        machine.register_reduction_route_claim_parent(result, derivation, root);
+        (result, root)
+    }
+
+    fn cpk_7_sided_parent_observation(
+        machine: &ConstraintMachine,
+        routes_before: usize,
+        lower: BoundRecordId,
+    ) -> ShadowReplayRouteObservation {
+        machine.proof_store.replay_route_observations.borrow()[routes_before..]
+            .iter()
+            .find(|observation| observation.lower == lower)
+            .cloned()
+            .expect("the natural frontier event reaches the sided-parent routing oracle")
+    }
+
+    #[test]
+    fn cpk_7_shadow_pair_parents_preserve_lower_only_block() {
+        let mut machine = cpk_oracle_machine();
+        let (result, root) = cpk_7_claimed_result(&mut machine, 0);
+        let owner = TypeVar(73_400);
+        let lower = machine.constraint_records[result.0 as usize].key.lower;
+        machine.add_lower_bound(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(result),
+        );
+        let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
+
+        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-lower-only-upper".into()],
+            Vec::new(),
+        ));
+        machine.add_upper_bound(
+            owner,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        let observation = cpk_7_sided_parent_observation(&machine, routes_before, lower_record);
+        assert_eq!(observation.legacy, ReplayRouting::Generic);
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        let parents = observation
+            .shadow_prepared
+            .proof_event
+            .pair_replay
+            .expect("the no-claim upper still requires generic pair replay");
+        let expected = PreparedReplayParent {
+            side: ReplayClaimParentSide::Lower,
+            coverage_root: root,
+            representative_claim: root,
+            lineage: ProjectionLineage::Original,
+        };
+        assert_eq!(parents.lower.as_slice(), [expected]);
+        assert!(parents.upper.as_slice().is_empty());
+        assert_eq!(parents.iter().copied().collect::<Vec<_>>(), vec![expected]);
+    }
+
+    #[test]
+    fn cpk_7_shadow_pair_parents_preserve_upper_only_block() {
+        let mut machine = cpk_oracle_machine();
+        let owner = TypeVar(73_401);
+        let lower = machine.alloc_pos(Pos::Con(
+            vec!["cpk-7-upper-only-lower".into()],
+            Vec::new(),
+        ));
+        machine.add_lower_bound(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let lower_record = machine
+            .bounds
+            .records
+            .iter()
+            .enumerate()
+            .find_map(|(index, record)| {
+                (record.owner() == owner && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+            })
+            .expect("the lower-only frontier record exists");
+        let producer = cpk_7_admit_inert_constraint(&mut machine, 1, "upper-only");
+
+        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-upper-only-upper".into()],
+            Vec::new(),
+        ));
+        machine.add_upper_bound(
+            owner,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        );
+        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+
+        let observation = cpk_7_sided_parent_observation(&machine, routes_before, lower_record);
+        assert_eq!(observation.legacy, ReplayRouting::Generic);
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        let parents = observation
+            .shadow_prepared
+            .proof_event
+            .pair_replay
+            .expect("the uncovered upper claim requires generic pair replay");
+        let expected = PreparedReplayParent {
+            side: ReplayClaimParentSide::Upper,
+            coverage_root: root,
+            representative_claim: root,
+            lineage: ProjectionLineage::Original,
+        };
+        assert!(parents.lower.as_slice().is_empty());
+        assert_eq!(parents.upper.as_slice(), [expected]);
+        assert_eq!(parents.iter().copied().collect::<Vec<_>>(), vec![expected]);
+    }
+
+    #[test]
+    fn cpk_7_shadow_pair_parents_preserve_lower_then_upper_blocks() {
+        let mut machine = cpk_oracle_machine();
+        let (result, root) = cpk_7_claimed_result(&mut machine, 2);
+        let owner = TypeVar(73_402);
+        let lower = machine.constraint_records[result.0 as usize].key.lower;
+        machine.add_lower_bound(
+            owner,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(result),
+        );
+        let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
+
+        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let upper = machine.alloc_neg(Neg::Con(
+            vec!["cpk-7-mixed-side-upper".into()],
+            Vec::new(),
+        ));
+        machine.add_upper_bound(
+            owner,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(result),
+        );
+
+        let observation = cpk_7_sided_parent_observation(&machine, routes_before, lower_record);
+        assert_eq!(observation.legacy, ReplayRouting::Generic);
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        let parents = observation
+            .shadow_prepared
+            .proof_event
+            .pair_replay
+            .expect("the mixed-side fixture requires generic pair replay");
+        let upper_parent = parents
+            .upper
+            .as_slice()
+            .first()
+            .copied()
+            .expect("the materialized result claim remains an upper parent");
+        assert_eq!(upper_parent.side, ReplayClaimParentSide::Upper);
+        assert_eq!(upper_parent.coverage_root, root);
+        assert_ne!(upper_parent.representative_claim, root);
+        assert_eq!(
+            upper_parent.lineage,
+            ProjectionLineage::ReductionRouteConstraint,
+        );
+        let lower_parent = PreparedReplayParent {
+            side: ReplayClaimParentSide::Lower,
+            coverage_root: upper_parent.coverage_root,
+            representative_claim: upper_parent.representative_claim,
+            lineage: upper_parent.lineage,
+        };
+        assert_eq!(parents.lower.as_slice(), [lower_parent]);
+        assert_eq!(parents.upper.as_slice(), [upper_parent]);
+        assert_eq!(
+            parents.iter().copied().collect::<Vec<_>>(),
+            vec![lower_parent, upper_parent],
+            "the same writer-fixed representative remains distinct across sides, with the complete lower block before the upper block",
+        );
+    }
+
     #[test]
     fn cpk_5_generic_route_matches_legacy_and_counts() {
         let mut fixture = cpk_3_replay_admission_fixture();
