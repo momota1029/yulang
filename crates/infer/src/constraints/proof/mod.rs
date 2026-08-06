@@ -701,23 +701,16 @@ pub(crate) struct PreparedReplayRoute {
     pub(crate) proof_event: PreparedReplayParents,
 }
 
-/// Temporary CPK-5 summary retained until the fallible CPK-7 query replaces it in Slice B.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReplayRoutingShadowDecision {
-    pub(crate) routing: ReplayRouting,
-    pub(crate) lower_parent_roots: FxHashSet<UpperReplayClaimId>,
-    pub(crate) upper_parent_roots: FxHashSet<UpperReplayClaimId>,
-}
-
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ReplayRoutingShadowToken {
     routes_before: usize,
     admissions_before: usize,
+    canonical_constraints_before: usize,
 }
 
 #[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ShadowReplayRouteObservation {
     lower: BoundRecordId,
     upper: BoundRecordId,
@@ -725,6 +718,8 @@ struct ShadowReplayRouteObservation {
     shadow: ReplayRouting,
     lower_parent_roots: usize,
     upper_parent_roots: usize,
+    legacy_prepared: PreparedReplayRoute,
+    shadow_prepared: PreparedReplayRoute,
 }
 
 #[cfg(test)]
@@ -740,9 +735,12 @@ struct ShadowReplayEventObservation {
     direction: ShadowReplayDirection,
     legacy_input_count: usize,
     shadow_input_count: usize,
+    legacy_generated_count: usize,
+    shadow_generated_count: usize,
     legacy_accepted_count: usize,
     shadow_accepted_count: usize,
     accepted_results: Vec<ConstraintRecordId>,
+    admissions: Vec<ReplayAdmissionEvent>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1782,80 +1780,6 @@ impl ProofOccurrenceStore {
             }
         }
         Ok(())
-    }
-
-    /// Temporary CPK-5 root-only summary retained until Slice C replaces its shadow oracle.
-    pub(super) fn prepare_replay_route_shadow_summary(
-        &self,
-        lower: BoundRecordId,
-        upper: BoundRecordId,
-        lower_is_var: bool,
-        incremental_routes: &[UnweightedRowReductionReplayRoute],
-    ) -> ReplayRoutingShadowDecision {
-        let upper_claims = self
-            .upper_claims
-            .iter()
-            .filter(|claim| claim.current_record == upper)
-            .collect::<Vec<_>>();
-        let covered = |claim: &&UpperClaimOccurrence| {
-            self.live_coverage
-                .iter()
-                .any(|(root, _)| *root == claim.coverage_root)
-        };
-        let requires_generic =
-            upper_claims.is_empty() || upper_claims.iter().any(|claim| !covered(claim));
-        let uncovered_upper_roots = upper_claims
-            .iter()
-            .filter(|claim| !covered(claim))
-            .map(|claim| claim.coverage_root)
-            .collect::<FxHashSet<_>>();
-        let fallback_covered_roots = if lower_is_var {
-            upper_claims
-                .iter()
-                .filter(|claim| covered(claim))
-                .filter(|claim| {
-                    !incremental_routes.iter().any(|route| {
-                        route.upper_record == upper && route.claim == Some(claim.claim)
-                    })
-                })
-                .map(|claim| claim.coverage_root)
-                .collect::<FxHashSet<_>>()
-        } else {
-            FxHashSet::default()
-        };
-        let has_incremental_route = incremental_routes
-            .iter()
-            .any(|route| route.upper_record == upper);
-        let routing = if requires_generic {
-            ReplayRouting::Generic
-        } else if has_incremental_route || !fallback_covered_roots.is_empty() {
-            ReplayRouting::IncrementalOnly
-        } else {
-            ReplayRouting::SkipAlreadyCovered
-        };
-        let lower_parent_roots = self
-            .projection_supports
-            .get(&lower)
-            .into_iter()
-            .flatten()
-            .filter_map(|support| match support {
-                SchemeProjectionProofSupport::Claimed(claim) => self
-                    .upper_claims
-                    .iter()
-                    .find(|candidate| candidate.claim == *claim)
-                    .map(|claim| claim.coverage_root),
-                SchemeProjectionProofSupport::Independent(_) => None,
-            })
-            .collect();
-        let upper_parent_roots = uncovered_upper_roots
-            .union(&fallback_covered_roots)
-            .copied()
-            .collect();
-        ReplayRoutingShadowDecision {
-            routing,
-            lower_parent_roots,
-            upper_parent_roots,
-        }
     }
 
     pub(crate) fn project_lower<'a>(
@@ -2953,6 +2877,7 @@ pub(super) fn begin_replay_routing_shadow(
             .borrow()
             .len(),
         admissions_before: machine.proof_store.replay_admissions.len(),
+        canonical_constraints_before: machine.canonical_constraints.len(),
     })
 }
 
@@ -2961,27 +2886,39 @@ pub(super) fn compare_replay_route_shadow(
     machine: &ConstraintMachine,
     lower: BoundRecordId,
     upper: BoundRecordId,
-    lower_is_var: bool,
     incremental_routes: &[UnweightedRowReductionReplayRoute],
     legacy_requires_generic: bool,
     legacy_pair_replay: bool,
+    legacy_pair_parents: &[SideTaggedReplayClaim],
 ) {
     if !machine.cpk_proof_oracle_active {
         return;
     }
     let snapshot = &machine.proof_store;
-    if machine.bounds.upper_replay_claims.len() != snapshot.upper_claims.len()
-        || (machine
+    assert_eq!(
+        machine.bounds.upper_replay_claims.len(),
+        snapshot.upper_claims.len(),
+        "CPK-7 upper-claim mirror census diverged",
+    );
+    assert_eq!(
+        machine
             .bounds
             .projection_proofs_by_lower_record
-            .contains_key(&lower)
-            && !snapshot.projection_supports.contains_key(&lower))
-    {
-        return;
-    }
-    let has_incremental_route = incremental_routes
+            .contains_key(&lower),
+        snapshot.projection_supports.contains_key(&lower),
+        "CPK-7 lower projection mirror census diverged",
+    );
+    let incremental_routes = incremental_routes
         .iter()
-        .any(|route| route.upper_record == upper);
+        .filter(|route| route.upper_record == upper)
+        .map(|route| IncrementalRouteKey {
+            upper: route.upper,
+            upper_record: route.upper_record,
+            provenance: route.provenance,
+            claim: route.claim,
+        })
+        .collect::<Vec<_>>();
+    let has_incremental_route = !incremental_routes.is_empty();
     let legacy = if legacy_requires_generic {
         ReplayRouting::Generic
     } else if legacy_pair_replay || has_incremental_route {
@@ -2990,13 +2927,22 @@ pub(super) fn compare_replay_route_shadow(
         ReplayRouting::SkipAlreadyCovered
     };
 
-    let prepared = snapshot.prepare_replay_route_shadow_summary(
+    let prepared = snapshot
+        .prepare_replay_route(machine, lower, upper, &incremental_routes)
+        .expect("CPK-7 replay routing shadow preflight failed");
+    let legacy_prepared = legacy_prepared_replay_route(
+        machine,
         lower,
         upper,
-        lower_is_var,
-        incremental_routes,
+        legacy,
+        legacy_pair_replay,
+        legacy_pair_parents,
+        &incremental_routes,
     );
-    assert_eq!(prepared.routing, legacy, "CPK-5 replay routing diverged");
+    assert_eq!(
+        prepared, legacy_prepared,
+        "CPK-7 exact replay routing plan diverged",
+    );
     snapshot
         .replay_route_observations
         .borrow_mut()
@@ -3005,9 +2951,118 @@ pub(super) fn compare_replay_route_shadow(
             upper,
             legacy,
             shadow: prepared.routing,
-            lower_parent_roots: prepared.lower_parent_roots.len(),
-            upper_parent_roots: prepared.upper_parent_roots.len(),
+            lower_parent_roots: prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .map_or(0, |parents| parents.lower.as_slice().len()),
+            upper_parent_roots: prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .map_or(0, |parents| parents.upper.as_slice().len()),
+            legacy_prepared,
+            shadow_prepared: prepared,
         });
+}
+
+#[cfg(test)]
+fn legacy_prepared_replay_route(
+    machine: &ConstraintMachine,
+    lower_record: BoundRecordId,
+    upper: BoundRecordId,
+    routing: ReplayRouting,
+    pair_replay: bool,
+    pair_parents: &[SideTaggedReplayClaim],
+    incremental_routes: &[IncrementalRouteKey],
+) -> PreparedReplayRoute {
+    let canonicalize = |parents: &[SideTaggedReplayClaim]| {
+        let mut parents = parents
+            .iter()
+            .map(|parent| {
+                let claim = &machine.bounds.upper_replay_claims[parent.claim.0 as usize];
+                assert_eq!(claim.id, parent.claim, "Legacy replay parent claim is dangling");
+                PreparedReplayParent {
+                    side: parent.parent_side,
+                    coverage_root: claim.coverage_root,
+                    representative_claim: parent.claim,
+                    lineage: projection_lineage(claim.lineage),
+                }
+            })
+            .collect::<Vec<_>>();
+        parents.sort_by_key(|parent| {
+            (
+                match parent.side {
+                    ReplayClaimParentSide::Lower => 0,
+                    ReplayClaimParentSide::Upper => 1,
+                },
+                parent.coverage_root,
+                parent.representative_claim,
+            )
+        });
+        for pair in parents.windows(2) {
+            assert!(
+                pair[0].side != pair[1].side
+                    || pair[0].coverage_root != pair[1].coverage_root,
+                "Legacy replay parent relation contains a duplicate side/root",
+            );
+        }
+        PreparedReplayParentSet {
+            lower: prepared_parent_block_from_entries(
+                parents
+                    .iter()
+                    .copied()
+                    .filter(|parent| parent.side == ReplayClaimParentSide::Lower)
+                    .collect(),
+            ),
+            upper: prepared_parent_block_from_entries(
+                parents
+                    .into_iter()
+                    .filter(|parent| parent.side == ReplayClaimParentSide::Upper)
+                    .collect(),
+            ),
+        }
+    };
+    let canonical_pair = canonicalize(pair_parents);
+    let lower_block = canonical_pair.lower.clone();
+    let mut seen = FxHashSet::default();
+    let incremental_replays = if routing == ReplayRouting::Generic {
+        Vec::new()
+    } else {
+        incremental_routes
+            .iter()
+            .copied()
+            .filter(|route| seen.insert((route.upper, route.upper_record)))
+            .map(|route| {
+                let upper = route.claim.map_or(PreparedReplayParentBlock::Empty, |claim| {
+                    canonicalize(&[SideTaggedReplayClaim {
+                        claim,
+                        parent_side: ReplayClaimParentSide::Upper,
+                    }])
+                    .upper
+                });
+                PreparedIncrementalReplay {
+                    route,
+                    parents: PreparedReplayParentSet {
+                        lower: lower_block.clone(),
+                        upper,
+                    },
+                }
+            })
+            .collect()
+    };
+    let prepared = PreparedReplayRoute {
+        routing,
+        proof_event: PreparedReplayParents {
+            pair_replay: pair_replay.then_some(canonical_pair),
+            incremental_replays,
+        },
+    };
+    machine
+        .proof_store
+        .validate_prepared_replay_route(lower_record, upper, &prepared)
+        .unwrap_or_else(|failure| panic!("Legacy replay routing plan is invalid: {failure:?}"));
+    prepared
 }
 
 #[cfg(test)]
@@ -3016,6 +3071,7 @@ pub(super) fn finish_replay_routing_shadow(
     token: Option<ReplayRoutingShadowToken>,
     direction: BoundDirection,
     legacy_input_count: usize,
+    legacy_generated_count: usize,
     legacy_accepted_count: usize,
 ) {
     let Some(token) = token else {
@@ -3024,11 +3080,18 @@ pub(super) fn finish_replay_routing_shadow(
     let store = &machine.proof_store;
     let shadow_input_count = store.replay_route_observations.borrow()[token.routes_before..]
             .iter()
-            .filter(|observation| {
-                observation.shadow != ReplayRouting::SkipAlreadyCovered
+            .map(|observation| {
+                usize::from(observation.shadow_prepared.proof_event.pair_replay.is_some())
+                    + observation
+                        .shadow_prepared
+                        .proof_event
+                        .incremental_replays
+                        .len()
             })
-            .count();
-    let accepted_results = store.replay_admissions[token.admissions_before..]
+            .sum();
+    let admissions = store.replay_admissions[token.admissions_before..].to_vec();
+    let shadow_generated_count = admissions.len();
+    let accepted_results = admissions
         .iter()
         .filter_map(|admission| {
             (admission.disposition == ReplayAdmissionDisposition::NewSemantic)
@@ -3037,19 +3100,29 @@ pub(super) fn finish_replay_routing_shadow(
         })
         .collect::<Vec<_>>();
     let shadow_accepted_count = accepted_results.len();
-    assert!(accepted_results.iter().all(|result| {
-            store
-                .replay_finite_map
-                .iter()
-                .any(|occurrence| occurrence.result == *result)
-        }), "CPK-5 accepted replay result is missing from the shadow finite map");
+    assert_eq!(
+        shadow_generated_count, legacy_generated_count,
+        "CPK-7 replay generated-work count diverged",
+    );
+    assert!(
+        accepted_results.iter().all(|result| machine
+            .constraint_records
+            .get(result.0 as usize)
+            .is_some()),
+        "CPK-7 accepted replay result is missing from semantic constraint storage",
+    );
     assert_eq!(
         shadow_input_count, legacy_input_count,
-        "CPK-5 replay input count diverged",
+        "CPK-7 replay input count diverged",
     );
     assert_eq!(
         shadow_accepted_count, legacy_accepted_count,
-        "CPK-5 replay accepted count diverged",
+        "CPK-7 replay accepted count diverged",
+    );
+    assert_eq!(
+        machine.canonical_constraints.len() - token.canonical_constraints_before,
+        shadow_accepted_count,
+        "CPK-7 accepted replay results diverged from canonical constraint growth",
     );
     store
         .replay_event_observations
@@ -3061,9 +3134,12 @@ pub(super) fn finish_replay_routing_shadow(
             },
             legacy_input_count,
             shadow_input_count,
+            legacy_generated_count,
+            shadow_generated_count,
             legacy_accepted_count,
             shadow_accepted_count,
             accepted_results,
+            admissions,
         });
 }
 
@@ -6702,8 +6778,69 @@ mod tests {
             .iter()
             .all(|observation| {
             observation.legacy_input_count == observation.shadow_input_count
+                && observation.legacy_generated_count == observation.shadow_generated_count
                 && observation.legacy_accepted_count == observation.shadow_accepted_count
+                && observation.admissions.len() == observation.shadow_generated_count
+                && observation.accepted_results.len() == observation.shadow_accepted_count
         }));
+    }
+
+    #[test]
+    fn cpk_7_shadow_no_claim_generic_preserves_some_empty_in_both_directions() {
+        let run = |lower_first: bool| {
+            let mut machine = cpk_oracle_machine();
+            let owner = TypeVar(43_000 + u32::from(lower_first));
+            let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-empty".into()], Vec::new()));
+            let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-empty".into()], Vec::new()));
+            if lower_first {
+                machine.add_lower_bound(
+                    owner,
+                    lower,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                );
+                machine.add_upper_bound(
+                    owner,
+                    upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                );
+            } else {
+                machine.add_upper_bound(
+                    owner,
+                    upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                );
+                machine.add_lower_bound(
+                    owner,
+                    lower,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                );
+            }
+            let observations = machine.proof_store.replay_route_observations.borrow();
+            let observation = observations
+                .last()
+                .expect("the second frontier insertion must preflight one replay pair");
+            assert_eq!(observation.legacy, ReplayRouting::Generic);
+            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+            let parents = observation
+                .shadow_prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .expect("no-claim Generic retains an explicit empty pair");
+            assert!(parents.lower.as_slice().is_empty());
+            assert!(parents.upper.as_slice().is_empty());
+            assert!(observation
+                .shadow_prepared
+                .proof_event
+                .incremental_replays
+                .is_empty());
+        };
+        run(false);
+        run(true);
     }
 
     #[test]
@@ -6715,6 +6852,7 @@ mod tests {
         assert!(snapshot.replay_route_observations.borrow().iter().any(|observation| {
             observation.legacy == ReplayRouting::Generic
                 && observation.shadow == ReplayRouting::Generic
+                && observation.legacy_prepared == observation.shadow_prepared
         }));
         assert_cpk_5_event_count_parity(&snapshot);
     }
@@ -6739,6 +6877,7 @@ mod tests {
                 observation.upper == parent_record
                     && observation.legacy == expected
                     && observation.shadow == expected
+                    && observation.legacy_prepared == observation.shadow_prepared
             }));
             assert_cpk_5_event_count_parity(&snapshot);
             assert_eq!(
@@ -6805,7 +6944,10 @@ mod tests {
                     .replay_route_observations
                     .borrow()
                     .iter()
-                    .map(|observation| observation.shadow)
+                    .map(|observation| {
+                        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+                        observation.shadow_prepared.clone()
+                    })
                     .collect::<Vec<_>>(),
             );
         }

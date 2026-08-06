@@ -789,6 +789,7 @@ impl ConstraintMachine {
             routing_shadow,
             BoundDirection::Lower,
             replay.input_count,
+            replay.generated,
             replay.stats.accepted,
         );
         self.record_lower_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
@@ -955,6 +956,7 @@ impl ConstraintMachine {
             routing_shadow,
             BoundDirection::Upper,
             replay.input_count,
+            replay.generated,
             replay.stats.accepted,
         );
         self.record_upper_replay_frontier_shadow(frontier_shadow, replay.stats.accepted);
@@ -5120,18 +5122,18 @@ impl ConstraintMachine {
                 let upper_claim_parents =
                     self.upper_record_replay_claim_parents(pos, *record, incremental_routes);
                 let should_replay = requires_generic || !upper_claim_parents.is_empty();
+                let mut claim_parents = lower_claim_parents.clone();
+                claim_parents.extend(upper_claim_parents);
                 #[cfg(test)]
                 proof::compare_replay_route_shadow(
                     self,
                     lower_record,
                     *record,
-                    matches!(self.types.pos(pos), Pos::Var(_)),
                     incremental_routes,
                     requires_generic,
                     should_replay,
+                    &claim_parents,
                 );
-                let mut claim_parents = lower_claim_parents.clone();
-                claim_parents.extend(upper_claim_parents);
                 (*record, (should_replay, claim_parents))
             })
             .collect::<FxHashMap<_, _>>();
@@ -5295,15 +5297,17 @@ impl ConstraintMachine {
             ..BoundReplayPlan::default()
         };
         #[cfg(test)]
-        for (lower_record, lower) in bounds.projection_lower_records() {
+        for (lower_record, _lower) in bounds.projection_lower_records() {
+            let mut claim_parents = self.lower_record_replay_claim_parents(lower_record);
+            claim_parents.extend(self.uncovered_upper_replay_claim_parents(upper_record));
             proof::compare_replay_route_shadow(
                 self,
                 lower_record,
                 upper_record,
-                matches!(self.types.pos(lower.pos), Pos::Var(_)),
                 &[],
                 requires_generic,
                 requires_generic,
+                &claim_parents,
             );
         }
         trace_bound_replay_start("upper", source, replay_input_count);

@@ -94,9 +94,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // three fixture-only mirrors for low-level TypeBounds claim construction. Fixture hygiene
     // adds four reviewed test-only reads while switching those fixtures to mirrored admission.
     // CPK-7 Slice A adds two reviewed test-only reads for index write/move atomicity fixtures;
-    // Slice B adds one reviewed routing fault-fixture read.
+    // Slice B adds one reviewed routing fault-fixture read. Slice C adds one test-only Legacy
+    // normalization read for exact prepared-parent parity; it is not a production authority.
     // None is a new production read authority.
-    ("upper_replay_claims", 102),
+    ("upper_replay_claims", 103),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // Routing authority remains Legacy in both slices.
