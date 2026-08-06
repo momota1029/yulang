@@ -7249,6 +7249,126 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_target_late_frontiers_preserve_exact_routing() {
+        let run = |lower_first: bool| {
+            let mut machine = cpk_oracle_machine();
+            let owner = TypeVar(73_000 + u32::from(lower_first));
+            let lower = machine.alloc_pos(Pos::Con(
+                vec!["cpk-7-target-late-lower".into()],
+                Vec::new(),
+            ));
+            let upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-target-late-upper".into()],
+                Vec::new(),
+            ));
+            let owner_pos = machine.alloc_pos(Pos::Var(owner));
+            let owner_neg = machine.alloc_neg(Neg::Var(owner));
+            let origin = OriginId::unknown_internal();
+
+            if lower_first {
+                machine.subtype(lower, owner_neg, origin);
+            } else {
+                machine.subtype(owner_pos, upper, origin);
+            }
+            let early_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == owner
+                        && record.endpoint()
+                            == if lower_first {
+                                BoundEndpoint::Lower(lower)
+                            } else {
+                                BoundEndpoint::Upper(upper)
+                            })
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the early target frontier record is materialized");
+
+            for offset in 0..16 {
+                let unrelated = TypeVar(73_100 + offset);
+                let unrelated_lower = machine.alloc_pos(Pos::Con(
+                    vec!["cpk-7-target-late-churn".into(), offset.to_string()],
+                    Vec::new(),
+                ));
+                let unrelated_upper = machine.alloc_neg(Neg::Con(
+                    vec!["cpk-7-target-late-churn".into(), offset.to_string()],
+                    Vec::new(),
+                ));
+                let unrelated_pos = machine.alloc_pos(Pos::Var(unrelated));
+                let unrelated_neg = machine.alloc_neg(Neg::Var(unrelated));
+                machine.subtype(unrelated_lower, unrelated_neg, origin);
+                machine.subtype(unrelated_pos, unrelated_upper, origin);
+            }
+
+            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+            if lower_first {
+                machine.subtype(owner_pos, upper, origin);
+            } else {
+                machine.subtype(lower, owner_neg, origin);
+            }
+            let lower_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == owner
+                        && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the target lower record exists after the late insertion");
+            let upper_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == owner
+                        && record.endpoint() == BoundEndpoint::Upper(upper))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the target upper record exists after the late insertion");
+            let late_record = if lower_first {
+                upper_record
+            } else {
+                lower_record
+            };
+            assert!(late_record.0 >= early_record.0 + 32);
+
+            let observations = machine.proof_store.replay_route_observations.borrow();
+            let observation = observations[routes_before..]
+                .iter()
+                .find(|observation| {
+                    observation.lower == lower_record && observation.upper == upper_record
+                })
+                .expect("the late frontier insertion reaches the exact routing oracle");
+            assert_eq!(observation.legacy, ReplayRouting::Generic);
+            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+            let parents = observation
+                .shadow_prepared
+                .proof_event
+                .pair_replay
+                .as_ref()
+                .expect("the uncovered late upper claim requires generic pair replay");
+            assert!(parents.lower.as_slice().is_empty());
+            assert_eq!(parents.upper.as_slice().len(), 1);
+            assert!(observation
+                .shadow_prepared
+                .proof_event
+                .incremental_replays
+                .is_empty());
+            drop(observations);
+            assert_cpk_5_event_count_parity(&machine.proof_store);
+        };
+
+        run(true);
+        run(false);
+    }
+
+    #[test]
     fn cpk_5_generic_route_matches_legacy_and_counts() {
         let mut fixture = cpk_3_replay_admission_fixture();
         cpk_5_trigger_lower_route(&mut fixture, false);
