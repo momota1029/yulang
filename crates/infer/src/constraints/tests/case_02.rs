@@ -2200,10 +2200,18 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let owner = TypeVar(1);
-    let producer = ConstraintRecordId(0);
-    let state = UnweightedRowReductionRecordId(0);
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Var(owner));
+    let origin = OriginId::unknown_internal();
+    assert!(machine.enqueue_root_subtype(
+        lower,
+        ConstraintWeights::empty(),
+        upper,
+        origin,
+    ));
+    let producer = machine
+        .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+        .expect("the claim-link producer is admitted before its bounds are materialized");
     let upper_record = machine
         .bounds
         .add_upper(
@@ -2213,20 +2221,33 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
             BoundDerivation::Constraint(producer),
         )
         .id;
-    let registration = machine.bounds.original_upper_replay_claim(
-        upper_record,
-        producer,
-        UpperReplayClaimKind::Reduced(state),
+    let provenance = machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(producer)],
+        Vec::new(),
     );
+    let (state, root_claim) = machine.register_unweighted_row_reduction_for_test(
+        UnweightedRowReductionRecord {
+            source,
+            producer_constraint: Some(producer),
+            original_items: Vec::new(),
+            original_tail: upper,
+            original_upper: upper,
+            consumed_items: Vec::new(),
+            remaining_items: Vec::new(),
+            current_reduced_upper: UnweightedRowReductionMaterialization {
+                endpoint: upper,
+                record: upper_record,
+            },
+            processed_lower_records: FxHashSet::default(),
+            provenance_head: provenance,
+        },
+    );
+    let claim = root_claim.expect("the admitted reduction owns a live coverage root");
     assert_eq!(
-        registration.scheme_projection_mutation,
-        SchemeProjectionMutation::None,
-        "a claim created before its mirror lower has no projection metadata to mutate"
-    );
-    machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
-    assert!(
-        machine.insert_scheme_projection_live_coverage_state(registration.claim, state),
-        "the root is live before its mirror lower becomes linked"
+        machine.bounds.upper_replay_claims[claim.0 as usize].kind,
+        UpperReplayClaimKind::Reduced(state),
+        "production reduction admission creates the covered claim before its mirror lower"
     );
     let lower_record = machine
         .bounds
@@ -2237,11 +2258,16 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
             BoundDerivation::Constraint(producer),
         )
         .id;
+    let before_link = machine
+        .scheme_projectable_lowers(owner)
+        .find(|candidate| candidate.record == lower_record)
+        .map(|candidate| candidate.reason);
+    assert!(
+        machine.proof_terminal_failure().is_none(),
+        "the well-formed reduction fixture must not fail CPK projection evaluation before linking"
+    );
     assert_eq!(
-        machine
-            .scheme_projectable_lowers(owner)
-            .find(|candidate| candidate.record == lower_record)
-            .map(|candidate| candidate.reason),
+        before_link,
         Some(SchemeProjectableLowerReason::Unclaimed),
         "before linking, the active mirror lower remains projectable"
     );
@@ -2256,7 +2282,7 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
 
     assert_eq!(
         machine.register_constraint_upper_replay_claims(upper_record, Some(producer)),
-        vec![registration.claim],
+        vec![claim],
         "constraint-claim registration reuses the covered canonical claim"
     );
 
@@ -2265,10 +2291,15 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
         .of(owner)
         .expect("mirror lower owner after claim link")
         .epoch();
+    let remains_projectable = machine
+        .scheme_projectable_lowers(owner)
+        .any(|candidate| candidate.record == lower_record);
     assert!(
-        machine
-            .scheme_projectable_lowers(owner)
-            .all(|candidate| candidate.record != lower_record),
+        machine.proof_terminal_failure().is_none(),
+        "claim-link exclusion must be a successful CPK decision, not an empty failed query"
+    );
+    assert!(
+        !remains_projectable,
         "linking the live covered claim changes the record to non-projectable"
     );
     assert!(

@@ -12,7 +12,7 @@
 //
 // A correctness-contract: 6 CPK proof query fixtures with an explicit proof-store mirror.
 // B historical Legacy characterization: 4 explicit LegacyRollback/RCPF parent-draft fixtures.
-// C semantic fixture: 24 local semantic/provenance fixtures that inspect record identity.
+// C semantic fixture: 23 local semantic/provenance fixtures that inspect record identity.
 // D fixture-construction debt: 0; the CPK-6b/CPK-7 hygiene passes migrated every known
 // oracle-active shortcut to a mirrored admission path.
 //
@@ -55,11 +55,11 @@ enum Cpk8RawFixtureWriterClass {
 const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 6),
     (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 4),
-    (Cpk8RawFixtureWriterClass::SemanticFixture, 24),
+    (Cpk8RawFixtureWriterClass::SemanticFixture, 23),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
 
-const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 34;
+const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 33;
 
 const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
     "cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end",
