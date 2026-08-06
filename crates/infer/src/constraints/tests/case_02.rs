@@ -3829,29 +3829,44 @@ fn dpn_b_9_5_late_constraint_route_retriggers_dependent_record() {
     let direct_upper = fixture
         .machine
         .alloc_neg(Neg::Con(vec!["dpn-b-independent-root".into()], Vec::new()));
-    let direct_upper_record = fixture
+    let producer_lower = fixture
         .machine
-        .bounds
-        .add_upper(
-            TypeVar(71),
-            direct_upper,
-            ConstraintWeights::empty(),
-            BoundDerivation::Origin(OriginId::unknown_internal()),
-        )
-        .id;
-    let direct_claim = fixture
+        .alloc_pos(Pos::Con(vec!["dpn-b-route-producer-lower".into()], Vec::new()));
+    let producer_upper = fixture
         .machine
-        .bounds
-        .original_upper_replay_claim(
-            direct_upper_record,
-            ConstraintRecordId(50_000),
-            UpperReplayClaimKind::Direct,
-        )
-        .claim;
-    let route = RowDerivationId(50_000);
-    fixture.machine.constraint_records[parent.0 as usize]
-        .row_derivations
-        .push(route);
+        .alloc_neg(Neg::Con(vec!["dpn-b-route-producer-upper".into()], Vec::new()));
+    fixture.machine.subtype(
+        producer_lower,
+        producer_upper,
+        OriginId::unknown_internal(),
+    );
+    let direct_producer = constraint_record_for_key(
+        &fixture.machine,
+        producer_lower,
+        producer_upper,
+        &ConstraintWeights::empty(),
+    );
+    fixture.machine.add_upper_bound(
+        TypeVar(71),
+        direct_upper,
+        ConstraintWeights::empty(),
+        BoundDerivation::Constraint(direct_producer),
+    );
+    let direct_claim = fixture.machine.bounds.root_claim_by_producer_constraint[&direct_producer];
+    let route = fixture.machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(direct_producer)],
+        Vec::new(),
+    );
+    let parent_key = fixture.machine.constraint_records[parent.0 as usize]
+        .key
+        .clone();
+    assert!(!fixture.machine.enqueue_row_derived_subtype(
+        parent_key.lower,
+        parent_key.weights,
+        parent_key.upper,
+        route,
+    ));
     let epoch_before = fixture
         .machine
         .bounds()

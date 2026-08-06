@@ -12358,13 +12358,18 @@ mod mutation_tests {
                 )).collect::<Vec<_>>();
                 let origins = source_origins.iter().map(|source| source.origin()).collect();
                 let boundaries = source_origins.iter().map(|source| source.boundary()).collect();
+                let row = machine.intern_row_derivation(
+                    RowDerivationRule::UnweightedReduction,
+                    vec![RowDerivationParent::Constraint(producers[1])],
+                    Vec::new(),
+                );
                 Self {
                     machine, result, lower_record, source, target, upper,
                     replay: BinaryReplayDerivation {
                         pivot: target, lower: lower_record, upper: parent_record,
                         rule: ReplayRule::LowerBoundAdded,
                     },
-                    row: RowDerivationId(0), roots, origins, boundaries,
+                    row, roots, origins, boundaries,
                 }
             }
 
@@ -12397,7 +12402,15 @@ mod mutation_tests {
                         );
                     }
                     Event::NonReplay => {
-                        self.machine.constraint_records[self.result.0 as usize].row_derivations.push(self.row);
+                        let key = self.machine.constraint_records[self.result.0 as usize]
+                            .key
+                            .clone();
+                        assert!(!self.machine.enqueue_row_derived_subtype(
+                            key.lower,
+                            key.weights,
+                            key.upper,
+                            self.row,
+                        ));
                         self.machine.register_reduction_route_claim_parent(self.result, self.row, self.roots[1]);
                     }
                     Event::Independent(index) => self.machine.add_lower_bound(
@@ -12554,6 +12567,11 @@ mod mutation_tests {
                 });
                 let parent_upper = machine.bounds.upper_replay_claims[roots[0].0 as usize]
                     .current_record;
+                let rows = producers.map(|producer| machine.intern_row_derivation(
+                    RowDerivationRule::UnweightedReduction,
+                    vec![RowDerivationParent::Constraint(producer)],
+                    Vec::new(),
+                ));
                 let replay_lower = machine.bounds.add_lower(
                     pivot, lower, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
                 ).id;
@@ -12562,7 +12580,7 @@ mod mutation_tests {
                     replay: BinaryReplayDerivation {
                         pivot, lower: replay_lower, upper: parent_upper, rule: ReplayRule::LowerBoundAdded,
                     },
-                    roots, rows: [RowDerivationId(90_000), RowDerivationId(90_001)],
+                    roots, rows,
                     boundaries: sources.map(|source| source.boundary()),
                 }
             }
@@ -12588,7 +12606,15 @@ mod mutation_tests {
 
             fn admit_non_replay(&mut self, index: usize) {
                 let row = self.rows[index];
-                self.machine.constraint_records[self.result.0 as usize].row_derivations.push(row);
+                let key = self.machine.constraint_records[self.result.0 as usize]
+                    .key
+                    .clone();
+                assert!(!self.machine.enqueue_row_derived_subtype(
+                    key.lower,
+                    key.weights,
+                    key.upper,
+                    row,
+                ));
                 self.machine.register_reduction_route_claim_parent(self.result, row, self.roots[index]);
             }
 

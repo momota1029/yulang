@@ -78,8 +78,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("origins", 131),
     ("source_boundaries", 7),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed row-derivation reads.
-    // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers.
-    ("row_derivations", 53),
+    // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers and two
+    // direct row-attachment writes in favor of the reviewed mirrored admission API.
+    ("row_derivations", 51),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
