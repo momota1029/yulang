@@ -3241,7 +3241,7 @@ pub(super) fn record_replay_parent_snapshot_shadow(
     SHADOW_STORE.with(|store| {
         store
             .borrow_mut()
-            .record_replay_parent_snapshot(bounds, result, carrier, parents)
+            .record_legacy_replay_parent_snapshot(bounds, result, carrier, parents)
     });
 }
 
@@ -3259,7 +3259,91 @@ impl ProofOccurrenceStore {
         });
     }
 
-    pub(super) fn record_replay_parent_snapshot(
+    pub(super) fn record_cpk_replay_parent_snapshot(
+        &mut self,
+        result: ConstraintRecordId,
+        carrier: BinaryReplayDerivation,
+        parents: &[SideTaggedReplayClaim],
+    ) {
+        if parents.is_empty() {
+            return;
+        }
+        // Resolve the entire event before mutating the snapshot. Under CPK authority a missing
+        // claim is a writer-order bug, never permission to fall back to the flat claim arena.
+        let parents = parents
+            .iter()
+            .map(|parent| {
+                let claim = self
+                    .upper_claim(parent.claim)
+                    .filter(|claim| claim.claim == parent.claim)
+                    .expect("a CPK replay parent must be admitted before its snapshot");
+                ReplayProofParent {
+                    side: parent.parent_side,
+                    coverage_root: claim.coverage_root,
+                    representative_claim: parent.claim,
+                    lineage: claim.lineage,
+                }
+            })
+            .collect::<Vec<_>>();
+        let key = (result, carrier);
+        let index = self
+            .replay_finite_map_index
+            .get(&key)
+            .copied()
+            .unwrap_or_else(|| {
+                let index = self.replay_finite_map.len();
+                let first_event = self.replay_admissions.len();
+                self.replay_finite_map.push(ReplayProofOccurrence {
+                    result,
+                    carrier,
+                    lower_parents: Vec::new(),
+                    upper_parents: Vec::new(),
+                    first_event,
+                });
+                self.replay_finite_map_index.insert(key, index);
+                index
+            });
+        let mut inserted = false;
+        for parent in parents {
+            let target = match parent.side {
+                ReplayClaimParentSide::Lower => {
+                    &mut self.replay_finite_map[index].lower_parents
+                }
+                ReplayClaimParentSide::Upper => {
+                    &mut self.replay_finite_map[index].upper_parents
+                }
+            };
+            if target
+                .iter()
+                .any(|entry| entry.coverage_root == parent.coverage_root)
+            {
+                continue;
+            }
+            target.push(parent);
+            inserted = true;
+            self.first_replay_witnesses
+                .entry((result, parent.coverage_root))
+                .or_insert(ReplayFirstWitness {
+                    carrier,
+                    side: parent.side,
+                    representative_claim: parent.representative_claim,
+                });
+        }
+        if !inserted {
+            return;
+        }
+        self.record_occurrence(
+            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+            ProofCause::Replay(carrier),
+            vec![
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
+                ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
+            ],
+            ProvenanceCompleteness::Complete,
+        );
+    }
+
+    pub(super) fn record_legacy_replay_parent_snapshot(
         &mut self,
         bounds: &TypeBounds,
         result: ConstraintRecordId,

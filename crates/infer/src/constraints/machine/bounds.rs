@@ -4527,12 +4527,19 @@ impl ConstraintMachine {
             }
             inserted_parents.push(parent);
         }
-        self.proof_store.record_replay_parent_snapshot(
-            &self.bounds,
-            result,
-            replay,
-            &inserted_parents,
-        );
+        match self.proof_read_authority() {
+            proof::ProofReadAuthority::Cpk => self
+                .proof_store
+                .record_cpk_replay_parent_snapshot(result, replay, parents),
+            proof::ProofReadAuthority::LegacyRollback(_) => self
+                .proof_store
+                .record_legacy_replay_parent_snapshot(
+                    &self.bounds,
+                    result,
+                    replay,
+                    &inserted_parents,
+                ),
+        }
         #[cfg(test)]
         proof::record_replay_parent_snapshot_shadow(
             &self.bounds,
