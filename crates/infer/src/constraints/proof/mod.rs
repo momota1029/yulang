@@ -6398,6 +6398,49 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_real_row_route_is_incremental_only_end_to_end() {
+        let mut machine = cpk_3_replay_fixture();
+        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let lower = machine.alloc_pos(Pos::Con(
+            vec!["cpk-7-real-incremental".into()],
+            Vec::new(),
+        ));
+        machine.add_lower_bound(
+            TypeVar(31),
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        let observations = machine.proof_store.replay_route_observations.borrow();
+        let observation = observations[routes_before..]
+            .iter()
+            .find(|observation| {
+                !observation
+                    .shadow_prepared
+                    .proof_event
+                    .incremental_replays
+                    .is_empty()
+            })
+            .expect("the real row-reduction route must reach the CPK routing oracle");
+        assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
+        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        assert!(observation.shadow_prepared.proof_event.pair_replay.is_none());
+        assert_eq!(
+            observation
+                .shadow_prepared
+                .proof_event
+                .incremental_replays
+                .len(),
+            1,
+        );
+        assert!(observation.shadow_prepared.proof_event.incremental_replays[0]
+            .route
+            .claim
+            .is_some());
+    }
+
+    #[test]
     fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
         let mut fixture = cpk_3_replay_admission_fixture();
         let attempted = SubtypeConstraintKey {
