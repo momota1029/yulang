@@ -30,7 +30,8 @@
 //   CPK record_upper_claim/prepare_replay_route mirrors.
 // - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
 //   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
-//   parent drafts/RCPF plus CPK projection-support and routing-parent mirrors.
+//   parent drafts/RCPF. Reduction-route exact admission is owned by the CPK
+//   reduction_route_claim_keys index under CPK authority; LegacyRollback retains the flat gate.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -170,7 +171,9 @@ const REVIEWED_SOURCES: &[(&str, &str)] = &[
 
 // Counts are regenerated only after every changed reference has been reviewed against addendum §2.
 const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
-    ("claim_parents_by_constraint", 66),
+    // CPK-8B adds two test-only reads that deliberately corrupt the Legacy mirror and prove
+    // reduction-route exact dedup remains owned by the CPK index.
+    ("claim_parents_by_constraint", 68),
     ("replay_claim_parent_keys", 11),
     ("qualified_carrier_index", 26),
     ("structural_claim_parent_keys", 2),
@@ -200,7 +203,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers and two
     // direct row-attachment writes in favor of the reviewed mirrored admission API. The CPK-7
     // endpoint correction adds one test-only semantic row-provenance merge assertion.
-    ("row_derivations", 53),
+    // The CPK-owned reduction-route dedup test resolves its exact semantic carrier once.
+    ("row_derivations", 54),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.

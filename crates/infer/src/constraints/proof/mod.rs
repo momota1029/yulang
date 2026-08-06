@@ -898,6 +898,17 @@ pub(super) enum PreparedLiveCoverageTransition {
     },
 }
 
+/// Exact reduction-route parent admission frozen before either proof ledger is mutated.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PreparedReductionRouteAdmission {
+    Unchanged,
+    Changed {
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+        parent_claim: UpperReplayClaimId,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ProofParent {
     Semantic(SemanticFactRef),
@@ -918,6 +929,8 @@ pub(crate) struct ProofOccurrenceStore {
     upper_claim_index: FxHashMap<UpperReplayClaimId, usize>,
     claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
+    reduction_route_claim_keys:
+        FxHashSet<(ConstraintRecordId, RowDerivationId, UpperReplayClaimId)>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     live_states_by_coverage_root:
         FxHashMap<UpperReplayClaimId, FxHashSet<UnweightedRowReductionRecordId>>,
@@ -949,6 +962,7 @@ impl Default for ProofOccurrenceStore {
             upper_claim_index: FxHashMap::default(),
             claims_by_upper_record: FxHashMap::default(),
             row_reductions: Vec::new(),
+            reduction_route_claim_keys: FxHashSet::default(),
             live_coverage: FxHashSet::default(),
             live_states_by_coverage_root: FxHashMap::default(),
             replay_coverage_connected: true,
@@ -3537,12 +3551,41 @@ impl ProofOccurrenceStore {
         transition
     }
 
-    pub(super) fn record_reduction_route(
-        &mut self,
+    pub(super) fn prepare_cpk_reduction_route_admission(
+        &self,
         result: ConstraintRecordId,
         derivation: RowDerivationId,
         parent_claim: UpperReplayClaimId,
+    ) -> PreparedReductionRouteAdmission {
+        self.upper_claim(parent_claim)
+            .filter(|claim| claim.claim == parent_claim)
+            .expect("a CPK reduction-route parent claim must be admitted before its route");
+        if self
+            .reduction_route_claim_keys
+            .contains(&(result, derivation, parent_claim))
+        {
+            return PreparedReductionRouteAdmission::Unchanged;
+        }
+        prepare_reduction_route_admission(result, derivation, parent_claim)
+    }
+
+    pub(super) fn record_prepared_reduction_route(
+        &mut self,
+        admission: PreparedReductionRouteAdmission,
     ) {
+        let PreparedReductionRouteAdmission::Changed {
+            result,
+            derivation,
+            parent_claim,
+        } = admission
+        else {
+            return;
+        };
+        assert!(
+            self.reduction_route_claim_keys
+                .insert((result, derivation, parent_claim)),
+            "one prepared reduction-route parent was committed twice",
+        );
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::ReductionRoute {
@@ -3554,6 +3597,18 @@ impl ProofOccurrenceStore {
             ))],
             ProvenanceCompleteness::Complete,
         );
+    }
+}
+
+pub(super) fn prepare_reduction_route_admission(
+    result: ConstraintRecordId,
+    derivation: RowDerivationId,
+    parent_claim: UpperReplayClaimId,
+) -> PreparedReductionRouteAdmission {
+    PreparedReductionRouteAdmission::Changed {
+        result,
+        derivation,
+        parent_claim,
     }
 }
 
@@ -3616,7 +3671,11 @@ pub(super) fn record_reduction_route_shadow(
     SHADOW_STORE.with(|store| {
         store
             .borrow_mut()
-            .record_reduction_route(result, derivation, parent_claim)
+            .record_prepared_reduction_route(prepare_reduction_route_admission(
+                result,
+                derivation,
+                parent_claim,
+            ))
     });
 }
 
@@ -8201,6 +8260,47 @@ mod tests {
         ));
         machine.register_reduction_route_claim_parent(result, derivation, root);
         (result, root)
+    }
+
+    #[test]
+    fn cpk_8b_reduction_route_dedup_is_owned_by_the_cpk_index() {
+        let mut machine = cpk_oracle_machine();
+        let (result, root) = cpk_7_claimed_result(&mut machine, 80_000);
+        let derivation = machine.constraint_records[result.0 as usize].row_derivations[0];
+        let occurrence_count = |machine: &ConstraintMachine| {
+            machine
+                .proof_store
+                .occurrences
+                .iter()
+                .filter(|occurrence| {
+                    occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                        && occurrence.cause
+                            == (ProofCause::ReductionRoute {
+                                derivation,
+                                parent_claim: root,
+                            })
+                })
+                .count()
+        };
+        assert_eq!(occurrence_count(&machine), 1);
+
+        machine
+            .bounds
+            .claim_parents_by_constraint
+            .get_mut(&result)
+            .expect("the first route wrote the Legacy mirror")
+            .clear();
+        machine.register_reduction_route_claim_parent(result, derivation, root);
+
+        assert_eq!(
+            occurrence_count(&machine),
+            1,
+            "CPK exact dedup must not depend on the corrupted Legacy mirror",
+        );
+        assert!(
+            machine.bounds.claim_parents_by_constraint[&result].is_empty(),
+            "a CPK duplicate must return before rewriting the Legacy mirror",
+        );
     }
 
     fn cpk_7_sided_parent_observation(

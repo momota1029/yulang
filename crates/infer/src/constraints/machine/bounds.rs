@@ -4888,12 +4888,23 @@ impl ConstraintMachine {
             parent_claim: claim,
             derivation,
         };
-        if self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&result)
-            .is_some_and(|entries| entries.contains(&parent))
-        {
+        let proof_admission = match self.proof_read_authority() {
+            proof::ProofReadAuthority::Cpk => self
+                .proof_store
+                .prepare_cpk_reduction_route_admission(result, derivation, claim),
+            proof::ProofReadAuthority::LegacyRollback(_) => {
+                if self
+                    .bounds
+                    .claim_parents_by_constraint
+                    .get(&result)
+                    .is_some_and(|entries| entries.contains(&parent))
+                {
+                    return;
+                }
+                proof::prepare_reduction_route_admission(result, derivation, claim)
+            }
+        };
+        if proof_admission == proof::PreparedReductionRouteAdmission::Unchanged {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
@@ -4905,7 +4916,7 @@ impl ConstraintMachine {
             Some(carrier),
         );
         self.proof_store
-            .record_reduction_route(result, derivation, claim);
+            .record_prepared_reduction_route(proof_admission);
         #[cfg(test)]
         proof::record_reduction_route_shadow(result, derivation, claim);
         if self.replay_factored_terminal_failure().is_some() {
