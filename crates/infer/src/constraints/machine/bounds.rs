@@ -12209,7 +12209,17 @@ mod mutation_tests {
         replay_read_authority: ReplayReadAuthority,
         proof_state: CdmReplayClaimFixtureProofState,
     ) -> CdmReplayClaimFixture {
-        let mut machine = ConstraintMachine::new_with_replay_read_authority(replay_read_authority);
+        let mut machine = match proof_state {
+            CdmReplayClaimFixtureProofState::CpkMirrored => {
+                ConstraintMachine::new_with_replay_read_authority(replay_read_authority)
+            }
+            CdmReplayClaimFixtureProofState::LegacyOnly => {
+                ConstraintMachine::new_with_read_authorities(
+                    replay_read_authority,
+                    legacy_rollback_proof_authority(),
+                )
+            }
+        };
         let source = TypeVar(0);
         let target = TypeVar(1);
         let parent_source = TypeVar(2);

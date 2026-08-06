@@ -19,8 +19,10 @@
 // These counts classify lexical writer sites, not every caller of a shared fixture. CPK-8B splits
 // the dual-purpose CDM fixture at an explicit proof-state boundary: CPK-0b/0c use the mirrored
 // variant, while the remaining RCPF/CDM callers retain flat-only behavior through a clearly named
-// Legacy-only variant. Those remaining callers still require an individual §6 purpose audit; the
-// rename in this slice is deliberately not recorded as their completed retirement classification.
+// Legacy-only variant. The follow-up caller audit classifies all 50 remaining purposes as B:
+// RCPF/CDM/DPN flat/factored representation, failure, delta, and census characterizations. Their
+// shared constructor now selects ProofReadAuthority::LegacyRollback explicitly; none is a CPK
+// correctness contract, semantic-only fixture, or remaining construction debt.
 //
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
@@ -61,6 +63,66 @@ const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 34;
 const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
     "cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end",
     "cpk_0c_fixture_matrix_captures_semantic_and_logical_baselines",
+];
+
+const CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
+    (Cpk8RawFixtureWriterClass::CorrectnessContract, 2),
+    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 50),
+    (Cpk8RawFixtureWriterClass::SemanticFixture, 0),
+    (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
+];
+
+const CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS: &[&str] = &[
+    "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
+    "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
+    "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
+    "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
+    "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
+    "cdm_carrier_order_snapshot",
+    "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
+    "cdm_d_9_3_one_sided_lower_emits_bound_delta",
+    "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
+    "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
+    "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
+    "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
+    "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
+    "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
+    "cdm_linear_materialization_census",
+    "cdm_linear_qualified_carrier_index_census",
+    "dpn_linear_registration_census",
+    "factored_record_lower_projection_includes_direct_and_qualified_roots",
+    "moved_root_collision_reconstructs_original_full_and_delta_lineage",
+    "rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage",
+    "rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission",
+    "rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records",
+    "rcpf_c1_non_replay_store_preserves_structural_and_reduction_exact_dedup",
+    "rcpf_c1_query_facade_reuses_the_occurrence_store_indexes",
+    "rcpf_c2_factored_evaluator_uses_structural_and_reduction_flat_sources",
+    "rcpf_c2_replay_inspection_census",
+    "rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles",
+    "rcpf_c3b_replay_parent_admission_census",
+    "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
+    "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
+    "rcpf_d2a_legacy_rollback_split_preserves_immediate_publication_sequence",
+    "rcpf_d2b_factored_clause_projection_failure_keeps_legacy_links_and_edges",
+    "rcpf_d2c_1_phase_b_failure_blocks_materialization_and_event_oracle",
+    "rcpf_d2c_2a_clause_projection_failure_stops_before_materialization",
+    "rcpf_d2c_2c_2b_later_phase_c_failure_discards_whole_event_publication",
+    "rcpf_d3a_0b_cross_kind_winner_matches_legacy_for_both_orders_and_kinds",
+    "rcpf_d3a_0b_winner_failure_follows_legacy_parent_and_route_commit",
+    "rcpf_d4_non_replay_pre_consumer_failure_blocks_phase_c_and_publication",
+    "rcpf_d4_replay_pre_consumer_failure_blocks_phase_c_and_publication",
+    "rcpf_e2a_claimed_attribution_matrix_partitions_all_five_sources_at_the_writer",
+    "rcpf_e2b_claimed_attribution_union_mismatch_quarantines_event_oracle",
+    "rcpf_e2c_a1_read_failure_keeps_legacy_phase_a_before_terminal_stop",
+    "rcpf_event_oracle_is_opt_in_and_shadow_writes_do_not_interfere",
+    "rcpf_event_oracle_mismatch_is_quarantined_after_legacy_noop",
+    "rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle",
+    "rcpf_f_consumer_2_factored_lookup_failure_commits_no_dependency_edges",
+    "rcpf_f_consumer_2_legacy_rollback_ignores_factored_occurrence_corruption",
+    "rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop",
+    "rcpf_shadow_exact_relation_matches_legacy_across_extensions_and_carriers",
+    "rcpf_summary_first_witness_tracks_legacy_insertion_order",
 ];
 
 const REVIEWED_SOURCES: &[(&str, &str)] = &[
@@ -539,6 +601,68 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             "{caller} must not fall back to the historical flat-only fixture",
         );
     }
+    assert_eq!(
+        bounds_mutation_tests
+            .matches("cpk_mirrored_cdm_replay_claim_fixture()")
+            .count()
+            - 1, // Function declaration.
+        CPK8_CDM_MIRRORED_FIXTURE_CALLERS.len(),
+        "only the audited A callers may construct the mirrored CDM fixture",
+    );
+    assert_eq!(
+        CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
+        50,
+        "the reviewed CDM Legacy-only purpose list changed; re-audit every caller",
+    );
+    assert_eq!(
+        CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION
+            .iter()
+            .map(|(_, count)| *count)
+            .sum::<usize>(),
+        CPK8_CDM_MIRRORED_FIXTURE_CALLERS.len()
+            + CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
+        "every purpose-split CDM fixture caller must remain classified",
+    );
+    assert!(
+        bounds_mutation_tests
+            .split("fn build_cdm_replay_claim_fixture")
+            .nth(1)
+            .expect("shared CDM fixture builder")
+            .contains("legacy_rollback_proof_authority()"),
+        "the Legacy-only CDM fixture must select ProofReadAuthority::LegacyRollback explicitly",
+    );
+    let legacy_call_sites = bounds_mutation_tests
+        .matches("legacy_only_cdm_replay_claim_fixture()")
+        .count()
+        + bounds_mutation_tests
+            .matches("legacy_only_cdm_replay_claim_fixture_with_authority(")
+            .count()
+        - 3; // Two function declarations and the default wrapper's forwarding call.
+    assert_eq!(
+        legacy_call_sites, 54,
+        "a Legacy-only CDM fixture call site changed; audit its §6 purpose before proceeding",
+    );
+    for caller in CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS {
+        let tail = bounds_mutation_tests
+            .split(&format!("fn {caller}"))
+            .nth(1)
+            .unwrap_or_else(|| panic!("audited Legacy-only fixture caller moved: {caller}"));
+        let top_level_end = tail.find("\n    #[test]").unwrap_or(tail.len());
+        let nested_end = tail.find("\n        #[test]").unwrap_or(tail.len());
+        let body = &tail[..top_level_end.min(nested_end)];
+        assert!(
+            body.contains("legacy_only_cdm_replay_claim_fixture"),
+            "{caller} must remain on the explicit Legacy-only fixture until its B test retires",
+        );
+    }
+    assert!(
+        CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION
+            .iter()
+            .all(|(class, count)| {
+                !matches!(class, Cpk8RawFixtureWriterClass::FixtureConstructionDebt) || *count == 0
+            }),
+        "the audited CDM fixture callers must leave no category-D construction debt",
+    );
 }
 
 #[test]
