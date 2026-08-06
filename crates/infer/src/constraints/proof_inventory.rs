@@ -93,9 +93,12 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-6a adds five reviewed production-store upper-claim writer reads and
     // three fixture-only mirrors for low-level TypeBounds claim construction. Fixture hygiene
     // adds four reviewed test-only reads while switching those fixtures to mirrored admission.
+    // CPK-7 Slice A adds two reviewed test-only reads for index write/move atomicity fixtures.
     // None is a new production read authority.
-    ("upper_replay_claims", 99),
-    ("claims_by_upper_record", 14),
+    ("upper_replay_claims", 101),
+    // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
+    // atomicity/no-global-scan tests. Routing authority remains Legacy in this slice.
+    ("claims_by_upper_record", 23),
     // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
     ("live_coverage_by_root", 10),
     // CPK-3's test-only parity oracle adds one reviewed parent-set read.

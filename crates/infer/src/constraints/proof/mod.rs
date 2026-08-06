@@ -5,6 +5,7 @@
 //! receive replay occurrences, or influence worklist identity and ordering.
 
 use super::*;
+use std::sync::Arc;
 
 /// Projection representation selected once for one `ConstraintMachine` lifetime.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,6 +57,15 @@ pub(crate) enum ProofFactRef {
     RowDerivation(RowDerivationId),
     RowReduction(UnweightedRowReductionRecordId),
     GeneralizedWitness(GeneralizedSchemeWitnessId),
+    ReplayClaims(BoundRecordId),
+    ReplayParent {
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        side: ReplayClaimParentSide,
+        coverage_root: UpperReplayClaimId,
+    },
+    IncrementalReplayRoute(IncrementalRouteKey),
+    LiveCoverage(UpperReplayClaimId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,6 +77,11 @@ pub(crate) enum MandatoryProofField {
     Formula,
     FormulaPremise,
     ExactCarrier,
+    ReplayParentIdentity,
+    ReplayParentSide,
+    ReplayParentLineage,
+    ReplayClaimIndex,
+    IncrementalRouteClaim,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,6 +100,27 @@ pub(crate) enum ProofOperation {
     ProjectLowerPreflight,
     ProjectLowerSupportCollection,
     ProjectLowerEvaluation,
+    PrepareReplayRoutePreflight,
+    PrepareReplayRouteParentCollection,
+    PrepareReplayRouteBatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplayRouteTargetViolation {
+    LowerDirectionOrState,
+    UpperDirectionOrState,
+    OwnerMismatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplayRoutingInvariantViolation {
+    ClaimIndexMismatch,
+    DuplicateParentRoot(ReplayClaimParentSide),
+    RepresentativeRootMismatch,
+    IncrementalUpperMismatch,
+    IncrementalClaimMismatch,
+    DuplicatePreparedIncrementalRoute,
+    RoutingPayloadMismatch,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,6 +150,21 @@ pub(crate) enum ProofFailure {
     ProjectionInvariantViolation {
         record: BoundRecordId,
         kind: ProjectionInvariantViolation,
+    },
+    InvalidReplayRouteTarget {
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        kind: ReplayRouteTargetViolation,
+    },
+    NonCanonicalReplayParentOrder {
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        side: ReplayClaimParentSide,
+    },
+    ReplayRoutingInvariantViolation {
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        kind: ReplayRoutingInvariantViolation,
     },
     ResourceExhausted {
         operation: ProofOperation,
@@ -569,8 +620,74 @@ pub(crate) enum ReplayRouting {
     SkipAlreadyCovered,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct PreparedReplayParent {
+    pub(crate) side: ReplayClaimParentSide,
+    pub(crate) coverage_root: UpperReplayClaimId,
+    pub(crate) representative_claim: UpperReplayClaimId,
+    pub(crate) lineage: ProjectionLineage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) enum PreparedReplayParentBlock {
+    #[default]
+    Empty,
+    Shared(Arc<[PreparedReplayParent]>),
+}
+
+impl PreparedReplayParentBlock {
+    fn as_slice(&self) -> &[PreparedReplayParent] {
+        match self {
+            Self::Empty => &[],
+            Self::Shared(entries) => entries,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct PreparedReplayParentSet {
+    pub(crate) lower: PreparedReplayParentBlock,
+    pub(crate) upper: PreparedReplayParentBlock,
+}
+
+impl PreparedReplayParentSet {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &PreparedReplayParent> {
+        self.lower
+            .as_slice()
+            .iter()
+            .chain(self.upper.as_slice().iter())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct IncrementalRouteKey {
+    pub(crate) upper: NegId,
+    pub(crate) upper_record: BoundRecordId,
+    pub(crate) provenance: RowDerivationId,
+    pub(crate) claim: Option<UpperReplayClaimId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PreparedIncrementalReplay {
+    pub(crate) route: IncrementalRouteKey,
+    pub(crate) parents: PreparedReplayParentSet,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct PreparedReplayParents {
+    pub(crate) pair_replay: Option<PreparedReplayParentSet>,
+    pub(crate) incremental_replays: Vec<PreparedIncrementalReplay>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PreparedReplayRoute {
+    pub(crate) routing: ReplayRouting,
+    pub(crate) proof_event: PreparedReplayParents,
+}
+
+/// Temporary CPK-5 summary retained until the fallible CPK-7 query replaces it in Slice B.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ReplayRoutingShadowDecision {
     pub(crate) routing: ReplayRouting,
     pub(crate) lower_parent_roots: FxHashSet<UpperReplayClaimId>,
     pub(crate) upper_parent_roots: FxHashSet<UpperReplayClaimId>,
@@ -760,11 +877,17 @@ pub(crate) struct ProofOccurrenceStore {
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness>,
     pub(crate) upper_claims: Vec<UpperClaimOccurrence>,
     upper_claim_index: FxHashMap<UpperReplayClaimId, usize>,
+    claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
+    live_states_by_coverage_root:
+        FxHashMap<UpperReplayClaimId, FxHashSet<UnweightedRowReductionRecordId>>,
     pub(crate) replay_coverage_connected: bool,
     projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
+    claimed_parents_by_lower_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
+    #[cfg(test)]
+    replay_index_record_comparisons: Cell<usize>,
     #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
@@ -785,11 +908,16 @@ impl Default for ProofOccurrenceStore {
             first_replay_witnesses: FxHashMap::default(),
             upper_claims: Vec::new(),
             upper_claim_index: FxHashMap::default(),
+            claims_by_upper_record: FxHashMap::default(),
             row_reductions: Vec::new(),
             live_coverage: FxHashSet::default(),
+            live_states_by_coverage_root: FxHashMap::default(),
             replay_coverage_connected: true,
             projection_supports: FxHashMap::default(),
+            claimed_parents_by_lower_record: FxHashMap::default(),
             projection_formulas: FxHashMap::default(),
+            #[cfg(test)]
+            replay_index_record_comparisons: Cell::new(0),
             #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
@@ -908,7 +1036,12 @@ pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
 impl ProofOccurrenceStore {
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
         if let Some(index) = self.upper_claim_index.get(&claim.id).copied() {
-            self.upper_claims[index].current_record = claim.current_record;
+            let old_record = self.upper_claims[index].current_record;
+            if old_record != claim.current_record {
+                self.remove_claim_from_upper_record_index(old_record, claim.id);
+                self.upper_claims[index].current_record = claim.current_record;
+                self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
+            }
             return;
         }
         let index = self.upper_claims.len();
@@ -920,6 +1053,7 @@ impl ProofOccurrenceStore {
             current_record: claim.current_record,
         });
         self.upper_claim_index.insert(claim.id, index);
+        self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
     }
 
     pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
@@ -928,7 +1062,70 @@ impl ProofOccurrenceStore {
             .get(&claim.id)
             .copied()
             .expect("a moved upper claim must already exist in the CPK store");
+        let old_record = self.upper_claims[index].current_record;
+        if old_record == claim.current_record {
+            return;
+        }
+        self.remove_claim_from_upper_record_index(old_record, claim.id);
         self.upper_claims[index].current_record = claim.current_record;
+        self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
+    }
+
+    fn insert_claim_into_upper_record_index(
+        &mut self,
+        record: BoundRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        let occurrence_index = self.upper_claim_index[&claim];
+        let incoming_root = self.upper_claims[occurrence_index].coverage_root;
+        let upper_claims = &self.upper_claims;
+        let claim_by_id = &self.upper_claim_index;
+        #[cfg(test)]
+        let comparisons = &self.replay_index_record_comparisons;
+        let claims = self.claims_by_upper_record.entry(record).or_default();
+        match claims.binary_search_by(|existing| {
+            #[cfg(test)]
+            comparisons.set(comparisons.get() + 1);
+            let existing_index = claim_by_id[existing];
+            canonical_upper_claim_key::cmp(
+                upper_claims[existing_index].coverage_root,
+                incoming_root,
+            )
+        }) {
+            Ok(position) => claims[position] = claim,
+            Err(position) => claims.insert(position, claim),
+        }
+    }
+
+    fn remove_claim_from_upper_record_index(
+        &mut self,
+        record: BoundRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        let occurrence_index = self.upper_claim_index[&claim];
+        let root = self.upper_claims[occurrence_index].coverage_root;
+        let upper_claims = &self.upper_claims;
+        let claim_by_id = &self.upper_claim_index;
+        #[cfg(test)]
+        let comparisons = &self.replay_index_record_comparisons;
+        let remove_record_entry = {
+            let Some(claims) = self.claims_by_upper_record.get_mut(&record) else {
+                return;
+            };
+            if let Ok(position) = claims.binary_search_by(|existing| {
+                #[cfg(test)]
+                comparisons.set(comparisons.get() + 1);
+                let existing_index = claim_by_id[existing];
+                canonical_upper_claim_key::cmp(upper_claims[existing_index].coverage_root, root)
+            }) && claims[position] == claim
+            {
+                claims.remove(position);
+            }
+            claims.is_empty()
+        };
+        if remove_record_entry {
+            self.claims_by_upper_record.remove(&record);
+        }
     }
 }
 
@@ -968,6 +1165,19 @@ impl ProofOccurrenceStore {
         lower_record: BoundRecordId,
         proofs: &[SchemeProjectionProof],
     ) {
+        let claimed_parents = proofs
+            .iter()
+            .filter_map(|proof| match proof.support {
+                SchemeProjectionProofSupport::Claimed(claim) => Some(claim),
+                SchemeProjectionProofSupport::Independent(_) => None,
+            })
+            .collect::<Vec<_>>();
+        if claimed_parents.is_empty() {
+            self.claimed_parents_by_lower_record.remove(&lower_record);
+        } else {
+            self.claimed_parents_by_lower_record
+                .insert(lower_record, claimed_parents);
+        }
         self.projection_supports.insert(
             lower_record,
             proofs.iter().map(|proof| proof.support).collect(),
@@ -1053,7 +1263,7 @@ impl ProofOccurrenceStore {
         upper: BoundRecordId,
         lower_is_var: bool,
         incremental_routes: &[UnweightedRowReductionReplayRoute],
-    ) -> PreparedReplayRoute {
+    ) -> ReplayRoutingShadowDecision {
         let upper_claims = self
             .upper_claims
             .iter()
@@ -1113,7 +1323,7 @@ impl ProofOccurrenceStore {
             .union(&fallback_covered_roots)
             .copied()
             .collect();
-        PreparedReplayRoute {
+        ReplayRoutingShadowDecision {
             routing,
             lower_parent_roots,
             upper_parent_roots,
@@ -2503,9 +2713,24 @@ impl ProofOccurrenceStore {
         active: bool,
     ) {
         if active {
-            self.live_coverage.insert((root, state));
-        } else {
-            self.live_coverage.remove(&(root, state));
+            if self.live_coverage.insert((root, state)) {
+                self.live_states_by_coverage_root
+                    .entry(root)
+                    .or_default()
+                    .insert(state);
+            }
+        } else if self.live_coverage.remove(&(root, state)) {
+            let remove_root_entry = {
+                let states = self
+                    .live_states_by_coverage_root
+                    .get_mut(&root)
+                    .expect("live coverage index must mirror the flat occurrence set");
+                states.remove(&state);
+                states.is_empty()
+            };
+            if remove_root_entry {
+                self.live_states_by_coverage_root.remove(&root);
+            }
         }
     }
 
@@ -3239,6 +3464,154 @@ mod tests {
             .proof_store
             .project_lower(machine, record, &mut round);
         (decision, round)
+    }
+
+    fn cpk_7_record_original_claim(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+    ) -> (BoundRecordId, UpperReplayClaimId) {
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(70_000 + ordinal)));
+        let record = machine
+            .bounds
+            .add_upper(
+                TypeVar(80_000 + ordinal),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let registration = machine.bounds.original_upper_replay_claim(
+            record,
+            ConstraintRecordId(90_000 + ordinal),
+            UpperReplayClaimKind::Direct,
+        );
+        machine.proof_store.record_upper_claim(
+            &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
+        );
+        (record, registration.claim)
+    }
+
+    #[test]
+    fn cpk_7_slice_a_prepared_parent_blocks_share_exact_entries() {
+        let lower_parent = PreparedReplayParent {
+            side: ReplayClaimParentSide::Lower,
+            coverage_root: UpperReplayClaimId(1),
+            representative_claim: UpperReplayClaimId(2),
+            lineage: ProjectionLineage::ReplayConstraint,
+        };
+        let upper_parent = PreparedReplayParent {
+            side: ReplayClaimParentSide::Upper,
+            coverage_root: UpperReplayClaimId(3),
+            representative_claim: UpperReplayClaimId(4),
+            lineage: ProjectionLineage::ReplayEvidence,
+        };
+        let entries: Arc<[PreparedReplayParent]> = Arc::from([lower_parent]);
+        let first = PreparedReplayParentBlock::Shared(Arc::clone(&entries));
+        let second = PreparedReplayParentBlock::Shared(Arc::clone(&entries));
+        let (
+            PreparedReplayParentBlock::Shared(first),
+            PreparedReplayParentBlock::Shared(second),
+        ) = (first, second)
+        else {
+            unreachable!("the fixture constructs shared parent blocks")
+        };
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(first.as_ref(), [lower_parent]);
+        assert_eq!(
+            PreparedReplayParentBlock::default(),
+            PreparedReplayParentBlock::Empty
+        );
+        let parents = PreparedReplayParentSet {
+            lower: PreparedReplayParentBlock::Shared(first),
+            upper: PreparedReplayParentBlock::Shared(Arc::from([upper_parent])),
+        };
+        assert_eq!(
+            parents.iter().copied().collect::<Vec<_>>(),
+            vec![lower_parent, upper_parent],
+            "the logical adapter always emits the complete lower block before the upper block",
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_a_replay_indexes_update_atomically_with_writers() {
+        let mut machine = cpk_oracle_machine();
+        let (old_record, claim) = cpk_7_record_original_claim(&mut machine, 0);
+        let occurrence_index = machine.proof_store.upper_claim_index[&claim];
+        assert_eq!(machine.proof_store.upper_claims[occurrence_index].claim, claim);
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record.get(&old_record),
+            Some(&vec![claim]),
+        );
+
+        let (new_record, existing_claim) = cpk_7_record_original_claim(&mut machine, 1);
+        let mut moved_claim = machine.bounds.upper_replay_claims[claim.0 as usize].clone();
+        moved_claim.current_record = new_record;
+        machine.proof_store.update_upper_claim(&moved_claim);
+        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&old_record));
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record.get(&new_record),
+            Some(&vec![claim, existing_claim]),
+            "the moved representative is inserted in canonical coverage-root order",
+        );
+        assert_eq!(
+            machine.proof_store.upper_claims[occurrence_index].current_record,
+            new_record,
+        );
+
+        let lower_record = BoundRecordId(70_000);
+        let proofs = [SchemeProjectionProof {
+            lower_record,
+            support: SchemeProjectionProofSupport::Claimed(claim),
+        }];
+        machine
+            .proof_store
+            .record_projection_supports(lower_record, &proofs);
+        assert_eq!(
+            machine
+                .proof_store
+                .claimed_parents_by_lower_record
+                .get(&lower_record),
+            Some(&vec![claim]),
+        );
+
+        let root = moved_claim.coverage_root;
+        let state = UnweightedRowReductionRecordId(70_000);
+        machine.proof_store.record_live_coverage(root, state, true);
+        machine.proof_store.record_live_coverage(root, state, true);
+        assert_eq!(
+            machine.proof_store.live_states_by_coverage_root[&root].len(),
+            1,
+            "duplicate live writes must remain idempotent in both indexes",
+        );
+        assert!(machine.proof_store.live_coverage.contains(&(root, state)));
+        machine.proof_store.record_live_coverage(root, state, false);
+        assert!(!machine.proof_store.live_coverage.contains(&(root, state)));
+        assert!(
+            !machine
+                .proof_store
+                .live_states_by_coverage_root
+                .contains_key(&root),
+            "empty live-state sets canonicalize to no root entry",
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_a_claim_index_writes_do_not_scan_the_global_claim_store() {
+        let mut machine = cpk_oracle_machine();
+        machine
+            .proof_store
+            .replay_index_record_comparisons
+            .set(0);
+        for ordinal in 0..128 {
+            cpk_7_record_original_claim(&mut machine, ordinal);
+        }
+        assert_eq!(machine.proof_store.upper_claims.len(), 128);
+        assert_eq!(machine.proof_store.claims_by_upper_record.len(), 128);
+        assert_eq!(
+            machine.proof_store.replay_index_record_comparisons.get(),
+            0,
+            "one claim per record requires point lookup only, independent of global store size",
+        );
     }
 
     fn cpk_gap_1_projection_record(machine: &mut ConstraintMachine, ordinal: u32) -> BoundRecordId {
