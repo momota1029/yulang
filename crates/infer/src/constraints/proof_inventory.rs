@@ -10,7 +10,7 @@
 // production authority boundaries. The lexical gate below makes a newly introduced shortcut
 // visible before CPK-8B can remove its legacy backing field.
 //
-// A correctness-contract: 5 CPK proof query fixtures with an explicit proof-store mirror.
+// A correctness-contract: 6 CPK proof query fixtures with an explicit proof-store mirror.
 // B historical Legacy characterization: 4 explicit LegacyRollback/RCPF parent-draft fixtures.
 // C semantic fixture: 24 local semantic/provenance fixtures that inspect record identity.
 // D fixture-construction debt: 0; the CPK-6b/CPK-7 hygiene passes migrated every known
@@ -44,13 +44,13 @@ enum Cpk8RawFixtureWriterClass {
 }
 
 const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
-    (Cpk8RawFixtureWriterClass::CorrectnessContract, 5),
+    (Cpk8RawFixtureWriterClass::CorrectnessContract, 6),
     (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 4),
     (Cpk8RawFixtureWriterClass::SemanticFixture, 24),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
 
-const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 33;
+const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 34;
 
 const REVIEWED_SOURCES: &[(&str, &str)] = &[
     (
@@ -146,6 +146,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // adds two test-only claim-move assertions. Slice C item 2 adds one test-only read proving
     // two uncovered roots share one physical upper record. Item 16 adds one test-only outer-
     // census assertion before corrupting the CPK claim index; none is a production authority.
+    // CPK-8B freezes original-claim admission in UpperReplayClaimRegistration, removing the two
+    // production CPK-writer re-reads and adding one reviewed transaction-local snapshot read plus
+    // one test-only mutation proving that the frozen event cannot observe later flat state.
     // None is a new production read authority.
     ("upper_replay_claims", 107),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its

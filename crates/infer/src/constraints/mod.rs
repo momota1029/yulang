@@ -554,6 +554,7 @@ struct UpperReplayClaim {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct UpperReplayClaimRegistration {
     claim: UpperReplayClaimId,
+    proof_admission: proof::PreparedUpperClaimAdmission,
     scheme_projection_mutation: SchemeProjectionMutation,
     standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
 }
@@ -2968,11 +2969,11 @@ impl TypeBounds {
                 self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
             let standalone_link =
                 self.register_original_claim_standalone_link(producer_constraint, claim);
-            return UpperReplayClaimRegistration {
+            return self.finish_upper_replay_claim_registration(
                 claim,
                 scheme_projection_mutation,
                 standalone_link,
-            };
+            );
         }
         assert!(
             !self
@@ -3005,11 +3006,11 @@ impl TypeBounds {
             self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
         let standalone_link =
             self.register_original_claim_standalone_link(producer_constraint, id);
-        UpperReplayClaimRegistration {
-            claim: id,
+        self.finish_upper_replay_claim_registration(
+            id,
             scheme_projection_mutation,
             standalone_link,
-        }
+        )
     }
 
     fn derived_upper_replay_claim(
@@ -3037,11 +3038,11 @@ impl TypeBounds {
             let scheme_projection_mutation = lower_record
                 .map(|lower_record| self.link_scheme_projection_claim(lower_record, root))
                 .unwrap_or(SchemeProjectionMutation::None);
-            return UpperReplayClaimRegistration {
-                claim: root,
+            return self.finish_upper_replay_claim_registration(
+                root,
                 scheme_projection_mutation,
-                standalone_link: None,
-            };
+                None,
+            );
         }
         if let Some(claim) = self
             .derived_claim_by_record_and_root
@@ -3052,11 +3053,11 @@ impl TypeBounds {
             let scheme_projection_mutation = lower_record
                 .map(|lower_record| self.link_scheme_projection_claim(lower_record, claim))
                 .unwrap_or(SchemeProjectionMutation::None);
-            return UpperReplayClaimRegistration {
+            return self.finish_upper_replay_claim_registration(
                 claim,
                 scheme_projection_mutation,
-                standalone_link: None,
-            };
+                None,
+            );
         }
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
@@ -3083,10 +3084,23 @@ impl TypeBounds {
         let scheme_projection_mutation = lower_record
             .map(|lower_record| self.link_scheme_projection_claim(lower_record, id))
             .unwrap_or(SchemeProjectionMutation::None);
+        self.finish_upper_replay_claim_registration(id, scheme_projection_mutation, None)
+    }
+
+    fn finish_upper_replay_claim_registration(
+        &self,
+        claim: UpperReplayClaimId,
+        scheme_projection_mutation: SchemeProjectionMutation,
+        standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
+    ) -> UpperReplayClaimRegistration {
+        let proof_admission = proof::prepare_upper_claim_admission(
+            &self.upper_replay_claims[claim.0 as usize],
+        );
         UpperReplayClaimRegistration {
-            claim: id,
+            claim,
+            proof_admission,
             scheme_projection_mutation,
-            standalone_link: None,
+            standalone_link,
         }
     }
 

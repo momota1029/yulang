@@ -766,6 +766,12 @@ pub(crate) struct UpperClaimOccurrence {
     pub(crate) current_record: BoundRecordId,
 }
 
+/// CPK claim payload frozen by the allocating transaction before control returns to its caller.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct PreparedUpperClaimAdmission {
+    occurrence: UpperClaimOccurrence,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectionClause {
     Standalone {
@@ -1043,6 +1049,20 @@ fn projection_lineage(lineage: UpperReplayClaimLineage) -> ProjectionLineage {
     }
 }
 
+pub(super) fn prepare_upper_claim_admission(
+    claim: &UpperReplayClaim,
+) -> PreparedUpperClaimAdmission {
+    PreparedUpperClaimAdmission {
+        occurrence: UpperClaimOccurrence {
+            claim: claim.id,
+            coverage_root: claim.coverage_root,
+            lineage: projection_lineage(claim.lineage),
+            producer: claim.producer_constraint,
+            current_record: claim.current_record,
+        },
+    }
+}
+
 #[cfg(test)]
 pub(super) fn record_upper_claim_shadow(claim: &UpperReplayClaim) {
     if !proof_occurrence_shadow_is_active() {
@@ -1061,25 +1081,25 @@ pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
 
 impl ProofOccurrenceStore {
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
-        if let Some(index) = self.upper_claim_index.get(&claim.id).copied() {
+        let admission = prepare_upper_claim_admission(claim);
+        self.record_prepared_upper_claim(&admission);
+    }
+
+    pub(super) fn record_prepared_upper_claim(&mut self, admission: &PreparedUpperClaimAdmission) {
+        let claim = &admission.occurrence;
+        if let Some(index) = self.upper_claim_index.get(&claim.claim).copied() {
             let old_record = self.upper_claims[index].current_record;
             if old_record != claim.current_record {
-                self.remove_claim_from_upper_record_index(old_record, claim.id);
+                self.remove_claim_from_upper_record_index(old_record, claim.claim);
                 self.upper_claims[index].current_record = claim.current_record;
-                self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
+                self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
             }
             return;
         }
         let index = self.upper_claims.len();
-        self.upper_claims.push(UpperClaimOccurrence {
-            claim: claim.id,
-            coverage_root: claim.coverage_root,
-            lineage: projection_lineage(claim.lineage),
-            producer: claim.producer_constraint,
-            current_record: claim.current_record,
-        });
-        self.upper_claim_index.insert(claim.id, index);
-        self.insert_claim_into_upper_record_index(claim.current_record, claim.id);
+        self.upper_claims.push(claim.clone());
+        self.upper_claim_index.insert(claim.claim, index);
+        self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
     }
 
     pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
@@ -4916,6 +4936,47 @@ mod tests {
         assert_eq!(
             store.prepare_live_coverage_transition(root, state, false),
             PreparedLiveCoverageTransition::Unchanged,
+        );
+    }
+
+    #[test]
+    fn cpk_8b_original_claim_writer_uses_the_allocation_snapshot() {
+        let mut machine = cpk_oracle_machine();
+        let owner = TypeVar(71_100);
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(71_101)));
+        let record = machine
+            .bounds
+            .add_upper(
+                owner,
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let producer = ConstraintRecordId(71_102);
+        let registration = machine.bounds.original_upper_replay_claim(
+            record,
+            producer,
+            UpperReplayClaimKind::Direct,
+        );
+        let claim = registration.claim;
+
+        machine.bounds.upper_replay_claims[claim.0 as usize].current_record =
+            BoundRecordId(71_103);
+        machine
+            .proof_store
+            .record_prepared_upper_claim(&registration.proof_admission);
+
+        assert_eq!(
+            machine.proof_store.upper_claims,
+            vec![UpperClaimOccurrence {
+                claim,
+                coverage_root: claim,
+                lineage: ProjectionLineage::Original,
+                producer,
+                current_record: record,
+            }],
+            "the CPK claim writer must consume the allocation-time event, not re-read flat state",
         );
     }
 
