@@ -6,6 +6,51 @@
 //! A direct access added anywhere in the reviewed sources changes the census and forces the author
 //! to classify the site before updating this oracle.
 
+// CPK-8A raw fixture-writer freeze. These are deliberately low-level test admissions, not
+// production authority boundaries. The lexical gate below makes a newly introduced shortcut
+// visible before CPK-8B can remove its legacy backing field.
+//
+// A correctness-contract: 5 CPK proof query fixtures with an explicit proof-store mirror.
+// B historical Legacy characterization: 4 explicit LegacyRollback/RCPF parent-draft fixtures.
+// C semantic fixture: 24 local semantic/provenance fixtures that inspect record identity.
+// D fixture-construction debt: 0; the CPK-6b/CPK-7 hygiene passes migrated every known
+// oracle-active shortcut to a mirrored admission path.
+//
+// Production read/write graph for CPK-8B, grouped by physical field ownership:
+// - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
+//   claim move, register_constraint_upper_replay_claims; readers legacy projection/routing and
+//   CPK record_upper_claim/prepare_replay_route mirrors.
+// - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
+//   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
+//   parent drafts/RCPF plus CPK projection-support and routing-parent mirrors.
+// - live_coverage_by_root and scheme_projection_claims_by_lower_record: writers live-coverage
+//   insert/remove and projection-link admission; readers legacy projectability/routing and CPK
+//   project_lower/prepare_replay_route mirrors.
+// - projection proofs/clauses/attributed supports/dependent-record edges: writers projection
+//   delta, clause-link and dependency-chain admission; readers legacy formula evaluation and CPK
+//   proof formulas/supports. These remain a writer-dependency closure, not proof-only deletion.
+// - ParentSetArena/ReplayOccurrenceStore/ReplayResultSummary/ReplayClauseProjection/
+//   NonReplayClaimParentStore: writers replay admission and parent mutation; readers Factored
+//   replay authority and exact test-only shadow capture. CPK-8B must replace writers before any
+//   physical removal.
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Cpk8RawFixtureWriterClass {
+    CorrectnessContract,
+    HistoricalLegacyCharacterization,
+    SemanticFixture,
+    FixtureConstructionDebt,
+}
+
+const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
+    (Cpk8RawFixtureWriterClass::CorrectnessContract, 5),
+    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 4),
+    (Cpk8RawFixtureWriterClass::SemanticFixture, 24),
+    (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
+];
+
+const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 33;
+
 const REVIEWED_SOURCES: &[(&str, &str)] = &[
     (
         "constraints/directed_weight.rs",
@@ -401,6 +446,57 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
             "reviewed proof boundary moved or disappeared: {file}::{boundary}; reclassify the inventory instead of silently dropping it"
         );
     }
+}
+
+#[test]
+fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
+    let raw_fixture_sources = [
+        include_str!("machine/bounds.rs")
+            .split("mod mutation_tests {")
+            .nth(1)
+            .expect("bounds mutation test module"),
+        include_str!("proof/mod.rs")
+            .split("mod tests {")
+            .nth(1)
+            .expect("proof test module"),
+        include_str!("tests/case_02.rs"),
+        include_str!("tests/case_03.rs"),
+        include_str!("tests/explain.rs"),
+    ]
+    .join("\n");
+    let raw_writer_count = [
+        ".bounds.add_lower(",
+        ".bounds.add_upper(",
+        ".bounds.original_upper_replay_claim(",
+        ".bounds.derived_upper_replay_claim(",
+        "row_derivations.push",
+        "upper_replay_claims.push",
+        "scheme_projection_claims_by_lower_record.insert",
+        "scheme_projection_claims_by_lower_record.entry",
+    ]
+    .iter()
+    .map(|pattern| raw_fixture_sources.matches(pattern).count())
+    .sum::<usize>();
+    let classified = CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION
+        .iter()
+        .map(|(_, count)| *count)
+        .sum::<usize>();
+    assert_eq!(
+        raw_writer_count, CPK8_RAW_FIXTURE_WRITER_TOTAL,
+        "a raw fixture writer changed; classify it into CPK-8A bucket A/B/C/D before CPK-8B",
+    );
+    assert_eq!(
+        classified, raw_writer_count,
+        "every raw fixture writer must be classified before legacy removal advances",
+    );
+    assert!(
+        CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION
+            .iter()
+            .all(|(class, count)| {
+                !matches!(class, Cpk8RawFixtureWriterClass::FixtureConstructionDebt) || *count == 0
+            }),
+        "CPK-8A cannot begin the soak with unremediated fixture-construction debt",
+    );
 }
 
 #[test]
