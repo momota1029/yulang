@@ -6663,6 +6663,147 @@ mod tests {
     }
 
     #[test]
+    fn cpk_7_shadow_distinct_incremental_arrivals_preserve_first_seen_order() {
+        let run = |order: [usize; 2]| {
+            let mut machine = cpk_oracle_machine();
+            let source = TypeVar(72_100);
+            let current_upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-incremental-current".into()],
+                Vec::new(),
+            ));
+            let producers = [0, 1]
+                .map(|index| cpk_7_admit_inert_constraint(&mut machine, 100 + index, "route"));
+            let roots = producers.map(|producer| {
+                machine.add_upper_bound(
+                    source,
+                    current_upper,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Constraint(producer),
+                );
+                machine.bounds.root_claim_by_producer_constraint[&producer]
+            });
+            let upper_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == source
+                        && record.endpoint() == BoundEndpoint::Upper(current_upper))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the two claims share one upper record");
+            let route_uppers = [0, 1].map(|index| {
+                machine.alloc_neg(Neg::Con(
+                    vec!["cpk-7-incremental-original".into(), index.to_string()],
+                    Vec::new(),
+                ))
+            });
+            let matched_upper = machine.alloc_neg(Neg::Con(
+                vec!["cpk-7-incremental-matched".into()],
+                Vec::new(),
+            ));
+            let provenance = producers.map(|producer| {
+                machine.intern_row_derivation(
+                    RowDerivationRule::UnweightedReduction,
+                    vec![RowDerivationParent::Constraint(producer)],
+                    Vec::new(),
+                )
+            });
+            for index in order {
+                let (_, registered_root) = machine.register_unweighted_row_reduction_for_test(
+                    UnweightedRowReductionRecord {
+                        source,
+                        producer_constraint: Some(producers[index]),
+                        original_items: vec![matched_upper],
+                        original_tail: current_upper,
+                        original_upper: route_uppers[index],
+                        consumed_items: Vec::new(),
+                        remaining_items: vec![matched_upper],
+                        current_reduced_upper: UnweightedRowReductionMaterialization {
+                            endpoint: current_upper,
+                            record: upper_record,
+                        },
+                        processed_lower_records: FxHashSet::default(),
+                        provenance_head: provenance[index],
+                    },
+                );
+                assert_eq!(registered_root, Some(roots[index]));
+            }
+
+            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+            let lower = machine.alloc_pos(Pos::Con(
+                vec!["cpk-7-incremental-matched".into()],
+                Vec::new(),
+            ));
+            machine.add_lower_bound(
+                source,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            );
+
+            let observation = machine.proof_store.replay_route_observations.borrow()
+                [routes_before..]
+                .iter()
+                .find(|observation| observation.upper == upper_record)
+                .cloned()
+                .expect("the natural lower event reaches both incremental routes");
+            assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
+            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+            assert!(observation.shadow_prepared.proof_event.pair_replay.is_none());
+            let incremental = &observation.shadow_prepared.proof_event.incremental_replays;
+            assert_eq!(incremental.len(), 2);
+            assert_eq!(
+                incremental
+                    .iter()
+                    .map(|replay| replay.route.upper)
+                    .collect::<Vec<_>>(),
+                order.map(|index| route_uppers[index]),
+                "distinct semantic actions retain their input arrival order",
+            );
+            assert_eq!(
+                incremental
+                    .iter()
+                    .map(|replay| replay.route.claim)
+                    .collect::<Vec<_>>(),
+                order.map(|index| Some(roots[index])),
+            );
+            for replay in incremental {
+                assert!(replay.parents.lower.as_slice().is_empty());
+                let parent = replay
+                    .parents
+                    .upper
+                    .as_slice()
+                    .first()
+                    .copied()
+                    .expect("each covered route retains its exact upper claim parent");
+                assert_eq!(Some(parent.representative_claim), replay.route.claim);
+                assert_eq!(parent.coverage_root, parent.representative_claim);
+                assert_eq!(parent.lineage, ProjectionLineage::Original);
+            }
+            let normalized = route_uppers.map(|upper| {
+                let replay = incremental
+                    .iter()
+                    .find(|replay| replay.route.upper == upper)
+                    .expect("both semantic route identities survive every permutation");
+                (upper, replay.route.claim)
+            });
+            (observation.shadow_prepared, normalized)
+        };
+
+        let (first, first_normalized) = run([0, 1]);
+        let (second, second_normalized) = run([1, 0]);
+        assert_eq!(first.routing, second.routing);
+        assert_eq!(first_normalized, second_normalized);
+        assert_ne!(
+            first.proof_event.incremental_replays,
+            second.proof_event.incremental_replays,
+            "the contract preserves semantic input order instead of sorting distinct routes",
+        );
+    }
+
+    #[test]
     fn cpk_7_shadow_claim_move_keeps_decoupled_incremental_route() {
         let mut fixture = cpk_7_two_stage_row_claim_move_fixture();
         let observation = cpk_7_run_second_row_stage(&mut fixture);
