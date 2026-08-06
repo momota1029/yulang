@@ -98,9 +98,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // Slice B adds one reviewed routing fault-fixture read. Slice C adds one test-only Legacy
     // normalization read for exact prepared-parent parity. The endpoint-decoupling correction
     // adds two test-only claim-move assertions. Slice C item 2 adds one test-only read proving
-    // two uncovered roots share one physical upper record; none is a production authority.
+    // two uncovered roots share one physical upper record. Item 16 adds one test-only outer-
+    // census assertion before corrupting the CPK claim index; none is a production authority.
     // None is a new production read authority.
-    ("upper_replay_claims", 106),
+    ("upper_replay_claims", 107),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // Routing authority remains Legacy in both slices.

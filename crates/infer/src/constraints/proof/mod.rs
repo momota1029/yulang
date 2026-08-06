@@ -8088,6 +8088,28 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "CPK-7 replay routing shadow preflight failed")]
+    fn cpk_7_shadow_oracle_rejects_claim_index_corruption() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        assert_eq!(
+            fixture.machine.bounds.upper_replay_claims.len(),
+            fixture.machine.proof_store.upper_claims.len(),
+            "the injected fault must preserve the outer claim census",
+        );
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .upper_claim_index
+                .remove(&fixture.coverage_root)
+                .is_some(),
+            "the fixture must corrupt an existing CPK claim index entry",
+        );
+
+        cpk_5_trigger_lower_route(&mut fixture, false);
+    }
+
+    #[test]
     fn cpk_5_incremental_only_and_skip_routes_match_legacy() {
         for (lower_is_var, expected) in [
             (true, ReplayRouting::IncrementalOnly),
