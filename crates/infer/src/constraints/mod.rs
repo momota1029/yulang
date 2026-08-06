@@ -565,6 +565,9 @@ enum SchemeProjectionMutation {
     ProofsChanged {
         lower_record: BoundRecordId,
         previous_proofs: Option<Vec<SchemeProjectionProof>>,
+        // Freeze the CPK writer input at admission time; the consumer must not reconstruct this
+        // event by re-reading the migration-only flat projection ledger.
+        current_proofs: Vec<SchemeProjectionProof>,
     },
 }
 
@@ -2003,17 +2006,16 @@ impl ConstraintMachine {
         &mut self,
         mutation: &SchemeProjectionMutation,
     ) {
-        let SchemeProjectionMutation::ProofsChanged { lower_record, .. } = mutation else {
+        let SchemeProjectionMutation::ProofsChanged {
+            lower_record,
+            current_proofs,
+            ..
+        } = mutation
+        else {
             return;
         };
-        let proofs = self
-            .bounds
-            .projection_proofs_by_lower_record
-            .get(lower_record)
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
         self.proof_store
-            .record_projection_supports(*lower_record, proofs);
+            .record_projection_supports(*lower_record, current_proofs);
     }
 
     fn record_original_claim_standalone_link_in_proof_store(
@@ -2038,6 +2040,7 @@ impl ConstraintMachine {
             SchemeProjectionMutation::ProofsChanged {
                 lower_record,
                 previous_proofs,
+                ..
             } => {
                 let current_proofs = self
                     .bounds
@@ -2371,6 +2374,10 @@ mod rcpf_d2c_2b_tests {
         machine.apply_scheme_projection_mutation(SchemeProjectionMutation::ProofsChanged {
             lower_record,
             previous_proofs: None,
+            current_proofs: vec![SchemeProjectionProof {
+                lower_record,
+                support,
+            }],
         });
         let published = machine.take_method_role_mutations();
         journal.finish();
@@ -3232,14 +3239,13 @@ impl TypeBounds {
         if !metadata_changed {
             return SchemeProjectionMutation::None;
         }
+        let current_proofs = self.projection_proofs_by_lower_record[&lower_record].clone();
         #[cfg(test)]
-        proof::record_projection_supports_shadow(
-            lower_record,
-            &self.projection_proofs_by_lower_record[&lower_record],
-        );
+        proof::record_projection_supports_shadow(lower_record, &current_proofs);
         SchemeProjectionMutation::ProofsChanged {
             lower_record,
             previous_proofs,
+            current_proofs,
         }
     }
 

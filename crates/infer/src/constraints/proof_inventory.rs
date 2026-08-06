@@ -103,10 +103,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("scheme_projection_claims_by_lower_record", 24),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
-    // adds one routing-shadow capture-readiness read. CPK-6a adds one reviewed
-    // production-store projection writer read; Slice B adds one reviewed test-only empty-ledger
-    // seed. Neither is a new production legacy consumer.
-    ("projection_proofs_by_lower_record", 48),
+    // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
+    // empty-ledger seed. CPK-8B removes the sole production-store projection writer re-read by
+    // carrying its support snapshot in the admission event.
+    ("projection_proofs_by_lower_record", 47),
     ("scheme_projection_lower_records_by_root", 5),
     ("scheme_projection_lower_record_memberships", 4),
     ("record_proof_clauses", 6),

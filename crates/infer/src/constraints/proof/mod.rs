@@ -4886,6 +4886,33 @@ mod tests {
     }
 
     #[test]
+    fn cpk_8b_projection_support_writer_uses_the_admission_snapshot() {
+        let mut machine = cpk_oracle_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 101);
+        let initial = ProjectionProofCarrier::Origin(OriginId(70_101));
+        cpk_4_add_independent_support(&mut machine, record, initial);
+        let admitted = ProjectionProofCarrier::Origin(OriginId(70_102));
+        let mutation = machine
+            .bounds
+            .update_scheme_projection_proofs(record, &[], &[admitted]);
+
+        let later = ProjectionProofCarrier::Origin(OriginId(70_103));
+        let _later_mutation = machine
+            .bounds
+            .update_scheme_projection_proofs(record, &[], &[later]);
+        machine.record_projection_mutation_in_proof_store(&mutation);
+
+        assert_eq!(
+            machine.proof_store.projection_supports[&record],
+            vec![
+                SchemeProjectionProofSupport::Independent(initial),
+                SchemeProjectionProofSupport::Independent(admitted),
+            ],
+            "the CPK writer must consume the admission-fixed payload, not re-read the flat ledger",
+        );
+    }
+
+    #[test]
     fn cpk_gap_1_project_lower_rejects_orphan_formula() {
         let mut machine = cpk_oracle_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 1);
