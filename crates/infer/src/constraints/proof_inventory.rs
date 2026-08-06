@@ -74,10 +74,12 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("flat_retained_attributed_claim_supports", 12),
     ("dependent_records_by_premise", 23),
     // CPK-2's test-only legacy parity reconstruction adds one reviewed root-origin read.
-    ("origins", 135),
+    // Fixture hygiene now uses the reviewed root-admission API instead of four raw field writes.
+    ("origins", 131),
     ("source_boundaries", 7),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed row-derivation reads.
-    ("row_derivations", 55),
+    // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers.
+    ("row_derivations", 53),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
@@ -88,9 +90,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-3 adds reviewed test-only claim hooks and lineage parity reads; CPK-4 adds
     // shadow-evaluator and capture-readiness reads; CPK-5 adds routing readiness.
     // CPK-6a adds five reviewed production-store upper-claim writer reads and
-    // three fixture-only mirrors for low-level TypeBounds claim construction.
+    // three fixture-only mirrors for low-level TypeBounds claim construction. Fixture hygiene
+    // adds four reviewed test-only reads while switching those fixtures to mirrored admission.
     // None is a new production read authority.
-    ("upper_replay_claims", 95),
+    ("upper_replay_claims", 99),
     ("claims_by_upper_record", 14),
     // CPK-3's test-only parity oracle adds one reviewed live-coverage read.
     ("live_coverage_by_root", 10),

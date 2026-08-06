@@ -167,15 +167,14 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
 
         let audit_owner = TypeVar(10);
         let audit_pos = machine.alloc_pos(Pos::Con(vec!["audit-bound".into()], Vec::new()));
-        let audit_bound = machine
-            .bounds
-            .add_lower(
-                audit_owner,
-                audit_pos,
-                ConstraintWeights::empty(),
-                BoundDerivation::Constraint(sibling_constraint),
-            )
-            .id;
+        machine.add_lower_bound(
+            audit_owner,
+            audit_pos,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(sibling_constraint),
+        );
+        let audit_bound = machine.bounds.scheme_projection_lower_record_by_constraint
+            [&sibling_constraint];
 
         let replay_pivot = TypeVar(20);
         let replay_lower_pos =
@@ -215,84 +214,84 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
         let claim_source = TypeVar(30);
         let original_upper_neg =
             machine.alloc_neg(Neg::Con(vec!["claim-original-upper".into()], Vec::new()));
-        let original_upper = machine
-            .bounds
-            .add_upper(
-                claim_source,
-                original_upper_neg,
-                ConstraintWeights::empty(),
-                BoundDerivation::Constraint(original_parent),
-            )
-            .id;
-        let original_claim = machine
-            .bounds
-            .original_upper_replay_claim(
-                original_upper,
-                match lineage {
-                    LineageCase::Original => original,
-                    _ => original_parent,
-                },
-                UpperReplayClaimKind::Direct,
-            )
-            .claim;
+        let root_producer = match lineage {
+            LineageCase::Original => original,
+            _ => original_parent,
+        };
+        machine.add_upper_bound(
+            claim_source,
+            original_upper_neg,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(root_producer),
+        );
+        let original_claim = machine.bounds.root_claim_by_producer_constraint[&root_producer];
 
         let selected_claim = match lineage {
             LineageCase::Original => original_claim,
-            LineageCase::ReplayConstraint
-            | LineageCase::ReductionRouteConstraint
-            | LineageCase::ReplayEvidence => {
+            LineageCase::ReplayConstraint | LineageCase::ReductionRouteConstraint => {
                 let derived_upper_neg =
                     machine.alloc_neg(Neg::Con(vec!["claim-derived-upper".into()], Vec::new()));
-                let derived_upper = machine
-                    .bounds
-                    .add_upper(
-                        claim_source,
-                        derived_upper_neg,
-                        ConstraintWeights::empty(),
-                        BoundDerivation::Constraint(original_parent),
-                    )
-                    .id;
-                machine
-                    .bounds
-                    .derived_upper_replay_claim(
-                        derived_upper,
-                        original_claim,
-                        original_parent,
-                        |depth| match lineage {
-                            LineageCase::ReplayConstraint => {
-                                UpperReplayClaimLineage::ReplayConstraint {
-                                    parent_claim: original_claim,
-                                    parent_side: ReplayClaimParentSide::Upper,
-                                    result: replay_result,
-                                    replay,
-                                    depth,
-                                }
-                            }
-                            LineageCase::ReductionRouteConstraint => {
-                                UpperReplayClaimLineage::ReductionRouteConstraint {
-                                    parent_claim: original_claim,
-                                    result: reduction_result,
-                                    derivation: reduction_derivation,
-                                    depth,
-                                }
-                            }
-                            LineageCase::ReplayEvidence => {
-                                UpperReplayClaimLineage::ReplayEvidence {
-                                    parent_claim: original_claim,
-                                    parent_side: ReplayClaimParentSide::Upper,
-                                    replay,
-                                    depth,
-                                }
-                            }
-                            LineageCase::Original => unreachable!(),
-                        },
-                    )
-                    .claim
+                machine.add_upper_bound(
+                    claim_source,
+                    derived_upper_neg,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                );
+                let derived_upper = machine.bounds.of(claim_source)
+                    .into_iter()
+                    .flat_map(VarBounds::upper_record_ids)
+                    .copied()
+                    .find(|record| machine.bounds.record(*record).is_some_and(|record| {
+                        record.endpoint() == BoundEndpoint::Upper(derived_upper_neg)
+                    }))
+                    .expect("derived upper record");
+                let (producer, parent) = match lineage {
+                    LineageCase::ReplayConstraint => (replay_result,
+                        ClaimQualifiedParent::ReplayConstraint {
+                            parent_claim: original_claim,
+                            parent_side: ReplayClaimParentSide::Upper,
+                            replay,
+                        }),
+                    LineageCase::ReductionRouteConstraint => {
+                        (reduction_result, ClaimQualifiedParent::ReductionRouteConstraint {
+                            parent_claim: original_claim,
+                            derivation: reduction_derivation,
+                        })
+                    }
+                    LineageCase::Original | LineageCase::ReplayEvidence => unreachable!(),
+                };
+                machine.admit_claim_qualified_parent(producer, parent);
+                machine.register_constraint_upper_replay_claims(
+                    derived_upper,
+                    Some(producer),
+                ).into_iter().find(|claim| {
+                    machine.bounds.upper_replay_claims[claim.0 as usize].current_record
+                        == derived_upper
+                }).expect("qualified parent materializes the derived claim")
+            }
+            LineageCase::ReplayEvidence => {
+                let evidence_lower = machine.alloc_pos(Pos::Var(TypeVar(40)));
+                let evidence_upper = machine.alloc_neg(Neg::Var(TypeVar(41)));
+                machine.materialize_replay_evidence_claim_for_test(
+                    evidence_lower,
+                    evidence_upper,
+                    replay,
+                    original_claim,
+                )
             }
         };
-        machine
-            .bounds
-            .link_scheme_projection_claim(audit_bound, selected_claim);
+        let mutation = machine.bounds.link_scheme_projection_claim(audit_bound, selected_claim);
+        machine.apply_scheme_projection_mutation(mutation);
+        let root = machine.bounds.upper_replay_claims[selected_claim.0 as usize].coverage_root;
+        let support = SchemeProjectionProofSupport::Claimed(root);
+        machine.register_cpk_projection_clause_for_test(
+            audit_bound,
+            RecordProofClauseLinkAdmission::claimed(
+                root,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+        );
         assert_eq!(
             machine
                 .scheme_projectable_lowers(audit_owner)

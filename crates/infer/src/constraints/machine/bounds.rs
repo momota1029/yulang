@@ -3124,6 +3124,47 @@ impl ConstraintMachine {
         self.register_record_proof_clause_link(lower_record, admission);
     }
 
+    #[cfg(test)]
+    pub(in crate::constraints) fn materialize_replay_evidence_claim_for_test(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        replay: BinaryReplayDerivation,
+        parent_claim: UpperReplayClaimId,
+    ) -> UpperReplayClaimId {
+        let claim_count_before = self.bounds.upper_replay_claims.len();
+        let mut actions = BoundReplayActions::new();
+        actions.push(BoundReplayAction {
+            constraint: SubtypeConstraintKey {
+                lower,
+                upper,
+                weights: ConstraintWeights::empty(),
+            },
+            derivation: replay,
+            claim_parents: [SideTaggedReplayClaim {
+                claim: parent_claim,
+                parent_side: ReplayClaimParentSide::Upper,
+            }]
+            .into_iter()
+            .collect(),
+            lower_parents: ReplayParentDraftId::EMPTY,
+            upper_parents: ReplayParentDraftId::EMPTY,
+            canonicalization_disposition: None,
+        });
+        self.apply_bound_replay_evidence_actions(actions);
+        self.bounds.upper_replay_claims[claim_count_before..]
+            .iter()
+            .find_map(|claim| matches!(
+                claim.lineage,
+                UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim: found_parent,
+                    replay: found_replay,
+                    ..
+                } if found_parent == parent_claim && found_replay == replay
+            ).then_some(claim.id))
+            .expect("production replay-evidence admission materializes the derived claim")
+    }
+
     fn commit_record_proof_clause_link_batch(
         &mut self,
         lower_record: BoundRecordId,
@@ -12249,6 +12290,19 @@ mod mutation_tests {
         #[derive(Clone, Copy)]
         enum Event { Replay, NonReplay, Independent(usize) }
 
+        fn admit_inert_fixture_constraint(
+            machine: &mut ConstraintMachine,
+            lower: PosId,
+            upper: NegId,
+        ) -> ConstraintRecordId {
+            assert!(machine.enqueue_subtype(lower, ConstraintWeights::empty(), upper));
+            let record = machine
+                .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+                .expect("fixture constraint is canonical");
+            assert!(machine.queue.pop_back().is_some(), "fixture removes only its pending work");
+            record
+        }
+
         struct Fixture {
             machine: ConstraintMachine,
             result: ConstraintRecordId,
@@ -12274,29 +12328,29 @@ mod mutation_tests {
                 let target = TypeVar(1);
                 let lower = machine.alloc_pos(Pos::Var(source));
                 let upper = machine.alloc_neg(Neg::Var(target));
-                let result = ConstraintRecordId(0);
-                machine.constraint_records.push(ConstraintRecord {
-                    key: SubtypeConstraintKey { lower, upper, weights: ConstraintWeights::empty() },
-                    root_origins: Vec::new(), structural_derivations: Vec::new(),
-                    row_derivations: Vec::new(), replay_derivations: Vec::new(),
-                    scheme_instantiation_derivations: Vec::new(), scheme_instantiation_routes: Vec::new(),
-                    canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
+                let result = admit_inert_fixture_constraint(&mut machine, lower, upper);
+                let producers = ["a", "b"].map(|suffix| {
+                    let producer_lower = machine.alloc_pos(Pos::Con(
+                        vec!["rcpf-d3b-producer".into(), suffix.into()], Vec::new(),
+                    ));
+                    let producer_upper = machine.alloc_neg(Neg::Con(
+                        vec!["rcpf-d3b-result".into(), suffix.into()], Vec::new(),
+                    ));
+                    admit_inert_fixture_constraint(&mut machine, producer_lower, producer_upper)
                 });
-                let root_producer = machine.constraint_records[0].clone();
-                machine.constraint_records.extend([root_producer.clone(), root_producer]);
-                let parent_record = machine.bounds.add_upper(
-                    TypeVar(2), upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
-                ).id;
-                let roots = [1, 2].map(|producer| {
-                    let registration = machine.bounds.original_upper_replay_claim(
-                        parent_record, ConstraintRecordId(producer), UpperReplayClaimKind::Direct,
+                let roots = producers.map(|producer| {
+                    machine.add_upper_bound(
+                        TypeVar(2), upper, ConstraintWeights::empty(),
+                        BoundDerivation::Constraint(producer),
                     );
-                    assert_eq!(registration.scheme_projection_mutation, SchemeProjectionMutation::None);
-                    registration.claim
+                    machine.bounds.root_claim_by_producer_constraint[&producer]
                 });
-                let lower_record = machine.bounds.add_lower(
+                let parent_record = machine.bounds.upper_replay_claims[roots[0].0 as usize]
+                    .current_record;
+                machine.add_lower_bound(
                     target, lower, ConstraintWeights::empty(), BoundDerivation::Constraint(result),
-                ).id;
+                );
+                let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
                 assert!(!machine.bounds.scheme_projection_claims_by_lower_record.contains_key(&lower_record));
                 assert!(!machine.bounds.projection_proofs_by_lower_record.contains_key(&lower_record));
                 let source_origins = (0..independent_count).map(|index| machine.alloc_source_boundary(
@@ -12319,8 +12373,14 @@ mod mutation_tests {
                 kinds: [ConstraintOriginKind; 2],
             ) -> [SourceBoundaryId; 2] {
                 let sources = kinds.map(|kind| self.machine.alloc_source_boundary(kind));
-                for (producer, source) in [1_usize, 2].into_iter().zip(sources) {
-                    self.machine.constraint_records[producer].root_origins.push(source.origin());
+                for (producer, source) in [ConstraintRecordId(1), ConstraintRecordId(2)]
+                    .into_iter().zip(sources)
+                {
+                    assert!(self.machine.attach_root_origin_to_existing_subtype(
+                        self.machine.constraint_records[producer.0 as usize].key.lower,
+                        self.machine.constraint_records[producer.0 as usize].key.upper,
+                        source.origin(),
+                    ));
                 }
                 sources.map(|source| source.boundary())
             }
@@ -12467,26 +12527,33 @@ mod mutation_tests {
                 let pivot = TypeVar(2);
                 let lower = machine.alloc_pos(Pos::Var(source));
                 let upper = machine.alloc_neg(Neg::Var(target));
-                let result = ConstraintRecordId(0);
-                let record = ConstraintRecord {
-                    key: SubtypeConstraintKey { lower, upper, weights: ConstraintWeights::empty() },
-                    root_origins: Vec::new(), structural_derivations: Vec::new(),
-                    row_derivations: Vec::new(), replay_derivations: Vec::new(),
-                    scheme_instantiation_derivations: Vec::new(), scheme_instantiation_routes: Vec::new(),
-                    canonicalization_dispositions: Vec::new(), replay_provenance: ProvenanceCompleteness::Complete,
-                };
-                machine.constraint_records.extend([record.clone(), record.clone(), record]);
+                let result = admit_inert_fixture_constraint(&mut machine, lower, upper);
+                let producers = ["a", "b"].map(|suffix| {
+                    let producer_lower = machine.alloc_pos(Pos::Con(
+                        vec!["target-late-producer".into(), suffix.into()], Vec::new(),
+                    ));
+                    let producer_upper = machine.alloc_neg(Neg::Con(
+                        vec!["target-late-result".into(), suffix.into()], Vec::new(),
+                    ));
+                    admit_inert_fixture_constraint(&mut machine, producer_lower, producer_upper)
+                });
                 let sources = [ConstraintOriginKind::Annotation, ConstraintOriginKind::Pattern]
                     .map(|kind| machine.alloc_source_boundary(kind));
-                for (producer, source) in [1_usize, 2].into_iter().zip(sources) {
-                    machine.constraint_records[producer].root_origins.push(source.origin());
+                for (producer, source) in producers.into_iter().zip(sources) {
+                    let key = machine.constraint_records[producer.0 as usize].key.clone();
+                    assert!(machine.attach_root_origin_to_existing_subtype(
+                        key.lower, key.upper, source.origin(),
+                    ));
                 }
-                let parent_upper = machine.bounds.add_upper(
-                    pivot, upper, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
-                ).id;
-                let roots = [1, 2].map(|producer| machine.bounds.original_upper_replay_claim(
-                    parent_upper, ConstraintRecordId(producer), UpperReplayClaimKind::Direct,
-                ).claim);
+                let roots = producers.map(|producer| {
+                    machine.add_upper_bound(
+                        pivot, upper, ConstraintWeights::empty(),
+                        BoundDerivation::Constraint(producer),
+                    );
+                    machine.bounds.root_claim_by_producer_constraint[&producer]
+                });
+                let parent_upper = machine.bounds.upper_replay_claims[roots[0].0 as usize]
+                    .current_record;
                 let replay_lower = machine.bounds.add_lower(
                     pivot, lower, ConstraintWeights::empty(), BoundDerivation::Origin(OriginId::unknown_internal()),
                 ).id;

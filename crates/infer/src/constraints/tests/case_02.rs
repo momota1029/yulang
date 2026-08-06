@@ -3397,7 +3397,45 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
 }
 
 #[test]
-fn mpc_a_9_5_unattributed_claim_link_fails_open() {
+fn mpc_a_9_5_legacy_unattributed_claim_link_fails_open() {
+    let (machine, owner, lower_record, claim) = unattributed_claim_link_fixture();
+
+    assert_eq!(
+        machine
+            .scheme_projectable_lowers(owner)
+            .find(|candidate| candidate.record == lower_record)
+            .map(|candidate| candidate.reason),
+        Some(SchemeProjectableLowerReason::Qualified {
+            uncovered_claims: vec![claim],
+            independent_supports: Vec::new(),
+        }),
+        "LegacyRollback retains the old flat fail-open during the CPK-6b/7 transition"
+    );
+}
+
+#[test]
+fn mpc_a_9_5_cpk_unattributed_claim_link_is_attempt_terminal() {
+    let (machine, _owner, lower_record, _claim) = unattributed_claim_link_fixture();
+    let mut round = proof::ProjectionEvaluationRound::new();
+    let expected = proof::ProofFailure::MissingProofFact {
+        fact: proof::ProofFactRef::ProjectionFormula(lower_record),
+    };
+
+    // CPK projection-decision addendum §5 and §6.3 supersede the local metadata fail-open:
+    // support without formula is attempt-terminal, and the same round cannot resume locally.
+    assert_eq!(
+        machine.proof_store.project_lower(&machine, lower_record, &mut round),
+        Err(expected.clone()),
+    );
+    assert_eq!(
+        machine.proof_store.project_lower(&machine, lower_record, &mut round),
+        Err(expected),
+        "the first proof failure remains terminal for the evaluation round",
+    );
+}
+
+fn unattributed_claim_link_fixture(
+) -> (ConstraintMachine, TypeVar, BoundRecordId, UpperReplayClaimId) {
     let mut machine = ConstraintMachine::new();
     let source = TypeVar(0);
     let owner = TypeVar(1);
@@ -3434,17 +3472,7 @@ fn mpc_a_9_5_unattributed_claim_link_fails_open() {
         .update_scheme_projection_proofs(lower_record, &[claim], &[]);
     machine.apply_scheme_projection_mutation(mutation);
 
-    assert_eq!(
-        machine
-            .scheme_projectable_lowers(owner)
-            .find(|candidate| candidate.record == lower_record)
-            .map(|candidate| candidate.reason),
-        Some(SchemeProjectableLowerReason::Qualified {
-            uncovered_claims: vec![claim],
-            independent_supports: Vec::new(),
-        }),
-        "an unattributed qualifying link must use the current flat fail-open rule"
-    );
+    (machine, owner, lower_record, claim)
 }
 
 #[test]
@@ -4663,16 +4691,14 @@ fn row_structural_claim_fixture() -> RowStructuralClaimFixture {
     let lower = machine.constraint_records[child.0 as usize].key.lower;
     let lower_record = lower_bound_record(&machine, target, lower);
     let coverage_root = claim_root(&machine, parent_claim);
-    let coverage_state = UnweightedRowReductionRecordId(
-        30_000u32
-            .checked_add(coverage_root.0)
-            .expect("test coverage state ID"),
+    register_fixture_live_coverage(
+        &mut machine,
+        source,
+        source_upper_record,
+        upper,
+        parent,
+        coverage_root,
     );
-    assert!(
-        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
-        "the duplicate fixture observes a live claim root"
-    );
-
     RowStructuralClaimFixture {
         machine,
         target,
@@ -4729,16 +4755,14 @@ fn one_sided_claim_fixture(direct_first: bool) -> OneSidedClaimFixture {
     );
     let lower_record = lower_bound_record(&machine, target, lower);
     let coverage_root = claim_root(&machine, root_claim);
-    let coverage_state = UnweightedRowReductionRecordId(
-        10_000u32
-            .checked_add(coverage_root.0)
-            .expect("test coverage state ID"),
+    let coverage_state = register_fixture_live_coverage(
+        &mut machine,
+        source,
+        source_upper_record,
+        upper,
+        producer,
+        coverage_root,
     );
-    assert!(
-        machine.insert_scheme_projection_live_coverage_state(coverage_root, coverage_state),
-        "the preflight fixture makes its root live"
-    );
-
     OneSidedClaimFixture {
         machine,
         target,
@@ -4750,6 +4774,44 @@ fn one_sided_claim_fixture(direct_first: bool) -> OneSidedClaimFixture {
         coverage_root,
         coverage_state,
     }
+}
+
+fn register_fixture_live_coverage(
+    machine: &mut ConstraintMachine,
+    source: TypeVar,
+    upper_record: BoundRecordId,
+    upper: NegId,
+    producer: ConstraintRecordId,
+    coverage_root: UpperReplayClaimId,
+) -> UnweightedRowReductionRecordId {
+    let provenance = machine.intern_row_derivation(
+        RowDerivationRule::UnweightedReduction,
+        vec![RowDerivationParent::Constraint(producer)],
+        Vec::new(),
+    );
+    let (state, root_claim) = machine.register_unweighted_row_reduction_for_test(
+        UnweightedRowReductionRecord {
+            source,
+            producer_constraint: None,
+            original_items: Vec::new(),
+            original_tail: upper,
+            original_upper: upper,
+            consumed_items: Vec::new(),
+            remaining_items: Vec::new(),
+            current_reduced_upper: UnweightedRowReductionMaterialization {
+                endpoint: upper,
+                record: upper_record,
+            },
+            processed_lower_records: FxHashSet::default(),
+            provenance_head: provenance,
+        },
+    );
+    assert_eq!(root_claim, None, "fixture coverage reuses the existing claim root");
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(coverage_root, state),
+        "the fixture observes a live claim root"
+    );
+    state
 }
 
 fn one_sided_claim_fixture_with_claimed_first_then_direct() -> OneSidedClaimFixture {
