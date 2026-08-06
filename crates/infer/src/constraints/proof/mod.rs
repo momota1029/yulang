@@ -330,6 +330,8 @@ pub(crate) trait SemanticFactView {
     ) -> Option<SemanticRowReductionRecordRef<'_>>;
 
     fn lower_record_for_constraint(&self, id: ConstraintRecordId) -> Option<BoundRecordId>;
+
+    fn is_var_pos(&self, id: PosId) -> bool;
 }
 
 impl SemanticFactView for ConstraintMachine {
@@ -357,6 +359,10 @@ impl SemanticFactView for ConstraintMachine {
 
     fn lower_record_for_constraint(&self, id: ConstraintRecordId) -> Option<BoundRecordId> {
         ConstraintMachine::lower_record_for_constraint(self, id)
+    }
+
+    fn is_var_pos(&self, id: PosId) -> bool {
+        matches!(self.types.pos(id), Pos::Var(_))
     }
 }
 
@@ -656,6 +662,16 @@ impl PreparedReplayParentSet {
             .as_slice()
             .iter()
             .chain(self.upper.as_slice().iter())
+    }
+}
+
+fn prepared_parent_block_from_entries(
+    entries: Vec<PreparedReplayParent>,
+) -> PreparedReplayParentBlock {
+    if entries.is_empty() {
+        PreparedReplayParentBlock::Empty
+    } else {
+        PreparedReplayParentBlock::Shared(Arc::from(entries))
     }
 }
 
@@ -1253,11 +1269,523 @@ impl ProofOccurrenceStore {
         }
     }
 
-    /// Prepare the CPK replay decision without changing semantic routing.
+    /// Preflight one lower/upper replay pair from indexed CPK state.
     ///
-    /// CPK-6a only compiles this query into production. No production consumer reads its result
-    /// until the later authority-cutover slice.
-    pub(super) fn prepare_replay_route(
+    /// Slice B exposes the complete fallible query but does not make it a production authority.
+    pub(crate) fn prepare_replay_route(
+        &self,
+        view: &impl SemanticFactView,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        incremental_routes: &[IncrementalRouteKey],
+    ) -> Result<PreparedReplayRoute, ProofFailure> {
+        let lower_bound = view.bound(lower).ok_or(ProofFailure::MissingSemanticFact {
+            fact: SemanticFactRef::Bound(lower),
+        })?;
+        let upper_bound = view.bound(upper).ok_or(ProofFailure::MissingSemanticFact {
+            fact: SemanticFactRef::Bound(upper),
+        })?;
+        if lower_bound.direction() != BoundDirection::Lower
+            || lower_bound.state() == BoundRecordState::Tombstone
+        {
+            return Err(ProofFailure::InvalidReplayRouteTarget {
+                lower,
+                upper,
+                kind: ReplayRouteTargetViolation::LowerDirectionOrState,
+            });
+        }
+        if upper_bound.direction() != BoundDirection::Upper
+            || upper_bound.state() == BoundRecordState::Tombstone
+        {
+            return Err(ProofFailure::InvalidReplayRouteTarget {
+                lower,
+                upper,
+                kind: ReplayRouteTargetViolation::UpperDirectionOrState,
+            });
+        }
+        if lower_bound.owner() != upper_bound.owner() {
+            return Err(ProofFailure::InvalidReplayRouteTarget {
+                lower,
+                upper,
+                kind: ReplayRouteTargetViolation::OwnerMismatch,
+            });
+        }
+        let BoundEndpoint::Lower(lower_endpoint) = lower_bound.endpoint() else {
+            return Err(ProofFailure::InvalidReplayRouteTarget {
+                lower,
+                upper,
+                kind: ReplayRouteTargetViolation::LowerDirectionOrState,
+            });
+        };
+        let BoundEndpoint::Upper(upper_endpoint) = upper_bound.endpoint() else {
+            return Err(ProofFailure::InvalidReplayRouteTarget {
+                lower,
+                upper,
+                kind: ReplayRouteTargetViolation::UpperDirectionOrState,
+            });
+        };
+
+        let lower_ids = self
+            .claimed_parents_by_lower_record
+            .get(&lower)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let lower_block = self.prepare_replay_parent_block(
+            lower,
+            upper,
+            ReplayClaimParentSide::Lower,
+            lower_ids,
+            None,
+        )?;
+
+        let upper_ids = self
+            .claims_by_upper_record
+            .get(&upper)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let upper_entries = self.prepare_replay_parent_entries(
+            lower,
+            upper,
+            ReplayClaimParentSide::Upper,
+            upper_ids,
+            Some(upper),
+        )?;
+
+        let mut handled_incremental_claims = FxHashSet::default();
+        handled_incremental_claims
+            .try_reserve(incremental_routes.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRoutePreflight,
+            })?;
+        for route in incremental_routes {
+            self.validate_incremental_route_target(lower, upper, upper_endpoint, route, upper_ids)?;
+            if let Some(claim) = route.claim {
+                handled_incremental_claims.insert(claim);
+            }
+        }
+
+        let mut any_uncovered = false;
+        let mut pair_upper_entries = Vec::new();
+        pair_upper_entries
+            .try_reserve(upper_entries.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteParentCollection,
+            })?;
+        let lower_is_var = view.is_var_pos(lower_endpoint);
+        for parent in &upper_entries {
+            let covered = self
+                .live_states_by_coverage_root
+                .get(&parent.coverage_root)
+                .is_some_and(|states| !states.is_empty());
+            any_uncovered |= !covered;
+            if !covered
+                || (lower_is_var
+                    && covered
+                    && !handled_incremental_claims.contains(&parent.representative_claim))
+            {
+                pair_upper_entries.push(*parent);
+            }
+        }
+        let requires_generic = upper_entries.is_empty() || any_uncovered;
+
+        let mut prepared_incremental = Vec::new();
+        prepared_incremental
+            .try_reserve(incremental_routes.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        let mut seen_incremental_actions = FxHashSet::default();
+        seen_incremental_actions
+            .try_reserve(incremental_routes.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRoutePreflight,
+            })?;
+        if !requires_generic {
+            for route in incremental_routes {
+                let action_key = (route.upper, route.upper_record);
+                if !seen_incremental_actions.insert(action_key) {
+                    continue;
+                }
+                let upper = match route.claim {
+                    None => PreparedReplayParentBlock::Empty,
+                    Some(claim) => {
+                        let parent = self.resolve_prepared_replay_parent(
+                            lower,
+                            upper,
+                            ReplayClaimParentSide::Upper,
+                            claim,
+                            Some(upper),
+                        )?;
+                        PreparedReplayParentBlock::Shared(Arc::from([parent]))
+                    }
+                };
+                prepared_incremental.push(PreparedIncrementalReplay {
+                    route: *route,
+                    parents: PreparedReplayParentSet {
+                        lower: lower_block.clone(),
+                        upper,
+                    },
+                });
+            }
+        }
+
+        let pair_replay = if requires_generic || !pair_upper_entries.is_empty() {
+            Some(PreparedReplayParentSet {
+                lower: lower_block,
+                upper: prepared_parent_block_from_entries(pair_upper_entries),
+                })
+        } else {
+            None
+        };
+        let routing = if requires_generic {
+            ReplayRouting::Generic
+        } else if pair_replay.is_some() || !prepared_incremental.is_empty() {
+            ReplayRouting::IncrementalOnly
+        } else {
+            ReplayRouting::SkipAlreadyCovered
+        };
+        let prepared = PreparedReplayRoute {
+            routing,
+            proof_event: PreparedReplayParents {
+                pair_replay,
+                incremental_replays: prepared_incremental,
+            },
+        };
+        self.validate_prepared_replay_route(lower, upper, &prepared)?;
+        Ok(prepared)
+        }
+
+    fn prepare_replay_parent_block(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        side: ReplayClaimParentSide,
+        claims: &[UpperReplayClaimId],
+        expected_record: Option<BoundRecordId>,
+    ) -> Result<PreparedReplayParentBlock, ProofFailure> {
+        self.prepare_replay_parent_entries(lower, upper, side, claims, expected_record)
+            .map(prepared_parent_block_from_entries)
+    }
+
+    fn prepare_replay_parent_entries(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        side: ReplayClaimParentSide,
+        claims: &[UpperReplayClaimId],
+        expected_record: Option<BoundRecordId>,
+    ) -> Result<Vec<PreparedReplayParent>, ProofFailure> {
+        let mut entries = Vec::new();
+        entries
+            .try_reserve(claims.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteParentCollection,
+            })?;
+        let mut previous: Option<PreparedReplayParent> = None;
+        for &claim in claims {
+            let parent =
+                self.resolve_prepared_replay_parent(lower, upper, side, claim, expected_record)?;
+            if let Some(previous_parent) = previous {
+                if previous_parent.coverage_root == parent.coverage_root {
+                    return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                        lower,
+                        upper,
+                        kind: ReplayRoutingInvariantViolation::DuplicateParentRoot(side),
+                    });
+                }
+                if (
+                    previous_parent.coverage_root,
+                    previous_parent.representative_claim,
+                ) >= (parent.coverage_root, parent.representative_claim)
+                {
+                    return Err(ProofFailure::NonCanonicalReplayParentOrder { lower, upper, side });
+                }
+            }
+            previous = Some(parent);
+            entries.push(parent);
+        }
+        Ok(entries)
+        }
+
+    fn resolve_prepared_replay_parent(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        side: ReplayClaimParentSide,
+        claim: UpperReplayClaimId,
+        expected_record: Option<BoundRecordId>,
+    ) -> Result<PreparedReplayParent, ProofFailure> {
+        let owner = match side {
+            ReplayClaimParentSide::Lower => ProofFactRef::ProjectionSupports(lower),
+            ReplayClaimParentSide::Upper => ProofFactRef::ReplayClaims(upper),
+        };
+        let occurrence =
+            self.indexed_upper_claim(lower, upper, owner, claim, ProofFactRef::UpperClaim(claim))?;
+        if expected_record.is_some_and(|record| occurrence.current_record != record) {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::ClaimIndexMismatch,
+            });
+        }
+        let coverage_root = occurrence.coverage_root;
+        let parent_owner = ProofFactRef::ReplayParent {
+            lower,
+            upper,
+            side,
+            coverage_root,
+        };
+        let root = self.indexed_upper_claim(
+            lower,
+            upper,
+            parent_owner,
+            coverage_root,
+            ProofFactRef::CoverageRoot(coverage_root),
+        )?;
+        if root.claim != coverage_root || root.coverage_root != coverage_root {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::RepresentativeRootMismatch,
+            });
+        }
+        Ok(PreparedReplayParent {
+            side,
+            coverage_root,
+            representative_claim: occurrence.claim,
+            lineage: occurrence.lineage,
+        })
+    }
+
+    fn indexed_upper_claim(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        owner: ProofFactRef,
+        claim: UpperReplayClaimId,
+        missing_target: ProofFactRef,
+    ) -> Result<&UpperClaimOccurrence, ProofFailure> {
+        let Some(index) = self.upper_claim_index.get(&claim).copied() else {
+            return Err(ProofFailure::DanglingProofReference {
+                owner,
+                target: missing_target,
+            });
+        };
+        let Some(occurrence) = self.upper_claims.get(index) else {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::ClaimIndexMismatch,
+            });
+        };
+        if occurrence.claim != claim {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::ClaimIndexMismatch,
+            });
+        }
+        Ok(occurrence)
+    }
+
+    fn validate_incremental_route_target(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        upper_endpoint: NegId,
+        route: &IncrementalRouteKey,
+        upper_claims: &[UpperReplayClaimId],
+    ) -> Result<(), ProofFailure> {
+        if route.upper_record != upper || route.upper != upper_endpoint {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::IncrementalUpperMismatch,
+                });
+            }
+        let Some(claim) = route.claim else {
+            return Ok(());
+        };
+        let owner = ProofFactRef::IncrementalReplayRoute(*route);
+        let occurrence =
+            self.indexed_upper_claim(lower, upper, owner, claim, ProofFactRef::UpperClaim(claim))?;
+        if occurrence.current_record != upper {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::IncrementalClaimMismatch,
+                });
+            }
+        let root = occurrence.coverage_root;
+        let representative = upper_claims.binary_search_by(|candidate| {
+            let Some(index) = self.upper_claim_index.get(candidate).copied() else {
+                return std::cmp::Ordering::Less;
+            };
+            let Some(candidate) = self.upper_claims.get(index) else {
+                return std::cmp::Ordering::Less;
+            };
+            canonical_upper_claim_key::cmp(candidate.coverage_root, root)
+        });
+        if !matches!(representative, Ok(position) if upper_claims[position] == claim) {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::IncrementalClaimMismatch,
+            });
+        }
+        self.resolve_prepared_replay_parent(
+            lower,
+            upper,
+            ReplayClaimParentSide::Upper,
+            claim,
+            Some(upper),
+        )?;
+        Ok(())
+        }
+
+    fn validate_prepared_replay_route(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        prepared: &PreparedReplayRoute,
+    ) -> Result<(), ProofFailure> {
+        let payload_matches = match prepared.routing {
+            ReplayRouting::Generic => {
+                prepared.proof_event.pair_replay.is_some()
+                    && prepared.proof_event.incremental_replays.is_empty()
+            }
+            ReplayRouting::IncrementalOnly => {
+                prepared.proof_event.pair_replay.is_some()
+                    || !prepared.proof_event.incremental_replays.is_empty()
+            }
+            ReplayRouting::SkipAlreadyCovered => {
+                prepared.proof_event.pair_replay.is_none()
+                    && prepared.proof_event.incremental_replays.is_empty()
+            }
+        };
+        if !payload_matches {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::RoutingPayloadMismatch,
+            });
+        }
+        if let Some(parents) = &prepared.proof_event.pair_replay {
+            self.validate_prepared_parent_set(lower, upper, parents)?;
+        }
+        let mut seen = FxHashSet::default();
+        seen.try_reserve(prepared.proof_event.incremental_replays.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for incremental in &prepared.proof_event.incremental_replays {
+            let key = (incremental.route.upper, incremental.route.upper_record);
+            if !seen.insert(key) {
+                return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                    lower,
+                    upper,
+                    kind: ReplayRoutingInvariantViolation::DuplicatePreparedIncrementalRoute,
+                });
+            }
+            if incremental.route.upper_record != upper {
+                return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                    lower,
+                    upper,
+                    kind: ReplayRoutingInvariantViolation::IncrementalUpperMismatch,
+                });
+            }
+            self.validate_prepared_parent_set(lower, upper, &incremental.parents)?;
+        }
+        Ok(())
+    }
+
+    fn validate_prepared_parent_set(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        parents: &PreparedReplayParentSet,
+    ) -> Result<(), ProofFailure> {
+        for (side, block) in [
+            (ReplayClaimParentSide::Lower, &parents.lower),
+            (ReplayClaimParentSide::Upper, &parents.upper),
+        ] {
+            let mut previous: Option<PreparedReplayParent> = None;
+            for parent in block.as_slice() {
+                let owner = ProofFactRef::ReplayParent {
+                    lower,
+                    upper,
+                    side,
+                    coverage_root: parent.coverage_root,
+                };
+                if parent.side != side {
+                    return Err(ProofFailure::IncompleteMandatoryData {
+                        owner,
+                        field: MandatoryProofField::ReplayParentSide,
+                    });
+                }
+                let occurrence = self.indexed_upper_claim(
+                    lower,
+                    upper,
+                    owner,
+                    parent.representative_claim,
+                    ProofFactRef::UpperClaim(parent.representative_claim),
+                )?;
+                if occurrence.coverage_root != parent.coverage_root {
+                    return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                        lower,
+                        upper,
+                        kind: ReplayRoutingInvariantViolation::RepresentativeRootMismatch,
+                    });
+                }
+                if occurrence.lineage != parent.lineage {
+                    return Err(ProofFailure::IncompleteMandatoryData {
+                        owner,
+                        field: MandatoryProofField::ReplayParentLineage,
+                    });
+                }
+                let root = self.indexed_upper_claim(
+                    lower,
+                    upper,
+                    owner,
+                    parent.coverage_root,
+                    ProofFactRef::CoverageRoot(parent.coverage_root),
+                )?;
+                if root.claim != parent.coverage_root || root.coverage_root != parent.coverage_root
+                {
+                    return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                        lower,
+                        upper,
+                        kind: ReplayRoutingInvariantViolation::RepresentativeRootMismatch,
+                    });
+                }
+                if let Some(previous_parent) = previous {
+                    if previous_parent.coverage_root == parent.coverage_root {
+                        return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                            lower,
+                            upper,
+                            kind: ReplayRoutingInvariantViolation::DuplicateParentRoot(side),
+                        });
+                    }
+                    if (
+                        previous_parent.coverage_root,
+                        previous_parent.representative_claim,
+                    ) >= (parent.coverage_root, parent.representative_claim)
+                    {
+                        return Err(ProofFailure::NonCanonicalReplayParentOrder {
+                            lower,
+                            upper,
+                            side,
+                        });
+                    }
+                }
+                previous = Some(*parent);
+            }
+        }
+        Ok(())
+    }
+
+    /// Temporary CPK-5 root-only summary retained until Slice C replaces its shadow oracle.
+    pub(super) fn prepare_replay_route_shadow_summary(
         &self,
         lower: BoundRecordId,
         upper: BoundRecordId,
@@ -2462,7 +2990,12 @@ pub(super) fn compare_replay_route_shadow(
         ReplayRouting::SkipAlreadyCovered
     };
 
-    let prepared = snapshot.prepare_replay_route(lower, upper, lower_is_var, incremental_routes);
+    let prepared = snapshot.prepare_replay_route_shadow_summary(
+        lower,
+        upper,
+        lower_is_var,
+        incremental_routes,
+    );
     assert_eq!(prepared.routing, legacy, "CPK-5 replay routing diverged");
     snapshot
         .replay_route_observations
@@ -3485,10 +4018,520 @@ mod tests {
             ConstraintRecordId(90_000 + ordinal),
             UpperReplayClaimKind::Direct,
         );
-        machine.proof_store.record_upper_claim(
-            &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
-        );
+        machine
+            .proof_store
+            .record_upper_claim(&machine.bounds.upper_replay_claims[registration.claim.0 as usize]);
         (record, registration.claim)
+    }
+
+    struct Cpk7RoutingFixture {
+        machine: ConstraintMachine,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        upper_endpoint: NegId,
+    }
+
+    fn cpk_7_routing_fixture(lower_is_var: bool) -> Cpk7RoutingFixture {
+        let mut machine = cpk_oracle_machine();
+        let owner = TypeVar(71_000);
+        let lower_endpoint = if lower_is_var {
+            machine.alloc_pos(Pos::Var(TypeVar(71_001)))
+        } else {
+            machine.alloc_pos(Pos::Con(vec!["cpk-7-lower".into()], Vec::new()))
+        };
+        let upper_endpoint = machine.alloc_neg(Neg::Con(vec!["cpk-7-upper".into()], Vec::new()));
+        let lower = machine
+            .bounds
+            .add_lower(
+                owner,
+                lower_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let upper = machine
+            .bounds
+            .add_upper(
+                owner,
+                upper_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        Cpk7RoutingFixture {
+            machine,
+            lower,
+            upper,
+            upper_endpoint,
+        }
+    }
+
+    fn cpk_7_add_upper_claim(fixture: &mut Cpk7RoutingFixture, ordinal: u32) -> UpperReplayClaimId {
+        let registration = fixture.machine.bounds.original_upper_replay_claim(
+            fixture.upper,
+            ConstraintRecordId(91_000 + ordinal),
+            UpperReplayClaimKind::Direct,
+        );
+        fixture.machine.proof_store.record_upper_claim(
+            &fixture.machine.bounds.upper_replay_claims[registration.claim.0 as usize],
+        );
+        registration.claim
+    }
+
+    fn cpk_7_incremental_route(
+        fixture: &Cpk7RoutingFixture,
+        claim: Option<UpperReplayClaimId>,
+    ) -> IncrementalRouteKey {
+        IncrementalRouteKey {
+            upper: fixture.upper_endpoint,
+            upper_record: fixture.upper,
+            provenance: RowDerivationId(71_000),
+            claim,
+        }
+    }
+
+    #[test]
+    fn cpk_7_slice_b_rejects_missing_invalid_and_cross_owner_targets() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let missing = BoundRecordId(u32::MAX);
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                missing,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::MissingSemanticFact {
+                fact: SemanticFactRef::Bound(missing),
+            }),
+        );
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                missing,
+                &[],
+            ),
+            Err(ProofFailure::MissingSemanticFact {
+                fact: SemanticFactRef::Bound(missing),
+            }),
+        );
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.upper,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::InvalidReplayRouteTarget {
+                lower: fixture.upper,
+                upper: fixture.upper,
+                kind: ReplayRouteTargetViolation::LowerDirectionOrState,
+            }),
+        );
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.lower,
+                &[],
+            ),
+            Err(ProofFailure::InvalidReplayRouteTarget {
+                lower: fixture.lower,
+                upper: fixture.lower,
+                kind: ReplayRouteTargetViolation::UpperDirectionOrState,
+            }),
+        );
+        fixture.machine.bounds.records[fixture.lower.0 as usize].state =
+            BoundRecordState::Tombstone;
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::InvalidReplayRouteTarget {
+                lower: fixture.lower,
+                upper: fixture.upper,
+                kind: ReplayRouteTargetViolation::LowerDirectionOrState,
+            }),
+        );
+
+        let mut fixture = cpk_7_routing_fixture(false);
+        let other_upper = fixture
+            .machine
+            .bounds
+            .add_upper(
+                TypeVar(71_999),
+                fixture.upper_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                other_upper,
+                &[],
+            ),
+            Err(ProofFailure::InvalidReplayRouteTarget {
+                lower: fixture.lower,
+                upper: other_upper,
+                kind: ReplayRouteTargetViolation::OwnerMismatch,
+            }),
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_b_distinguishes_dangling_claim_root_and_valid_uncovered_absence() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let missing_claim = UpperReplayClaimId(71_000);
+        fixture
+            .machine
+            .proof_store
+            .claims_by_upper_record
+            .insert(fixture.upper, vec![missing_claim]);
+        assert_eq!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::DanglingProofReference {
+                owner: ProofFactRef::ReplayClaims(fixture.upper),
+                target: ProofFactRef::UpperClaim(missing_claim),
+            }),
+        );
+
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        let missing_root = UpperReplayClaimId(71_001);
+        let index = fixture.machine.proof_store.upper_claim_index[&claim];
+        fixture.machine.proof_store.upper_claims[index].coverage_root = missing_root;
+        assert!(matches!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::DanglingProofReference {
+                target: ProofFactRef::CoverageRoot(root),
+                ..
+            }) if root == missing_root
+        ));
+
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 1);
+        let prepared = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(&fixture.machine, fixture.lower, fixture.upper, &[])
+            .expect("missing live coverage is a valid uncovered root");
+        assert_eq!(prepared.routing, ReplayRouting::Generic);
+        let parents = prepared.proof_event.pair_replay.expect("generic pair");
+        assert_eq!(parents.upper.as_slice()[0].representative_claim, claim,);
+
+        fixture
+            .machine
+            .proof_store
+            .live_states_by_coverage_root
+            .insert(claim, FxHashSet::default());
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .prepare_replay_route(&fixture.machine, fixture.lower, fixture.upper, &[])
+                .expect("an empty live-state set remains uncovered")
+                .routing,
+            ReplayRouting::Generic,
+        );
+
+        let index = fixture.machine.proof_store.upper_claim_index[&claim];
+        fixture
+            .machine
+            .proof_store
+            .upper_claim_index
+            .insert(claim, index + 10_000);
+        assert!(matches!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[],
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::ClaimIndexMismatch,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn cpk_7_slice_b_routes_covered_pairs_and_deduplicates_incremental_input() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        fixture.machine.proof_store.record_live_coverage(
+            claim,
+            UnweightedRowReductionRecordId(71_000),
+            true,
+        );
+        let skipped = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(&fixture.machine, fixture.lower, fixture.upper, &[])
+            .expect("covered non-variable pair is complete");
+        assert_eq!(skipped.routing, ReplayRouting::SkipAlreadyCovered);
+
+        let route = cpk_7_incremental_route(&fixture, None);
+        let incremental = fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[route, route],
+            )
+            .expect("duplicate incremental input keeps its first semantic action");
+        assert_eq!(incremental.routing, ReplayRouting::IncrementalOnly);
+        assert_eq!(incremental.proof_event.incremental_replays.len(), 1);
+        assert_eq!(incremental.proof_event.incremental_replays[0].route, route);
+
+        let mut variable_fixture = cpk_7_routing_fixture(true);
+        let variable_claim = cpk_7_add_upper_claim(&mut variable_fixture, 1);
+        variable_fixture.machine.proof_store.record_live_coverage(
+            variable_claim,
+            UnweightedRowReductionRecordId(71_001),
+            true,
+        );
+        let attachment = variable_fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(
+                &variable_fixture.machine,
+                variable_fixture.lower,
+                variable_fixture.upper,
+                &[],
+            )
+            .expect("an unhandled covered parent retains variable-lower attachment work");
+        assert_eq!(attachment.routing, ReplayRouting::IncrementalOnly);
+        assert_eq!(
+            attachment
+                .proof_event
+                .pair_replay
+                .expect("covered attachment pair")
+                .upper
+                .as_slice()[0]
+                .representative_claim,
+            variable_claim,
+        );
+    }
+
+    #[test]
+    fn cpk_7_slice_b_rejects_invalid_incremental_claims_and_upper_grouping() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        fixture.machine.proof_store.record_live_coverage(
+            claim,
+            UnweightedRowReductionRecordId(71_000),
+            true,
+        );
+        let missing = UpperReplayClaimId(71_999);
+        let dangling = cpk_7_incremental_route(&fixture, Some(missing));
+        assert!(matches!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[dangling],
+            ),
+            Err(ProofFailure::DanglingProofReference {
+                target: ProofFactRef::UpperClaim(found),
+                ..
+            }) if found == missing
+        ));
+
+        let (_, foreign_claim) = cpk_7_record_original_claim(&mut fixture.machine, 500);
+        let mismatch = cpk_7_incremental_route(&fixture, Some(foreign_claim));
+        assert!(matches!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[mismatch],
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::IncrementalClaimMismatch,
+                ..
+            })
+        ));
+
+        let mut wrong_upper = cpk_7_incremental_route(&fixture, None);
+        wrong_upper.upper_record = fixture.lower;
+        assert!(matches!(
+            fixture.machine.proof_store.prepare_replay_route(
+                &fixture.machine,
+                fixture.lower,
+                fixture.upper,
+                &[wrong_upper],
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::IncrementalUpperMismatch,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn cpk_7_slice_b_prepared_output_validator_rejects_every_canonicality_fault() {
+        let mut fixture = cpk_7_routing_fixture(false);
+        let first_claim = cpk_7_add_upper_claim(&mut fixture, 0);
+        let second_claim = cpk_7_add_upper_claim(&mut fixture, 1);
+        let make_parent = |claim| {
+            let occurrence = fixture
+                .machine
+            .proof_store
+                .upper_claim(claim)
+                .expect("fixture claim");
+            PreparedReplayParent {
+                side: ReplayClaimParentSide::Upper,
+                coverage_root: occurrence.coverage_root,
+                representative_claim: claim,
+                lineage: occurrence.lineage,
+    }
+        };
+        let first = make_parent(first_claim);
+        let second = make_parent(second_claim);
+        let generic = |parents| PreparedReplayRoute {
+            routing: ReplayRouting::Generic,
+            proof_event: PreparedReplayParents {
+                pair_replay: Some(PreparedReplayParentSet {
+                    lower: PreparedReplayParentBlock::Empty,
+                    upper: PreparedReplayParentBlock::Shared(Arc::from(parents)),
+                }),
+                incremental_replays: Vec::new(),
+            },
+        };
+
+        let duplicate = generic(vec![first, first]);
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &duplicate,
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::DuplicateParentRoot(
+                    ReplayClaimParentSide::Upper
+                ),
+                ..
+            })
+        ));
+        let noncanonical = generic(vec![second, first]);
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &noncanonical,
+            ),
+            Err(ProofFailure::NonCanonicalReplayParentOrder {
+                side: ReplayClaimParentSide::Upper,
+                ..
+            })
+        ));
+        let mut wrong_root = first;
+        wrong_root.coverage_root = second.coverage_root;
+        let representative_mismatch = generic(vec![wrong_root]);
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &representative_mismatch,
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::RepresentativeRootMismatch,
+                ..
+            })
+        ));
+
+        let mut wrong_side = first;
+        wrong_side.side = ReplayClaimParentSide::Lower;
+        let incomplete_side = generic(vec![wrong_side]);
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &incomplete_side,
+            ),
+            Err(ProofFailure::IncompleteMandatoryData {
+                field: MandatoryProofField::ReplayParentSide,
+                ..
+            })
+        ));
+
+        let mut wrong_lineage = first;
+        wrong_lineage.lineage = ProjectionLineage::ReplayEvidence;
+        let incomplete_lineage = generic(vec![wrong_lineage]);
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &incomplete_lineage,
+            ),
+            Err(ProofFailure::IncompleteMandatoryData {
+                field: MandatoryProofField::ReplayParentLineage,
+                ..
+            })
+        ));
+
+        let route = cpk_7_incremental_route(&fixture, None);
+        let duplicate_incremental = PreparedReplayRoute {
+            routing: ReplayRouting::IncrementalOnly,
+            proof_event: PreparedReplayParents {
+                pair_replay: None,
+                incremental_replays: vec![
+                    PreparedIncrementalReplay {
+                        route,
+                        parents: PreparedReplayParentSet::default(),
+                    },
+                    PreparedIncrementalReplay {
+                        route,
+                        parents: PreparedReplayParentSet::default(),
+                    },
+                ],
+            },
+        };
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &duplicate_incremental,
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::DuplicatePreparedIncrementalRoute,
+                ..
+            })
+        ));
+
+        let payload_mismatch = PreparedReplayRoute {
+            routing: ReplayRouting::Generic,
+            proof_event: PreparedReplayParents::default(),
+        };
+        assert!(matches!(
+            fixture.machine.proof_store.validate_prepared_replay_route(
+                fixture.lower,
+                fixture.upper,
+                &payload_mismatch,
+            ),
+            Err(ProofFailure::ReplayRoutingInvariantViolation {
+                kind: ReplayRoutingInvariantViolation::RoutingPayloadMismatch,
+                ..
+            })
+        ));
     }
 
     #[test]
