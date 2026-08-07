@@ -6695,8 +6695,9 @@ mod tests {
         registration.claim
     }
 
-    fn cpk_3_replay_fixture() -> ConstraintMachine {
+    fn cpk_3_replay_fixture_with_oracle(cpk_proof_oracle_active: bool) -> ConstraintMachine {
         let mut machine = cpk_oracle_machine();
+        machine.cpk_proof_oracle_active = cpk_proof_oracle_active;
         let origin = OriginId::unknown_internal();
         let a = machine.alloc_pos(Pos::Var(TypeVar(30)));
         let p1_upper = machine.alloc_neg(Neg::Var(TypeVar(31)));
@@ -6815,6 +6816,10 @@ mod tests {
             );
         }
         machine
+    }
+
+    fn cpk_3_replay_fixture() -> ConstraintMachine {
+        cpk_3_replay_fixture_with_oracle(true)
     }
 
     #[test]
@@ -7551,49 +7556,154 @@ mod tests {
 
     #[test]
     fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
-        let machine = cpk_3_replay_fixture();
+        let machine = cpk_3_replay_fixture_with_oracle(false);
         let snapshot = machine.proof_store.clone();
+        let claimed = |claim| SchemeProjectionProofSupport::Claimed(UpperReplayClaimId(claim));
+        let replay = |pivot, lower, upper| BinaryReplayDerivation {
+            pivot: TypeVar(pivot),
+            lower: BoundRecordId(lower),
+            upper: BoundRecordId(upper),
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        let replay_clause = |claim, pivot, lower, upper| ProjectionClause::ReplayConjunction {
+            support: claimed(claim),
+            carrier: replay(pivot, lower, upper),
+            lower: BoundRecordId(lower),
+            upper: BoundRecordId(upper),
+            attribution: Some(ProjectionLineage::ReplayConstraint),
+        };
+        let expected_formulas = FxHashMap::from_iter([
+            (
+                BoundRecordId(0),
+                vec![ProjectionClause::Standalone {
+                    support: claimed(0),
+                    attribution: Some(ProjectionLineage::Original),
+                }],
+            ),
+            (
+                BoundRecordId(2),
+                vec![ProjectionClause::Standalone {
+                    support: claimed(1),
+                    attribution: Some(ProjectionLineage::Original),
+                }],
+            ),
+            (
+                BoundRecordId(4),
+                vec![
+                    replay_clause(0, 31, 0, 3),
+                    replay_clause(1, 31, 0, 3),
+                    replay_clause(4, 32, 6, 9),
+                    replay_clause(5, 32, 6, 9),
+                ],
+            ),
+            (
+                BoundRecordId(6),
+                vec![ProjectionClause::Standalone {
+                    support: claimed(4),
+                    attribution: Some(ProjectionLineage::Original),
+                }],
+            ),
+            (
+                BoundRecordId(8),
+                vec![ProjectionClause::Standalone {
+                    support: claimed(5),
+                    attribution: Some(ProjectionLineage::Original),
+                }],
+            ),
+            (
+                BoundRecordId(10),
+                vec![
+                    ProjectionClause::Standalone {
+                        support: claimed(8),
+                        attribution: Some(ProjectionLineage::Original),
+                    },
+                    ProjectionClause::DerivedUnary {
+                        support: claimed(1),
+                        carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(0)),
+                        premise: ProofPremise::RootCoverage(UpperReplayClaimId(1)),
+                        attribution: Some(ProjectionLineage::ReductionRouteConstraint),
+                    },
+                ],
+            ),
+        ]);
+        assert_eq!(snapshot.projection_formulas, expected_formulas);
 
-        assert_replay_shadow_parity(&machine, &snapshot);
-        assert!(
-            !snapshot.projection_formulas.is_empty(),
-            "the production clause-link writers must populate the CPK projection formula",
-        );
-        assert!(
-            snapshot
-                .projection_formulas
-                .values()
-                .flatten()
-                .any(|clause| matches!(clause, ProjectionClause::ReplayConjunction { .. })),
-            "the representative fixture must exercise replay-conjunction support",
-        );
-        assert!(
-            !snapshot.projectability_observations.borrow().is_empty(),
-            "legacy production evaluation must invoke the CPK-4 shadow oracle",
-        );
-        assert!(snapshot
-            .projectability_observations
-            .borrow()
-            .iter()
-            .all(|observation| {
-            observation.legacy == observation.shadow
-                && observation.legacy_cycle_cut == observation.shadow_cycle_cut
-        }));
+        let included = |supports: Vec<(u32, u32)>| ProjectionDecision::Included {
+            supports: ProjectionSupportSet {
+                uncovered_claims: supports
+                    .into_iter()
+                    .map(|(coverage_root, representative_claim)| ProjectionClaimSupport {
+                        coverage_root: UpperReplayClaimId(coverage_root),
+                        representative_claim: UpperReplayClaimId(representative_claim),
+                    })
+                    .collect(),
+                independent_supports: Vec::new(),
+            },
+        };
+        for (record, owner, decision) in [
+            (BoundRecordId(0), TypeVar(31), included(vec![(0, 0)])),
+            (BoundRecordId(2), TypeVar(34), ProjectionDecision::Excluded),
+            (
+                BoundRecordId(4),
+                TypeVar(34),
+                included(vec![(0, 2), (4, 6), (5, 7)]),
+            ),
+            (BoundRecordId(6), TypeVar(32), included(vec![(4, 4)])),
+            (BoundRecordId(8), TypeVar(34), included(vec![(5, 5)])),
+            (BoundRecordId(10), TypeVar(36), included(vec![(8, 8)])),
+        ] {
+            assert_cpk_projection_decision_and_consumer(&machine, owner, record, decision);
+        }
+        assert!(snapshot.projectability_observations.borrow().is_empty());
         assert!(snapshot
             .projection_publication_observations
             .borrow()
-            .iter()
-            .all(|observation| {
-                observation.legacy_class == observation.shadow_class
-                    && observation.legacy_affected_owners
-                        == observation.shadow_affected_owners
-            }));
+            .is_empty());
+    }
+
+    fn assert_cpk_projection_decision_and_consumer(
+        machine: &ConstraintMachine,
+        owner: TypeVar,
+        record: BoundRecordId,
+        expected: ProjectionDecision,
+    ) {
+        assert!(matches!(machine.proof_read_authority(), ProofReadAuthority::Cpk));
+        assert_eq!(project_lower_for_test(machine, record).0, Ok(expected.clone()));
+        let entry = machine
+            .scheme_projectable_lowers(owner)
+            .find(|entry| entry.record == record);
+        match expected {
+            ProjectionDecision::Excluded => assert!(entry.is_none()),
+            ProjectionDecision::Unclaimed => assert_eq!(
+                entry.expect("an unclaimed lower remains a direct consumer input").reason,
+                SchemeProjectableLowerReason::Unclaimed,
+            ),
+            ProjectionDecision::Included { supports } => assert_eq!(
+                entry.expect("an included lower reaches the direct consumer").reason,
+                SchemeProjectableLowerReason::Qualified {
+                    uncovered_claims: supports
+                        .uncovered_claims
+                        .into_iter()
+                        .map(|support| support.representative_claim)
+                        .collect(),
+                    independent_supports: supports.independent_supports,
+                },
+            ),
+        }
+        assert!(machine.proof_terminal_failure().is_none());
     }
 
     #[test]
     fn cpk_4_standalone_only_is_projectable_and_metadata_only() {
-        let mut machine = cpk_oracle_machine();
-        let (record, carrier) = cpk_4_projection_record(&mut machine, 1);
+        let mut machine = ConstraintMachine::new();
+        let (record, _) = cpk_4_projection_record(&mut machine, 1);
+        let owner = machine.bounds.record(record).unwrap().owner();
+        let origin = OriginId(40_001);
+        record_test_origin(&mut machine, record, origin);
+        let carrier = ProjectionProofCarrier::Origin(origin);
+        let semantic_epoch = machine.epoch;
+        let provenance_epoch = machine.provenance_epoch;
+        let journal = machine.activate_method_role_mutations();
         let support = cpk_4_add_independent_support(&mut machine, record, carrier);
         machine.register_cpk_projection_clause_for_test(
             record,
@@ -7602,112 +7712,133 @@ mod tests {
                 RecordProofClause::Standalone { support },
             ),
         );
-        assert!(machine.scheme_projection_record_is_included(record));
-        let snapshot = machine.proof_store.clone();
+        let publications = machine.take_method_role_mutations();
+        journal.finish();
 
         assert_eq!(
-            snapshot.projection_formulas[&record],
+            machine.proof_store.projection_formulas[&record],
             vec![ProjectionClause::Standalone {
-                support: snapshot.projection_supports[&record][0],
+                support,
                 attribution: None,
             }],
         );
-        assert!(snapshot
-            .projectability_observations
-            .borrow()
-            .iter()
-            .any(|observation| observation.record == record && observation.shadow));
-        assert!(snapshot.projection_publication_observations.borrow().iter().any(
-            |observation| observation.lower_record == record
-                && observation.legacy_class == ShadowProjectionPublicationClass::MetadataOnly
-                && observation.legacy_affected_owners.is_empty()
-        ));
-        assert_eq!(
-            machine.scheme_projection_record_is_included(record),
-            true,
+        assert_eq!(machine.epoch, semantic_epoch);
+        assert!(machine.provenance_epoch > provenance_epoch);
+        assert!(publications.is_empty());
+        assert_cpk_projection_decision_and_consumer(
+            &machine,
+            owner,
+            record,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: Vec::new(),
+                    independent_supports: vec![carrier],
+                },
+            },
         );
     }
 
     #[test]
     fn cpk_4_derived_unary_only_cycle_flips_inclusion_and_owner() {
-        let mut machine = cpk_oracle_machine();
-            let (record, carrier) = cpk_4_projection_record(&mut machine, 2);
-            let owner = machine.bounds.record(record).unwrap().owner();
-            let support = cpk_4_add_independent_support(&mut machine, record, carrier);
+        let mut machine = ConstraintMachine::new();
+        let (record, _) = cpk_4_projection_record(&mut machine, 2);
+        let owner = machine.bounds.record(record).unwrap().owner();
+        let origin = OriginId(40_002);
+        record_test_origin(&mut machine, record, origin);
+        let carrier = ProjectionProofCarrier::Origin(origin);
+        let support = cpk_4_add_independent_support(&mut machine, record, carrier);
 
-            let (dependent, dependent_carrier) = cpk_4_projection_record(&mut machine, 4);
-            let dependent_owner = machine.bounds.record(dependent).unwrap().owner();
-            let dependent_support =
-                cpk_4_add_independent_support(&mut machine, dependent, dependent_carrier);
-            machine.register_cpk_projection_clause_for_test(
-                dependent,
-                RecordProofClauseLinkAdmission::independent(
-                    dependent_support,
-                    RecordProofClause::DerivedUnary {
-                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
-                            parent: ConstraintRecordId(32_001),
-                            rule: StructuralDerivationRule::FunctionReturn,
-                        }),
-                        premise: ProofPremise::Record(record),
-                    },
-                ),
-            );
-            machine.register_cpk_projection_clause_for_test(
-                record,
-                RecordProofClauseLinkAdmission::independent(
-                    support,
-                    RecordProofClause::DerivedUnary {
-                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
-                            parent: ConstraintRecordId(32_000),
-                            rule: StructuralDerivationRule::FunctionReturn,
-                        }),
-                        premise: ProofPremise::Record(record),
-                    },
-                ),
-            );
-            assert!(!machine.scheme_projection_record_is_included(record));
-            assert!(!machine.scheme_projection_record_is_included(dependent));
-        let expected_owners = vec![owner, dependent_owner];
-        let snapshot = machine.proof_store.clone();
+        let (dependent, _) = cpk_4_projection_record(&mut machine, 4);
+        let dependent_owner = machine.bounds.record(dependent).unwrap().owner();
+        let dependent_origin = OriginId(40_004);
+        record_test_origin(&mut machine, dependent, dependent_origin);
+        let dependent_carrier = ProjectionProofCarrier::Origin(dependent_origin);
+        let dependent_support =
+            cpk_4_add_independent_support(&mut machine, dependent, dependent_carrier);
+        let dependent_parent =
+            cpk_7_admit_inert_constraint(&mut machine, 40_005, "projection-dependent");
+        machine.register_cpk_projection_clause_for_test(
+            dependent,
+            RecordProofClauseLinkAdmission::independent(
+                dependent_support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: dependent_parent,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Record(record),
+                },
+            ),
+        );
+        let cycle_parent =
+            cpk_7_admit_inert_constraint(&mut machine, 40_006, "projection-cycle");
+        let semantic_epoch = machine.epoch;
+        let journal = machine.activate_method_role_mutations();
+        machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: cycle_parent,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Record(record),
+                },
+            ),
+        );
+        let publications = machine.take_method_role_mutations();
+        journal.finish();
 
         assert!(matches!(
-            snapshot.projection_formulas[&record].as_slice(),
+            machine.proof_store.projection_formulas[&record].as_slice(),
             [ProjectionClause::DerivedUnary { .. }]
         ));
-        let publications = snapshot.projection_publication_observations.borrow();
-        let publication = publications
-            .iter()
-            .find(|observation| {
-                observation.lower_record == record
-                    && observation.legacy_class
-                        == ShadowProjectionPublicationClass::InclusionFlip
+        assert!(machine.epoch > semantic_epoch);
+        let mut affected_owners = publications
+            .into_iter()
+            .filter_map(|mutation| match mutation {
+                crate::constraints::mutation::MethodRoleMutation::Changed {
+                    key: crate::constraints::mutation::DependencyKey::ConstraintBounds(owner),
+                    ..
+                } => Some(owner),
+                _ => None,
             })
-            .expect("the self-cycle must publish an inclusion flip");
-        assert_eq!(publication.legacy_affected_owners, expected_owners);
-        assert_eq!(publication.shadow_affected_owners, expected_owners);
-        assert!(!machine.scheme_projection_record_is_included(record));
-        assert!(!machine.scheme_projection_record_is_included(dependent));
+            .collect::<Vec<_>>();
+        affected_owners.sort_by_key(|owner| owner.0);
+        assert_eq!(affected_owners, vec![owner, dependent_owner]);
+        for (owner, record) in [(owner, record), (dependent_owner, dependent)] {
+            let (decision, round) = project_lower_for_test(&machine, record);
+            assert_eq!(decision, Ok(ProjectionDecision::Excluded));
+            assert!(round.cycle_cuts() > 0);
+            assert_cpk_projection_decision_and_consumer(
+                &machine,
+                owner,
+                record,
+                ProjectionDecision::Excluded,
+            );
+        }
     }
 
     #[test]
     fn cpk_4_no_claim_record_passthrough_has_no_formula_or_publication() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = ConstraintMachine::new();
         let (record, _) = cpk_4_projection_record(&mut machine, 3);
-        assert!(machine.scheme_projection_record_is_included(record));
-        let snapshot = machine.proof_store.clone();
+        let owner = machine.bounds.record(record).unwrap().owner();
+        let epochs = (machine.epoch, machine.provenance_epoch);
+        let journal = machine.activate_method_role_mutations();
 
-        assert!(!snapshot.projection_supports.contains_key(&record));
-        assert!(!snapshot.projection_formulas.contains_key(&record));
-        assert!(snapshot
-            .projection_publication_observations
-            .borrow()
-            .is_empty());
-        assert!(snapshot
-            .projectability_observations
-            .borrow()
-            .iter()
-            .any(|observation| observation.record == record && observation.shadow));
-        assert!(machine.scheme_projection_record_is_included(record));
+        assert!(!machine.proof_store.projection_supports.contains_key(&record));
+        assert!(!machine.proof_store.projection_formulas.contains_key(&record));
+        assert_cpk_projection_decision_and_consumer(
+            &machine,
+            owner,
+            record,
+            ProjectionDecision::Unclaimed,
+        );
+        assert_eq!((machine.epoch, machine.provenance_epoch), epochs);
+        assert!(machine.take_method_role_mutations().is_empty());
+        journal.finish();
     }
 
     #[test]
