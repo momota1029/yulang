@@ -6408,26 +6408,17 @@ mod tests {
         let upper = fixture
             .machine
             .alloc_neg(Neg::Con(vec!["cpk-7-representative".into()], Vec::new()));
+        fixture.machine.cpk_proof_oracle_active = false;
         fixture.machine.add_upper_bound(
             owner,
             upper,
             ConstraintWeights::empty(),
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
-        let observations = fixture
-            .machine
-            .proof_store
-            .replay_route_observations
-            .borrow();
-        let observation = observations
-            .iter()
-            .rev()
-            .find(|observation| observation.lower == record)
-            .expect("the replacement fixture must route the claimed lower");
-        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
+        let prepared = cpk_7_direct_pair_route(&fixture.machine, record, owner, upper);
+        assert_eq!(prepared.routing, ReplayRouting::Generic);
         assert_eq!(
-            observation
-                .shadow_prepared
+            prepared
                 .proof_event
                 .pair_replay
                 .as_ref()
@@ -6880,7 +6871,7 @@ mod tests {
     }
 
     fn cpk_7_two_stage_row_claim_move_fixture() -> Cpk7ClaimMoveFixture {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = ConstraintMachine::new();
         let source = TypeVar(72_000);
         let residual = TypeVar(72_001);
         let initial_family =
@@ -6923,47 +6914,53 @@ mod tests {
 
     fn cpk_7_run_second_row_stage(
         fixture: &mut Cpk7ClaimMoveFixture,
-    ) -> ShadowReplayRouteObservation {
-        let routes_before = fixture
-            .machine
-            .proof_store
-            .replay_route_observations
-            .borrow()
-            .len();
+    ) -> PreparedReplayRoute {
         fixture.machine.subtype(
             fixture.late_family,
             fixture.source_neg,
             OriginId::unknown_internal(),
         );
-
-        fixture.machine.proof_store.replay_route_observations.borrow()[routes_before..]
+        let lower_record = fixture
+            .machine
+            .bounds
+            .records
             .iter()
-            .find(|observation| {
-                observation
-                    .shadow_prepared
-                    .proof_event
-                    .incremental_replays
-                    .iter()
-                    .any(|incremental| incremental.route.upper == fixture.original_upper)
+            .enumerate()
+            .find_map(|(index, record)| {
+                (record.owner() == TypeVar(72_000)
+                    && record.endpoint() == BoundEndpoint::Lower(fixture.late_family))
+                .then_some(BoundRecordId(index as u32))
             })
-            .cloned()
-            .expect("the matched second row stage reaches the exact routing oracle")
+            .expect("the second row stage must retain its lower record");
+        let upper_record = fixture.machine.bounds.upper_replay_claims
+            [fixture.claim.0 as usize]
+            .current_record;
+        let route = IncrementalRouteKey {
+            upper: fixture.original_upper,
+            upper_record,
+            provenance: fixture.machine.unweighted_row_reduction_records
+                [fixture.state.0 as usize]
+                .provenance_head,
+            claim: Some(fixture.claim),
+        };
+        fixture
+            .machine
+            .proof_store
+            .prepare_replay_route(&fixture.machine, lower_record, upper_record, &[route])
+            .expect("the moved claim must produce one direct CPK route")
     }
 
     fn assert_cpk_7_decoupled_claim_move_route(
         fixture: &Cpk7ClaimMoveFixture,
-        observation: &ShadowReplayRouteObservation,
+        prepared: &PreparedReplayRoute,
     ) {
-        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-        let incremental = observation
-            .shadow_prepared
+        let incremental = prepared
             .proof_event
             .incremental_replays
             .iter()
             .find(|incremental| incremental.route.upper == fixture.original_upper)
             .expect("the original row endpoint remains residual incremental work");
         assert_eq!(incremental.route.claim, Some(fixture.claim));
-        assert_eq!(incremental.route.upper_record, observation.upper);
         let current_endpoint = match fixture
             .machine
             .bounds
@@ -6995,8 +6992,7 @@ mod tests {
 
     #[test]
     fn cpk_7_shadow_real_row_route_is_incremental_only_end_to_end() {
-        let mut machine = cpk_3_replay_fixture();
-        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let mut machine = cpk_3_replay_fixture_with_oracle(false);
         let lower = machine.alloc_pos(Pos::Con(
             vec!["cpk-7-real-incremental".into()],
             Vec::new(),
@@ -7007,39 +7003,50 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
-
-        let observations = machine.proof_store.replay_route_observations.borrow();
-        let observation = observations[routes_before..]
+        let lower_record = machine
+            .bounds
+            .records
             .iter()
-            .find(|observation| {
-                !observation
-                    .shadow_prepared
-                    .proof_event
-                    .incremental_replays
-                    .is_empty()
+            .enumerate()
+            .find_map(|(index, record)| {
+                (record.owner() == TypeVar(31)
+                    && record.endpoint() == BoundEndpoint::Lower(lower))
+                .then_some(BoundRecordId(index as u32))
             })
-            .expect("the real row-reduction route must reach the CPK routing oracle");
-        assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
-        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-        assert!(observation.shadow_prepared.proof_event.pair_replay.is_none());
+            .expect("the real incremental route must retain its lower record");
+        let state = UnweightedRowReductionRecordId(0);
+        let reduction = &machine.unweighted_row_reduction_records[state.0 as usize];
+        let route = IncrementalRouteKey {
+            upper: reduction.original_upper,
+            upper_record: reduction.current_reduced_upper.record,
+            provenance: reduction.provenance_head,
+            claim: Some(machine.bounds.reduction_claim_by_state[&state]),
+        };
+        let prepared = machine
+            .proof_store
+            .prepare_replay_route(&machine, lower_record, route.upper_record, &[route])
+            .expect("the real row-reduction route must validate directly in CPK");
+        assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
+        assert!(prepared.proof_event.pair_replay.is_none());
         assert_eq!(
-            observation
-                .shadow_prepared
-                .proof_event
-                .incremental_replays
-                .len(),
+            prepared.proof_event.incremental_replays.len(),
             1,
         );
-        assert!(observation.shadow_prepared.proof_event.incremental_replays[0]
-            .route
-            .claim
-            .is_some());
+        assert_eq!(prepared.proof_event.incremental_replays[0].route, route);
+        assert_eq!(
+            prepared.proof_event.incremental_replays[0]
+                .parents
+                .upper
+                .as_slice()[0]
+                .representative_claim,
+            route.claim.expect("the real route remains claim-qualified"),
+        );
     }
 
     #[test]
     fn cpk_7_shadow_distinct_incremental_arrivals_preserve_first_seen_order() {
         let run = |order: [usize; 2]| {
-            let mut machine = cpk_oracle_machine();
+            let mut machine = ConstraintMachine::new();
             let source = TypeVar(72_100);
             let current_upper = machine.alloc_neg(Neg::Con(
                 vec!["cpk-7-incremental-current".into()],
@@ -7084,8 +7091,9 @@ mod tests {
                     Vec::new(),
                 )
             });
+            let mut states = [UnweightedRowReductionRecordId(u32::MAX); 2];
             for index in order {
-                let (_, registered_root) = machine.register_unweighted_row_reduction_for_test(
+                let (state, registered_root) = machine.register_unweighted_row_reduction_for_test(
                     UnweightedRowReductionRecord {
                         source,
                         producer_constraint: Some(producers[index]),
@@ -7102,10 +7110,10 @@ mod tests {
                         provenance_head: provenance[index],
                     },
                 );
+                states[index] = state;
                 assert_eq!(registered_root, Some(roots[index]));
             }
 
-            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
             let lower = machine.alloc_pos(Pos::Con(
                 vec!["cpk-7-incremental-matched".into()],
                 Vec::new(),
@@ -7116,17 +7124,31 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             );
-
-            let observation = machine.proof_store.replay_route_observations.borrow()
-                [routes_before..]
+            let lower_record = machine
+                .bounds
+                .records
                 .iter()
-                .find(|observation| observation.upper == upper_record)
-                .cloned()
-                .expect("the natural lower event reaches both incremental routes");
-            assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
-            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-            assert!(observation.shadow_prepared.proof_event.pair_replay.is_none());
-            let incremental = &observation.shadow_prepared.proof_event.incremental_replays;
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == source
+                        && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the direct incremental route must retain its lower record");
+            let routes = order.map(|index| IncrementalRouteKey {
+                upper: route_uppers[index],
+                upper_record,
+                provenance: machine.unweighted_row_reduction_records[states[index].0 as usize]
+                    .provenance_head,
+                claim: Some(roots[index]),
+            });
+            let prepared = machine
+                .proof_store
+                .prepare_replay_route(&machine, lower_record, upper_record, &routes)
+                .expect("the direct CPK route retains both incremental actions");
+            assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
+            assert!(prepared.proof_event.pair_replay.is_none());
+            let incremental = &prepared.proof_event.incremental_replays;
             assert_eq!(incremental.len(), 2);
             assert_eq!(
                 incremental
@@ -7163,7 +7185,7 @@ mod tests {
                     .expect("both semantic route identities survive every permutation");
                 (upper, replay.route.claim)
             });
-            (observation.shadow_prepared, normalized)
+            (prepared, normalized)
         };
 
         let (first, first_normalized) = run([0, 1]);
@@ -7180,7 +7202,7 @@ mod tests {
     #[test]
     fn cpk_7_shadow_duplicate_decoupled_incremental_routes_keep_first_seen_action() {
         let run = |order: [usize; 2]| {
-            let mut machine = cpk_oracle_machine();
+            let mut machine = ConstraintMachine::new();
             let source = TypeVar(72_200);
             let current_upper = machine.alloc_neg(Neg::Con(
                 vec!["cpk-7-dedup-current".into()],
@@ -7246,7 +7268,6 @@ mod tests {
                 assert_eq!(registered_root, Some(roots[index]));
             }
 
-            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
             let lower = machine.alloc_pos(Pos::Con(
                 vec!["cpk-7-dedup-matched".into()],
                 Vec::new(),
@@ -7257,16 +7278,30 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             );
-
-            let observation = machine.proof_store.replay_route_observations.borrow()
-                [routes_before..]
+            let lower_record = machine
+                .bounds
+                .records
                 .iter()
-                .find(|observation| observation.upper == upper_record)
-                .cloned()
-                .expect("the natural lower event reaches the duplicate route group");
-            assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
-            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-            let incremental = &observation.shadow_prepared.proof_event.incremental_replays;
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == source
+                        && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the direct duplicate route must retain its lower record");
+            let routes = order.map(|index| IncrementalRouteKey {
+                upper: original_upper,
+                upper_record,
+                provenance: machine.unweighted_row_reduction_records[states[index].0 as usize]
+                    .provenance_head,
+                claim: Some(roots[index]),
+            });
+            let prepared = machine
+                .proof_store
+                .prepare_replay_route(&machine, lower_record, upper_record, &routes)
+                .expect("the direct CPK route deduplicates the exact semantic action");
+            assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
+            let incremental = &prepared.proof_event.incremental_replays;
             assert_eq!(incremental.len(), 1);
             assert_eq!(incremental[0].route.upper, original_upper);
             assert_eq!(incremental[0].route.upper_record, upper_record);
@@ -7289,16 +7324,6 @@ mod tests {
                     "deduping semantic work must not drop either row-provenance merge",
                 );
             }
-            assert_eq!(
-                machine
-                    .proof_store
-                    .replay_event_observations
-                    .borrow()
-                    .last()
-                    .expect("the natural event records exact work counts")
-                    .legacy_input_count,
-                1,
-            );
         };
 
         run([0, 1]);
@@ -7308,19 +7333,15 @@ mod tests {
     #[test]
     fn cpk_7_shadow_claim_move_keeps_decoupled_incremental_route() {
         let mut fixture = cpk_7_two_stage_row_claim_move_fixture();
-        let observation = cpk_7_run_second_row_stage(&mut fixture);
+        let prepared = cpk_7_run_second_row_stage(&mut fixture);
 
-        assert_eq!(observation.legacy, ReplayRouting::IncrementalOnly);
-        assert!(observation.shadow_prepared.proof_event.pair_replay.is_none());
+        assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
+        assert!(prepared.proof_event.pair_replay.is_none());
         assert_eq!(
-            observation
-                .shadow_prepared
-                .proof_event
-                .incremental_replays
-                .len(),
+            prepared.proof_event.incremental_replays.len(),
             1,
         );
-        assert_cpk_7_decoupled_claim_move_route(&fixture, &observation);
+        assert_cpk_7_decoupled_claim_move_route(&fixture, &prepared);
     }
 
     #[test]
@@ -7329,19 +7350,15 @@ mod tests {
         assert!(fixture
             .machine
             .remove_scheme_projection_live_coverage_state(fixture.claim, fixture.state));
-        let observation = cpk_7_run_second_row_stage(&mut fixture);
+        let prepared = cpk_7_run_second_row_stage(&mut fixture);
 
-        assert_eq!(observation.legacy, ReplayRouting::Generic);
-        assert!(observation.shadow_prepared.proof_event.pair_replay.is_some());
+        assert_eq!(prepared.routing, ReplayRouting::Generic);
+        assert!(prepared.proof_event.pair_replay.is_some());
         assert_eq!(
-            observation
-                .shadow_prepared
-                .proof_event
-                .incremental_replays
-                .len(),
+            prepared.proof_event.incremental_replays.len(),
             1,
         );
-        assert_cpk_7_decoupled_claim_move_route(&fixture, &observation);
+        assert_cpk_7_decoupled_claim_move_route(&fixture, &prepared);
     }
 
     #[test]
@@ -7356,7 +7373,7 @@ mod tests {
         .into_iter()
         .enumerate()
         {
-            let mut machine = cpk_3_replay_fixture();
+            let mut machine = cpk_3_replay_fixture_with_oracle(false);
             let claim = machine
                 .proof_store
                 .upper_claims
@@ -7375,7 +7392,6 @@ mod tests {
                 .record(claim.current_record)
                 .expect("the representative claim must point at a semantic upper record")
                 .owner;
-            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
             let lower = machine.alloc_pos(Pos::Var(TypeVar(91_000 + offset as u32)));
             machine.add_lower_bound(
                 owner,
@@ -7383,22 +7399,28 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             );
-
-            let observations = machine.proof_store.replay_route_observations.borrow();
-            let observation = observations[routes_before..]
+            let lower_record = machine
+                .bounds
+                .records
                 .iter()
-                .find(|observation| observation.upper == claim.current_record)
-                .expect("the natural lower event must compare the lineage's upper record");
-            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-            let routed_lineages = observation
-                .shadow_prepared
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == owner
+                        && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the lineage route must retain its lower record");
+            let prepared = machine
+                .proof_store
+                .prepare_replay_route(&machine, lower_record, claim.current_record, &[])
+                .expect("the direct CPK pair must retain the claim lineage");
+            let routed_lineages = prepared
                 .proof_event
                 .pair_replay
                 .iter()
                 .flat_map(PreparedReplayParentSet::iter)
                 .chain(
-                    observation
-                        .shadow_prepared
+                    prepared
                         .proof_event
                         .incremental_replays
                         .iter()
@@ -7963,7 +7985,7 @@ mod tests {
     fn cpk_7_shadow_natural_events_expose_replay_disposition_matrix() {
         const EVIDENCE_CHILD: &str = "YULANG_CPK_7_EVIDENCE_ONLY_DISPOSITION_CHILD";
         if std::env::var_os(EVIDENCE_CHILD).is_some() {
-            let mut machine = cpk_oracle_machine();
+            let mut machine = ConstraintMachine::new();
             let a = machine.alloc_pos(Pos::Var(TypeVar(43_102)));
             let b_upper = machine.alloc_neg(Neg::Var(TypeVar(43_103)));
             machine.subtype(a, b_upper, OriginId::unknown_internal());
@@ -7972,10 +7994,8 @@ mod tests {
             machine.subtype(b, c_upper, OriginId::unknown_internal());
             let dispositions = machine
                 .proof_store
-                .replay_event_observations
-                .borrow()
+                .replay_admissions
                 .iter()
-                .flat_map(|observation| observation.admissions.iter())
                 .map(|admission| admission.disposition)
                 .collect::<Vec<_>>();
             assert!(
@@ -7990,17 +8010,15 @@ mod tests {
             dispositions.extend(
                 machine
                     .proof_store
-                    .replay_event_observations
-                    .borrow()
+                    .replay_admissions
                     .iter()
-                    .flat_map(|observation| observation.admissions.iter())
                     .map(|admission| admission.disposition),
             );
         };
 
-        collect(&cpk_3_replay_fixture());
+        collect(&cpk_3_replay_fixture_with_oracle(false));
 
-        let mut trivial = cpk_oracle_machine();
+        let mut trivial = ConstraintMachine::new();
         let trivial_owner = TypeVar(43_100);
         let trivial_upper = trivial.alloc_neg(Neg::Con(vec!["cpk-7-trivial".into()], Vec::new()));
         trivial.add_upper_bound(
@@ -8018,7 +8036,7 @@ mod tests {
         );
         collect(&trivial);
 
-        let mut incomplete = cpk_oracle_machine();
+        let mut incomplete = ConstraintMachine::new();
         incomplete.set_replay_derivation_budget_for_test(0, usize::MAX);
         let incomplete_owner = TypeVar(43_101);
         let incomplete_upper = incomplete.alloc_neg(Neg::Con(
@@ -8135,7 +8153,7 @@ mod tests {
     #[test]
     fn cpk_7_shadow_target_late_frontiers_preserve_exact_routing() {
         let run = |lower_first: bool| {
-            let mut machine = cpk_oracle_machine();
+            let mut machine = ConstraintMachine::new();
             let owner = TypeVar(73_000 + u32::from(lower_first));
             let lower = machine.alloc_pos(Pos::Con(
                 vec!["cpk-7-target-late-lower".into()],
@@ -8187,7 +8205,7 @@ mod tests {
                 machine.subtype(unrelated_pos, unrelated_upper, origin);
             }
 
-            let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+            let admissions_before = machine.proof_store.replay_admissions.len();
             if lower_first {
                 machine.subtype(owner_pos, upper, origin);
             } else {
@@ -8222,30 +8240,26 @@ mod tests {
             };
             assert!(late_record.0 >= early_record.0 + 32);
 
-            let observations = machine.proof_store.replay_route_observations.borrow();
-            let observation = observations[routes_before..]
-                .iter()
-                .find(|observation| {
-                    observation.lower == lower_record && observation.upper == upper_record
-                })
-                .expect("the late frontier insertion reaches the exact routing oracle");
-            assert_eq!(observation.legacy, ReplayRouting::Generic);
-            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-            let parents = observation
-                .shadow_prepared
+            let prepared = machine
+                .proof_store
+                .prepare_replay_route(&machine, lower_record, upper_record, &[])
+                .expect("the late frontier pair must validate directly in CPK");
+            assert_eq!(prepared.routing, ReplayRouting::Generic);
+            let parents = prepared
                 .proof_event
                 .pair_replay
                 .as_ref()
                 .expect("the uncovered late upper claim requires generic pair replay");
             assert!(parents.lower.as_slice().is_empty());
             assert_eq!(parents.upper.as_slice().len(), 1);
-            assert!(observation
-                .shadow_prepared
-                .proof_event
-                .incremental_replays
-                .is_empty());
-            drop(observations);
-            assert_cpk_5_event_count_parity(&machine.proof_store);
+            assert!(prepared.proof_event.incremental_replays.is_empty());
+            let admissions = &machine.proof_store.replay_admissions[admissions_before..];
+            assert_eq!(admissions.len(), 1);
+            assert_eq!(admissions[0].disposition, ReplayAdmissionDisposition::NewSemantic);
+            let accepted = admissions[0]
+                .result
+                .expect("the late-frontier replay must retain its accepted result");
+            assert!(machine.constraint_records.get(accepted.0 as usize).is_some());
         };
 
         run(true);
@@ -8254,7 +8268,7 @@ mod tests {
 
     #[test]
     fn cpk_7_shadow_generic_route_preserves_all_uncovered_upper_roots() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = ConstraintMachine::new();
         let owner = TypeVar(73_200);
         let upper = machine.alloc_neg(Neg::Con(
             vec!["cpk-7-multi-root-upper".into()],
@@ -8292,7 +8306,7 @@ mod tests {
         });
         assert_eq!(upper_records[0], upper_records[1]);
 
-        let routes_before = machine.proof_store.replay_route_observations.borrow().len();
+        let admissions_before = machine.proof_store.replay_admissions.len();
         let lower = machine.alloc_pos(Pos::Con(
             vec!["cpk-7-multi-root-lower".into()],
             Vec::new(),
@@ -8304,15 +8318,22 @@ mod tests {
             BoundDerivation::Origin(origin),
         );
 
-        let observations = machine.proof_store.replay_route_observations.borrow();
-        let observation = observations[routes_before..]
+        let lower_record = machine
+            .bounds
+            .records
             .iter()
-            .find(|observation| observation.upper == upper_records[0])
-            .expect("the natural lower event reaches the multi-root upper record");
-        assert_eq!(observation.legacy, ReplayRouting::Generic);
-        assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-        let parents = observation
-            .shadow_prepared
+            .enumerate()
+            .find_map(|(index, record)| {
+                (record.owner() == owner && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+            })
+            .expect("the multi-root route must retain its lower record");
+        let prepared = machine
+            .proof_store
+            .prepare_replay_route(&machine, lower_record, upper_records[0], &[])
+            .expect("the multi-root pair must validate directly in CPK");
+        assert_eq!(prepared.routing, ReplayRouting::Generic);
+        let parents = prepared
             .proof_event
             .pair_replay
             .as_ref()
@@ -8328,13 +8349,14 @@ mod tests {
             }),
             "every uncovered root is retained once in canonical root order",
         );
-        assert!(observation
-            .shadow_prepared
-            .proof_event
-            .incremental_replays
-            .is_empty());
-        drop(observations);
-        assert_cpk_5_event_count_parity(&machine.proof_store);
+        assert!(prepared.proof_event.incremental_replays.is_empty());
+        let admissions = &machine.proof_store.replay_admissions[admissions_before..];
+        assert_eq!(admissions.len(), 1);
+        assert_eq!(admissions[0].disposition, ReplayAdmissionDisposition::NewSemantic);
+        let accepted = admissions[0]
+            .result
+            .expect("the multi-root replay must retain its accepted result");
+        assert!(machine.constraint_records.get(accepted.0 as usize).is_some());
     }
 
     fn cpk_7_admit_inert_constraint(
