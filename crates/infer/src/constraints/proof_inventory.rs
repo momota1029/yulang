@@ -216,7 +216,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("record_proof_clause_link_keys", 12),
     ("attributed_claim_supports", 33),
     ("flat_retained_attributed_claim_supports", 12),
-    ("dependent_records_by_premise", 23),
+    // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
+    // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
+    ("dependent_records_by_premise", 24),
     // CPK-2's test-only legacy parity reconstruction adds one reviewed root-origin read.
     // Fixture hygiene now uses the reviewed root-admission API instead of four raw field writes.
     ("origins", 131),

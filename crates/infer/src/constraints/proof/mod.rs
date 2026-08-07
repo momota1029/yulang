@@ -8303,6 +8303,297 @@ mod tests {
         );
     }
 
+    #[test]
+    fn cpk_projection_target_late_metadata_bootstraps_formula() {
+        let mut machine = ConstraintMachine::new();
+        let pivot = TypeVar(80_100);
+        let source = TypeVar(80_101);
+        let target = TypeVar(80_102);
+        let lower = machine.alloc_pos(Pos::Var(source));
+        let upper = machine.alloc_neg(Neg::Var(target));
+        let producer = cpk_7_admit_inert_constraint(&mut machine, 80_103, "target-late");
+
+        machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let lower_record = machine.bounds.of(target).unwrap().lower_record_ids()[0];
+
+        machine.add_upper_bound(
+            pivot,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(producer),
+        );
+        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+        machine.add_lower_bound(
+            pivot,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        let result = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the natural replay admission is canonical");
+        assert_eq!(machine.proof_store.replay_finite_map.len(), 1);
+        let replay = machine.proof_store.replay_finite_map[0].carrier;
+        assert_eq!(machine.proof_store.replay_finite_map[0].result, result);
+        assert_eq!(
+            machine.proof_store.replay_finite_map[0].upper_parents,
+            vec![ReplayProofParent {
+                side: ReplayClaimParentSide::Upper,
+                coverage_root: root,
+                representative_claim: root,
+                lineage: ProjectionLineage::Original,
+            }],
+            "the typed replay occurrence exists before target metadata",
+        );
+        assert!(!machine.proof_store.projection_formulas.contains_key(&lower_record));
+        assert!(
+            machine.queue.pop_back().is_some(),
+            "delay only the newly admitted replay constraint",
+        );
+
+        let epoch_before = machine.epoch.as_u64();
+        let provenance_before = machine.provenance_epoch.as_u64();
+        let journal = machine.activate_method_role_mutations();
+        machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(result),
+        );
+        let published = machine.take_method_role_mutations();
+        journal.finish();
+        assert_eq!(machine.lower_record_for_constraint(result), Some(lower_record));
+        assert_eq!(
+            machine.epoch.as_u64(),
+            epoch_before,
+            "the already-projectable target publishes MetadataOnly",
+        );
+        assert!(machine.provenance_epoch.as_u64() > provenance_before);
+        assert!(published.is_empty(), "MetadataOnly has no affected owner");
+
+        let replay_clause = ProjectionClause::ReplayConjunction {
+            support: SchemeProjectionProofSupport::Claimed(root),
+            carrier: replay,
+            lower: replay.lower,
+            upper: replay.upper,
+            attribution: Some(ProjectionLineage::ReplayConstraint),
+        };
+        let independent_carrier = ProjectionProofCarrier::Origin(OriginId::unknown_internal());
+        let independent = SchemeProjectionProofSupport::Independent(independent_carrier);
+        assert_eq!(
+            machine.proof_store.projection_formulas[&lower_record],
+            vec![
+                ProjectionClause::Standalone {
+                    support: independent,
+                    attribution: None,
+                },
+                replay_clause,
+            ],
+            "target-late bootstrap preserves Standalone-before-ReplayConjunction order",
+        );
+        let (decision, _) = project_lower_for_test(&machine, lower_record);
+        assert_eq!(
+            decision,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: vec![ProjectionClaimSupport {
+                        coverage_root: root,
+                        representative_claim: root,
+                    }],
+                    independent_supports: vec![independent_carrier],
+                },
+            }),
+        );
+    }
+
+    #[test]
+    fn cpk_evidence_and_trivial_replays_do_not_create_projection_formula() {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        fixture.machine.cpk_proof_oracle_active = false;
+        let formulas_before = fixture.machine.proof_store.projection_formulas.clone();
+        let supports_before = fixture.machine.proof_store.projection_supports.clone();
+        let claimed_before = fixture
+            .machine
+            .proof_store
+            .claimed_parents_by_lower_record
+            .clone();
+        let admissions_before = fixture.machine.proof_store.replay_admissions.len();
+        let occurrences_before = fixture.machine.proof_store.occurrences.len();
+
+        let evidence_constraint = SubtypeConstraintKey {
+            lower: fixture.machine.alloc_pos(Pos::Var(TypeVar(80_200))),
+            upper: fixture.machine.alloc_neg(Neg::Var(TypeVar(80_201))),
+            weights: ConstraintWeights::empty(),
+        };
+        fixture
+            .machine
+            .apply_cpk_evidence_only_replay_for_test(evidence_constraint, fixture.carrier);
+        let trivial_constraint = SubtypeConstraintKey {
+            lower: fixture.machine.alloc_pos(Pos::Bot),
+            upper: fixture.machine.constraint_records[fixture.result.0 as usize]
+                .key
+                .upper,
+            weights: ConstraintWeights::empty(),
+        };
+        fixture
+            .machine
+            .apply_cpk_trivial_replay_for_test(trivial_constraint, fixture.carrier);
+
+        let new_admissions = &fixture.machine.proof_store.replay_admissions[admissions_before..];
+        assert_eq!(new_admissions.len(), 2);
+        assert!(new_admissions.iter().any(|event| {
+            event.result.is_none()
+                && event.carrier == fixture.carrier
+                && event.disposition == ReplayAdmissionDisposition::EvidenceOnly
+        }));
+        assert!(new_admissions.iter().any(|event| {
+            event.result.is_none()
+                && event.carrier == fixture.carrier
+                && event.disposition == ReplayAdmissionDisposition::Trivial
+        }));
+
+        let new_occurrences = &fixture.machine.proof_store.occurrences[occurrences_before..];
+        let evidence_records = new_occurrences
+            .iter()
+            .filter_map(|occurrence| match (&occurrence.result, &occurrence.cause) {
+                (ProofResult::EvidenceBound(record), ProofCause::ReplayEvidence(carrier))
+                    if *carrier == fixture.carrier =>
+                {
+                    Some(*record)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(evidence_records.len(), 2);
+        assert!(new_occurrences.iter().any(|occurrence| matches!(
+            (&occurrence.result, &occurrence.cause),
+            (ProofResult::TrivialReplay(_), ProofCause::ReplayDrop(drop))
+                if drop.derivation == fixture.carrier
+        )));
+        assert_eq!(fixture.machine.proof_store.projection_formulas, formulas_before);
+        assert_eq!(fixture.machine.proof_store.projection_supports, supports_before);
+        assert_eq!(
+            fixture.machine.proof_store.claimed_parents_by_lower_record,
+            claimed_before,
+        );
+        for record in evidence_records {
+            let direction = fixture.machine.bounds.record(record).unwrap().direction();
+            let (decision, _) = project_lower_for_test(&fixture.machine, record);
+            match direction {
+                BoundDirection::Lower => assert_eq!(decision, Ok(ProjectionDecision::Unclaimed)),
+                BoundDirection::Upper => assert_eq!(
+                    decision,
+                    Err(ProofFailure::InvalidProjectionTarget {
+                        record,
+                        direction,
+                        state: BoundRecordState::Evidence,
+                    }),
+                ),
+            }
+        }
+    }
+
+    fn cpk_premise_dependency_fixture(reverse_replay_order: bool) -> ConstraintMachine {
+        let mut fixture = cpk_3_replay_admission_fixture();
+        fixture.machine.cpk_proof_oracle_active = false;
+        let alternate = BinaryReplayDerivation {
+            rule: ReplayRule::UpperBoundAdded,
+            ..fixture.carrier
+        };
+        let carriers = if reverse_replay_order {
+            [alternate, fixture.carrier]
+        } else {
+            [fixture.carrier, alternate]
+        };
+        for carrier in carriers {
+            fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                fixture.result,
+                carrier,
+                fixture.coverage_root,
+            );
+        }
+        assert_eq!(fixture.machine.proof_store.replay_finite_map.len(), 2);
+
+        let dependent_owner = TypeVar(80_300);
+        let dependent_endpoint = fixture.machine.alloc_pos(Pos::Con(
+            vec!["cpk-premise-dependent".into()],
+            Vec::new(),
+        ));
+        fixture.machine.add_lower_bound(
+            dependent_owner,
+            dependent_endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        let dependent = fixture
+            .machine
+            .bounds
+            .of(dependent_owner)
+            .expect("the dependent owner has bounds")
+            .lower_record_ids()[0];
+        let origin = ProjectionProofCarrier::Origin(OriginId::unknown_internal());
+        let support = cpk_4_add_independent_support(&mut fixture.machine, dependent, origin);
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                    parent: fixture.result,
+                    rule: StructuralDerivationRule::FunctionReturn,
+                }),
+                premise: ProofPremise::Constraint(fixture.result),
+            },
+        );
+        fixture
+            .machine
+            .register_cpk_projection_clause_for_test(dependent, admission);
+
+        let before_duplicate = fixture.machine.logical_proof_snapshot().dependencies;
+        fixture
+            .machine
+            .register_cpk_projection_clause_for_test(dependent, admission);
+        assert_eq!(
+            fixture.machine.logical_proof_snapshot().dependencies,
+            before_duplicate,
+            "duplicate registration cannot duplicate dependency edges",
+        );
+
+        for premise in [
+            ProofPremise::Constraint(fixture.result),
+            ProofPremise::Record(fixture.carrier.lower),
+            ProofPremise::Record(fixture.carrier.upper),
+        ] {
+            let dependents = fixture
+                .machine
+                .bounds
+                .dependent_records_by_premise
+                .get(&premise)
+                .unwrap_or_else(|| panic!("missing exact replay premise {premise:?}"));
+            assert!(dependents.contains(&dependent));
+            assert_eq!(
+                dependents.iter().filter(|record| **record == dependent).count(),
+                1,
+            );
+        }
+        fixture.machine
+    }
+
+    #[test]
+    fn cpk_premise_dependency_chain_contains_exact_replay_endpoints() {
+        let forward = cpk_premise_dependency_fixture(false);
+        let reverse = cpk_premise_dependency_fixture(true);
+        assert_eq!(
+            forward.logical_proof_snapshot().dependencies,
+            reverse.logical_proof_snapshot().dependencies,
+            "premise admission order cannot perturb canonical provenance dependencies",
+        );
+    }
+
     fn cpk_7_sided_parent_observation(
         machine: &ConstraintMachine,
         routes_before: usize,
