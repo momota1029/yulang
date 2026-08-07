@@ -44,6 +44,28 @@
 //   replay authority and exact test-only shadow capture. CPK-8B must replace writers before any
 //   physical removal.
 
+// CPK-8E-0 final migration-parity snapshot, frozen at 8d208792 before oracle retirement.
+// This is a manifest of CPK-observable contracts, not a serialized snapshot of Legacy storage.
+// The baseline commands are the `cpk_` and `rcpf_` lib-test filters plus the exact-carrier-order
+// test. Together they pin the following surfaces for the later independently revertible slices:
+// - CPK-2/3 occurrence order, exact replay finite map, first witness, trivial/evidence admission,
+//   and the semantic execution snapshot;
+// - CPK-4 projection decisions and publication classes for Standalone, DerivedUnary, and
+//   ReplayConjunction formulas, including canonical supports and all five lineage sources;
+// - CPK-5/7 prepared route parent root/claim/side/lineage order, event counts, target-late,
+//   same-root, claim-move, and endpoint-decoupling behavior;
+// - the deliberate-retirement baselines cdm_a_9_2_exact_carrier_arrival_order_preserves_bulk_snapshot,
+//   rcpf_e2a_claimed_attribution_matrix_partitions_all_five_sources_at_the_writer,
+//   rcpf_e2b_claimed_attribution_union_mismatch_quarantines_event_oracle,
+//   rcpf_event_oracle_is_opt_in_and_shadow_writes_do_not_interfere,
+//   rcpf_event_oracle_mismatch_is_quarantined_after_legacy_noop, and
+//   rcpf_shadow_exact_relation_matches_legacy_across_extensions_and_carriers;
+// - the replacement prerequisites rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata,
+//   rcpf_clause_projection_excludes_evidence_and_trivial_replays, and
+//   rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle.
+// Later CPK-8E slices may remove an oracle assertion only after its typed CPK contract above is
+// direct, or after the deliberate-retirement reason is recorded without changing expectations.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Cpk8RawFixtureWriterClass {
     CorrectnessContract,
