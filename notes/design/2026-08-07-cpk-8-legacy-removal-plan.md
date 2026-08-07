@@ -2,11 +2,14 @@
 
 日付: 2026-08-07
 
-状態: **ユーザ承認済み（2026-08-07）**
+状態: **ユーザ承認済み（2026-08-07）。§5 CPK-8G（物理撤去）も事前承認済み（2026-08-07追記）**
 
-ただし §5 CPK-8G（物理撤去）は本書承認の範囲に含まれない。8F green後、8G着手前に、
-本書とは別にユーザの明示的な再確認を必須とする（§11 open question 12 の決定）。
-8A〜8Fは本書の承認により着手可。
+§11 open question 12 は当初、8F green後・8G着手前に本書とは別のユーザ再確認を
+必須としていた。ユーザは同日中に「8Gはもうこの時点で一旦承認しておきます」と
+明示し、この再確認を前倒しで与えた。したがって8A〜8G全体が本書の承認範囲に
+含まれる。ただし8G自体の物理削除は§8.2が定める不可逆境界（同一process内での
+representation rollback不可）を伴うため、実装時も§9 stop conditionと§10
+completion criteriaを厳格に適用し、8F greenの確認を経てから着手する。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 
@@ -670,9 +673,12 @@ CPK-9の最終profileとcloseoutを完了したとは、この条件だけでは
     名前を変えて残すか、CPK hard-failure telemetryへ統合して旧counterを削除するか。
 11. **Debug/public surface**: external read-only debug consumerがflat shapeを期待する場合、
     CPK-backed compatibility iteratorを残すか、public surfaceをversioned変更として別承認するか。
-12. **Final physical deletionの承認点**（決定済み、2026-08-07）: 8F green後、8Gは
-    通常の実装継続として進めない。runtime fallback消滅という実質的な不可逆点として、
-    本書の承認とは別に、8G着手前にユーザの明示的な再確認を必須とする。
+12. **Final physical deletionの承認点**（決定済み、2026-08-07。同日中に前倒し確認済み）:
+    当初は8F green後、8G着手前に本書とは別のユーザ明示的再確認を必須としていた。
+    ユーザは同日中に「8Gはもうこの時点で一旦承認しておきます」と明示し、この
+    再確認を前倒しで与えた。runtime fallback消滅という実質的な不可逆点である
+    ことに変わりはないため、実装は8F greenの確認を経てから着手し、§9 stop
+    conditionと§10 completion criteriaを厳格に適用する。
 
 ## 12. 先行文書との整合性
 
