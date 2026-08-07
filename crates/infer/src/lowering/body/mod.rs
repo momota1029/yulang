@@ -2830,8 +2830,8 @@ mod rcpf_c3a_retry_tests {
     use super::*;
     use crate::constraints::proof::ProofOperation;
     use crate::constraints::{
-        ProofReadAuthority, ReplayFactoredFailureOperation, ReplaySoakEventOrigin,
-        capture_replay_soak_test_events, record_proof_terminal_failure,
+        ReplayFactoredFailureOperation, ReplaySoakEventOrigin, capture_replay_soak_test_events,
+        record_proof_terminal_failure,
         with_intentional_replay_soak_test_injection,
     };
 
@@ -2994,21 +2994,13 @@ mod rcpf_c3a_retry_tests {
     }
 
     #[test]
-    fn rcpf_c3a_loaded_files_driver_threads_factored_authority() {
+    fn rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure() {
         let loaded = sources::load(vec![sources::SourceFile {
             module_path: Path::default(),
             source: "pub identity x = x\n".into(),
         }]);
         let output = lower_loaded_files(&loaded).expect("lower the authority fixture");
 
-        assert_eq!(
-            output.session.infer.constraints().replay_read_authority(),
-            ReplayReadAuthority::Factored
-        );
-        assert_eq!(
-            output.session.infer.constraints().proof_read_authority(),
-            &ProofReadAuthority::Cpk
-        );
         assert_eq!(
             output
                 .session

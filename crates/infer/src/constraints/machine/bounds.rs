@@ -11578,7 +11578,7 @@ mod mutation_tests {
 
     fn cpk_mirrored_cdm_replay_claim_fixture() -> CdmReplayClaimFixture {
         build_cdm_replay_claim_fixture(
-            ReplayReadAuthority::Factored,
+            ConstraintMachine::new(),
             CdmReplayClaimFixtureProofState::CpkMirrored,
         )
     }
@@ -11591,26 +11591,18 @@ mod mutation_tests {
         replay_read_authority: ReplayReadAuthority,
     ) -> CdmReplayClaimFixture {
         build_cdm_replay_claim_fixture(
-            replay_read_authority,
+            ConstraintMachine::new_with_read_authorities(
+                replay_read_authority,
+                legacy_rollback_proof_authority(),
+            ),
             CdmReplayClaimFixtureProofState::LegacyOnly,
         )
     }
 
     fn build_cdm_replay_claim_fixture(
-        replay_read_authority: ReplayReadAuthority,
+        mut machine: ConstraintMachine,
         proof_state: CdmReplayClaimFixtureProofState,
     ) -> CdmReplayClaimFixture {
-        let mut machine = match proof_state {
-            CdmReplayClaimFixtureProofState::CpkMirrored => {
-                ConstraintMachine::new_with_replay_read_authority(replay_read_authority)
-            }
-            CdmReplayClaimFixtureProofState::LegacyOnly => {
-                ConstraintMachine::new_with_read_authorities(
-                    replay_read_authority,
-                    legacy_rollback_proof_authority(),
-                )
-            }
-        };
         let source = TypeVar(0);
         let target = TypeVar(1);
         let parent_source = TypeVar(2);
@@ -12036,16 +12028,30 @@ mod mutation_tests {
                         TypeVar(2), upper, ConstraintWeights::empty(),
                         BoundDerivation::Constraint(producer),
                     );
-                    machine.bounds.root_claim_by_producer_constraint[&producer]
+                    machine.proof_store.upper_claims.iter()
+                        .find(|claim| {
+                            claim.producer == producer
+                                && claim.lineage == proof::ProjectionLineage::Original
+                        })
+                        .expect("CPK producer root")
+                        .claim
                 });
-                let parent_record = machine.bounds.upper_replay_claims[roots[0].0 as usize]
-                    .current_record;
+                let parent_record = machine.proof_store.upper_claim(roots[0])
+                    .expect("CPK replay parent claim").current_record;
                 machine.add_lower_bound(
                     target, lower, ConstraintWeights::empty(), BoundDerivation::Constraint(result),
                 );
-                let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
-                assert!(!machine.bounds.scheme_projection_claims_by_lower_record.contains_key(&lower_record));
-                assert!(!machine.bounds.projection_proofs_by_lower_record.contains_key(&lower_record));
+                let lower_record = machine.proof_store
+                    .projection_lower_record_for_constraint(result)
+                    .expect("CPK projection target");
+                assert!(machine
+                    .proof_store
+                    .projection_supports_for_record(lower_record)
+                    .is_empty());
+                assert!(machine
+                    .proof_store
+                    .projection_formula_for_record(lower_record)
+                    .is_empty());
                 let source_origins = (0..independent_count).map(|index| machine.alloc_source_boundary(
                     if index % 2 == 0 { ConstraintOriginKind::Field } else { ConstraintOriginKind::Return },
                 )).collect::<Vec<_>>();
@@ -12122,13 +12128,18 @@ mod mutation_tests {
             }
 
             fn root(&self, claim: UpperReplayClaimId) -> UpperReplayClaimId {
-                self.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+                self.machine.proof_store.upper_claim(claim)
+                    .expect("CPK claim")
+                    .coverage_root
             }
 
             fn snapshot(&self) -> (Vec<UpperReplayClaimId>, Vec<SchemeProjectionProofSupport>, Vec<Key>) {
-                let claims = self.machine.bounds.scheme_projection_claims_by_lower_record[&self.lower_record].clone();
-                let supports = self.machine.bounds.projection_proofs_by_lower_record[&self.lower_record]
-                    .iter().map(|proof| proof.support).collect::<Vec<_>>();
+                let supports = self.machine.proof_store
+                    .projection_supports_for_record(self.lower_record).to_vec();
+                let claims = supports.iter().filter_map(|support| match support {
+                    SchemeProjectionProofSupport::Claimed(claim) => Some(*claim),
+                    SchemeProjectionProofSupport::Independent(_) => None,
+                }).collect::<Vec<_>>();
                 let keys = supports.iter().map(|support| match support {
                     SchemeProjectionProofSupport::Claimed(claim) => Key::Claimed(self.root(*claim)),
                     SchemeProjectionProofSupport::Independent(carrier) => Key::Independent(*carrier),
@@ -12143,17 +12154,9 @@ mod mutation_tests {
                 }
             }
 
-            fn canonicalize_shadow_ledgers(&mut self) {
-                let mut claims = self.machine.bounds.scheme_projection_claims_by_lower_record[&self.lower_record].clone();
-                claims.sort_by(|left, right| canonical_projection_key::cmp(
-                    &Key::Claimed(self.root(*left)), &Key::Claimed(self.root(*right)),
-                ));
-                self.machine.bounds.scheme_projection_claims_by_lower_record.insert(self.lower_record, claims);
-                let mut proofs = self.machine.bounds.projection_proofs_by_lower_record[&self.lower_record].clone();
-                proofs.sort_by(|left, right| canonical_projection_key::cmp(
-                    &self.key(left.support), &self.key(right.support),
-                ));
-                self.machine.bounds.projection_proofs_by_lower_record.insert(self.lower_record, proofs);
+            fn assert_cpk_projection_is_canonical(&self) {
+                let (_, _, keys) = self.snapshot();
+                assert_eq!(keys, canonical_projection_key::normalize_clone(&keys));
             }
 
             fn consumer_snapshot(&self) -> ConsumerSnapshot {
@@ -12224,10 +12227,24 @@ mod mutation_tests {
             boundaries: [SourceBoundaryId; 2],
         }
 
+        #[derive(Clone, Copy)]
+        enum TargetLateMaterializationRead {
+            CpkOnly,
+            LegacyParity,
+        }
+
         impl TargetLateFixture {
+            fn new() -> Self {
+                Self::from_machine(ConstraintMachine::new())
+            }
+
             fn new_with_authority(authority: ReplayReadAuthority) -> Self {
                 let mut machine = ConstraintMachine::new_with_replay_read_authority(authority);
                 machine.enable_replay_factored_event_oracle();
+                Self::from_machine(machine)
+            }
+
+            fn from_machine(mut machine: ConstraintMachine) -> Self {
                 let source = TypeVar(0);
                 let target = TypeVar(1);
                 let pivot = TypeVar(2);
@@ -12256,10 +12273,16 @@ mod mutation_tests {
                         pivot, upper, ConstraintWeights::empty(),
                         BoundDerivation::Constraint(producer),
                     );
-                    machine.bounds.root_claim_by_producer_constraint[&producer]
+                    machine.proof_store.upper_claims.iter()
+                        .find(|claim| {
+                            claim.producer == producer
+                                && claim.lineage == proof::ProjectionLineage::Original
+                        })
+                        .expect("CPK target-late producer root")
+                        .claim
                 });
-                let parent_upper = machine.bounds.upper_replay_claims[roots[0].0 as usize]
-                    .current_record;
+                let parent_upper = machine.proof_store.upper_claim(roots[0])
+                    .expect("CPK target-late parent claim").current_record;
                 let rows = producers.map(|producer| machine.intern_row_derivation(
                     RowDerivationRule::UnweightedReduction,
                     vec![RowDerivationParent::Constraint(producer)],
@@ -12311,7 +12334,10 @@ mod mutation_tests {
                 self.machine.register_reduction_route_claim_parent(self.result, row, self.roots[index]);
             }
 
-            fn materialize(mut self) -> TargetLateMaterialized {
+            fn materialize(
+                mut self,
+                read: TargetLateMaterializationRead,
+            ) -> TargetLateMaterialized {
                 let upper_record = self.machine.bounds.add_upper(
                     self.source, self.upper, ConstraintWeights::empty(), BoundDerivation::Constraint(self.result),
                 ).id;
@@ -12323,37 +12349,68 @@ mod mutation_tests {
                 self.machine.register_lower_projection_derivation(
                     lower_record, Some(self.result), BoundDerivation::Constraint(self.result),
                 );
-                let legacy_parents = self.machine.bounds.claim_parents_by_constraint[&self.result].clone();
-                let legacy_upper = self.machine.try_upper_materialization_lineages_from_parents(
-                    upper_record, self.result, legacy_parents.iter().copied(), false,
-                );
-                assert_eq!(
-                    self.machine.try_authoritative_upper_materialization_full(
-                        upper_record, self.result,
-                    ),
-                    legacy_upper,
-                );
-                let legacy_lower = self.machine.try_legacy_record_lower_projection(lower_record).unwrap();
-                assert_eq!(
-                    self.machine.try_authoritative_lower_projection_full(
-                        self.result, &legacy_parents, &[],
-                    ).unwrap(),
-                    legacy_lower.canonical,
-                );
-                if self.machine.replay_read_authority() == ReplayReadAuthority::Factored {
-                    assert_eq!(self.machine.try_upper_materialization_lineages_from_parents(
-                        upper_record, self.result,
-                        legacy_parents.iter().copied(), false,
-                    ), self.machine.try_factored_upper_materialization_full(upper_record, self.result));
-                    assert_eq!(legacy_lower,
-                        self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap());
-                    assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
-                }
+                let (lower_claimed_roots, lower_proof_keys) = match read {
+                    TargetLateMaterializationRead::CpkOnly => {
+                        let supports = self.machine.proof_store
+                            .projection_supports_for_record(lower_record);
+                        let claimed_roots = supports.iter().filter_map(|support| match support {
+                            SchemeProjectionProofSupport::Claimed(claim) => Some(
+                                self.machine.proof_store.upper_claim(*claim)
+                                    .expect("CPK target-late claim")
+                                    .coverage_root,
+                            ),
+                            SchemeProjectionProofSupport::Independent(_) => None,
+                        }).collect::<Vec<_>>();
+                        let proof_keys = supports.iter().map(|support| match support {
+                            SchemeProjectionProofSupport::Claimed(claim) => Key::Claimed(
+                                self.machine.proof_store.upper_claim(*claim)
+                                    .expect("CPK target-late claim")
+                                    .coverage_root,
+                            ),
+                            SchemeProjectionProofSupport::Independent(carrier) =>
+                                Key::Independent(*carrier),
+                        }).collect::<Vec<_>>();
+                        (claimed_roots, proof_keys)
+                    }
+                    TargetLateMaterializationRead::LegacyParity => {
+                        let legacy_parents = self.machine.bounds.claim_parents_by_constraint
+                            [&self.result].clone();
+                        let legacy_upper = self.machine.try_upper_materialization_lineages_from_parents(
+                            upper_record, self.result, legacy_parents.iter().copied(), false,
+                        );
+                        assert_eq!(
+                            self.machine.try_authoritative_upper_materialization_full(
+                                upper_record, self.result,
+                            ),
+                            legacy_upper,
+                        );
+                        let legacy_lower = self.machine
+                            .try_legacy_record_lower_projection(lower_record).unwrap();
+                        assert_eq!(
+                            self.machine.try_authoritative_lower_projection_full(
+                                self.result, &legacy_parents, &[],
+                            ).unwrap(),
+                            legacy_lower.canonical,
+                        );
+                        if self.machine.replay_read_authority() == ReplayReadAuthority::Factored {
+                            assert_eq!(self.machine.try_upper_materialization_lineages_from_parents(
+                                upper_record, self.result,
+                                legacy_parents.iter().copied(), false,
+                            ), self.machine.try_factored_upper_materialization_full(upper_record, self.result));
+                            assert_eq!(legacy_lower,
+                                self.machine.try_compare_factored_record_lower_projection(lower_record, &[]).unwrap());
+                            assert_eq!(self.machine.replay_factored_shadow_status.get(), ReplayFactoredShadowStatus::Active);
+                        }
+                        (legacy_lower.canonical.claimed_roots, legacy_lower.canonical.proof_keys)
+                    }
+                };
                 let upper_replay_parents = self.machine.upper_record_replay_claim_parents(
                     self.lower, upper_record, &[],
                 );
                 let replay_parent_roots = upper_replay_parents.iter().map(|parent| {
-                    self.machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
+                    self.machine.proof_store.upper_claim(parent.claim)
+                        .expect("CPK target-late replay parent")
+                        .coverage_root
                 }).collect::<Vec<_>>();
                 let lower_replay_parents =
                     self.machine.lower_record_replay_claim_parents(lower_record);
@@ -12445,8 +12502,8 @@ mod mutation_tests {
                     consumer: TargetLateConsumerSnapshot {
                         lower_record,
                         replay_parent_roots,
-                        lower_claimed_roots: legacy_lower.canonical.claimed_roots,
-                        lower_proof_keys: legacy_lower.canonical.proof_keys,
+                        lower_claimed_roots,
+                        lower_proof_keys,
                         generalized: ConsumerSnapshot { qualified, drafts, parents, completeness },
                         occurrence_roots,
                         occurrence_anchors,
@@ -12521,6 +12578,38 @@ mod mutation_tests {
             publication: TargetLatePublicationSnapshot,
         }
 
+        fn run_target_late_cpk(
+            replay_wins_same_root: bool,
+            root_a_before_root_b: bool,
+        ) -> (Vec<TargetLateEpochCheckpoint>, TargetLateMaterialized) {
+            let mut fixture = TargetLateFixture::new();
+            let mut epochs = vec![fixture.epoch_checkpoint()];
+            let order: [u8; 3] = match (replay_wins_same_root, root_a_before_root_b) {
+                (true, true) => [0, 1, 2],
+                (true, false) => [2, 0, 1],
+                (false, true) => [1, 0, 2],
+                (false, false) => [2, 1, 0],
+            };
+            for event in order {
+                match event {
+                    0 => fixture.admit_replay(),
+                    1 => fixture.admit_non_replay(0),
+                    2 => fixture.admit_non_replay(1),
+                    _ => unreachable!(),
+                }
+                epochs.push(fixture.epoch_checkpoint());
+            }
+            let winner = fixture.machine.proof_store
+                .first_qualified_parent_source(fixture.result, fixture.roots[0]);
+            assert_eq!(
+                matches!(winner, Some(proof::FirstQualifiedParentSource::Replay)),
+                replay_wins_same_root,
+            );
+            let materialized = fixture.materialize(TargetLateMaterializationRead::CpkOnly);
+            epochs.push(materialized.publication.final_epoch);
+            (epochs, materialized)
+        }
+
         fn run_target_late(
             replay_wins_same_root: bool,
             root_a_before_root_b: bool,
@@ -12548,7 +12637,8 @@ mod mutation_tests {
                     .first_qualified_parent_source(fixture.result, fixture.roots[0]).unwrap();
                 assert_eq!(matches!(winner, Some(FirstQualifiedParentSource::Replay)), replay_wins_same_root);
             }
-            let materialized = fixture.materialize();
+            let materialized =
+                fixture.materialize(TargetLateMaterializationRead::LegacyParity);
             epochs.push(materialized.publication.final_epoch);
             (epochs, materialized)
         }
@@ -12629,9 +12719,8 @@ mod mutation_tests {
             for replay_wins_same_root in [true, false] {
                 let mut expected = None;
                 for root_a_before_root_b in [true, false] {
-                    let (_, materialized) = run_target_late(
-                        replay_wins_same_root, root_a_before_root_b, ReplayReadAuthority::Factored,
-                    );
+                    let (_, materialized) =
+                        run_target_late_cpk(replay_wins_same_root, root_a_before_root_b);
                     let roots = materialized.roots;
                     let snapshot = materialized.consumer;
                     assert_eq!(snapshot.replay_parent_roots, roots);
@@ -12773,7 +12862,7 @@ mod mutation_tests {
             for order in permutations() {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let snapshot = fixture.consumer_snapshot();
                 let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
                 assert_eq!(parents, vec![
@@ -12811,15 +12900,17 @@ mod mutation_tests {
                 let mut fixture = Fixture::new_with_independent_count(independent_count);
                 for index in order {
                     fixture.admit(events[index]);
-                    let keys = fixture.machine.bounds.projection_proofs_by_lower_record
-                        .get(&fixture.lower_record).into_iter().flatten()
-                        .map(|proof| fixture.key(proof.support)).collect::<Vec<_>>();
+                    let keys = fixture.machine.proof_store
+                        .projection_supports_for_record(fixture.lower_record)
+                        .iter().copied().map(|support| fixture.key(support)).collect::<Vec<_>>();
                     assert_eq!(keys, canonical_projection_key::normalize_clone(&keys));
                 }
-                claim_lengths.push(fixture.machine.bounds.scheme_projection_claims_by_lower_record
-                    [&fixture.lower_record].len());
-                proof_lengths.push(fixture.machine.bounds.projection_proofs_by_lower_record
-                    [&fixture.lower_record].len());
+                let supports = fixture.machine.proof_store
+                    .projection_supports_for_record(fixture.lower_record);
+                claim_lengths.push(supports.iter().filter(|support| {
+                    matches!(support, SchemeProjectionProofSupport::Claimed(_))
+                }).count());
+                proof_lengths.push(supports.len());
             }
             (claim_lengths, proof_lengths)
         }
@@ -12864,7 +12955,7 @@ mod mutation_tests {
                 let mut fixture = Fixture::new_with_independent_count(INDEPENDENT_SUPPORTS);
                 for index in order { fixture.admit(events[index]); }
                 assert_eq!(fixture.snapshot().1.len(), 260);
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let snapshot = fixture.consumer_snapshot();
                 let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
                 let draft = lower_draft(&snapshot);
@@ -12886,7 +12977,7 @@ mod mutation_tests {
             for order in permutations() {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let roots = fixture.record_witness_roots();
                 let snapshot = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
                 assert_eq!(snapshot.export.root_anchors.len(), 2);
@@ -12914,7 +13005,7 @@ mod mutation_tests {
                 ]);
                 let independent_boundaries = [fixture.boundaries[0], fixture.boundaries[1]];
                 for index in order { fixture.admit(events[index]); }
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let roots = fixture.record_witness_roots();
                 let snapshot = fixture.portable_consumer_snapshot_with_location(
                     &roots, PortableProvenanceExportBudget::default(), move |boundary, _| {
@@ -12963,7 +13054,7 @@ mod mutation_tests {
             for order in permutations() {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let roots = fixture.record_witness_roots();
                 let full = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
                 assert!(full.export.snapshot.nodes().len() > 4);
@@ -13007,7 +13098,7 @@ mod mutation_tests {
             for order in permutations() {
                 let mut fixture = Fixture::new();
                 for index in order { fixture.admit(events[index]); }
-                fixture.canonicalize_shadow_ledgers();
+                fixture.assert_cpk_projection_is_canonical();
                 let roots = fixture.record_witness_roots();
                 let full = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
                 assert_eq!(full.export.snapshot.completeness(), PortableCompleteness::Complete);

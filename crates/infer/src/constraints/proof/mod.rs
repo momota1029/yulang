@@ -10786,7 +10786,6 @@ mod tests {
     #[test]
     fn cpk_7_cpk_authority_preflight_rejects_claim_index_corruption() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        assert_eq!(fixture.machine.proof_read_authority(), &ProofReadAuthority::Cpk);
         let lower = fixture.machine.alloc_pos(Pos::Con(
             vec!["cpk-7-corrupt-index-lower".into()],
             Vec::new(),
