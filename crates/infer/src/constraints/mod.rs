@@ -1935,8 +1935,6 @@ impl ConstraintMachine {
         else {
             return false;
         };
-        #[cfg(test)]
-        proof::record_live_coverage_shadow(root, state, false);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
         true
     }
@@ -1973,8 +1971,6 @@ impl ConstraintMachine {
         else {
             return false;
         };
-        #[cfg(test)]
-        proof::record_live_coverage_shadow(root, state, true);
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
         true
     }
@@ -2067,8 +2063,6 @@ impl ConstraintMachine {
         };
         self.proof_store
             .record_projection_clause(lower_record, admission);
-        #[cfg(test)]
-        proof::record_projection_clause_shadow(lower_record, admission);
     }
 
     fn try_evaluate_scheme_projection_mutation(
@@ -2823,8 +2817,6 @@ impl TypeBounds {
         requested_state: BoundRecordState,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
-        #[cfg(test)]
-        let shadow_derivation = derivation.clone();
         if let Some(id) = self.canonical.get(&key).copied() {
             let record = &mut self.records[id.0 as usize];
             let provenance_changed = if record.derivations.contains(&derivation) {
@@ -2863,10 +2855,6 @@ impl TypeBounds {
                     }
                 }
             }
-            #[cfg(test)]
-            if provenance_changed {
-                proof::record_bound_shadow(id, shadow_derivation);
-            }
             return BoundInsertResult {
                 id,
                 semantic_changed: promoted,
@@ -2886,8 +2874,6 @@ impl TypeBounds {
             derivations: vec![derivation],
             disposition: None,
         });
-        #[cfg(test)]
-        proof::record_bound_shadow(id, shadow_derivation);
         let bounds = self.bounds_mut(owner);
         match (endpoint, requested_state) {
             (BoundEndpoint::Lower(pos), BoundRecordState::Ordinary) => {
@@ -2996,8 +2982,6 @@ impl TypeBounds {
             coverage_root: id,
             lineage: UpperReplayClaimLineage::Original,
         });
-        #[cfg(test)]
-        proof::record_upper_claim_shadow(&self.upper_replay_claims[id.0 as usize]);
         self.original_claim_by_record_and_producer.insert(key, id);
         self.register_original_claim_mirror(producer_constraint, id);
         self.insert_upper_record_claim_canonical(record, id);
@@ -3075,8 +3059,6 @@ impl TypeBounds {
             coverage_root: root,
             lineage,
         });
-        #[cfg(test)]
-        proof::record_upper_claim_shadow(&self.upper_replay_claims[id.0 as usize]);
         self.derived_claim_by_record_and_root
             .insert((record, root), id);
         self.insert_upper_record_claim_canonical(record, id);
@@ -3293,8 +3275,6 @@ impl TypeBounds {
             return SchemeProjectionMutation::None;
         }
         let current_proofs = self.projection_proofs_by_lower_record[&lower_record].clone();
-        #[cfg(test)]
-        proof::record_projection_supports_shadow(lower_record, &current_proofs);
         SchemeProjectionMutation::ProofsChanged {
             lower_record,
             previous_proofs,
@@ -3356,8 +3336,6 @@ impl TypeBounds {
             }
         }
         self.insert_upper_record_claim_canonical(new_record, claim);
-        #[cfg(test)]
-        proof::update_upper_claim_shadow(&self.upper_replay_claims[claim.0 as usize]);
         proof::prepare_upper_claim_move(&self.upper_replay_claims[claim.0 as usize])
     }
 

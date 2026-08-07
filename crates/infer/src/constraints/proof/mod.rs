@@ -1,8 +1,8 @@
 //! Constraint Proof Kernel boundary.
 //!
 //! CPK-1 defines read-only adapters over current semantic records and their legacy proof payloads.
-//! CPK-2 adds a test-only occurrence shadow below that seam. It does not own production state,
-//! receive replay occurrences, or influence worklist identity and ordering.
+//! CPK-2 established the typed occurrence contract; CPK-8E removes its migration-only
+//! thread-local capture now that tests assert the production store directly.
 
 use super::*;
 use std::sync::Arc;
@@ -983,43 +983,6 @@ impl Default for ProofOccurrenceStore {
     }
 }
 
-#[cfg(test)]
-thread_local! {
-    static SHADOW_CAPTURE_DEPTH: Cell<usize> = const { Cell::new(0) };
-    static SHADOW_STORE: RefCell<ProofOccurrenceStore> = RefCell::default();
-}
-
-#[cfg(test)]
-pub(crate) fn capture_proof_occurrence_shadow<R>(
-    f: impl FnOnce() -> R,
-) -> (R, ProofOccurrenceStore) {
-    struct Reset(usize);
-    impl Drop for Reset {
-        fn drop(&mut self) {
-            SHADOW_CAPTURE_DEPTH.set(self.0);
-        }
-    }
-
-    let previous = SHADOW_CAPTURE_DEPTH.get();
-    assert_eq!(previous, 0, "CPK proof shadow capture is not nestable");
-    SHADOW_STORE.with(|store| *store.borrow_mut() = ProofOccurrenceStore::default());
-    SHADOW_CAPTURE_DEPTH.set(1);
-    let _reset = Reset(previous);
-    let value = f();
-    let snapshot = SHADOW_STORE.with(|store| store.borrow().clone());
-    (value, snapshot)
-}
-
-#[cfg(test)]
-pub(crate) fn proof_occurrence_shadow_is_active() -> bool {
-    SHADOW_CAPTURE_DEPTH.get() != 0
-}
-
-#[cfg(test)]
-fn proof_occurrence_shadow_len() -> usize {
-    SHADOW_STORE.with(|store| store.borrow().occurrences.len())
-}
-
 impl ProofOccurrenceStore {
     fn record_occurrence(
         &mut self,
@@ -1037,23 +1000,6 @@ impl ProofOccurrenceStore {
             completeness,
         });
     }
-}
-
-#[cfg(test)]
-fn record_shadow_occurrence(
-    result: ProofResult,
-    cause: ProofCause,
-    parents: Vec<ProofParent>,
-    completeness: ProvenanceCompleteness,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_occurrence(result, cause, parents, completeness);
-    });
 }
 
 fn projection_lineage(lineage: UpperReplayClaimLineage) -> ProjectionLineage {
@@ -1091,22 +1037,6 @@ pub(super) fn prepare_upper_claim_move(claim: &UpperReplayClaim) -> PreparedUppe
     }
 }
 
-#[cfg(test)]
-pub(super) fn record_upper_claim_shadow(claim: &UpperReplayClaim) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_upper_claim(claim));
-}
-
-#[cfg(test)]
-pub(super) fn update_upper_claim_shadow(claim: &UpperReplayClaim) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().update_upper_claim(claim));
-}
-
 impl ProofOccurrenceStore {
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
         let admission = prepare_upper_claim_admission(claim);
@@ -1128,12 +1058,6 @@ impl ProofOccurrenceStore {
         self.upper_claims.push(claim.clone());
         self.upper_claim_index.insert(claim.claim, index);
         self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
-    }
-
-    #[cfg(test)]
-    pub(super) fn update_upper_claim(&mut self, claim: &UpperReplayClaim) {
-        let mutation = prepare_upper_claim_move(claim);
-        self.record_prepared_upper_claim_move(mutation);
     }
 
     pub(super) fn record_prepared_upper_claim_move(
@@ -1210,36 +1134,6 @@ impl ProofOccurrenceStore {
             self.claims_by_upper_record.remove(&record);
         }
     }
-}
-
-#[cfg(test)]
-pub(super) fn record_projection_supports_shadow(
-    lower_record: BoundRecordId,
-    proofs: &[SchemeProjectionProof],
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_projection_supports(lower_record, proofs)
-    });
-}
-
-#[cfg(test)]
-pub(super) fn record_projection_clause_shadow(
-    lower_record: BoundRecordId,
-    admission: RecordProofClauseLinkAdmission,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_projection_clause(lower_record, admission)
-    });
 }
 
 impl ProofOccurrenceStore {
@@ -3226,39 +3120,6 @@ pub(super) fn finish_replay_routing_shadow(
         });
 }
 
-#[cfg(test)]
-pub(super) fn record_replay_admission_shadow(
-    result: Option<ConstraintRecordId>,
-    carrier: BinaryReplayDerivation,
-    disposition: ReplayAdmissionDisposition,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_replay_admission(result, carrier, disposition)
-    });
-}
-
-#[cfg(test)]
-pub(super) fn record_replay_parent_snapshot_shadow(
-    bounds: &TypeBounds,
-    result: ConstraintRecordId,
-    carrier: BinaryReplayDerivation,
-    parents: &[ClaimQualifiedParent],
-) {
-    if !proof_occurrence_shadow_is_active() || parents.is_empty() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_legacy_replay_parent_snapshot(bounds, result, carrier, parents)
-    });
-}
-
 impl ProofOccurrenceStore {
     pub(super) fn record_replay_admission(
         &mut self,
@@ -3612,92 +3473,6 @@ pub(super) fn prepare_reduction_route_admission(
     }
 }
 
-#[cfg(test)]
-pub(super) fn record_replay_evidence_shadow(
-    result: BoundRecordId,
-    carrier: BinaryReplayDerivation,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_replay_evidence(result, carrier));
-}
-
-#[cfg(test)]
-pub(super) fn record_replay_drop_shadow(id: ReplayDropRecordId, record: ReplayDropRecord) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_replay_drop(id, record));
-}
-
-#[cfg(test)]
-pub(super) fn record_row_reduction_shadow(
-    state: UnweightedRowReductionRecordId,
-    record: &UnweightedRowReductionRecord,
-    root_claim: Option<UpperReplayClaimId>,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_row_reduction(state, record, root_claim)
-    });
-}
-
-#[cfg(test)]
-pub(super) fn record_live_coverage_shadow(
-    root: UpperReplayClaimId,
-    state: UnweightedRowReductionRecordId,
-    active: bool,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_live_coverage(root, state, active));
-}
-
-#[cfg(test)]
-pub(super) fn record_reduction_route_shadow(
-    result: ConstraintRecordId,
-    derivation: RowDerivationId,
-    parent_claim: UpperReplayClaimId,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_prepared_reduction_route(prepare_reduction_route_admission(
-                result,
-                derivation,
-                parent_claim,
-            ))
-    });
-}
-
-#[cfg(test)]
-pub(crate) fn record_constraint_root_shadow(result: ConstraintRecordId, origin: OriginId) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_constraint_root(result, origin));
-}
-
-#[cfg(test)]
-pub(crate) fn record_structural_shadow(
-    result: ConstraintRecordId,
-    derivation: StructuralDerivation,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_structural(result, derivation));
-}
-
 fn row_parent(parent: RowDerivationParent) -> ProofParent {
     match parent {
         RowDerivationParent::Constraint(id) => {
@@ -3713,25 +3488,6 @@ fn row_parent(parent: RowDerivationParent) -> ProofParent {
         RowDerivationParent::LowerFilter(id) => ProofParent::LowerFilter(id),
         RowDerivationParent::Origin(id) => ProofParent::Origin(id),
     }
-}
-
-#[cfg(test)]
-pub(crate) fn record_row_definition_shadow(id: RowDerivationId, derivation: RowDerivation) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_row_definition(id, derivation));
-}
-
-#[cfg(test)]
-pub(crate) fn record_row_constraint_shadow(
-    result: ConstraintRecordId,
-    derivation: RowDerivationId,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_row_constraint(result, derivation));
 }
 
 fn bound_derivation_parents(derivation: &BoundDerivation) -> Vec<ProofParent> {
@@ -3925,102 +3681,6 @@ impl ProofOccurrenceStore {
             ProvenanceCompleteness::Complete,
         );
     }
-}
-
-#[cfg(test)]
-pub(crate) fn record_bound_shadow(result: BoundRecordId, derivation: BoundDerivation) {
-    if !proof_occurrence_shadow_is_active() {
-        // Replay occurrences, including evidence-only replay bounds, start in CPK-3.
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_bound(result, derivation));
-}
-
-#[cfg(test)]
-pub(crate) fn record_bound_disposition_shadow(
-    id: BoundDispositionRecordId,
-    result: Option<BoundRecordId>,
-    disposition: BoundDispositionRecord,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_bound_disposition(id, result, disposition)
-    });
-}
-
-#[cfg(test)]
-pub(crate) fn record_subtract_shadow(
-    result: SubtractFactRecordId,
-    derivation: SubtractFactDerivation,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| store.borrow_mut().record_subtract(result, derivation));
-}
-
-#[cfg(test)]
-pub(crate) fn record_scheme_instantiation_record_shadow(
-    result: SchemeInstantiationId,
-    record: SchemeInstantiationRecord,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_scheme_instantiation_record(result, record)
-    });
-}
-
-#[cfg(test)]
-pub(crate) fn record_scheme_instantiation_derivation_shadow(
-    result: ConstraintRecordId,
-    derivation: SchemeInstantiationDerivation,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_scheme_instantiation_derivation(result, derivation)
-    });
-}
-
-#[cfg(test)]
-pub(crate) fn record_scheme_instantiation_route_shadow(
-    result: ConstraintRecordId,
-    route: SchemeInstantiationRoute,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_scheme_instantiation_route(result, route)
-    });
-}
-
-#[cfg(test)]
-pub(crate) fn record_constraint_disposition_shadow(
-    result: ConstraintRecordId,
-    disposition: ConstraintCanonicalizationDisposition,
-) {
-    if !proof_occurrence_shadow_is_active() {
-        return;
-    }
-    SHADOW_STORE.with(|store| {
-        store
-            .borrow_mut()
-            .record_constraint_disposition(result, disposition)
-    });
 }
 
 #[cfg(test)]
@@ -9337,25 +8997,7 @@ mod tests {
     }
 
     #[test]
-    fn cpk_2_non_replay_shadow_matches_legacy_and_is_off_by_default() {
-        let (_, empty) = capture_proof_occurrence_shadow(|| {});
-        assert!(empty.occurrences.is_empty());
-        assert!(!proof_occurrence_shadow_is_active());
-
-        let mut inactive_machine = ConstraintMachine::new();
-        let inactive_lower = inactive_machine.alloc_pos(Pos::Var(TypeVar(0)));
-        let inactive_upper = inactive_machine.alloc_neg(Neg::Var(TypeVar(1)));
-        inactive_machine.subtype(
-            inactive_lower,
-            inactive_upper,
-            OriginId::unknown_internal(),
-        );
-        assert_eq!(
-            proof_occurrence_shadow_len(),
-            0,
-            "inactive shadow hooks must not retain an occurrence",
-        );
-
+    fn cpk_2_non_replay_proof_events_match_frozen_contract() {
         let mut machine = ConstraintMachine::new();
             let origin = OriginId::unknown_internal();
             let lower = machine.alloc_pos(Pos::Var(TypeVar(10)));

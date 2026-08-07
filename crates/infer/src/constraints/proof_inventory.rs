@@ -245,8 +245,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
     ("generalized_witnesses", 13),
     // CPK-2's test-only legacy parity reconstruction adds two reviewed instantiation reads.
-    // CPK-6a adds one reviewed production-store scheme-instantiation writer read.
-    ("scheme_instantiations", 18),
+    // CPK-6a adds one reviewed production-store scheme-instantiation writer read. CPK-8E removes
+    // the migration-only thread-local writer hook's duplicate read.
+    ("scheme_instantiations", 17),
     // CPK-3 adds reviewed test-only claim hooks and lineage parity reads; CPK-4 adds
     // shadow-evaluator and capture-readiness reads; CPK-5 adds routing readiness.
     // CPK-6a adds five reviewed production-store upper-claim writer reads and
@@ -267,8 +268,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // atomicity fixture mutates the flat claim afterward to prove the event is closed. The total
     // lexical count therefore stays unchanged. CPK-8E adds one reviewed CPK-only routing-contract
     // read to reconstruct a moved claim's exact current-record key. None is a new production read
-    // authority.
-    ("upper_replay_claims", 97),
+    // authority. CPK-8E removes three migration-only thread-local writer-hook reads.
+    ("upper_replay_claims", 94),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // Routing authority remains Legacy in both slices.

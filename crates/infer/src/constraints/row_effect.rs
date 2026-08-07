@@ -509,12 +509,6 @@ impl ConstraintMachine {
             &self.unweighted_row_reduction_records[id.0 as usize],
             root_claim,
         );
-        #[cfg(test)]
-        proof::record_row_reduction_shadow(
-            id,
-            &self.unweighted_row_reduction_records[id.0 as usize],
-            root_claim,
-        );
         self.register_unweighted_row_reduction_owner(
             materialization.record,
             id,

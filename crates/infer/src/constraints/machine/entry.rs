@@ -259,11 +259,6 @@ impl ConstraintMachine {
             id,
             self.scheme_instantiations[id.0 as usize].clone(),
         );
-        #[cfg(test)]
-        proof::record_scheme_instantiation_record_shadow(
-            id,
-            self.scheme_instantiations[id.0 as usize].clone(),
-        );
         self.timing.scheme_instantiations.records += 1;
         self.bump_provenance_epoch();
         id
@@ -605,8 +600,6 @@ impl ConstraintMachine {
         }
         roots.push(origin);
         self.proof_store.record_constraint_root(record, origin);
-        #[cfg(test)]
-        proof::record_constraint_root_shadow(record, origin);
         self.register_constraint_projection_carrier_delta(
             record,
             &[],
@@ -883,8 +876,6 @@ impl ConstraintMachine {
         for derivation in inserted_derivations {
             self.proof_store
                 .record_scheme_instantiation_derivation(record, derivation.clone());
-            #[cfg(test)]
-            proof::record_scheme_instantiation_derivation_shadow(record, derivation.clone());
             self.register_constraint_projection_carrier_delta(
                 record,
                 &[],
@@ -897,10 +888,6 @@ impl ConstraintMachine {
         for route in &inserted_routes {
             self.proof_store
                 .record_scheme_instantiation_route(record, route.clone());
-        }
-        #[cfg(test)]
-        for route in inserted_routes {
-            proof::record_scheme_instantiation_route_shadow(record, route);
         }
     }
 
@@ -1238,8 +1225,6 @@ impl ConstraintMachine {
             dispositions.push(disposition.clone());
             self.proof_store
                 .record_constraint_disposition(record_id, disposition.clone());
-            #[cfg(test)]
-            proof::record_constraint_disposition_shadow(record_id, disposition);
             self.bump_provenance_epoch();
         }
     }
@@ -1464,8 +1449,6 @@ impl ConstraintMachine {
                 if let Some(origin) = inserted_origin {
                     self.proof_store
                         .record_constraint_root(existing_record_id, origin);
-                    #[cfg(test)]
-                    proof::record_constraint_root_shadow(existing_record_id, origin);
                     self.register_constraint_projection_carrier_delta(
                         existing_record_id,
                         &[],
@@ -1499,10 +1482,6 @@ impl ConstraintMachine {
         });
         if let Some(origin) = origin {
             self.proof_store.record_constraint_root(record_id, origin);
-        }
-        #[cfg(test)]
-        if let Some(origin) = origin {
-            proof::record_constraint_root_shadow(record_id, origin);
         }
         if origin.is_some() {
             self.bump_provenance_epoch();
@@ -1553,10 +1532,6 @@ impl ConstraintMachine {
                     derivations.push(derivation);
                     derivation_inserted = true;
                 }
-                #[cfg(test)]
-                if derivation_inserted {
-                    proof::record_structural_shadow(record_id, derivation);
-                }
                 if derivation_inserted {
                     self.proof_store.record_structural(record_id, derivation);
                 }
@@ -1599,8 +1574,6 @@ impl ConstraintMachine {
             replay_provenance: ProvenanceCompleteness::Complete,
         });
         self.proof_store.record_structural(record_id, derivation);
-        #[cfg(test)]
-        proof::record_structural_shadow(record_id, derivation);
         self.merge_structural_claim_parents(record_id, derivation, true);
         self.merge_scheme_instantiation_routes(record_id, scheme_routes);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
@@ -1645,10 +1618,6 @@ impl ConstraintMachine {
         if !derivations.contains(&derivation) {
             derivations.push(derivation);
             derivation_inserted = true;
-        }
-        #[cfg(test)]
-        if derivation_inserted {
-            proof::record_structural_shadow(record_id, derivation);
         }
         if derivation_inserted {
             self.proof_store.record_structural(record_id, derivation);
@@ -1721,8 +1690,6 @@ impl ConstraintMachine {
         self.row_derivations.push(derivation.clone());
         self.proof_store
             .record_row_definition(id, derivation.clone());
-        #[cfg(test)]
-        proof::record_row_definition_shadow(id, derivation);
         self.timing.record_row_derivation(rule, true);
         self.bump_provenance_epoch();
         id
@@ -1764,10 +1731,6 @@ impl ConstraintMachine {
                     derivation_inserted = true;
                     self.bump_provenance_epoch();
                 }
-                #[cfg(test)]
-                if derivation_inserted {
-                    proof::record_row_constraint_shadow(record_id, derivation);
-                }
                 if derivation_inserted {
                     self.proof_store
                         .record_row_constraint(record_id, derivation);
@@ -1805,8 +1768,6 @@ impl ConstraintMachine {
         });
         self.proof_store
             .record_row_constraint(record_id, derivation);
-        #[cfg(test)]
-        proof::record_row_constraint_shadow(record_id, derivation);
         self.merge_constraint_canonicalization_disposition(&constraint, disposition);
         self.bump_provenance_epoch();
         let work = ConstraintWork::Subtype(record_id);
@@ -1958,10 +1919,6 @@ impl ConstraintMachine {
         let insertion = self.subtracts.insert(effect, fact, derivation);
         if insertion.provenance_changed {
             self.proof_store.record_subtract(insertion.id, derivation);
-        }
-        #[cfg(test)]
-        if insertion.provenance_changed {
-            proof::record_subtract_shadow(insertion.id, derivation);
         }
         if insertion.provenance_changed {
             self.bump_provenance_epoch();

@@ -302,12 +302,6 @@ impl ConstraintMachine {
             tombstone,
             self.bound_dispositions[id.0 as usize].clone(),
         );
-        #[cfg(test)]
-        proof::record_bound_disposition_shadow(
-            id,
-            tombstone,
-            self.bound_dispositions[id.0 as usize].clone(),
-        );
         if let Some(bound) = tombstone {
             self.bounds.records[bound.0 as usize].disposition = Some(id);
         }
@@ -856,8 +850,6 @@ impl ConstraintMachine {
                 if !record.derivations.contains(&derivation) {
                     record.derivations.push(derivation.clone());
                     self.proof_store.record_bound(id, derivation.clone());
-                    #[cfg(test)]
-                    proof::record_bound_shadow(id, derivation.clone());
                     inserted_derivations.push(derivation);
                 }
             }
@@ -3268,8 +3260,6 @@ impl ConstraintMachine {
             }
             self.proof_store
                 .record_projection_clause(lower_record, admission);
-            #[cfg(test)]
-            proof::record_projection_clause_shadow(lower_record, admission);
             any_link_inserted = true;
             if clause_inserted {
                 inserted_clauses.push(clause);
@@ -4540,13 +4530,6 @@ impl ConstraintMachine {
                     &inserted_parents,
                 ),
         }
-        #[cfg(test)]
-        proof::record_replay_parent_snapshot_shadow(
-            &self.bounds,
-            result,
-            replay,
-            &inserted_parents,
-        );
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
@@ -4917,8 +4900,6 @@ impl ConstraintMachine {
         );
         self.proof_store
             .record_prepared_reduction_route(proof_admission);
-        #[cfg(test)]
-        proof::record_reduction_route_shadow(result, derivation, claim);
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
@@ -5963,12 +5944,6 @@ impl ConstraintMachine {
                 action.derivation,
                 admission_disposition,
             );
-            #[cfg(test)]
-            proof::record_replay_admission_shadow(
-                replay_result,
-                action.derivation,
-                admission_disposition,
-            );
             self.merge_constraint_canonicalization_disposition(
                 &constraint,
                 action.canonicalization_disposition,
@@ -6092,20 +6067,6 @@ impl ConstraintMachine {
                 self.proof_store
                     .record_replay_evidence(upper_record, action.derivation);
             }
-            #[cfg(test)]
-            {
-                proof::record_replay_admission_shadow(
-                    None,
-                    action.derivation,
-                    admission_disposition,
-                );
-                if evidence_complete && lower_edge_inserted {
-                    proof::record_replay_evidence_shadow(lower_record, action.derivation);
-                }
-                if evidence_complete && upper_edge_inserted {
-                    proof::record_replay_evidence_shadow(upper_record, action.derivation);
-                }
-            }
             if evidence_complete {
                 for parent in action.claim_parents {
                     let producer = self.bounds.upper_replay_claims[parent.claim.0 as usize]
@@ -6210,12 +6171,6 @@ impl ConstraintMachine {
                 action.derivation,
                 admission_disposition,
             );
-            #[cfg(test)]
-            proof::record_replay_admission_shadow(
-                Some(result),
-                action.derivation,
-                admission_disposition,
-            );
             self.merge_constraint_canonicalization_disposition(
                 &action.constraint,
                 action.canonicalization_disposition,
@@ -6248,18 +6203,6 @@ impl ConstraintMachine {
             if disposition == ReplayDerivationInsert::Inserted {
                 let id = self.replay_drop_index[&drop];
                 self.proof_store.record_replay_drop(id, drop.clone());
-            }
-            #[cfg(test)]
-            {
-                proof::record_replay_admission_shadow(
-                    None,
-                    action.derivation,
-                    admission_disposition,
-                );
-                if disposition == ReplayDerivationInsert::Inserted {
-                    let id = self.replay_drop_index[&drop];
-                    proof::record_replay_drop_shadow(id, drop);
-                }
             }
             self.timing.record_replay_derivation_edge(
                 disposition == ReplayDerivationInsert::Inserted,
