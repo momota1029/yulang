@@ -164,11 +164,14 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
-        self.replay_read_authority.writes_factored_shadow()
-            && matches!(
-                self.replay_factored_shadow_status.get(),
-                ReplayFactoredShadowStatus::Active
-            )
+        #[cfg(test)]
+        if !self.replay_read_authority.writes_factored_shadow() {
+            return false;
+        }
+        matches!(
+            self.replay_factored_shadow_status.get(),
+            ReplayFactoredShadowStatus::Active
+        )
     }
 
     pub fn alloc_pos(&mut self, pos: Pos) -> PosId {

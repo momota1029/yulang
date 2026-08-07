@@ -1139,12 +1139,16 @@ enum ReplayEvaluatorSource {
     Factored,
 }
 
-impl ReplayReadAuthority {
-    fn evaluator_source(self) -> ReplayEvaluatorSource {
-        match self {
-            Self::Factored => ReplayEvaluatorSource::Factored,
-            Self::LegacyRollback(_) => ReplayEvaluatorSource::Legacy,
+impl ConstraintMachine {
+    fn authoritative_replay_evaluator_source(&self) -> ReplayEvaluatorSource {
+        #[cfg(test)]
+        if matches!(
+            self.replay_read_authority(),
+            ReplayReadAuthority::LegacyRollback(_)
+        ) {
+            return ReplayEvaluatorSource::Legacy;
         }
+        ReplayEvaluatorSource::Factored
     }
 }
 
@@ -1171,7 +1175,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
             machine,
-            replay_source: machine.replay_read_authority().evaluator_source(),
+            replay_source: machine.authoritative_replay_evaluator_source(),
             states: FxHashMap::default(),
             visiting_nodes: 0,
             record_result_overrides: FxHashMap::default(),
@@ -1639,7 +1643,7 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self::new_with_record_result_override(
             machine,
-            machine.replay_read_authority().evaluator_source(),
+            machine.authoritative_replay_evaluator_source(),
             None,
         )
     }
@@ -1659,7 +1663,7 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
     ) -> Self {
         Self::new_with_record_result_override(
             machine,
-            machine.replay_read_authority().evaluator_source(),
+            machine.authoritative_replay_evaluator_source(),
             Some((record, result)),
         )
     }

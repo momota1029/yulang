@@ -24,7 +24,11 @@ pub struct Arena {
 
 impl Arena {
     pub fn new() -> Self {
-        Self::new_with_replay_read_authority(ReplayReadAuthority::Factored)
+        Self {
+            type_ids: TypeIds::new(),
+            current_level: TypeLevel::root(),
+            constraints: ConstraintMachine::new(),
+        }
     }
 
     pub(crate) fn new_with_replay_read_authority(

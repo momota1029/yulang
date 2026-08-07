@@ -37,11 +37,9 @@ impl AnalysisSession {
         poly: PolyArena,
         boundary: &crate::CompiledBoundaryInterface,
     ) -> Self {
-        Self::new_with_imported_boundary_and_replay_read_authority(
-            poly,
-            boundary,
-            crate::constraints::ReplayReadAuthority::Factored,
-        )
+        let mut infer = InferArena::new();
+        let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
+        Self::from_initialized_infer(poly, infer, imported_boundary)
     }
 
     pub(crate) fn new_with_imported_boundary_and_replay_read_authority(

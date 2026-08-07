@@ -681,9 +681,9 @@ impl<T> ReplayCompilationAttempt<T> {
 }
 
 fn run_replay_compilation_attempt<T>(
-    attempt: impl FnOnce(ReplayReadAuthority) -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
+    attempt: impl FnOnce() -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
 ) -> Result<T, LoadedFilesError> {
-    let first = attempt(ReplayReadAuthority::Factored)?;
+    let first = attempt()?;
     if first.proof_terminal_failure.is_some() {
         drop(first.output);
         return Err(LoadedFilesError::ProofKernelFailed);
@@ -733,15 +733,15 @@ fn lower_loaded_files_with_consumer<T>(
     files: &[LoadedFile],
     mut consumer: impl FnMut(&mut BodyLowerer) -> T,
 ) -> Result<(BodyLowering, T), LoadedFilesError> {
-    run_replay_compilation_attempt(|replay_authority| {
-        lower_loaded_files_with_consumer_once(files, &mut consumer, replay_authority)
+    run_replay_compilation_attempt(|| {
+        lower_loaded_files_with_consumer_once(files, &mut consumer, BodyLowerer::new)
     })
 }
 
 fn lower_loaded_files_with_consumer_once<T>(
     files: &[LoadedFile],
     consumer: &mut impl FnMut(&mut BodyLowerer) -> T,
-    replay_read_authority: ReplayReadAuthority,
+    initialize_lowerer: impl FnOnce(Lower) -> BodyLowerer,
 ) -> Result<ReplayCompilationAttempt<(BodyLowering, T)>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
@@ -758,7 +758,7 @@ fn lower_loaded_files_with_consumer_once<T>(
     timing.phase("lower module map", measured.module_map);
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new_with_replay_read_authority(lower, replay_read_authority);
+    let mut lowerer = initialize_lowerer(lower);
     measured.init_lowerer = phase_start.elapsed();
     timing.phase("initialize body lowerer", measured.init_lowerer);
 
@@ -841,15 +841,12 @@ pub fn lower_loaded_files_with_prefix(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],
 ) -> Result<BodyLowering, LoadedFilesError> {
-    run_replay_compilation_attempt(|replay_authority| {
-        lower_loaded_files_with_prefix_once(prefix, files, replay_authority)
-    })
+    run_replay_compilation_attempt(|| lower_loaded_files_with_prefix_once(prefix, files))
 }
 
 fn lower_loaded_files_with_prefix_once(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],
-    replay_read_authority: ReplayReadAuthority,
 ) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
@@ -872,11 +869,8 @@ fn lower_loaded_files_with_prefix_once(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new_with_imported_boundary_and_replay_read_authority(
-        append.lower,
-        &prefix.boundary,
-        replay_read_authority,
-    );
+    let mut lowerer =
+        BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let suffix_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -952,15 +946,12 @@ pub fn lower_root_loaded_file_with_prefix(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,
 ) -> Result<BodyLowering, LoadedFilesError> {
-    run_replay_compilation_attempt(|replay_authority| {
-        lower_root_loaded_file_with_prefix_once(prefix, root, replay_authority)
-    })
+    run_replay_compilation_attempt(|| lower_root_loaded_file_with_prefix_once(prefix, root))
 }
 
 fn lower_root_loaded_file_with_prefix_once(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,
-    replay_read_authority: ReplayReadAuthority,
 ) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
@@ -983,11 +974,8 @@ fn lower_root_loaded_file_with_prefix_once(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer = BodyLowerer::new_with_imported_boundary_and_replay_read_authority(
-        append.lower,
-        &prefix.boundary,
-        replay_read_authority,
-    );
+    let mut lowerer =
+        BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let root_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -1595,11 +1583,20 @@ impl BodyLowerer {
         lower: Lower,
         boundary: &crate::CompiledBoundaryInterface,
     ) -> Self {
-        Self::new_with_imported_boundary_and_replay_read_authority(
-            lower,
-            boundary,
-            ReplayReadAuthority::Factored,
-        )
+        let Lower {
+            arena,
+            modules,
+            source_file,
+            ..
+        } = lower;
+        let labels = modules.dump_labels();
+        let mut session = AnalysisSession::new_with_imported_boundary(arena, boundary);
+        register_declared_type_methods(&mut session, &modules);
+        register_declared_type_field_methods(&mut session, &modules);
+        register_declared_act_methods(&mut session, &modules);
+        register_declared_role_methods(&mut session, &modules);
+        register_declared_companion_local_methods(&mut session, &modules);
+        Self::from_initialized_session(modules, source_file, session, labels)
     }
 
     fn new_with_imported_boundary_and_replay_read_authority(
@@ -2841,11 +2838,9 @@ mod rcpf_c3a_retry_tests {
     const FAILURE: ReplayFactoredShadowFailure = ReplayFactoredShadowFailure::AllocationFailed;
 
     #[test]
-    fn rcpf_c3a_normal_attempt_runs_once_under_factored_authority() {
-        let mut authorities = Vec::new();
+    fn rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch() {
         let mut next_identity = 0usize;
-        let output = run_replay_compilation_attempt(|authority| {
-            authorities.push(authority);
+        let output = run_replay_compilation_attempt(|| {
             let identity = next_identity;
             next_identity += 1;
             Ok(ReplayCompilationAttempt::completed(identity, None))
@@ -2854,7 +2849,6 @@ mod rcpf_c3a_retry_tests {
 
         assert_eq!(output, 0);
         assert_eq!(next_identity, 1);
-        assert_eq!(authorities, [ReplayReadAuthority::Factored]);
     }
 
     #[test]
@@ -2868,11 +2862,11 @@ mod rcpf_c3a_retry_tests {
             }
         }
 
-        let mut authorities = Vec::new();
+        let mut attempts = 0usize;
         let output_dropped = std::rc::Rc::new(std::cell::Cell::new(false));
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt(|authority| {
-                authorities.push(authority);
+            run_replay_compilation_attempt(|| {
+                attempts += 1;
                 Ok(ReplayCompilationAttempt::completed(
                     DropProbe(output_dropped.clone()),
                     Some(FAILURE),
@@ -2886,7 +2880,7 @@ mod rcpf_c3a_retry_tests {
             output_dropped.get(),
             "the failed attempt output is discarded"
         );
-        assert_eq!(authorities, [ReplayReadAuthority::Factored]);
+        assert_eq!(attempts, 1);
     }
 
     #[test]
@@ -2894,13 +2888,10 @@ mod rcpf_c3a_retry_tests {
         let failure = ProofFailure::ResourceExhausted {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
-        let mut authorities = Vec::new();
         let mut next_identity = 0usize;
         let (result, telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
-                run_replay_compilation_attempt(|replay_authority| {
-                    assert_eq!(replay_authority, ReplayReadAuthority::Factored);
-                    authorities.push(replay_authority);
+                run_replay_compilation_attempt(|| {
                     let identity = next_identity;
                     next_identity += 1;
                     record_proof_terminal_failure(
@@ -2920,7 +2911,6 @@ mod rcpf_c3a_retry_tests {
 
         assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert_eq!(next_identity, 1, "proof failure must not start a retry");
-        assert_eq!(authorities, [ReplayReadAuthority::Factored]);
         assert_eq!(
             telemetry.proof_terminal_failures(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
@@ -2940,7 +2930,7 @@ mod rcpf_c3a_retry_tests {
         let mut attempts = 0usize;
         let (error, telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
-                run_replay_compilation_attempt::<()>(|_| {
+                run_replay_compilation_attempt::<()>(|| {
                     attempts += 1;
                     record_proof_terminal_failure(
                         ProofOperation::ProjectLowerEvaluation,
@@ -2972,10 +2962,10 @@ mod rcpf_c3a_retry_tests {
 
     #[test]
     fn cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt() {
-        let mut authorities = Vec::new();
+        let mut attempts = 0usize;
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt::<()>(|replay_authority| {
-                authorities.push(replay_authority);
+            run_replay_compilation_attempt::<()>(|| {
+                attempts += 1;
                 Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
             })
         })
@@ -2983,8 +2973,7 @@ mod rcpf_c3a_retry_tests {
 
         assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
         assert_eq!(
-            authorities,
-            [ReplayReadAuthority::Factored],
+            attempts, 1,
             "an RCPF failure must not start another compilation attempt",
         );
     }
@@ -2993,7 +2982,7 @@ mod rcpf_c3a_retry_tests {
     fn rcpf_c3a_failure_is_a_typed_hard_error_without_retry() {
         let mut attempt_count = 0usize;
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt::<()>(|_| {
+            run_replay_compilation_attempt::<()>(|| {
                 attempt_count += 1;
                 Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
             })
@@ -3056,29 +3045,32 @@ mod rcpf_c3a_retry_tests {
             .expect("the clean legacy control compiles");
         assert_eq!(clean_legacy.terminal_failure, None);
 
-        let ((error, authorities, injections), telemetry) = capture_replay_soak_test_events(|| {
+        let ((error, attempts, injections), telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
-                let mut authorities = Vec::new();
+                let mut attempts = 0usize;
                 let mut injections = 0usize;
-                let result = run_replay_compilation_attempt(|authority| {
-                    authorities.push(authority);
-                    let inject_quarantine = matches!(authority, ReplayReadAuthority::Factored);
+                let result = run_replay_compilation_attempt(|| {
+                    attempts += 1;
+                    let inject_quarantine = true;
                     injections += usize::from(inject_quarantine);
-                    lower_quarantine_fixture_once(&loaded, authority, inject_quarantine)
+                    lower_quarantine_fixture_once(
+                        &loaded,
+                        ReplayReadAuthority::Factored,
+                        inject_quarantine,
+                    )
                 });
                 let error = match result {
                     Ok(_) => panic!("the quarantined factored attempt must be terminal"),
                     Err(error) => error,
                 };
-                (error, authorities, injections)
+                (error, attempts, injections)
             })
         });
 
         assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
         assert_eq!(injections, 1);
         assert_eq!(
-            authorities,
-            [ReplayReadAuthority::Factored],
+            attempts, 1,
             "the failed compilation must not start a legacy retry"
         );
         assert_eq!(
@@ -3119,7 +3111,9 @@ mod rcpf_c3a_retry_tests {
                     .inject_replay_factored_read_failure_for_test(FAILURE);
             }
         };
-        let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, authority)?;
+        let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, |lower| {
+            BodyLowerer::new_with_replay_read_authority(lower, authority)
+        })?;
         let ReplayCompilationAttempt {
             output: (output, ()),
             terminal_failure,
