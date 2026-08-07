@@ -560,7 +560,7 @@ struct UpperReplayClaimRegistration {
     standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
 }
 
-struct PreparedOriginalClaimMirrorCapacity {
+struct PreparedClaimMirrorCapacity {
     record_claims: Option<Vec<UpperReplayClaimId>>,
     projection_claims: Option<(BoundRecordId, Vec<UpperReplayClaimId>)>,
     projection_proofs: Option<(BoundRecordId, Vec<SchemeProjectionProof>)>,
@@ -2060,7 +2060,37 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         kind: UpperReplayClaimKind,
     ) -> Result<UpperReplayClaimRegistration, proof::ProofFailure> {
+        self.try_original_upper_replay_claim_transaction(record, producer, kind, None)
+    }
+
+    fn try_original_upper_replay_claim_transaction(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+        reduction_state: Option<UnweightedRowReductionRecordId>,
+    ) -> Result<UpperReplayClaimRegistration, proof::ProofFailure> {
+        if reduction_state.is_some() {
+            let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::AdmitOriginalClaim,
+            };
+            self.proof_store
+                .try_reserve_reduction_claim_index()
+                .map_err(exhausted)?;
+            self.bounds
+                .reduction_claim_by_state
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
         if let Some(claim) = self.proof_store.original_claim(record, producer) {
+            if let Some(state) = reduction_state {
+                self.proof_store.commit_reduction_claim_index(state, claim);
+                assert!(self
+                    .bounds
+                    .reduction_claim_by_state
+                    .insert(state, claim)
+                    .is_none());
+            }
             return Ok(self.bounds.finish_existing_original_upper_replay_claim_mirror(
                 record, producer, claim,
             ));
@@ -2068,14 +2098,32 @@ impl ConstraintMachine {
         let mut admission = self
             .proof_store
             .try_prepare_original_claim_admission(record, producer, kind)?;
-        let mirror_capacity = self.bounds
-            .try_reserve_original_upper_replay_claim_mirror(record, producer)?;
         let issued = admission.occurrence.claim;
+        let lower_record = self
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .get(&producer)
+            .copied();
+        let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
+            record,
+            Some(producer),
+            issued,
+            lower_record,
+            proof::ProofOperation::AdmitOriginalClaim,
+        )?;
         assert_eq!(issued.0 as usize, self.bounds.upper_replay_claims.len());
         self.proof_store.commit_original_claim_admission(&mut admission);
         let registration = self.bounds.commit_original_upper_replay_claim_mirror(
             issued, record, producer, kind, mirror_capacity,
         );
+        if let Some(state) = reduction_state {
+            self.proof_store.commit_reduction_claim_index(state, issued);
+            assert!(self
+                .bounds
+                .reduction_claim_by_state
+                .insert(state, issued)
+                .is_none());
+        }
         assert_eq!(registration.proof_admission, admission);
         Ok(registration)
     }
@@ -2104,6 +2152,90 @@ impl ConstraintMachine {
     ) -> UpperReplayClaimRegistration {
         self.try_original_upper_replay_claim(record, producer, kind)
             .expect("test original claim admission must have capacity")
+    }
+
+    pub(in crate::constraints) fn try_derived_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
+    ) -> Result<UpperReplayClaimRegistration, proof::ProofFailure> {
+        let depth = self.proof_store.next_derived_claim_depth(parent_claim);
+        let lineage = lineage(depth);
+        let mut decision = self.proof_store.try_prepare_derived_claim_admission(
+            record,
+            parent_claim,
+            producer,
+            lineage,
+        )?;
+        match &decision {
+            proof::PreparedDerivedClaimDecision::Coalesced {
+                claim,
+                coverage_root,
+            } => {
+                let registration = self
+                    .bounds
+                    .finish_coalesced_derived_upper_replay_claim_mirror(
+                        record,
+                        *coverage_root,
+                        *claim,
+                        producer,
+                        lineage,
+                    );
+                self.proof_store.commit_derived_claim_decision(&mut decision);
+                Ok(registration)
+            }
+            proof::PreparedDerivedClaimDecision::New(admission) => {
+                let lower_record = self
+                    .bounds
+                    .scheme_projection_lower_record_for_lineage(producer, lineage);
+                let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
+                    record,
+                    None,
+                    admission.occurrence.coverage_root,
+                    lower_record,
+                    proof::ProofOperation::AdmitDerivedClaim,
+                )?;
+                self.proof_store.commit_derived_claim_decision(&mut decision);
+                let proof::PreparedDerivedClaimDecision::New(admission) = &decision else {
+                    unreachable!("prepared derived decision changed variant")
+                };
+                Ok(self.bounds.commit_derived_upper_replay_claim_mirror(
+                    admission,
+                    lineage,
+                    mirror_capacity,
+                ))
+            }
+        }
+    }
+
+    fn admit_derived_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
+    ) -> Option<UpperReplayClaimRegistration> {
+        match self.try_derived_upper_replay_claim(record, parent_claim, producer, lineage) {
+            Ok(registration) => Some(registration),
+            Err(failure) => {
+                self.mark_proof_terminal_failure(proof::ProofOperation::AdmitDerivedClaim, failure);
+                None
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn derived_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
+    ) -> UpperReplayClaimRegistration {
+        self.try_derived_upper_replay_claim(record, parent_claim, producer, lineage)
+            .expect("test derived claim admission must have capacity")
     }
 
     fn record_projection_mutation_in_proof_store(
@@ -3005,27 +3137,36 @@ impl TypeBounds {
         }
     }
 
-    fn try_reserve_original_upper_replay_claim_mirror(
+    fn try_reserve_upper_replay_claim_mirror(
         &mut self,
         record: BoundRecordId,
-        producer_constraint: ConstraintRecordId,
-    ) -> Result<PreparedOriginalClaimMirrorCapacity, proof::ProofFailure> {
-        assert!(!self
-            .original_claim_by_record_and_producer
-            .contains_key(&(record, producer_constraint)));
-        assert!(!self
-            .root_claim_by_producer_constraint
-            .contains_key(&producer_constraint));
+        original_producer: Option<ConstraintRecordId>,
+        coverage_root: UpperReplayClaimId,
+        lower_record: Option<BoundRecordId>,
+        operation: proof::ProofOperation,
+    ) -> Result<PreparedClaimMirrorCapacity, proof::ProofFailure> {
         let exhausted = |_| proof::ProofFailure::ResourceExhausted {
-            operation: proof::ProofOperation::AdmitOriginalClaim,
+            operation,
         };
         self.upper_replay_claims.try_reserve(1).map_err(exhausted)?;
-        self.original_claim_by_record_and_producer
-            .try_reserve(1)
-            .map_err(exhausted)?;
-        self.root_claim_by_producer_constraint
-            .try_reserve(1)
-            .map_err(exhausted)?;
+        if let Some(producer_constraint) = original_producer {
+            assert!(!self
+                .original_claim_by_record_and_producer
+                .contains_key(&(record, producer_constraint)));
+            assert!(!self
+                .root_claim_by_producer_constraint
+                .contains_key(&producer_constraint));
+            self.original_claim_by_record_and_producer
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.root_claim_by_producer_constraint
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        } else {
+            self.derived_claim_by_record_and_root
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
         let record_claims = if let Some(claims) = self.claims_by_upper_record.get_mut(&record) {
             claims.try_reserve(1).map_err(exhausted)?;
             None
@@ -3035,7 +3176,7 @@ impl TypeBounds {
             claims.try_reserve(1).map_err(exhausted)?;
             Some(claims)
         };
-        let mut prepared = PreparedOriginalClaimMirrorCapacity {
+        let mut prepared = PreparedClaimMirrorCapacity {
             record_claims,
             projection_claims: None,
             projection_proofs: None,
@@ -3043,11 +3184,7 @@ impl TypeBounds {
             clause_ids: None,
             clause_links: None,
         };
-        if let Some(lower_record) = self
-            .scheme_projection_lower_record_by_constraint
-            .get(&producer_constraint)
-            .copied()
-        {
+        if let Some(lower_record) = lower_record {
             self.scheme_projection_claims_by_lower_record
                 .try_reserve(1)
                 .map_err(exhausted)?;
@@ -3080,8 +3217,10 @@ impl TypeBounds {
                 proofs.try_reserve(1).map_err(exhausted)?;
                 prepared.projection_proofs = Some((lower_record, proofs));
             }
-            let root = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
-            if let Some(records) = self.scheme_projection_lower_records_by_root.get_mut(&root) {
+            if let Some(records) = self
+                .scheme_projection_lower_records_by_root
+                .get_mut(&coverage_root)
+            {
                 records.try_reserve(1).map_err(exhausted)?;
             } else {
                 let mut records = Vec::new();
@@ -3146,7 +3285,7 @@ impl TypeBounds {
         record: BoundRecordId,
         producer_constraint: ConstraintRecordId,
         kind: UpperReplayClaimKind,
-        prepared: PreparedOriginalClaimMirrorCapacity,
+        prepared: PreparedClaimMirrorCapacity,
     ) -> UpperReplayClaimRegistration {
         let key = (record, producer_constraint);
         assert!(
@@ -3218,65 +3357,95 @@ impl TypeBounds {
         )
     }
 
-    fn derived_upper_replay_claim(
+    fn finish_coalesced_derived_upper_replay_claim_mirror(
         &mut self,
         record: BoundRecordId,
-        parent_claim: UpperReplayClaimId,
+        coverage_root: UpperReplayClaimId,
+        claim: UpperReplayClaimId,
         producer_constraint: ConstraintRecordId,
-        lineage: impl FnOnce(u32) -> UpperReplayClaimLineage,
+        lineage: UpperReplayClaimLineage,
     ) -> UpperReplayClaimRegistration {
-        let parent = self.upper_replay_claims[parent_claim.0 as usize].clone();
-        let root = parent.coverage_root;
-        let depth = parent
-            .lineage
-            .depth()
-            .checked_add(1)
-            .expect("upper replay claim lineage depth overflow");
-        let lineage = lineage(depth);
         let lower_record =
             self.scheme_projection_lower_record_for_lineage(producer_constraint, lineage);
-        // The derived index contains child claims only, but the root itself is the canonical
-        // claim for `(root.current_record, root)`. A replay cycle returning there must coalesce
-        // instead of allocating a derived copy of the original claim.
-        if self.upper_replay_claims[root.0 as usize].current_record == record {
-            self.replay_claim_cycle_coalesces += 1;
-            let scheme_projection_mutation = lower_record
-                .map(|lower_record| self.link_scheme_projection_claim(lower_record, root))
-                .unwrap_or(SchemeProjectionMutation::None);
-            return self.finish_upper_replay_claim_registration(
-                root,
-                scheme_projection_mutation,
-                None,
-            );
-        }
-        if let Some(claim) = self
-            .derived_claim_by_record_and_root
-            .get(&(record, root))
-            .copied()
+        let expected = if self.upper_replay_claims[coverage_root.0 as usize].current_record == record
         {
-            self.replay_claim_cycle_coalesces += 1;
-            let scheme_projection_mutation = lower_record
-                .map(|lower_record| self.link_scheme_projection_claim(lower_record, claim))
-                .unwrap_or(SchemeProjectionMutation::None);
-            return self.finish_upper_replay_claim_registration(
-                claim,
-                scheme_projection_mutation,
-                None,
-            );
-        }
+            coverage_root
+        } else {
+            self.derived_claim_by_record_and_root[&(record, coverage_root)]
+        };
+        assert_eq!(claim, expected);
+        self.replay_claim_cycle_coalesces += 1;
+        let scheme_projection_mutation = lower_record
+            .map(|lower_record| self.link_scheme_projection_claim(lower_record, claim))
+            .unwrap_or(SchemeProjectionMutation::None);
+        self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation, None)
+    }
+
+    fn commit_derived_upper_replay_claim_mirror(
+        &mut self,
+        admission: &proof::PreparedUpperClaimAdmission,
+        lineage: UpperReplayClaimLineage,
+        prepared: PreparedClaimMirrorCapacity,
+    ) -> UpperReplayClaimRegistration {
+        let occurrence = &admission.occurrence;
+        let record = occurrence.current_record;
+        let root = occurrence.coverage_root;
+        let producer_constraint = occurrence.producer;
+        let lower_record =
+            self.scheme_projection_lower_record_for_lineage(producer_constraint, lineage);
+        let parent_claim = match lineage {
+            UpperReplayClaimLineage::Original => unreachable!("derived claim has a parent"),
+            UpperReplayClaimLineage::ReplayConstraint { parent_claim, .. }
+            | UpperReplayClaimLineage::ReplayEvidence { parent_claim, .. }
+            | UpperReplayClaimLineage::StructuralConstraint { parent_claim, .. }
+            | UpperReplayClaimLineage::ReductionRouteConstraint { parent_claim, .. } => {
+                parent_claim
+            }
+        };
+        assert_eq!(self.upper_replay_claims[parent_claim.0 as usize].coverage_root, root);
+        assert_ne!(
+            self.upper_replay_claims[root.0 as usize].current_record,
+            record,
+            "the CPK allocator must coalesce a cycle back to the root"
+        );
+        assert!(
+            !self
+                .derived_claim_by_record_and_root
+                .contains_key(&(record, root)),
+            "the CPK allocator must coalesce an existing (record, root) materialization"
+        );
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
-        let id = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
+        let id = occurrence.claim;
+        assert_eq!(id.0 as usize, self.upper_replay_claims.len());
         debug_assert!(parent_claim < id);
+        if let Some(claims) = prepared.record_claims {
+            assert!(self.claims_by_upper_record.insert(record, claims).is_none());
+        }
+        if let Some((lower, claims)) = prepared.projection_claims {
+            assert!(self.scheme_projection_claims_by_lower_record.insert(lower, claims).is_none());
+        }
+        if let Some((lower, proofs)) = prepared.projection_proofs {
+            assert!(self.projection_proofs_by_lower_record.insert(lower, proofs).is_none());
+        }
+        if let Some(records) = prepared.root_lower_records {
+            assert!(self.scheme_projection_lower_records_by_root.insert(root, records).is_none());
+        }
+        if let Some((lower, ids)) = prepared.clause_ids {
+            assert!(self.record_proof_clause_ids_by_lower_record.insert(lower, ids).is_none());
+        }
+        if let Some((lower, links)) = prepared.clause_links {
+            assert!(self.record_proof_clause_links_by_lower_record.insert(lower, links).is_none());
+        }
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
             endpoint,
             weights: bound.weights.clone(),
             producer_constraint,
-            kind: parent.kind,
+            kind: self.upper_replay_claims[parent_claim.0 as usize].kind,
             current_record: record,
             coverage_root: root,
             lineage,
@@ -3287,7 +3456,13 @@ impl TypeBounds {
         let scheme_projection_mutation = lower_record
             .map(|lower_record| self.link_scheme_projection_claim(lower_record, id))
             .unwrap_or(SchemeProjectionMutation::None);
-        self.finish_upper_replay_claim_registration(id, scheme_projection_mutation, None)
+        let registration = self.finish_upper_replay_claim_registration(
+            id,
+            scheme_projection_mutation,
+            None,
+        );
+        assert_eq!(registration.proof_admission, *admission);
+        registration
     }
 
     fn finish_upper_replay_claim_registration(

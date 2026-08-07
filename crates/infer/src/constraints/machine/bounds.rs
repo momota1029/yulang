@@ -1054,8 +1054,10 @@ impl ConstraintMachine {
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();
-            let coverage_root =
-                self.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
+            let coverage_root = self
+                .proof_store
+                .claim_coverage_root(parent_claim)
+                .expect("qualified replay parent must exist in the CPK claim arena");
             // The exact route carrier remains in `claim_parents_by_constraint`, while the
             // materialized upper claim is canonical per record and coverage root. Replaying the
             // second carrier would only count the same proof as a claim cycle.
@@ -1063,12 +1065,15 @@ impl ConstraintMachine {
                 parent,
                 ClaimQualifiedParent::ReductionRouteConstraint { .. }
             ) && claims.iter().any(|claim| {
-                self.bounds.upper_replay_claims[claim.0 as usize].coverage_root == coverage_root
+                self.proof_store.claim_coverage_root(*claim) == Some(coverage_root)
             }) {
                 continue;
             }
-            let claim =
-                self.materialize_constraint_upper_replay_claim(record, producer, parent, None);
+            let Some(claim) =
+                self.materialize_constraint_upper_replay_claim(record, producer, parent, None)
+            else {
+                return claims;
+            };
             if !claims.contains(&claim) {
                 claims.push(claim);
             }
@@ -1110,23 +1115,23 @@ impl ConstraintMachine {
         }
         let mut claims = Vec::new();
         for parent in parents.iter().copied() {
-            let coverage_root =
-                self.bounds.upper_replay_claims[parent.parent_claim().0 as usize].coverage_root;
+            let coverage_root = self
+                .proof_store
+                .claim_coverage_root(parent.parent_claim())
+                .expect("qualified replay parent must exist in the CPK claim arena");
             // Materialization is canonical per (record, root), not per exact carrier. The caller
             // has already recorded every newly admitted key and qualified parent unconditionally.
-            if self
-                .bounds
-                .derived_claim_by_record_and_root
-                .contains_key(&(record, coverage_root))
-            {
+            if self.proof_store.derived_claim(record, coverage_root).is_some() {
                 continue;
             }
-            let claim = self.materialize_constraint_upper_replay_claim(
+            let Some(claim) = self.materialize_constraint_upper_replay_claim(
                 record,
                 producer,
                 parent,
                 publication_fence.as_deref_mut(),
-            );
+            ) else {
+                return claims;
+            };
             if !claims.contains(&claim) {
                 claims.push(claim);
             }
@@ -1140,7 +1145,7 @@ impl ConstraintMachine {
         producer: ConstraintRecordId,
         parent: ClaimQualifiedParent,
         publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
-    ) -> UpperReplayClaimId {
+    ) -> Option<UpperReplayClaimId> {
         let parent_claim = parent.parent_claim();
         let registration = match parent {
             ClaimQualifiedParent::ReplayConstraint {
@@ -1148,8 +1153,7 @@ impl ConstraintMachine {
                 replay,
                 ..
             } => self
-                .bounds
-                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                .admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
                     UpperReplayClaimLineage::ReplayConstraint {
                         parent_claim,
                         parent_side,
@@ -1159,8 +1163,7 @@ impl ConstraintMachine {
                     }
                 }),
             ClaimQualifiedParent::StructuralConstraint { derivation, .. } => self
-                .bounds
-                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                .admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
                     UpperReplayClaimLineage::StructuralConstraint {
                         parent_claim,
                         result: producer,
@@ -1169,8 +1172,7 @@ impl ConstraintMachine {
                     }
                 }),
             ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => self
-                .bounds
-                .derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                .admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
                     UpperReplayClaimLineage::ReductionRouteConstraint {
                         parent_claim,
                         result: producer,
@@ -1178,15 +1180,13 @@ impl ConstraintMachine {
                         depth,
                     }
                 }),
-        };
-        self.proof_store
-            .record_prepared_upper_claim(&registration.proof_admission);
+        }?;
         if let Some(fence) = publication_fence {
             self.defer_scheme_projection_mutation(fence, registration.scheme_projection_mutation);
         } else {
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         }
-        registration.claim
+        Some(registration.claim)
     }
 
     fn try_insert_upper_materialization_lineage(
@@ -6159,7 +6159,7 @@ impl ConstraintMachine {
                 for parent in action.claim_parents {
                     let producer = self.bounds.upper_replay_claims[parent.claim.0 as usize]
                         .producer_constraint;
-                    let registration = self.bounds.derived_upper_replay_claim(
+                    let Some(registration) = self.admit_derived_upper_replay_claim(
                         upper_record,
                         parent.claim,
                         producer,
@@ -6169,9 +6169,9 @@ impl ConstraintMachine {
                             replay: action.derivation,
                             depth,
                         },
-                    );
-                    self.proof_store
-                        .record_prepared_upper_claim(&registration.proof_admission);
+                    ) else {
+                        return;
+                    };
                     self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
                     self.register_replay_evidence_clause_link(
                         lower_record,
@@ -7488,7 +7488,6 @@ mod mutation_tests {
             )
             .id;
         machine
-            .bounds
             .derived_upper_replay_claim(record, root, producer, |depth| {
                 UpperReplayClaimLineage::ReplayConstraint {
                     parent_claim: root,
@@ -10147,7 +10146,7 @@ mod mutation_tests {
         };
         for index in [7, 0, 6, 1, 5, 2, 4, 3] {
             let root = roots[index];
-            machine.bounds.derived_upper_replay_claim(
+            machine.derived_upper_replay_claim(
                 target,
                 root,
                 ConstraintRecordId(71_000 + index as u32),

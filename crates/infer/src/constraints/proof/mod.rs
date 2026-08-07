@@ -98,6 +98,7 @@ pub(crate) enum ProjectionInvariantViolation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProofOperation {
     AdmitOriginalClaim,
+    AdmitDerivedClaim,
     ProjectLowerPreflight,
     ProjectLowerSupportCollection,
     ProjectLowerEvaluation,
@@ -795,6 +796,16 @@ pub(crate) enum UpperClaimLineage {
 }
 
 impl UpperClaimLineage {
+    fn depth(self) -> u32 {
+        match self {
+            Self::Original => 0,
+            Self::ReplayConstraint { depth, .. }
+            | Self::ReplayEvidence { depth, .. }
+            | Self::StructuralConstraint { depth, .. }
+            | Self::ReductionRouteConstraint { depth, .. } => depth,
+        }
+    }
+
     fn projection_lineage(self) -> ProjectionLineage {
         match self {
             Self::Original => ProjectionLineage::Original,
@@ -824,6 +835,15 @@ pub(crate) struct UpperClaimOccurrence {
 pub(super) struct PreparedUpperClaimAdmission {
     pub(super) occurrence: UpperClaimOccurrence,
     new_record_claims: Option<Vec<UpperReplayClaimId>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum PreparedDerivedClaimDecision {
+    Coalesced {
+        claim: UpperReplayClaimId,
+        coverage_root: UpperReplayClaimId,
+    },
+    New(PreparedUpperClaimAdmission),
 }
 
 /// Claim-location mutation frozen by the flat claim transaction before publication to CPK.
@@ -983,7 +1003,12 @@ pub(crate) struct ProofOccurrenceStore {
     upper_claim_index: FxHashMap<UpperReplayClaimId, usize>,
     original_claim_by_record_and_producer:
         FxHashMap<(BoundRecordId, ConstraintRecordId), UpperReplayClaimId>,
+    derived_claim_by_record_and_root:
+        FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
+    reduction_claim_by_state:
+        FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
+    replay_claim_cycle_coalesces: usize,
     claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     reduction_route_claim_keys:
@@ -999,6 +1024,8 @@ pub(crate) struct ProofOccurrenceStore {
     replay_index_record_comparisons: Cell<usize>,
     #[cfg(test)]
     fail_next_original_claim_reservation: bool,
+    #[cfg(test)]
+    fail_next_derived_claim_reservation: bool,
     #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
@@ -1020,7 +1047,10 @@ impl Default for ProofOccurrenceStore {
             upper_claims: Vec::new(),
             upper_claim_index: FxHashMap::default(),
             original_claim_by_record_and_producer: FxHashMap::default(),
+            derived_claim_by_record_and_root: FxHashMap::default(),
             root_claim_by_producer_constraint: FxHashMap::default(),
+            reduction_claim_by_state: FxHashMap::default(),
+            replay_claim_cycle_coalesces: 0,
             claims_by_upper_record: FxHashMap::default(),
             row_reductions: Vec::new(),
             reduction_route_claim_keys: FxHashSet::default(),
@@ -1035,6 +1065,8 @@ impl Default for ProofOccurrenceStore {
             #[cfg(test)]
             fail_next_original_claim_reservation: false,
             #[cfg(test)]
+            fail_next_derived_claim_reservation: false,
+            #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
             projection_publication_observations: RefCell::default(),
@@ -1047,6 +1079,37 @@ impl Default for ProofOccurrenceStore {
 }
 
 impl ProofOccurrenceStore {
+    pub(super) fn claim_coverage_root(
+        &self,
+        claim: UpperReplayClaimId,
+    ) -> Option<UpperReplayClaimId> {
+        self.upper_claim_index
+            .get(&claim)
+            .map(|index| self.upper_claims[*index].coverage_root)
+    }
+
+    pub(super) fn derived_claim(
+        &self,
+        record: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+    ) -> Option<UpperReplayClaimId> {
+        self.derived_claim_by_record_and_root
+            .get(&(record, coverage_root))
+            .copied()
+    }
+
+    pub(super) fn next_derived_claim_depth(
+        &self,
+        parent_claim: UpperReplayClaimId,
+    ) -> u32 {
+        let parent_index = self.upper_claim_index[&parent_claim];
+        self.upper_claims[parent_index]
+            .full_lineage
+            .depth()
+            .checked_add(1)
+            .expect("upper claim lineage depth overflow")
+    }
+
     #[cfg(test)]
     fn claim_allocation_census(&self) -> (usize, usize, usize, usize, usize, usize, usize) {
         let upper_claims = &self.upper_claims;
@@ -1215,6 +1278,27 @@ impl ProofOccurrenceStore {
         claim
     }
 
+    pub(super) fn try_reserve_reduction_claim_index(
+        &mut self,
+    ) -> Result<(), std::collections::TryReserveError> {
+        self.reduction_claim_by_state.try_reserve(1)
+    }
+
+    pub(super) fn commit_reduction_claim_index(
+        &mut self,
+        state: UnweightedRowReductionRecordId,
+        claim: UpperReplayClaimId,
+    ) {
+        assert!(self.reduction_claim_by_state.insert(state, claim).is_none());
+    }
+
+    pub(super) fn reduction_claim(
+        &self,
+        state: UnweightedRowReductionRecordId,
+    ) -> Option<UpperReplayClaimId> {
+        self.reduction_claim_by_state.get(&state).copied()
+    }
+
     pub(super) fn try_prepare_original_claim_admission(
         &mut self,
         record: BoundRecordId,
@@ -1292,6 +1376,121 @@ impl ProofOccurrenceStore {
         self.fail_next_original_claim_reservation = true;
     }
 
+    pub(super) fn try_prepare_derived_claim_admission(
+        &mut self,
+        record: BoundRecordId,
+        parent_claim: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        lineage: UpperReplayClaimLineage,
+    ) -> Result<PreparedDerivedClaimDecision, ProofFailure> {
+        let parent_index = self.upper_claim_index[&parent_claim];
+        let parent = &self.upper_claims[parent_index];
+        let coverage_root = parent.coverage_root;
+        let kind = parent.kind;
+        let depth = parent
+            .full_lineage
+            .depth()
+            .checked_add(1)
+            .expect("upper claim lineage depth overflow");
+        assert_eq!(lineage.depth(), depth);
+        let root_index = self.upper_claim_index[&coverage_root];
+        if self.upper_claims[root_index].current_record == record {
+            return Ok(PreparedDerivedClaimDecision::Coalesced {
+                claim: coverage_root,
+                coverage_root,
+            });
+        }
+        if let Some(claim) = self
+            .derived_claim_by_record_and_root
+            .get(&(record, coverage_root))
+            .copied()
+        {
+            return Ok(PreparedDerivedClaimDecision::Coalesced {
+                claim,
+                coverage_root,
+            });
+        }
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_derived_claim_reservation) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitDerivedClaim,
+            });
+        }
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::AdmitDerivedClaim,
+        };
+        self.upper_claims.try_reserve(1).map_err(exhausted)?;
+        self.upper_claim_index.try_reserve(1).map_err(exhausted)?;
+        self.derived_claim_by_record_and_root
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        let new_record_claims = if let Some(claims) = self.claims_by_upper_record.get_mut(&record) {
+            claims.try_reserve(1).map_err(exhausted)?;
+            None
+        } else {
+            self.claims_by_upper_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            let mut claims = Vec::new();
+            claims.try_reserve(1).map_err(exhausted)?;
+            Some(claims)
+        };
+        let next = u32::try_from(self.upper_claims.len()).map_err(|_| {
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitDerivedClaim,
+            }
+        })?;
+        let full_lineage = upper_claim_lineage(lineage);
+        Ok(PreparedDerivedClaimDecision::New(
+            PreparedUpperClaimAdmission {
+                occurrence: UpperClaimOccurrence {
+                    claim: UpperReplayClaimId(next),
+                    coverage_root,
+                    kind,
+                    full_lineage,
+                    lineage: full_lineage.projection_lineage(),
+                    producer,
+                    current_record: record,
+                },
+                new_record_claims,
+            },
+        ))
+    }
+
+    pub(super) fn commit_derived_claim_decision(
+        &mut self,
+        decision: &mut PreparedDerivedClaimDecision,
+    ) {
+        match decision {
+            PreparedDerivedClaimDecision::Coalesced { .. } => {
+                self.replay_claim_cycle_coalesces += 1;
+            }
+            PreparedDerivedClaimDecision::New(admission) => {
+                let claim = &admission.occurrence;
+                assert_eq!(claim.claim.0 as usize, self.upper_claims.len());
+                let index = self.upper_claims.len();
+                self.upper_claims.push(claim.clone());
+                assert!(self.upper_claim_index.insert(claim.claim, index).is_none());
+                assert!(self
+                    .derived_claim_by_record_and_root
+                    .insert((claim.current_record, claim.coverage_root), claim.claim)
+                    .is_none());
+                if let Some(claims) = admission.new_record_claims.take() {
+                    assert!(self
+                        .claims_by_upper_record
+                        .insert(claim.current_record, claims)
+                        .is_none());
+                }
+                self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_derived_claim_reservation(&mut self) {
+        self.fail_next_derived_claim_reservation = true;
+    }
+
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
         let admission = prepare_upper_claim_admission(claim);
         self.record_prepared_upper_claim(&admission);
@@ -1338,6 +1537,18 @@ impl ProofOccurrenceStore {
                 .original_claim_by_record_and_producer
                 .insert((mutation.current_record, producer), mutation.claim)
                 .is_none());
+            let root = self.upper_claims[index].coverage_root;
+            self.derived_claim_by_record_and_root
+                .remove(&(mutation.current_record, root));
+        } else {
+            let root = self.upper_claims[index].coverage_root;
+            assert_eq!(
+                self.derived_claim_by_record_and_root
+                    .remove(&(old_record, root)),
+                Some(mutation.claim)
+            );
+            self.derived_claim_by_record_and_root
+                .insert((mutation.current_record, root), mutation.claim);
         }
         self.remove_claim_from_upper_record_index(old_record, mutation.claim);
         self.upper_claims[index].current_record = mutation.current_record;
@@ -6315,7 +6526,6 @@ mod tests {
             .id;
         let registration = fixture
             .machine
-            .bounds
             .derived_upper_replay_claim(record, fixture.coverage_root, producer, |depth| {
                 UpperReplayClaimLineage::ReplayConstraint {
                     parent_claim: fixture.coverage_root,
@@ -6325,9 +6535,6 @@ mod tests {
                     depth,
                 }
             });
-        fixture.machine.proof_store.record_upper_claim(
-            &fixture.machine.bounds.upper_replay_claims[registration.claim.0 as usize],
-        );
         registration.claim
     }
 
@@ -6441,14 +6648,11 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(origin),
             );
-            let registration = machine.bounds.derived_upper_replay_claim(
+            machine.derived_upper_replay_claim(
                 insertion.id,
                 root_claim,
                 producer,
                 |_| lineage,
-            );
-            machine.proof_store.record_upper_claim(
-                &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
             );
         }
         machine
@@ -6636,6 +6840,11 @@ mod tests {
         assert!(kinds.contains(&UpperClaimKind::Reduced(
             UnweightedRowReductionRecordId(0)
         )));
+        assert_eq!(
+            machine.proof_store.reduction_claim_by_state,
+            machine.bounds.reduction_claim_by_state,
+            "the CPK reduction-state index issues the claim mirrored by flat storage"
+        );
 
         let moved_claim = cpk_claims
             .iter()
@@ -6779,6 +6988,186 @@ mod tests {
         assert_eq!(
             machine.bounds.original_claim_by_record_and_producer[&(upper_record, producer)],
             next_id
+        );
+    }
+
+    #[test]
+    fn cpk_derived_claim_allocation_preserves_root_and_cycle_coalescing() {
+        let mut machine = cpk_machine();
+        let origin = OriginId::unknown_internal();
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(96_100)));
+        let add_record = |machine: &mut ConstraintMachine, owner| {
+            machine
+                .bounds
+                .add_upper(
+                    owner,
+                    endpoint,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(origin),
+                )
+                .id
+        };
+        let root_record = add_record(&mut machine, TypeVar(96_101));
+        let producer = ConstraintRecordId(96_102);
+        let root = machine
+            .original_upper_replay_claim(root_record, producer, UpperReplayClaimKind::Direct)
+            .claim;
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(96_103),
+            lower: root_record,
+            upper: root_record,
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        let first_record = add_record(&mut machine, TypeVar(96_104));
+        let first = machine
+            .derived_upper_replay_claim(first_record, root, producer, |depth| {
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim: root,
+                    parent_side: ReplayClaimParentSide::Lower,
+                    result: producer,
+                    replay,
+                    depth,
+                }
+            })
+            .claim;
+        let second_record = add_record(&mut machine, TypeVar(96_105));
+        let second = machine
+            .derived_upper_replay_claim(second_record, first, producer, |depth| {
+                UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim: first,
+                    parent_side: ReplayClaimParentSide::Upper,
+                    replay,
+                    depth,
+                }
+            })
+            .claim;
+        let duplicate = machine
+            .derived_upper_replay_claim(second_record, root, producer, |depth| {
+                UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim: root,
+                    parent_side: ReplayClaimParentSide::Upper,
+                    replay,
+                    depth,
+                }
+            })
+            .claim;
+        let cycle = machine
+            .derived_upper_replay_claim(root_record, second, producer, |depth| {
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim: second,
+                    parent_side: ReplayClaimParentSide::Lower,
+                    result: producer,
+                    replay,
+                    depth,
+                }
+            })
+            .claim;
+
+        assert_eq!(duplicate, second);
+        assert_eq!(cycle, root);
+        assert_eq!(machine.proof_store.replay_claim_cycle_coalesces, 2);
+        assert_eq!(
+            machine.proof_store.replay_claim_cycle_coalesces,
+            machine.bounds.replay_claim_cycle_coalesces
+        );
+        assert_eq!(
+            machine.proof_store.derived_claim_by_record_and_root,
+            machine.bounds.derived_claim_by_record_and_root
+        );
+        assert_eq!(machine.proof_store.upper_claims[first.0 as usize].coverage_root, root);
+        assert_eq!(machine.proof_store.upper_claims[second.0 as usize].coverage_root, root);
+        assert_eq!(machine.proof_store.upper_claims[first.0 as usize].full_lineage.depth(), 1);
+        assert_eq!(machine.proof_store.upper_claims[second.0 as usize].full_lineage.depth(), 2);
+        for claim in [root, first, second] {
+            assert_cpk_claim_payload_matches_flat(
+                &machine.proof_store.upper_claims[claim.0 as usize],
+                &machine.bounds.upper_replay_claims[claim.0 as usize],
+            );
+        }
+    }
+
+    #[test]
+    fn cpk_derived_claim_allocation_preflight_failure_is_atomic() {
+        let mut machine = cpk_machine();
+        let origin = OriginId::unknown_internal();
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(96_200)));
+        let root_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(96_201),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let producer = ConstraintRecordId(96_202);
+        let root = machine
+            .original_upper_replay_claim(root_record, producer, UpperReplayClaimKind::Direct)
+            .claim;
+        let derived_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(96_203),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let before = (
+            machine.proof_store.upper_claims.len(),
+            machine.proof_store.derived_claim_by_record_and_root.clone(),
+            machine.proof_store.claims_by_upper_record.clone(),
+            machine.proof_store.reduction_claim_by_state.clone(),
+            machine.proof_store.replay_claim_cycle_coalesces,
+            machine.bounds.upper_replay_claims.len(),
+            machine.bounds.derived_claim_by_record_and_root.clone(),
+            machine.bounds.claims_by_upper_record.clone(),
+            machine.bounds.reduction_claim_by_state.clone(),
+            machine.bounds.replay_claim_cycle_coalesces,
+        );
+        let next = UpperReplayClaimId(before.0 as u32);
+        machine.proof_store.fail_next_derived_claim_reservation();
+        let lineage = |depth| UpperReplayClaimLineage::StructuralConstraint {
+            parent_claim: root,
+            result: producer,
+            derivation: StructuralDerivation {
+                parent: producer,
+                rule: StructuralDerivationRule::FunctionReturn,
+            },
+            depth,
+        };
+        assert!(matches!(
+            machine.try_derived_upper_replay_claim(derived_record, root, producer, lineage),
+            Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitDerivedClaim,
+            })
+        ));
+        assert_eq!(
+            (
+                machine.proof_store.upper_claims.len(),
+                machine.proof_store.derived_claim_by_record_and_root.clone(),
+                machine.proof_store.claims_by_upper_record.clone(),
+                machine.proof_store.reduction_claim_by_state.clone(),
+                machine.proof_store.replay_claim_cycle_coalesces,
+                machine.bounds.upper_replay_claims.len(),
+                machine.bounds.derived_claim_by_record_and_root.clone(),
+                machine.bounds.claims_by_upper_record.clone(),
+                machine.bounds.reduction_claim_by_state.clone(),
+                machine.bounds.replay_claim_cycle_coalesces,
+            ),
+            before
+        );
+        let registration = machine
+            .try_derived_upper_replay_claim(derived_record, root, producer, lineage)
+            .expect("failed preflight leaves the derived dense ID unconsumed");
+        assert_eq!(registration.claim, next);
+        assert_eq!(
+            machine.proof_store.derived_claim_by_record_and_root[&(derived_record, root)],
+            next
+        );
+        assert_eq!(
+            machine.bounds.derived_claim_by_record_and_root[&(derived_record, root)],
+            next
         );
     }
 

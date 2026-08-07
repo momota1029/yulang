@@ -387,7 +387,7 @@ impl ConstraintMachine {
                     upper: snapshot.current_reduced_upper.endpoint,
                     upper_record: snapshot.current_reduced_upper.record,
                     provenance: snapshot.provenance_head,
-                    claim: self.bounds.reduction_claim_by_state.get(&state_id).copied(),
+                    claim: self.proof_store.reduction_claim(state_id),
                 });
                 continue;
             }
@@ -453,7 +453,7 @@ impl ConstraintMachine {
                 state.processed_lower_records.insert(lower_record);
                 state.provenance_head = successor;
             }
-            if let Some(claim) = self.bounds.reduction_claim_by_state.get(&state_id).copied() {
+            if let Some(claim) = self.proof_store.reduction_claim(state_id) {
                 let mutation = self
                     .bounds
                     .move_upper_replay_claim(claim, materialization.record);
@@ -469,7 +469,7 @@ impl ConstraintMachine {
                 upper: snapshot.original_upper,
                 upper_record: materialization.record,
                 provenance: successor,
-                claim: self.bounds.reduction_claim_by_state.get(&state_id).copied(),
+                claim: self.proof_store.reduction_claim(state_id),
             });
         }
         routes
@@ -490,15 +490,24 @@ impl ConstraintMachine {
             .or_default()
             .push(id);
         let root_claim = producer.and_then(|producer| {
-            let registration = self.admit_original_upper_replay_claim(
+            let registration = match self.try_original_upper_replay_claim_transaction(
                 materialization.record,
                 producer,
                 UpperReplayClaimKind::Reduced(id),
-            )?;
+                Some(id),
+            ) {
+                Ok(registration) => registration,
+                Err(failure) => {
+                    self.mark_proof_terminal_failure(
+                        crate::constraints::proof::ProofOperation::AdmitOriginalClaim,
+                        failure,
+                    );
+                    return None;
+                }
+            };
             self.record_original_claim_standalone_link_in_proof_store(&registration);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             let claim = registration.claim;
-            self.bounds.reduction_claim_by_state.insert(id, claim);
             self.insert_scheme_projection_live_coverage_state(claim, id);
             Some(claim)
         });
