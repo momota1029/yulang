@@ -34,9 +34,8 @@ use super::*;
 use crate::analysis::AnalysisTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::constraints::{
-    ConstraintTiming, ProofFailure, ProofReadAuthority, ReplayFactoredFailureOperation,
-    ReplayFactoredShadowFailure, ReplayReadAuthority, record_legacy_rollback_entry,
-    record_replay_factored_failure,
+    ConstraintTiming, ProofFailure, ReplayFactoredFailureOperation, ReplayFactoredShadowFailure,
+    ReplayReadAuthority, record_legacy_rollback_entry, record_replay_factored_failure,
 };
 use crate::source_range_for_name;
 use register::*;
@@ -1616,19 +1615,6 @@ impl BodyLowerer {
         )
     }
 
-    fn new_with_read_authorities(
-        lower: Lower,
-        replay_read_authority: ReplayReadAuthority,
-        proof_read_authority: ProofReadAuthority,
-    ) -> Self {
-        Self::new_with_imported_boundary_and_read_authorities(
-            lower,
-            &crate::CompiledBoundaryInterface::empty(),
-            replay_read_authority,
-            proof_read_authority,
-        )
-    }
-
     fn new_with_imported_boundary(
         lower: Lower,
         boundary: &crate::CompiledBoundaryInterface,
@@ -1656,33 +1642,6 @@ impl BodyLowerer {
             arena,
             boundary,
             replay_read_authority,
-        );
-        register_declared_type_methods(&mut session, &modules);
-        register_declared_type_field_methods(&mut session, &modules);
-        register_declared_act_methods(&mut session, &modules);
-        register_declared_role_methods(&mut session, &modules);
-        register_declared_companion_local_methods(&mut session, &modules);
-        Self::from_initialized_session(modules, source_file, session, labels)
-    }
-
-    fn new_with_imported_boundary_and_read_authorities(
-        lower: Lower,
-        boundary: &crate::CompiledBoundaryInterface,
-        replay_read_authority: ReplayReadAuthority,
-        proof_read_authority: ProofReadAuthority,
-    ) -> Self {
-        let Lower {
-            arena,
-            modules,
-            source_file,
-            ..
-        } = lower;
-        let labels = modules.dump_labels();
-        let mut session = AnalysisSession::new_with_imported_boundary_and_read_authorities(
-            arena,
-            boundary,
-            replay_read_authority,
-            proof_read_authority,
         );
         register_declared_type_methods(&mut session, &modules);
         register_declared_type_field_methods(&mut session, &modules);
@@ -2896,9 +2855,11 @@ fn top_level_var_binding_source(node: &Cst) -> Option<Name> {
 #[cfg(test)]
 mod rcpf_c3a_retry_tests {
     use super::*;
+    use crate::constraints::proof::ProofOperation;
     use crate::constraints::{
-        ReplayFactoredFailureOperation, ReplaySoakEventOrigin,
-        capture_replay_soak_test_events, with_intentional_replay_soak_test_injection,
+        ProofReadAuthority, ReplayFactoredFailureOperation, ReplaySoakEventOrigin,
+        capture_replay_soak_test_events, record_proof_terminal_failure,
+        with_intentional_replay_soak_test_injection,
     };
 
     const FAILURE: ReplayFactoredShadowFailure = ReplayFactoredShadowFailure::AllocationFailed;
@@ -2969,6 +2930,10 @@ mod rcpf_c3a_retry_tests {
                     authorities.push(replay_authority);
                     let identity = next_identity;
                     next_identity += 1;
+                    record_proof_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        &failure,
+                    );
                     Ok(ReplayCompilationAttempt {
                         output: identity,
                         terminal_failure: None,
@@ -2984,24 +2949,18 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(next_identity, 1, "proof failure must not start a retry");
         assert_eq!(authorities, [ReplayReadAuthority::Factored]);
         assert_eq!(
-            telemetry.proof_legacy_rollback_entries(
+            telemetry.proof_terminal_failures(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofOperation::ProjectLowerEvaluation,
             ),
-            0,
+            1,
+            "the discarded attempt retains its hard-failure telemetry",
         );
-        assert_eq!(
-            telemetry.proof_legacy_rollback_entries(ReplaySoakEventOrigin::Organic),
-            0,
-        );
-        assert_eq!(
-            telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
-            0,
-            "the authority seal must not enter the removed proof retry path",
-        );
+        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
     }
 
     #[test]
-    fn cpk_8d_proof_failure_is_typed_hard_error_without_retry_telemetry() {
+    fn cpk_8d_proof_failure_is_typed_hard_error_with_terminal_failure_telemetry() {
         let failure = ProofFailure::ResourceExhausted {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
@@ -3010,6 +2969,10 @@ mod rcpf_c3a_retry_tests {
             with_intentional_replay_soak_test_injection(|| {
                 run_replay_compilation_attempt::<()>(|_| {
                     attempts += 1;
+                    record_proof_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        &failure,
+                    );
                     Ok(ReplayCompilationAttempt {
                         output: (),
                         terminal_failure: None,
@@ -3024,14 +2987,12 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(attempts, 1);
         assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert_eq!(
-            telemetry.proof_legacy_rollback_entries(
+            telemetry.proof_terminal_failures(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofOperation::ProjectLowerEvaluation,
             ),
-            0,
-        );
-        assert_eq!(
-            telemetry.proof_retry_failures(ReplaySoakEventOrigin::IntentionalTestInjection),
-            0,
+            1,
+            "the typed hard error retains the first CPK terminal-failure event",
         );
         assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
     }

@@ -12,7 +12,7 @@ use super::proof::ProofOperation;
 use super::{ProofFailure, ReplayFactoredShadowFailure};
 
 pub(crate) const RCPF_SOAK_TELEMETRY_VERSION: u32 = 1;
-pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 1;
+pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(not(debug_assertions), allow(dead_code))]
@@ -35,8 +35,6 @@ pub(crate) struct ReplaySoakTelemetrySnapshot {
     legacy_rollback_entries: [u64; 2],
     factored_read_errors: [u64; 2],
     proof_terminal_failures: [u64; 12],
-    proof_legacy_rollback_entries: [u64; 2],
-    proof_retry_failures: [u64; 2],
 }
 
 impl ReplaySoakTelemetrySnapshot {
@@ -69,16 +67,6 @@ impl ReplaySoakTelemetrySnapshot {
     }
 
     #[cfg(test)]
-    pub(crate) fn proof_legacy_rollback_entries(self, origin: ReplaySoakEventOrigin) -> u64 {
-        self.proof_legacy_rollback_entries[origin_index(origin)]
-    }
-
-    #[cfg(test)]
-    pub(crate) fn proof_retry_failures(self, origin: ReplaySoakEventOrigin) -> u64 {
-        self.proof_retry_failures[origin_index(origin)]
-    }
-
-    #[cfg(test)]
     pub(crate) fn total_for_origin(self, origin: ReplaySoakEventOrigin) -> u64 {
         let start = origin_index(origin) * 3;
         self.terminal_failures[start..start + 3].iter().sum::<u64>()
@@ -87,8 +75,6 @@ impl ReplaySoakTelemetrySnapshot {
             + self.proof_terminal_failures[origin_index(origin) * 6..origin_index(origin) * 6 + 6]
                 .iter()
                 .sum::<u64>()
-            + self.proof_legacy_rollback_entries[origin_index(origin)]
-            + self.proof_retry_failures[origin_index(origin)]
     }
 }
 
@@ -96,8 +82,6 @@ static TERMINAL_FAILURES: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
 static LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static FACTORED_READ_ERRORS: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static PROOF_TERMINAL_FAILURES: [AtomicU64; 12] = [const { AtomicU64::new(0) }; 12];
-static PROOF_LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
-static PROOF_RETRY_FAILURES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 static PROOF_TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
@@ -169,30 +153,6 @@ pub(crate) fn record_proof_terminal_failure(operation: ProofOperation, failure: 
     emit_proof_event("proof_terminal_failure", origin, Some(operation), Some(failure));
 }
 
-/// Record the first CPK failure that selected a fresh LegacyRollback retry machine.
-// CPK-8D seals every production caller. Keep this counter writable until the
-// post-seal soak has proved the removed transition stays unreachable.
-#[allow(dead_code)]
-pub(crate) fn record_proof_legacy_rollback_entry(failure: &ProofFailure) {
-    let origin = current_event_origin();
-    PROOF_LEGACY_ROLLBACK_ENTRIES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
-    update_test_capture(|snapshot| {
-        snapshot.proof_legacy_rollback_entries[origin_index(origin)] += 1;
-    });
-    emit_proof_event("proof_legacy_rollback_entry", origin, None, Some(failure));
-}
-
-/// Record a CPK terminal failure from the fresh LegacyRollback retry attempt.
-#[allow(dead_code)]
-pub(crate) fn record_proof_retry_failure() {
-    let origin = current_event_origin();
-    PROOF_RETRY_FAILURES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
-    update_test_capture(|snapshot| {
-        snapshot.proof_retry_failures[origin_index(origin)] += 1;
-    });
-    emit_proof_event("proof_retry_failure", origin, None, None);
-}
-
 pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
     ReplaySoakTelemetrySnapshot {
         terminal_failures: std::array::from_fn(|index| {
@@ -206,12 +166,6 @@ pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
         }),
         proof_terminal_failures: std::array::from_fn(|index| {
             PROOF_TERMINAL_FAILURES[index].load(Ordering::Relaxed)
-        }),
-        proof_legacy_rollback_entries: std::array::from_fn(|index| {
-            PROOF_LEGACY_ROLLBACK_ENTRIES[index].load(Ordering::Relaxed)
-        }),
-        proof_retry_failures: std::array::from_fn(|index| {
-            PROOF_RETRY_FAILURES[index].load(Ordering::Relaxed)
         }),
     }
 }
@@ -455,9 +409,7 @@ fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
             "terminal_injected_project_evaluation={} ",
             "terminal_injected_route_preflight={} ",
             "terminal_injected_route_parents={} ",
-            "terminal_injected_route_batch={} ",
-            "rollback_organic={} rollback_injected={} ",
-            "retry_failure_organic={} retry_failure_injected={}"
+            "terminal_injected_route_batch={}"
         ),
         CPK_SOAK_TELEMETRY_VERSION,
         snapshot.proof_terminal_failures[0],
@@ -472,10 +424,6 @@ fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
         snapshot.proof_terminal_failures[9],
         snapshot.proof_terminal_failures[10],
         snapshot.proof_terminal_failures[11],
-        snapshot.proof_legacy_rollback_entries[0],
-        snapshot.proof_legacy_rollback_entries[1],
-        snapshot.proof_retry_failures[0],
-        snapshot.proof_retry_failures[1],
     );
 }
 

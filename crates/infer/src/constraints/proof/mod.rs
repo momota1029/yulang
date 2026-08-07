@@ -8572,11 +8572,6 @@ mod tests {
             ),
             0,
         );
-        assert_eq!(
-            telemetry.proof_legacy_rollback_entries(ReplaySoakEventOrigin::Organic),
-            0,
-            "a direct machine test has not selected a fresh retry authority",
-        );
     }
 
     #[test]

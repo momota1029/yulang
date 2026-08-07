@@ -50,7 +50,9 @@ use replay_factored::{
     ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
 };
 pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
-pub(crate) use proof::{ProofFailure, ProofReadAuthority};
+pub(crate) use proof::ProofFailure;
+#[cfg(test)]
+pub(crate) use proof::ProofReadAuthority;
 #[cfg(test)]
 pub(crate) use replay_soak::{
     ReplaySoakEventOrigin, capture_replay_soak_test_events,
