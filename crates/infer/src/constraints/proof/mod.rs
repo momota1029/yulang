@@ -757,10 +757,62 @@ pub(crate) struct ReplayFirstWitness {
     pub(crate) representative_claim: UpperReplayClaimId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum UpperClaimKind {
+    Direct,
+    Reduced(UnweightedRowReductionRecordId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum UpperClaimLineage {
+    Original,
+    ReplayConstraint {
+        parent_claim: UpperReplayClaimId,
+        parent_side: ReplayClaimParentSide,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+    ReplayEvidence {
+        parent_claim: UpperReplayClaimId,
+        parent_side: ReplayClaimParentSide,
+        replay: BinaryReplayDerivation,
+        depth: u32,
+    },
+    StructuralConstraint {
+        parent_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: StructuralDerivation,
+        depth: u32,
+    },
+    ReductionRouteConstraint {
+        parent_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        derivation: RowDerivationId,
+        depth: u32,
+    },
+}
+
+impl UpperClaimLineage {
+    fn projection_lineage(self) -> ProjectionLineage {
+        match self {
+            Self::Original => ProjectionLineage::Original,
+            Self::ReplayConstraint { .. } => ProjectionLineage::ReplayConstraint,
+            Self::ReplayEvidence { .. } => ProjectionLineage::ReplayEvidence,
+            Self::StructuralConstraint { .. } => ProjectionLineage::StructuralConstraint,
+            Self::ReductionRouteConstraint { .. } => {
+                ProjectionLineage::ReductionRouteConstraint
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UpperClaimOccurrence {
     pub(crate) claim: UpperReplayClaimId,
     pub(crate) coverage_root: UpperReplayClaimId,
+    pub(crate) kind: UpperClaimKind,
+    pub(crate) full_lineage: UpperClaimLineage,
     pub(crate) lineage: ProjectionLineage,
     pub(crate) producer: ConstraintRecordId,
     pub(crate) current_record: BoundRecordId,
@@ -1032,14 +1084,76 @@ fn projection_lineage(lineage: UpperReplayClaimLineage) -> ProjectionLineage {
     }
 }
 
+fn upper_claim_kind(kind: UpperReplayClaimKind) -> UpperClaimKind {
+    match kind {
+        UpperReplayClaimKind::Direct => UpperClaimKind::Direct,
+        UpperReplayClaimKind::Reduced(state) => UpperClaimKind::Reduced(state),
+    }
+}
+
+fn upper_claim_lineage(lineage: UpperReplayClaimLineage) -> UpperClaimLineage {
+    match lineage {
+        UpperReplayClaimLineage::Original => UpperClaimLineage::Original,
+        UpperReplayClaimLineage::ReplayConstraint {
+            parent_claim,
+            parent_side,
+            result,
+            replay,
+            depth,
+        } => UpperClaimLineage::ReplayConstraint {
+            parent_claim,
+            parent_side,
+            result,
+            replay,
+            depth,
+        },
+        UpperReplayClaimLineage::ReplayEvidence {
+            parent_claim,
+            parent_side,
+            replay,
+            depth,
+        } => UpperClaimLineage::ReplayEvidence {
+            parent_claim,
+            parent_side,
+            replay,
+            depth,
+        },
+        UpperReplayClaimLineage::StructuralConstraint {
+            parent_claim,
+            result,
+            derivation,
+            depth,
+        } => UpperClaimLineage::StructuralConstraint {
+            parent_claim,
+            result,
+            derivation,
+            depth,
+        },
+        UpperReplayClaimLineage::ReductionRouteConstraint {
+            parent_claim,
+            result,
+            derivation,
+            depth,
+        } => UpperClaimLineage::ReductionRouteConstraint {
+            parent_claim,
+            result,
+            derivation,
+            depth,
+        },
+    }
+}
+
 pub(super) fn prepare_upper_claim_admission(
     claim: &UpperReplayClaim,
 ) -> PreparedUpperClaimAdmission {
+    let full_lineage = upper_claim_lineage(claim.lineage);
     PreparedUpperClaimAdmission {
         occurrence: UpperClaimOccurrence {
             claim: claim.id,
             coverage_root: claim.coverage_root,
-            lineage: projection_lineage(claim.lineage),
+            kind: upper_claim_kind(claim.kind),
+            full_lineage,
+            lineage: full_lineage.projection_lineage(),
             producer: claim.producer_constraint,
             current_record: claim.current_record,
         },
@@ -3746,6 +3860,14 @@ mod tests {
         machine: &mut ConstraintMachine,
         ordinal: u32,
     ) -> (BoundRecordId, UpperReplayClaimId) {
+        cpk_record_original_claim_with_kind(machine, ordinal, UpperReplayClaimKind::Direct)
+    }
+
+    fn cpk_record_original_claim_with_kind(
+        machine: &mut ConstraintMachine,
+        ordinal: u32,
+        kind: UpperReplayClaimKind,
+    ) -> (BoundRecordId, UpperReplayClaimId) {
         let endpoint = machine.alloc_neg(Neg::Var(TypeVar(70_000 + ordinal)));
         let record = machine
             .bounds
@@ -3759,7 +3881,7 @@ mod tests {
         let registration = machine.bounds.original_upper_replay_claim(
             record,
             ConstraintRecordId(90_000 + ordinal),
-            UpperReplayClaimKind::Direct,
+            kind,
         );
         machine
             .proof_store
@@ -4544,6 +4666,8 @@ mod tests {
             vec![UpperClaimOccurrence {
                 claim,
                 coverage_root: claim,
+                kind: UpperClaimKind::Direct,
+                full_lineage: UpperClaimLineage::Original,
                 lineage: ProjectionLineage::Original,
                 producer,
                 current_record: record,
@@ -4716,6 +4840,8 @@ mod tests {
             machine.proof_store.upper_claims.push(UpperClaimOccurrence {
                 claim,
                 coverage_root,
+                kind: UpperClaimKind::Direct,
+                full_lineage: UpperClaimLineage::Original,
                 lineage: ProjectionLineage::Original,
                 producer: ConstraintRecordId(50_004),
                 current_record: record,
@@ -4756,6 +4882,8 @@ mod tests {
             machine.proof_store.upper_claims.push(UpperClaimOccurrence {
                 claim,
                 coverage_root,
+                kind: UpperClaimKind::Direct,
+                full_lineage: UpperClaimLineage::Original,
                 lineage: ProjectionLineage::Original,
                 producer: ConstraintRecordId(50_009),
                 current_record: record,
@@ -6197,6 +6325,220 @@ mod tests {
         cpk_3_replay_fixture_with_oracle(true)
     }
 
+    fn assert_cpk_claim_payload_matches_flat(
+        actual: &UpperClaimOccurrence,
+        expected: &UpperReplayClaim,
+    ) {
+        assert_eq!(actual.claim, expected.id);
+        assert_eq!(actual.coverage_root, expected.coverage_root);
+        assert_eq!(actual.producer, expected.producer_constraint);
+        assert_eq!(actual.current_record, expected.current_record);
+        match (actual.kind, expected.kind) {
+            (UpperClaimKind::Direct, UpperReplayClaimKind::Direct) => {}
+            (
+                UpperClaimKind::Reduced(actual_state),
+                UpperReplayClaimKind::Reduced(expected_state),
+            ) => assert_eq!(actual_state, expected_state),
+            (actual, expected) => panic!("CPK claim kind {actual:?} != flat kind {expected:?}"),
+        }
+        match (actual.full_lineage, expected.lineage) {
+            (UpperClaimLineage::Original, UpperReplayClaimLineage::Original) => {}
+            (
+                UpperClaimLineage::ReplayConstraint {
+                    parent_claim: actual_parent,
+                    parent_side: actual_side,
+                    result: actual_result,
+                    replay: actual_replay,
+                    depth: actual_depth,
+                },
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim: expected_parent,
+                    parent_side: expected_side,
+                    result: expected_result,
+                    replay: expected_replay,
+                    depth: expected_depth,
+                },
+            ) => assert_eq!(
+                (
+                    actual_parent,
+                    actual_side,
+                    actual_result,
+                    actual_replay,
+                    actual_depth,
+                ),
+                (
+                    expected_parent,
+                    expected_side,
+                    expected_result,
+                    expected_replay,
+                    expected_depth,
+                ),
+            ),
+            (
+                UpperClaimLineage::ReplayEvidence {
+                    parent_claim: actual_parent,
+                    parent_side: actual_side,
+                    replay: actual_replay,
+                    depth: actual_depth,
+                },
+                UpperReplayClaimLineage::ReplayEvidence {
+                    parent_claim: expected_parent,
+                    parent_side: expected_side,
+                    replay: expected_replay,
+                    depth: expected_depth,
+                },
+            ) => assert_eq!(
+                (actual_parent, actual_side, actual_replay, actual_depth),
+                (
+                    expected_parent,
+                    expected_side,
+                    expected_replay,
+                    expected_depth,
+                ),
+            ),
+            (
+                UpperClaimLineage::StructuralConstraint {
+                    parent_claim: actual_parent,
+                    result: actual_result,
+                    derivation: actual_derivation,
+                    depth: actual_depth,
+                },
+                UpperReplayClaimLineage::StructuralConstraint {
+                    parent_claim: expected_parent,
+                    result: expected_result,
+                    derivation: expected_derivation,
+                    depth: expected_depth,
+                },
+            ) => assert_eq!(
+                (
+                    actual_parent,
+                    actual_result,
+                    actual_derivation,
+                    actual_depth,
+                ),
+                (
+                    expected_parent,
+                    expected_result,
+                    expected_derivation,
+                    expected_depth,
+                ),
+            ),
+            (
+                UpperClaimLineage::ReductionRouteConstraint {
+                    parent_claim: actual_parent,
+                    result: actual_result,
+                    derivation: actual_derivation,
+                    depth: actual_depth,
+                },
+                UpperReplayClaimLineage::ReductionRouteConstraint {
+                    parent_claim: expected_parent,
+                    result: expected_result,
+                    derivation: expected_derivation,
+                    depth: expected_depth,
+                },
+            ) => assert_eq!(
+                (
+                    actual_parent,
+                    actual_result,
+                    actual_derivation,
+                    actual_depth,
+                ),
+                (
+                    expected_parent,
+                    expected_result,
+                    expected_derivation,
+                    expected_depth,
+                ),
+            ),
+            (actual, expected) => {
+                panic!("CPK claim lineage {actual:?} != flat lineage {expected:?}")
+            }
+        }
+        assert_eq!(actual.lineage, projection_lineage(expected.lineage));
+    }
+
+    #[test]
+    fn cpk_claim_payload_matches_flat_across_five_lineages_and_move() {
+        let mut machine = cpk_3_replay_fixture_with_oracle(false);
+        cpk_record_original_claim_with_kind(
+            &mut machine,
+            100,
+            UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(0)),
+        );
+        let flat_claims = machine.bounds.upper_replay_claims.clone();
+        assert_eq!(flat_claims.len(), machine.proof_store.upper_claims.len());
+
+        for expected in &flat_claims {
+            let index = machine.proof_store.upper_claim_index[&expected.id];
+            assert_cpk_claim_payload_matches_flat(
+                &machine.proof_store.upper_claims[index],
+                expected,
+            );
+        }
+        assert_eq!(
+            machine
+                .proof_store
+                .upper_claims
+                .iter()
+                .map(|claim| claim.lineage)
+                .collect::<FxHashSet<_>>(),
+            FxHashSet::from_iter([
+                ProjectionLineage::Original,
+                ProjectionLineage::ReplayConstraint,
+                ProjectionLineage::ReplayEvidence,
+                ProjectionLineage::StructuralConstraint,
+                ProjectionLineage::ReductionRouteConstraint,
+            ]),
+        );
+        let kinds = machine
+            .proof_store
+            .upper_claims
+            .iter()
+            .map(|claim| claim.kind)
+            .collect::<FxHashSet<_>>();
+        assert!(kinds.contains(&UpperClaimKind::Direct));
+        assert!(kinds.contains(&UpperClaimKind::Reduced(
+            UnweightedRowReductionRecordId(0)
+        )));
+
+        let moved_claim = flat_claims
+            .iter()
+            .find_map(|claim| {
+                matches!(claim.lineage, UpperReplayClaimLineage::ReplayEvidence { .. })
+                    .then_some(claim.id)
+            })
+            .expect("the five-lineage fixture contains one replay-evidence claim");
+        let moved_index = machine.proof_store.upper_claim_index[&moved_claim];
+        let before_move = machine.proof_store.upper_claims[moved_index].clone();
+        let moved_endpoint = machine.alloc_neg(Neg::Con(
+            vec!["cpk-claim-payload-move".into()],
+            Vec::new(),
+        ));
+        let moved_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(95_000),
+                moved_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let mutation = machine
+            .bounds
+            .move_upper_replay_claim(moved_claim, moved_record);
+        machine
+            .proof_store
+            .record_prepared_upper_claim_move(mutation);
+
+        let expected_after_move =
+            machine.bounds.upper_replay_claims[moved_claim.0 as usize].clone();
+        let actual_after_move = &machine.proof_store.upper_claims[moved_index];
+        assert_cpk_claim_payload_matches_flat(actual_after_move, &expected_after_move);
+        assert_eq!(actual_after_move.current_record, moved_record);
+        assert_eq!(actual_after_move.kind, before_move.kind);
+        assert_eq!(actual_after_move.full_lineage, before_move.full_lineage);
+    }
+
     #[test]
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
         let inactive = with_semantic_execution_snapshot_capture_for_new_machines(|| {
@@ -6276,15 +6618,30 @@ mod tests {
                 ),
             ]),
         );
-        let claim = |id, root, lineage, producer, record| UpperClaimOccurrence {
-            claim: UpperReplayClaimId(id),
-            coverage_root: UpperReplayClaimId(root),
-            lineage,
-            producer: ConstraintRecordId(producer),
-            current_record: BoundRecordId(record),
+        let claims = snapshot
+            .upper_claims
+            .iter()
+            .map(|claim| {
+                (
+                    claim.claim,
+                    claim.coverage_root,
+                    claim.lineage,
+                    claim.producer,
+                    claim.current_record,
+                )
+            })
+            .collect::<Vec<_>>();
+        let claim = |id, root, lineage, producer, record| {
+            (
+                UpperReplayClaimId(id),
+                UpperReplayClaimId(root),
+                lineage,
+                ConstraintRecordId(producer),
+                BoundRecordId(record),
+            )
         };
         assert_eq!(
-            snapshot.upper_claims,
+            claims,
             vec![
                 claim(0, 0, ProjectionLineage::Original, 0, 1),
                 claim(1, 1, ProjectionLineage::Original, 1, 3),

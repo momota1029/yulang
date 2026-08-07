@@ -682,8 +682,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // lexical count therefore stays unchanged. CPK-8E adds one reviewed CPK-only routing-contract
     // read to reconstruct a moved claim's exact current-record key. None is a new production read
     // authority. CPK-8E removes three migration-only thread-local writer-hook reads and the
-    // final three Legacy normalizer reads.
-    ("upper_replay_claims", 91),
+    // final three Legacy normalizer reads. CPK-8G-2a adds two reviewed test-only reads that
+    // compare the complete CPK claim payload with the flat allocation and post-move snapshots;
+    // allocation and production read authority remain unchanged in this slice.
+    ("upper_replay_claims", 93),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
