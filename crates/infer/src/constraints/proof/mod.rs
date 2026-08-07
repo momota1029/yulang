@@ -4862,8 +4862,8 @@ mod tests {
     }
 
     #[test]
-    fn cpk_original_standalone_writer_matches_legacy_on_mixed_projection_fixture() {
-        let (machine, endpoint, owner, _) =
+    fn cpk_original_standalone_writer_publishes_mixed_projection_contract() {
+        let (machine, endpoint, owner, covered_root) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         let record = machine
             .bounds()
@@ -4930,43 +4930,44 @@ mod tests {
             ]
         ));
 
-        let legacy_reason = machine
-            .legacy_scheme_projectable_lowers_for_test(owner)
-            .find(|entry| entry.record == record)
-            .expect("legacy includes the mixed record")
-            .reason;
+        let direct_claim = machine.proof_store.projection_supports[&record]
+            .iter()
+            .find_map(|support| match support {
+                SchemeProjectionProofSupport::Claimed(claim)
+                    if machine
+                        .proof_store
+                        .upper_claim(*claim)
+                        .is_some_and(|occurrence| occurrence.coverage_root != covered_root) =>
+                {
+                    Some(*claim)
+                }
+                SchemeProjectionProofSupport::Claimed(_)
+                | SchemeProjectionProofSupport::Independent(_) => None,
+            })
+            .expect("mixed fixture has one uncovered direct claim");
+        let direct_root = machine
+            .proof_store
+            .upper_claim(direct_claim)
+            .expect("direct claim is present in CPK")
+            .coverage_root;
         let (decision, _) = project_lower_for_test(&machine, record);
-        let SchemeProjectableLowerReason::Qualified {
-            uncovered_claims,
-            independent_supports,
-        } = legacy_reason
-        else {
-            panic!("mixed fixture must be qualified");
-        };
         assert_eq!(
             decision,
             Ok(ProjectionDecision::Included {
                 supports: ProjectionSupportSet {
-                    uncovered_claims: uncovered_claims
-                        .into_iter()
-                        .map(|representative_claim| ProjectionClaimSupport {
-                            coverage_root: machine
-                                .proof_store
-                                .upper_claim(representative_claim)
-                                .expect("legacy representative is mirrored into CPK")
-                                .coverage_root,
-                            representative_claim,
-                        })
-                        .collect(),
-                    independent_supports,
+                    uncovered_claims: vec![ProjectionClaimSupport {
+                        coverage_root: direct_root,
+                        representative_claim: direct_claim,
+                    }],
+                    independent_supports: Vec::new(),
                 },
             })
         );
     }
 
     #[test]
-    fn cpk_gap_1_mixed_claim_fixture_matches_all_four_legacy_consumers_exactly() {
-        let (mut machine, endpoint, owner, _) =
+    fn cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly() {
+        let (mut machine, endpoint, owner, covered_root) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         let mixed_record = machine
             .bounds()
@@ -5000,17 +5001,6 @@ mod tests {
             .generalized_projection_lowers()
             .map(|(record, bound)| (record, bound.pos, bound.weights.clone()))
             .collect::<Vec<_>>();
-        let legacy_entries = machine
-            .legacy_scheme_projectable_lowers_for_test(owner)
-            .map(|entry| {
-                (
-                    entry.record,
-                    entry.bound.pos,
-                    entry.bound.weights.clone(),
-                    entry.reason,
-                )
-            })
-            .collect::<Vec<_>>();
         let mut round = ProjectionEvaluationRound::new();
         let cpk_entries = raw_records
             .iter()
@@ -5043,10 +5033,7 @@ mod tests {
                 }
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            cpk_entries, legacy_entries,
-            "project_lower must preserve owner-internal record/bound/support order"
-        );
+        assert_eq!(cpk_entries.len(), 1, "only the mixed lower is projectable");
 
         let (record, _, _, reason) = cpk_entries
             .iter()
@@ -5054,10 +5041,7 @@ mod tests {
                 matches!(machine.types().pos(*pos), Pos::Var(found) if *found == endpoint)
             })
             .expect("mixed fixture target record");
-        let SchemeProjectableLowerReason::Qualified {
-            uncovered_claims,
-            independent_supports,
-        } = reason
+        let SchemeProjectableLowerReason::Qualified { .. } = reason
         else {
             panic!("mixed fixture target must be qualified");
         };
@@ -5066,16 +5050,36 @@ mod tests {
         else {
             panic!("mixed fixture target must be included");
         };
+        let direct_claim = machine.proof_store.projection_supports[record]
+            .iter()
+            .find_map(|support| match support {
+                SchemeProjectionProofSupport::Claimed(claim)
+                    if machine
+                        .proof_store
+                        .upper_claim(*claim)
+                        .is_some_and(|occurrence| occurrence.coverage_root != covered_root) =>
+                {
+                    Some(*claim)
+                }
+                SchemeProjectionProofSupport::Claimed(_)
+                | SchemeProjectionProofSupport::Independent(_) => None,
+            })
+            .expect("mixed fixture has one uncovered direct claim");
+        let direct_root = machine
+            .proof_store
+            .upper_claim(direct_claim)
+            .expect("direct claim is present in CPK")
+            .coverage_root;
         assert_eq!(
-            supports
-                .uncovered_claims
-                .iter()
-                .map(|support| support.representative_claim)
-                .collect::<Vec<_>>(),
-            *uncovered_claims,
+            supports,
+            ProjectionSupportSet {
+                uncovered_claims: vec![ProjectionClaimSupport {
+                    coverage_root: direct_root,
+                    representative_claim: direct_claim,
+                }],
+                independent_supports: vec![independent],
+            },
         );
-        assert_eq!(supports.independent_supports, *independent_supports);
-        assert!(!supports.uncovered_claims.is_empty());
         assert_eq!(supports.independent_supports, vec![independent]);
         assert!(supports
             .uncovered_claims
@@ -5142,7 +5146,7 @@ mod tests {
     }
 
     #[test]
-    fn cpk_gap_1_replay_conjunction_matches_all_four_legacy_consumers() {
+    fn cpk_gap_1_replay_conjunction_matches_all_four_cpk_consumers() {
         let mut included = cpk_machine();
         let included_record = cpk_gap_1_projection_record(&mut included, 25);
         let included_owner = included.bounds.record(included_record).unwrap().owner();
@@ -5167,7 +5171,7 @@ mod tests {
                 },
             ),
         );
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &included,
             included_owner,
             included_record,
@@ -5209,7 +5213,7 @@ mod tests {
             Ok(ProjectionDecision::Excluded),
         );
         assert_eq!(round.cycle_cuts(), 1);
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &excluded,
             excluded_owner,
             excluded_record,
@@ -5217,7 +5221,7 @@ mod tests {
         );
     }
 
-    fn assert_single_lower_matches_all_four_legacy_consumers(
+    fn assert_single_lower_matches_all_four_cpk_consumers(
         machine: &ConstraintMachine,
         owner: TypeVar,
         record: BoundRecordId,
@@ -5225,33 +5229,6 @@ mod tests {
     ) {
         let (actual, _) = project_lower_for_test(machine, record);
         assert_eq!(actual, Ok(expected.clone()));
-        let entries = machine
-            .legacy_scheme_projectable_lowers_for_test(owner)
-            .collect::<Vec<_>>();
-        match &expected {
-            ProjectionDecision::Excluded => assert!(entries.is_empty()),
-            ProjectionDecision::Unclaimed => {
-                assert_eq!(entries.len(), 1);
-                assert_eq!(entries[0].record, record);
-                assert_eq!(entries[0].reason, SchemeProjectableLowerReason::Unclaimed);
-            }
-            ProjectionDecision::Included { supports } => {
-                assert_eq!(entries.len(), 1);
-                assert_eq!(entries[0].record, record);
-                assert_eq!(
-                    entries[0].reason,
-                    SchemeProjectableLowerReason::Qualified {
-                        uncovered_claims: supports
-                            .uncovered_claims
-                            .iter()
-                            .map(|support| support.representative_claim)
-                            .collect(),
-                        independent_supports: supports.independent_supports.clone(),
-                    }
-                );
-            }
-        }
-
         if !matches!(expected, ProjectionDecision::Excluded) {
             assert_eq!(
                 crate::compact::compact_type_var_for_scheme(machine, owner),
@@ -5311,41 +5288,6 @@ mod tests {
         assert_eq!(actual_parents, expected_parents);
     }
 
-    fn legacy_projection_decision(
-        machine: &ConstraintMachine,
-        owner: TypeVar,
-        record: BoundRecordId,
-    ) -> ProjectionDecision {
-        let Some(entry) = machine
-            .legacy_scheme_projectable_lowers_for_test(owner)
-            .find(|entry| entry.record == record)
-        else {
-            return ProjectionDecision::Excluded;
-        };
-        match entry.reason {
-            SchemeProjectableLowerReason::Unclaimed => ProjectionDecision::Unclaimed,
-            SchemeProjectableLowerReason::Qualified {
-                uncovered_claims,
-                independent_supports,
-            } => ProjectionDecision::Included {
-                supports: ProjectionSupportSet {
-                    uncovered_claims: uncovered_claims
-                        .into_iter()
-                        .map(|representative_claim| ProjectionClaimSupport {
-                            coverage_root: machine
-                                .proof_store
-                                .upper_claim(representative_claim)
-                                .expect("legacy claim must exist in the CPK store")
-                                .coverage_root,
-                            representative_claim,
-                        })
-                        .collect(),
-                    independent_supports,
-                },
-            },
-        }
-    }
-
     fn record_test_origin(
         machine: &mut ConstraintMachine,
         record: BoundRecordId,
@@ -5360,7 +5302,7 @@ mod tests {
     }
 
     #[test]
-    fn cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_legacy_consumers() {
+    fn cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_cpk_consumers() {
         let mut no_ledger = cpk_machine();
         let no_ledger_record = cpk_gap_1_projection_record(&mut no_ledger, 20);
         let no_ledger_owner = no_ledger.bounds.record(no_ledger_record).unwrap().owner();
@@ -5368,7 +5310,7 @@ mod tests {
             no_ledger.proof_store.projection_supports.len(),
             no_ledger.proof_store.projection_formulas.len(),
         );
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
             no_ledger_owner,
             no_ledger_record,
@@ -5399,7 +5341,7 @@ mod tests {
             .proof_store
             .projection_formulas
             .insert(no_ledger_record, Vec::new());
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
             no_ledger_owner,
             no_ledger_record,
@@ -5420,7 +5362,7 @@ mod tests {
                 RecordProofClause::Standalone { support },
             ),
         );
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &standalone,
             standalone_owner,
             standalone_record,
@@ -5458,7 +5400,7 @@ mod tests {
                 },
             ),
         );
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &derived,
             derived_owner,
             derived_record,
@@ -5482,7 +5424,7 @@ mod tests {
                 RecordProofClause::Standalone { support },
             ),
         );
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &incomplete,
             incomplete_owner,
             incomplete_record,
@@ -5550,18 +5492,6 @@ mod tests {
                 supports: ProjectionSupportSet::default(),
             }),
         );
-        assert_eq!(
-            machine
-                .legacy_scheme_projectable_lowers_for_test(owner)
-                .find(|entry| entry.record == record)
-                .expect("legacy formula still includes the record")
-                .reason,
-            SchemeProjectableLowerReason::Qualified {
-                uncovered_claims: Vec::new(),
-                independent_supports: Vec::new(),
-            },
-        );
-
         let generalized = crate::generalize::GeneralizedCompactRoot {
             compact: crate::compact::CompactRoot::default(),
             role_predicates: Vec::new(),
@@ -5680,7 +5610,7 @@ mod tests {
             };
             *attribution = Some(lineage);
             let owner = machine.bounds.record(record).unwrap().owner();
-            assert_single_lower_matches_all_four_legacy_consumers(
+            assert_single_lower_matches_all_four_cpk_consumers(
                 &machine,
                 owner,
                 record,
@@ -5757,7 +5687,21 @@ mod tests {
                 ClaimedAttributionSource::FlatRetained,
             ),
         );
-        let before = legacy_projection_decision(&fixture.machine, owner, record);
+        let before = project_lower_for_test(&fixture.machine, record)
+            .0
+            .expect("same-root fixture has complete CPK projection metadata");
+        assert_eq!(
+            before,
+            ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: vec![ProjectionClaimSupport {
+                        coverage_root: fixture.coverage_root,
+                        representative_claim: fixture.coverage_root,
+                    }],
+                    independent_supports: Vec::new(),
+                },
+            },
+        );
         let ProjectionDecision::Included { supports } = before else {
             panic!("same-root fixture must be included");
         };
@@ -5773,7 +5717,15 @@ mod tests {
             &[],
         );
         fixture.machine.apply_scheme_projection_mutation(mutation);
-        let expected = legacy_projection_decision(&fixture.machine, owner, record);
+        let expected = ProjectionDecision::Included {
+            supports: ProjectionSupportSet {
+                uncovered_claims: vec![ProjectionClaimSupport {
+                    coverage_root: fixture.coverage_root,
+                    representative_claim: replacement_claim,
+                }],
+                independent_supports: Vec::new(),
+            },
+        };
         let ProjectionDecision::Included { supports } = &expected else {
             panic!("replacement must preserve inclusion");
         };
@@ -5784,7 +5736,7 @@ mod tests {
             .expect("replacement support");
         assert_ne!(replacement.representative_claim, before_representative);
         assert_eq!(replacement.representative_claim, replacement_claim);
-        assert_single_lower_matches_all_four_legacy_consumers(
+        assert_single_lower_matches_all_four_cpk_consumers(
             &fixture.machine,
             owner,
             record,
@@ -5828,10 +5780,24 @@ mod tests {
         for order in permutations {
             let (fixture, _claims, record) = make_same_root_projection_included(order);
             let owner = fixture.machine.bounds.record(record).unwrap().owner();
-            let expected = legacy_projection_decision(&fixture.machine, owner, record);
+            let expected = ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    uncovered_claims: vec![
+                        ProjectionClaimSupport {
+                            coverage_root: UpperReplayClaimId(0),
+                            representative_claim: UpperReplayClaimId(0),
+                        },
+                        ProjectionClaimSupport {
+                            coverage_root: fixture.coverage_root,
+                            representative_claim: UpperReplayClaimId(4),
+                        },
+                    ],
+                    independent_supports: Vec::new(),
+                },
+            };
             let (actual, _) = project_lower_for_test(&fixture.machine, record);
             assert_eq!(actual, Ok(expected.clone()), "arrival order {order:?}");
-            assert_single_lower_matches_all_four_legacy_consumers(
+            assert_single_lower_matches_all_four_cpk_consumers(
                 &fixture.machine,
                 owner,
                 record,

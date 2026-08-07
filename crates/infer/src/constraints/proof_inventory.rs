@@ -143,10 +143,12 @@ const CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS: &[&str] = &[
     "rcpf_summary_first_witness_tracks_legacy_insertion_order",
 ];
 
-// CPK-8E-5 deliberate retirements. The CDM snapshot helper existed only for its adjacent test;
+// CPK-8E deliberate retirements. The CDM snapshot helper existed only for its adjacent test;
 // the three event-oracle entries characterized migration infrastructure with no product-facing
 // contract. The other properties are frozen by the CPK same-root, attribution, finite-map,
-// first-witness, and five-lineage contract tests before these names disappear.
+// first-witness, and five-lineage contract tests before these names disappear. The MPC fail-open
+// entry characterized only the removed Legacy projection reader; its adjacent CPK test freezes the
+// product contract as an attempt-terminal MissingProofFact failure.
 const CPK8E_RETIRED_LEGACY_TESTS_AND_HELPERS: &[&str] = &[
     "cdm_a_9_2_exact_carrier_arrival_order_preserves_bulk_snapshot",
     "cdm_carrier_order_snapshot",
@@ -155,6 +157,21 @@ const CPK8E_RETIRED_LEGACY_TESTS_AND_HELPERS: &[&str] = &[
     "rcpf_event_oracle_is_opt_in_and_shadow_writes_do_not_interfere",
     "rcpf_event_oracle_mismatch_is_quarantined_after_legacy_noop",
     "rcpf_shadow_exact_relation_matches_legacy_across_extensions_and_carriers",
+    "mpc_a_9_5_legacy_unattributed_claim_link_fails_open",
+];
+
+// CPK-8E's projection-reader closure. These tests no longer derive expected values from
+// legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
+// the production CPK compact, alias, generalized-witness, and routing consumers directly.
+const CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS: &[&str] = &[
+    "cpk_original_standalone_writer_publishes_mixed_projection_contract",
+    "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly",
+    "cpk_gap_1_replay_conjunction_matches_all_four_cpk_consumers",
+    "cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_cpk_consumers",
+    "cpk_gap_1_five_lineages_project_through_the_real_formula_graph",
+    "cpk_gap_1_included_empty_keeps_generalized_witness_parentless",
+    "cpk_gap_1_same_root_representative_replacement_matches_all_consumers",
+    "cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape",
 ];
 
 // CPK-8E closure manifest. Only the first two groups keep the proof migration oracle active:
@@ -760,10 +777,16 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             "{caller} must remain on the explicit Legacy-only fixture until its B test retires",
         );
     }
+    let retired_test_sources = [
+        bounds_mutation_tests,
+        include_str!("proof/mod.rs"),
+        include_str!("tests/case_02.rs"),
+    ]
+    .join("\n");
     for retired in CPK8E_RETIRED_LEGACY_TESTS_AND_HELPERS {
         assert!(
-            !bounds_mutation_tests.contains(&format!("fn {retired}")),
-            "CPK-8E-5 retired Legacy purpose reappeared: {retired}",
+            !retired_test_sources.contains(&format!("fn {retired}")),
+            "CPK-8E retired Legacy purpose reappeared: {retired}",
         );
     }
     assert!(
@@ -786,6 +809,25 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
         .split("mod mutation_tests {")
         .nth(1)
         .expect("bounds mutation test module");
+    let case_02_tests = include_str!("tests/case_02.rs");
+
+    assert_eq!(CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS.len(), 8);
+    for migrated in CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS {
+        assert!(
+            proof_tests.contains(&format!("fn {migrated}")),
+            "CPK-only scheme-projection reader replacement disappeared: {migrated}",
+        );
+    }
+    assert_eq!(
+        proof_tests
+            .matches("legacy_scheme_projectable_lowers_for_test")
+            .count()
+            + case_02_tests
+                .matches("legacy_scheme_projectable_lowers_for_test")
+                .count(),
+        0,
+        "CPK-8E closure forbids test dependencies on the Legacy scheme-projection reader",
+    );
 
     assert_eq!(CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(), 3);
     assert_eq!(CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(), 1);

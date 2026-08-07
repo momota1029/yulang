@@ -3428,23 +3428,6 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
 }
 
 #[test]
-fn mpc_a_9_5_legacy_unattributed_claim_link_fails_open() {
-    let (machine, owner, lower_record, claim) = unattributed_claim_link_fixture();
-
-    assert_eq!(
-        machine
-            .legacy_scheme_projectable_lowers_for_test(owner)
-            .find(|candidate| candidate.record == lower_record)
-            .map(|candidate| candidate.reason),
-        Some(SchemeProjectableLowerReason::Qualified {
-            uncovered_claims: vec![claim],
-            independent_supports: Vec::new(),
-        }),
-        "LegacyRollback retains the old flat fail-open during the CPK-6b/7 transition"
-    );
-}
-
-#[test]
 fn mpc_a_9_5_cpk_unattributed_claim_link_is_attempt_terminal() {
     let (machine, _owner, lower_record, _claim) = unattributed_claim_link_fixture();
     let mut round = proof::ProjectionEvaluationRound::new();
