@@ -95,7 +95,7 @@ const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
 
 const CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 2),
-    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 44),
+    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 41),
     (Cpk8RawFixtureWriterClass::SemanticFixture, 0),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
@@ -128,8 +128,6 @@ const CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS: &[&str] = &[
     "rcpf_c2_replay_inspection_census",
     "rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles",
     "rcpf_c3b_replay_parent_admission_census",
-    "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
-    "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
     "rcpf_d2a_legacy_rollback_split_preserves_immediate_publication_sequence",
     "rcpf_d2b_factored_clause_projection_failure_keeps_legacy_links_and_edges",
     "rcpf_d2c_1_phase_b_failure_blocks_materialization_and_event_oracle",
@@ -140,7 +138,6 @@ const CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS: &[&str] = &[
     "rcpf_d4_non_replay_pre_consumer_failure_blocks_phase_c_and_publication",
     "rcpf_d4_replay_pre_consumer_failure_blocks_phase_c_and_publication",
     "rcpf_e2c_a1_read_failure_keeps_legacy_phase_a_before_terminal_stop",
-    "rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle",
     "rcpf_f_consumer_2_factored_lookup_failure_commits_no_dependency_edges",
     "rcpf_f_consumer_2_legacy_rollback_ignores_factored_occurrence_corruption",
     "rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop",
@@ -176,6 +173,39 @@ const CPK8G4B_RETIRED_RCPF_PUBLICATION_TESTS_AND_HELPERS: &[&str] = &[
     "rcpf_c3d_factored_read_error_quarantines_the_production_attempt",
 ];
 
+// CPK-8G-6b category-B retirements. Each entry records the exact CPK-owned contract that makes
+// the former migration comparison or Legacy/RCPF storage characterization redundant.
+const CPK8G6B_RETIRED_PROOF_ORACLE_AND_REPLACEMENT_BACKED_TESTS: &[(&str, &str)] = &[
+    (
+        "cpk_5_generic_route_matches_legacy_and_counts",
+        "CPK-7 direct PreparedReplayRoute generic-pair and five-lineage tests pin the CPK routing payload; Legacy event-count equality was migration-only",
+    ),
+    (
+        "cpk_5_incremental_only_and_skip_routes_match_legacy",
+        "CPK-7 direct covered-pair, incremental-only, and skip disposition tests pin every surviving route decision; Legacy accepted-count equality was migration-only",
+    ),
+    (
+        "cpk_5_routing_is_invariant_across_same_root_parent_arrival_orders",
+        "CPK-7 canonical-parent, first-witness, and same-root permutation tests directly pin order invariance without the routing oracle",
+    ),
+    (
+        "cpk_7_shadow_oracle_rejects_claim_index_corruption",
+        "cpk_7_cpk_authority_preflight_rejects_claim_index_corruption and CPK attempt-terminal tests directly pin dangling-claim rejection; only the migration oracle panic is retired",
+    ),
+    (
+        "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
+        "cpk_projection_target_late_metadata_bootstraps_formula directly pins target-late formula, publication, and projection behavior in the CPK-owned indexes",
+    ),
+    (
+        "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
+        "cpk_evidence_and_trivial_replays_do_not_create_projection_formula directly pins the no-formula/no-support contract in CPK",
+    ),
+    (
+        "rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle",
+        "cpk_premise_dependency_chain_contains_exact_replay_endpoints directly pins canonical constraint and replay-endpoint dependency edges",
+    ),
+];
+
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
@@ -194,20 +224,11 @@ const CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS: &[&str] = &[
 // three exact Legacy event-count parity holdouts and one deliberate corruption injection. The
 // remaining Legacy fixtures all select rollback authority explicitly; three have landed CPK-only
 // replacements and await retirement, while the physical RCPF/container contracts stay until 8G.
-const CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS: &[&str] = &[
-    "cpk_5_generic_route_matches_legacy_and_counts",
-    "cpk_5_incremental_only_and_skip_routes_match_legacy",
-    "cpk_5_routing_is_invariant_across_same_root_parent_arrival_orders",
-];
+const CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS: &[&str] = &[];
 
-const CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS: &[&str] =
-    &["cpk_7_shadow_oracle_rejects_claim_index_corruption"];
+const CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS: &[&str] = &[];
 
-const CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES: &[&str] = &[
-    "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
-    "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
-    "rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle",
-];
+const CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES: &[&str] = &[];
 
 const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[
     "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
@@ -253,7 +274,7 @@ const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[
     "rcpf_summary_first_witness_tracks_legacy_insertion_order",
 ];
 
-const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 48;
+const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 41;
 
 // CPK-8G physical-removal manifest. CPK-8E's 48-entry closure described shared-fixture
 // migration-oracle dependents; physical deletion needs the larger union of 51 explicit Legacy
@@ -329,44 +350,10 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
     "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
 ];
 
-const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 60;
+const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 53;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
-            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
-            Cpk8gPhysicalTarget::ParentSetArena,
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-        ],
-        tests: &[
-            "cpk_5_generic_route_matches_legacy_and_counts",
-            "cpk_5_incremental_only_and_skip_routes_match_legacy",
-            "cpk_5_routing_is_invariant_across_same_root_parent_arrival_orders",
-            "cpk_7_shadow_oracle_rejects_claim_index_corruption",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatProjectionRelations,
-            Cpk8gPhysicalTarget::ReplayClauseProjection,
-        ],
-        tests: &[
-            "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
-            "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-        ],
-        tests: &["rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle"],
-    },
     Cpk8gPhysicalTestGroup {
         targets: &[
             Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
@@ -711,9 +698,11 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("record_proof_clause_by_key", 11),
     ("record_proof_clause_ids_by_lower_record", 9),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
-    ("record_proof_clause_links_by_lower_record", 12),
+    // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
+    ("record_proof_clause_links_by_lower_record", 11),
     ("record_proof_clause_link_keys", 13),
-    ("attributed_claim_supports", 23),
+    // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
+    ("attributed_claim_supports", 22),
     ("flat_retained_attributed_claim_supports", 5),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
@@ -721,7 +710,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // test, and the flat one-way mirror preflight/commit. Evaluator reads remain flat until 4b.
     // CPK-8G-5 adds the CPK-owned snapshot iterator and resets the flat dependency mirror once in
     // the snapshot-independence test; neither reference restores flat read authority.
-    ("dependent_records_by_premise", 37),
+    // CPK-8G-6b removes the replacement-backed Legacy dependency-chain mirror read.
+    ("dependent_records_by_premise", 36),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 130),
@@ -770,8 +760,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-3 removes two authority reads formerly used by replay/structural exact-key writers;
     // the CPK prepared payload now supplies those roots to the flat mirror.
     // CPK-8G-5 resets the flat claim mirror once in the snapshot-independence test. CPK-8G-6a
-    // removes four D3b A-fixture claim reads now served by ProofOccurrenceStore.
-    ("upper_replay_claims", 95),
+    // removes four D3b A-fixture claim reads now served by ProofOccurrenceStore. CPK-8G-6b
+    // removes two migration-only outer-census reads with the routing-oracle fault fixture.
+    ("upper_replay_claims", 93),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -787,13 +778,15 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     ("replay_parent_sets", 19),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
-    // retires the three RCPF-only dangling-occurrence publication fault injections.
-    ("replay_occurrences", 46),
+    // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
+    // removes the replacement-backed evidence/trivial occurrence-arena assertion.
+    ("replay_occurrences", 45),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
     ("replay_result_summary", 42),
-    ("replay_clause_projection", 26),
+    // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
+    ("replay_clause_projection", 22),
     ("non_replay_claim_parents_by_constraint", 10),
 ];
 
@@ -1165,7 +1158,7 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
     );
     assert_eq!(
         CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
-        44,
+        41,
         "the reviewed CDM Legacy-only purpose list changed; re-audit every caller",
     );
     assert_eq!(
@@ -1207,7 +1200,7 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             .count()
         - 3; // Two function declarations and the default wrapper's forwarding call.
     assert_eq!(
-        legacy_call_sites, 47,
+        legacy_call_sites, 44,
         "a Legacy-only CDM fixture call site changed; audit its §6 purpose before proceeding",
     );
     for caller in CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS {
@@ -1282,9 +1275,9 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
         "CPK-8E closure forbids test dependencies on the Legacy scheme-projection reader",
     );
 
-    assert_eq!(CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(), 3);
-    assert_eq!(CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(), 1);
-    assert_eq!(CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES.len(), 3);
+    assert_eq!(CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(), 0);
+    assert_eq!(CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(), 0);
+    assert_eq!(CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES.len(), 0);
     assert_eq!(CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES.len(), 41);
     assert_eq!(
         CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len()
@@ -1329,7 +1322,7 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
             .count()
             - 1, // Function declaration.
         CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(),
-        "only the reviewed routing-count holdouts may use the active default fixture",
+        "no retired routing-count holdout may use the active default fixture",
     );
     assert_eq!(
         proof_tests
@@ -1337,7 +1330,7 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
             .count()
             - 1, // Function declaration.
         CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(),
-        "only the reviewed fault injection may use the active explicit-authority fixture",
+        "no retired migration fault injection may use the active explicit-authority fixture",
     );
     assert_eq!(
         proof_tests.matches("cpk_proof_oracle_active = true").count(),
@@ -1438,7 +1431,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         explicit_legacy.len(),
-        51,
+        47,
         "the explicit Legacy-authority census changed; classify the source reference before physical removal",
     );
 
@@ -1449,8 +1442,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         authority_oracle_dependents.len(),
-        54,
-        "the reviewed 51 explicit-authority plus three routing-oracle dependents changed",
+        47,
+        "the reviewed post-8G-6b explicit-authority dependent census changed",
     );
     let historical_legacy_characterizations = authority_oracle_dependents
         .iter()
@@ -1477,6 +1470,34 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "8G-6 category-A contract moved, disappeared, or became ambiguous: {contract}",
         );
     }
+    for &(retired, reason) in CPK8G6B_RETIRED_PROOF_ORACLE_AND_REPLACEMENT_BACKED_TESTS {
+        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        let source_occurrences = reviewed_physical_sources
+            .iter()
+            .map(|source| source.matches(&format!("fn {retired}")).count())
+            .sum::<usize>();
+        assert_eq!(
+            source_occurrences, 0,
+            "8G-6b retired test reappeared without a new disposition: {retired}",
+        );
+    }
+    for replacement in [
+        "cpk_7_slice_b_keeps_uncovered_decoupled_route_beside_generic_pair",
+        "cpk_7_slice_b_routes_covered_pairs_and_deduplicates_incremental_input",
+        "cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed",
+        "cpk_7_cpk_authority_preflight_rejects_claim_index_corruption",
+        "cpk_terminal_failure_stops_drain_before_the_next_queued_work",
+        "cpk_projection_target_late_metadata_bootstraps_formula",
+        "cpk_evidence_and_trivial_replays_do_not_create_projection_formula",
+        "cpk_premise_dependency_chain_contains_exact_replay_endpoints",
+    ] {
+        assert_eq!(
+            proof_source.matches(&format!("fn {replacement}")).count(),
+            1,
+            "8G-6b CPK-owned replacement moved or disappeared: {replacement}",
+        );
+    }
 
     let replay_factored_tests = source_test_names(replay_factored_source);
     let bounds_rcpf_tests = source_test_names(bounds_source)
@@ -1494,7 +1515,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     );
     assert_eq!(
         bounds_rcpf_tests.len(),
-        30,
+        27,
         "the direct machine/bounds.rs rcpf_* test census changed",
     );
     assert_eq!(
