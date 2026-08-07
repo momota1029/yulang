@@ -3405,14 +3405,13 @@ impl ConstraintMachine {
         &self,
         snapshot: &ClauseLinkBatchAdmissionSnapshot,
     ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
-        let is_included =
-            SchemeProjectionEvaluator::new(self).eval_record(snapshot.lower_record)?;
-        self.try_evaluate_record_inclusion_publication(
+        let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
+        Ok(self.evaluate_record_inclusion_publication(
             snapshot.lower_record,
             snapshot.was_included,
             is_included,
             false,
-        )
+        ))
     }
 
     fn register_premise_dependency_chain(
@@ -3704,8 +3703,12 @@ impl ConstraintMachine {
         else {
             return;
         };
-        for entry in self.begin_qualified_parent_admission(&mut admission, mirror) {
-            let snapshot = self.commit_claim_qualified_parent_mutation(constraint, entry);
+        let (accepted, snapshot) =
+            self.begin_qualified_parent_admission(&mut admission, mirror);
+        for entry in accepted.iter().copied() {
+            self.commit_claim_qualified_parent_mutation(constraint, entry);
+        }
+        if !accepted.is_empty() {
             self.publish_claim_qualified_parent_admission(snapshot);
         }
     }
@@ -3734,7 +3737,12 @@ impl ConstraintMachine {
         &mut self,
         admission: &mut proof::PreparedQualifiedParentAdmission,
         mirror: PreparedQualifiedParentMirrorCapacity,
-    ) -> Vec<proof::ExactQualifiedParent> {
+    ) -> (
+        Vec<proof::ExactQualifiedParent>,
+        ClaimQualifiedParentAdmissionSnapshot,
+    ) {
+        let inclusion_before = self
+            .projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()));
         let accepted = admission.accepted().to_vec();
         self.proof_store
             .commit_qualified_parent_admission(admission);
@@ -3742,7 +3750,10 @@ impl ConstraintMachine {
             self.bounds
                 .begin_qualified_parent_mirror_commit(admission.result(), mirror);
         }
-        accepted
+        (
+            accepted,
+            ClaimQualifiedParentAdmissionSnapshot { inclusion_before },
+        )
     }
 
     fn begin_non_replay_claim_parent_admission(
@@ -3772,13 +3783,16 @@ impl ConstraintMachine {
                     return (publication_fence, Vec::new());
                 }
             };
-        let accepted = self.begin_qualified_parent_admission(&mut admission, mirror);
+        let (accepted, snapshot) =
+            self.begin_qualified_parent_admission(&mut admission, mirror);
         let accepted_parents = accepted
             .iter()
             .map(|entry| entry.parent)
             .collect::<Vec<_>>();
         for entry in accepted.iter().copied() {
-            let snapshot = self.commit_claim_qualified_parent_mutation(result, entry);
+            self.commit_claim_qualified_parent_mutation(result, entry);
+        }
+        if !accepted.is_empty() {
             if let Some(fence) = publication_fence.as_mut() {
                 self.defer_claim_qualified_parent_admission(fence, snapshot);
             } else {
@@ -3880,16 +3894,13 @@ impl ConstraintMachine {
         &mut self,
         constraint: ConstraintRecordId,
         entry: proof::ExactQualifiedParent,
-    ) -> ClaimQualifiedParentAdmissionSnapshot {
-        let inclusion_before =
-            self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
+    ) {
         let parent = entry.parent;
         self.bounds
             .commit_qualified_parent_mirror_entry(constraint, entry);
         self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
         self.observe_first_qualified_parent_source(constraint, parent);
-        ClaimQualifiedParentAdmissionSnapshot { inclusion_before }
     }
 
     fn publish_claim_qualified_parent_admission(
@@ -3978,6 +3989,7 @@ impl ConstraintMachine {
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
+        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
         self.record_projection_mutation_in_proof_store(&mutation);
         #[cfg(test)]
         if rcpf_d2c_should_fail_deferred_evaluation() {
@@ -3987,16 +3999,7 @@ impl ConstraintMachine {
             );
             return;
         }
-        let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
-            Ok(intent) => intent,
-            Err(failure) => {
-                self.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Read,
-                );
-                return;
-            }
-        };
+        let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
         self.defer_replay_admission_publication(fence, intent);
     }
 
@@ -4731,22 +4734,25 @@ impl ConstraintMachine {
                 return;
             }
         };
-        let accepted = self.begin_qualified_parent_admission(&mut admission, mirror);
+        let (accepted, snapshot) =
+            self.begin_qualified_parent_admission(&mut admission, mirror);
         let mut inserted_parents = Vec::new();
         inserted_parents.reserve(accepted.len());
-        for entry in accepted {
+        for entry in accepted.iter().copied() {
             #[cfg(test)]
             RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(|probes| {
                 probes.set(probes.get().saturating_add(1));
             });
             let parent = entry.parent;
-            let snapshot = self.commit_claim_qualified_parent_mutation(result, entry);
+            self.commit_claim_qualified_parent_mutation(result, entry);
+            inserted_parents.push(parent);
+        }
+        if !accepted.is_empty() {
             if let Some(fence) = publication_fence.as_mut() {
                 self.defer_claim_qualified_parent_admission(fence, snapshot);
             } else {
                 self.publish_claim_qualified_parent_admission(snapshot);
             }
-            inserted_parents.push(parent);
         }
         #[cfg(test)]
         if matches!(
@@ -8236,13 +8242,12 @@ mod mutation_tests {
             .machine
             .try_prepare_qualified_parent_admission(split_result, &[split_parent])
             .unwrap();
-        let split_entry = split
+        let (split_entries, split_snapshot) = split
             .machine
             .begin_qualified_parent_admission(&mut split_admission, split_mirror)
-            .into_iter()
-            .next()
-            .unwrap();
-        let split_snapshot = split
+            ;
+        let split_entry = split_entries.into_iter().next().unwrap();
+        split
             .machine
             .commit_claim_qualified_parent_mutation(split_result, split_entry);
         split
@@ -8348,12 +8353,17 @@ mod mutation_tests {
         assert_eq!(split.epoch, split_epochs[0].0);
         assert!(combined.epoch > combined_epochs[0].0);
         let late_support = ProjectionProofCarrier::Origin(OriginId::unknown_internal());
-        split
-            .bounds
-            .update_scheme_projection_proofs(split_record, &[], &[late_support]);
-        combined
-            .bounds
-            .update_scheme_projection_proofs(combined_record, &[], &[late_support]);
+        let split_mutation =
+            split
+                .bounds
+                .update_scheme_projection_proofs(split_record, &[], &[late_support]);
+        split.record_projection_mutation_in_proof_store(&split_mutation);
+        let combined_mutation = combined.bounds.update_scheme_projection_proofs(
+            combined_record,
+            &[],
+            &[late_support],
+        );
+        combined.record_projection_mutation_in_proof_store(&combined_mutation);
         assert!(split.scheme_projection_record_is_included(split_record));
         assert!(combined.scheme_projection_record_is_included(combined_record));
         split.publish_replay_admission_publication_fence(publication_fence);
@@ -8579,103 +8589,6 @@ mod mutation_tests {
                 .is_empty(),
             "the injected factored projection failure must not partially publish"
         );
-    }
-
-    fn rcpf_d2c_2c_1_missing_occurrence_publication_fixture()
-    -> (ConstraintMachine, BoundRecordId, TypeVar) {
-        let mut machine = ConstraintMachine::new();
-        let owner = TypeVar(72_000);
-        let lower = machine.alloc_pos(Pos::Con(vec!["d2c-2c-lower".into()], Vec::new()));
-        let upper = machine.alloc_neg(Neg::Var(owner));
-        machine.subtype(lower, upper, OriginId::unknown_internal());
-        let constraint = machine
-            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
-            .expect("the synthetic constraint is canonical");
-        let lower_record = machine.bounds.of(owner).unwrap().lower_record_ids()[0];
-        machine.replay_occurrences.by_result.insert(
-            constraint,
-            vec![crate::constraints::replay_factored::ReplayOccurrenceId(
-                u32::MAX,
-            )],
-        );
-
-        let carrier = ProjectionProofCarrier::ConstraintOrigin {
-            constraint: ConstraintRecordId(72_001),
-            origin: OriginId::unknown_internal(),
-        };
-        let support = SchemeProjectionProofSupport::Independent(carrier);
-        machine.bounds.projection_proofs_by_lower_record.insert(
-            lower_record,
-            vec![SchemeProjectionProof {
-                lower_record,
-                support,
-            }],
-        );
-        machine.bounds.register_record_proof_clause_link(
-            lower_record,
-            RecordProofClauseLinkAdmission::independent(
-                support,
-                RecordProofClause::DerivedUnary {
-                    carrier: dpn_b_synthetic_unary_carrier(72_001),
-                    premise: ProofPremise::Constraint(constraint),
-                },
-            ),
-        );
-        (machine, lower_record, owner)
-    }
-
-    #[test]
-    fn rcpf_d2c_2c_1_snapshot_evaluation_failure_does_not_publish() {
-        for publication in ["qualified-parent", "clause-link"] {
-            let (mut machine, lower_record, owner) =
-                rcpf_d2c_2c_1_missing_occurrence_publication_fixture();
-            let before = (
-                machine.epoch,
-                machine.provenance_epoch,
-                machine.bounds.of(owner).unwrap().epoch(),
-            );
-            let journal = machine.activate_method_role_mutations();
-            mark_next_replay_soak_failure_as_intentional();
-            match publication {
-                "qualified-parent" => {
-                    let snapshot = ClaimQualifiedParentAdmissionSnapshot {
-                        inclusion_before: FxHashMap::from_iter([(lower_record, true)]),
-                    };
-                    machine.publish_claim_qualified_parent_admission(snapshot);
-                }
-                "clause-link" => {
-                    let snapshot = ClauseLinkBatchAdmissionSnapshot {
-                        lower_record,
-                        was_included: true,
-                    };
-                    machine.publish_record_proof_clause_link_batch(snapshot);
-                }
-                _ => unreachable!("the fixture enumerates both publication snapshots"),
-            }
-            let published = machine.take_method_role_mutations();
-            journal.finish();
-
-            assert_eq!(
-                machine.replay_factored_terminal_failure(),
-                Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
-                    crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX)
-                )),
-                "{publication} snapshot records the fallible read"
-            );
-            assert_eq!(
-                (
-                    machine.epoch,
-                    machine.provenance_epoch,
-                    machine.bounds.of(owner).unwrap().epoch(),
-                ),
-                before,
-                "{publication} snapshot must not publish epochs from a placeholder"
-            );
-            assert!(
-                published.is_empty(),
-                "{publication} snapshot must not publish cache invalidations"
-            );
-        }
     }
 
     #[test]
@@ -9120,72 +9033,6 @@ mod mutation_tests {
                 }
             }
         }
-    }
-
-    #[test]
-    fn rcpf_c3d_factored_read_error_quarantines_the_production_attempt() {
-        let mut machine = ConstraintMachine::new();
-        let lower = machine.alloc_pos(Pos::Con(vec!["rcpf-c3c-lower".into()], Vec::new()));
-        let upper = machine.alloc_neg(Neg::Con(vec!["rcpf-c3c-upper".into()], Vec::new()));
-        machine.subtype(lower, upper, OriginId::unknown_internal());
-        let constraint = machine
-            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
-            .expect("the synthetic constraint is canonical");
-        let missing_occurrence = crate::constraints::replay_factored::ReplayOccurrenceId(u32::MAX);
-        machine
-            .replay_occurrences
-            .by_result
-            .insert(constraint, vec![missing_occurrence]);
-        let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 119);
-        dpn_b_register_synthetic_clause(
-            &mut machine,
-            record,
-            support,
-            RecordProofClause::DerivedUnary {
-                carrier: dpn_b_synthetic_unary_carrier(119),
-                premise: ProofPremise::Constraint(constraint),
-            },
-        );
-        let expected = Err(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
-            missing_occurrence,
-        ));
-
-        let mut evaluator = SchemeProjectionEvaluator::with_replay_source(
-            &machine,
-            ReplayEvaluatorSource::Factored,
-        );
-        assert_eq!(evaluator.eval_record(record), expected);
-        assert_eq!(evaluator.visiting_nodes, 0);
-        assert!(evaluator.states.is_empty());
-        assert_eq!(evaluator.eval_record(record), expected);
-        assert_eq!(evaluator.visiting_nodes, 0);
-        assert!(evaluator.states.is_empty());
-
-        let mut round = SchemeProjectionEvaluationRound::with_replay_source(
-            &machine,
-            ReplayEvaluatorSource::Factored,
-        );
-        assert_eq!(round.eval_record(record), expected);
-        let shared = round
-            .shared
-            .as_ref()
-            .expect("an error without a cycle cut keeps the shared evaluator");
-        assert_eq!(shared.visiting_nodes, 0);
-        assert!(shared.states.is_empty());
-
-        assert_eq!(machine.replay_factored_terminal_failure(), None);
-        mark_next_replay_soak_failure_as_intentional();
-        assert!(
-            !machine.scheme_projection_record_is_included(record),
-            "the terminal attempt returns an inert value that C3a will discard"
-        );
-        assert_eq!(
-            machine.replay_factored_terminal_failure(),
-            Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
-                missing_occurrence,
-            ))
-        );
-        assert!(!machine.replay_factored_writes_enabled());
     }
 
     #[test]
@@ -10559,13 +10406,13 @@ mod mutation_tests {
 
     #[test]
     fn dpn_b_cycle_guard_cyclic_route_plus_independent_source_stays_projectable() {
+        let mut canonical_baseline = None;
         for standalone_first in [false, true] {
             let mut machine = ConstraintMachine::new();
             machine.enable_replay_factored_evaluator_oracle();
-            let (source, cycle_support) =
-                dpn_b_synthetic_projection_record(&mut machine, standalone_first as u32 + 3);
+            let (source, cycle_support) = dpn_b_synthetic_projection_record(&mut machine, 3);
             let (dependent, dependent_support) =
-                dpn_b_synthetic_projection_record(&mut machine, standalone_first as u32 + 7);
+                dpn_b_synthetic_projection_record(&mut machine, 7);
             let standalone_carrier = ProjectionProofCarrier::Incomplete;
             let standalone_support = SchemeProjectionProofSupport::Independent(standalone_carrier);
             machine
@@ -10595,6 +10442,7 @@ mod mutation_tests {
                     (standalone_support, standalone_clause),
                 ]
             };
+            let epochs_before = (machine.epoch, machine.provenance_epoch);
             for (support, clause) in clauses {
                 dpn_b_register_synthetic_clause(&mut machine, source, support, clause);
             }
@@ -10608,23 +10456,59 @@ mod mutation_tests {
                 },
             );
 
-            let (projectable, cycle_cuts) = machine.scheme_projection_cycle_guard_snapshot(source);
+            let (projectable, _) = machine.scheme_projection_cycle_guard_snapshot(source);
             assert!(
                 projectable,
                 "the independent OR arm remains a complete proof"
             );
-            if standalone_first {
-                assert_eq!(cycle_cuts, 0, "OR short-circuit need not enter the cycle");
-            } else {
-                assert_eq!(
-                    cycle_cuts, 1,
-                    "cutting one circular arm must continue to the independent source"
-                );
-            }
             assert!(
                 machine.scheme_projection_cycle_guard_snapshot(dependent).0,
                 "a dependent route reaches the independent source through the cycle"
             );
+
+            for roots in [[source, dependent], [dependent, source]] {
+                let fresh = roots.map(|record| {
+                    proof::CpkProjectionEvaluator::new(&machine, &machine.proof_store)
+                        .eval_record(record)
+                });
+                let mut shared = CpkPublicationEvaluationRound::new(&machine);
+                let shared_results = roots.map(|record| shared.eval_record(record));
+                assert_eq!(shared_results, fresh, "fresh/shared CPK decisions");
+                if shared.sharing_disabled {
+                    assert!(
+                        roots.into_iter().any(|record| {
+                            let mut evaluator = proof::CpkProjectionEvaluator::new(
+                                &machine,
+                                &machine.proof_store,
+                            );
+                            evaluator.eval_record(record);
+                            evaluator.cycle_cuts() != 0
+                        }),
+                        "sharing is disabled only after an observed cycle cut"
+                    );
+                }
+            }
+
+            let snapshot = (
+                machine
+                    .proof_store
+                    .projection_formula_for_test(source)
+                    .expect("mixed source has a projection formula")
+                    .to_vec(),
+                projectable,
+                (
+                    machine.epoch.as_u64() - epochs_before.0.as_u64(),
+                    machine.provenance_epoch.as_u64() - epochs_before.1.as_u64(),
+                ),
+            );
+            if let Some(baseline) = &canonical_baseline {
+                assert_eq!(
+                    &snapshot, baseline,
+                    "CPK formula, decision, and publication epochs ignore admission order"
+                );
+            } else {
+                canonical_baseline = Some(snapshot);
+            }
         }
     }
 
@@ -10868,13 +10752,17 @@ mod mutation_tests {
             constraint: ConstraintRecordId(10_000 + ordinal),
             origin: OriginId::unknown_internal(),
         };
-        machine.bounds.projection_proofs_by_lower_record.insert(
-            record,
-            vec![SchemeProjectionProof {
-                lower_record: record,
-                support: SchemeProjectionProofSupport::Independent(carrier),
-            }],
-        );
+        let proof = SchemeProjectionProof {
+            lower_record: record,
+            support: SchemeProjectionProofSupport::Independent(carrier),
+        };
+        machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .insert(record, vec![proof.clone()]);
+        machine
+            .proof_store
+            .record_projection_supports(record, &[proof]);
         machine
             .bounds
             .scheme_projection_claimed_lower_owners
@@ -10888,13 +10776,12 @@ mod mutation_tests {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) {
-        let (_, clause_inserted, link_inserted) = machine
-            .bounds
-            .register_record_proof_clause_link(
-                record,
-                RecordProofClauseLinkAdmission::independent(support, clause),
-            );
-        assert!(clause_inserted && link_inserted);
+        let clauses_before = machine.bounds.record_proof_clauses.len();
+        machine.register_record_proof_clause_link(
+            record,
+            RecordProofClauseLinkAdmission::independent(support, clause),
+        );
+        assert_eq!(machine.bounds.record_proof_clauses.len(), clauses_before + 1);
     }
 
     fn dpn_b_synthetic_unary_carrier(ordinal: u32) -> DerivedUnaryCarrier {

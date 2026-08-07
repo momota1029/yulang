@@ -163,6 +163,18 @@ const CPK8E_RETIRED_LEGACY_TESTS_AND_HELPERS: &[&str] = &[
     "mpc_a_9_5_legacy_unattributed_claim_link_fails_open",
 ];
 
+// CPK-8G-4b deliberate retirements. These tests injected a dangling ReplayOccurrenceId into
+// RCPF's separate by-result/occurrence arenas and asserted that the former RCPF publication reader
+// quarantined the attempt. Publication authority now reads CPK's inline qualified-parent payload;
+// machine-issued append-only IDs and atomic CPK admission make that RCPF-only dangling-ID shape
+// unreachable. The CPK evaluator's debug invariant test replaces their storage-appropriate guard.
+const CPK8G4B_RETIRED_RCPF_PUBLICATION_TESTS_AND_HELPERS: &[&str] = &[
+    "factored_evaluator_failure_does_not_publish_projection_intent",
+    "rcpf_d2c_2c_1_missing_occurrence_publication_fixture",
+    "rcpf_d2c_2c_1_snapshot_evaluation_failure_does_not_publish",
+    "rcpf_c3d_factored_read_error_quarantines_the_production_attempt",
+];
+
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
@@ -531,13 +543,6 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     },
     Cpk8gPhysicalTestGroup {
         targets: &[
-            Cpk8gPhysicalTarget::ReplayClauseProjection,
-            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
-        ],
-        tests: &["rcpf_d2c_2c_1_snapshot_evaluation_failure_does_not_publish"],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
             Cpk8gPhysicalTarget::ReplayOccurrenceStore,
             Cpk8gPhysicalTarget::ReplayResultSummary,
         ],
@@ -550,7 +555,6 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     Cpk8gPhysicalTestGroup {
         targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
         tests: &[
-            "rcpf_c3d_factored_read_error_quarantines_the_production_attempt",
             "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
             "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
             "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
@@ -636,11 +640,14 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
     // empty-ledger seed. CPK-8B removes the sole production-store projection writer re-read by
-    // carrying its support snapshot in the admission event.
-    ("projection_proofs_by_lower_record", 52),
+    // carrying its support snapshot in the admission event. CPK-8G-4b retires two RCPF-only
+    // dangling-occurrence fixtures and their raw flat projection-ledger seeds.
+    ("projection_proofs_by_lower_record", 50),
     ("scheme_projection_lower_records_by_root", 9),
     ("scheme_projection_lower_record_memberships", 5),
-    ("record_proof_clauses", 9),
+    // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
+    // production clause-link writer still updates the flat mirror during the reader cutover.
+    ("record_proof_clauses", 11),
     ("record_proof_clause_by_key", 11),
     ("record_proof_clause_ids_by_lower_record", 8),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
@@ -714,8 +721,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("live_coverage_by_root", 14),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     ("replay_parent_sets", 18),
-    // CPK-8E removes the final three migration-only finite-map normalizer reads.
-    ("replay_occurrences", 48),
+    // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
+    // retires the three RCPF-only dangling-occurrence publication fault injections.
+    ("replay_occurrences", 45),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     ("replay_result_summary", 40),
     ("replay_clause_projection", 26),
@@ -1146,6 +1154,13 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             "CPK-8E retired Legacy purpose reappeared: {retired}",
         );
     }
+    let cpk8g4b_retired_sources = [bounds_mutation_tests, include_str!("mod.rs")].join("\n");
+    for retired in CPK8G4B_RETIRED_RCPF_PUBLICATION_TESTS_AND_HELPERS {
+        assert!(
+            !cpk8g4b_retired_sources.contains(&format!("fn {retired}")),
+            "CPK-8G-4b retired RCPF publication-reader purpose reappeared: {retired}",
+        );
+    }
     assert!(
         CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION
             .iter()
@@ -1370,7 +1385,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     );
     assert_eq!(
         bounds_rcpf_tests.len(),
-        32,
+        30,
         "the direct machine/bounds.rs rcpf_* test census changed",
     );
     assert_eq!(

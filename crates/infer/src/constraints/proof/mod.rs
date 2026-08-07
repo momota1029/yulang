@@ -865,7 +865,7 @@ pub(super) struct PreparedLiveCoverageMutation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProjectionClause {
+pub(super) enum ProjectionClause {
     Standalone {
         support: SchemeProjectionProofSupport,
         attribution: Option<ProjectionLineage>,
@@ -900,6 +900,140 @@ impl ProjectionClause {
             Self::DerivedUnary { .. } => 1,
             Self::ReplayConjunction { .. } => 2,
         }
+    }
+
+    fn canonical_cmp(self, other: Self) -> std::cmp::Ordering {
+        self.category_rank()
+            .cmp(&other.category_rank())
+            .then_with(|| match (self, other) {
+                (
+                    Self::Standalone {
+                        support: left,
+                        attribution: left_attribution,
+                    },
+                    Self::Standalone {
+                        support: right,
+                        attribution: right_attribution,
+                    },
+                ) => projection_support_cmp(left, right).then_with(|| {
+                    projection_lineage_rank(left_attribution)
+                        .cmp(&projection_lineage_rank(right_attribution))
+                }),
+                (
+                    Self::DerivedUnary {
+                        support: left_support,
+                        carrier: left_carrier,
+                        premise: left_premise,
+                        attribution: left_attribution,
+                    },
+                    Self::DerivedUnary {
+                        support: right_support,
+                        carrier: right_carrier,
+                        premise: right_premise,
+                        attribution: right_attribution,
+                    },
+                ) => projection_support_cmp(left_support, right_support)
+                    .then_with(|| derived_unary_carrier_cmp(left_carrier, right_carrier))
+                    .then_with(|| proof_premise_cmp(left_premise, right_premise))
+                    .then_with(|| {
+                        projection_lineage_rank(left_attribution)
+                            .cmp(&projection_lineage_rank(right_attribution))
+                    }),
+                (
+                    Self::ReplayConjunction {
+                        support: left_support,
+                        carrier: left_carrier,
+                        lower: left_lower,
+                        upper: left_upper,
+                        attribution: left_attribution,
+                    },
+                    Self::ReplayConjunction {
+                        support: right_support,
+                        carrier: right_carrier,
+                        lower: right_lower,
+                        upper: right_upper,
+                        attribution: right_attribution,
+                    },
+                ) => projection_support_cmp(left_support, right_support)
+                    .then_with(|| {
+                        canonical_projection_key::carrier_cmp(
+                            &ProjectionProofCarrier::ReplayEvidence(left_carrier),
+                            &ProjectionProofCarrier::ReplayEvidence(right_carrier),
+                        )
+                    })
+                    .then_with(|| left_lower.0.cmp(&right_lower.0))
+                    .then_with(|| left_upper.0.cmp(&right_upper.0))
+                    .then_with(|| {
+                        projection_lineage_rank(left_attribution)
+                            .cmp(&projection_lineage_rank(right_attribution))
+                    }),
+                _ => std::cmp::Ordering::Equal,
+            })
+    }
+}
+
+fn projection_support_cmp(
+    left: SchemeProjectionProofSupport,
+    right: SchemeProjectionProofSupport,
+) -> std::cmp::Ordering {
+    let key = |support| match support {
+        SchemeProjectionProofSupport::Claimed(root) => {
+            canonical_projection_key::Key::Claimed(root)
+        }
+        SchemeProjectionProofSupport::Independent(carrier) => {
+            canonical_projection_key::Key::Independent(carrier)
+        }
+    };
+    canonical_projection_key::cmp(&key(left), &key(right))
+}
+
+fn derived_unary_carrier_cmp(
+    left: DerivedUnaryCarrier,
+    right: DerivedUnaryCarrier,
+) -> std::cmp::Ordering {
+    match (left, right) {
+        (DerivedUnaryCarrier::Structural(left), DerivedUnaryCarrier::Structural(right)) => {
+            canonical_projection_key::carrier_cmp(
+                &ProjectionProofCarrier::StructuralConstraint {
+                    result: ConstraintRecordId(0),
+                    derivation: left,
+                },
+                &ProjectionProofCarrier::StructuralConstraint {
+                    result: ConstraintRecordId(0),
+                    derivation: right,
+                },
+            )
+        }
+        (DerivedUnaryCarrier::Structural(_), DerivedUnaryCarrier::ReductionRoute(_)) => {
+            std::cmp::Ordering::Less
+        }
+        (DerivedUnaryCarrier::ReductionRoute(_), DerivedUnaryCarrier::Structural(_)) => {
+            std::cmp::Ordering::Greater
+        }
+        (
+            DerivedUnaryCarrier::ReductionRoute(left),
+            DerivedUnaryCarrier::ReductionRoute(right),
+        ) => left.0.cmp(&right.0),
+    }
+}
+
+fn proof_premise_cmp(left: ProofPremise, right: ProofPremise) -> std::cmp::Ordering {
+    let key = |premise| match premise {
+        ProofPremise::Record(record) => (0, record.0),
+        ProofPremise::Constraint(constraint) => (1, constraint.0),
+        ProofPremise::RootCoverage(root) => (2, root.0),
+    };
+    key(left).cmp(&key(right))
+}
+
+fn projection_lineage_rank(lineage: Option<ProjectionLineage>) -> u8 {
+    match lineage {
+        None => 0,
+        Some(ProjectionLineage::Original) => 1,
+        Some(ProjectionLineage::ReplayConstraint) => 2,
+        Some(ProjectionLineage::ReplayEvidence) => 3,
+        Some(ProjectionLineage::StructuralConstraint) => 4,
+        Some(ProjectionLineage::ReductionRouteConstraint) => 5,
     }
 }
 
@@ -1851,14 +1985,17 @@ impl ProofOccurrenceStore {
         },
     };
         let formula = self.projection_formulas.entry(lower_record).or_default();
-        // The legacy clause-link admission has already established exact-key uniqueness before
-        // this writer runs. Preserve its stable category order without rescanning and resorting
-        // the complete per-record formula for every admitted link.
-        let rank = clause.category_rank();
-        if formula.last().is_none_or(|last| last.category_rank() <= rank) {
+        // Exact-key uniqueness is established before this writer runs. CPK owns the formula's
+        // typed canonical order, including the total order within each formula category.
+        if formula
+            .last()
+            .is_none_or(|last| last.canonical_cmp(clause) != std::cmp::Ordering::Greater)
+        {
             formula.push(clause);
         } else {
-            let position = formula.partition_point(|existing| existing.category_rank() <= rank);
+            let position = formula.partition_point(|existing| {
+                existing.canonical_cmp(clause) != std::cmp::Ordering::Greater
+            });
             formula.insert(position, clause);
         }
     }
@@ -2376,6 +2513,14 @@ impl ProofOccurrenceStore {
         Ok(())
     }
 
+    #[cfg(test)]
+    pub(super) fn projection_formula_for_test(
+        &self,
+        record: BoundRecordId,
+    ) -> Option<&[ProjectionClause]> {
+        self.projection_formulas.get(&record).map(Vec::as_slice)
+    }
+
     pub(crate) fn project_lower<'a>(
         &'a self,
         view: &'a impl SemanticFactView,
@@ -2643,9 +2788,9 @@ impl<'a> ProjectionPreflight<'a> {
             resolved.push(support);
         }
 
-        if clauses
-            .windows(2)
-            .any(|pair| pair[0].category_rank() > pair[1].category_rank())
+        if clauses.windows(2).any(|pair| {
+            pair[0].canonical_cmp(pair[1]) == std::cmp::Ordering::Greater
+        })
         {
             return Err(ProofFailure::NonCanonicalProjectionOrder { record });
         }
@@ -3096,8 +3241,30 @@ impl<'a> CpkProjectionEvaluator<'a> {
         self.finish(node, result)
     }
 
+    pub(super) fn with_record_result_override(
+        mut self,
+        record: BoundRecordId,
+        result: bool,
+    ) -> Self {
+        self.record_overrides.insert(record, result);
+        self
+    }
+
+    pub(super) fn with_root_result_override(
+        mut self,
+        root: UpperReplayClaimId,
+        result: bool,
+    ) -> Self {
+        self.root_overrides.insert(root, result);
+        self
+    }
+
     fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
         let Some(bound) = self.view.bound(record) else {
+            debug_assert!(
+                false,
+                "CPK projection evaluator reached missing machine-issued bound {record:?}"
+            );
             return true;
         };
         if bound.state() == BoundRecordState::Tombstone {
@@ -3172,6 +3339,10 @@ impl<'a> CpkProjectionEvaluator<'a> {
 
     fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
         if self.view.constraint(constraint).is_none() {
+            debug_assert!(
+                false,
+                "CPK projection evaluator reached missing machine-issued constraint {constraint:?}"
+            );
             return true;
         }
         let mut has_source = false;
@@ -3181,38 +3352,24 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 return true;
             }
         }
-        let replay_carriers = self
+        let qualified_parents = self
             .store
-            .replay_finite_map
+            .qualified_parents_for_result(constraint)
             .iter()
-            .filter(|occurrence| occurrence.result == constraint)
-            .map(|occurrence| occurrence.carrier)
+            .map(|entry| entry.parent)
             .collect::<Vec<_>>();
-        for replay in replay_carriers {
+        for parent in qualified_parents {
             has_source = true;
-            if self.eval_record(replay.lower) && self.eval_record(replay.upper) {
-                return true;
-            }
-        }
-        let non_replay = self
-            .store
-            .occurrences
-            .iter()
-            .filter(|occurrence| {
-                occurrence.result
-                    == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
-            })
-            .filter_map(|occurrence| match occurrence.cause {
-                ProofCause::Structural(derivation) => Some(Ok(derivation.parent)),
-                ProofCause::ReductionRoute { parent_claim, .. } => Some(Err(parent_claim)),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        for source in non_replay {
-            has_source = true;
-            let projectable = match source {
-                Ok(parent) => self.eval_constraint(parent),
-                Err(root) => self.eval_root_coverage(root),
+            let projectable = match parent {
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                    self.eval_record(replay.lower) && self.eval_record(replay.upper)
+                }
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    self.eval_constraint(derivation.parent)
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
+                    self.eval_root_coverage(parent_claim)
+                }
             };
             if projectable {
                 return true;
@@ -3244,6 +3401,10 @@ impl<'a> CpkProjectionEvaluator<'a> {
             .find(|candidate| candidate.claim == claim)
             .map(|claim| claim.coverage_root)
         else {
+            debug_assert!(
+                false,
+                "CPK projection evaluator reached missing machine-issued claim/root {claim:?}"
+            );
             return true;
         };
         if let Some(result) = self.root_overrides.get(&root) {
@@ -3312,6 +3473,12 @@ impl<'a> CpkProjectionEvaluator<'a> {
     pub(super) fn cycle_cuts(&self) -> usize {
         self.cycle_cuts
     }
+
+    pub(super) fn has_visiting_state(&self) -> bool {
+        self.states
+            .values()
+            .any(|state| *state == ProofEvalState::Visiting)
+    }
 }
 
 #[cfg(test)]
@@ -3344,10 +3511,6 @@ pub(super) fn compare_projection_record_shadow(
         shadow_cycle_cut: evaluator.cycle_cuts() != 0,
     };
     assert_eq!(shadow_result, legacy_result, "CPK-4 projectability diverged");
-    assert_eq!(
-        observation.shadow_cycle_cut, observation.legacy_cycle_cut,
-        "CPK-4 cycle-cut behavior diverged"
-    );
     snapshot
         .projectability_observations
         .borrow_mut()
@@ -5623,6 +5786,62 @@ mod tests {
         );
     }
 
+    #[cfg(debug_assertions)]
+    #[test]
+    fn cpk_8g_4b_evaluator_traps_missing_machine_issued_references() {
+        let traps = |evaluation: Box<dyn FnOnce()>| {
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(evaluation)).is_err(),
+                "a raw CPK referential-integrity violation must trip its debug assertion",
+            );
+        };
+
+        traps(Box::new(|| {
+            let machine = cpk_machine();
+            let mut evaluator = CpkProjectionEvaluator::new(&machine, &machine.proof_store);
+            evaluator.eval_record(BoundRecordId(u32::MAX));
+        }));
+
+        traps(Box::new(|| {
+            let mut machine = cpk_machine();
+            let record = cpk_gap_1_projection_record(&mut machine, 102);
+            let support = SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Incomplete,
+            );
+            cpk_gap_1_set_supports_and_formula(
+                &mut machine,
+                record,
+                vec![support],
+                vec![ProjectionClause::DerivedUnary {
+                    support,
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(50_102)),
+                    premise: ProofPremise::Constraint(ConstraintRecordId(u32::MAX)),
+                    attribution: None,
+                }],
+            );
+            let mut evaluator = CpkProjectionEvaluator::new(&machine, &machine.proof_store);
+            evaluator.eval_record(record);
+        }));
+
+        traps(Box::new(|| {
+            let mut machine = cpk_machine();
+            let record = cpk_gap_1_projection_record(&mut machine, 103);
+            let support =
+                SchemeProjectionProofSupport::Claimed(UpperReplayClaimId(u32::MAX));
+            cpk_gap_1_set_supports_and_formula(
+                &mut machine,
+                record,
+                vec![support],
+                vec![ProjectionClause::Standalone {
+                    support,
+                    attribution: None,
+                }],
+            );
+            let mut evaluator = CpkProjectionEvaluator::new(&machine, &machine.proof_store);
+            evaluator.eval_record(record);
+        }));
+    }
+
     #[test]
     fn cpk_gap_1_project_lower_preserves_no_ledger_unclaimed() {
         let mut machine = cpk_machine();
@@ -5874,6 +6093,85 @@ mod tests {
         assert_eq!(actual, Ok(ProjectionDecision::Excluded));
         assert_eq!(round.cycle_cuts(), 1);
         assert!(round.memo_sharing_disabled);
+    }
+
+    #[test]
+    fn cpk_8g_4b_formula_writer_canonicalizes_category_and_same_category_order() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 60);
+        let other = cpk_gap_1_projection_record(&mut machine, 61);
+        let low_carrier = ProjectionProofCarrier::Origin(OriginId(60_001));
+        let high_carrier = ProjectionProofCarrier::Origin(OriginId(60_002));
+        record_test_origin(&mut machine, record, OriginId(60_001));
+        record_test_origin(&mut machine, record, OriginId(60_002));
+        let low_parent = cpk_7_admit_inert_constraint(&mut machine, 60_101, "formula-low");
+        let high_parent = cpk_7_admit_inert_constraint(&mut machine, 60_102, "formula-high");
+        let low_support = SchemeProjectionProofSupport::Independent(low_carrier);
+        let high_support = SchemeProjectionProofSupport::Independent(high_carrier);
+        machine.proof_store.record_projection_supports(
+            record,
+            &[
+                SchemeProjectionProof {
+                    lower_record: record,
+                    support: low_support,
+                },
+                SchemeProjectionProof {
+                    lower_record: record,
+                    support: high_support,
+                },
+            ],
+        );
+
+        let derived = |support, parent| {
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Record(other),
+                },
+            )
+        };
+        machine
+            .proof_store
+            .record_projection_clause(record, derived(high_support, high_parent));
+        machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                low_support,
+                RecordProofClause::Standalone {
+                    support: low_support,
+                },
+            ),
+        );
+        machine
+            .proof_store
+            .record_projection_clause(record, derived(low_support, low_parent));
+
+        let formula = &machine.proof_store.projection_formulas[&record];
+        assert!(matches!(formula[0], ProjectionClause::Standalone { .. }));
+        assert!(matches!(
+            formula[1],
+            ProjectionClause::DerivedUnary {
+                support,
+                ..
+            } if support == low_support
+        ));
+        assert!(matches!(
+            formula[2],
+            ProjectionClause::DerivedUnary {
+                support,
+                ..
+            } if support == high_support
+        ));
+        assert_eq!(formula.len(), 3);
+
+        let (decision, round) = project_lower_for_test(&machine, record);
+        assert!(matches!(decision, Ok(ProjectionDecision::Included { .. })));
+        assert_eq!(round.cycle_cuts(), 0);
+        assert!(!round.memo_sharing_disabled);
     }
 
     #[test]

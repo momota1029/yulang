@@ -1770,6 +1770,100 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
     }
 }
 
+/// Publication-time projection evaluation over the CPK-authoritative snapshot.
+///
+/// The legacy/factored evaluator remains available to migration and RCPF characterization tests,
+/// but it is no longer a production input to affected-owner or epoch publication decisions.
+struct CpkPublicationEvaluationRound<'a> {
+    machine: &'a ConstraintMachine,
+    record_result_override: Option<(BoundRecordId, bool)>,
+    root_result_override: Option<(UpperReplayClaimId, bool)>,
+    shared: Option<proof::CpkProjectionEvaluator<'a>>,
+    sharing_disabled: bool,
+}
+
+impl<'a> CpkPublicationEvaluationRound<'a> {
+    fn new(machine: &'a ConstraintMachine) -> Self {
+        Self::new_with_overrides(machine, None, None)
+    }
+
+    fn with_record_result_override(
+        machine: &'a ConstraintMachine,
+        record: BoundRecordId,
+        result: bool,
+    ) -> Self {
+        Self::new_with_overrides(machine, Some((record, result)), None)
+    }
+
+    fn with_root_result_override(
+        machine: &'a ConstraintMachine,
+        root: UpperReplayClaimId,
+        result: bool,
+    ) -> Self {
+        Self::new_with_overrides(machine, None, Some((root, result)))
+    }
+
+    fn new_with_overrides(
+        machine: &'a ConstraintMachine,
+        record_result_override: Option<(BoundRecordId, bool)>,
+        root_result_override: Option<(UpperReplayClaimId, bool)>,
+    ) -> Self {
+        Self {
+            machine,
+            record_result_override,
+            root_result_override,
+            shared: Some(Self::new_evaluator(
+                machine,
+                record_result_override,
+                root_result_override,
+            )),
+            sharing_disabled: false,
+        }
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        if self.sharing_disabled {
+            return Self::new_evaluator(
+                self.machine,
+                self.record_result_override,
+                self.root_result_override,
+            )
+            .eval_record(record);
+        }
+
+        let shared = self
+            .shared
+            .as_mut()
+            .expect("sharing remains available until a CPK cycle cut disables it");
+        let cuts_before = shared.cycle_cuts();
+        let result = shared.eval_record(record);
+        assert!(
+            !shared.has_visiting_state(),
+            "CPK projection evaluation left a Visiting node after a top-level query"
+        );
+        if shared.cycle_cuts() != cuts_before {
+            self.shared = None;
+            self.sharing_disabled = true;
+        }
+        result
+    }
+
+    fn new_evaluator(
+        machine: &'a ConstraintMachine,
+        record_result_override: Option<(BoundRecordId, bool)>,
+        root_result_override: Option<(UpperReplayClaimId, bool)>,
+    ) -> proof::CpkProjectionEvaluator<'a> {
+        let mut evaluator = proof::CpkProjectionEvaluator::new(machine, &machine.proof_store);
+        if let Some((record, result)) = record_result_override {
+            evaluator = evaluator.with_record_result_override(record, result);
+        }
+        if let Some((root, result)) = root_result_override {
+            evaluator = evaluator.with_root_result_override(root, result);
+        }
+        evaluator
+    }
+}
+
 impl ConstraintMachine {
     /// Return the active lower relations that may contribute to a generalized scheme.
     ///
@@ -2036,13 +2130,14 @@ impl ConstraintMachine {
         );
         self.extend_with_record_dependents(&mut affected_records);
 
+        let mut before_round = CpkPublicationEvaluationRound::with_root_result_override(
+            self, root, was_empty,
+        );
+        let mut after_round = CpkPublicationEvaluationRound::new(self);
         let affected_owners = affected_records
             .into_iter()
             .filter(|record| {
-                let was_included = SchemeProjectionEvaluator::new(self)
-                    .with_root_result_override(root, was_empty)
-                    .eval_record_or_quarantine(*record);
-                was_included != self.scheme_projection_record_is_included(*record)
+                before_round.eval_record(*record) != after_round.eval_record(*record)
             })
             .filter_map(|record| self.active_projection_record_owner(record))
             .collect::<FxHashSet<_>>();
@@ -2050,21 +2145,41 @@ impl ConstraintMachine {
     }
 
     fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
+        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
         self.record_projection_mutation_in_proof_store(&mutation);
-        let intent = match self.try_evaluate_scheme_projection_mutation(mutation) {
-            Ok(intent) => intent,
-            Err(failure) => {
-                self.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Read,
-                );
-                return;
-            }
-        };
-        if self.replay_factored_terminal_failure().is_some() {
-            return;
-        }
+        let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
         self.publish_scheme_projection_intent(intent);
+    }
+
+    fn cpk_projection_mutation_inclusion_before(
+        &self,
+        mutation: &SchemeProjectionMutation,
+    ) -> Option<bool> {
+        let SchemeProjectionMutation::ProofsChanged { lower_record, .. } = mutation else {
+            return None;
+        };
+        Some(self.scheme_projection_record_is_included(*lower_record))
+    }
+
+    fn evaluate_cpk_scheme_projection_mutation(
+        &self,
+        mutation: SchemeProjectionMutation,
+        inclusion_before: Option<bool>,
+    ) -> SchemeProjectionPublicationIntent {
+        match mutation {
+            SchemeProjectionMutation::None => SchemeProjectionPublicationIntent::None,
+            SchemeProjectionMutation::ProofsChanged { lower_record, .. } => {
+                let was_included = inclusion_before
+                    .expect("a proof mutation captures its CPK before view before commit");
+                let is_included = self.scheme_projection_record_is_included(lower_record);
+                self.evaluate_record_inclusion_publication(
+                    lower_record,
+                    was_included,
+                    is_included,
+                    true,
+                )
+            }
+        }
     }
 
     pub(in crate::constraints) fn try_original_upper_replay_claim(
@@ -2457,16 +2572,66 @@ impl ConstraintMachine {
         Ok(intent)
     }
 
+    fn evaluate_record_inclusion_publication(
+        &self,
+        lower_record: BoundRecordId,
+        was_included: bool,
+        is_included: bool,
+        metadata_changed: bool,
+    ) -> SchemeProjectionPublicationIntent {
+        if was_included == is_included {
+            return if metadata_changed {
+                SchemeProjectionPublicationIntent::MetadataOnly
+            } else {
+                SchemeProjectionPublicationIntent::None
+            };
+        }
+        let mut affected_records = self
+            .proof_store
+            .dependent_records(ProofPremise::Record(lower_record))
+            .cloned()
+            .unwrap_or_default();
+        self.extend_with_record_dependents(&mut affected_records);
+        let mut before_round = CpkPublicationEvaluationRound::with_record_result_override(
+            self,
+            lower_record,
+            was_included,
+        );
+        let mut after_round = CpkPublicationEvaluationRound::new(self);
+        let mut affected_owners = FxHashSet::default();
+        for record in affected_records {
+            if before_round.eval_record(record) != after_round.eval_record(record)
+                && let Some(owner) = self.active_projection_record_owner(record)
+            {
+                affected_owners.insert(owner);
+            }
+        }
+        #[cfg(test)]
+        self.record_semantic_projectability_transition(
+            lower_record,
+            was_included,
+            is_included,
+        );
+        if let Some(owner) = self.active_projection_record_owner(lower_record) {
+            affected_owners.insert(owner);
+        }
+        if affected_owners.is_empty() {
+            SchemeProjectionPublicationIntent::MetadataOnly
+        } else {
+            SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
+        }
+    }
+
     fn try_evaluate_projection_inclusion_snapshot(
         &self,
         before: &FxHashMap<BoundRecordId, bool>,
     ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
-        let mut after_round = SchemeProjectionEvaluationRound::new(self);
+        let mut after_round = CpkPublicationEvaluationRound::new(self);
         let mut affected_owners = FxHashSet::default();
         #[cfg(test)]
         let mut semantic_transitions = Vec::new();
         for (record, was_included) in before {
-            let is_included = after_round.eval_record(*record)?;
+            let is_included = after_round.eval_record(*record);
             if *was_included != is_included {
                 #[cfg(test)]
                 semantic_transitions.push((*record, *was_included, is_included));
@@ -2503,14 +2668,14 @@ impl ConstraintMachine {
     }
 
     fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
-        SchemeProjectionEvaluator::new(self).eval_record_or_quarantine(lower_record)
+        CpkPublicationEvaluationRound::new(self).eval_record(lower_record)
     }
 
     #[cfg(test)]
     fn scheme_projection_cycle_guard_snapshot(&self, lower_record: BoundRecordId) -> (bool, usize) {
-        let mut evaluator = SchemeProjectionEvaluator::new(self);
-        let projectable = evaluator.eval_record_or_quarantine(lower_record);
-        (projectable, evaluator.cycle_cuts)
+        let mut evaluator = proof::CpkProjectionEvaluator::new(self, &self.proof_store);
+        let projectable = evaluator.eval_record(lower_record);
+        (projectable, evaluator.cycle_cuts())
     }
 
     fn projection_inclusion_snapshot(
@@ -2524,9 +2689,10 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         self.extend_with_record_dependents(&mut records);
+        let mut round = CpkPublicationEvaluationRound::new(self);
         records
             .into_iter()
-            .map(|record| (record, self.scheme_projection_record_is_included(record)))
+            .map(|record| (record, round.eval_record(record)))
             .collect()
     }
 
@@ -2604,85 +2770,6 @@ impl ConstraintMachine {
             &semantic_owner_order,
             semantic_before_epoch,
             epoch,
-        );
-    }
-}
-
-#[cfg(test)]
-mod rcpf_d2c_2b_tests {
-    use super::*;
-
-    #[test]
-    fn factored_evaluator_failure_does_not_publish_projection_intent() {
-        let mut machine = ConstraintMachine::new();
-        let owner = TypeVar(20_000);
-        let lower = machine.alloc_pos(Pos::Con(vec!["d2c-2b-lower".into()], Vec::new()));
-        let upper = machine.alloc_neg(Neg::Var(owner));
-        machine.subtype(lower, upper, OriginId::unknown_internal());
-        let constraint = machine
-            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
-            .expect("the synthetic constraint is canonical");
-        let lower_record = machine.bounds.of(owner).unwrap().lower_record_ids()[0];
-        let missing_occurrence = replay_factored::ReplayOccurrenceId(u32::MAX);
-        machine
-            .replay_occurrences
-            .by_result
-            .insert(constraint, vec![missing_occurrence]);
-
-        let carrier = ProjectionProofCarrier::ConstraintOrigin {
-            constraint: ConstraintRecordId(20_000),
-            origin: OriginId::unknown_internal(),
-        };
-        let support = SchemeProjectionProofSupport::Independent(carrier);
-        machine.bounds.projection_proofs_by_lower_record.insert(
-            lower_record,
-            vec![SchemeProjectionProof {
-                lower_record,
-                support,
-            }],
-        );
-        machine.bounds.register_record_proof_clause_link(
-            lower_record,
-            RecordProofClauseLinkAdmission::independent(
-                support,
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(20_001)),
-                    premise: ProofPremise::Constraint(constraint),
-                },
-            ),
-        );
-
-        let publication_state = |machine: &ConstraintMachine| {
-            (
-                machine.epoch,
-                machine.provenance_epoch,
-                machine.bounds.of(owner).unwrap().epoch(),
-            )
-        };
-        let before = publication_state(&machine);
-        let journal = machine.activate_method_role_mutations();
-        mark_next_replay_soak_failure_as_intentional();
-        machine.apply_scheme_projection_mutation(SchemeProjectionMutation::ProofsChanged {
-            lower_record,
-            previous_proofs: None,
-            current_proofs: vec![SchemeProjectionProof {
-                lower_record,
-                support,
-            }],
-        });
-        let published = machine.take_method_role_mutations();
-        journal.finish();
-
-        assert_eq!(
-            machine.replay_factored_terminal_failure(),
-            Some(ReplayFactoredShadowFailure::UnknownReplayOccurrence(
-                missing_occurrence
-            ))
-        );
-        assert_eq!(publication_state(&machine), before);
-        assert!(
-            published.is_empty(),
-            "a failed evaluation must not publish cache invalidation keys"
         );
     }
 }
