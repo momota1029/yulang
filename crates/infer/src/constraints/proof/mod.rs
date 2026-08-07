@@ -99,6 +99,7 @@ pub(crate) enum ProjectionInvariantViolation {
 pub(crate) enum ProofOperation {
     AdmitOriginalClaim,
     AdmitDerivedClaim,
+    UpdateClaimLifecycle,
     ProjectLowerPreflight,
     ProjectLowerSupportCollection,
     ProjectLowerEvaluation,
@@ -846,11 +847,21 @@ pub(super) enum PreparedDerivedClaimDecision {
     New(PreparedUpperClaimAdmission),
 }
 
-/// Claim-location mutation frozen by the flat claim transaction before publication to CPK.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Claim-location mutation frozen by the CPK transaction before publication to the flat mirror.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PreparedUpperClaimMove {
-    claim: UpperReplayClaimId,
-    current_record: BoundRecordId,
+    pub(super) claim: UpperReplayClaimId,
+    pub(super) previous_record: BoundRecordId,
+    pub(super) current_record: BoundRecordId,
+    pub(super) producer: ConstraintRecordId,
+    pub(super) coverage_root: UpperReplayClaimId,
+    pub(super) full_lineage: UpperClaimLineage,
+    new_record_claims: Option<Vec<UpperReplayClaimId>>,
+}
+
+pub(super) struct PreparedLiveCoverageMutation {
+    pub(super) transition: PreparedLiveCoverageTransition,
+    new_root_states: Option<FxHashSet<UnweightedRowReductionRecordId>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1027,6 +1038,8 @@ pub(crate) struct ProofOccurrenceStore {
     #[cfg(test)]
     fail_next_derived_claim_reservation: bool,
     #[cfg(test)]
+    fail_next_claim_move_reservation: bool,
+    #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
     projection_publication_observations: RefCell<Vec<ShadowProjectionPublicationObservation>>,
@@ -1066,6 +1079,8 @@ impl Default for ProofOccurrenceStore {
             fail_next_original_claim_reservation: false,
             #[cfg(test)]
             fail_next_derived_claim_reservation: false,
+            #[cfg(test)]
+            fail_next_claim_move_reservation: false,
             #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
@@ -1165,7 +1180,7 @@ fn upper_claim_kind(kind: UpperReplayClaimKind) -> UpperClaimKind {
     }
 }
 
-fn upper_claim_lineage(lineage: UpperReplayClaimLineage) -> UpperClaimLineage {
+pub(super) fn upper_claim_lineage(lineage: UpperReplayClaimLineage) -> UpperClaimLineage {
     match lineage {
         UpperReplayClaimLineage::Original => UpperClaimLineage::Original,
         UpperReplayClaimLineage::ReplayConstraint {
@@ -1253,13 +1268,6 @@ fn prepare_original_upper_claim_admission(
             current_record: record,
         },
         new_record_claims,
-    }
-}
-
-pub(super) fn prepare_upper_claim_move(claim: &UpperReplayClaim) -> PreparedUpperClaimMove {
-    PreparedUpperClaimMove {
-        claim: claim.id,
-        current_record: claim.current_record,
     }
 }
 
@@ -1491,6 +1499,75 @@ impl ProofOccurrenceStore {
         self.fail_next_derived_claim_reservation = true;
     }
 
+    pub(super) fn try_prepare_upper_claim_move(
+        &mut self,
+        claim: UpperReplayClaimId,
+        current_record: BoundRecordId,
+    ) -> Result<PreparedUpperClaimMove, ProofFailure> {
+        let index = self.upper_claim_index[&claim];
+        let occurrence = &self.upper_claims[index];
+        let previous_record = occurrence.current_record;
+        let producer = occurrence.producer;
+        let coverage_root = occurrence.coverage_root;
+        let full_lineage = occurrence.full_lineage;
+        if previous_record == current_record {
+            return Ok(PreparedUpperClaimMove {
+                claim,
+                previous_record,
+                current_record,
+                producer,
+                coverage_root,
+                full_lineage,
+                new_record_claims: None,
+            });
+        }
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_claim_move_reservation) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        match full_lineage {
+            UpperClaimLineage::Original => self
+                .original_claim_by_record_and_producer
+                .try_reserve(1)
+                .map_err(exhausted)?,
+            _ => self
+                .derived_claim_by_record_and_root
+                .try_reserve(1)
+                .map_err(exhausted)?,
+        }
+        let new_record_claims =
+            if let Some(claims) = self.claims_by_upper_record.get_mut(&current_record) {
+                claims.try_reserve(1).map_err(exhausted)?;
+                None
+            } else {
+                self.claims_by_upper_record
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                let mut claims = Vec::new();
+                claims.try_reserve(1).map_err(exhausted)?;
+                Some(claims)
+            };
+        Ok(PreparedUpperClaimMove {
+            claim,
+            previous_record,
+            current_record,
+            producer,
+            coverage_root,
+            full_lineage,
+            new_record_claims,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_claim_move_reservation(&mut self) {
+        self.fail_next_claim_move_reservation = true;
+    }
+
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
         let admission = prepare_upper_claim_admission(claim);
         self.record_prepared_upper_claim(&admission);
@@ -1513,45 +1590,52 @@ impl ProofOccurrenceStore {
         self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
     }
 
-    pub(super) fn record_prepared_upper_claim_move(
-        &mut self,
-        mutation: PreparedUpperClaimMove,
-    ) {
+    pub(super) fn commit_upper_claim_move(&mut self, mutation: &mut PreparedUpperClaimMove) {
         let index = self
             .upper_claim_index
             .get(&mutation.claim)
             .copied()
             .expect("a moved upper claim must already exist in the CPK store");
         let old_record = self.upper_claims[index].current_record;
+        assert_eq!(old_record, mutation.previous_record);
         if old_record == mutation.current_record {
             return;
         }
-        let producer = self.upper_claims[index].producer;
-        if self.upper_claims[index].full_lineage == UpperClaimLineage::Original {
+        assert_eq!(self.upper_claims[index].producer, mutation.producer);
+        assert_eq!(self.upper_claims[index].coverage_root, mutation.coverage_root);
+        assert_eq!(self.upper_claims[index].full_lineage, mutation.full_lineage);
+        if mutation.full_lineage == UpperClaimLineage::Original {
             assert_eq!(
                 self.original_claim_by_record_and_producer
-                    .remove(&(old_record, producer)),
+                    .remove(&(old_record, mutation.producer)),
                 Some(mutation.claim)
             );
             assert!(self
                 .original_claim_by_record_and_producer
-                .insert((mutation.current_record, producer), mutation.claim)
+                .insert((mutation.current_record, mutation.producer), mutation.claim)
                 .is_none());
-            let root = self.upper_claims[index].coverage_root;
             self.derived_claim_by_record_and_root
-                .remove(&(mutation.current_record, root));
+                .remove(&(mutation.current_record, mutation.coverage_root));
         } else {
-            let root = self.upper_claims[index].coverage_root;
             assert_eq!(
                 self.derived_claim_by_record_and_root
-                    .remove(&(old_record, root)),
+                    .remove(&(old_record, mutation.coverage_root)),
                 Some(mutation.claim)
             );
             self.derived_claim_by_record_and_root
-                .insert((mutation.current_record, root), mutation.claim);
+                .insert(
+                    (mutation.current_record, mutation.coverage_root),
+                    mutation.claim,
+                );
         }
         self.remove_claim_from_upper_record_index(old_record, mutation.claim);
         self.upper_claims[index].current_record = mutation.current_record;
+        if let Some(claims) = mutation.new_record_claims.take() {
+            assert!(self
+                .claims_by_upper_record
+                .insert(mutation.current_record, claims)
+                .is_none());
+        }
         self.insert_claim_into_upper_record_index(mutation.current_record, mutation.claim);
     }
 
@@ -3840,6 +3924,55 @@ impl ProofOccurrenceStore {
         }
     }
 
+    pub(super) fn try_prepare_live_coverage_mutation(
+        &mut self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+        active: bool,
+    ) -> Result<PreparedLiveCoverageMutation, ProofFailure> {
+        let transition = self.prepare_live_coverage_transition(root, state, active);
+        let mut new_root_states = None;
+        if matches!(transition, PreparedLiveCoverageTransition::Changed { active: true, .. }) {
+            let exhausted = |_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            };
+            self.live_coverage.try_reserve(1).map_err(exhausted)?;
+            if let Some(states) = self.live_states_by_coverage_root.get_mut(&root) {
+                states.try_reserve(1).map_err(exhausted)?;
+            } else {
+                self.live_states_by_coverage_root
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                let mut states = FxHashSet::default();
+                states.try_reserve(1).map_err(exhausted)?;
+                new_root_states = Some(states);
+            }
+        }
+        Ok(PreparedLiveCoverageMutation {
+            transition,
+            new_root_states,
+        })
+    }
+
+    pub(super) fn commit_live_coverage_mutation(
+        &mut self,
+        mutation: &mut PreparedLiveCoverageMutation,
+    ) {
+        if let (
+            PreparedLiveCoverageTransition::Changed {
+                root, active: true, ..
+            },
+            Some(states),
+        ) = (mutation.transition, mutation.new_root_states.take())
+        {
+            assert!(self
+                .live_states_by_coverage_root
+                .insert(root, states)
+                .is_none());
+        }
+        self.record_prepared_live_coverage(mutation.transition);
+    }
+
     pub(super) fn record_prepared_live_coverage(
         &mut self,
         transition: PreparedLiveCoverageTransition,
@@ -4883,11 +5016,7 @@ mod tests {
         );
 
         let (new_record, existing_claim) = cpk_7_record_original_claim(&mut machine, 1);
-        let mutation = machine.bounds.move_upper_replay_claim(claim, new_record);
-        machine.bounds.upper_replay_claims[claim.0 as usize].current_record = old_record;
-        machine
-            .proof_store
-            .record_prepared_upper_claim_move(mutation);
+        machine.move_upper_replay_claim(claim, new_record);
         assert!(!machine.proof_store.claims_by_upper_record.contains_key(&old_record));
         assert_eq!(
             machine.proof_store.claims_by_upper_record.get(&new_record),
@@ -6867,12 +6996,7 @@ mod tests {
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             )
             .id;
-        let mutation = machine
-            .bounds
-            .move_upper_replay_claim(moved_claim, moved_record);
-        machine
-            .proof_store
-            .record_prepared_upper_claim_move(mutation);
+        machine.move_upper_replay_claim(moved_claim, moved_record);
 
         let expected_after_move =
             machine.bounds.upper_replay_claims[moved_claim.0 as usize].clone();
@@ -6881,6 +7005,22 @@ mod tests {
         assert_eq!(actual_after_move.current_record, moved_record);
         assert_eq!(actual_after_move.kind, before_move.kind);
         assert_eq!(actual_after_move.full_lineage, before_move.full_lineage);
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record,
+            machine
+                .bounds
+                .claims_by_upper_record
+                .iter()
+                .filter(|(_, claims)| !claims.is_empty())
+                .map(|(record, claims)| (*record, claims.clone()))
+                .collect(),
+            "the flat record index mirrors every live CPK association while preserving its historical empty containers",
+        );
+        assert_eq!(
+            machine.proof_store.derived_claim_by_record_and_root,
+            machine.bounds.derived_claim_by_record_and_root,
+            "the moved derived lineage remains byte-for-byte mirrored",
+        );
     }
 
     #[test]
@@ -7169,6 +7309,135 @@ mod tests {
             machine.bounds.derived_claim_by_record_and_root[&(derived_record, root)],
             next
         );
+    }
+
+    #[test]
+    fn cpk_claim_move_preflight_failure_is_atomic() {
+        let mut machine = cpk_machine();
+        let (old_record, claim) = cpk_7_record_original_claim(&mut machine, 960);
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(96_961)));
+        let new_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(96_962),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let before = (
+            machine.proof_store.upper_claims.clone(),
+            machine.proof_store.original_claim_by_record_and_producer.clone(),
+            machine.proof_store.derived_claim_by_record_and_root.clone(),
+            machine.proof_store.claims_by_upper_record.clone(),
+            machine.bounds.upper_replay_claims.clone(),
+            machine.bounds.original_claim_by_record_and_producer.clone(),
+            machine.bounds.derived_claim_by_record_and_root.clone(),
+            machine.bounds.claims_by_upper_record.clone(),
+        );
+
+        machine.proof_store.fail_next_claim_move_reservation();
+        assert!(matches!(
+            machine.try_move_upper_replay_claim(claim, new_record),
+            Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })
+        ));
+        assert_eq!(
+            (
+                machine.proof_store.upper_claims.clone(),
+                machine.proof_store.original_claim_by_record_and_producer.clone(),
+                machine.proof_store.derived_claim_by_record_and_root.clone(),
+                machine.proof_store.claims_by_upper_record.clone(),
+                machine.bounds.upper_replay_claims.clone(),
+                machine.bounds.original_claim_by_record_and_producer.clone(),
+                machine.bounds.derived_claim_by_record_and_root.clone(),
+                machine.bounds.claims_by_upper_record.clone(),
+            ),
+            before,
+            "a failed move preflight commits neither CPK state nor flat mirror state",
+        );
+        assert_eq!(
+            machine.proof_store.upper_claims[claim.0 as usize].current_record,
+            old_record,
+        );
+
+        machine
+            .try_move_upper_replay_claim(claim, new_record)
+            .expect("the failed preflight leaves the same claim movable");
+        assert_eq!(
+            machine.proof_store.upper_claims[claim.0 as usize].current_record,
+            new_record,
+        );
+        assert_eq!(
+            machine.bounds.upper_replay_claims[claim.0 as usize].current_record,
+            new_record,
+        );
+    }
+
+    #[test]
+    fn cpk_claim_move_updates_record_coverage_and_preserves_root_liveness() {
+        let mut machine = cpk_machine();
+        let (shared_record, first) = cpk_7_record_original_claim(&mut machine, 970);
+        let (second_record, second) = cpk_7_record_original_claim(&mut machine, 971);
+        machine.move_upper_replay_claim(second, shared_record);
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record[&shared_record],
+            vec![first, second],
+            "two roots can share one current record in canonical root order",
+        );
+
+        let first_state = UnweightedRowReductionRecordId(96_972);
+        let second_state = UnweightedRowReductionRecordId(96_973);
+        assert!(machine.insert_scheme_projection_live_coverage_state(first, first_state));
+        assert!(machine.insert_scheme_projection_live_coverage_state(second, second_state));
+        let third_endpoint = machine.alloc_neg(Neg::Var(TypeVar(96_975)));
+        let third_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(96_974),
+                third_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let fourth_endpoint = machine.alloc_neg(Neg::Var(TypeVar(96_977)));
+        let fourth_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(96_976),
+                fourth_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+
+        machine.move_upper_replay_claim(first, third_record);
+        assert_eq!(machine.proof_store.claims_by_upper_record[&shared_record], vec![second]);
+        assert_eq!(machine.proof_store.claims_by_upper_record[&third_record], vec![first]);
+        machine.move_upper_replay_claim(first, fourth_record);
+        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&third_record));
+        assert_eq!(machine.proof_store.claims_by_upper_record[&fourth_record], vec![first]);
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record,
+            machine
+                .bounds
+                .claims_by_upper_record
+                .iter()
+                .filter(|(_, claims)| !claims.is_empty())
+                .map(|(record, claims)| (*record, claims.clone()))
+                .collect(),
+            "flat current-record coverage mirrors every live CPK association after repeated moves",
+        );
+        assert!(machine.proof_store.live_coverage.contains(&(first, first_state)));
+        assert!(machine.proof_store.live_coverage.contains(&(second, second_state)));
+        assert_eq!(
+            machine.bounds.live_coverage_by_root[&first],
+            vec![first_state],
+            "root liveness follows stable claim identity and is not reassigned by a move",
+        );
+        assert_eq!(machine.bounds.live_coverage_by_root[&second], vec![second_state]);
+        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&second_record));
     }
 
     #[test]

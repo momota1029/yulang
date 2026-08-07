@@ -692,15 +692,20 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // allocation and production read authority remain unchanged in this slice.
     // CPK-8G-2b adds the flat mirror preflight/commit and atomicity assertions while removing
     // the old flat-issued-ID constructor path.
-    ("upper_replay_claims", 98),
+    // CPK-8G-2d adds reviewed flat-mirror validation and atomicity snapshots around the CPK-owned
+    // current-record move transaction; these reads do not restore flat allocation authority.
+    ("upper_replay_claims", 100),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
     // leaves the record index's length and capacity untouched.
     // CPK-8G-2b adds both CPK-owned and flat-mirror transaction preflight/atomicity references.
-    ("claims_by_upper_record", 44),
-    // CPK-8E removes the final migration-only live-coverage normalizer read.
-    ("live_coverage_by_root", 9),
+    // CPK-8G-2d adds the CPK-owned move preflight/commit, flat-mirror commit, and direct
+    // multi-move/atomicity assertions. The flat index is now observed only as a transition mirror.
+    ("claims_by_upper_record", 64),
+    // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
+    // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
+    ("live_coverage_by_root", 14),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     ("replay_parent_sets", 18),
     // CPK-8E removes the final three migration-only finite-map normalizer reads.

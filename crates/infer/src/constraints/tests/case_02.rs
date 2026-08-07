@@ -921,9 +921,7 @@ fn non_collision_claim_moves_preserve_unique_roots_across_records() {
         (roots[0], records[1]),
         (roots[1], records[1]),
     ] {
-        machine
-            .bounds
-            .move_upper_replay_claim(claim, destination);
+        machine.move_upper_replay_claim(claim, destination);
         assert_upper_record_claim_roots_are_unique(&machine);
     }
     assert_eq!(

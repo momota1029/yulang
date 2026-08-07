@@ -10045,9 +10045,7 @@ mod mutation_tests {
             UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(50_000)),
         );
         assert_eq!(direct.claim, direct_again.claim);
-        machine
-            .bounds
-            .move_upper_replay_claim(direct.claim, moved_record);
+        machine.move_upper_replay_claim(direct.claim, moved_record);
         assert!(
             machine.bounds.claims_by_upper_record[&direct_record].is_empty(),
             "the non-collision move removes the root from its old record"
@@ -10233,7 +10231,6 @@ mod mutation_tests {
 
         fixture
             .machine
-            .bounds
             .move_upper_replay_claim(root, fixture.upper_record);
 
         let full = fixture

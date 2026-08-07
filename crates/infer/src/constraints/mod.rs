@@ -569,6 +569,14 @@ struct PreparedClaimMirrorCapacity {
     clause_links: Option<(BoundRecordId, Vec<RecordProofClauseLink>)>,
 }
 
+struct PreparedClaimMoveMirrorCapacity {
+    record_claims: Option<Vec<UpperReplayClaimId>>,
+}
+
+struct PreparedLiveCoverageMirrorCapacity {
+    states: Option<Vec<UnweightedRowReductionRecordId>>,
+}
+
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -1919,30 +1927,16 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
-        let transition = self
-            .proof_store
-            .prepare_live_coverage_transition(root, state, false);
-        let legacy_transition =
-            if let Some(states) = self.bounds.live_coverage_by_root.get_mut(&root) {
-                let was_empty = states.is_empty();
-                let old_len = states.len();
-                states.retain(|candidate| *candidate != state);
-                if states.len() == old_len {
-                    proof::PreparedLiveCoverageTransition::Unchanged
-                } else {
-                    proof::PreparedLiveCoverageTransition::Changed {
-                        root,
-                        state,
-                        active: false,
-                        was_empty,
-                        is_empty: states.is_empty(),
-                    }
-                }
-            } else {
-                proof::PreparedLiveCoverageTransition::Unchanged
-            };
-        debug_assert_eq!(transition, legacy_transition);
-        self.proof_store.record_prepared_live_coverage(transition);
+        let transition = match self.try_update_scheme_projection_live_coverage(root, state, false) {
+            Ok(transition) => transition,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return false;
+            }
+        };
         let proof::PreparedLiveCoverageTransition::Changed {
             was_empty,
             is_empty,
@@ -1960,25 +1954,16 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
-        let transition = self
-            .proof_store
-            .prepare_live_coverage_transition(root, state, true);
-        let states = self.bounds.live_coverage_by_root.entry(root).or_default();
-        let was_empty = states.is_empty();
-        let legacy_transition = if states.contains(&state) {
-            proof::PreparedLiveCoverageTransition::Unchanged
-        } else {
-            states.push(state);
-            proof::PreparedLiveCoverageTransition::Changed {
-                root,
-                state,
-                active: true,
-                was_empty,
-                is_empty: false,
+        let transition = match self.try_update_scheme_projection_live_coverage(root, state, true) {
+            Ok(transition) => transition,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return false;
             }
         };
-        debug_assert_eq!(transition, legacy_transition);
-        self.proof_store.record_prepared_live_coverage(transition);
         let proof::PreparedLiveCoverageTransition::Changed {
             was_empty,
             is_empty,
@@ -1989,6 +1974,25 @@ impl ConstraintMachine {
         };
         self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
         true
+    }
+
+    fn try_update_scheme_projection_live_coverage(
+        &mut self,
+        root: UpperReplayClaimId,
+        state: UnweightedRowReductionRecordId,
+        active: bool,
+    ) -> Result<proof::PreparedLiveCoverageTransition, proof::ProofFailure> {
+        let mut mutation = self
+            .proof_store
+            .try_prepare_live_coverage_mutation(root, state, active)?;
+        let mirror_capacity = self
+            .bounds
+            .try_reserve_live_coverage_mirror(mutation.transition)?;
+        self.proof_store
+            .commit_live_coverage_mutation(&mut mutation);
+        self.bounds
+            .commit_live_coverage_mirror(mutation.transition, mirror_capacity);
+        Ok(mutation.transition)
     }
 
     fn record_scheme_projection_liveness_mutation(
@@ -2236,6 +2240,33 @@ impl ConstraintMachine {
     ) -> UpperReplayClaimRegistration {
         self.try_derived_upper_replay_claim(record, parent_claim, producer, lineage)
             .expect("test derived claim admission must have capacity")
+    }
+
+    fn try_move_upper_replay_claim(
+        &mut self,
+        claim: UpperReplayClaimId,
+        current_record: BoundRecordId,
+    ) -> Result<(), proof::ProofFailure> {
+        let mut mutation = self
+            .proof_store
+            .try_prepare_upper_claim_move(claim, current_record)?;
+        let mirror_capacity = self
+            .bounds
+            .try_reserve_upper_replay_claim_move_mirror(&mutation)?;
+        self.proof_store.commit_upper_claim_move(&mut mutation);
+        self.bounds
+            .commit_upper_replay_claim_move_mirror(&mutation, mirror_capacity);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn move_upper_replay_claim(
+        &mut self,
+        claim: UpperReplayClaimId,
+        current_record: BoundRecordId,
+    ) {
+        self.try_move_upper_replay_claim(claim, current_record)
+            .expect("test claim move must have capacity");
     }
 
     fn record_projection_mutation_in_proof_store(
@@ -3679,61 +3710,188 @@ impl TypeBounds {
         }
     }
 
-    fn move_upper_replay_claim(
+    fn try_reserve_upper_replay_claim_move_mirror(
         &mut self,
-        claim: UpperReplayClaimId,
-        new_record: BoundRecordId,
-    ) -> proof::PreparedUpperClaimMove {
-        let replay_claim = &self.upper_replay_claims[claim.0 as usize];
-        let old_record = replay_claim.current_record;
-        if old_record == new_record {
-            return proof::prepare_upper_claim_move(replay_claim);
+        mutation: &proof::PreparedUpperClaimMove,
+    ) -> Result<PreparedClaimMoveMirrorCapacity, proof::ProofFailure> {
+        let replay_claim = &self.upper_replay_claims[mutation.claim.0 as usize];
+        assert_eq!(replay_claim.current_record, mutation.previous_record);
+        assert_eq!(replay_claim.producer_constraint, mutation.producer);
+        assert_eq!(replay_claim.coverage_root, mutation.coverage_root);
+        assert_eq!(proof::upper_claim_lineage(replay_claim.lineage), mutation.full_lineage);
+        if mutation.previous_record == mutation.current_record {
+            return Ok(PreparedClaimMoveMirrorCapacity {
+                record_claims: None,
+            });
         }
-        let producer_constraint = replay_claim.producer_constraint;
-        let coverage_root = replay_claim.coverage_root;
+        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::UpdateClaimLifecycle,
+        };
+        match replay_claim.lineage {
+            UpperReplayClaimLineage::Original => self
+                .original_claim_by_record_and_producer
+                .try_reserve(1)
+                .map_err(exhausted)?,
+            _ => self
+                .derived_claim_by_record_and_root
+                .try_reserve(1)
+                .map_err(exhausted)?,
+        }
+        let record_claims =
+            if let Some(claims) = self.claims_by_upper_record.get_mut(&mutation.current_record) {
+                claims.try_reserve(1).map_err(exhausted)?;
+                None
+            } else {
+                self.claims_by_upper_record
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                let mut claims = Vec::new();
+                claims.try_reserve(1).map_err(exhausted)?;
+                Some(claims)
+            };
+        Ok(PreparedClaimMoveMirrorCapacity { record_claims })
+    }
+
+    fn commit_upper_replay_claim_move_mirror(
+        &mut self,
+        mutation: &proof::PreparedUpperClaimMove,
+        prepared: PreparedClaimMoveMirrorCapacity,
+    ) {
+        if mutation.previous_record == mutation.current_record {
+            return;
+        }
+        let replay_claim = &self.upper_replay_claims[mutation.claim.0 as usize];
+        assert_eq!(replay_claim.current_record, mutation.previous_record);
+        assert_eq!(replay_claim.producer_constraint, mutation.producer);
+        assert_eq!(replay_claim.coverage_root, mutation.coverage_root);
         let lineage = replay_claim.lineage;
-        let bound = &self.records[new_record.0 as usize];
+        assert_eq!(proof::upper_claim_lineage(lineage), mutation.full_lineage);
+        let bound = &self.records[mutation.current_record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
         let source = bound.owner;
         let weights = bound.weights.clone();
-        if let Some(claims) = self.claims_by_upper_record.get_mut(&old_record) {
-            claims.retain(|candidate| *candidate != claim);
+        if let Some(claims) = self.claims_by_upper_record.get_mut(&mutation.previous_record) {
+            claims.retain(|candidate| *candidate != mutation.claim);
         }
         match lineage {
             UpperReplayClaimLineage::Original => {
-                self.original_claim_by_record_and_producer
-                    .remove(&(old_record, producer_constraint));
+                assert_eq!(
+                    self.original_claim_by_record_and_producer
+                        .remove(&(mutation.previous_record, mutation.producer)),
+                    Some(mutation.claim)
+                );
             }
             _ => {
-                self.derived_claim_by_record_and_root
-                    .remove(&(old_record, coverage_root));
+                assert_eq!(
+                    self.derived_claim_by_record_and_root
+                        .remove(&(mutation.previous_record, mutation.coverage_root)),
+                    Some(mutation.claim)
+                );
             }
         }
         // Once the Original root reaches this record, the existing materialization contract makes
         // it canonical for `(record, root)`; the displaced child remains append-only history.
         if lineage == UpperReplayClaimLineage::Original {
             self.derived_claim_by_record_and_root
-                .remove(&(new_record, coverage_root));
+                .remove(&(mutation.current_record, mutation.coverage_root));
         }
-        let replay_claim = &mut self.upper_replay_claims[claim.0 as usize];
-        replay_claim.current_record = new_record;
+        let replay_claim = &mut self.upper_replay_claims[mutation.claim.0 as usize];
+        replay_claim.current_record = mutation.current_record;
         replay_claim.source = source;
         replay_claim.endpoint = endpoint;
         replay_claim.weights = weights;
+        if let Some(claims) = prepared.record_claims {
+            assert!(self
+                .claims_by_upper_record
+                .insert(mutation.current_record, claims)
+                .is_none());
+        }
         match lineage {
             UpperReplayClaimLineage::Original => {
                 self.original_claim_by_record_and_producer
-                    .insert((new_record, producer_constraint), claim);
+                    .insert(
+                        (mutation.current_record, mutation.producer),
+                        mutation.claim,
+                    );
             }
             _ => {
                 self.derived_claim_by_record_and_root
-                    .insert((new_record, coverage_root), claim);
+                    .insert(
+                        (mutation.current_record, mutation.coverage_root),
+                        mutation.claim,
+                    );
             }
         }
-        self.insert_upper_record_claim_canonical(new_record, claim);
-        proof::prepare_upper_claim_move(&self.upper_replay_claims[claim.0 as usize])
+        self.insert_upper_record_claim_canonical(mutation.current_record, mutation.claim);
+    }
+
+    fn try_reserve_live_coverage_mirror(
+        &mut self,
+        transition: proof::PreparedLiveCoverageTransition,
+    ) -> Result<PreparedLiveCoverageMirrorCapacity, proof::ProofFailure> {
+        let proof::PreparedLiveCoverageTransition::Changed {
+            root, active: true, ..
+        } = transition
+        else {
+            return Ok(PreparedLiveCoverageMirrorCapacity { states: None });
+        };
+        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::UpdateClaimLifecycle,
+        };
+        let states = if let Some(states) = self.live_coverage_by_root.get_mut(&root) {
+            states.try_reserve(1).map_err(exhausted)?;
+            None
+        } else {
+            self.live_coverage_by_root
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            let mut states = Vec::new();
+            states.try_reserve(1).map_err(exhausted)?;
+            Some(states)
+        };
+        Ok(PreparedLiveCoverageMirrorCapacity { states })
+    }
+
+    fn commit_live_coverage_mirror(
+        &mut self,
+        transition: proof::PreparedLiveCoverageTransition,
+        prepared: PreparedLiveCoverageMirrorCapacity,
+    ) {
+        let proof::PreparedLiveCoverageTransition::Changed {
+            root,
+            state,
+            active,
+            was_empty,
+            is_empty,
+        } = transition
+        else {
+            return;
+        };
+        if active {
+            if let Some(states) = prepared.states {
+                assert!(self.live_coverage_by_root.insert(root, states).is_none());
+            }
+            let states = self
+                .live_coverage_by_root
+                .get_mut(&root)
+                .expect("prepared live coverage mirror must contain its root");
+            assert_eq!(states.is_empty(), was_empty);
+            assert!(!states.contains(&state));
+            states.push(state);
+            assert_eq!(states.is_empty(), is_empty);
+            return;
+        }
+        let states = self
+            .live_coverage_by_root
+            .get_mut(&root)
+            .expect("removed live coverage must exist in the flat mirror");
+        assert_eq!(states.is_empty(), was_empty);
+        let old_len = states.len();
+        states.retain(|candidate| *candidate != state);
+        assert_eq!(states.len() + 1, old_len);
+        assert_eq!(states.is_empty(), is_empty);
     }
 
     fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {

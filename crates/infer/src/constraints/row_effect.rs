@@ -454,11 +454,15 @@ impl ConstraintMachine {
                 state.provenance_head = successor;
             }
             if let Some(claim) = self.proof_store.reduction_claim(state_id) {
-                let mutation = self
-                    .bounds
-                    .move_upper_replay_claim(claim, materialization.record);
-                self.proof_store
-                    .record_prepared_upper_claim_move(mutation);
+                if let Err(failure) =
+                    self.try_move_upper_replay_claim(claim, materialization.record)
+                {
+                    self.mark_proof_terminal_failure(
+                        crate::constraints::proof::ProofOperation::UpdateClaimLifecycle,
+                        failure,
+                    );
+                    return routes;
+                }
             }
             self.register_unweighted_row_reduction_owner(
                 materialization.record,
