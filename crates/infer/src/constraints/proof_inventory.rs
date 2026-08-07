@@ -565,10 +565,10 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
 
 // Rollback readiness at the final reversible CPK-8G dual-write freeze:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
-//   work. The commit containing this block is the operative last fully dual-write-capable green
-//   point and the rollback target once CPK-8G-6 crosses the code-level irreversibility boundary.
-//   After this commit is created, resolve it with `git rev-parse HEAD` and preserve that hash with
-//   the last-known-good binary and its Cargo.lock/rustc metadata.
+//   work. c1c3352e (CPK-8G-5, "freeze final CPK dual-write proof baseline") is the operative last
+//   fully dual-write-capable green point and the rollback target once CPK-8G-6 crosses the
+//   code-level irreversibility boundary. Preserve that hash with the last-known-good binary and
+//   its Cargo.lock/rustc metadata.
 // - Reproduce the operative point in an isolated worktree. Build the binary with
 //   `RUSTC_WRAPPER= cargo build -p yulang`, check with `RUSTC_WRAPPER= cargo check -p infer`, then
 //   run `cpk_`/`rcpf_`/`dpn_`/`mpc_`, the scoped `constraints::` suite with its reviewed skip list,
