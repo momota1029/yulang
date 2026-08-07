@@ -63,7 +63,7 @@ type ReplayClaimParents = SmallVec<[SideTaggedReplayClaim; 2]>;
 struct BoundReplayAction {
     constraint: SubtypeConstraintKey,
     derivation: BinaryReplayDerivation,
-    // Legacy admission remains authoritative until the RCPF cutover.
+    // CPK prepares the event-local exact-parent candidates; admission filters them atomically.
     claim_parents: ReplayClaimParents,
     lower_parents: ReplayParentDraftId,
     upper_parents: ReplayParentDraftId,
@@ -110,6 +110,24 @@ fn replay_claim_parents(parents: &proof::PreparedReplayParentSet) -> ReplayClaim
         .map(|parent| SideTaggedReplayClaim {
             claim: parent.representative_claim,
             parent_side: parent.side,
+        })
+        .collect()
+}
+
+fn replay_side_tagged_parents(parents: &[ClaimQualifiedParent]) -> ReplayClaimParents {
+    parents
+        .iter()
+        .filter_map(|parent| match *parent {
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim,
+                parent_side,
+                ..
+            } => Some(SideTaggedReplayClaim {
+                claim: parent_claim,
+                parent_side,
+            }),
+            ClaimQualifiedParent::StructuralConstraint { .. }
+            | ClaimQualifiedParent::ReductionRouteConstraint { .. } => None,
         })
         .collect()
 }
@@ -3623,8 +3641,59 @@ impl ConstraintMachine {
         constraint: ConstraintRecordId,
         parent: ClaimQualifiedParent,
     ) {
-        let snapshot = self.commit_claim_qualified_parent_mutation(constraint, parent);
-        self.publish_claim_qualified_parent_admission(snapshot);
+        self.admit_claim_qualified_parents(constraint, &[parent]);
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn admit_claim_qualified_parents(
+        &mut self,
+        constraint: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) {
+        let Ok((mut admission, mirror)) =
+            self.try_prepare_qualified_parent_admission(constraint, parents)
+        else {
+            return;
+        };
+        for entry in self.begin_qualified_parent_admission(&mut admission, mirror) {
+            let snapshot = self.commit_claim_qualified_parent_mutation(constraint, entry);
+            self.publish_claim_qualified_parent_admission(snapshot);
+        }
+    }
+
+    fn try_prepare_qualified_parent_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) -> Result<
+        (
+            proof::PreparedQualifiedParentAdmission,
+            PreparedQualifiedParentMirrorCapacity,
+        ),
+        proof::ProofFailure,
+    > {
+        let admission = self
+            .proof_store
+            .try_prepare_qualified_parent_admission(result, parents)?;
+        let mirror = self
+            .bounds
+            .try_reserve_qualified_parent_mirror(result, admission.accepted())?;
+        Ok((admission, mirror))
+    }
+
+    fn begin_qualified_parent_admission(
+        &mut self,
+        admission: &mut proof::PreparedQualifiedParentAdmission,
+        mirror: PreparedQualifiedParentMirrorCapacity,
+    ) -> Vec<proof::ExactQualifiedParent> {
+        let accepted = admission.accepted().to_vec();
+        self.proof_store
+            .commit_qualified_parent_admission(admission);
+        if !accepted.is_empty() {
+            self.bounds
+                .begin_qualified_parent_mirror_commit(admission.result(), mirror);
+        }
+        accepted
     }
 
     fn begin_non_replay_claim_parent_admission(
@@ -3633,15 +3702,34 @@ impl ConstraintMachine {
         parents: &[ClaimQualifiedParent],
         target_record: Option<BoundRecordId>,
         lower_carrier: Option<ProjectionProofCarrier>,
-    ) -> Option<ReplayAdmissionPublicationFence> {
+    ) -> (
+        Option<ReplayAdmissionPublicationFence>,
+        Vec<ClaimQualifiedParent>,
+    ) {
         #[cfg(test)]
         let factored_admission = self.replay_read_authority() == ReplayReadAuthority::Factored;
         #[cfg(not(test))]
         let factored_admission = true;
         let mut publication_fence =
             factored_admission.then(ReplayAdmissionPublicationFence::default);
-        for parent in parents.iter().copied() {
-            let snapshot = self.commit_claim_qualified_parent_mutation(result, parent);
+        let (mut admission, mirror) =
+            match self.try_prepare_qualified_parent_admission(result, parents) {
+                Ok(prepared) => prepared,
+                Err(failure) => {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::UpdateClaimLifecycle,
+                        failure,
+                    );
+                    return (publication_fence, Vec::new());
+                }
+            };
+        let accepted = self.begin_qualified_parent_admission(&mut admission, mirror);
+        let accepted_parents = accepted
+            .iter()
+            .map(|entry| entry.parent)
+            .collect::<Vec<_>>();
+        for entry in accepted.iter().copied() {
+            let snapshot = self.commit_claim_qualified_parent_mutation(result, entry);
             if let Some(fence) = publication_fence.as_mut() {
                 self.defer_claim_qualified_parent_admission(fence, snapshot);
             } else {
@@ -3652,7 +3740,7 @@ impl ConstraintMachine {
             self.register_claim_parent_clause_links_after_factored_projection(
                 result,
                 lower_record,
-                parents,
+                &accepted_parents,
                 publication_fence.as_mut(),
             );
         }
@@ -3667,8 +3755,8 @@ impl ConstraintMachine {
                 .unwrap_or_default();
             if let Err(failure) = self.try_authoritative_claim_parent_full_plan(
                 result,
-                target_record.filter(|_| !parents.is_empty()),
-                parents,
+                target_record.filter(|_| !accepted.is_empty()),
+                &accepted_parents,
                 &independent_supports,
             ) {
                 self.mark_replay_factored_failure(
@@ -3677,7 +3765,7 @@ impl ConstraintMachine {
                 );
             }
         }
-        publication_fence
+        (publication_fence, accepted_parents)
     }
 
     fn finish_non_replay_claim_parent_admission(
@@ -3705,21 +3793,23 @@ impl ConstraintMachine {
         parents: &[ClaimQualifiedParent],
         derivation: StructuralDerivation,
         derivation_inserted: bool,
-    ) {
+    ) -> bool {
         let carrier = ProjectionProofCarrier::StructuralConstraint { result, derivation };
-        let mut publication_fence = self.begin_non_replay_claim_parent_admission(
+        let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
             result,
             parents,
             None,
             derivation_inserted.then_some(carrier),
         );
-        if self.replay_factored_terminal_failure().is_some() {
-            return;
+        if self.proof_terminal_failure().is_some()
+            || self.replay_factored_terminal_failure().is_some()
+        {
+            return !admitted_parents.is_empty();
         }
         if derivation_inserted {
             self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
                 result,
-                parents,
+                &admitted_parents,
                 carrier,
                 true,
                 publication_fence.as_mut(),
@@ -3727,23 +3817,26 @@ impl ConstraintMachine {
         } else {
             self.register_existing_constraint_lower_projection_delta(
                 result,
-                parents,
+                &admitted_parents,
                 LowerProjectionDelta::ClaimsOnly,
                 true,
                 publication_fence.as_mut(),
             );
         }
         self.finish_non_replay_claim_parent_admission(result, publication_fence);
+        !admitted_parents.is_empty()
     }
 
     fn commit_claim_qualified_parent_mutation(
         &mut self,
         constraint: ConstraintRecordId,
-        parent: ClaimQualifiedParent,
+        entry: proof::ExactQualifiedParent,
     ) -> ClaimQualifiedParentAdmissionSnapshot {
         let inclusion_before =
             self.projection_inclusion_snapshot(ProofPremise::Constraint(constraint));
-        self.bounds.push_claim_qualified_parent(constraint, parent);
+        let parent = entry.parent;
+        self.bounds
+            .commit_qualified_parent_mirror_entry(constraint, entry);
         self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
         self.observe_first_qualified_parent_source(constraint, parent);
@@ -4562,29 +4655,36 @@ impl ConstraintMachine {
         let phase_b_enabled = factored_admission && self.replay_factored_writes_enabled();
         let mut publication_fence =
             factored_admission.then(ReplayAdmissionPublicationFence::default);
-        let mut inserted_parents = Vec::new();
-        for parent in parents {
-            let coverage_root =
-                self.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root;
-            let key = ReplayClaimParentKey {
-                result,
-                coverage_root,
+        let candidates = parents
+            .iter()
+            .map(|parent| ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: parent.claim,
                 parent_side: parent.parent_side,
                 replay,
-            };
+            })
+            .collect::<Vec<_>>();
+        let (mut admission, mirror) = match self
+            .try_prepare_qualified_parent_admission(result, &candidates)
+        {
+            Ok(prepared) => prepared,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return;
+            }
+        };
+        let accepted = self.begin_qualified_parent_admission(&mut admission, mirror);
+        let mut inserted_parents = Vec::new();
+        inserted_parents.reserve(accepted.len());
+        for entry in accepted {
             #[cfg(test)]
             RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(|probes| {
                 probes.set(probes.get().saturating_add(1));
             });
-            if !self.bounds.replay_claim_parent_keys.insert(key) {
-                continue;
-            }
-            let parent = ClaimQualifiedParent::ReplayConstraint {
-                parent_claim: parent.claim,
-                parent_side: parent.parent_side,
-                replay,
-            };
-            let snapshot = self.commit_claim_qualified_parent_mutation(result, parent);
+            let parent = entry.parent;
+            let snapshot = self.commit_claim_qualified_parent_mutation(result, entry);
             if let Some(fence) = publication_fence.as_mut() {
                 self.defer_claim_qualified_parent_admission(fence, snapshot);
             } else {
@@ -4604,12 +4704,16 @@ impl ConstraintMachine {
                 &inserted_parents,
             );
         } else {
+            let accepted = replay_side_tagged_parents(&inserted_parents);
             self.proof_store
-                .record_cpk_replay_parent_snapshot(result, replay, parents);
+                .record_cpk_replay_parent_snapshot(result, replay, &accepted);
         }
         #[cfg(not(test))]
-        self.proof_store
-            .record_cpk_replay_parent_snapshot(result, replay, parents);
+        {
+            let accepted = replay_side_tagged_parents(&inserted_parents);
+            self.proof_store
+                .record_cpk_replay_parent_snapshot(result, replay, &accepted);
+        }
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
@@ -4732,8 +4836,8 @@ impl ConstraintMachine {
         }
     }
 
-    /// Observe an already completed legacy admission. Failure permanently quarantines only the
-    /// shadow ledger; no legacy state, epoch, event, or queue decision depends on this result.
+    /// Feed an already completed CPK admission into RCPF. Failure permanently quarantines the
+    /// downstream attempt; no CPK state, epoch, event, or queue decision depends on this result.
     fn observe_factored_replay_parent_admission(
         &mut self,
         result: ConstraintRecordId,
@@ -4787,11 +4891,11 @@ impl ConstraintMachine {
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) -> ReplayFactoredResult<ReplayResultSummaryDelta> {
-        let lower_draft = drafts.resolve(drafts.lower)?;
-        let upper_draft = drafts.resolve(drafts.upper)?;
+        let planned_lower_draft = drafts.resolve(drafts.lower)?;
+        let planned_upper_draft = drafts.resolve(drafts.upper)?;
         for (side, draft) in [
-            (ReplayClaimParentSide::Lower, lower_draft),
-            (ReplayClaimParentSide::Upper, upper_draft),
+            (ReplayClaimParentSide::Lower, planned_lower_draft),
+            (ReplayClaimParentSide::Upper, planned_upper_draft),
         ] {
             let matches_legacy = draft
                 .into_iter()
@@ -4804,10 +4908,33 @@ impl ConstraintMachine {
                 return Err(ReplayFactoredShadowFailure::ReplayParentDraftMismatch(side));
             }
         }
-        if lower_draft.is_none() && upper_draft.is_none() {
+        if planned_lower_draft.is_none() && planned_upper_draft.is_none() {
             return Ok(ReplayResultSummaryDelta::default());
         }
         let admission_ordinal = self.replay_occurrences.claim_admission_ordinal()?;
+
+        // RCPF receives only the exact parents accepted by CPK for this event. The original
+        // planning drafts remain a debug boundary check above, never an authority input.
+        let prepared_draft = |side| {
+            let claims = inserted_parents
+                .iter()
+                .filter_map(|parent| match *parent {
+                    ClaimQualifiedParent::ReplayConstraint {
+                        parent_claim,
+                        parent_side,
+                        ..
+                    } if parent_side == side => Some(parent_claim),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            (!claims.is_empty()).then(|| ReplayParentDraft {
+                claims: claims.into_boxed_slice(),
+            })
+        };
+        let lower_prepared = prepared_draft(ReplayClaimParentSide::Lower);
+        let upper_prepared = prepared_draft(ReplayClaimParentSide::Upper);
+        let lower_draft = lower_prepared.as_ref();
+        let upper_draft = upper_prepared.as_ref();
 
         let key = ReplayOccurrenceKey {
             result,
@@ -4951,47 +5078,26 @@ impl ConstraintMachine {
             parent_claim: claim,
             derivation,
         };
-        #[cfg(test)]
-        let proof_admission = match self.proof_read_authority() {
-            proof::ProofReadAuthority::Cpk => self
-                .proof_store
-                .prepare_cpk_reduction_route_admission(result, derivation, claim),
-            proof::ProofReadAuthority::LegacyRollback(_) => {
-                if self
-                    .bounds
-                    .claim_parents_by_constraint
-                    .get(&result)
-                    .is_some_and(|entries| entries.contains(&parent))
-                {
-                    return;
-                }
-                proof::prepare_reduction_route_admission(result, derivation, claim)
-            }
-        };
-        #[cfg(not(test))]
-        let proof_admission = self
-            .proof_store
-            .prepare_cpk_reduction_route_admission(result, derivation, claim);
-        if proof_admission == proof::PreparedReductionRouteAdmission::Unchanged {
-            return;
-        }
         let target_record = self.var_var_upper_record_for_constraint(result);
         let carrier = ProjectionProofCarrier::RowConstraint { result, derivation };
-        let mut publication_fence = self.begin_non_replay_claim_parent_admission(
+        let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
             result,
             &[parent],
             target_record,
             Some(carrier),
         );
+        if admitted_parents.is_empty() {
+            return;
+        }
         self.proof_store
-            .record_prepared_reduction_route(proof_admission);
+            .record_reduction_route(result, derivation, claim);
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
         self.materialize_existing_claim_parents_delta(
             result,
             target_record,
-            &[parent],
+            &admitted_parents,
             carrier,
             true,
             publication_fence.as_mut(),
@@ -8057,9 +8163,19 @@ mod mutation_tests {
             parent_side: split.parent.parent_side,
             replay,
         };
+        let (mut split_admission, split_mirror) = split
+            .machine
+            .try_prepare_qualified_parent_admission(split_result, &[split_parent])
+            .unwrap();
+        let split_entry = split
+            .machine
+            .begin_qualified_parent_admission(&mut split_admission, split_mirror)
+            .into_iter()
+            .next()
+            .unwrap();
         let split_snapshot = split
             .machine
-            .commit_claim_qualified_parent_mutation(split_result, split_parent);
+            .commit_claim_qualified_parent_mutation(split_result, split_entry);
         split
             .machine
             .publish_claim_qualified_parent_admission(split_snapshot);

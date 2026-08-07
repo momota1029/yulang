@@ -577,6 +577,11 @@ struct PreparedLiveCoverageMirrorCapacity {
     states: Option<Vec<UnweightedRowReductionRecordId>>,
 }
 
+struct PreparedQualifiedParentMirrorCapacity {
+    result_parents: Option<Vec<ClaimQualifiedParent>>,
+    carriers: Option<FxHashSet<QualifiedCarrier>>,
+}
+
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -2737,6 +2742,110 @@ impl TypeBounds {
             .entry(result)
             .or_default()
             .insert(parent.exact_carrier());
+    }
+
+    fn try_reserve_qualified_parent_mirror(
+        &mut self,
+        result: ConstraintRecordId,
+        entries: &[proof::ExactQualifiedParent],
+    ) -> Result<PreparedQualifiedParentMirrorCapacity, proof::ProofFailure> {
+        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::UpdateClaimLifecycle,
+        };
+        if entries.is_empty() {
+            return Ok(PreparedQualifiedParentMirrorCapacity {
+                result_parents: None,
+                carriers: None,
+            });
+        }
+        let result_parents = if let Some(parents) = self.claim_parents_by_constraint.get_mut(&result)
+        {
+            parents.try_reserve(entries.len()).map_err(exhausted)?;
+            None
+        } else {
+            self.claim_parents_by_constraint
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            let mut parents = Vec::new();
+            parents.try_reserve(entries.len()).map_err(exhausted)?;
+            Some(parents)
+        };
+        let carriers = if let Some(carriers) = self.qualified_carrier_index.get_mut(&result) {
+            carriers.try_reserve(entries.len()).map_err(exhausted)?;
+            None
+        } else {
+            self.qualified_carrier_index
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            let mut carriers = FxHashSet::default();
+            carriers.try_reserve(entries.len()).map_err(exhausted)?;
+            Some(carriers)
+        };
+        self.replay_claim_parent_keys
+            .try_reserve(
+                entries
+                    .iter()
+                    .filter(|entry| {
+                        matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. })
+                    })
+                    .count(),
+            )
+            .map_err(exhausted)?;
+        self.structural_claim_parent_keys
+            .try_reserve(
+                entries
+                    .iter()
+                    .filter(|entry| {
+                        matches!(entry.parent, ClaimQualifiedParent::StructuralConstraint { .. })
+                    })
+                    .count(),
+            )
+            .map_err(exhausted)?;
+        Ok(PreparedQualifiedParentMirrorCapacity {
+            result_parents,
+            carriers,
+        })
+    }
+
+    fn begin_qualified_parent_mirror_commit(
+        &mut self,
+        result: ConstraintRecordId,
+        prepared: PreparedQualifiedParentMirrorCapacity,
+    ) {
+        if let Some(parents) = prepared.result_parents {
+            assert!(self.claim_parents_by_constraint.insert(result, parents).is_none());
+        }
+        if let Some(carriers) = prepared.carriers {
+            assert!(self.qualified_carrier_index.insert(result, carriers).is_none());
+        }
+    }
+
+    fn commit_qualified_parent_mirror_entry(
+        &mut self,
+        result: ConstraintRecordId,
+        entry: proof::ExactQualifiedParent,
+    ) {
+        match entry.parent {
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_side,
+                replay,
+                ..
+            } => assert!(self.replay_claim_parent_keys.insert(ReplayClaimParentKey {
+                result,
+                coverage_root: entry.coverage_root,
+                parent_side,
+                replay,
+            })),
+            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                assert!(self.structural_claim_parent_keys.insert(StructuralClaimParentKey {
+                    result,
+                    coverage_root: entry.coverage_root,
+                    derivation,
+                }));
+            }
+            ClaimQualifiedParent::ReductionRouteConstraint { .. } => {}
+        }
+        self.push_claim_qualified_parent(result, entry.parent);
     }
 
     fn register_record_proof_clause_link(

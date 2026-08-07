@@ -983,15 +983,48 @@ pub(super) enum PreparedLiveCoverageTransition {
     },
 }
 
-/// Exact reduction-route parent admission frozen before either proof ledger is mutated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum PreparedReductionRouteAdmission {
-    Unchanged,
-    Changed {
-        result: ConstraintRecordId,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum QualifiedParentIdentity {
+    Replay {
+        parent_side: ReplayClaimParentSide,
+        replay: BinaryReplayDerivation,
+    },
+    Structural(StructuralDerivation),
+    ReductionRoute {
         derivation: RowDerivationId,
         parent_claim: UpperReplayClaimId,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct QualifiedParentKey {
+    result: ConstraintRecordId,
+    coverage_root: UpperReplayClaimId,
+    identity: QualifiedParentIdentity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ExactQualifiedParent {
+    pub(super) coverage_root: UpperReplayClaimId,
+    pub(super) parent: ClaimQualifiedParent,
+}
+
+#[derive(Debug)]
+pub(super) struct PreparedQualifiedParentAdmission {
+    result: ConstraintRecordId,
+    accepted: Vec<ExactQualifiedParent>,
+    canonical: Vec<ExactQualifiedParent>,
+    new_result_entries: Option<Vec<ExactQualifiedParent>>,
+}
+
+impl PreparedQualifiedParentAdmission {
+    pub(super) fn result(&self) -> ConstraintRecordId {
+        self.result
+    }
+
+    pub(super) fn accepted(&self) -> &[ExactQualifiedParent] {
+        &self.accepted
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1022,8 +1055,9 @@ pub(crate) struct ProofOccurrenceStore {
     replay_claim_cycle_coalesces: usize,
     claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
-    reduction_route_claim_keys:
-        FxHashSet<(ConstraintRecordId, RowDerivationId, UpperReplayClaimId)>,
+    qualified_parent_keys: FxHashSet<QualifiedParentKey>,
+    qualified_parents_by_result:
+        FxHashMap<ConstraintRecordId, Vec<ExactQualifiedParent>>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     live_states_by_coverage_root:
         FxHashMap<UpperReplayClaimId, FxHashSet<UnweightedRowReductionRecordId>>,
@@ -1039,6 +1073,8 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_derived_claim_reservation: bool,
     #[cfg(test)]
     fail_next_claim_move_reservation: bool,
+    #[cfg(test)]
+    fail_next_qualified_parent_reservation: bool,
     #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
@@ -1066,7 +1102,8 @@ impl Default for ProofOccurrenceStore {
             replay_claim_cycle_coalesces: 0,
             claims_by_upper_record: FxHashMap::default(),
             row_reductions: Vec::new(),
-            reduction_route_claim_keys: FxHashSet::default(),
+            qualified_parent_keys: FxHashSet::default(),
+            qualified_parents_by_result: FxHashMap::default(),
             live_coverage: FxHashSet::default(),
             live_states_by_coverage_root: FxHashMap::default(),
             replay_coverage_connected: true,
@@ -1081,6 +1118,8 @@ impl Default for ProofOccurrenceStore {
             fail_next_derived_claim_reservation: false,
             #[cfg(test)]
             fail_next_claim_move_reservation: false,
+            #[cfg(test)]
+            fail_next_qualified_parent_reservation: false,
             #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
@@ -4022,41 +4061,165 @@ impl ProofOccurrenceStore {
         transition
     }
 
-    pub(super) fn prepare_cpk_reduction_route_admission(
+    pub(super) fn try_prepare_qualified_parent_admission(
+        &mut self,
+        result: ConstraintRecordId,
+        parents: &[ClaimQualifiedParent],
+    ) -> Result<PreparedQualifiedParentAdmission, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        let mut pending_keys = FxHashSet::default();
+        pending_keys.try_reserve(parents.len()).map_err(exhausted)?;
+        let mut accepted = Vec::new();
+        accepted.try_reserve(parents.len()).map_err(exhausted)?;
+        for &parent in parents {
+            let parent_claim = parent.parent_claim();
+            let claim = self
+                .upper_claim(parent_claim)
+                .filter(|claim| claim.claim == parent_claim)
+                .expect("a qualified parent claim must be admitted before its route");
+            let identity = match parent {
+                ClaimQualifiedParent::ReplayConstraint {
+                    parent_side,
+                    replay,
+                    ..
+                } => QualifiedParentIdentity::Replay {
+                    parent_side,
+                    replay,
+                },
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    QualifiedParentIdentity::Structural(derivation)
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
+                    QualifiedParentIdentity::ReductionRoute {
+                        derivation,
+                        parent_claim,
+                    }
+                }
+            };
+            let key = QualifiedParentKey {
+                result,
+                coverage_root: claim.coverage_root,
+                identity,
+            };
+            if self.qualified_parent_keys.contains(&key) || !pending_keys.insert(key) {
+                continue;
+            }
+            accepted.push(ExactQualifiedParent {
+                coverage_root: claim.coverage_root,
+                parent,
+            });
+        }
+
+        #[cfg(test)]
+        if !accepted.is_empty()
+            && std::mem::take(&mut self.fail_next_qualified_parent_reservation)
+        {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        self.qualified_parent_keys
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        let new_result_entries =
+            if let Some(entries) = self.qualified_parents_by_result.get_mut(&result) {
+                entries.try_reserve(accepted.len()).map_err(exhausted)?;
+                None
+            } else if accepted.is_empty() {
+                None
+            } else {
+                self.qualified_parents_by_result
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                let mut entries = Vec::new();
+                entries.try_reserve(accepted.len()).map_err(exhausted)?;
+                Some(entries)
+            };
+        let mut canonical = Vec::new();
+        canonical
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        canonical.extend_from_slice(&accepted);
+        canonical.sort_unstable_by(qualified_parent_entry_cmp);
+        Ok(PreparedQualifiedParentAdmission {
+            result,
+            accepted,
+            canonical,
+            new_result_entries,
+        })
+    }
+
+    pub(super) fn commit_qualified_parent_admission(
+        &mut self,
+        admission: &mut PreparedQualifiedParentAdmission,
+    ) {
+        if admission.accepted.is_empty() {
+            return;
+        }
+        if let Some(entries) = admission.new_result_entries.take() {
+            assert!(self
+                .qualified_parents_by_result
+                .insert(admission.result, entries)
+                .is_none());
+        }
+        for &entry in &admission.accepted {
+            let identity = match entry.parent {
+                ClaimQualifiedParent::ReplayConstraint {
+                    parent_side,
+                    replay,
+                    ..
+                } => QualifiedParentIdentity::Replay {
+                    parent_side,
+                    replay,
+                },
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    QualifiedParentIdentity::Structural(derivation)
+                }
+                ClaimQualifiedParent::ReductionRouteConstraint {
+                    derivation,
+                    parent_claim,
+                } => QualifiedParentIdentity::ReductionRoute {
+                    derivation,
+                    parent_claim,
+                },
+            };
+            assert!(self.qualified_parent_keys.insert(QualifiedParentKey {
+                result: admission.result,
+                coverage_root: entry.coverage_root,
+                identity,
+            }));
+        }
+        let entries = self
+            .qualified_parents_by_result
+            .get_mut(&admission.result)
+            .expect("qualified-parent result capacity was prepared before commit");
+        entries.extend(admission.canonical.iter().copied());
+        entries.sort_unstable_by(qualified_parent_entry_cmp);
+    }
+
+    pub(super) fn qualified_parents_for_result(
         &self,
+        result: ConstraintRecordId,
+    ) -> &[ExactQualifiedParent] {
+        self.qualified_parents_by_result
+            .get(&result)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_qualified_parent_reservation(&mut self) {
+        self.fail_next_qualified_parent_reservation = true;
+    }
+
+    pub(super) fn record_reduction_route(
+        &mut self,
         result: ConstraintRecordId,
         derivation: RowDerivationId,
         parent_claim: UpperReplayClaimId,
-    ) -> PreparedReductionRouteAdmission {
-        self.upper_claim(parent_claim)
-            .filter(|claim| claim.claim == parent_claim)
-            .expect("a CPK reduction-route parent claim must be admitted before its route");
-        if self
-            .reduction_route_claim_keys
-            .contains(&(result, derivation, parent_claim))
-        {
-            return PreparedReductionRouteAdmission::Unchanged;
-        }
-        prepare_reduction_route_admission(result, derivation, parent_claim)
-    }
-
-    pub(super) fn record_prepared_reduction_route(
-        &mut self,
-        admission: PreparedReductionRouteAdmission,
     ) {
-        let PreparedReductionRouteAdmission::Changed {
-            result,
-            derivation,
-            parent_claim,
-        } = admission
-        else {
-            return;
-        };
-        assert!(
-            self.reduction_route_claim_keys
-                .insert((result, derivation, parent_claim)),
-            "one prepared reduction-route parent was committed twice",
-        );
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::ReductionRoute {
@@ -4071,15 +4234,59 @@ impl ProofOccurrenceStore {
     }
 }
 
-pub(super) fn prepare_reduction_route_admission(
-    result: ConstraintRecordId,
-    derivation: RowDerivationId,
-    parent_claim: UpperReplayClaimId,
-) -> PreparedReductionRouteAdmission {
-    PreparedReductionRouteAdmission::Changed {
-        result,
-        derivation,
-        parent_claim,
+fn qualified_parent_entry_cmp(
+    left: &ExactQualifiedParent,
+    right: &ExactQualifiedParent,
+) -> std::cmp::Ordering {
+    left.coverage_root
+        .cmp(&right.coverage_root)
+        .then_with(|| {
+            canonical_projection_key::carrier_cmp(
+                &qualified_parent_projection_carrier(left.parent),
+                &qualified_parent_projection_carrier(right.parent),
+            )
+        })
+        .then_with(|| {
+            qualified_parent_side_rank(left.parent).cmp(&qualified_parent_side_rank(right.parent))
+        })
+        .then_with(|| left.parent.parent_claim().cmp(&right.parent.parent_claim()))
+}
+
+fn qualified_parent_projection_carrier(parent: ClaimQualifiedParent) -> ProjectionProofCarrier {
+    match parent {
+        ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+            ProjectionProofCarrier::ReplayConstraint {
+                result: ConstraintRecordId(0),
+                derivation: replay,
+            }
+        }
+        ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+            ProjectionProofCarrier::StructuralConstraint {
+                result: ConstraintRecordId(0),
+                derivation,
+            }
+        }
+        ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
+            ProjectionProofCarrier::RowConstraint {
+                result: ConstraintRecordId(0),
+                derivation,
+            }
+        }
+    }
+}
+
+fn qualified_parent_side_rank(parent: ClaimQualifiedParent) -> u8 {
+    match parent {
+        ClaimQualifiedParent::ReplayConstraint {
+            parent_side: ReplayClaimParentSide::Lower,
+            ..
+        } => 0,
+        ClaimQualifiedParent::ReplayConstraint {
+            parent_side: ReplayClaimParentSide::Upper,
+            ..
+        } => 1,
+        ClaimQualifiedParent::StructuralConstraint { .. } => 0,
+        ClaimQualifiedParent::ReductionRouteConstraint { .. } => 0,
     }
 }
 
@@ -7438,6 +7645,114 @@ mod tests {
         );
         assert_eq!(machine.bounds.live_coverage_by_root[&second], vec![second_state]);
         assert!(!machine.proof_store.claims_by_upper_record.contains_key(&second_record));
+    }
+
+    #[test]
+    fn cpk_qualified_parent_admission_is_atomic_and_canonically_indexed() {
+        let mut machine = cpk_machine();
+        let (lower_record, first) = cpk_7_record_original_claim(&mut machine, 980);
+        let (upper_record, second) = cpk_7_record_original_claim(&mut machine, 981);
+        let (_, third) = cpk_7_record_original_claim(&mut machine, 982);
+        let result = ConstraintRecordId(96_983);
+        let lower_replay = BinaryReplayDerivation {
+            pivot: TypeVar(96_984),
+            lower: lower_record,
+            upper: upper_record,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let upper_replay = BinaryReplayDerivation {
+            rule: ReplayRule::UpperBoundAdded,
+            ..lower_replay
+        };
+        let structural = StructuralDerivation {
+            parent: ConstraintRecordId(96_985),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        let parents = [
+            ClaimQualifiedParent::ReductionRouteConstraint {
+                parent_claim: third,
+                derivation: RowDerivationId(96_986),
+            },
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: first,
+                parent_side: ReplayClaimParentSide::Upper,
+                replay: upper_replay,
+            },
+            ClaimQualifiedParent::StructuralConstraint {
+                parent_claim: second,
+                derivation: structural,
+            },
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: first,
+                parent_side: ReplayClaimParentSide::Lower,
+                replay: lower_replay,
+            },
+            // One event-local exact duplicate must not allocate or reach either mirror.
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: first,
+                parent_side: ReplayClaimParentSide::Lower,
+                replay: lower_replay,
+            },
+        ];
+        let cpk_before = (
+            machine.proof_store.qualified_parent_keys.clone(),
+            machine.proof_store.qualified_parents_by_result.clone(),
+        );
+        let flat_before = (
+            machine.bounds.claim_parents_by_constraint.clone(),
+            machine.bounds.qualified_carrier_index.clone(),
+            machine.bounds.replay_claim_parent_keys.clone(),
+            machine.bounds.structural_claim_parent_keys.clone(),
+        );
+
+        machine
+            .proof_store
+            .fail_next_qualified_parent_reservation();
+        machine.admit_claim_qualified_parents(result, &parents);
+        assert_eq!(
+            (
+                machine.proof_store.qualified_parent_keys.clone(),
+                machine.proof_store.qualified_parents_by_result.clone(),
+            ),
+            cpk_before,
+            "a failed CPK preflight commits no key or result-local order state",
+        );
+        assert_eq!(
+            (
+                machine.bounds.claim_parents_by_constraint.clone(),
+                machine.bounds.qualified_carrier_index.clone(),
+                machine.bounds.replay_claim_parent_keys.clone(),
+                machine.bounds.structural_claim_parent_keys.clone(),
+            ),
+            flat_before,
+            "the flat mirror is untouched until the CPK transaction commits",
+        );
+
+        machine.admit_claim_qualified_parents(result, &parents);
+        let canonical = machine.proof_store.qualified_parents_for_result(result);
+        assert_eq!(canonical.len(), 4);
+        assert!(canonical
+            .windows(2)
+            .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
+        assert_eq!(
+            canonical
+                .iter()
+                .map(|entry| entry.coverage_root)
+                .collect::<Vec<_>>(),
+            vec![first, first, second, third],
+            "claimed parents remain in canonical coverage-root order",
+        );
+        assert_eq!(
+            machine.bounds.claim_parents_by_constraint[&result]
+                .iter()
+                .copied()
+                .collect::<FxHashSet<_>>(),
+            canonical
+                .iter()
+                .map(|entry| entry.parent)
+                .collect::<FxHashSet<_>>(),
+            "flat receives exactly the event-local CPK decision",
+        );
     }
 
     #[test]

@@ -1650,16 +1650,6 @@ impl ConstraintMachine {
         let mut inserted_parents = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();
-            let coverage_root =
-                self.bounds.upper_replay_claims[parent_claim.0 as usize].coverage_root;
-            let key = StructuralClaimParentKey {
-                result,
-                coverage_root,
-                derivation,
-            };
-            if !self.bounds.structural_claim_parent_keys.insert(key) {
-                continue;
-            }
             let parent = ClaimQualifiedParent::StructuralConstraint {
                 parent_claim,
                 derivation,
@@ -1671,8 +1661,7 @@ impl ConstraintMachine {
             &inserted_parents,
             derivation,
             derivation_inserted,
-        );
-        !inserted_parents.is_empty()
+        )
     }
 
     pub(in crate::constraints) fn intern_row_derivation(

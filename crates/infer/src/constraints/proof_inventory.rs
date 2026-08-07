@@ -623,10 +623,12 @@ const REVIEWED_SOURCES: &[(&str, &str)] = &[
 const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8B adds two test-only reads that deliberately corrupt the Legacy mirror and prove
     // reduction-route exact dedup remains owned by the CPK index.
-    ("claim_parents_by_constraint", 67),
-    ("replay_claim_parent_keys", 10),
-    ("qualified_carrier_index", 26),
-    ("structural_claim_parent_keys", 2),
+    // CPK-8G-3 adds the reviewed flat-mirror transaction and its atomicity assertion; CPK owns
+    // exact admission while these references only feed or verify the migration mirror.
+    ("claim_parents_by_constraint", 72),
+    ("replay_claim_parent_keys", 13),
+    ("qualified_carrier_index", 31),
+    ("structural_claim_parent_keys", 5),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
     // projection collection remains a mirror during these ownership-transfer slices.
     ("scheme_projection_claims_by_lower_record", 29),
@@ -694,7 +696,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // the old flat-issued-ID constructor path.
     // CPK-8G-2d adds reviewed flat-mirror validation and atomicity snapshots around the CPK-owned
     // current-record move transaction; these reads do not restore flat allocation authority.
-    ("upper_replay_claims", 100),
+    // CPK-8G-3 removes two authority reads formerly used by replay/structural exact-key writers;
+    // the CPK prepared payload now supplies those roots to the flat mirror.
+    ("upper_replay_claims", 98),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
