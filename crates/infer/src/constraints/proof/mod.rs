@@ -97,6 +97,7 @@ pub(crate) enum ProjectionInvariantViolation {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProofOperation {
+    AdmitOriginalClaim,
     ProjectLowerPreflight,
     ProjectLowerSupportCollection,
     ProjectLowerEvaluation,
@@ -821,7 +822,8 @@ pub(crate) struct UpperClaimOccurrence {
 /// CPK claim payload frozen by the allocating transaction before control returns to its caller.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PreparedUpperClaimAdmission {
-    occurrence: UpperClaimOccurrence,
+    pub(super) occurrence: UpperClaimOccurrence,
+    new_record_claims: Option<Vec<UpperReplayClaimId>>,
 }
 
 /// Claim-location mutation frozen by the flat claim transaction before publication to CPK.
@@ -979,6 +981,9 @@ pub(crate) struct ProofOccurrenceStore {
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness>,
     pub(crate) upper_claims: Vec<UpperClaimOccurrence>,
     upper_claim_index: FxHashMap<UpperReplayClaimId, usize>,
+    original_claim_by_record_and_producer:
+        FxHashMap<(BoundRecordId, ConstraintRecordId), UpperReplayClaimId>,
+    root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
     claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     reduction_route_claim_keys:
@@ -992,6 +997,8 @@ pub(crate) struct ProofOccurrenceStore {
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
     #[cfg(test)]
     replay_index_record_comparisons: Cell<usize>,
+    #[cfg(test)]
+    fail_next_original_claim_reservation: bool,
     #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
@@ -1012,6 +1019,8 @@ impl Default for ProofOccurrenceStore {
             first_replay_witnesses: FxHashMap::default(),
             upper_claims: Vec::new(),
             upper_claim_index: FxHashMap::default(),
+            original_claim_by_record_and_producer: FxHashMap::default(),
+            root_claim_by_producer_constraint: FxHashMap::default(),
             claims_by_upper_record: FxHashMap::default(),
             row_reductions: Vec::new(),
             reduction_route_claim_keys: FxHashSet::default(),
@@ -1023,6 +1032,8 @@ impl Default for ProofOccurrenceStore {
             projection_formulas: FxHashMap::default(),
             #[cfg(test)]
             replay_index_record_comparisons: Cell::new(0),
+            #[cfg(test)]
+            fail_next_original_claim_reservation: false,
             #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
@@ -1157,6 +1168,28 @@ pub(super) fn prepare_upper_claim_admission(
             producer: claim.producer_constraint,
             current_record: claim.current_record,
         },
+        new_record_claims: None,
+    }
+}
+
+fn prepare_original_upper_claim_admission(
+    claim: UpperReplayClaimId,
+    record: BoundRecordId,
+    producer: ConstraintRecordId,
+    kind: UpperReplayClaimKind,
+    new_record_claims: Option<Vec<UpperReplayClaimId>>,
+) -> PreparedUpperClaimAdmission {
+    PreparedUpperClaimAdmission {
+        occurrence: UpperClaimOccurrence {
+            claim,
+            coverage_root: claim,
+            kind: upper_claim_kind(kind),
+            full_lineage: UpperClaimLineage::Original,
+            lineage: ProjectionLineage::Original,
+            producer,
+            current_record: record,
+        },
+        new_record_claims,
     }
 }
 
@@ -1168,6 +1201,97 @@ pub(super) fn prepare_upper_claim_move(claim: &UpperReplayClaim) -> PreparedUppe
 }
 
 impl ProofOccurrenceStore {
+    pub(super) fn original_claim(
+        &self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+    ) -> Option<UpperReplayClaimId> {
+        let claim = self.original_claim_by_record_and_producer
+            .get(&(record, producer))
+            .copied();
+        if let Some(claim) = claim {
+            debug_assert_eq!(self.root_claim_by_producer_constraint.get(&producer), Some(&claim));
+        }
+        claim
+    }
+
+    pub(super) fn try_prepare_original_claim_admission(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> Result<PreparedUpperClaimAdmission, ProofFailure> {
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_original_claim_reservation) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitOriginalClaim,
+            });
+        }
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::AdmitOriginalClaim,
+        };
+        self.upper_claims.try_reserve(1).map_err(exhausted)?;
+        self.upper_claim_index.try_reserve(1).map_err(exhausted)?;
+        self.original_claim_by_record_and_producer
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        self.root_claim_by_producer_constraint
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        let new_record_claims = if let Some(claims) = self.claims_by_upper_record.get_mut(&record) {
+            claims.try_reserve(1).map_err(exhausted)?;
+            None
+        } else {
+            self.claims_by_upper_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            let mut claims = Vec::new();
+            claims.try_reserve(1).map_err(exhausted)?;
+            Some(claims)
+        };
+        let next = u32::try_from(self.upper_claims.len()).map_err(|_| {
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitOriginalClaim,
+            }
+        })?;
+        Ok(prepare_original_upper_claim_admission(
+            UpperReplayClaimId(next), record, producer, kind, new_record_claims,
+        ))
+    }
+
+    pub(super) fn commit_original_claim_admission(
+        &mut self,
+        admission: &mut PreparedUpperClaimAdmission,
+    ) {
+        let claim = &admission.occurrence;
+        assert_eq!(claim.claim.0 as usize, self.upper_claims.len());
+        assert_eq!(claim.coverage_root, claim.claim);
+        assert_eq!(claim.full_lineage, UpperClaimLineage::Original);
+        let index = self.upper_claims.len();
+        self.upper_claims.push(claim.clone());
+        assert!(self.upper_claim_index.insert(claim.claim, index).is_none());
+        assert!(self
+            .original_claim_by_record_and_producer
+            .insert((claim.current_record, claim.producer), claim.claim)
+            .is_none());
+        assert!(self
+            .root_claim_by_producer_constraint
+            .insert(claim.producer, claim.claim)
+            .is_none());
+        if let Some(claims) = admission.new_record_claims.take() {
+            assert!(self
+                .claims_by_upper_record
+                .insert(claim.current_record, claims)
+                .is_none());
+        }
+        self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_original_claim_reservation(&mut self) {
+        self.fail_next_original_claim_reservation = true;
+    }
+
     pub(super) fn record_upper_claim(&mut self, claim: &UpperReplayClaim) {
         let admission = prepare_upper_claim_admission(claim);
         self.record_prepared_upper_claim(&admission);
@@ -1202,6 +1326,18 @@ impl ProofOccurrenceStore {
         let old_record = self.upper_claims[index].current_record;
         if old_record == mutation.current_record {
             return;
+        }
+        let producer = self.upper_claims[index].producer;
+        if self.upper_claims[index].full_lineage == UpperClaimLineage::Original {
+            assert_eq!(
+                self.original_claim_by_record_and_producer
+                    .remove(&(old_record, producer)),
+                Some(mutation.claim)
+            );
+            assert!(self
+                .original_claim_by_record_and_producer
+                .insert((mutation.current_record, producer), mutation.claim)
+                .is_none());
         }
         self.remove_claim_from_upper_record_index(old_record, mutation.claim);
         self.upper_claims[index].current_record = mutation.current_record;
@@ -3878,14 +4014,11 @@ mod tests {
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             )
             .id;
-        let registration = machine.bounds.original_upper_replay_claim(
+        let registration = machine.original_upper_replay_claim(
             record,
             ConstraintRecordId(90_000 + ordinal),
             kind,
         );
-        machine
-            .proof_store
-            .record_upper_claim(&machine.bounds.upper_replay_claims[registration.claim.0 as usize]);
         (record, registration.claim)
     }
 
@@ -3932,7 +4065,7 @@ mod tests {
     }
 
     fn cpk_7_add_upper_claim(fixture: &mut Cpk7RoutingFixture, ordinal: u32) -> UpperReplayClaimId {
-        let registration = fixture.machine.bounds.original_upper_replay_claim(
+        let registration = fixture.machine.original_upper_replay_claim(
             fixture.upper,
             ConstraintRecordId(91_000 + ordinal),
             UpperReplayClaimKind::Direct,
@@ -4648,7 +4781,7 @@ mod tests {
             )
             .id;
         let producer = ConstraintRecordId(71_102);
-        let registration = machine.bounds.original_upper_replay_claim(
+        let registration = machine.original_upper_replay_claim(
             record,
             producer,
             UpperReplayClaimKind::Direct,
@@ -6138,7 +6271,7 @@ mod tests {
                 BoundDerivation::Origin(origin),
             )
             .id;
-        let registration = machine.bounds.original_upper_replay_claim(
+        let registration = machine.original_upper_replay_claim(
             parent_record,
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
@@ -6465,14 +6598,17 @@ mod tests {
             100,
             UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(0)),
         );
-        let flat_claims = machine.bounds.upper_replay_claims.clone();
-        assert_eq!(flat_claims.len(), machine.proof_store.upper_claims.len());
+        let cpk_claims = machine.proof_store.upper_claims.clone();
+        assert_eq!(cpk_claims.len(), machine.bounds.upper_replay_claims.len());
 
-        for expected in &flat_claims {
-            let index = machine.proof_store.upper_claim_index[&expected.id];
+        for actual in &cpk_claims {
+            assert_eq!(
+                actual.claim.0 as usize,
+                machine.proof_store.upper_claim_index[&actual.claim]
+            );
             assert_cpk_claim_payload_matches_flat(
-                &machine.proof_store.upper_claims[index],
-                expected,
+                actual,
+                &machine.bounds.upper_replay_claims[actual.claim.0 as usize],
             );
         }
         assert_eq!(
@@ -6501,11 +6637,10 @@ mod tests {
             UnweightedRowReductionRecordId(0)
         )));
 
-        let moved_claim = flat_claims
+        let moved_claim = cpk_claims
             .iter()
             .find_map(|claim| {
-                matches!(claim.lineage, UpperReplayClaimLineage::ReplayEvidence { .. })
-                    .then_some(claim.id)
+                (claim.lineage == ProjectionLineage::ReplayEvidence).then_some(claim.claim)
             })
             .expect("the five-lineage fixture contains one replay-evidence claim");
         let moved_index = machine.proof_store.upper_claim_index[&moved_claim];
@@ -6537,6 +6672,114 @@ mod tests {
         assert_eq!(actual_after_move.current_record, moved_record);
         assert_eq!(actual_after_move.kind, before_move.kind);
         assert_eq!(actual_after_move.full_lineage, before_move.full_lineage);
+    }
+
+    #[test]
+    fn cpk_original_claim_allocation_preflight_failure_is_atomic() {
+        let mut machine = cpk_machine();
+        let origin = OriginId::unknown_internal();
+        let owner = TypeVar(96_000);
+        let lower = machine.alloc_pos(Pos::Var(TypeVar(96_001)));
+        let lower_record = machine
+            .bounds
+            .add_lower(
+                owner,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(96_002)));
+        let upper_record = machine
+            .bounds
+            .add_upper(
+                owner,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let producer = ConstraintRecordId(96_003);
+        machine
+            .bounds
+            .scheme_projection_lower_record_by_constraint
+            .insert(producer, lower_record);
+        let cpk_before = (
+            machine.proof_store.upper_claims.len(),
+            machine.proof_store.upper_claim_index.len(),
+            machine.proof_store.original_claim_by_record_and_producer.len(),
+            machine.proof_store.root_claim_by_producer_constraint.len(),
+            machine.proof_store.claims_by_upper_record.len(),
+            machine.proof_store.projection_supports.len(),
+        );
+        let flat_before = (
+            machine.bounds.upper_replay_claims.len(),
+            machine.bounds.original_claim_by_record_and_producer.len(),
+            machine.bounds.root_claim_by_producer_constraint.len(),
+            machine.bounds.claims_by_upper_record.len(),
+            machine.bounds.scheme_projection_claims_by_lower_record.len(),
+            machine.bounds.projection_proofs_by_lower_record.len(),
+            machine.bounds.record_proof_clauses.len(),
+        );
+        let next_id = UpperReplayClaimId(cpk_before.0 as u32);
+
+        machine.proof_store.fail_next_original_claim_reservation();
+        assert!(matches!(
+            machine.try_original_upper_replay_claim(
+                upper_record,
+                producer,
+                UpperReplayClaimKind::Direct,
+            ),
+            Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::AdmitOriginalClaim,
+            })
+        ));
+        assert_eq!(
+            (
+                machine.proof_store.upper_claims.len(),
+                machine.proof_store.upper_claim_index.len(),
+                machine.proof_store.original_claim_by_record_and_producer.len(),
+                machine.proof_store.root_claim_by_producer_constraint.len(),
+                machine.proof_store.claims_by_upper_record.len(),
+                machine.proof_store.projection_supports.len(),
+            ),
+            cpk_before
+        );
+        assert_eq!(
+            (
+                machine.bounds.upper_replay_claims.len(),
+                machine.bounds.original_claim_by_record_and_producer.len(),
+                machine.bounds.root_claim_by_producer_constraint.len(),
+                machine.bounds.claims_by_upper_record.len(),
+                machine.bounds.scheme_projection_claims_by_lower_record.len(),
+                machine.bounds.projection_proofs_by_lower_record.len(),
+                machine.bounds.record_proof_clauses.len(),
+            ),
+            flat_before
+        );
+
+        let registration = machine
+            .try_original_upper_replay_claim(
+                upper_record,
+                producer,
+                UpperReplayClaimKind::Direct,
+            )
+            .expect("the failed preflight leaves its dense ID unconsumed");
+        assert_eq!(registration.claim, next_id);
+        assert_eq!(machine.proof_store.upper_claims[next_id.0 as usize].claim, next_id);
+        assert_eq!(machine.bounds.upper_replay_claims[next_id.0 as usize].id, next_id);
+        assert_eq!(
+            machine.proof_store.original_claim(upper_record, producer),
+            Some(next_id)
+        );
+        assert_eq!(
+            machine.proof_store.root_claim_by_producer_constraint[&producer],
+            next_id
+        );
+        assert_eq!(
+            machine.bounds.original_claim_by_record_and_producer[&(upper_record, producer)],
+            next_id
+        );
     }
 
     #[test]

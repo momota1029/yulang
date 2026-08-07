@@ -78,11 +78,13 @@ enum Cpk8RawFixtureWriterClass {
 const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 6),
     (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 1),
-    (Cpk8RawFixtureWriterClass::SemanticFixture, 23),
+    // CPK-8G-2b moves twelve reviewed original-claim fixture calls behind the CPK-owned
+    // allocation transaction; they are no longer raw flat-store writers.
+    (Cpk8RawFixtureWriterClass::SemanticFixture, 11),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
 
-const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 30;
+const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 18;
 
 const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
     "cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end",
@@ -624,23 +626,25 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("replay_claim_parent_keys", 10),
     ("qualified_carrier_index", 26),
     ("structural_claim_parent_keys", 2),
-    ("scheme_projection_claims_by_lower_record", 23),
+    // CPK-8G-2b adds reviewed transaction-preflight and atomicity-test references; the flat
+    // projection collection remains a mirror during this ownership-transfer slice.
+    ("scheme_projection_claims_by_lower_record", 28),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
     // empty-ledger seed. CPK-8B removes the sole production-store projection writer re-read by
     // carrying its support snapshot in the admission event.
-    ("projection_proofs_by_lower_record", 46),
-    ("scheme_projection_lower_records_by_root", 5),
-    ("scheme_projection_lower_record_memberships", 4),
-    ("record_proof_clauses", 6),
-    ("record_proof_clause_by_key", 10),
-    ("record_proof_clause_ids_by_lower_record", 4),
+    ("projection_proofs_by_lower_record", 51),
+    ("scheme_projection_lower_records_by_root", 8),
+    ("scheme_projection_lower_record_memberships", 5),
+    ("record_proof_clauses", 9),
+    ("record_proof_clause_by_key", 11),
+    ("record_proof_clause_ids_by_lower_record", 7),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
-    ("record_proof_clause_links_by_lower_record", 7),
-    ("record_proof_clause_link_keys", 12),
-    ("attributed_claim_supports", 21),
-    ("flat_retained_attributed_claim_supports", 4),
+    ("record_proof_clause_links_by_lower_record", 10),
+    ("record_proof_clause_link_keys", 13),
+    ("attributed_claim_supports", 23),
+    ("flat_retained_attributed_claim_supports", 5),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     ("dependent_records_by_premise", 24),
@@ -685,12 +689,15 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // final three Legacy normalizer reads. CPK-8G-2a adds two reviewed test-only reads that
     // compare the complete CPK claim payload with the flat allocation and post-move snapshots;
     // allocation and production read authority remain unchanged in this slice.
-    ("upper_replay_claims", 93),
+    // CPK-8G-2b adds the flat mirror preflight/commit and atomicity assertions while removing
+    // the old flat-issued-ID constructor path.
+    ("upper_replay_claims", 99),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
     // leaves the record index's length and capacity untouched.
-    ("claims_by_upper_record", 26),
+    // CPK-8G-2b adds both CPK-owned and flat-mirror transaction preflight/atomicity references.
+    ("claims_by_upper_record", 36),
     // CPK-8E removes the final migration-only live-coverage normalizer read.
     ("live_coverage_by_root", 9),
     // CPK-8E removes the final migration-only parent-set normalizer read.

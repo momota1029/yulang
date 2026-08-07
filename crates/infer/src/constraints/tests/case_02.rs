@@ -907,7 +907,6 @@ fn non_collision_claim_moves_preserve_unique_roots_across_records() {
     });
     let roots = [0, 1].map(|index| {
         machine
-            .bounds
             .original_upper_replay_claim(
                 records[index],
                 ConstraintRecordId(60_000 + index as u32),
@@ -3466,7 +3465,6 @@ fn unattributed_claim_link_fixture(
         )
         .id;
     let claim = machine
-        .bounds
         .original_upper_replay_claim(upper_record, producer, UpperReplayClaimKind::Direct)
         .claim;
     let lower_record = machine

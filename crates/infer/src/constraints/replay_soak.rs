@@ -12,7 +12,7 @@ use super::proof::ProofOperation;
 use super::{ProofFailure, ReplayFactoredShadowFailure};
 
 pub(crate) const RCPF_SOAK_TELEMETRY_VERSION: u32 = 1;
-pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 2;
+pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(not(debug_assertions), allow(dead_code))]
@@ -34,7 +34,7 @@ pub(crate) struct ReplaySoakTelemetrySnapshot {
     terminal_failures: [u64; 6],
     legacy_rollback_entries: [u64; 2],
     factored_read_errors: [u64; 2],
-    proof_terminal_failures: [u64; 12],
+    proof_terminal_failures: [u64; 14],
 }
 
 impl ReplaySoakTelemetrySnapshot {
@@ -72,7 +72,7 @@ impl ReplaySoakTelemetrySnapshot {
         self.terminal_failures[start..start + 3].iter().sum::<u64>()
             + self.legacy_rollback_entries[origin_index(origin)]
             + self.factored_read_errors[origin_index(origin)]
-            + self.proof_terminal_failures[origin_index(origin) * 6..origin_index(origin) * 6 + 6]
+            + self.proof_terminal_failures[origin_index(origin) * 7..origin_index(origin) * 7 + 7]
                 .iter()
                 .sum::<u64>()
     }
@@ -81,7 +81,7 @@ impl ReplaySoakTelemetrySnapshot {
 static TERMINAL_FAILURES: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
 static LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static FACTORED_READ_ERRORS: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
-static PROOF_TERMINAL_FAILURES: [AtomicU64; 12] = [const { AtomicU64::new(0) }; 12];
+static PROOF_TERMINAL_FAILURES: [AtomicU64; 14] = [const { AtomicU64::new(0) }; 14];
 static TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 static PROOF_TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
@@ -244,6 +244,7 @@ fn terminal_index(
 
 fn proof_operation_index(operation: ProofOperation) -> usize {
     match operation {
+        ProofOperation::AdmitOriginalClaim => 6,
         ProofOperation::ProjectLowerPreflight => 0,
         ProofOperation::ProjectLowerSupportCollection => 1,
         ProofOperation::ProjectLowerEvaluation => 2,
@@ -254,7 +255,7 @@ fn proof_operation_index(operation: ProofOperation) -> usize {
 }
 
 fn proof_terminal_index(origin: ReplaySoakEventOrigin, operation: ProofOperation) -> usize {
-    origin_index(origin) * 6 + proof_operation_index(operation)
+    origin_index(origin) * 7 + proof_operation_index(operation)
 }
 
 fn update_test_capture(update: impl FnOnce(&mut ReplaySoakTelemetrySnapshot)) {
@@ -404,12 +405,14 @@ fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
             "terminal_organic_route_preflight={} ",
             "terminal_organic_route_parents={} ",
             "terminal_organic_route_batch={} ",
+            "terminal_organic_claim_admission={} ",
             "terminal_injected_project_preflight={} ",
             "terminal_injected_project_supports={} ",
             "terminal_injected_project_evaluation={} ",
             "terminal_injected_route_preflight={} ",
             "terminal_injected_route_parents={} ",
-            "terminal_injected_route_batch={}"
+            "terminal_injected_route_batch={} ",
+            "terminal_injected_claim_admission={}"
         ),
         CPK_SOAK_TELEMETRY_VERSION,
         snapshot.proof_terminal_failures[0],
@@ -424,6 +427,8 @@ fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
         snapshot.proof_terminal_failures[9],
         snapshot.proof_terminal_failures[10],
         snapshot.proof_terminal_failures[11],
+        snapshot.proof_terminal_failures[12],
+        snapshot.proof_terminal_failures[13],
     );
 }
 

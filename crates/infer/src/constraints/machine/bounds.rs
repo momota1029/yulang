@@ -1074,13 +1074,13 @@ impl ConstraintMachine {
             }
         }
         if claims.is_empty() {
-            let registration = self.bounds.original_upper_replay_claim(
+            let Some(registration) = self.admit_original_upper_replay_claim(
                 record,
                 producer,
                 UpperReplayClaimKind::Direct,
-            );
-            self.proof_store
-                .record_prepared_upper_claim(&registration.proof_admission);
+            ) else {
+                return claims;
+            };
             self.record_original_claim_standalone_link_in_proof_store(&registration);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             claims.push(registration.claim);
@@ -7045,7 +7045,6 @@ mod mutation_tests {
             )
             .id;
         let lower_parent = machine
-            .bounds
             .original_upper_replay_claim(
                 lower_parent_record,
                 ConstraintRecordId(10_000),
@@ -7053,7 +7052,6 @@ mod mutation_tests {
             )
             .claim;
         let upper_parent = machine
-            .bounds
             .original_upper_replay_claim(
                 upper_record,
                 ConstraintRecordId(10_001),
@@ -7467,7 +7465,6 @@ mod mutation_tests {
             )
             .id;
         machine
-            .bounds
             .original_upper_replay_claim(record, producer, UpperReplayClaimKind::Direct)
             .claim
     }
@@ -9555,7 +9552,7 @@ mod mutation_tests {
                 BoundDerivation::Origin(origin),
             )
             .id;
-        let replay_parent = machine.bounds.original_upper_replay_claim(
+        let replay_parent = machine.original_upper_replay_claim(
             replay_parent_record,
             ConstraintRecordId(91_000),
             UpperReplayClaimKind::Direct,
@@ -10033,17 +10030,17 @@ mod mutation_tests {
             )
             .id;
 
-        let direct = machine.bounds.original_upper_replay_claim(
+        let direct = machine.original_upper_replay_claim(
             direct_record,
             direct_producer,
             UpperReplayClaimKind::Direct,
         );
-        let direct_again = machine.bounds.original_upper_replay_claim(
+        let direct_again = machine.original_upper_replay_claim(
             direct_record,
             direct_producer,
             UpperReplayClaimKind::Direct,
         );
-        let reduced = machine.bounds.original_upper_replay_claim(
+        let reduced = machine.original_upper_replay_claim(
             reduced_record,
             reduced_producer,
             UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(50_000)),
@@ -10134,7 +10131,6 @@ mod mutation_tests {
                     )
                     .id;
                 machine
-                    .bounds
                     .original_upper_replay_claim(
                         parent_record,
                         ConstraintRecordId(70_000 + index),
@@ -10508,7 +10504,6 @@ mod mutation_tests {
             )
             .id;
         let root = machine
-            .bounds
             .original_upper_replay_claim(
                 root_record,
                 ConstraintRecordId(60_000),
@@ -11295,7 +11290,7 @@ mod mutation_tests {
                     BoundDerivation::Origin(origin),
                 )
                 .id;
-            let registration = fixture.machine.bounds.original_upper_replay_claim(
+            let registration = fixture.machine.original_upper_replay_claim(
                 parent_record,
                 ConstraintRecordId(60_000u32.checked_add(offset).expect("test producer")),
                 UpperReplayClaimKind::Direct,
@@ -11507,7 +11502,7 @@ mod mutation_tests {
                 BoundDerivation::Origin(origin),
             )
             .id;
-        let registration = machine.bounds.original_upper_replay_claim(
+        let registration = machine.original_upper_replay_claim(
             parent_record,
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
@@ -11619,7 +11614,7 @@ mod mutation_tests {
                     BoundDerivation::Origin(origin),
                 )
                 .id;
-            let registration = fixture.machine.bounds.original_upper_replay_claim(
+            let registration = fixture.machine.original_upper_replay_claim(
                 parent_record,
                 ConstraintRecordId(
                     20_000u32
@@ -11684,7 +11679,7 @@ mod mutation_tests {
                     BoundDerivation::Origin(origin),
                 )
                 .id;
-            let registration = fixture.machine.bounds.original_upper_replay_claim(
+            let registration = fixture.machine.original_upper_replay_claim(
                 parent_record,
                 ConstraintRecordId(
                     30_000u32

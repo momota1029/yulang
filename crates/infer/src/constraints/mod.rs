@@ -560,6 +560,15 @@ struct UpperReplayClaimRegistration {
     standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
 }
 
+struct PreparedOriginalClaimMirrorCapacity {
+    record_claims: Option<Vec<UpperReplayClaimId>>,
+    projection_claims: Option<(BoundRecordId, Vec<UpperReplayClaimId>)>,
+    projection_proofs: Option<(BoundRecordId, Vec<SchemeProjectionProof>)>,
+    root_lower_records: Option<Vec<BoundRecordId>>,
+    clause_ids: Option<(BoundRecordId, Vec<RecordProofClauseId>)>,
+    clause_links: Option<(BoundRecordId, Vec<RecordProofClauseLink>)>,
+}
+
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -2045,6 +2054,58 @@ impl ConstraintMachine {
         self.publish_scheme_projection_intent(intent);
     }
 
+    pub(in crate::constraints) fn try_original_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> Result<UpperReplayClaimRegistration, proof::ProofFailure> {
+        if let Some(claim) = self.proof_store.original_claim(record, producer) {
+            return Ok(self.bounds.finish_existing_original_upper_replay_claim_mirror(
+                record, producer, claim,
+            ));
+        }
+        let mut admission = self
+            .proof_store
+            .try_prepare_original_claim_admission(record, producer, kind)?;
+        let mirror_capacity = self.bounds
+            .try_reserve_original_upper_replay_claim_mirror(record, producer)?;
+        let issued = admission.occurrence.claim;
+        assert_eq!(issued.0 as usize, self.bounds.upper_replay_claims.len());
+        self.proof_store.commit_original_claim_admission(&mut admission);
+        let registration = self.bounds.commit_original_upper_replay_claim_mirror(
+            issued, record, producer, kind, mirror_capacity,
+        );
+        assert_eq!(registration.proof_admission, admission);
+        Ok(registration)
+    }
+
+    fn admit_original_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> Option<UpperReplayClaimRegistration> {
+        match self.try_original_upper_replay_claim(record, producer, kind) {
+            Ok(registration) => Some(registration),
+            Err(failure) => {
+                self.mark_proof_terminal_failure(proof::ProofOperation::AdmitOriginalClaim, failure);
+                None
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn original_upper_replay_claim(
+        &mut self,
+        record: BoundRecordId,
+        producer: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+    ) -> UpperReplayClaimRegistration {
+        self.try_original_upper_replay_claim(record, producer, kind)
+            .expect("test original claim admission must have capacity")
+    }
+
     fn record_projection_mutation_in_proof_store(
         &mut self,
         mutation: &SchemeProjectionMutation,
@@ -2944,29 +3005,150 @@ impl TypeBounds {
         }
     }
 
-    fn original_upper_replay_claim(
+    fn try_reserve_original_upper_replay_claim_mirror(
         &mut self,
         record: BoundRecordId,
         producer_constraint: ConstraintRecordId,
-        kind: UpperReplayClaimKind,
-    ) -> UpperReplayClaimRegistration {
-        let key = (record, producer_constraint);
-        if let Some(claim) = self
+    ) -> Result<PreparedOriginalClaimMirrorCapacity, proof::ProofFailure> {
+        assert!(!self
             .original_claim_by_record_and_producer
-            .get(&key)
+            .contains_key(&(record, producer_constraint)));
+        assert!(!self
+            .root_claim_by_producer_constraint
+            .contains_key(&producer_constraint));
+        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::AdmitOriginalClaim,
+        };
+        self.upper_replay_claims.try_reserve(1).map_err(exhausted)?;
+        self.original_claim_by_record_and_producer
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        self.root_claim_by_producer_constraint
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        let record_claims = if let Some(claims) = self.claims_by_upper_record.get_mut(&record) {
+            claims.try_reserve(1).map_err(exhausted)?;
+            None
+        } else {
+            self.claims_by_upper_record.try_reserve(1).map_err(exhausted)?;
+            let mut claims = Vec::new();
+            claims.try_reserve(1).map_err(exhausted)?;
+            Some(claims)
+        };
+        let mut prepared = PreparedOriginalClaimMirrorCapacity {
+            record_claims,
+            projection_claims: None,
+            projection_proofs: None,
+            root_lower_records: None,
+            clause_ids: None,
+            clause_links: None,
+        };
+        if let Some(lower_record) = self
+            .scheme_projection_lower_record_by_constraint
+            .get(&producer_constraint)
             .copied()
         {
-            self.register_original_claim_mirror(producer_constraint, claim);
-            let scheme_projection_mutation =
-                self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
-            let standalone_link =
-                self.register_original_claim_standalone_link(producer_constraint, claim);
-            return self.finish_upper_replay_claim_registration(
-                claim,
-                scheme_projection_mutation,
-                standalone_link,
-            );
+            self.scheme_projection_claims_by_lower_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.projection_proofs_by_lower_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.scheme_projection_lower_record_memberships
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.scheme_projection_lower_records_by_root
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.scheme_projection_claimed_lower_owners
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            if let Some(claims) = self
+                .scheme_projection_claims_by_lower_record
+                .get_mut(&lower_record)
+            {
+                claims.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut claims = Vec::new();
+                claims.try_reserve(1).map_err(exhausted)?;
+                prepared.projection_claims = Some((lower_record, claims));
+            }
+            if let Some(proofs) = self.projection_proofs_by_lower_record.get_mut(&lower_record) {
+                proofs.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut proofs = Vec::new();
+                proofs.try_reserve(1).map_err(exhausted)?;
+                prepared.projection_proofs = Some((lower_record, proofs));
+            }
+            let root = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
+            if let Some(records) = self.scheme_projection_lower_records_by_root.get_mut(&root) {
+                records.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut records = Vec::new();
+                records.try_reserve(1).map_err(exhausted)?;
+                prepared.root_lower_records = Some(records);
+            }
+            self.record_proof_clauses.try_reserve(1).map_err(exhausted)?;
+            self.record_proof_clause_by_key.try_reserve(1).map_err(exhausted)?;
+            self.record_proof_clause_ids_by_lower_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            self.record_proof_clause_links_by_lower_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+            if let Some(ids) = self.record_proof_clause_ids_by_lower_record.get_mut(&lower_record) {
+                ids.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut ids = Vec::new();
+                ids.try_reserve(1).map_err(exhausted)?;
+                prepared.clause_ids = Some((lower_record, ids));
+            }
+            if let Some(links) = self.record_proof_clause_links_by_lower_record.get_mut(&lower_record)
+            {
+                links.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut links = Vec::new();
+                links.try_reserve(1).map_err(exhausted)?;
+                prepared.clause_links = Some((lower_record, links));
+            }
+            self.record_proof_clause_link_keys.try_reserve(1).map_err(exhausted)?;
+            self.attributed_claim_supports.try_reserve(1).map_err(exhausted)?;
+            self.flat_retained_attributed_claim_supports
+                .try_reserve(1)
+                .map_err(exhausted)?;
         }
+        Ok(prepared)
+    }
+
+    fn finish_existing_original_upper_replay_claim_mirror(
+        &mut self,
+        record: BoundRecordId,
+        producer_constraint: ConstraintRecordId,
+        claim: UpperReplayClaimId,
+    ) -> UpperReplayClaimRegistration {
+        let key = (record, producer_constraint);
+        assert_eq!(self.original_claim_by_record_and_producer.get(&key), Some(&claim));
+        self.register_original_claim_mirror(producer_constraint, claim);
+        let scheme_projection_mutation =
+            self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
+        let standalone_link =
+            self.register_original_claim_standalone_link(producer_constraint, claim);
+        self.finish_upper_replay_claim_registration(
+            claim,
+            scheme_projection_mutation,
+            standalone_link,
+        )
+    }
+
+    fn commit_original_upper_replay_claim_mirror(
+        &mut self,
+        id: UpperReplayClaimId,
+        record: BoundRecordId,
+        producer_constraint: ConstraintRecordId,
+        kind: UpperReplayClaimKind,
+        prepared: PreparedOriginalClaimMirrorCapacity,
+    ) -> UpperReplayClaimRegistration {
+        let key = (record, producer_constraint);
         assert!(
             !self
                 .root_claim_by_producer_constraint
@@ -2977,7 +3159,40 @@ impl TypeBounds {
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
-        let id = UpperReplayClaimId(self.upper_replay_claims.len() as u32);
+        assert_eq!(id.0 as usize, self.upper_replay_claims.len());
+        if let Some(claims) = prepared.record_claims {
+            assert!(self.claims_by_upper_record.insert(record, claims).is_none());
+        }
+        if let Some((lower, claims)) = prepared.projection_claims {
+            assert!(self
+                .scheme_projection_claims_by_lower_record
+                .insert(lower, claims)
+                .is_none());
+        }
+        if let Some((lower, proofs)) = prepared.projection_proofs {
+            assert!(self
+                .projection_proofs_by_lower_record
+                .insert(lower, proofs)
+                .is_none());
+        }
+        if let Some(records) = prepared.root_lower_records {
+            assert!(self
+                .scheme_projection_lower_records_by_root
+                .insert(id, records)
+                .is_none());
+        }
+        if let Some((lower, ids)) = prepared.clause_ids {
+            assert!(self
+                .record_proof_clause_ids_by_lower_record
+                .insert(lower, ids)
+                .is_none());
+        }
+        if let Some((lower, links)) = prepared.clause_links {
+            assert!(self
+                .record_proof_clause_links_by_lower_record
+                .insert(lower, links)
+                .is_none());
+        }
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
