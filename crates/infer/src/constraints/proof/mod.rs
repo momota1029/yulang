@@ -3684,302 +3684,27 @@ impl ProofOccurrenceStore {
 }
 
 #[cfg(test)]
-fn occurrence_without_event(
-    result: ProofResult,
-    cause: ProofCause,
-    parents: Vec<ProofParent>,
-    completeness: ProvenanceCompleteness,
-) -> ProofOccurrence {
-    ProofOccurrence {
-        result,
-        cause,
-        parents,
-        event: 0,
-        completeness,
-    }
-}
-
-#[cfg(test)]
-fn legacy_cpk2_shadow_expected(machine: &ConstraintMachine) -> Vec<ProofOccurrence> {
-    let mut occurrences = Vec::new();
-    for (index, record) in machine.constraint_records.iter().enumerate() {
-        let id = ConstraintRecordId(index as u32);
-        let result = ProofResult::Semantic(SemanticFactRef::Constraint(id));
-        occurrences.extend(record.root_origins.iter().copied().map(|origin| {
-            occurrence_without_event(
-                result,
-                ProofCause::Root(origin),
-                vec![ProofParent::Origin(origin)],
-                ProvenanceCompleteness::Complete,
-            )
-        }));
-        occurrences.extend(record.structural_derivations.iter().copied().map(|derivation| {
-            occurrence_without_event(
-                result,
-                ProofCause::Structural(derivation),
-                vec![ProofParent::Semantic(SemanticFactRef::Constraint(
-                    derivation.parent,
-                ))],
-                ProvenanceCompleteness::Complete,
-            )
-        }));
-        occurrences.extend(record.row_derivations.iter().copied().map(|derivation| {
-            occurrence_without_event(
-                result,
-                ProofCause::RowConstraint(derivation),
-                vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(
-                    derivation,
-                ))],
-                ProvenanceCompleteness::Complete,
-            )
-        }));
-        occurrences.extend(record.canonicalization_dispositions.iter().cloned().map(
-            |disposition| {
-                occurrence_without_event(
-                    result,
-                    ProofCause::ConstraintDisposition(disposition),
-                    Vec::new(),
-                    ProvenanceCompleteness::Complete,
-                )
-            },
-        ));
-        occurrences.extend(record.scheme_instantiation_derivations.iter().cloned().map(
-            |derivation| {
-                occurrence_without_event(
-                    result,
-                    ProofCause::SchemeInstantiationDerivation(derivation.clone()),
-                    vec![
-                        ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
-                            derivation.instantiation,
-                        )),
-                        ProofParent::GeneralizedWitness(derivation.source_witness),
-                    ],
-                    ProvenanceCompleteness::Complete,
-                )
-            },
-        ));
-        occurrences.extend(record.scheme_instantiation_routes.iter().cloned().map(|route| {
-            occurrence_without_event(
-                result,
-                ProofCause::SchemeInstantiationRoute(route.clone()),
-                vec![
-                    ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(
-                        route.derivation.instantiation,
-                    )),
-                    ProofParent::GeneralizedWitness(route.derivation.source_witness),
-                ],
-                ProvenanceCompleteness::Complete,
-            )
-        }));
-    }
-    for (index, record) in machine.bounds.records.iter().enumerate() {
-        let id = BoundRecordId(index as u32);
-        occurrences.extend(record.derivations.iter().filter_map(|derivation| {
-            if matches!(
-                derivation,
-                BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
-            ) {
-                return None;
-            }
-            Some(occurrence_without_event(
-                ProofResult::Semantic(SemanticFactRef::Bound(id)),
-                ProofCause::Bound(derivation.clone()),
-                bound_derivation_parents(derivation),
-                ProvenanceCompleteness::Complete,
-            ))
-        }));
-    }
-    for (index, record) in machine.bound_dispositions.iter().enumerate() {
-        let id = BoundDispositionRecordId(index as u32);
-        let bound = machine.bounds.records.iter().enumerate().find_map(|(index, bound)| {
-            (bound.disposition == Some(id)).then_some(BoundRecordId(index as u32))
-        });
-        occurrences.push(occurrence_without_event(
-            bound.map_or(ProofResult::BoundDisposition(id), |bound| {
-                ProofResult::Semantic(SemanticFactRef::Bound(bound))
-            }),
-            ProofCause::BoundDisposition(record.clone()),
-            Vec::new(),
-            ProvenanceCompleteness::Complete,
-        ));
-    }
-    for (index, record) in machine.subtracts.records.iter().enumerate() {
-        let id = SubtractFactRecordId(index as u32);
-        occurrences.extend(record.derivations.iter().copied().map(|derivation| {
-            let origin = match derivation {
-                SubtractFactDerivation::Declaration(origin)
-                | SubtractFactDerivation::Import(origin)
-                | SubtractFactDerivation::Internal(origin) => origin,
-            };
-            occurrence_without_event(
-                ProofResult::Semantic(SemanticFactRef::Subtract(id)),
-                ProofCause::Subtract(derivation),
-                vec![ProofParent::Origin(origin)],
-                ProvenanceCompleteness::Complete,
-            )
-        }));
-    }
-    occurrences.extend(machine.row_derivations.iter().cloned().enumerate().map(
-        |(index, derivation)| {
-            let id = RowDerivationId(index as u32);
-            let parents = derivation.parents.iter().copied().map(row_parent).collect();
-            occurrence_without_event(
-                ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
-                ProofCause::RowDefinition(derivation),
-                parents,
-                ProvenanceCompleteness::Complete,
-            )
-        },
-    ));
-    occurrences.extend(machine.scheme_instantiations.iter().cloned().enumerate().map(
-        |(index, record)| {
-            occurrence_without_event(
-                ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(
-                    SchemeInstantiationId(index as u32),
-                )),
-                ProofCause::SchemeInstantiationRecord(record.clone()),
-                Vec::new(),
-                record.completeness,
-            )
-        },
-    ));
-    occurrences
-}
-
-#[cfg(test)]
-fn assert_non_replay_shadow_parity(
-    machine: &ConstraintMachine,
-    snapshot: &ProofOccurrenceStore,
-) {
-    assert!(snapshot.replay_coverage_connected, "CPK-3 connects replay coverage");
-    assert_eq!(
-        snapshot.occurrences.iter().map(|entry| entry.event).collect::<Vec<_>>(),
-        (0..snapshot.occurrences.len()).collect::<Vec<_>>(),
-        "shadow occurrence ordinals must preserve writer order",
-    );
-    let mut actual = snapshot.occurrences.clone();
-    for occurrence in &mut actual {
-        occurrence.event = 0;
-    }
-    for expected in legacy_cpk2_shadow_expected(machine) {
-        let position = actual
-            .iter()
-            .position(|actual| actual == &expected)
-            .unwrap_or_else(|| panic!("missing CPK shadow occurrence: {expected:#?}"));
-        actual.swap_remove(position);
-    }
-    assert!(actual.is_empty(), "unexpected CPK shadow occurrences: {actual:#?}");
-}
-
-#[cfg(test)]
-fn assert_replay_shadow_parity(
-    machine: &ConstraintMachine,
-    snapshot: &ProofOccurrenceStore,
-) {
-    assert!(snapshot.replay_coverage_connected);
-    assert_eq!(
-        snapshot.replay_finite_map.len(),
-        machine.replay_occurrences.occurrences.len(),
-        "CPK and RCPF must expose the same exact replay finite map",
-    );
-    for expected in &machine.replay_occurrences.occurrences {
-        let actual = snapshot
-            .replay_finite_map
-            .iter()
-            .find(|actual| {
-                actual.result == expected.result && actual.carrier == expected.carrier
-            })
-            .expect("CPK exact replay occurrence");
-        for (side, version, actual_parents) in [
-            (
-                ReplayClaimParentSide::Lower,
-                expected.lower_parents,
-                &actual.lower_parents,
-            ),
-            (
-                ReplayClaimParentSide::Upper,
-                expected.upper_parents,
-                &actual.upper_parents,
-            ),
-        ] {
-            let expected_parents = machine
-                .replay_parent_sets
-                .iter(version)
-                .expect("RCPF parent set")
-                .collect::<Vec<_>>();
-            assert_eq!(actual_parents.len(), expected_parents.len());
-            for parent in expected_parents {
-                let actual_parent = actual_parents
-                    .iter()
-                    .find(|candidate| candidate.coverage_root == parent.coverage_root)
-                    .expect("CPK replay parent root");
-                assert_eq!(actual_parent.side, side);
-                assert_eq!(actual_parent.representative_claim, parent.representative_claim);
-                assert_eq!(
-                    actual_parent.lineage,
-                    projection_lineage(
-                        machine.bounds.upper_replay_claims
-                            [parent.representative_claim.0 as usize]
-                            .lineage,
-                    ),
-                );
-            }
-        }
-    }
-    for (&(result, root), expected) in &machine.replay_result_summary.first_parent_by_root {
-        let occurrence = machine
-            .replay_occurrences
-            .occurrence(expected.occurrence)
-            .expect("RCPF first witness occurrence");
-        assert_eq!(
-            snapshot.first_replay_witnesses.get(&(result, root)),
-            Some(&ReplayFirstWitness {
-                carrier: occurrence.carrier,
-                side: expected.parent_side,
-                representative_claim: expected.parent_claim,
-            }),
-            "CPK first representative must equal RCPF's event-time winner",
-        );
-    }
-    assert_eq!(snapshot.upper_claims.len(), machine.bounds.upper_replay_claims.len());
-    for claim in &machine.bounds.upper_replay_claims {
-        assert!(snapshot.upper_claims.contains(&UpperClaimOccurrence {
-            claim: claim.id,
-            coverage_root: claim.coverage_root,
-            lineage: projection_lineage(claim.lineage),
-            producer: claim.producer_constraint,
-            current_record: claim.current_record,
-        }));
-    }
-    assert_eq!(
-        snapshot.row_reductions.len(),
-        machine.unweighted_row_reduction_records.len(),
-    );
-    let expected_live_coverage = machine
-        .bounds
-        .live_coverage_by_root
-        .iter()
-        .flat_map(|(&root, states)| states.iter().copied().map(move |state| (root, state)))
-        .collect::<FxHashSet<_>>();
-    assert_eq!(snapshot.live_coverage, expected_live_coverage);
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::constraints::{ReplaySoakEventOrigin, capture_replay_soak_test_events};
 
-    fn cpk_oracle_machine() -> ConstraintMachine {
-        cpk_oracle_machine_with_authority(ProofReadAuthority::Cpk)
+    fn cpk_machine() -> ConstraintMachine {
+        cpk_machine_with_authority(ProofReadAuthority::Cpk)
     }
 
-    fn cpk_oracle_machine_with_authority(
+    fn cpk_machine_with_authority(
         proof_read_authority: ProofReadAuthority,
     ) -> ConstraintMachine {
-        let mut machine = ConstraintMachine::new_with_read_authorities(
+        ConstraintMachine::new_with_read_authorities(
             ReplayReadAuthority::Factored,
             proof_read_authority,
-        );
+        )
+    }
+
+    fn cpk_migration_oracle_machine_with_authority(
+        proof_read_authority: ProofReadAuthority,
+    ) -> ConstraintMachine {
+        let mut machine = cpk_machine_with_authority(proof_read_authority);
         machine.cpk_proof_oracle_active = true;
         machine
     }
@@ -4031,7 +3756,7 @@ mod tests {
     }
 
     fn cpk_7_routing_fixture(lower_is_var: bool) -> Cpk7RoutingFixture {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let owner = TypeVar(71_000);
         let lower_endpoint = if lower_is_var {
             machine.alloc_pos(Pos::Var(TypeVar(71_001)))
@@ -4663,7 +4388,7 @@ mod tests {
 
     #[test]
     fn cpk_7_slice_a_replay_indexes_update_atomically_with_writers() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let (old_record, claim) = cpk_7_record_original_claim(&mut machine, 0);
         let occurrence_index = machine.proof_store.upper_claim_index[&claim];
         assert_eq!(machine.proof_store.upper_claims[occurrence_index].claim, claim);
@@ -4769,7 +4494,7 @@ mod tests {
 
     #[test]
     fn cpk_8b_original_claim_writer_uses_the_allocation_snapshot() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let owner = TypeVar(71_100);
         let endpoint = machine.alloc_neg(Neg::Var(TypeVar(71_101)));
         let record = machine
@@ -4810,7 +4535,7 @@ mod tests {
 
     #[test]
     fn cpk_7_slice_a_claim_index_writes_do_not_scan_the_global_claim_store() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         machine
             .proof_store
             .replay_index_record_comparisons
@@ -4849,7 +4574,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_missing_semantic_record() {
-        let machine = cpk_oracle_machine();
+        let machine = cpk_machine();
         let missing = BoundRecordId(u32::MAX);
         let (actual, _) = project_lower_for_test(&machine, missing);
         assert_eq!(
@@ -4862,7 +4587,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_preserves_no_ledger_unclaimed() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 0);
         let (actual, _) = project_lower_for_test(&machine, record);
         assert_eq!(actual, Ok(ProjectionDecision::Unclaimed));
@@ -4870,7 +4595,7 @@ mod tests {
 
     #[test]
     fn cpk_8b_projection_support_writer_uses_the_admission_snapshot() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 101);
         let initial = ProjectionProofCarrier::Origin(OriginId(70_101));
         cpk_4_add_independent_support(&mut machine, record, initial);
@@ -4897,7 +4622,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_orphan_formula() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 1);
         let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         machine.proof_store.projection_formulas.insert(
@@ -4919,7 +4644,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_support_without_formula() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 2);
         machine.proof_store.projection_supports.insert(
             record,
@@ -4938,7 +4663,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_dangling_claim() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 3);
         let claim = UpperReplayClaimId(50_003);
         let support = SchemeProjectionProofSupport::Claimed(claim);
@@ -4963,7 +4688,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_duplicate_coverage_root() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 4);
         let root = UpperReplayClaimId(0);
         let representative = UpperReplayClaimId(1);
@@ -5003,7 +4728,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_formula_matches_claimed_support_by_coverage_root() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 9);
         let root = UpperReplayClaimId(0);
         let representative = UpperReplayClaimId(1);
@@ -5047,7 +4772,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_rejects_noncanonical_support_order() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 5);
         let high = OriginId(50_005);
         let low = OriginId(50_004);
@@ -5081,7 +4806,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_project_lower_cycle_cuts_only_the_circular_route() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 6);
         let other = cpk_gap_1_projection_record(&mut machine, 7);
         let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
@@ -5111,7 +4836,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_incomplete_is_a_normal_independent_support() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 8);
         let carrier = ProjectionProofCarrier::Incomplete;
         let support = SchemeProjectionProofSupport::Independent(carrier);
@@ -5418,7 +5143,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_replay_conjunction_matches_all_four_legacy_consumers() {
-        let mut included = cpk_oracle_machine();
+        let mut included = cpk_machine();
         let included_record = cpk_gap_1_projection_record(&mut included, 25);
         let included_owner = included.bounds.record(included_record).unwrap().owner();
         let lower = cpk_gap_1_projection_record(&mut included, 26);
@@ -5454,7 +5179,7 @@ mod tests {
             },
         );
 
-        let mut excluded = cpk_oracle_machine();
+        let mut excluded = cpk_machine();
         let excluded_record = cpk_gap_1_projection_record(&mut excluded, 28);
         let excluded_owner = excluded.bounds.record(excluded_record).unwrap().owner();
         let other = cpk_gap_1_projection_record(&mut excluded, 29);
@@ -5636,7 +5361,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_legacy_consumers() {
-        let mut no_ledger = cpk_oracle_machine();
+        let mut no_ledger = cpk_machine();
         let no_ledger_record = cpk_gap_1_projection_record(&mut no_ledger, 20);
         let no_ledger_owner = no_ledger.bounds.record(no_ledger_record).unwrap().owner();
         let before = (
@@ -5681,7 +5406,7 @@ mod tests {
             ProjectionDecision::Unclaimed,
         );
 
-        let mut standalone = cpk_oracle_machine();
+        let mut standalone = cpk_machine();
         let standalone_record = cpk_gap_1_projection_record(&mut standalone, 21);
         let standalone_owner = standalone.bounds.record(standalone_record).unwrap().owner();
         let origin = OriginId(50_021);
@@ -5707,7 +5432,7 @@ mod tests {
             },
         );
 
-        let mut derived = cpk_oracle_machine();
+        let mut derived = cpk_machine();
         let lower = derived.alloc_pos(Pos::Var(TypeVar(61_000)));
         let upper = derived.alloc_neg(Neg::Var(TypeVar(61_001)));
         derived.subtype(lower, upper, OriginId::unknown_internal());
@@ -5745,7 +5470,7 @@ mod tests {
             },
         );
 
-        let mut incomplete = cpk_oracle_machine();
+        let mut incomplete = cpk_machine();
         let incomplete_record = cpk_gap_1_projection_record(&mut incomplete, 23);
         let incomplete_owner = incomplete.bounds.record(incomplete_record).unwrap().owner();
         let carrier = ProjectionProofCarrier::Incomplete;
@@ -5925,7 +5650,7 @@ mod tests {
         // CPK-4's writer matrix separately pins the five source-to-lineage mappings. Here each
         // attribution is placed on the same well-formed formula shape so this query/consumer
         // oracle isolates the required fact that attribution metadata never changes projection.
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let lineages = [
             ProjectionLineage::Original,
             ProjectionLineage::ReplayConstraint,
@@ -5972,7 +5697,7 @@ mod tests {
     fn make_same_root_projection_included(
         order: [usize; 3],
     ) -> (CpkReplayAdmissionFixture, [UpperReplayClaimId; 3], BoundRecordId) {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let claims = [
             fixture.coverage_root,
             add_same_root_replay_claim(
@@ -6008,7 +5733,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_same_root_representative_replacement_matches_all_consumers() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let replacement_claim = add_same_root_replay_claim(
             &mut fixture,
             TypeVar(63_000),
@@ -6068,7 +5793,6 @@ mod tests {
         let upper = fixture
             .machine
             .alloc_neg(Neg::Con(vec!["cpk-7-representative".into()], Vec::new()));
-        fixture.machine.cpk_proof_oracle_active = false;
         fixture.machine.add_upper_bound(
             owner,
             upper,
@@ -6133,7 +5857,7 @@ mod tests {
 
     #[test]
     fn cpk_gap_1_every_proof_failure_is_attempt_terminal() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 30);
         let owner = ProofFactRef::ProjectionSupports(record);
         let failures = [
@@ -6259,13 +5983,28 @@ mod tests {
     }
 
     fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
-        cpk_3_replay_admission_fixture_with_authority(ProofReadAuthority::Cpk)
+        cpk_3_replay_admission_fixture_with_oracle(ProofReadAuthority::Cpk, true)
+    }
+
+    fn cpk_3_cpk_only_replay_admission_fixture() -> CpkReplayAdmissionFixture {
+        cpk_3_replay_admission_fixture_with_oracle(ProofReadAuthority::Cpk, false)
     }
 
     fn cpk_3_replay_admission_fixture_with_authority(
         proof_read_authority: ProofReadAuthority,
     ) -> CpkReplayAdmissionFixture {
-        let mut machine = cpk_oracle_machine_with_authority(proof_read_authority);
+        cpk_3_replay_admission_fixture_with_oracle(proof_read_authority, true)
+    }
+
+    fn cpk_3_replay_admission_fixture_with_oracle(
+        proof_read_authority: ProofReadAuthority,
+        oracle_active: bool,
+    ) -> CpkReplayAdmissionFixture {
+        let mut machine = if oracle_active {
+            cpk_migration_oracle_machine_with_authority(proof_read_authority)
+        } else {
+            cpk_machine_with_authority(proof_read_authority)
+        };
         let origin = OriginId::unknown_internal();
         let source = TypeVar(0);
         let target = TypeVar(1);
@@ -6347,7 +6086,7 @@ mod tests {
     }
 
     fn cpk_3_replay_fixture_with_oracle(cpk_proof_oracle_active: bool) -> ConstraintMachine {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         machine.cpk_proof_oracle_active = cpk_proof_oracle_active;
         let origin = OriginId::unknown_internal();
         let a = machine.alloc_pos(Pos::Var(TypeVar(30)));
@@ -7218,7 +6957,7 @@ mod tests {
 
     #[test]
     fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let admissions_before = fixture.machine.proof_store.replay_admissions.len();
         let occurrences_before = fixture.machine.proof_store.occurrences.len();
         let attempted = SubtypeConstraintKey {
@@ -7266,7 +7005,7 @@ mod tests {
 
     #[test]
     fn cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let admissions_before = fixture.machine.proof_store.replay_admissions.len();
         let occurrences_before = fixture.machine.proof_store.occurrences.len();
         let constraint = SubtypeConstraintKey {
@@ -7328,7 +7067,7 @@ mod tests {
             [2, 1, 0],
         ];
         for order in permutations {
-            let mut fixture = cpk_3_replay_admission_fixture();
+            let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
             let claims = [
                 fixture.coverage_root,
                 add_same_root_replay_claim(
@@ -7486,11 +7225,6 @@ mod tests {
         ] {
             assert_cpk_projection_decision_and_consumer(&machine, owner, record, decision);
         }
-        assert!(snapshot.projectability_observations.borrow().is_empty());
-        assert!(snapshot
-            .projection_publication_observations
-            .borrow()
-            .is_empty());
     }
 
     fn assert_cpk_projection_decision_and_consumer(
@@ -7675,7 +7409,7 @@ mod tests {
 
     #[test]
     fn cpk_4_five_source_attribution_matrix_is_writer_classified() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
             let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
             let replay = BinaryReplayDerivation {
                 pivot: TypeVar(40_000),
@@ -8229,7 +7963,7 @@ mod tests {
 
     #[test]
     fn cpk_8b_reduction_route_dedup_is_owned_by_the_cpk_index() {
-        let mut machine = cpk_oracle_machine();
+        let mut machine = cpk_machine();
         let (result, root) = cpk_7_claimed_result(&mut machine, 80_000);
         let derivation = machine.constraint_records[result.0 as usize].row_derivations[0];
         let occurrence_count = |machine: &ConstraintMachine| {
@@ -8379,8 +8113,7 @@ mod tests {
 
     #[test]
     fn cpk_evidence_and_trivial_replays_do_not_create_projection_formula() {
-        let mut fixture = cpk_3_replay_admission_fixture();
-        fixture.machine.cpk_proof_oracle_active = false;
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let formulas_before = fixture.machine.proof_store.projection_formulas.clone();
         let supports_before = fixture.machine.proof_store.projection_supports.clone();
         let claimed_before = fixture
@@ -8465,8 +8198,7 @@ mod tests {
     }
 
     fn cpk_premise_dependency_fixture(reverse_replay_order: bool) -> ConstraintMachine {
-        let mut fixture = cpk_3_replay_admission_fixture();
-        fixture.machine.cpk_proof_oracle_active = false;
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let alternate = BinaryReplayDerivation {
             rule: ReplayRule::UpperBoundAdded,
             ..fixture.carrier
@@ -8780,7 +8512,7 @@ mod tests {
 
     #[test]
     fn cpk_7_cpk_authority_preflight_rejects_claim_index_corruption() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         assert_eq!(fixture.machine.proof_read_authority(), &ProofReadAuthority::Cpk);
         let lower = fixture.machine.alloc_pos(Pos::Con(
             vec!["cpk-7-corrupt-index-lower".into()],
@@ -8839,7 +8571,7 @@ mod tests {
 
     #[test]
     fn cpk_8a_cpk_terminal_failure_telemetry_counts_first_organic_failure_once() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         assert!(
             fixture
                 .machine
@@ -8883,7 +8615,7 @@ mod tests {
 
     #[test]
     fn cpk_8a_successful_cpk_route_emits_no_proof_failure_telemetry() {
-        let mut fixture = cpk_3_replay_admission_fixture();
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let ((), telemetry) = capture_replay_soak_test_events(|| {
             cpk_5_trigger_lower_route(&mut fixture, false);
         });
