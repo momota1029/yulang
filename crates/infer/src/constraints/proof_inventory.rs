@@ -30,8 +30,8 @@
 // - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
 //   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
 //   parent drafts/RCPF. Reduction-route exact admission is owned by the CPK
-//   reduction_route_claim_keys index under CPK authority; the Proof LegacyRollback gate is removed
-//   in CPK-8G-6f while the separate ReplayReadAuthority removal remains staged for 8G-6g2.
+//   reduction_route_claim_keys index under CPK authority; CPK-8G-6f/6g2 remove both historical
+//   authority-selection surfaces while preserving the dual writers.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -448,8 +448,8 @@ const CPK8G6_RETIRED_CATEGORY_B_TOTAL: usize =
 
 // CPK-8G-6f crosses the code-level irreversibility boundary after all Category-B dependents retire.
 // These names are mechanically forbidden in the production/test sources that formerly implemented
-// Proof authority selection and its migration observations. ReplayReadAuthority is deliberately not
-// part of this ledger; its explicit LegacyRollback path remains for 8G-6g1/6g2.
+// Proof authority selection and its migration observations. Replay authority is tracked separately
+// by the 8G-6g2 ledger below because its former gate also controlled RCPF mirror writes.
 const CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES: &[&str] = &[
     "ProofReadAuthority",
     "proof_read_authority",
@@ -505,6 +505,20 @@ const CPK8G6G1_REMOVED_LEGACY_READER_SURFACES: &[&str] = &[
     "factored_replay_clause_link_oracle",
     "assert_factored_replay_clause_projection_matches_legacy",
     "try_evaluate_scheme_projection_mutation",
+];
+
+// CPK-8G-6g2 removes the final authority-selection surface. The RCPF stores remain live; their
+// former authority gate is now only the sticky quarantine status, so normal writes are always fed.
+const CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES: &[&str] = &[
+    "ReplayReadAuthority",
+    "replay_read_authority",
+    "new_with_replay_read_authority",
+    "new_with_imported_boundary_and_replay_read_authority",
+    "try_collect_legacy_premise_dependency_chain",
+    "try_collect_legacy_claim_parent_dependency_chain",
+    "register_replay_claim_parents(",
+    "apply_bound_replay_actions(",
+    "apply_prefiltered_replay_provenance(",
 ];
 
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
@@ -712,7 +726,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // The dedicated first-witness/non-replay comparator helpers disappear with their callers.
     // CPK-8G-6e removes the final publication/failure ordering and Legacy-reader assertions.
     // CPK-8G-6g1 removes the flat side of the event/projection comparison adapter.
-    ("claim_parents_by_constraint", 30),
+    // CPK-8G-6g2 removes the final authority-selected Legacy premise-chain reader and the unused
+    // flat-parent argument from the now-unconditional Factored phase-B plan.
+    ("claim_parents_by_constraint", 28),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
     ("replay_claim_parent_keys", 5),
     ("qualified_carrier_index", 15),
@@ -753,7 +769,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("record_proof_clause_link_keys", 7),
     // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
     // CPK-8G-6g1 removes the attribution-union comparison reader.
-    ("attributed_claim_supports", 12),
+    // CPK-8G-6g2 adds one test-only physical-census read that pins continued RCPF population after
+    // authority-gated writes become unconditional; it is not a production read authority.
+    ("attributed_claim_supports", 13),
     ("flat_retained_attributed_claim_supports", 4),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
@@ -839,24 +857,29 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
     // CPK-8G-6g1 removes only comparison-oracle reads; the direct arena API remains.
-    ("replay_parent_sets", 10),
+    // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
+    ("replay_parent_sets", 11),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
     // CPK-8G-6d removes RCPF occurrence facade/census comparisons.
     // CPK-8G-6g1 removes Legacy-parity reconstruction and event-boundary reads.
-    ("replay_occurrences", 17),
+    // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
+    ("replay_occurrences", 18),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
     // CPK-8G-6c removes one historical factored projection assertion.
     // CPK-8G-6d removes RCPF first-source/first-witness comparison reads.
     // CPK-8G-6g1 removes event/evaluator oracle activation and comparison reads.
-    ("replay_result_summary", 12),
+    // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
+    ("replay_result_summary", 13),
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
     // CPK-8G-6g1 removes flat-vs-RCPF attribution and exact-link reconstruction reads.
-    ("replay_clause_projection", 7),
-    ("non_replay_claim_parents_by_constraint", 5),
+    // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
+    ("replay_clause_projection", 8),
+    // CPK-8G-6g2 likewise pins non-replay parent population after removing the authority gate.
+    ("non_replay_claim_parents_by_constraint", 6),
 ];
 
 const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
@@ -1450,6 +1473,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let constraints_source = include_str!("mod.rs");
     let machine_entry_source = include_str!("machine/entry.rs");
     let replay_factored_source = include_str!("replay_factored.rs");
+    let arena_source = include_str!("../arena.rs");
+    let lifecycle_source = include_str!("../analysis/session/lifecycle.rs");
     let lowering_body_source = include_str!("../lowering/body/mod.rs");
     let case_02_source = include_str!("tests/case_02.rs");
     let reviewed_physical_sources = [
@@ -1634,9 +1659,25 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "CPK-8G-6g1 removed Legacy-reader adapter reappeared: {removed}",
         );
     }
+    for &removed in CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES {
+        assert!(
+            [
+                replay_factored_source,
+                bounds_source,
+                constraints_source,
+                machine_entry_source,
+                arena_source,
+                lifecycle_source,
+                lowering_body_source,
+            ]
+            .iter()
+            .all(|source| !source.contains(removed)),
+            "CPK-8G-6g2 removed Replay-authority surface reappeared: {removed}",
+        );
+    }
     assert!(
-        bounds_source.contains("ReplayReadAuthority::LegacyRollback"),
-        "CPK-8G-6g1 must not consume the separate Replay authority removal staged for 8G-6g2",
+        machine_entry_source.contains("ReplayFactoredShadowStatus::Active"),
+        "CPK-8G-6g2 must retain the sticky RCPF quarantine gate while removing authority selection",
     );
     for surviving_writer in [
         "commit_claim_qualified_parent_mutation",

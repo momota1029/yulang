@@ -9,7 +9,7 @@ use poly::types::{
 
 use crate::constraints::{
     ConstraintMachine, ConstraintOriginKind, ConstraintTiming, ConstraintWeights, OriginId,
-    ReplayReadAuthority, SourceBoundaryOrigin, TypeLevel,
+    SourceBoundaryOrigin, TypeLevel,
 };
 
 /// lowering / inference run ごとの作業状態。
@@ -28,16 +28,6 @@ impl Arena {
             type_ids: TypeIds::new(),
             current_level: TypeLevel::root(),
             constraints: ConstraintMachine::new(),
-        }
-    }
-
-    pub(crate) fn new_with_replay_read_authority(
-        replay_read_authority: ReplayReadAuthority,
-    ) -> Self {
-        Self {
-            type_ids: TypeIds::new(),
-            current_level: TypeLevel::root(),
-            constraints: ConstraintMachine::new_with_replay_read_authority(replay_read_authority),
         }
     }
 

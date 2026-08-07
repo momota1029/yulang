@@ -35,7 +35,7 @@ use crate::analysis::AnalysisTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::constraints::{
     ConstraintTiming, ProofFailure, ReplayFactoredFailureOperation, ReplayFactoredShadowFailure,
-    ReplayReadAuthority, record_replay_factored_failure,
+    record_replay_factored_failure,
 };
 use crate::source_range_for_name;
 use register::*;
@@ -1568,17 +1568,6 @@ impl BodyLowerer {
         Self::new_with_imported_boundary(lower, &crate::CompiledBoundaryInterface::empty())
     }
 
-    fn new_with_replay_read_authority(
-        lower: Lower,
-        replay_read_authority: ReplayReadAuthority,
-    ) -> Self {
-        Self::new_with_imported_boundary_and_replay_read_authority(
-            lower,
-            &crate::CompiledBoundaryInterface::empty(),
-            replay_read_authority,
-        )
-    }
-
     fn new_with_imported_boundary(
         lower: Lower,
         boundary: &crate::CompiledBoundaryInterface,
@@ -1591,31 +1580,6 @@ impl BodyLowerer {
         } = lower;
         let labels = modules.dump_labels();
         let mut session = AnalysisSession::new_with_imported_boundary(arena, boundary);
-        register_declared_type_methods(&mut session, &modules);
-        register_declared_type_field_methods(&mut session, &modules);
-        register_declared_act_methods(&mut session, &modules);
-        register_declared_role_methods(&mut session, &modules);
-        register_declared_companion_local_methods(&mut session, &modules);
-        Self::from_initialized_session(modules, source_file, session, labels)
-    }
-
-    fn new_with_imported_boundary_and_replay_read_authority(
-        lower: Lower,
-        boundary: &crate::CompiledBoundaryInterface,
-        replay_read_authority: ReplayReadAuthority,
-    ) -> Self {
-        let Lower {
-            arena,
-            modules,
-            source_file,
-            ..
-        } = lower;
-        let labels = modules.dump_labels();
-        let mut session = AnalysisSession::new_with_imported_boundary_and_replay_read_authority(
-            arena,
-            boundary,
-            replay_read_authority,
-        );
         register_declared_type_methods(&mut session, &modules);
         register_declared_type_field_methods(&mut session, &modules);
         register_declared_act_methods(&mut session, &modules);

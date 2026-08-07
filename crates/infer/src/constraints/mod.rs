@@ -49,7 +49,7 @@ use replay_factored::{
     NonReplayClaimParentStore, ParentSetArena, ReplayClauseProjection, ReplayFactoredResult,
     ReplayFactoredShadowStatus, ReplayOccurrenceStore, ReplayResultSummary,
 };
-pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
+pub(crate) use replay_factored::ReplayFactoredShadowFailure;
 pub(crate) use proof::ProofFailure;
 #[cfg(test)]
 pub(crate) use replay_soak::{
@@ -58,8 +58,8 @@ pub(crate) use replay_soak::{
     with_intentional_replay_soak_test_injection,
 };
 pub(crate) use replay_soak::{
-    ReplayFactoredFailureOperation, record_legacy_rollback_entry,
-    record_proof_terminal_failure, record_replay_factored_failure,
+    ReplayFactoredFailureOperation, record_proof_terminal_failure,
+    record_replay_factored_failure,
 };
 use replay_soak::ensure_replay_soak_telemetry_header;
 
@@ -120,7 +120,6 @@ pub struct ConstraintMachine {
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
     proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
-    replay_read_authority: ReplayReadAuthority,
     replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,

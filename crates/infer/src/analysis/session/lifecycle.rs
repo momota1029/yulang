@@ -42,16 +42,6 @@ impl AnalysisSession {
         Self::from_initialized_infer(poly, infer, imported_boundary)
     }
 
-    pub(crate) fn new_with_imported_boundary_and_replay_read_authority(
-        poly: PolyArena,
-        boundary: &crate::CompiledBoundaryInterface,
-        replay_read_authority: crate::constraints::ReplayReadAuthority,
-    ) -> Self {
-        let mut infer = InferArena::new_with_replay_read_authority(replay_read_authority);
-        let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
-        Self::from_initialized_infer(poly, infer, imported_boundary)
-    }
-
     fn from_initialized_infer(
         poly: PolyArena,
         infer: InferArena,

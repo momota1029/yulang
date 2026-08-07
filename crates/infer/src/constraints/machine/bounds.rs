@@ -1235,26 +1235,6 @@ impl ConstraintMachine {
         Ok(())
     }
 
-    fn try_upper_materialization_lineages_from_parents(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        parents: impl IntoIterator<Item = ClaimQualifiedParent>,
-        unmaterialized_only: bool,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        let mut lineages = FxHashMap::default();
-        for parent in parents {
-            self.try_insert_upper_materialization_lineage_from_parent(
-                &mut lineages,
-                record,
-                producer,
-                parent,
-                unmaterialized_only,
-            )?;
-        }
-        Ok(lineages)
-    }
-
     fn try_factored_upper_materialization(
         &self,
         record: BoundRecordId,
@@ -1377,23 +1357,6 @@ impl ConstraintMachine {
         record: BoundRecordId,
         producer: ConstraintRecordId,
     ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return self.try_upper_materialization_lineages_from_parents(
-                record,
-                producer,
-                self.bounds
-                    .claim_parents_by_constraint
-                    .get(&producer)
-                    .into_iter()
-                    .flatten()
-                    .copied(),
-                false,
-            );
-        }
         self.try_factored_upper_materialization_full(record, producer)
     }
 
@@ -1405,21 +1368,8 @@ impl ConstraintMachine {
         &self,
         record: BoundRecordId,
         producer: ConstraintRecordId,
-        _legacy_parents: &[ClaimQualifiedParent],
         delta: &ReplayResultSummaryDelta,
     ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return self.try_upper_materialization_lineages_from_parents(
-                record,
-                producer,
-                _legacy_parents.iter().copied(),
-                true,
-            );
-        }
         self.try_factored_upper_materialization_delta(record, producer, delta)
     }
 
@@ -1584,24 +1534,6 @@ impl ConstraintMachine {
         )
     }
 
-    fn try_lower_projection_from_parents(
-        &self,
-        parents: impl IntoIterator<Item = ClaimQualifiedParent>,
-        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        let mut roots = FxHashSet::default();
-        for parent in parents {
-            roots
-                .try_reserve(1)
-                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-            roots.insert(self.try_lower_projection_root(parent.parent_claim())?);
-        }
-        Self::try_lower_projection_adapter_snapshot(
-            roots.into_iter().collect(),
-            independent_supports,
-        )
-    }
-
     #[allow(
         dead_code,
         reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
@@ -1609,19 +1541,8 @@ impl ConstraintMachine {
     fn try_authoritative_lower_projection_full(
         &self,
         producer: ConstraintRecordId,
-        _legacy_parents: &[ClaimQualifiedParent],
         independent_supports: &[ProjectionProofCarrier],
     ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return self.try_lower_projection_from_parents(
-                _legacy_parents.iter().copied(),
-                independent_supports.iter().copied(),
-            );
-        }
         self.try_factored_lower_projection_full(producer, independent_supports.iter().copied())
     }
 
@@ -1632,20 +1553,9 @@ impl ConstraintMachine {
     fn try_authoritative_lower_projection_replay_delta(
         &self,
         producer: ConstraintRecordId,
-        _legacy_parents: &[ClaimQualifiedParent],
         delta: &ReplayResultSummaryDelta,
         independent_supports: &[ProjectionProofCarrier],
     ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return self.try_lower_projection_from_parents(
-                _legacy_parents.iter().copied(),
-                independent_supports.iter().copied(),
-            );
-        }
         self.try_factored_lower_projection_delta(
             producer,
             delta,
@@ -1666,7 +1576,6 @@ impl ConstraintMachine {
         &self,
         producer: ConstraintRecordId,
         target_record: Option<BoundRecordId>,
-        legacy_parents: &[ClaimQualifiedParent],
         independent_supports: &[ProjectionProofCarrier],
     ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
         self.try_d4_pre_consumer_query()?;
@@ -1675,13 +1584,7 @@ impl ConstraintMachine {
             .transpose()?;
         let lower = self
             .lower_record_for_constraint(producer)
-            .map(|_| {
-                self.try_authoritative_lower_projection_full(
-                    producer,
-                    legacy_parents,
-                    independent_supports,
-                )
-            })
+            .map(|_| self.try_authoritative_lower_projection_full(producer, independent_supports))
             .transpose()?;
         Ok((upper, lower))
     }
@@ -1690,20 +1593,15 @@ impl ConstraintMachine {
         &self,
         producer: ConstraintRecordId,
         target_record: Option<BoundRecordId>,
-        legacy_parents: &[ClaimQualifiedParent],
+        accepted_parents: &[ClaimQualifiedParent],
         delta: &ReplayResultSummaryDelta,
         carrier: ProjectionProofCarrier,
     ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
         self.try_d4_pre_consumer_query()?;
         let upper = target_record
-            .filter(|_| !legacy_parents.is_empty())
+            .filter(|_| !accepted_parents.is_empty())
             .map(|record| {
-                self.try_authoritative_upper_materialization_replay_delta(
-                    record,
-                    producer,
-                    legacy_parents,
-                    delta,
-                )
+                self.try_authoritative_upper_materialization_replay_delta(record, producer, delta)
             })
             .transpose()?;
         let lower = if let Some(lower_record) = self.lower_record_for_constraint(producer) {
@@ -1719,22 +1617,13 @@ impl ConstraintMachine {
             {
                 Some(self.try_authoritative_lower_projection_replay_delta(
                     producer,
-                    legacy_parents,
                     delta,
                     &independent_supports,
                 )?)
             } else {
-                let all_parents = self
-                    .bounds
-                    .claim_parents_by_constraint
-                    .get(&producer)
-                    .map(Vec::as_slice)
-                    .unwrap_or(&[]);
-                Some(self.try_authoritative_lower_projection_full(
-                    producer,
-                    all_parents,
-                    &independent_supports,
-                )?)
+                Some(
+                    self.try_authoritative_lower_projection_full(producer, &independent_supports)?,
+                )
             }
         } else {
             None
@@ -1962,17 +1851,6 @@ impl ConstraintMachine {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) -> ReplayFactoredResult<bool> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return Ok(self.bounds.record_proof_clause_link_is_registered(
-                lower_record,
-                support,
-                clause,
-            ));
-        }
         match (parent, support) {
             (
                 ClaimQualifiedParent::ReplayConstraint { replay, .. },
@@ -2297,17 +2175,6 @@ impl ConstraintMachine {
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
         pending_premises: &mut FxHashSet<ProofPremise>,
     ) -> ReplayFactoredResult<()> {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return self.try_collect_legacy_premise_dependency_chain(
-                premise,
-                visited_constraints,
-                pending_premises,
-            );
-        }
         pending_premises.insert(premise);
         let ProofPremise::Constraint(constraint) = premise else {
             return Ok(());
@@ -2366,78 +2233,6 @@ impl ConstraintMachine {
             }
             ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
                 self.try_collect_premise_dependency_chain(
-                    ProofPremise::Constraint(derivation.parent),
-                    visited_constraints,
-                    pending_premises,
-                )?;
-            }
-            ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
-                    pending_premises.insert(ProofPremise::RootCoverage(root));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[cfg(test)]
-    fn try_collect_legacy_premise_dependency_chain(
-        &self,
-        premise: ProofPremise,
-        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
-        pending_premises: &mut FxHashSet<ProofPremise>,
-    ) -> ReplayFactoredResult<()> {
-        pending_premises.insert(premise);
-        let ProofPremise::Constraint(constraint) = premise else {
-            return Ok(());
-        };
-        // Record nodes publish their own inclusion changes, so only record-free constraint chains
-        // are expanded here. The pass-local set bounds structural cycles without evaluating them.
-        if !visited_constraints.insert(constraint) {
-            return Ok(());
-        }
-        if let Some(lower_record) = self.lower_record_for_constraint(constraint) {
-            pending_premises.insert(ProofPremise::Record(lower_record));
-        }
-        let parents = self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&constraint)
-            .cloned()
-            .unwrap_or_default();
-        for parent in parents {
-            self.try_collect_legacy_claim_parent_dependency_chain(
-                parent,
-                visited_constraints,
-                pending_premises,
-            )?;
-        }
-        if let Some(root_claim) = self
-            .bounds
-            .root_claim_by_producer_constraint
-            .get(&constraint)
-            .copied()
-            && let Some(root) = self.bounds.canonical_coverage_root(root_claim)
-        {
-            pending_premises.insert(ProofPremise::RootCoverage(root));
-        }
-        Ok(())
-    }
-
-    #[cfg(test)]
-    fn try_collect_legacy_claim_parent_dependency_chain(
-        &self,
-        parent: ClaimQualifiedParent,
-        visited_constraints: &mut FxHashSet<ConstraintRecordId>,
-        pending_premises: &mut FxHashSet<ProofPremise>,
-    ) -> ReplayFactoredResult<()> {
-        match parent {
-            ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
-                pending_premises.insert(ProofPremise::Record(replay.lower));
-                pending_premises.insert(ProofPremise::Record(replay.upper));
-            }
-            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                self.try_collect_legacy_premise_dependency_chain(
                     ProofPremise::Constraint(derivation.parent),
                     visited_constraints,
                     pending_premises,
@@ -2591,12 +2386,7 @@ impl ConstraintMachine {
         Option<ReplayAdmissionPublicationFence>,
         Vec<ClaimQualifiedParent>,
     ) {
-        #[cfg(test)]
-        let factored_admission = self.replay_read_authority() == ReplayReadAuthority::Factored;
-        #[cfg(not(test))]
-        let factored_admission = true;
-        let mut publication_fence =
-            factored_admission.then(ReplayAdmissionPublicationFence::default);
+        let mut publication_fence = Some(ReplayAdmissionPublicationFence::default());
         let (mut admission, mirror) =
             match self.try_prepare_qualified_parent_admission(result, parents) {
                 Ok(prepared) => prepared,
@@ -2632,7 +2422,7 @@ impl ConstraintMachine {
                 publication_fence.as_mut(),
             );
         }
-        if factored_admission && self.replay_factored_terminal_failure().is_none() {
+        if self.replay_factored_terminal_failure().is_none() {
             let independent_supports = self
                 .lower_record_for_constraint(result)
                 .zip(lower_carrier)
@@ -2644,7 +2434,6 @@ impl ConstraintMachine {
             if let Err(failure) = self.try_authoritative_claim_parent_full_plan(
                 result,
                 target_record.filter(|_| !accepted.is_empty()),
-                &accepted_parents,
                 &independent_supports,
             ) {
                 self.mark_replay_factored_failure(
@@ -3465,37 +3254,13 @@ impl ConstraintMachine {
         self.cdm_lower_delta_census
     }
 
-    #[cfg(test)]
-    fn register_replay_claim_parents(
-        &mut self,
-        result: ConstraintRecordId,
-        replay: BinaryReplayDerivation,
-        parents: &[SideTaggedReplayClaim],
-        materialize_existing_target: bool,
-    ) {
-        assert!(
-            matches!(
-                self.replay_read_authority(),
-                ReplayReadAuthority::LegacyRollback(_)
-            ),
-            "the legacy-only replay-parent helper requires LegacyRollback authority"
-        );
-        self.register_replay_claim_parents_with_factored_drafts(
-            result,
-            replay,
-            parents,
-            materialize_existing_target,
-            None,
-        );
-    }
-
     fn register_replay_claim_parents_with_factored_drafts(
         &mut self,
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
         parents: &[SideTaggedReplayClaim],
         materialize_existing_target: bool,
-        factored_drafts: Option<FactoredReplayParentDrafts<'_>>,
+        factored_drafts: FactoredReplayParentDrafts<'_>,
     ) {
         if !self.constraint_records[result.0 as usize]
             .replay_derivations
@@ -3504,10 +3269,8 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
-        let factored_admission = factored_drafts.is_some();
-        let phase_b_enabled = factored_admission && self.replay_factored_writes_enabled();
-        let mut publication_fence =
-            factored_admission.then(ReplayAdmissionPublicationFence::default);
+        let phase_b_enabled = self.replay_factored_writes_enabled();
+        let mut publication_fence = Some(ReplayAdmissionPublicationFence::default());
         let candidates = parents
             .iter()
             .map(|parent| ClaimQualifiedParent::ReplayConstraint {
@@ -3584,16 +3347,14 @@ impl ConstraintMachine {
         } else {
             None
         };
-        let summary_delta = factored_drafts.map(|factored_drafts| {
-            self.observe_factored_replay_parent_admission(
-                result,
-                replay,
-                parents,
-                &inserted_parents,
-                clause_projection_parents,
-                factored_drafts,
-            )
-        });
+        let summary_delta = self.observe_factored_replay_parent_admission(
+            result,
+            replay,
+            parents,
+            &inserted_parents,
+            clause_projection_parents,
+            factored_drafts,
+        );
         if phase_b_enabled
             && materialize_existing_target
             && self.replay_factored_terminal_failure().is_none()
@@ -3606,12 +3367,11 @@ impl ConstraintMachine {
         if phase_b_enabled
             && materialize_existing_target
             && self.replay_factored_terminal_failure().is_none()
-            && let Some(delta) = summary_delta.as_ref()
             && let Err(failure) = self.try_authoritative_replay_delta_plan(
                 result,
                 target_record,
                 &inserted_parents,
-                delta,
+                &summary_delta,
                 ProjectionProofCarrier::ReplayConstraint {
                     result,
                     derivation: replay,
@@ -3623,7 +3383,7 @@ impl ConstraintMachine {
                 ReplayFactoredFailureOperation::Write,
             );
         }
-        if factored_admission && self.replay_factored_terminal_failure().is_some() {
+        if self.replay_factored_terminal_failure().is_some() {
             return;
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -3641,8 +3401,7 @@ impl ConstraintMachine {
                 publication_fence.as_mut(),
             );
         }
-        let _summary_delta = summary_delta;
-        if factored_admission && self.replay_factored_terminal_failure().is_some() {
+        if self.replay_factored_terminal_failure().is_some() {
             return;
         }
         if let Some(fence) = publication_fence {
@@ -4678,30 +4437,18 @@ impl ConstraintMachine {
             .has_weighted_frontier_path(*source, *target, &constraint.weights)
     }
 
-    #[cfg(test)]
-    fn apply_bound_replay_actions(&mut self, actions: BoundReplayActions) -> BoundReplayApplyStats {
-        assert!(
-            matches!(
-                self.replay_read_authority(),
-                ReplayReadAuthority::LegacyRollback(_)
-            ),
-            "the legacy-only replay-action helper requires LegacyRollback authority"
-        );
-        self.apply_bound_replay_actions_impl(actions, None)
-    }
-
     fn apply_bound_replay_actions_with_parent_drafts(
         &mut self,
         actions: BoundReplayActions,
         parent_drafts: &[ReplayParentDraft],
     ) -> BoundReplayApplyStats {
-        self.apply_bound_replay_actions_impl(actions, Some(parent_drafts))
+        self.apply_bound_replay_actions_impl(actions, parent_drafts)
     }
 
     fn apply_bound_replay_actions_impl(
         &mut self,
         actions: BoundReplayActions,
-        parent_drafts: Option<&[ReplayParentDraft]>,
+        parent_drafts: &[ReplayParentDraft],
     ) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
         for action in actions {
@@ -4715,11 +4462,11 @@ impl ConstraintMachine {
                     action.derivation,
                     &action.claim_parents,
                     !enqueued,
-                    parent_drafts.map(|parent_drafts| FactoredReplayParentDrafts {
+                    FactoredReplayParentDrafts {
                         parent_drafts,
                         lower: action.lower_parents,
                         upper: action.upper_parents,
-                    }),
+                    },
                 );
             }
             let admission_disposition = match (enqueued, disposition) {
@@ -4916,36 +4663,20 @@ impl ConstraintMachine {
         }
     }
 
-    #[cfg(test)]
-    fn apply_prefiltered_replay_provenance(
-        &mut self,
-        duplicates: BoundReplayActions,
-        trivial: BoundReplayActions,
-    ) {
-        assert!(
-            matches!(
-                self.replay_read_authority(),
-                ReplayReadAuthority::LegacyRollback(_)
-            ),
-            "the legacy-only prefiltered-replay helper requires LegacyRollback authority"
-        );
-        self.apply_prefiltered_replay_provenance_impl(duplicates, trivial, None);
-    }
-
     fn apply_prefiltered_replay_provenance_with_parent_drafts(
         &mut self,
         duplicates: BoundReplayActions,
         trivial: BoundReplayActions,
         parent_drafts: &[ReplayParentDraft],
     ) {
-        self.apply_prefiltered_replay_provenance_impl(duplicates, trivial, Some(parent_drafts));
+        self.apply_prefiltered_replay_provenance_impl(duplicates, trivial, parent_drafts);
     }
 
     fn apply_prefiltered_replay_provenance_impl(
         &mut self,
         duplicates: BoundReplayActions,
         trivial: BoundReplayActions,
-        parent_drafts: Option<&[ReplayParentDraft]>,
+        parent_drafts: &[ReplayParentDraft],
     ) {
         for action in duplicates {
             let result = *self
@@ -4959,11 +4690,11 @@ impl ConstraintMachine {
                     action.derivation,
                     &action.claim_parents,
                     true,
-                    parent_drafts.map(|parent_drafts| FactoredReplayParentDrafts {
+                    FactoredReplayParentDrafts {
                         parent_drafts,
                         lower: action.lower_parents,
                         upper: action.upper_parents,
-                    }),
+                    },
                 );
             }
             let admission_disposition = match disposition {
@@ -5745,11 +5476,11 @@ mod mutation_tests {
             replay,
             parents,
             materialize_existing_target,
-            Some(FactoredReplayParentDrafts {
+            FactoredReplayParentDrafts {
                 parent_drafts: &plan.parent_drafts,
                 lower,
                 upper,
-            }),
+            },
         );
     }
 
@@ -6598,6 +6329,38 @@ mod mutation_tests {
         assert!(rendered.contains("Claimed"));
         assert!(rendered.contains("Independent"));
         assert!(rendered.contains("Structural"));
+
+        let parent_set_census = fixture.machine.replay_parent_sets.storage_census();
+        let occurrences = &fixture.machine.replay_occurrences;
+        let result_summary = &fixture.machine.replay_result_summary;
+        let clause_projection = &fixture.machine.replay_clause_projection;
+        let non_replay_census = fixture
+            .machine
+            .non_replay_claim_parents_by_constraint
+            .storage_census();
+        let rcpf_storage_census = (
+            parent_set_census.0,
+            parent_set_census.2,
+            occurrences.occurrences.len(),
+            occurrences.by_key.len(),
+            occurrences.by_result.len(),
+            occurrences.attachment_batches.len(),
+            result_summary.first_parent_by_root.len(),
+            result_summary.projected_parent_versions.len(),
+            clause_projection
+                .clause_by_record_and_occurrence
+                .len(),
+            clause_projection
+                .replay_attributed_claim_supports
+                .len(),
+            non_replay_census.0,
+            non_replay_census.2,
+        );
+        assert_eq!(
+            rcpf_storage_census,
+            (1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1),
+            "CPK-8G-6g2 must preserve the representative RCPF physical-storage census",
+        );
 
         fixture.machine.replay_parent_sets = Default::default();
         fixture.machine.replay_occurrences = Default::default();

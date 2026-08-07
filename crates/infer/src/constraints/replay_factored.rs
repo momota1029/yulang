@@ -133,19 +133,6 @@ pub(super) enum ReplayFactoredShadowStatus {
     Failed(ReplayFactoredShadowFailure),
 }
 
-/// Replay representation selected once for one `ConstraintMachine` lifetime.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ReplayReadAuthority {
-    Factored,
-    LegacyRollback(ReplayFactoredShadowFailure),
-}
-
-impl ReplayReadAuthority {
-    pub(super) fn writes_factored_shadow(self) -> bool {
-        matches!(self, Self::Factored)
-    }
-}
-
 pub(super) type ReplayFactoredResult<T> = Result<T, ReplayFactoredShadowFailure>;
 
 const EMPTY_PARENT_SET_VERSION: ParentSetVersionRecord = ParentSetVersionRecord {

@@ -4,12 +4,6 @@ use crate::time::Instant;
 
 impl ConstraintMachine {
     pub fn new() -> Self {
-        Self::new_with_replay_read_authority(ReplayReadAuthority::Factored)
-    }
-
-    pub(crate) fn new_with_replay_read_authority(
-        replay_read_authority: ReplayReadAuthority,
-    ) -> Self {
         ensure_replay_soak_telemetry_header();
         let replay_result_summary = ReplayResultSummary::default();
         Self {
@@ -23,7 +17,6 @@ impl ConstraintMachine {
             non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
             proof_store: proof::ProofOccurrenceStore::default(),
             proof_terminal_failure: RefCell::new(None),
-            replay_read_authority,
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
@@ -83,10 +76,6 @@ impl ConstraintMachine {
         }
     }
 
-    pub(crate) fn replay_read_authority(&self) -> ReplayReadAuthority {
-        self.replay_read_authority
-    }
-
     pub(crate) fn proof_terminal_failure(&self) -> Option<proof::ProofFailure> {
         self.proof_terminal_failure.borrow().clone()
     }
@@ -135,10 +124,6 @@ impl ConstraintMachine {
     }
 
     pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
-        #[cfg(test)]
-        if !self.replay_read_authority.writes_factored_shadow() {
-            return false;
-        }
         matches!(
             self.replay_factored_shadow_status.get(),
             ReplayFactoredShadowStatus::Active
