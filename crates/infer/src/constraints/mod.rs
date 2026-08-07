@@ -1748,13 +1748,14 @@ impl ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
-        let lowers = match self.proof_read_authority() {
-            proof::ProofReadAuthority::Cpk => self.cpk_scheme_projectable_lowers(var),
-            proof::ProofReadAuthority::LegacyRollback(_) => {
-                self.legacy_scheme_projectable_lowers(var)
-            }
-        };
-        lowers.into_iter()
+        #[cfg(test)]
+        if matches!(
+            self.proof_read_authority(),
+            proof::ProofReadAuthority::LegacyRollback(_)
+        ) {
+            return self.legacy_scheme_projectable_lowers(var).into_iter();
+        }
+        self.cpk_scheme_projectable_lowers(var).into_iter()
     }
 
     fn cpk_scheme_projectable_lowers(&self, var: TypeVar) -> Vec<SchemeProjectableLower<'_>> {

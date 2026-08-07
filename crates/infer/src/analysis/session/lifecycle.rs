@@ -49,12 +49,9 @@ impl AnalysisSession {
         boundary: &crate::CompiledBoundaryInterface,
         replay_read_authority: crate::constraints::ReplayReadAuthority,
     ) -> Self {
-        Self::new_with_imported_boundary_and_read_authorities(
-            poly,
-            boundary,
-            replay_read_authority,
-            crate::constraints::ProofReadAuthority::Cpk,
-        )
+        let mut infer = InferArena::new_with_replay_read_authority(replay_read_authority);
+        let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
+        Self::from_initialized_infer(poly, infer, imported_boundary)
     }
 
     pub(crate) fn new_with_imported_boundary_and_read_authorities(
@@ -68,6 +65,14 @@ impl AnalysisSession {
             proof_read_authority,
         );
         let imported_boundary = seed_imported_boundary(&poly.typ, &mut infer, boundary);
+        Self::from_initialized_infer(poly, infer, imported_boundary)
+    }
+
+    fn from_initialized_infer(
+        poly: PolyArena,
+        infer: InferArena,
+        imported_boundary: ImportedBoundarySubstitution,
+    ) -> Self {
         let mut session = Self {
             poly,
             application_provenance: ApplicationProvenanceTable::default(),

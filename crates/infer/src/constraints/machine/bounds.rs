@@ -739,6 +739,7 @@ impl ConstraintMachine {
         }
         #[cfg(test)]
         let routing_shadow = replay.routing_shadow;
+        #[cfg(test)]
         if matches!(
             self.proof_read_authority(),
             proof::ProofReadAuthority::LegacyRollback(_)
@@ -4517,19 +4518,24 @@ impl ConstraintMachine {
             }
             inserted_parents.push(parent);
         }
-        match self.proof_read_authority() {
-            proof::ProofReadAuthority::Cpk => self
-                .proof_store
-                .record_cpk_replay_parent_snapshot(result, replay, parents),
-            proof::ProofReadAuthority::LegacyRollback(_) => self
-                .proof_store
-                .record_legacy_replay_parent_snapshot(
-                    &self.bounds,
-                    result,
-                    replay,
-                    &inserted_parents,
-                ),
+        #[cfg(test)]
+        if matches!(
+            self.proof_read_authority(),
+            proof::ProofReadAuthority::LegacyRollback(_)
+        ) {
+            self.proof_store.record_legacy_replay_parent_snapshot(
+                &self.bounds,
+                result,
+                replay,
+                &inserted_parents,
+            );
+        } else {
+            self.proof_store
+                .record_cpk_replay_parent_snapshot(result, replay, parents);
         }
+        #[cfg(not(test))]
+        self.proof_store
+            .record_cpk_replay_parent_snapshot(result, replay, parents);
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
@@ -4871,6 +4877,7 @@ impl ConstraintMachine {
             parent_claim: claim,
             derivation,
         };
+        #[cfg(test)]
         let proof_admission = match self.proof_read_authority() {
             proof::ProofReadAuthority::Cpk => self
                 .proof_store
@@ -4887,6 +4894,10 @@ impl ConstraintMachine {
                 proof::prepare_reduction_route_admission(result, derivation, claim)
             }
         };
+        #[cfg(not(test))]
+        let proof_admission = self
+            .proof_store
+            .prepare_cpk_reduction_route_admission(result, derivation, claim);
         if proof_admission == proof::PreparedReductionRouteAdmission::Unchanged {
             return;
         }
@@ -5132,31 +5143,33 @@ impl ConstraintMachine {
         weights: &ConstraintWeights,
         incremental_routes: &[UnweightedRowReductionReplayRoute],
     ) -> BoundReplayPlan {
-        match self.proof_read_authority() {
-            proof::ProofReadAuthority::Cpk => self
-                .cpk_lower_bound_replay_actions(
-                    target,
-                    lower_record,
-                    pos,
-                    weights,
-                    incremental_routes,
-                )
-                .unwrap_or_else(|failure| {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::PrepareReplayRouteBatch,
-                        failure,
-                    );
-                    BoundReplayPlan::default()
-                }),
-            proof::ProofReadAuthority::LegacyRollback(_) => self
-                .legacy_lower_bound_replay_actions(
-                    target,
-                    lower_record,
-                    pos,
-                    weights,
-                    incremental_routes,
-                ),
+        #[cfg(test)]
+        if matches!(
+            self.proof_read_authority(),
+            proof::ProofReadAuthority::LegacyRollback(_)
+        ) {
+            return self.legacy_lower_bound_replay_actions(
+                target,
+                lower_record,
+                pos,
+                weights,
+                incremental_routes,
+            );
         }
+        self.cpk_lower_bound_replay_actions(
+            target,
+            lower_record,
+            pos,
+            weights,
+            incremental_routes,
+        )
+        .unwrap_or_else(|failure| {
+            self.mark_proof_terminal_failure(
+                proof::ProofOperation::PrepareReplayRouteBatch,
+                failure,
+            );
+            BoundReplayPlan::default()
+        })
     }
 
     fn cpk_lower_bound_replay_actions(
@@ -5505,20 +5518,21 @@ impl ConstraintMachine {
         neg: NegId,
         weights: &ConstraintWeights,
     ) -> BoundReplayPlan {
-        match self.proof_read_authority() {
-            proof::ProofReadAuthority::Cpk => self
-                .cpk_upper_bound_replay_actions(source, upper_record, neg, weights)
-                .unwrap_or_else(|failure| {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::PrepareReplayRouteBatch,
-                        failure,
-                    );
-                    BoundReplayPlan::default()
-                }),
-            proof::ProofReadAuthority::LegacyRollback(_) => {
-                self.legacy_upper_bound_replay_actions(source, upper_record, neg, weights)
-            }
+        #[cfg(test)]
+        if matches!(
+            self.proof_read_authority(),
+            proof::ProofReadAuthority::LegacyRollback(_)
+        ) {
+            return self.legacy_upper_bound_replay_actions(source, upper_record, neg, weights);
         }
+        self.cpk_upper_bound_replay_actions(source, upper_record, neg, weights)
+            .unwrap_or_else(|failure| {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::PrepareReplayRouteBatch,
+                    failure,
+                );
+                BoundReplayPlan::default()
+            })
     }
 
     fn cpk_upper_bound_replay_actions(

@@ -24,13 +24,17 @@ pub struct Arena {
 
 impl Arena {
     pub fn new() -> Self {
-        Self::new_with_read_authorities(ReplayReadAuthority::Factored, ProofReadAuthority::Cpk)
+        Self::new_with_replay_read_authority(ReplayReadAuthority::Factored)
     }
 
     pub(crate) fn new_with_replay_read_authority(
         replay_read_authority: ReplayReadAuthority,
     ) -> Self {
-        Self::new_with_read_authorities(replay_read_authority, ProofReadAuthority::Cpk)
+        Self {
+            type_ids: TypeIds::new(),
+            current_level: TypeLevel::root(),
+            constraints: ConstraintMachine::new_with_replay_read_authority(replay_read_authority),
+        }
     }
 
     pub(crate) fn new_with_read_authorities(
