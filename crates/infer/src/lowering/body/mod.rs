@@ -2830,8 +2830,7 @@ mod rcpf_c3a_retry_tests {
     use super::*;
     use crate::constraints::proof::ProofOperation;
     use crate::constraints::{
-        ReplayFactoredFailureOperation, ReplaySoakEventOrigin, capture_replay_soak_test_events,
-        record_proof_terminal_failure,
+        ReplaySoakEventOrigin, capture_replay_soak_test_events, record_proof_terminal_failure,
         with_intentional_replay_soak_test_injection,
     };
 
@@ -3011,114 +3010,6 @@ mod rcpf_c3a_retry_tests {
         );
     }
 
-    #[test]
-    fn rcpf_d4_4_quarantine_discards_attempt_without_legacy_retry() {
-        let loaded = sources::load(vec![sources::SourceFile {
-            module_path: Path::default(),
-            source: concat!(
-                "pub identity x = x\n",
-                "pub compose f g x = f (g x)\n",
-                "pub twice f x = f (f x)\n",
-                "type box 'a with:\n",
-                "  struct self:\n",
-                "    item: 'a\n",
-                "role Index 'container 'key:\n",
-                "  type value\n",
-                "  our c.index: 'key -> value\n",
-                "impl Index (box 'a) int:\n",
-                "  type value = bool\n",
-                "  our c.index i = c.item\n",
-            )
-            .into(),
-        }]);
-        let legacy_authority = ReplayReadAuthority::LegacyRollback(FAILURE);
-
-        let clean_legacy = lower_quarantine_fixture_once(&loaded, legacy_authority, false)
-            .expect("the clean legacy control compiles");
-        assert_eq!(clean_legacy.terminal_failure, None);
-
-        let ((error, attempts, injections), telemetry) = capture_replay_soak_test_events(|| {
-            with_intentional_replay_soak_test_injection(|| {
-                let mut attempts = 0usize;
-                let mut injections = 0usize;
-                let result = run_replay_compilation_attempt(|| {
-                    attempts += 1;
-                    let inject_quarantine = true;
-                    injections += usize::from(inject_quarantine);
-                    lower_quarantine_fixture_once(
-                        &loaded,
-                        ReplayReadAuthority::Factored,
-                        inject_quarantine,
-                    )
-                });
-                let error = match result {
-                    Ok(_) => panic!("the quarantined factored attempt must be terminal"),
-                    Err(error) => error,
-                };
-                (error, attempts, injections)
-            })
-        });
-
-        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
-        assert_eq!(injections, 1);
-        assert_eq!(
-            attempts, 1,
-            "the failed compilation must not start a legacy retry"
-        );
-        assert_eq!(
-            telemetry.terminal_failures(
-                ReplaySoakEventOrigin::IntentionalTestInjection,
-                ReplayFactoredFailureOperation::Read,
-            ),
-            1,
-        );
-        assert_eq!(
-            telemetry.legacy_rollback_entries(ReplaySoakEventOrigin::IntentionalTestInjection),
-            0,
-        );
-        assert_eq!(
-            telemetry.factored_read_errors(ReplaySoakEventOrigin::IntentionalTestInjection),
-            1,
-        );
-        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
-    }
-
-    fn lower_quarantine_fixture_once(
-        files: &[LoadedFile],
-        authority: ReplayReadAuthority,
-        inject_quarantine: bool,
-    ) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
-        let mut consumer = |lowerer: &mut BodyLowerer| {
-            if inject_quarantine {
-                assert_eq!(authority, ReplayReadAuthority::Factored);
-                assert_ne!(
-                    lowerer.session.infer.constraints().epoch(),
-                    crate::constraints::ConstraintEpoch::default(),
-                    "inject only after source lowering has admitted real constraints"
-                );
-                lowerer
-                    .session
-                    .infer
-                    .constraints()
-                    .inject_replay_factored_read_failure_for_test(FAILURE);
-            }
-        };
-        let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, |lower| {
-            BodyLowerer::new_with_replay_read_authority(lower, authority)
-        })?;
-        let ReplayCompilationAttempt {
-            output: (output, ()),
-            terminal_failure,
-            proof_terminal_failure,
-            terminal_failure_recorded,
-        } = attempt;
-        Ok(ReplayCompilationAttempt {
-            output,
-            terminal_failure,
-            proof_terminal_failure,
-            terminal_failure_recorded,
-        })
-    }
 }
 
 #[cfg(test)]
