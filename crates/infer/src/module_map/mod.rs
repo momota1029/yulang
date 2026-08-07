@@ -1758,7 +1758,7 @@ pub enum LoadedFilesError {
     MissingRoot,
     DuplicateModulePath { module_path: ModulePath },
     MissingModulePath { module_path: ModulePath },
-    ReplayFactoredRetryFailed,
+    ReplayFactoredFailed,
     ProofKernelFailed,
 }
 
@@ -1776,10 +1776,12 @@ impl fmt::Display for LoadedFilesError {
                 "loaded module `{}` has no module declaration in its parent",
                 format_module_path(module_path)
             ),
-            Self::ReplayFactoredRetryFailed => write!(
-                f,
-                "factored replay state failed and a clean legacy rollback attempt could not complete"
-            ),
+            Self::ReplayFactoredFailed => {
+                write!(
+                    f,
+                    "factored replay state failed; the compilation attempt was discarded"
+                )
+            }
             Self::ProofKernelFailed => {
                 write!(f, "proof kernel state failed; the compilation attempt was discarded")
             }

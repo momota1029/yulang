@@ -35,7 +35,7 @@ use crate::analysis::AnalysisTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
 use crate::constraints::{
     ConstraintTiming, ProofFailure, ReplayFactoredFailureOperation, ReplayFactoredShadowFailure,
-    ReplayReadAuthority, record_legacy_rollback_entry, record_replay_factored_failure,
+    ReplayReadAuthority, record_replay_factored_failure,
 };
 use crate::source_range_for_name;
 use register::*;
@@ -681,9 +681,7 @@ impl<T> ReplayCompilationAttempt<T> {
 }
 
 fn run_replay_compilation_attempt<T>(
-    mut attempt: impl FnMut(
-        ReplayReadAuthority,
-    ) -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
+    attempt: impl FnOnce(ReplayReadAuthority) -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
 ) -> Result<T, LoadedFilesError> {
     let first = attempt(ReplayReadAuthority::Factored)?;
     if first.proof_terminal_failure.is_some() {
@@ -694,32 +692,10 @@ fn run_replay_compilation_attempt<T>(
         return Ok(first.output);
     };
     if !first.terminal_failure_recorded {
-        record_replay_factored_failure(
-            replay_failure,
-            ReplayFactoredFailureOperation::Read,
-            true,
-        );
+        record_replay_factored_failure(replay_failure, ReplayFactoredFailureOperation::Read, true);
     }
-    record_legacy_rollback_entry(replay_failure);
     drop(first.output);
-
-    let retry = attempt(ReplayReadAuthority::LegacyRollback(replay_failure))
-        .map_err(|_| LoadedFilesError::ReplayFactoredRetryFailed)?;
-    if let Some(retry_failure) = retry.terminal_failure {
-        if !retry.terminal_failure_recorded {
-            record_replay_factored_failure(
-                retry_failure,
-                ReplayFactoredFailureOperation::Read,
-                true,
-            );
-        }
-        return Err(LoadedFilesError::ReplayFactoredRetryFailed);
-    }
-    if retry.proof_terminal_failure.is_some() {
-        drop(retry.output);
-        return Err(LoadedFilesError::ProofKernelFailed);
-    }
-    Ok(retry.output)
+    Err(LoadedFilesError::ReplayFactoredFailed)
 }
 
 fn body_lowering_attempt(output: BodyLowering) -> ReplayCompilationAttempt<BodyLowering> {
@@ -2882,38 +2858,35 @@ mod rcpf_c3a_retry_tests {
     }
 
     #[test]
-    fn rcpf_c3a_failed_attempt_is_discarded_before_fresh_legacy_retry() {
+    fn rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error() {
+        #[derive(Debug)]
+        struct DropProbe(std::rc::Rc<std::cell::Cell<bool>>);
+
+        impl Drop for DropProbe {
+            fn drop(&mut self) {
+                self.0.set(true);
+            }
+        }
+
         let mut authorities = Vec::new();
-        let mut next_identity = 0usize;
-        let output = with_intentional_replay_soak_test_injection(|| {
+        let output_dropped = std::rc::Rc::new(std::cell::Cell::new(false));
+        let error = with_intentional_replay_soak_test_injection(|| {
             run_replay_compilation_attempt(|authority| {
                 authorities.push(authority);
-                let identity = next_identity;
-                next_identity += 1;
-                let terminal_failure = (identity == 0).then_some(FAILURE);
-                let state = if identity == 0 {
-                    vec!["failed-attempt-only"]
-                } else {
-                    vec!["clean-legacy-output"]
-                };
                 Ok(ReplayCompilationAttempt::completed(
-                    (identity, state),
-                    terminal_failure,
+                    DropProbe(output_dropped.clone()),
+                    Some(FAILURE),
                 ))
             })
         })
-        .expect("the legacy rollback attempt completes");
+        .expect_err("the factored failure is terminal");
 
-        let clean_legacy_output = (1, vec!["clean-legacy-output"]);
-        assert_eq!(output, clean_legacy_output);
-        assert_eq!(next_identity, 2, "retry constructs a fresh attempt");
-        assert_eq!(
-            authorities,
-            [
-                ReplayReadAuthority::Factored,
-                ReplayReadAuthority::LegacyRollback(FAILURE),
-            ]
+        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
+        assert!(
+            output_dropped.get(),
+            "the failed attempt output is discarded"
         );
+        assert_eq!(authorities, [ReplayReadAuthority::Factored]);
     }
 
     #[test]
@@ -2998,56 +2971,37 @@ mod rcpf_c3a_retry_tests {
     }
 
     #[test]
-    fn cpk_8d_proof_failure_during_rcpf_retry_does_not_start_a_proof_retry() {
-        let failure = ProofFailure::ResourceExhausted {
-            operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
-        };
+    fn cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt() {
         let mut authorities = Vec::new();
         let error = with_intentional_replay_soak_test_injection(|| {
             run_replay_compilation_attempt::<()>(|replay_authority| {
                 authorities.push(replay_authority);
-                if authorities.len() == 1 {
-                    Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
-                } else {
-                    Ok(ReplayCompilationAttempt {
-                        output: (),
-                        terminal_failure: None,
-                        proof_terminal_failure: Some(failure.clone()),
-                        terminal_failure_recorded: false,
-                    })
-                }
+                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
             })
         })
-        .expect_err("proof failure during the RCPF retry is terminal");
+        .expect_err("the RCPF failure is terminal before any second attempt");
 
-        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
+        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
         assert_eq!(
             authorities,
-            [
-                ReplayReadAuthority::Factored,
-                ReplayReadAuthority::LegacyRollback(FAILURE),
-            ],
-            "the RCPF retry remains, but it must not chain into a proof retry",
+            [ReplayReadAuthority::Factored],
+            "an RCPF failure must not start another compilation attempt",
         );
     }
 
     #[test]
-    fn rcpf_c3a_retry_failure_is_a_typed_hard_error() {
+    fn rcpf_c3a_failure_is_a_typed_hard_error_without_retry() {
         let mut attempt_count = 0usize;
         let error = with_intentional_replay_soak_test_injection(|| {
             run_replay_compilation_attempt::<()>(|_| {
                 attempt_count += 1;
-                if attempt_count == 1 {
-                    Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
-                } else {
-                    Err(LoadedFilesError::MissingRoot)
-                }
+                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
             })
         })
-        .expect_err("an unavailable clean retry is terminal");
+        .expect_err("the first factored failure is terminal");
 
-        assert_eq!(attempt_count, 2);
-        assert_eq!(error, LoadedFilesError::ReplayFactoredRetryFailed);
+        assert_eq!(attempt_count, 1);
+        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
     }
 
     #[test]
@@ -3077,7 +3031,7 @@ mod rcpf_c3a_retry_tests {
     }
 
     #[test]
-    fn rcpf_d4_4_quarantine_retry_matches_clean_legacy_compilation() {
+    fn rcpf_d4_4_quarantine_discards_attempt_without_legacy_retry() {
         let loaded = sources::load(vec![sources::SourceFile {
             module_path: Path::default(),
             source: concat!(
@@ -3102,45 +3056,31 @@ mod rcpf_c3a_retry_tests {
             .expect("the clean legacy control compiles");
         assert_eq!(clean_legacy.terminal_failure, None);
 
-        let ((retried, authorities, injections), telemetry) = capture_replay_soak_test_events(|| {
+        let ((error, authorities, injections), telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
                 let mut authorities = Vec::new();
                 let mut injections = 0usize;
-                let retried = run_replay_compilation_attempt(|authority| {
+                let result = run_replay_compilation_attempt(|authority| {
                     authorities.push(authority);
                     let inject_quarantine = matches!(authority, ReplayReadAuthority::Factored);
                     injections += usize::from(inject_quarantine);
                     lower_quarantine_fixture_once(&loaded, authority, inject_quarantine)
-                })
-                .expect("the quarantined factored attempt retries cleanly");
-                (retried, authorities, injections)
+                });
+                let error = match result {
+                    Ok(_) => panic!("the quarantined factored attempt must be terminal"),
+                    Err(error) => error,
+                };
+                (error, authorities, injections)
             })
         });
 
+        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
         assert_eq!(injections, 1);
         assert_eq!(
             authorities,
-            [ReplayReadAuthority::Factored, legacy_authority],
-            "the whole compilation retries once with a fresh legacy machine"
+            [ReplayReadAuthority::Factored],
+            "the failed compilation must not start a legacy retry"
         );
-        assert_eq!(
-            retried.session.infer.constraints().replay_read_authority(),
-            legacy_authority
-        );
-        assert_eq!(
-            retried
-                .session
-                .infer
-                .constraints()
-                .replay_factored_terminal_failure(),
-            None
-        );
-
-        let clean_snapshot = replay_quarantine_parity_snapshot(&clean_legacy.output);
-        let retry_snapshot = replay_quarantine_parity_snapshot(&retried);
-        assert_eq!(clean_snapshot.lowering_errors.len(), 1);
-        assert_eq!(clean_snapshot.diagnostics.diagnostics.len(), 1);
-        assert_eq!(retry_snapshot, clean_snapshot);
         assert_eq!(
             telemetry.terminal_failures(
                 ReplaySoakEventOrigin::IntentionalTestInjection,
@@ -3149,10 +3089,8 @@ mod rcpf_c3a_retry_tests {
             1,
         );
         assert_eq!(
-            telemetry.legacy_rollback_entries(
-                ReplaySoakEventOrigin::IntentionalTestInjection,
-            ),
-            1,
+            telemetry.legacy_rollback_entries(ReplaySoakEventOrigin::IntentionalTestInjection),
+            0,
         );
         assert_eq!(
             telemetry.factored_read_errors(ReplaySoakEventOrigin::IntentionalTestInjection),
@@ -3181,11 +3119,7 @@ mod rcpf_c3a_retry_tests {
                     .inject_replay_factored_read_failure_for_test(FAILURE);
             }
         };
-        let attempt = lower_loaded_files_with_consumer_once(
-            files,
-            &mut consumer,
-            authority,
-        )?;
+        let attempt = lower_loaded_files_with_consumer_once(files, &mut consumer, authority)?;
         let ReplayCompilationAttempt {
             output: (output, ()),
             terminal_failure,
@@ -3198,68 +3132,6 @@ mod rcpf_c3a_retry_tests {
             proof_terminal_failure,
             terminal_failure_recorded,
         })
-    }
-
-    #[derive(Debug, PartialEq, Eq)]
-    struct ReplayQuarantineParitySnapshot {
-        lowering_errors: Vec<BodyLoweringError>,
-        diagnostics: crate::check::PolyCheckReport,
-        finalized_schemes: Vec<(DefId, String, String)>,
-        poly_dump: String,
-        poly_raw_dump: String,
-        namespace: crate::CompiledNamespaceSurface,
-        lowering_surface: crate::CompiledLoweringSurface,
-        constraint_timing: ConstraintTiming,
-        constraint_epoch: crate::constraints::ConstraintEpoch,
-        provenance_epoch: crate::constraints::ProvenanceEpoch,
-        role_solve_supplemental_epoch: crate::constraints::RoleSolveSupplementalEpoch,
-    }
-
-    fn replay_quarantine_parity_snapshot(output: &BodyLowering) -> ReplayQuarantineParitySnapshot {
-        let mut finalized_schemes = output
-            .session
-            .poly
-            .defs
-            .iter()
-            .filter_map(|(def, item)| match item {
-                poly::expr::Def::Let {
-                    scheme: Some(scheme),
-                    ..
-                } => Some((
-                    def,
-                    poly::dump::format_scheme(&output.session.poly.typ, scheme),
-                    poly::dump::dump_scheme_raw(&output.session.poly.typ, scheme),
-                )),
-                poly::expr::Def::Mod { .. }
-                | poly::expr::Def::Let { .. }
-                | poly::expr::Def::Arg => None,
-            })
-            .collect::<Vec<_>>();
-        finalized_schemes.sort_by_key(|(def, _, _)| def.0);
-
-        let namespace = crate::CompiledNamespaceSurface::from_module_table(&output.modules);
-        let lowering_surface =
-            crate::CompiledLoweringSurface::from_module_table(&output.modules, &namespace);
-        let machine = output.session.infer.constraints();
-        let mut constraint_timing = output.timing.constraint;
-        constraint_timing.drain = Duration::default();
-
-        ReplayQuarantineParitySnapshot {
-            lowering_errors: output.errors.clone(),
-            diagnostics: crate::check::summarize_lowering(output),
-            finalized_schemes,
-            poly_dump: poly::dump::dump_arena_with_labels(&output.session.poly, &output.labels),
-            poly_raw_dump: poly::dump::dump_arena_raw_with_labels(
-                &output.session.poly,
-                &output.labels,
-            ),
-            namespace,
-            lowering_surface,
-            constraint_timing,
-            constraint_epoch: machine.epoch(),
-            provenance_epoch: machine.provenance_epoch(),
-            role_solve_supplemental_epoch: machine.role_solve_supplemental_epoch(),
-        }
     }
 }
 
