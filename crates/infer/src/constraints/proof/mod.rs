@@ -984,6 +984,22 @@ impl Default for ProofOccurrenceStore {
 }
 
 impl ProofOccurrenceStore {
+    #[cfg(test)]
+    fn claim_allocation_census(&self) -> (usize, usize, usize, usize, usize, usize, usize) {
+        let upper_claims = &self.upper_claims;
+        let upper_claim_index = &self.upper_claim_index;
+        let record_claims = &self.claims_by_upper_record;
+        (
+            upper_claims.len(),
+            upper_claims.capacity(),
+            upper_claim_index.len(),
+            upper_claim_index.capacity(),
+            record_claims.len(),
+            record_claims.capacity(),
+            self.replay_index_record_comparisons.get(),
+        )
+    }
+
     fn record_occurrence(
         &mut self,
         result: ProofResult,
@@ -3686,7 +3702,10 @@ impl ProofOccurrenceStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constraints::{ReplaySoakEventOrigin, capture_replay_soak_test_events};
+    use crate::constraints::{
+        ReplaySoakEventOrigin, capture_replay_soak_test_events,
+        with_intentional_replay_soak_test_injection,
+    };
 
     fn cpk_machine() -> ConstraintMachine {
         cpk_machine_with_authority(ProofReadAuthority::Cpk)
@@ -7374,6 +7393,28 @@ mod tests {
     }
 
     #[test]
+    fn cpk_no_claim_path_allocates_no_claim_storage_or_index_work() {
+        let mut machine = ConstraintMachine::new();
+        let before = machine.proof_store.claim_allocation_census();
+        assert_eq!(before, (0, 0, 0, 0, 0, 0, 0));
+
+        let target = TypeVar(40_010);
+        let lower = machine.alloc_pos(Pos::Con(vec!["cpk-no-claim".into()], Vec::new()));
+        machine.add_lower_bound(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        assert_eq!(
+            machine.proof_store.claim_allocation_census(),
+            before,
+            "an ordinary no-claim bound must not allocate the CPK claim arena, grow either claim index, or perform claim-index maintenance",
+        );
+    }
+
+    #[test]
     fn cpk_4_five_source_attribution_matrix_is_writer_classified() {
         let mut machine = cpk_machine();
             let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
@@ -8571,6 +8612,73 @@ mod tests {
                 ProofOperation::PrepareReplayRouteBatch,
             ),
             0,
+        );
+    }
+
+    #[test]
+    fn cpk_terminal_failure_stops_drain_before_the_next_queued_work() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let first_source = TypeVar(91_102);
+        let sentinel_source = TypeVar(91_103);
+        let sentinel_target = TypeVar(91_104);
+        let origin = OriginId::unknown_internal();
+
+        let first_lower = fixture.machine.alloc_pos(Pos::Var(first_source));
+        let first_upper = fixture.machine.alloc_neg(Neg::Var(fixture.parent_owner));
+        assert!(fixture.machine.enqueue_root_subtype(
+            first_lower,
+            ConstraintWeights::empty(),
+            first_upper,
+            origin,
+        ));
+        let sentinel_lower = fixture.machine.alloc_pos(Pos::Var(sentinel_source));
+        let sentinel_upper = fixture.machine.alloc_neg(Neg::Var(sentinel_target));
+        assert!(fixture.machine.enqueue_root_subtype(
+            sentinel_lower,
+            ConstraintWeights::empty(),
+            sentinel_upper,
+            origin,
+        ));
+        let sentinel = fixture
+            .machine
+            .constraint_record_id(sentinel_lower, ConstraintWeights::empty(), sentinel_upper)
+            .expect("the sentinel work item is queued");
+        assert_eq!(
+            fixture.machine.queue.len(),
+            2,
+            "the failure trigger precedes a real sentinel"
+        );
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .upper_claim_index
+                .remove(&fixture.coverage_root)
+                .is_some(),
+            "the fixture must corrupt an existing CPK claim index entry",
+        );
+
+        with_intentional_replay_soak_test_injection(|| fixture.machine.drain());
+
+        assert!(matches!(
+            fixture.machine.proof_terminal_failure(),
+            Some(ProofFailure::DanglingProofReference {
+                target: ProofFactRef::UpperClaim(claim),
+                ..
+            }) if claim == fixture.coverage_root
+        ));
+        assert_eq!(
+            fixture.machine.queue.front(),
+            Some(&ConstraintWork::Subtype(sentinel))
+        );
+        assert_eq!(
+            fixture.machine.queue.len(),
+            1,
+            "only the failing work item is drained"
+        );
+        assert!(
+            fixture.machine.bounds.of(sentinel_target).is_none(),
+            "the queued sentinel must not mutate bounds after CPK terminal failure",
         );
     }
 

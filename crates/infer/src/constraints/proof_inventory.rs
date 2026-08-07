@@ -686,8 +686,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("upper_replay_claims", 91),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
-    // Routing authority remains Legacy in both slices.
-    ("claims_by_upper_record", 25),
+    // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
+    // leaves the record index's length and capacity untouched.
+    ("claims_by_upper_record", 26),
     // CPK-8E removes the final migration-only live-coverage normalizer read.
     ("live_coverage_by_root", 9),
     // CPK-8E removes the final migration-only parent-set normalizer read.

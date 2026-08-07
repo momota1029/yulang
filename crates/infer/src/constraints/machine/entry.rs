@@ -1055,7 +1055,9 @@ impl ConstraintMachine {
         let mut subtype_work_items = 0usize;
         let mut subtract_work_items = 0usize;
         let mut trace = ConstraintDrainTrace::from_env(self);
-        while self.replay_factored_terminal_failure().is_none() {
+        while self.replay_factored_terminal_failure().is_none()
+            && self.proof_terminal_failure().is_none()
+        {
             let Some(work) = self.queue.pop_front() else {
                 break;
             };
