@@ -239,6 +239,338 @@ const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[
 
 const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 48;
 
+// CPK-8G physical-removal manifest. CPK-8E's 48-entry closure described shared-fixture
+// migration-oracle dependents; physical deletion needs the larger union of 51 explicit Legacy
+// authority tests, three routing-count holdouts, and every direct RCPF structure test. A test is
+// listed exactly once below and carries every physical target that it protects. This prevents a
+// multi-target test from being split across classifications and having one dependency disappear
+// behind a duplicate name.
+//
+// The target names follow the deletion phase in the approved CPK-8G plan: authority/oracle
+// retirement (8G-6), flat parent/projection layers (8G-7/8), RCPF leaf-to-root removal (8G-9/10),
+// flat claim removal (8G-11), and final shell/telemetry cleanup (8G-12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Cpk8gPhysicalTarget {
+    LegacyAuthorityAndMigrationOracle,
+    FlatClaimArenaAndCoverage,
+    FlatQualifiedParentRelations,
+    FlatProjectionRelations,
+    FlatClauseAttributionAndDependency,
+    ParentSetArena,
+    ReplayOccurrenceStore,
+    ReplayResultSummary,
+    ReplayClauseProjection,
+    NonReplayClaimParentStore,
+    ReplayFactoredShellAndTelemetry,
+}
+
+struct Cpk8gPhysicalTestGroup {
+    targets: &'static [Cpk8gPhysicalTarget],
+    tests: &'static [&'static str],
+}
+
+const CPK8G_ADDITIONAL_EXPLICIT_LEGACY_AUTHORITY_TESTS: &[&str] = &[
+    "lower_and_upper_replay_planning_capture_legacy_parent_drafts",
+    "rcpf_d2c_2c_2a_deferred_clause_intent_preserves_immediate_value",
+    "rcpf_c3b_terminal_failure_stops_drain_before_the_next_queued_work",
+    "replay_claim_parent_dedup_keeps_each_exact_replay_carrier",
+    "target_late_legacy_rollback_reproduces_epoch_publication_and_consumer_sequences",
+    "rcpf_d4_4_quarantine_discards_attempt_without_legacy_retry",
+];
+
+const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
+            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
+            Cpk8gPhysicalTarget::ParentSetArena,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+        ],
+        tests: &[
+            "cpk_5_generic_route_matches_legacy_and_counts",
+            "cpk_5_incremental_only_and_skip_routes_match_legacy",
+            "cpk_5_routing_is_invariant_across_same_root_parent_arrival_orders",
+            "cpk_7_shadow_oracle_rejects_claim_index_corruption",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatProjectionRelations,
+            Cpk8gPhysicalTarget::ReplayClauseProjection,
+        ],
+        tests: &[
+            "rcpf_clause_projection_bootstraps_after_the_target_record_consumes_metadata",
+            "rcpf_clause_projection_excludes_evidence_and_trivial_replays",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+        ],
+        tests: &["rcpf_f_consumer_2_factored_dependency_chain_matches_legacy_oracle"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
+            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+        ],
+        tests: &[
+            "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
+            "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
+            "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
+            "cdm_linear_materialization_census",
+            "moved_root_collision_reconstructs_original_full_and_delta_lineage",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
+        ],
+        tests: &[
+            "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
+            "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
+            "cdm_linear_qualified_carrier_index_census",
+            "lower_and_upper_replay_planning_capture_legacy_parent_drafts",
+            "replay_claim_parent_dedup_keeps_each_exact_replay_carrier",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+        ],
+        tests: &[
+            "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
+            "cdm_d_9_3_one_sided_lower_emits_bound_delta",
+            "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
+            "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
+            "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
+            "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
+            Cpk8gPhysicalTarget::NonReplayClaimParentStore,
+        ],
+        tests: &[
+            "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
+            "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
+        ],
+        tests: &["dpn_linear_registration_census"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatProjectionRelations,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+        ],
+        tests: &["factored_record_lower_projection_includes_direct_and_qualified_roots"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::NonReplayClaimParentStore,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &[
+            "rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage",
+            "rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission",
+            "rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records",
+            "rcpf_c1_non_replay_store_preserves_structural_and_reduction_exact_dedup",
+            "rcpf_c1_query_facade_reuses_the_occurrence_store_indexes",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+            Cpk8gPhysicalTarget::NonReplayClaimParentStore,
+        ],
+        tests: &[
+            "rcpf_c2_factored_evaluator_uses_structural_and_reduction_flat_sources",
+            "rcpf_c2_replay_inspection_census",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &[
+            "rcpf_c3a_legacy_rollback_disables_factored_writers_and_oracles",
+            "rcpf_e2c_a1_read_failure_keeps_legacy_phase_a_before_terminal_stop",
+            "rcpf_d4_4_quarantine_discards_attempt_without_legacy_retry",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ParentSetArena,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &[
+            "rcpf_c3b_replay_parent_admission_census",
+            "rcpf_c3b_terminal_failure_stops_drain_before_the_next_queued_work",
+            "rcpf_phase_b_failure_preserves_legacy_parent_admission_before_terminal_stop",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayClauseProjection,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &[
+            "rcpf_d2a_legacy_rollback_split_preserves_immediate_publication_sequence",
+            "rcpf_d2b_factored_clause_projection_failure_keeps_legacy_links_and_edges",
+            "rcpf_d2c_1_phase_b_failure_blocks_materialization_and_event_oracle",
+            "rcpf_d2c_2a_clause_projection_failure_stops_before_materialization",
+            "rcpf_d2c_2c_2a_deferred_clause_intent_preserves_immediate_value",
+            "rcpf_d2c_2c_2b_later_phase_c_failure_discards_whole_event_publication",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ParentSetArena,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+        ],
+        tests: &[
+            "rcpf_d3a_0b_cross_kind_winner_matches_legacy_for_both_orders_and_kinds",
+            "rcpf_d3a_0b_winner_failure_follows_legacy_parent_and_route_commit",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayClauseProjection,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &[
+            "rcpf_d4_non_replay_pre_consumer_failure_blocks_phase_c_and_publication",
+            "rcpf_d4_replay_pre_consumer_failure_blocks_phase_c_and_publication",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &["rcpf_f_consumer_2_factored_lookup_failure_commits_no_dependency_edges"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &["rcpf_f_consumer_2_legacy_rollback_ignores_factored_occurrence_corruption"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+        ],
+        tests: &["rcpf_summary_first_witness_tracks_legacy_insertion_order"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+            Cpk8gPhysicalTarget::FlatProjectionRelations,
+            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
+            Cpk8gPhysicalTarget::ReplayClauseProjection,
+        ],
+        tests: &["target_late_legacy_rollback_reproduces_epoch_publication_and_consumer_sequences"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[Cpk8gPhysicalTarget::ParentSetArena],
+        tests: &[
+            "virtual_empty_arena_has_zero_allocation_and_stays_virtual_on_empty_extend",
+            "extends_an_empty_arena_in_canonical_order",
+            "repeated_extension_of_the_same_roots_preserves_existing_winners",
+            "entry_permutations_intern_and_iterate_as_the_same_logical_map",
+            "representative_claim_is_first_wins_before_delta_canonicalization",
+            "invalid_ids_and_claims_return_errors",
+            "reservation_failure_returns_error_without_committing_storage",
+            "rcpf_c3b_replay_parent_admission_uses_one_hash_probe_per_parent",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[Cpk8gPhysicalTarget::ReplayResultSummary],
+        tests: &[
+            "result_summary_indexes_single_and_multiple_roots_without_empty_storage",
+            "result_root_reservation_failure_rejects_both_summary_indices",
+            "qualified_parent_source_store_is_first_wins_fallible_and_validated",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::ReplayClauseProjection,
+            Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+        ],
+        tests: &["rcpf_d2c_2c_1_snapshot_evaluation_failure_does_not_publish"],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[
+            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+            Cpk8gPhysicalTarget::ReplayResultSummary,
+        ],
+        tests: &[
+            "rcpf_c2_factored_replay_inspections_scale_with_occurrences_not_roots",
+            "rcpf_c2_factored_oracle_matches_fresh_shared_and_insertion_order_queries",
+            "rcpf_c2_factored_oracle_skips_a_quarantined_shadow",
+        ],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
+        tests: &[
+            "rcpf_c3d_factored_read_error_quarantines_the_production_attempt",
+            "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
+            "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
+            "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
+            "rcpf_c3a_loaded_files_driver_threads_factored_authority",
+        ],
+    },
+];
+
+// Rollback readiness for the reversible CPK-8G ownership-transfer phase:
+// - f561c8d9 is the last fully Legacy-capable commit before physical-removal work. Reproduce it in
+//   an isolated worktree, build with `RUSTC_WRAPPER= cargo check -p infer`, then run `cpk_`, the
+//   scoped `constraints::` suite with its reviewed skip list, and `generalize::`/`compact::`, all
+//   with `--test-threads=4`. Preserve that commit hash with the built artifact metadata.
+// - ConstraintMachine, TypeBounds, and all RCPF stores are process-local inference state. Neither
+//   the poly cache nor the compiled-source-unit envelopes serialize them: persisted artifacts hold
+//   post-inference poly/compiled syntax, namespace, lowering, typed, and runtime surfaces.
+// - The cache already gates compiled artifacts with CACHE_SCHEMA_VERSION and
+//   COMPILED_UNIT_CACHE_FORMAT. CPK-8G changes no serialized surface, so it needs no cache-format
+//   bump. Those keys do not include the compiler commit, however: rollout and rollback must use a
+//   version-scoped cache root (or an empty cache), never a concurrently writable mixed-version
+//   cache. Both directions require a cold process boundary. No in-process ConstraintMachine state
+//   is transferable between the CPK-only and last-known-good binaries.
+
 const REVIEWED_SOURCES: &[(&str, &str)] = &[
     (
         "constraints/directed_weight.rs",
@@ -932,6 +1264,156 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
             "dead CPK-2 normalizer boundary reappeared: {removed}",
         );
     }
+}
+
+fn source_test_names(source: &str) -> Vec<&str> {
+    let mut names = Vec::new();
+    let mut pending_test = false;
+    for line in source.lines() {
+        let line = line.trim();
+        if line == "#[test]" {
+            pending_test = true;
+            continue;
+        }
+        if !pending_test {
+            continue;
+        }
+        if line.starts_with("#[") {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("fn ") {
+            names.push(rest.split('(').next().expect("test function name"));
+        }
+        if !line.is_empty() && !line.starts_with("//") {
+            pending_test = false;
+        }
+    }
+    names
+}
+
+#[test]
+fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
+    use std::collections::BTreeSet;
+
+    let proof_source = include_str!("proof/mod.rs");
+    let bounds_source = include_str!("machine/bounds.rs");
+    let replay_factored_source = include_str!("replay_factored.rs");
+    let lowering_body_source = include_str!("../lowering/body/mod.rs");
+    let reviewed_physical_sources = [
+        proof_source,
+        bounds_source,
+        replay_factored_source,
+        lowering_body_source,
+    ];
+
+    let explicit_legacy = CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS
+        .iter()
+        .chain(CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS)
+        .chain(CPK8G_ADDITIONAL_EXPLICIT_LEGACY_AUTHORITY_TESTS)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        explicit_legacy.len(),
+        51,
+        "the explicit Legacy-authority census changed; classify the source reference before physical removal",
+    );
+
+    let authority_oracle_dependents = explicit_legacy
+        .iter()
+        .copied()
+        .chain(CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.iter().copied())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        authority_oracle_dependents.len(),
+        54,
+        "the reviewed 51 explicit-authority plus three routing-oracle dependents changed",
+    );
+
+    let replay_factored_tests = source_test_names(replay_factored_source);
+    let bounds_rcpf_tests = source_test_names(bounds_source)
+        .into_iter()
+        .filter(|name| name.starts_with("rcpf_"))
+        .collect::<Vec<_>>();
+    let lowering_body_rcpf_tests = source_test_names(lowering_body_source)
+        .into_iter()
+        .filter(|name| name.starts_with("rcpf_"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        replay_factored_tests.len(),
+        10,
+        "the direct replay_factored.rs unit-test census changed",
+    );
+    assert_eq!(
+        bounds_rcpf_tests.len(),
+        32,
+        "the direct machine/bounds.rs rcpf_* test census changed",
+    );
+    assert_eq!(
+        lowering_body_rcpf_tests.len(),
+        5,
+        "the direct lowering/body/mod.rs rcpf_* test census changed",
+    );
+
+    let expected_manifest = authority_oracle_dependents
+        .iter()
+        .copied()
+        .chain(replay_factored_tests.iter().copied())
+        .chain(bounds_rcpf_tests.iter().copied())
+        .chain(lowering_body_rcpf_tests.iter().copied())
+        .collect::<BTreeSet<_>>();
+
+    let all_targets = [
+        Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
+        Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
+        Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
+        Cpk8gPhysicalTarget::FlatProjectionRelations,
+        Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
+        Cpk8gPhysicalTarget::ParentSetArena,
+        Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+        Cpk8gPhysicalTarget::ReplayResultSummary,
+        Cpk8gPhysicalTarget::ReplayClauseProjection,
+        Cpk8gPhysicalTarget::NonReplayClaimParentStore,
+        Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
+    ];
+    let mut manifested_names = BTreeSet::new();
+    let mut manifested_targets = BTreeSet::new();
+    for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
+        assert!(
+            !group.targets.is_empty(),
+            "a physical-removal test group must protect at least one concrete target",
+        );
+        let target_set = group.targets.iter().copied().collect::<BTreeSet<_>>();
+        assert_eq!(
+            target_set.len(),
+            group.targets.len(),
+            "a physical target was duplicated inside one classification group",
+        );
+        manifested_targets.extend(target_set);
+        for &name in group.tests {
+            assert!(
+                manifested_names.insert(name),
+                "{name} appears in more than one physical-removal classification; represent multi-target coverage in one target set",
+            );
+            let source_occurrences = reviewed_physical_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {name}")).count())
+                .sum::<usize>();
+            assert_eq!(
+                source_occurrences, 1,
+                "physical-removal manifest entry moved, disappeared, or became ambiguous: {name}",
+            );
+        }
+    }
+
+    assert_eq!(
+        manifested_targets,
+        all_targets.into_iter().collect(),
+        "every physical-removal layer must retain an explicitly classified protecting test",
+    );
+    assert_eq!(
+        manifested_names, expected_manifest,
+        "the physical-removal manifest must equal the source-enumerated union; classify additions and remove retired entries together",
+    );
 }
 
 #[test]
