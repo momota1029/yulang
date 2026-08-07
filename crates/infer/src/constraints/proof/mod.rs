@@ -8075,7 +8075,7 @@ mod tests {
     #[test]
     fn cpk_7_shadow_no_claim_generic_preserves_some_empty_in_both_directions() {
         let run = |lower_first: bool| {
-            let mut machine = cpk_oracle_machine();
+            let mut machine = ConstraintMachine::new();
             let owner = TypeVar(43_000 + u32::from(lower_first));
             let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-empty".into()], Vec::new()));
             let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-empty".into()], Vec::new()));
@@ -8106,25 +8106,27 @@ mod tests {
                     BoundDerivation::Origin(OriginId::unknown_internal()),
                 );
             }
-            let observations = machine.proof_store.replay_route_observations.borrow();
-            let observation = observations
-                .last()
-                .expect("the second frontier insertion must preflight one replay pair");
-            assert_eq!(observation.legacy, ReplayRouting::Generic);
-            assert_eq!(observation.legacy_prepared, observation.shadow_prepared);
-            let parents = observation
-                .shadow_prepared
+            let lower_record = machine
+                .bounds
+                .records
+                .iter()
+                .enumerate()
+                .find_map(|(index, record)| {
+                    (record.owner() == owner
+                        && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
+                })
+                .expect("the no-claim lower must be a semantic record");
+            let prepared = cpk_7_direct_pair_route(&machine, lower_record, owner, upper);
+            assert_eq!(prepared.routing, ReplayRouting::Generic);
+            let parents = prepared
                 .proof_event
                 .pair_replay
                 .as_ref()
                 .expect("no-claim Generic retains an explicit empty pair");
             assert!(parents.lower.as_slice().is_empty());
             assert!(parents.upper.as_slice().is_empty());
-            assert!(observation
-                .shadow_prepared
-                .proof_event
-                .incremental_replays
-                .is_empty());
+            assert!(prepared.proof_event.incremental_replays.is_empty());
         };
         run(false);
         run(true);
