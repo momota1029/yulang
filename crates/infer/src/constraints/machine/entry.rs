@@ -4,24 +4,11 @@ use crate::time::Instant;
 
 impl ConstraintMachine {
     pub fn new() -> Self {
-        Self::new_with_read_authorities(
-            ReplayReadAuthority::Factored,
-            proof::ProofReadAuthority::Cpk,
-        )
+        Self::new_with_replay_read_authority(ReplayReadAuthority::Factored)
     }
 
     pub(crate) fn new_with_replay_read_authority(
         replay_read_authority: ReplayReadAuthority,
-    ) -> Self {
-        Self::new_with_read_authorities(
-            replay_read_authority,
-            proof::ProofReadAuthority::Cpk,
-        )
-    }
-
-    pub(crate) fn new_with_read_authorities(
-        replay_read_authority: ReplayReadAuthority,
-        proof_read_authority: proof::ProofReadAuthority,
     ) -> Self {
         ensure_replay_soak_telemetry_header();
         #[cfg(test)]
@@ -44,10 +31,7 @@ impl ConstraintMachine {
             replay_clause_projection: ReplayClauseProjection::default(),
             non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
             proof_store: proof::ProofOccurrenceStore::default(),
-            proof_read_authority,
             proof_terminal_failure: RefCell::new(None),
-            #[cfg(test)]
-            cpk_proof_oracle_active: false,
             replay_read_authority,
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
             var_adjacency: FxHashMap::default(),
@@ -110,10 +94,6 @@ impl ConstraintMachine {
 
     pub(crate) fn replay_read_authority(&self) -> ReplayReadAuthority {
         self.replay_read_authority
-    }
-
-    pub(crate) fn proof_read_authority(&self) -> &proof::ProofReadAuthority {
-        &self.proof_read_authority
     }
 
     pub(crate) fn proof_terminal_failure(&self) -> Option<proof::ProofFailure> {

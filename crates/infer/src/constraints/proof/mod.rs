@@ -7,13 +7,6 @@
 use super::*;
 use std::sync::Arc;
 
-/// Projection representation selected once for one `ConstraintMachine` lifetime.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ProofReadAuthority {
-    Cpk,
-    LegacyRollback(ProofFailure),
-}
-
 /// One canonical claimed support returned by [`ProofOccurrenceStore::project_lower`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct ProjectionClaimSupport {
@@ -704,48 +697,6 @@ pub(crate) struct PreparedReplayRoute {
     pub(crate) proof_event: PreparedReplayParents,
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct ReplayRoutingShadowToken {
-    routes_before: usize,
-    admissions_before: usize,
-    canonical_constraints_before: usize,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ShadowReplayRouteObservation {
-    lower: BoundRecordId,
-    upper: BoundRecordId,
-    legacy: ReplayRouting,
-    shadow: ReplayRouting,
-    lower_parent_roots: usize,
-    upper_parent_roots: usize,
-    legacy_prepared: PreparedReplayRoute,
-    shadow_prepared: PreparedReplayRoute,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShadowReplayDirection {
-    Lower,
-    Upper,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ShadowReplayEventObservation {
-    direction: ShadowReplayDirection,
-    legacy_input_count: usize,
-    shadow_input_count: usize,
-    legacy_generated_count: usize,
-    shadow_generated_count: usize,
-    legacy_accepted_count: usize,
-    shadow_accepted_count: usize,
-    accepted_results: Vec<ConstraintRecordId>,
-    admissions: Vec<ReplayAdmissionEvent>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReplayAdmissionEvent {
     pub(crate) result: Option<ConstraintRecordId>,
@@ -1069,34 +1020,6 @@ impl ResolvedProjectionSupport {
     }
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ShadowProjectabilityObservation {
-    record: BoundRecordId,
-    legacy: bool,
-    shadow: bool,
-    legacy_cycle_cut: bool,
-    shadow_cycle_cut: bool,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ShadowProjectionPublicationClass {
-    None,
-    MetadataOnly,
-    InclusionFlip,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ShadowProjectionPublicationObservation {
-    lower_record: BoundRecordId,
-    legacy_class: ShadowProjectionPublicationClass,
-    shadow_class: ShadowProjectionPublicationClass,
-    legacy_affected_owners: Vec<TypeVar>,
-    shadow_affected_owners: Vec<TypeVar>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct RowReductionOccurrence {
     pub(crate) state: UnweightedRowReductionRecordId,
@@ -1249,14 +1172,6 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_qualified_parent_reservation: bool,
     #[cfg(test)]
     fail_next_projection_index_reservation: bool,
-    #[cfg(test)]
-    projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
-    #[cfg(test)]
-    projection_publication_observations: RefCell<Vec<ShadowProjectionPublicationObservation>>,
-    #[cfg(test)]
-    replay_route_observations: RefCell<Vec<ShadowReplayRouteObservation>>,
-    #[cfg(test)]
-    replay_event_observations: RefCell<Vec<ShadowReplayEventObservation>>,
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1300,14 +1215,6 @@ impl Default for ProofOccurrenceStore {
             fail_next_qualified_parent_reservation: false,
             #[cfg(test)]
             fail_next_projection_index_reservation: false,
-            #[cfg(test)]
-            projectability_observations: RefCell::default(),
-            #[cfg(test)]
-            projection_publication_observations: RefCell::default(),
-            #[cfg(test)]
-            replay_route_observations: RefCell::default(),
-            #[cfg(test)]
-            replay_event_observations: RefCell::default(),
         }
     }
 }
@@ -3494,441 +3401,6 @@ impl<'a> CpkProjectionEvaluator<'a> {
     }
 }
 
-#[cfg(test)]
-pub(super) fn compare_projection_record_shadow(
-    machine: &ConstraintMachine,
-    record: BoundRecordId,
-    legacy_result: bool,
-    legacy_cycle_cuts: usize,
-) {
-    if !machine.cpk_proof_oracle_active {
-        return;
-    }
-    let snapshot = &machine.proof_store;
-    if machine
-        .bounds
-        .projection_proofs_by_lower_record
-        .contains_key(&record)
-        && !snapshot.projection_supports.contains_key(&record)
-    {
-        // Capture began after this record's writer events; it is not a complete shadow view.
-        return;
-    }
-    let mut evaluator = CpkProjectionEvaluator::new(machine, &snapshot);
-    let shadow_result = evaluator.eval_record(record);
-    let observation = ShadowProjectabilityObservation {
-        record,
-        legacy: legacy_result,
-        shadow: shadow_result,
-        legacy_cycle_cut: legacy_cycle_cuts != 0,
-        shadow_cycle_cut: evaluator.cycle_cuts() != 0,
-    };
-    assert_eq!(shadow_result, legacy_result, "CPK-4 projectability diverged");
-    snapshot
-        .projectability_observations
-        .borrow_mut()
-        .push(observation);
-}
-
-#[cfg(test)]
-pub(super) fn compare_projection_publication_shadow(
-    machine: &ConstraintMachine,
-    lower_record: BoundRecordId,
-    was_included: bool,
-    is_included: bool,
-    metadata_changed: bool,
-    legacy_intent: &SchemeProjectionPublicationIntent,
-) {
-    if !machine.cpk_proof_oracle_active {
-        return;
-    }
-    let snapshot = &machine.proof_store;
-    if machine
-        .bounds
-        .projection_proofs_by_lower_record
-        .keys()
-        .any(|record| !snapshot.projection_supports.contains_key(record))
-        || machine
-            .bounds
-            .record_proof_clause_links_by_lower_record
-            .keys()
-            .any(|record| !snapshot.projection_formulas.contains_key(record))
-        || machine.bounds.upper_replay_claims.len() != snapshot.upper_claims.len()
-    {
-        // Capture began after an input writer event, so the shadow cannot classify this event.
-        return;
-    }
-
-    let mut current = CpkProjectionEvaluator::new(machine, &snapshot);
-    let shadow_is_included = current.eval_record(lower_record);
-    assert_eq!(
-        shadow_is_included, is_included,
-        "CPK-4 publication oracle observed divergent current projectability",
-    );
-
-    let mut shadow_affected_owners = FxHashSet::default();
-    if was_included != shadow_is_included {
-        for (index, record) in machine.bounds.records.iter().enumerate() {
-            if record.direction() != BoundDirection::Lower
-                || record.state() == BoundRecordState::Tombstone
-            {
-                continue;
-            }
-            let record_id = BoundRecordId(index as u32);
-            let mut before = CpkProjectionEvaluator::new(machine, &snapshot);
-            before.record_overrides.insert(lower_record, was_included);
-            let before = before.eval_record(record_id);
-            let mut after = CpkProjectionEvaluator::new(machine, &snapshot);
-            let after = after.eval_record(record_id);
-            if before != after {
-                shadow_affected_owners.insert(record.owner());
-            }
-        }
-    }
-
-    let (legacy_class, legacy_affected_owners) = match legacy_intent {
-        SchemeProjectionPublicationIntent::None => (
-            ShadowProjectionPublicationClass::None,
-            FxHashSet::default(),
-        ),
-        SchemeProjectionPublicationIntent::MetadataOnly => (
-            ShadowProjectionPublicationClass::MetadataOnly,
-            FxHashSet::default(),
-        ),
-        SchemeProjectionPublicationIntent::OwnersChanged(owners) => (
-            ShadowProjectionPublicationClass::InclusionFlip,
-            owners.clone(),
-        ),
-    };
-    let shadow_class = if !shadow_affected_owners.is_empty() {
-        ShadowProjectionPublicationClass::InclusionFlip
-    } else if metadata_changed {
-        ShadowProjectionPublicationClass::MetadataOnly
-    } else {
-        ShadowProjectionPublicationClass::None
-    };
-    assert_eq!(
-        shadow_affected_owners, legacy_affected_owners,
-        "CPK-4 affected-owner set diverged",
-    );
-    assert_eq!(
-        shadow_class, legacy_class,
-        "CPK-4 projection publication class diverged",
-    );
-
-    let sorted = |owners: FxHashSet<TypeVar>| {
-        let mut owners = owners.into_iter().collect::<Vec<_>>();
-        owners.sort_by_key(|owner| owner.0);
-        owners
-    };
-    snapshot
-        .projection_publication_observations
-        .borrow_mut()
-        .push(ShadowProjectionPublicationObservation {
-            lower_record,
-            legacy_class,
-            shadow_class,
-            legacy_affected_owners: sorted(legacy_affected_owners),
-            shadow_affected_owners: sorted(shadow_affected_owners),
-        });
-}
-
-#[cfg(test)]
-pub(super) fn begin_replay_routing_shadow(
-    machine: &ConstraintMachine,
-) -> Option<ReplayRoutingShadowToken> {
-    if !machine.cpk_proof_oracle_active {
-        return None;
-    }
-    Some(ReplayRoutingShadowToken {
-        routes_before: machine
-            .proof_store
-            .replay_route_observations
-            .borrow()
-            .len(),
-        admissions_before: machine.proof_store.replay_admissions.len(),
-        canonical_constraints_before: machine.canonical_constraints.len(),
-    })
-}
-
-#[cfg(test)]
-pub(super) fn compare_replay_route_shadow(
-    machine: &ConstraintMachine,
-    lower: BoundRecordId,
-    upper: BoundRecordId,
-    incremental_routes: &[UnweightedRowReductionReplayRoute],
-    legacy_requires_generic: bool,
-    legacy_pair_replay: bool,
-    legacy_pair_parents: &[SideTaggedReplayClaim],
-) {
-    if !machine.cpk_proof_oracle_active {
-        return;
-    }
-    let snapshot = &machine.proof_store;
-    assert_eq!(
-        machine.bounds.upper_replay_claims.len(),
-        snapshot.upper_claims.len(),
-        "CPK-7 upper-claim mirror census diverged",
-    );
-    assert_eq!(
-        machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .contains_key(&lower),
-        snapshot.projection_supports.contains_key(&lower),
-        "CPK-7 lower projection mirror census diverged",
-    );
-    let incremental_routes = incremental_routes
-        .iter()
-        .filter(|route| route.upper_record == upper)
-        .map(|route| IncrementalRouteKey {
-            upper: route.upper,
-            upper_record: route.upper_record,
-            provenance: route.provenance,
-            claim: route.claim,
-        })
-        .collect::<Vec<_>>();
-    let has_incremental_route = !incremental_routes.is_empty();
-    let legacy = if legacy_requires_generic {
-        ReplayRouting::Generic
-    } else if legacy_pair_replay || has_incremental_route {
-        ReplayRouting::IncrementalOnly
-    } else {
-        ReplayRouting::SkipAlreadyCovered
-    };
-
-    let prepared = snapshot
-        .prepare_replay_route(machine, lower, upper, &incremental_routes)
-        .expect("CPK-7 replay routing shadow preflight failed");
-    let legacy_prepared = legacy_prepared_replay_route(
-        machine,
-        lower,
-        upper,
-        legacy,
-        legacy_requires_generic,
-        legacy_pair_replay,
-        legacy_pair_parents,
-        &incremental_routes,
-    );
-    assert_eq!(
-        prepared, legacy_prepared,
-        "CPK-7 exact replay routing plan diverged",
-    );
-    snapshot
-        .replay_route_observations
-        .borrow_mut()
-        .push(ShadowReplayRouteObservation {
-            lower,
-            upper,
-            legacy,
-            shadow: prepared.routing,
-            lower_parent_roots: prepared
-                .proof_event
-                .pair_replay
-                .as_ref()
-                .map_or(0, |parents| parents.lower.as_slice().len()),
-            upper_parent_roots: prepared
-                .proof_event
-                .pair_replay
-                .as_ref()
-                .map_or(0, |parents| parents.upper.as_slice().len()),
-            legacy_prepared,
-            shadow_prepared: prepared,
-        });
-}
-
-#[cfg(test)]
-fn legacy_prepared_replay_route(
-    machine: &ConstraintMachine,
-    lower_record: BoundRecordId,
-    upper: BoundRecordId,
-    routing: ReplayRouting,
-    requires_generic: bool,
-    pair_replay: bool,
-    pair_parents: &[SideTaggedReplayClaim],
-    incremental_routes: &[IncrementalRouteKey],
-) -> PreparedReplayRoute {
-    let canonicalize = |parents: &[SideTaggedReplayClaim]| {
-        let mut parents = parents
-            .iter()
-            .map(|parent| {
-                let claim = &machine.bounds.upper_replay_claims[parent.claim.0 as usize];
-                assert_eq!(claim.id, parent.claim, "Legacy replay parent claim is dangling");
-                PreparedReplayParent {
-                    side: parent.parent_side,
-                    coverage_root: claim.coverage_root,
-                    representative_claim: parent.claim,
-                    lineage: projection_lineage(claim.lineage),
-                }
-            })
-            .collect::<Vec<_>>();
-        parents.sort_by_key(|parent| {
-            (
-                match parent.side {
-                    ReplayClaimParentSide::Lower => 0,
-                    ReplayClaimParentSide::Upper => 1,
-                },
-                parent.coverage_root,
-                parent.representative_claim,
-            )
-        });
-        for pair in parents.windows(2) {
-            assert!(
-                pair[0].side != pair[1].side
-                    || pair[0].coverage_root != pair[1].coverage_root,
-                "Legacy replay parent relation contains a duplicate side/root",
-            );
-        }
-        PreparedReplayParentSet {
-            lower: prepared_parent_block_from_entries(
-                parents
-                    .iter()
-                    .copied()
-                    .filter(|parent| parent.side == ReplayClaimParentSide::Lower)
-                    .collect(),
-            ),
-            upper: prepared_parent_block_from_entries(
-                parents
-                    .into_iter()
-                    .filter(|parent| parent.side == ReplayClaimParentSide::Upper)
-                    .collect(),
-            ),
-        }
-    };
-    let canonical_pair = canonicalize(pair_parents);
-    let lower_block = canonical_pair.lower.clone();
-    let current_upper_endpoint = match machine
-        .bounds
-        .record(upper)
-        .expect("Legacy replay upper record is missing")
-        .endpoint()
-    {
-        BoundEndpoint::Upper(endpoint) => endpoint,
-        BoundEndpoint::Lower(_) => panic!("Legacy replay upper record has lower direction"),
-    };
-    let mut seen = FxHashSet::default();
-    let incremental_replays = incremental_routes
-        .iter()
-        .copied()
-        .filter(|route| {
-            let generic_covers = requires_generic && route.upper == current_upper_endpoint;
-            !generic_covers
-        })
-        .filter(|route| seen.insert((route.upper, route.upper_record)))
-        .map(|route| {
-            let upper = route
-                .claim
-                .map_or(PreparedReplayParentBlock::Empty, |claim| {
-                    canonicalize(&[SideTaggedReplayClaim {
-                        claim,
-                        parent_side: ReplayClaimParentSide::Upper,
-                    }])
-                    .upper
-                });
-            PreparedIncrementalReplay {
-                route,
-                parents: PreparedReplayParentSet {
-                    lower: lower_block.clone(),
-                    upper,
-                },
-            }
-        })
-        .collect();
-    let prepared = PreparedReplayRoute {
-        routing,
-        proof_event: PreparedReplayParents {
-            pair_replay: pair_replay.then_some(canonical_pair),
-            incremental_replays,
-        },
-    };
-    machine
-        .proof_store
-        .validate_prepared_replay_route(lower_record, upper, &prepared)
-        .unwrap_or_else(|failure| panic!("Legacy replay routing plan is invalid: {failure:?}"));
-    prepared
-}
-
-#[cfg(test)]
-pub(super) fn finish_replay_routing_shadow(
-    machine: &ConstraintMachine,
-    token: Option<ReplayRoutingShadowToken>,
-    direction: BoundDirection,
-    legacy_input_count: usize,
-    legacy_generated_count: usize,
-    legacy_accepted_count: usize,
-) {
-    let Some(token) = token else {
-        return;
-    };
-    let store = &machine.proof_store;
-    let shadow_input_count = store.replay_route_observations.borrow()[token.routes_before..]
-            .iter()
-            .map(|observation| {
-                usize::from(observation.shadow_prepared.proof_event.pair_replay.is_some())
-                    + observation
-                        .shadow_prepared
-                        .proof_event
-                        .incremental_replays
-                        .len()
-            })
-            .sum();
-    let admissions = store.replay_admissions[token.admissions_before..].to_vec();
-    let shadow_generated_count = admissions.len();
-    let mut accepted_result_set = FxHashSet::default();
-    let accepted_results = admissions
-        .iter()
-        .filter_map(|admission| {
-            let result = admission.result?;
-            let accepted = admission.disposition == ReplayAdmissionDisposition::NewSemantic
-                || (admission.disposition == ReplayAdmissionDisposition::Incomplete
-                    && result.0 as usize >= token.canonical_constraints_before);
-            (accepted && accepted_result_set.insert(result)).then_some(result)
-        })
-        .collect::<Vec<_>>();
-    let shadow_accepted_count = accepted_results.len();
-    assert_eq!(
-        shadow_generated_count, legacy_generated_count,
-        "CPK-7 replay generated-work count diverged",
-    );
-    assert!(
-        accepted_results.iter().all(|result| machine
-            .constraint_records
-            .get(result.0 as usize)
-            .is_some()),
-        "CPK-7 accepted replay result is missing from semantic constraint storage",
-    );
-    assert_eq!(
-        shadow_input_count, legacy_input_count,
-        "CPK-7 replay input count diverged",
-    );
-    assert_eq!(
-        shadow_accepted_count, legacy_accepted_count,
-        "CPK-7 replay accepted count diverged",
-    );
-    assert_eq!(
-        machine.canonical_constraints.len() - token.canonical_constraints_before,
-        shadow_accepted_count,
-        "CPK-7 accepted replay results diverged from canonical constraint growth",
-    );
-    store
-        .replay_event_observations
-        .borrow_mut()
-        .push(ShadowReplayEventObservation {
-            direction: match direction {
-                BoundDirection::Lower => ShadowReplayDirection::Lower,
-                BoundDirection::Upper => ShadowReplayDirection::Upper,
-            },
-            legacy_input_count,
-            shadow_input_count,
-            legacy_generated_count,
-            shadow_generated_count,
-            legacy_accepted_count,
-            shadow_accepted_count,
-            accepted_results,
-            admissions,
-        });
-}
-
 impl ProofOccurrenceStore {
     pub(super) fn record_replay_admission(
         &mut self,
@@ -4015,81 +3487,6 @@ impl ProofOccurrenceStore {
         }
         if !inserted {
             return;
-        }
-        self.record_occurrence(
-            ProofResult::Semantic(SemanticFactRef::Constraint(result)),
-            ProofCause::Replay(carrier),
-            vec![
-                ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
-                ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
-            ],
-            ProvenanceCompleteness::Complete,
-        );
-    }
-
-    pub(super) fn record_legacy_replay_parent_snapshot(
-        &mut self,
-        bounds: &TypeBounds,
-        result: ConstraintRecordId,
-        carrier: BinaryReplayDerivation,
-        parents: &[ClaimQualifiedParent],
-    ) {
-        if parents.is_empty() {
-            return;
-        }
-        let key = (result, carrier);
-        let index = self
-            .replay_finite_map_index
-            .get(&key)
-            .copied()
-            .unwrap_or_else(|| {
-                let index = self.replay_finite_map.len();
-                let first_event = self.replay_admissions.len();
-                self.replay_finite_map.push(ReplayProofOccurrence {
-                    result,
-                    carrier,
-                    lower_parents: Vec::new(),
-                    upper_parents: Vec::new(),
-                    first_event,
-                });
-                self.replay_finite_map_index.insert(key, index);
-                index
-            });
-        for parent in parents {
-            let ClaimQualifiedParent::ReplayConstraint {
-                parent_claim,
-                parent_side,
-                ..
-            } = *parent
-            else {
-                continue;
-            };
-            let claim = &bounds.upper_replay_claims[parent_claim.0 as usize];
-            let proof_parent = ReplayProofParent {
-                side: parent_side,
-                coverage_root: claim.coverage_root,
-                representative_claim: parent_claim,
-                lineage: projection_lineage(claim.lineage),
-            };
-            let target = match parent_side {
-                ReplayClaimParentSide::Lower => {
-                    &mut self.replay_finite_map[index].lower_parents
-                }
-                ReplayClaimParentSide::Upper => {
-                    &mut self.replay_finite_map[index].upper_parents
-                }
-            };
-            if !target.iter().any(|entry| entry.coverage_root == claim.coverage_root) {
-                target.push(proof_parent);
-            }
-            self
-                .first_replay_witnesses
-                .entry((result, claim.coverage_root))
-                .or_insert(ReplayFirstWitness {
-                    carrier,
-                    side: parent_side,
-                    representative_claim: parent_claim,
-                });
         }
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
@@ -4980,24 +4377,7 @@ mod tests {
     };
 
     fn cpk_machine() -> ConstraintMachine {
-        cpk_machine_with_authority(ProofReadAuthority::Cpk)
-    }
-
-    fn cpk_machine_with_authority(
-        proof_read_authority: ProofReadAuthority,
-    ) -> ConstraintMachine {
-        ConstraintMachine::new_with_read_authorities(
-            ReplayReadAuthority::Factored,
-            proof_read_authority,
-        )
-    }
-
-    fn cpk_migration_oracle_machine_with_authority(
-        proof_read_authority: ProofReadAuthority,
-    ) -> ConstraintMachine {
-        let mut machine = cpk_machine_with_authority(proof_read_authority);
-        machine.cpk_proof_oracle_active = true;
-        machine
+        ConstraintMachine::new()
     }
 
     fn project_lower_for_test(
@@ -7381,29 +6761,8 @@ mod tests {
         parent_record: BoundRecordId,
     }
 
-    fn cpk_3_replay_admission_fixture() -> CpkReplayAdmissionFixture {
-        cpk_3_replay_admission_fixture_with_oracle(ProofReadAuthority::Cpk, true)
-    }
-
     fn cpk_3_cpk_only_replay_admission_fixture() -> CpkReplayAdmissionFixture {
-        cpk_3_replay_admission_fixture_with_oracle(ProofReadAuthority::Cpk, false)
-    }
-
-    fn cpk_3_replay_admission_fixture_with_authority(
-        proof_read_authority: ProofReadAuthority,
-    ) -> CpkReplayAdmissionFixture {
-        cpk_3_replay_admission_fixture_with_oracle(proof_read_authority, true)
-    }
-
-    fn cpk_3_replay_admission_fixture_with_oracle(
-        proof_read_authority: ProofReadAuthority,
-        oracle_active: bool,
-    ) -> CpkReplayAdmissionFixture {
-        let mut machine = if oracle_active {
-            cpk_migration_oracle_machine_with_authority(proof_read_authority)
-        } else {
-            cpk_machine_with_authority(proof_read_authority)
-        };
+        let mut machine = cpk_machine();
         let origin = OriginId::unknown_internal();
         let source = TypeVar(0);
         let target = TypeVar(1);
@@ -7480,9 +6839,8 @@ mod tests {
         registration.claim
     }
 
-    fn cpk_3_replay_fixture_with_oracle(cpk_proof_oracle_active: bool) -> ConstraintMachine {
+    fn cpk_3_replay_fixture() -> ConstraintMachine {
         let mut machine = cpk_machine();
-        machine.cpk_proof_oracle_active = cpk_proof_oracle_active;
         let origin = OriginId::unknown_internal();
         let a = machine.alloc_pos(Pos::Var(TypeVar(30)));
         let p1_upper = machine.alloc_neg(Neg::Var(TypeVar(31)));
@@ -7598,10 +6956,6 @@ mod tests {
             );
         }
         machine
-    }
-
-    fn cpk_3_replay_fixture() -> ConstraintMachine {
-        cpk_3_replay_fixture_with_oracle(true)
     }
 
     fn assert_cpk_claim_payload_matches_flat(
@@ -7738,7 +7092,7 @@ mod tests {
 
     #[test]
     fn cpk_claim_payload_matches_flat_across_five_lineages_and_move() {
-        let mut machine = cpk_3_replay_fixture_with_oracle(false);
+        let mut machine = cpk_3_replay_fixture();
         cpk_record_original_claim_with_kind(
             &mut machine,
             100,
@@ -8438,10 +7792,10 @@ mod tests {
     #[test]
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
         let inactive = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            cpk_3_replay_fixture_with_oracle(false)
+            cpk_3_replay_fixture()
         });
         let active = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            cpk_3_replay_fixture_with_oracle(false)
+            cpk_3_replay_fixture()
         });
         let snapshot = active.proof_store.clone();
         let carrier = |pivot, lower, upper| BinaryReplayDerivation {
@@ -8750,7 +8104,7 @@ mod tests {
 
     #[test]
     fn cpk_7_shadow_real_row_route_is_incremental_only_end_to_end() {
-        let mut machine = cpk_3_replay_fixture_with_oracle(false);
+        let mut machine = cpk_3_replay_fixture();
         let lower = machine.alloc_pos(Pos::Con(
             vec!["cpk-7-real-incremental".into()],
             Vec::new(),
@@ -9131,7 +8485,7 @@ mod tests {
         .into_iter()
         .enumerate()
         {
-            let mut machine = cpk_3_replay_fixture_with_oracle(false);
+            let mut machine = cpk_3_replay_fixture();
             let claim = machine
                 .proof_store
                 .upper_claims
@@ -9365,7 +8719,7 @@ mod tests {
 
     #[test]
     fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
-        let machine = cpk_3_replay_fixture_with_oracle(false);
+        let machine = cpk_3_replay_fixture();
         let snapshot = machine.proof_store.clone();
         let claimed = |claim| SchemeProjectionProofSupport::Claimed(UpperReplayClaimId(claim));
         let replay = |pivot, lower, upper| BinaryReplayDerivation {
@@ -9471,7 +8825,6 @@ mod tests {
         record: BoundRecordId,
         expected: ProjectionDecision,
     ) {
-        assert!(matches!(machine.proof_read_authority(), ProofReadAuthority::Cpk));
         assert_eq!(project_lower_for_test(machine, record).0, Ok(expected.clone()));
         let entry = machine
             .scheme_projectable_lowers(owner)
@@ -9770,21 +9123,6 @@ mod tests {
             .subtype(lower, upper, OriginId::unknown_internal());
     }
 
-    fn assert_cpk_5_event_count_parity(snapshot: &ProofOccurrenceStore) {
-        assert!(!snapshot.replay_event_observations.borrow().is_empty());
-        assert!(snapshot
-            .replay_event_observations
-            .borrow()
-            .iter()
-            .all(|observation| {
-            observation.legacy_input_count == observation.shadow_input_count
-                && observation.legacy_generated_count == observation.shadow_generated_count
-                && observation.legacy_accepted_count == observation.shadow_accepted_count
-                && observation.admissions.len() == observation.shadow_generated_count
-                && observation.accepted_results.len() == observation.shadow_accepted_count
-        }));
-    }
-
     #[test]
     fn cpk_7_shadow_natural_events_expose_replay_disposition_matrix() {
         const EVIDENCE_CHILD: &str = "YULANG_CPK_7_EVIDENCE_ONLY_DISPOSITION_CHILD";
@@ -9820,7 +9158,7 @@ mod tests {
             );
         };
 
-        collect(&cpk_3_replay_fixture_with_oracle(false));
+        collect(&cpk_3_replay_fixture());
 
         let mut trivial = ConstraintMachine::new();
         let trivial_owner = TypeVar(43_100);

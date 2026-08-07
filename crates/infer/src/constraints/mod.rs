@@ -52,8 +52,6 @@ use replay_factored::{
 pub(crate) use replay_factored::{ReplayFactoredShadowFailure, ReplayReadAuthority};
 pub(crate) use proof::ProofFailure;
 #[cfg(test)]
-pub(crate) use proof::ProofReadAuthority;
-#[cfg(test)]
 pub(crate) use replay_soak::{
     ReplaySoakEventOrigin, capture_replay_soak_test_events,
     mark_next_replay_soak_failure_as_intentional,
@@ -121,10 +119,7 @@ pub struct ConstraintMachine {
     non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
-    proof_read_authority: proof::ProofReadAuthority,
     proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
-    #[cfg(test)]
-    cpk_proof_oracle_active: bool,
     replay_read_authority: ReplayReadAuthority,
     replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
@@ -1283,18 +1278,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         if top_level {
             #[cfg(any(test, debug_assertions))]
             self.compare_factored_top_level_result(record, result);
-            #[cfg(test)]
-            if self.record_result_overrides.is_empty()
-                && self.root_result_overrides.is_empty()
-                && self.proof_overrides.is_empty()
-            {
-                proof::compare_projection_record_shadow(
-                    self.machine,
-                    record,
-                    result,
-                    self.cycle_cuts,
-                );
-            }
         }
         Ok(result)
     }
@@ -1874,13 +1857,6 @@ impl ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
-        #[cfg(test)]
-        if matches!(
-            self.proof_read_authority(),
-            proof::ProofReadAuthority::LegacyRollback(_)
-        ) {
-            return self.legacy_scheme_projectable_lowers(var).into_iter();
-        }
         self.cpk_scheme_projectable_lowers(var).into_iter()
     }
 
@@ -1930,94 +1906,6 @@ impl ConstraintMachine {
             });
         }
         lowers
-    }
-
-    fn legacy_scheme_projectable_lowers(&self, var: TypeVar) -> Vec<SchemeProjectableLower<'_>> {
-        let bounds = &self.bounds;
-        let claimed_owner = bounds.scheme_projection_claimed_lower_owners.contains(&var);
-        let records = bounds
-            .vars
-            .get(var.0 as usize)
-            .and_then(Option::as_ref)
-            .into_iter()
-            .flat_map(VarBounds::projection_lower_records);
-        let mut evaluation_round = SchemeProjectionEvaluationRound::new(self);
-        records
-            .filter_map(move |(record, bound)| {
-            let Some(proofs) = claimed_owner
-                .then(|| bounds.projection_proofs_by_lower_record.get(&record))
-                .flatten()
-            else {
-                return Some(SchemeProjectableLower {
-                    record,
-                    bound,
-                    reason: SchemeProjectableLowerReason::Unclaimed,
-                });
-            };
-            if proofs.is_empty() {
-                return Some(SchemeProjectableLower {
-                    record,
-                    bound,
-                    reason: SchemeProjectableLowerReason::Unclaimed,
-                });
-            }
-
-            let mut uncovered_claims = Vec::new();
-            let mut independent_supports = Vec::new();
-            for proof in proofs {
-                let SchemeProjectionProofSupport::Claimed(claim_id) = &proof.support else {
-                    if let SchemeProjectionProofSupport::Independent(carrier) = &proof.support {
-                        independent_supports.push(*carrier);
-                    }
-                    continue;
-                };
-                let Some(claim) = bounds.upper_replay_claims.get(claim_id.0 as usize) else {
-                    // Broken projection metadata must fail open rather than narrow a
-                    // scheme by silently dropping a valid raw relation.
-                    return Some(SchemeProjectableLower {
-                        record,
-                        bound,
-                        reason: SchemeProjectableLowerReason::Unclaimed,
-                    });
-                };
-                if bounds
-                    .upper_replay_claims
-                    .get(claim.coverage_root.0 as usize)
-                    .is_none()
-                {
-                    return Some(SchemeProjectableLower {
-                        record,
-                        bound,
-                        reason: SchemeProjectableLowerReason::Unclaimed,
-                    });
-                }
-                if bounds
-                    .live_coverage_by_root
-                    .get(&claim.coverage_root)
-                    .is_none_or(Vec::is_empty)
-                {
-                    uncovered_claims.push(*claim_id);
-                }
-            }
-            let included = evaluation_round.eval_record_or_quarantine(record);
-            included.then_some(SchemeProjectableLower {
-                record,
-                bound,
-                reason: SchemeProjectableLowerReason::Qualified {
-                    uncovered_claims,
-                    independent_supports,
-                },
-            })
-            })
-            .collect()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn legacy_scheme_projectable_lowers_for_test(
-        &self,
-        var: TypeVar,
-    ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
-        self.legacy_scheme_projectable_lowers(var).into_iter()
     }
 
     /// Remove one state from the live coverage index without defining a new expiry policy.
@@ -2462,18 +2350,6 @@ impl ConstraintMachine {
                 match (was_fail_open, is_fail_open) {
                     (true, true) | (false, false) => {
                         let intent = SchemeProjectionPublicationIntent::MetadataOnly;
-                        #[cfg(test)]
-                        {
-                            let included = evaluator.eval_record(lower_record)?;
-                            proof::compare_projection_publication_shadow(
-                                self,
-                                lower_record,
-                                included,
-                                included,
-                                true,
-                                &intent,
-                            );
-                        }
                         Ok(intent)
                     }
                     (true, false) => {
@@ -2514,15 +2390,6 @@ impl ConstraintMachine {
             } else {
                 SchemeProjectionPublicationIntent::None
             };
-            #[cfg(test)]
-            proof::compare_projection_publication_shadow(
-                self,
-                lower_record,
-                was_included,
-                is_included,
-                metadata_changed,
-                &intent,
-            );
             return Ok(intent);
         }
         let mut affected_records = self
@@ -2560,15 +2427,6 @@ impl ConstraintMachine {
         } else {
             SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
         };
-        #[cfg(test)]
-        proof::compare_projection_publication_shadow(
-            self,
-            lower_record,
-            was_included,
-            is_included,
-            metadata_changed,
-            &intent,
-        );
         Ok(intent)
     }
 

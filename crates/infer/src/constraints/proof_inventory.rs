@@ -25,16 +25,17 @@
 //
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
-//   claim move, register_constraint_upper_replay_claims; readers legacy projection/routing and
-//   CPK record_upper_claim/prepare_replay_route mirrors.
+//   claim move, register_constraint_upper_replay_claims; after CPK-8G-6f they are write-only flat
+//   mirrors while CPK owns projection/routing reads.
 // - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
 //   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
 //   parent drafts/RCPF. Reduction-route exact admission is owned by the CPK
-//   reduction_route_claim_keys index under CPK authority; LegacyRollback retains the flat gate.
+//   reduction_route_claim_keys index under CPK authority; the Proof LegacyRollback gate is removed
+//   in CPK-8G-6f while the separate ReplayReadAuthority removal remains staged for 8G-6g.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
-//   migration mirror read by legacy projectability/routing.
+//   migration mirror; CPK-8G-6f removes the final Legacy projectability/routing reader.
 // - projection proofs/clauses/attributed supports/dependent-record edges: writers projection
 //   delta, clause-link and dependency-chain admission; readers legacy formula evaluation and CPK
 //   proof formulas/supports. These remain a writer-dependency closure, not proof-only deletion.
@@ -445,6 +446,35 @@ const CPK8G6_RETIRED_CATEGORY_B_TOTAL: usize =
         + CPK8G6D_RETIRED_RCPF_PARENT_OCCURRENCE_TESTS.len()
         + CPK8G6E_RETIRED_RCPF_PUBLICATION_FAILURE_READER_TESTS.len();
 
+// CPK-8G-6f crosses the code-level irreversibility boundary after all Category-B dependents retire.
+// These names are mechanically forbidden in the production/test sources that formerly implemented
+// Proof authority selection and its migration observations. ReplayReadAuthority is deliberately not
+// part of this ledger; its explicit LegacyRollback path remains for 8G-6g1/6g2.
+const CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES: &[&str] = &[
+    "ProofReadAuthority",
+    "proof_read_authority",
+    "cpk_proof_oracle_active",
+    "ReplayRoutingShadowToken",
+    "ShadowReplayRouteObservation",
+    "ShadowReplayDirection",
+    "ShadowReplayEventObservation",
+    "ShadowProjectabilityObservation",
+    "ShadowProjectionPublicationClass",
+    "ShadowProjectionPublicationObservation",
+    "projectability_observations",
+    "projection_publication_observations",
+    "replay_route_observations",
+    "replay_event_observations",
+    "compare_projection_record_shadow",
+    "compare_projection_publication_shadow",
+    "begin_replay_routing_shadow",
+    "compare_replay_route_shadow",
+    "finish_replay_routing_shadow",
+    "legacy_prepared_replay_route",
+    "record_legacy_replay_parent_snapshot",
+    "legacy_scheme_projectable_lowers",
+];
+
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
@@ -670,7 +700,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-5 adds one test-only mirror reset for the CPK-only snapshot freeze. CPK-8G-6a
     // removes six D3b A-fixture reads/writes now served by the canonical CPK support view.
     // CPK-8G-6c removes historical flat bulk/delta oracle reads and snapshots.
-    ("projection_proofs_by_lower_record", 33),
+    // CPK-8G-6f removes four Legacy projectability/publication shadow reads.
+    ("projection_proofs_by_lower_record", 29),
     ("scheme_projection_lower_records_by_root", 8),
     ("scheme_projection_lower_record_memberships", 5),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
@@ -682,7 +713,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("record_proof_clause_ids_by_lower_record", 9),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
     // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
-    ("record_proof_clause_links_by_lower_record", 11),
+    // CPK-8G-6f removes the final Legacy publication-shadow read.
+    ("record_proof_clause_links_by_lower_record", 10),
     ("record_proof_clause_link_keys", 10),
     // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
     ("attributed_claim_supports", 18),
@@ -750,7 +782,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // removes two migration-only outer-census reads with the routing-oracle fault fixture.
     // CPK-8G-6c removes five historical flat claim/lineage assertions.
     // CPK-8G-6d removes the final test-only Legacy first-witness lineage lookup helper.
-    ("upper_replay_claims", 87),
+    // CPK-8G-6f removes six flat-claim reads from the Proof Legacy reader/planner/shadow path.
+    ("upper_replay_claims", 81),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -762,7 +795,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("claims_by_upper_record", 62),
     // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
     // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
-    ("live_coverage_by_root", 14),
+    // CPK-8G-6f removes the Legacy projectability reader's flat coverage lookup.
+    ("live_coverage_by_root", 13),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
@@ -1300,26 +1334,17 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
             "{dependent} must keep its explicit migration-oracle fixture",
         );
     }
-    assert_eq!(
-        proof_tests
-            .matches("cpk_3_replay_admission_fixture()")
-            .count()
-            - 1, // Function declaration.
-        CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(),
-        "no retired routing-count holdout may use the active default fixture",
-    );
+    assert_eq!(proof_tests.matches("cpk_3_replay_admission_fixture(").count(), 0);
     assert_eq!(
         proof_tests
             .matches("cpk_3_replay_admission_fixture_with_authority(")
-            .count()
-            - 1, // Function declaration.
-        CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(),
-        "no retired migration fault injection may use the active explicit-authority fixture",
+            .count(),
+        0,
     );
     assert_eq!(
         proof_tests.matches("cpk_proof_oracle_active = true").count(),
-        1,
-        "migration-oracle activation must stay centralized in its reviewed constructor",
+        0,
+        "CPK-8G-6f removes the final Proof migration-oracle activation",
     );
     assert!(!proof_tests.contains("cpk_oracle_machine()"));
 
@@ -1380,6 +1405,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
 
     let proof_source = include_str!("proof/mod.rs");
     let bounds_source = include_str!("machine/bounds.rs");
+    let constraints_source = include_str!("mod.rs");
+    let machine_entry_source = include_str!("machine/entry.rs");
     let replay_factored_source = include_str!("replay_factored.rs");
     let lowering_body_source = include_str!("../lowering/body/mod.rs");
     let case_02_source = include_str!("tests/case_02.rs");
@@ -1538,6 +1565,31 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         historical_legacy_characterizations.len(), 0,
         "CPK-8G-6e must leave zero category-B Legacy-reader dependents",
     );
+    for &removed in CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES {
+        assert!(
+            [proof_source, bounds_source, constraints_source, machine_entry_source]
+                .iter()
+                .all(|source| !source.contains(removed)),
+            "CPK-8G-6f removed Proof-authority surface reappeared: {removed}",
+        );
+    }
+    assert!(
+        bounds_source.contains("ReplayReadAuthority::LegacyRollback"),
+        "CPK-8G-6f must not consume the separate Replay authority removal staged for 8G-6g",
+    );
+    for surviving_writer in [
+        "commit_claim_qualified_parent_mutation",
+        "record_cpk_replay_parent_snapshot",
+        "record_projection_clause",
+        "record_projection_supports",
+    ] {
+        assert!(
+            [proof_source, bounds_source, constraints_source]
+                .iter()
+                .any(|source| source.contains(surviving_writer)),
+            "CPK-8G-6f must leave the dual-write path intact: {surviving_writer}",
+        );
+    }
     for replacement in [
         "canonical_projection_storage_is_invariant_across_all_four_event_permutations",
         "cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt",
