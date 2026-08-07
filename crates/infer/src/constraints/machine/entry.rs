@@ -11,15 +11,6 @@ impl ConstraintMachine {
         replay_read_authority: ReplayReadAuthority,
     ) -> Self {
         ensure_replay_soak_telemetry_header();
-        #[cfg(test)]
-        let replay_result_summary = {
-            let mut summary = ReplayResultSummary::default();
-            if replay_read_authority.writes_factored_shadow() {
-                summary.enable_evaluator_oracle();
-            }
-            summary
-        };
-        #[cfg(not(test))]
         let replay_result_summary = ReplayResultSummary::default();
         Self {
             types: TypeArena::new(),

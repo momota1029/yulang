@@ -1154,88 +1154,37 @@ enum ProofEvalState {
     Done(bool),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ReplayEvaluatorSource {
-    Legacy,
-    Factored,
-}
-
-impl ConstraintMachine {
-    fn authoritative_replay_evaluator_source(&self) -> ReplayEvaluatorSource {
-        #[cfg(test)]
-        if matches!(
-            self.replay_read_authority(),
-            ReplayReadAuthority::LegacyRollback(_)
-        ) {
-            return ReplayEvaluatorSource::Legacy;
-        }
-        ReplayEvaluatorSource::Factored
-    }
-}
-
 /// One projection pass over the reachable proof graph.
 ///
 /// The memo is deliberately pass-local. A `Visiting` re-entry rejects only that circular proof
 /// route; the caller's surrounding OR continues evaluating its remaining clauses or sources.
+#[cfg(test)]
 struct SchemeProjectionEvaluator<'a> {
     machine: &'a ConstraintMachine,
-    replay_source: ReplayEvaluatorSource,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
     visiting_nodes: usize,
     record_result_overrides: FxHashMap<BoundRecordId, bool>,
-    root_result_overrides: FxHashMap<UpperReplayClaimId, bool>,
-    proof_overrides: FxHashMap<BoundRecordId, Option<&'a [SchemeProjectionProof]>>,
     cycle_cuts: usize,
-    #[cfg(any(test, debug_assertions))]
-    compare_factored_evaluator: bool,
     #[cfg(test)]
     replay_inspections: usize,
 }
 
+#[cfg(test)]
 impl<'a> SchemeProjectionEvaluator<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
             machine,
-            replay_source: machine.authoritative_replay_evaluator_source(),
             states: FxHashMap::default(),
             visiting_nodes: 0,
             record_result_overrides: FxHashMap::default(),
-            root_result_overrides: FxHashMap::default(),
-            proof_overrides: FxHashMap::default(),
             cycle_cuts: 0,
-            #[cfg(any(test, debug_assertions))]
-            compare_factored_evaluator: true,
             #[cfg(test)]
             replay_inspections: 0,
         }
     }
 
-    fn with_replay_source(
-        machine: &'a ConstraintMachine,
-        replay_source: ReplayEvaluatorSource,
-    ) -> Self {
-        Self {
-            replay_source,
-            ..Self::new(machine)
-        }
-    }
-
     fn with_record_result_override(mut self, record: BoundRecordId, result: bool) -> Self {
         self.record_result_overrides.insert(record, result);
-        self
-    }
-
-    fn with_root_result_override(mut self, root: UpperReplayClaimId, result: bool) -> Self {
-        self.root_result_overrides.insert(root, result);
-        self
-    }
-
-    fn with_proof_override(
-        mut self,
-        record: BoundRecordId,
-        proofs: Option<&'a [SchemeProjectionProof]>,
-    ) -> Self {
-        self.proof_overrides.insert(record, proofs);
         self
     }
 
@@ -1247,23 +1196,7 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         }
     }
 
-    /// A failed Factored read makes the entire attempt terminal. The returned value is only an
-    /// inert placeholder while the caller unwinds; C3a discards every output from this machine.
-    fn eval_record_or_quarantine(&mut self, record: BoundRecordId) -> bool {
-        match self.eval_record(record) {
-            Ok(result) => result,
-            Err(failure) => {
-                self.machine.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Read,
-                );
-                false
-            }
-        }
-    }
-
     fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
-        let top_level = self.visiting_nodes == 0;
         let result = if let Some(result) = self.record_result_overrides.get(&record) {
             Ok(*result)
         } else {
@@ -1275,10 +1208,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 self.finish_result(node, result)
             }
         }?;
-        if top_level {
-            #[cfg(any(test, debug_assertions))]
-            self.compare_factored_top_level_result(record, result);
-        }
         Ok(result)
     }
 
@@ -1298,15 +1227,12 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             }
             return Ok(claims.iter().any(|claim| self.eval_root_coverage(*claim)));
         }
-        let proofs = match self.proof_overrides.get(&record) {
-            Some(proofs) => *proofs,
-            None => self
-                .machine
-                .bounds
-                .projection_proofs_by_lower_record
-                .get(&record)
-                .map(Vec::as_slice),
-        };
+        let proofs = self
+            .machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .get(&record)
+            .map(Vec::as_slice);
         if self.flat_fail_open(record, proofs) {
             return Ok(true);
         }
@@ -1404,72 +1330,37 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             }
         }
 
-        match self.replay_source {
-            ReplayEvaluatorSource::Legacy => {
-                let parent_count = self
-                    .machine
-                    .bounds
-                    .claim_parents_by_constraint
-                    .get(&constraint)
-                    .map_or(0, Vec::len);
-                for index in 0..parent_count {
-                    let parent =
-                        self.machine.bounds.claim_parents_by_constraint[&constraint][index];
-                    has_source = true;
-                    let projectable = match parent {
-                        ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
-                            #[cfg(test)]
-                            {
-                                self.replay_inspections = self.replay_inspections.saturating_add(1);
-                            }
-                            self.eval_record(replay.lower)? && self.eval_record(replay.upper)?
-                        }
-                        ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                            self.eval_constraint(derivation.parent)?
-                        }
-                        ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                            self.eval_root_coverage(parent_claim)
-                        }
-                    };
-                    if projectable {
-                        return Ok(true);
-                    }
-                }
+        let machine = self.machine;
+        for occurrence_id in machine.replay_occurrences_for_result(constraint) {
+            #[cfg(test)]
+            {
+                self.replay_inspections = self.replay_inspections.saturating_add(1);
             }
-            ReplayEvaluatorSource::Factored => {
-                let machine = self.machine;
-                for occurrence_id in machine.replay_occurrences_for_result(constraint) {
-                    #[cfg(test)]
-                    {
-                        self.replay_inspections = self.replay_inspections.saturating_add(1);
-                    }
-                    let occurrence = machine.replay_occurrence(occurrence_id)?;
-                    has_source = true;
-                    if self.eval_record(occurrence.carrier.lower)?
-                        && self.eval_record(occurrence.carrier.upper)?
-                    {
-                        return Ok(true);
-                    }
+            let occurrence = machine.replay_occurrence(occurrence_id)?;
+            has_source = true;
+            if self.eval_record(occurrence.carrier.lower)?
+                && self.eval_record(occurrence.carrier.upper)?
+            {
+                return Ok(true);
+            }
+        }
+        for parent in machine.non_replay_claim_parents_for_result(constraint) {
+            has_source = true;
+            let projectable = match parent {
+                ClaimQualifiedParent::ReplayConstraint { .. } => {
+                    return Err(
+                        replay_factored::ReplayFactoredShadowFailure::ReplayParentInNonReplayStore,
+                    );
                 }
-                for parent in machine.non_replay_claim_parents_for_result(constraint) {
-                    has_source = true;
-                    let projectable = match parent {
-                        ClaimQualifiedParent::ReplayConstraint { .. } => {
-                            return Err(
-                                replay_factored::ReplayFactoredShadowFailure::ReplayParentInNonReplayStore,
-                            );
-                        }
-                        ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                            self.eval_constraint(derivation.parent)?
-                        }
-                        ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                            self.eval_root_coverage(parent_claim)
-                        }
-                    };
-                    if projectable {
-                        return Ok(true);
-                    }
+                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
+                    self.eval_constraint(derivation.parent)?
                 }
+                ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
+                    self.eval_root_coverage(parent_claim)
+                }
+            };
+            if projectable {
+                return Ok(true);
             }
         }
 
@@ -1493,9 +1384,6 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
             return true;
         };
-        if let Some(result) = self.root_result_overrides.get(&root) {
-            return *result;
-        }
         self.machine
             .bounds
             .live_coverage_by_root
@@ -1520,23 +1408,14 @@ impl<'a> SchemeProjectionEvaluator<'a> {
                 let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
                     return false;
                 };
-                match self.replay_source {
-                    ReplayEvaluatorSource::Legacy => self
+                self.machine
+                    .replay_clause_projection
+                    .has_attributed_claim_support(record, root)
+                    || self
                         .machine
                         .bounds
-                        .attributed_claim_supports
-                        .contains(&(record, root)),
-                    ReplayEvaluatorSource::Factored => {
-                        self.machine
-                            .replay_clause_projection
-                            .has_attributed_claim_support(record, root)
-                            || self
-                                .machine
-                                .bounds
-                                .flat_retained_attributed_claim_supports
-                                .contains(&(record, root))
-                    }
-                }
+                        .flat_retained_attributed_claim_supports
+                        .contains(&(record, root))
             }
             independent => self
                 .machine
@@ -1585,84 +1464,24 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         }
     }
 
-    #[cfg(any(test, debug_assertions))]
-    fn compare_factored_top_level_result(&self, record: BoundRecordId, observed_result: bool) {
-        if !self.compare_factored_evaluator
-            || !self
-                .machine
-                .replay_result_summary
-                .evaluator_oracle_enabled()
-            || !matches!(
-                self.machine.replay_factored_shadow_status.get(),
-                ReplayFactoredShadowStatus::Active
-            )
-        {
-            return;
-        }
-        assert_eq!(
-            self.visiting_nodes, 0,
-            "projection evaluation left a Visiting node after a top-level query"
-        );
-
-        let mut legacy = self.fresh_for_replay_source(ReplayEvaluatorSource::Legacy);
-        let legacy_result = legacy.eval_record(record);
-        let mut factored = self.fresh_for_replay_source(ReplayEvaluatorSource::Factored);
-        let factored_result = factored.eval_record(record);
-        let observed_result = Ok(observed_result);
-        assert_eq!(
-            observed_result, legacy_result,
-            "RCPF-C3d observed {:?} and fresh Legacy evaluator results diverged",
-            self.replay_source,
-        );
-        assert_eq!(
-            observed_result, factored_result,
-            "RCPF-C3d observed {:?} and fresh Factored evaluator results diverged",
-            self.replay_source,
-        );
-        assert_eq!(
-            factored_result, legacy_result,
-            "RCPF-C3d fresh Factored evaluator failed or diverged while the shadow was Active"
-        );
-    }
-
-    #[cfg(any(test, debug_assertions))]
-    fn fresh_for_replay_source(&self, replay_source: ReplayEvaluatorSource) -> Self {
-        let mut evaluator = Self::with_replay_source(self.machine, replay_source);
-        evaluator.record_result_overrides = self.record_result_overrides.clone();
-        evaluator.root_result_overrides = self.root_result_overrides.clone();
-        evaluator.proof_overrides = self.proof_overrides.clone();
-        evaluator.compare_factored_evaluator = false;
-        evaluator
-    }
 }
 
 /// Shares acyclic projection results across top-level queries over one fixed view.
 ///
 /// A cycle cut can leave root-dependent `Done` results in the shared evaluator. Once a query cuts
 /// a cycle, that evaluator is discarded and every remaining query uses its own fresh evaluator.
+#[cfg(test)]
 struct SchemeProjectionEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
-    replay_source: ReplayEvaluatorSource,
     record_result_override: Option<(BoundRecordId, bool)>,
     shared: Option<SchemeProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
+#[cfg(test)]
 impl<'a> SchemeProjectionEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
-        Self::new_with_record_result_override(
-            machine,
-            machine.authoritative_replay_evaluator_source(),
-            None,
-        )
-    }
-
-    #[cfg(test)]
-    fn with_replay_source(
-        machine: &'a ConstraintMachine,
-        replay_source: ReplayEvaluatorSource,
-    ) -> Self {
-        Self::new_with_record_result_override(machine, replay_source, None)
+        Self::new_with_record_result_override(machine, None)
     }
 
     fn with_record_result_override(
@@ -1670,54 +1489,25 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         record: BoundRecordId,
         result: bool,
     ) -> Self {
-        Self::new_with_record_result_override(
-            machine,
-            machine.authoritative_replay_evaluator_source(),
-            Some((record, result)),
-        )
+        Self::new_with_record_result_override(machine, Some((record, result)))
     }
 
     fn new_with_record_result_override(
         machine: &'a ConstraintMachine,
-        replay_source: ReplayEvaluatorSource,
         record_result_override: Option<(BoundRecordId, bool)>,
     ) -> Self {
         Self {
             machine,
-            replay_source,
             record_result_override,
-            shared: Some(Self::new_evaluator(
-                machine,
-                replay_source,
-                record_result_override,
-            )),
+            shared: Some(Self::new_evaluator(machine, record_result_override)),
             sharing_disabled: false,
-        }
-    }
-
-    /// A failed Factored read makes the entire attempt terminal. The returned value is only an
-    /// inert placeholder while the caller unwinds; C3a discards every output from this machine.
-    fn eval_record_or_quarantine(&mut self, record: BoundRecordId) -> bool {
-        match self.eval_record(record) {
-            Ok(result) => result,
-            Err(failure) => {
-                self.machine.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Read,
-                );
-                false
-            }
         }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
         if self.sharing_disabled {
-            return Self::new_evaluator(
-                self.machine,
-                self.replay_source,
-                self.record_result_override,
-            )
-            .eval_record(record);
+            return Self::new_evaluator(self.machine, self.record_result_override)
+                .eval_record(record);
         }
 
         let shared = self
@@ -1742,10 +1532,9 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
 
     fn new_evaluator(
         machine: &'a ConstraintMachine,
-        replay_source: ReplayEvaluatorSource,
         record_result_override: Option<(BoundRecordId, bool)>,
     ) -> SchemeProjectionEvaluator<'a> {
-        let evaluator = SchemeProjectionEvaluator::with_replay_source(machine, replay_source);
+        let evaluator = SchemeProjectionEvaluator::new(machine);
         let Some((record, result)) = record_result_override else {
             return evaluator;
         };
@@ -1755,8 +1544,8 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
 
 /// Publication-time projection evaluation over the CPK-authoritative snapshot.
 ///
-/// The legacy/factored evaluator remains available to migration and RCPF characterization tests,
-/// but it is no longer a production input to affected-owner or epoch publication decisions.
+/// RCPF's factored evaluator remains available to its direct structure tests, but publication
+/// decisions use the CPK-authoritative evaluator below.
 struct CpkPublicationEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
     record_result_override: Option<(BoundRecordId, bool)>,
@@ -2325,58 +2114,7 @@ impl ConstraintMachine {
             .record_projection_clause(lower_record, admission);
     }
 
-    fn try_evaluate_scheme_projection_mutation(
-        &self,
-        mutation: SchemeProjectionMutation,
-    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
-        match mutation {
-            SchemeProjectionMutation::None => Ok(SchemeProjectionPublicationIntent::None),
-            SchemeProjectionMutation::ProofsChanged {
-                lower_record,
-                previous_proofs,
-                ..
-            } => {
-                let current_proofs = self
-                    .bounds
-                    .projection_proofs_by_lower_record
-                    .get(&lower_record)
-                    .map(Vec::as_slice);
-                let mut evaluator = SchemeProjectionEvaluator::new(self);
-                let was_fail_open =
-                    evaluator.flat_fail_open(lower_record, previous_proofs.as_deref());
-                let is_fail_open = evaluator.flat_fail_open(lower_record, current_proofs);
-                // Clause evaluation does not read the proof vector, so an unchanged flat gate
-                // proves that the record's inclusion result is unchanged.
-                match (was_fail_open, is_fail_open) {
-                    (true, true) | (false, false) => {
-                        let intent = SchemeProjectionPublicationIntent::MetadataOnly;
-                        Ok(intent)
-                    }
-                    (true, false) => {
-                        let is_included = evaluator.eval_record(lower_record)?;
-                        self.try_evaluate_record_inclusion_publication(
-                            lower_record,
-                            true,
-                            is_included,
-                            true,
-                        )
-                    }
-                    (false, true) => {
-                        let was_included = evaluator
-                            .with_proof_override(lower_record, previous_proofs.as_deref())
-                            .eval_record(lower_record)?;
-                        self.try_evaluate_record_inclusion_publication(
-                            lower_record,
-                            was_included,
-                            true,
-                            true,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
+    #[cfg(test)]
     fn try_evaluate_record_inclusion_publication(
         &self,
         lower_record: BoundRecordId,

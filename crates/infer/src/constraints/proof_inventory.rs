@@ -31,7 +31,7 @@
 //   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
 //   parent drafts/RCPF. Reduction-route exact admission is owned by the CPK
 //   reduction_route_claim_keys index under CPK authority; the Proof LegacyRollback gate is removed
-//   in CPK-8G-6f while the separate ReplayReadAuthority removal remains staged for 8G-6g.
+//   in CPK-8G-6f while the separate ReplayReadAuthority removal remains staged for 8G-6g2.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -475,6 +475,38 @@ const CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES: &[&str] = &[
     "legacy_scheme_projectable_lowers",
 ];
 
+// CPK-8G-6g1 removes the flat-vs-RCPF Legacy comparison adapter after its final historical
+// dependents retire. The surviving Factored evaluator test reads RCPF directly and retains its
+// fresh/shared/canonical-order contract; it no longer selects or compares a Legacy source.
+const CPK8G6G1_RETIRED_LEGACY_READER_TESTS: &[(&str, &str)] = &[(
+    "rcpf_c2_factored_oracle_skips_a_quarantined_shadow",
+    "Category B: the test selected the removed Legacy evaluator after corrupting/quarantining the RCPF shadow; CPK publication and typed attempt-terminal failure tests now own the product contract",
+)];
+
+const CPK8G6G1_REMOVED_LEGACY_READER_SURFACES: &[&str] = &[
+    "ReplayEvaluatorSource",
+    "try_legacy_lower_projection",
+    "try_legacy_lower_projection_delta",
+    "try_legacy_qualified_lower_projection",
+    "try_legacy_record_lower_projection",
+    "try_compare_factored_record_lower_projection",
+    "try_factored_lower_projection_mutation_oracle",
+    "observe_factored_lower_projection",
+    "observe_factored_upper_materialization",
+    "observe_factored_replay_event_boundary",
+    "try_compare_factored_replay_event_boundary",
+    "try_compare_factored_claimed_attribution_union",
+    "try_compare_first_qualified_parent_sources",
+    "enable_replay_factored_event_oracle",
+    "enable_replay_factored_evaluator_oracle",
+    "legacy_replay_parent_oracle",
+    "factored_replay_parent_oracle",
+    "legacy_replay_clause_link_oracle",
+    "factored_replay_clause_link_oracle",
+    "assert_factored_replay_clause_projection_matches_legacy",
+    "try_evaluate_scheme_projection_mutation",
+];
+
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
@@ -586,8 +618,7 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
             Cpk8gPhysicalTarget::ReplayResultSummary,
         ],
         tests: &[
-            "rcpf_c2_factored_oracle_matches_fresh_shared_and_insertion_order_queries",
-            "rcpf_c2_factored_oracle_skips_a_quarantined_shadow",
+            "rcpf_c2_factored_evaluator_matches_fresh_shared_and_insertion_order_queries",
         ],
     },
     Cpk8gPhysicalTestGroup {
@@ -680,17 +711,19 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6d removes the RCPF parent/occurrence comparison fixtures' flat-ledger reads.
     // The dedicated first-witness/non-replay comparator helpers disappear with their callers.
     // CPK-8G-6e removes the final publication/failure ordering and Legacy-reader assertions.
-    ("claim_parents_by_constraint", 40),
+    // CPK-8G-6g1 removes the flat side of the event/projection comparison adapter.
+    ("claim_parents_by_constraint", 30),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
     ("replay_claim_parent_keys", 5),
-    ("qualified_carrier_index", 17),
+    ("qualified_carrier_index", 15),
     ("structural_claim_parent_keys", 5),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
     // projection collection remains a mirror during these ownership-transfer slices. CPK-8G-6a
     // removes five D3b A-fixture reads now served by the CPK claim/support indexes. CPK-8G-6c
     // removes the historical flat materialization/projection reads and their oracle snapshots.
     // CPK-8G-6d removes two parent-failure ordering fixture reads.
-    ("scheme_projection_claims_by_lower_record", 14),
+    // CPK-8G-6g1 removes the final Legacy lower-projection snapshot read.
+    ("scheme_projection_claims_by_lower_record", 13),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
@@ -701,24 +734,27 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // removes six D3b A-fixture reads/writes now served by the canonical CPK support view.
     // CPK-8G-6c removes historical flat bulk/delta oracle reads and snapshots.
     // CPK-8G-6f removes four Legacy projectability/publication shadow reads.
-    ("projection_proofs_by_lower_record", 29),
-    ("scheme_projection_lower_records_by_root", 8),
-    ("scheme_projection_lower_record_memberships", 5),
+    // CPK-8G-6g1 removes the remaining lower-projection comparison reads.
+    ("projection_proofs_by_lower_record", 27),
+    ("scheme_projection_lower_records_by_root", 7),
+    ("scheme_projection_lower_record_memberships", 4),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
     // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
     // CPK-8G-6c removes the DPN linear-registration census helper.
     ("record_proof_clauses", 11),
-    ("record_proof_clause_by_key", 11),
+    // CPK-8G-6g1 removes flat-vs-RCPF clause-link reconstruction oracles.
+    ("record_proof_clause_by_key", 8),
     ("record_proof_clause_ids_by_lower_record", 9),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
     // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
     // CPK-8G-6f removes the final Legacy publication-shadow read.
-    ("record_proof_clause_links_by_lower_record", 10),
-    ("record_proof_clause_link_keys", 10),
+    ("record_proof_clause_links_by_lower_record", 9),
+    ("record_proof_clause_link_keys", 7),
     // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
-    ("attributed_claim_supports", 18),
-    ("flat_retained_attributed_claim_supports", 5),
+    // CPK-8G-6g1 removes the attribution-union comparison reader.
+    ("attributed_claim_supports", 12),
+    ("flat_retained_attributed_claim_supports", 4),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
@@ -727,7 +763,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // the snapshot-independence test; neither reference restores flat read authority.
     // CPK-8G-6b removes the replacement-backed Legacy dependency-chain mirror read.
     // CPK-8G-6d removes one downstream RCPF first-source failure assertion.
-    ("dependent_records_by_premise", 24),
+    // CPK-8G-6g1 removes the Legacy dependency-edge comparison read.
+    ("dependent_records_by_premise", 23),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 128),
@@ -783,7 +820,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6c removes five historical flat claim/lineage assertions.
     // CPK-8G-6d removes the final test-only Legacy first-witness lineage lookup helper.
     // CPK-8G-6f removes six flat-claim reads from the Proof Legacy reader/planner/shadow path.
-    ("upper_replay_claims", 81),
+    // CPK-8G-6g1 removes flat event-oracle claim/root reconstruction reads.
+    ("upper_replay_claims", 77),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -800,20 +838,24 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
-    ("replay_parent_sets", 15),
+    // CPK-8G-6g1 removes only comparison-oracle reads; the direct arena API remains.
+    ("replay_parent_sets", 10),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
     // CPK-8G-6d removes RCPF occurrence facade/census comparisons.
-    ("replay_occurrences", 28),
+    // CPK-8G-6g1 removes Legacy-parity reconstruction and event-boundary reads.
+    ("replay_occurrences", 17),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
     // CPK-8G-6c removes one historical factored projection assertion.
     // CPK-8G-6d removes RCPF first-source/first-witness comparison reads.
-    ("replay_result_summary", 27),
+    // CPK-8G-6g1 removes event/evaluator oracle activation and comparison reads.
+    ("replay_result_summary", 12),
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
-    ("replay_clause_projection", 15),
+    // CPK-8G-6g1 removes flat-vs-RCPF attribution and exact-link reconstruction reads.
+    ("replay_clause_projection", 7),
     ("non_replay_claim_parents_by_constraint", 5),
 ];
 
@@ -1573,9 +1615,28 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "CPK-8G-6f removed Proof-authority surface reappeared: {removed}",
         );
     }
+    for &(retired, reason) in CPK8G6G1_RETIRED_LEGACY_READER_TESTS {
+        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert_eq!(
+            reviewed_physical_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {retired}(")).count())
+                .sum::<usize>(),
+            0,
+            "CPK-8G-6g1 retired Legacy-reader test reappeared: {retired}",
+        );
+    }
+    for &removed in CPK8G6G1_REMOVED_LEGACY_READER_SURFACES {
+        assert!(
+            [bounds_source, constraints_source, machine_entry_source]
+                .iter()
+                .all(|source| !source.contains(removed)),
+            "CPK-8G-6g1 removed Legacy-reader adapter reappeared: {removed}",
+        );
+    }
     assert!(
         bounds_source.contains("ReplayReadAuthority::LegacyRollback"),
-        "CPK-8G-6f must not consume the separate Replay authority removal staged for 8G-6g",
+        "CPK-8G-6g1 must not consume the separate Replay authority removal staged for 8G-6g2",
     );
     for surviving_writer in [
         "commit_claim_qualified_parent_mutation",
@@ -1691,7 +1752,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     );
     assert_eq!(
         bounds_rcpf_tests.len(),
-        2,
+        1,
         "the direct machine/bounds.rs rcpf_* test census changed",
     );
     assert_eq!(
