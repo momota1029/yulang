@@ -563,11 +563,17 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     },
 ];
 
-// Rollback readiness for the reversible CPK-8G ownership-transfer phase:
-// - f561c8d9 is the last fully Legacy-capable commit before physical-removal work. Reproduce it in
-//   an isolated worktree, build with `RUSTC_WRAPPER= cargo check -p infer`, then run `cpk_`, the
-//   scoped `constraints::` suite with its reviewed skip list, and `generalize::`/`compact::`, all
-//   with `--test-threads=4`. Preserve that commit hash with the built artifact metadata.
+// Rollback readiness at the final reversible CPK-8G dual-write freeze:
+// - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
+//   work. The commit containing this block is the operative last fully dual-write-capable green
+//   point and the rollback target once CPK-8G-6 crosses the code-level irreversibility boundary.
+//   After this commit is created, resolve it with `git rev-parse HEAD` and preserve that hash with
+//   the last-known-good binary and its Cargo.lock/rustc metadata.
+// - Reproduce the operative point in an isolated worktree. Build the binary with
+//   `RUSTC_WRAPPER= cargo build -p yulang`, check with `RUSTC_WRAPPER= cargo check -p infer`, then
+//   run `cpk_`/`rcpf_`/`dpn_`/`mpc_`, the scoped `constraints::` suite with its reviewed skip list,
+//   `generalize::`/`compact::`/`explain::`/`portable_explain::`, and the logical-proof snapshot
+//   characterization, always with `--test-threads=4` for tests.
 // - ConstraintMachine, TypeBounds, and all RCPF stores are process-local inference state. Neither
 //   the poly cache nor the compiled-source-unit envelopes serialize them: persisted artifacts hold
 //   post-inference poly/compiled syntax, namespace, lowering, typed, and runtime surfaces.
@@ -628,8 +634,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8B adds two test-only reads that deliberately corrupt the Legacy mirror and prove
     // reduction-route exact dedup remains owned by the CPK index.
     // CPK-8G-3 adds the reviewed flat-mirror transaction and its atomicity assertion; CPK owns
-    // exact admission while these references only feed or verify the migration mirror.
-    ("claim_parents_by_constraint", 72),
+    // exact admission while these references only feed or verify the migration mirror. CPK-8G-5
+    // adds one test-only mirror reset (through the non-replay field name) proving the logical
+    // snapshot is independent of every former flat/RCPF read.
+    ("claim_parents_by_constraint", 73),
     ("replay_claim_parent_keys", 13),
     ("qualified_carrier_index", 31),
     ("structural_claim_parent_keys", 5),
@@ -642,16 +650,18 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // empty-ledger seed. CPK-8B removes the sole production-store projection writer re-read by
     // carrying its support snapshot in the admission event. CPK-8G-4b retires two RCPF-only
     // dangling-occurrence fixtures and their raw flat projection-ledger seeds.
-    ("projection_proofs_by_lower_record", 50),
+    // CPK-8G-5 adds one test-only mirror reset for the CPK-only snapshot freeze.
+    ("projection_proofs_by_lower_record", 51),
     ("scheme_projection_lower_records_by_root", 9),
-    ("scheme_projection_lower_record_memberships", 5),
+    ("scheme_projection_lower_record_memberships", 6),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
-    ("record_proof_clauses", 11),
+    // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
+    ("record_proof_clauses", 12),
     ("record_proof_clause_by_key", 11),
-    ("record_proof_clause_ids_by_lower_record", 8),
+    ("record_proof_clause_ids_by_lower_record", 9),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
-    ("record_proof_clause_links_by_lower_record", 11),
+    ("record_proof_clause_links_by_lower_record", 12),
     ("record_proof_clause_link_keys", 13),
     ("attributed_claim_supports", 23),
     ("flat_retained_attributed_claim_supports", 5),
@@ -659,7 +669,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
     // test, and the flat one-way mirror preflight/commit. Evaluator reads remain flat until 4b.
-    ("dependent_records_by_premise", 35),
+    // CPK-8G-5 adds the CPK-owned snapshot iterator and resets the flat dependency mirror once in
+    // the snapshot-independence test; neither reference restores flat read authority.
+    ("dependent_records_by_premise", 37),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 130),
@@ -707,7 +719,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // current-record move transaction; these reads do not restore flat allocation authority.
     // CPK-8G-3 removes two authority reads formerly used by replay/structural exact-key writers;
     // the CPK prepared payload now supplies those roots to the flat mirror.
-    ("upper_replay_claims", 98),
+    // CPK-8G-5 resets the flat claim mirror once in the snapshot-independence test.
+    ("upper_replay_claims", 99),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -720,14 +733,17 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
     ("live_coverage_by_root", 14),
     // CPK-8E removes the final migration-only parent-set normalizer read.
-    ("replay_parent_sets", 18),
+    // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
+    ("replay_parent_sets", 19),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections.
-    ("replay_occurrences", 45),
+    ("replay_occurrences", 46),
     // CPK-8E removes the final migration-only first-witness normalizer read.
-    ("replay_result_summary", 40),
+    // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
+    // RCPF reset; both are test-only checks at the final dual-write freeze.
+    ("replay_result_summary", 42),
     ("replay_clause_projection", 26),
-    ("non_replay_claim_parents_by_constraint", 9),
+    ("non_replay_claim_parents_by_constraint", 10),
 ];
 
 const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[

@@ -322,31 +322,38 @@ impl ConstraintMachine {
         let mut occurrences = Vec::new();
         let mut claim_relation = Vec::new();
 
-        for occurrence in &self.replay_occurrences.occurrences {
+        for occurrence in &self.proof_store.replay_finite_map {
             let carrier = canonical.replay(occurrence.carrier, None);
             let mut roots = Vec::new();
-            for (side, version) in [
-                (ReplayClaimParentSide::Lower, occurrence.lower_parents),
-                (ReplayClaimParentSide::Upper, occurrence.upper_parents),
+            for (side, parents) in [
+                (
+                    ReplayClaimParentSide::Lower,
+                    occurrence.lower_parents.as_slice(),
+                ),
+                (
+                    ReplayClaimParentSide::Upper,
+                    occurrence.upper_parents.as_slice(),
+                ),
             ] {
-                for entry in self
-                    .replay_parent_sets
-                    .iter(version)
-                    .expect("factored parent set")
-                {
+                for entry in parents {
+                    debug_assert_eq!(entry.side, side);
                     roots.push(CanonicalParentRoot {
                         root: entry.coverage_root.0 as usize,
                         side: Some(canonical_side(side)),
                     });
                     let winner = self
-                        .replay_result_summary
-                        .first_parent_by_root
+                        .proof_store
+                        .first_replay_witnesses
                         .get(&(occurrence.result, entry.coverage_root))
                         .is_some_and(|winner| {
-                            winner.occurrence == occurrence.id
-                                && winner.parent_side == side
-                                && winner.parent_claim == entry.representative_claim
+                            winner.carrier == occurrence.carrier
+                                && winner.side == side
+                                && winner.representative_claim == entry.representative_claim
                         });
+                    let claim = self
+                        .proof_store
+                        .upper_claim(entry.representative_claim)
+                        .expect("CPK replay parent claim");
                     claim_relation.push(CanonicalClaimRelationEntry {
                         result: occurrence.result.0 as usize,
                         root: entry.coverage_root.0 as usize,
@@ -354,9 +361,7 @@ impl ConstraintMachine {
                         side: Some(canonical_side(side)),
                         carrier: carrier.clone(),
                         first_winner: winner,
-                        lineage: claim_lineage_class(
-                            &self.bounds.upper_replay_claims[entry.representative_claim.0 as usize],
-                        ),
+                        lineage: claim_lineage_class(claim.full_lineage),
                     });
                 }
             }
@@ -376,9 +381,17 @@ impl ConstraintMachine {
 
         for result_index in 0..self.constraint_records.len() {
             let result = ConstraintRecordId(result_index as u32);
-            for parent in self.non_replay_claim_parents_for_result(result) {
+            for entry in self.proof_store.qualified_parents_for_result(result) {
+                let parent = entry.parent;
+                if matches!(parent, ClaimQualifiedParent::ReplayConstraint { .. }) {
+                    continue;
+                }
                 let claim = parent.parent_claim();
-                let root = self.bounds.upper_replay_claims[claim.0 as usize].coverage_root;
+                let root = entry.coverage_root;
+                let claim_occurrence = self
+                    .proof_store
+                    .upper_claim(claim)
+                    .expect("CPK non-replay parent claim");
                 let carrier = canonical.qualified(parent);
                 let cause = match parent {
                     ClaimQualifiedParent::StructuralConstraint { .. } => {
@@ -407,14 +420,12 @@ impl ConstraintMachine {
                     side: None,
                     carrier,
                     first_winner: self
-                        .replay_result_summary
-                        .test_first_qualified_parent_source(result, root)
+                        .proof_store
+                        .first_qualified_parent_source(result, root)
                         .is_some_and(|source| {
-                            source == replay_factored::FirstQualifiedParentSource::NonReplay(parent)
+                            source == proof::FirstQualifiedParentSource::NonReplay(parent)
                         }),
-                    lineage: claim_lineage_class(
-                        &self.bounds.upper_replay_claims[claim.0 as usize],
-                    ),
+                    lineage: claim_lineage_class(claim_occurrence.full_lineage),
                 });
             }
         }
@@ -442,72 +453,45 @@ fn capture_projection(
     machine: &ConstraintMachine,
     canonical: &mut Canonicalizer,
 ) -> Vec<CanonicalProjectionEntry> {
-    let mut lowers = machine
-        .bounds
-        .projection_proofs_by_lower_record
-        .keys()
-        .chain(
-            machine
-                .bounds
-                .record_proof_clause_ids_by_lower_record
-                .keys(),
-        )
-        .copied()
-        .collect::<Vec<_>>();
+    let mut lowers = machine.proof_store.projection_records().collect::<Vec<_>>();
     lowers.sort_unstable_by_key(|record| record.0);
     lowers.dedup();
     lowers
         .into_iter()
         .map(|lower| {
             let mut supports = machine
-                .bounds
-                .projection_proofs_by_lower_record
-                .get(&lower)
-                .into_iter()
-                .flatten()
-                .map(|proof| canonical_support(canonical, proof.support))
+                .proof_store
+                .projection_supports_for_record(lower)
+                .iter()
+                .map(|support| canonical_support(canonical, *support))
                 .collect::<Vec<_>>();
             supports.sort();
             supports.dedup();
-            let clause_ids = machine
-                .bounds
-                .record_proof_clause_ids_by_lower_record
-                .get(&lower)
-                .cloned()
-                .unwrap_or_default();
-            let mut clauses = clause_ids
+            let formula = machine.proof_store.projection_formula_for_record(lower);
+            let mut clauses = formula
                 .iter()
-                .map(|id| {
-                    canonical_clause(
-                        canonical,
-                        machine.bounds.record_proof_clauses[id.0 as usize].clause,
-                    )
-                })
+                .map(|clause| canonical_clause(canonical, *clause))
                 .collect::<Vec<_>>();
             clauses.sort();
             clauses.dedup();
-            let mut links = machine
-                .bounds
-                .record_proof_clause_links_by_lower_record
-                .get(&lower)
-                .into_iter()
-                .flatten()
-                .map(|link| {
-                    let clause = canonical_clause(
-                        canonical,
-                        machine.bounds.record_proof_clauses[link.clause.0 as usize].clause,
-                    );
+            let mut links = formula
+                .iter()
+                .map(|entry| {
+                    let clause = canonical_clause(canonical, *entry);
                     let clause_index = clauses.binary_search(&clause).expect("canonical clause");
-                    (canonical_support(canonical, link.support), clause_index)
+                    (canonical_support(canonical, entry.support()), clause_index)
                 })
                 .collect::<Vec<_>>();
             links.sort();
             links.dedup();
             let mut reverse_roots = machine
-                .bounds
-                .scheme_projection_lower_record_memberships
+                .proof_store
+                .projection_supports_for_record(lower)
                 .iter()
-                .filter_map(|(root, record)| (*record == lower).then_some(root.0 as usize))
+                .filter_map(|support| match support {
+                    SchemeProjectionProofSupport::Claimed(root) => Some(root.0 as usize),
+                    SchemeProjectionProofSupport::Independent(_) => None,
+                })
                 .collect::<Vec<_>>();
             reverse_roots.sort_unstable();
             reverse_roots.dedup();
@@ -525,10 +509,10 @@ fn capture_projection(
 
 fn capture_dependencies(machine: &ConstraintMachine) -> Vec<CanonicalDependencyEntry> {
     let mut entries = Vec::new();
-    for (&premise, dependents) in &machine.bounds.dependent_records_by_premise {
+    for (premise, dependents) in machine.proof_store.dependency_entries() {
         let canonical_premise = canonical_premise(premise);
         let mut transitive = dependents.clone();
-        machine.extend_with_record_dependents(&mut transitive);
+        extend_with_cpk_record_dependents(machine, &mut transitive);
         let mut transitive = transitive
             .into_iter()
             .map(|record| record.0 as usize)
@@ -545,6 +529,26 @@ fn capture_dependencies(machine: &ConstraintMachine) -> Vec<CanonicalDependencyE
     entries.sort();
     entries.dedup();
     entries
+}
+
+fn extend_with_cpk_record_dependents(
+    machine: &ConstraintMachine,
+    records: &mut FxHashSet<BoundRecordId>,
+) {
+    let mut queue = records.iter().copied().collect::<VecDeque<_>>();
+    while let Some(record) = queue.pop_front() {
+        let Some(dependents) = machine
+            .proof_store
+            .dependent_records(ProofPremise::Record(record))
+        else {
+            continue;
+        };
+        for dependent in dependents {
+            if records.insert(*dependent) {
+                queue.push_back(*dependent);
+            }
+        }
+    }
 }
 
 fn capture_generalized(
@@ -655,12 +659,17 @@ fn canonical_support(
     }
 }
 
-fn canonical_clause(canonical: &mut Canonicalizer, clause: RecordProofClause) -> CanonicalClause {
+fn canonical_clause(
+    canonical: &mut Canonicalizer,
+    clause: proof::ProjectionClause,
+) -> CanonicalClause {
     match clause {
-        RecordProofClause::Standalone { support } => {
+        proof::ProjectionClause::Standalone { support, .. } => {
             CanonicalClause::Standalone(canonical_support(canonical, support))
         }
-        RecordProofClause::DerivedUnary { carrier, premise } => CanonicalClause::DerivedUnary {
+        proof::ProjectionClause::DerivedUnary {
+            carrier, premise, ..
+        } => CanonicalClause::DerivedUnary {
             carrier: match carrier {
                 DerivedUnaryCarrier::Structural(derivation) => CanonicalCarrier::Structural {
                     result: None,
@@ -676,14 +685,15 @@ fn canonical_clause(canonical: &mut Canonicalizer, clause: RecordProofClause) ->
             },
             premise: canonical_premise(premise),
         },
-        RecordProofClause::ReplayConjunction {
+        proof::ProjectionClause::ReplayConjunction {
             carrier,
-            lower_premise,
-            upper_premise,
+            lower,
+            upper,
+            ..
         } => CanonicalClause::ReplayConjunction {
             carrier: canonical.replay(carrier, None),
-            lower_premise: lower_premise.0 as usize,
-            upper_premise: upper_premise.0 as usize,
+            lower_premise: lower.0 as usize,
+            upper_premise: upper.0 as usize,
         },
     }
 }
@@ -722,13 +732,13 @@ fn canonical_generalization_parent(
     }
 }
 
-fn claim_lineage_class(claim: &UpperReplayClaim) -> String {
-    match claim.lineage {
-        UpperReplayClaimLineage::Original => "original",
-        UpperReplayClaimLineage::ReplayConstraint { .. } => "replay-constraint",
-        UpperReplayClaimLineage::ReplayEvidence { .. } => "replay-evidence",
-        UpperReplayClaimLineage::StructuralConstraint { .. } => "structural-constraint",
-        UpperReplayClaimLineage::ReductionRouteConstraint { .. } => "reduction-route-constraint",
+fn claim_lineage_class(lineage: proof::UpperClaimLineage) -> String {
+    match lineage {
+        proof::UpperClaimLineage::Original => "original",
+        proof::UpperClaimLineage::ReplayConstraint { .. } => "replay-constraint",
+        proof::UpperClaimLineage::ReplayEvidence { .. } => "replay-evidence",
+        proof::UpperClaimLineage::StructuralConstraint { .. } => "structural-constraint",
+        proof::UpperClaimLineage::ReductionRouteConstraint { .. } => "reduction-route-constraint",
     }
     .into()
 }

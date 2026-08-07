@@ -8001,6 +8001,32 @@ mod mutation_tests {
                     .machine
                     .admit_claim_qualified_parent(result, non_replay);
             }
+            let cpk_winner = fixture
+                .machine
+                .proof_store
+                .first_qualified_parent_source(result, root);
+            let factored_winner = fixture
+                .machine
+                .replay_result_summary
+                .first_qualified_parent_source(result, root)
+                .expect("factored first-source lookup");
+            assert_eq!(
+                cpk_winner,
+                Some(if replay_first {
+                    proof::FirstQualifiedParentSource::Replay
+                } else {
+                    proof::FirstQualifiedParentSource::NonReplay(non_replay)
+                }),
+            );
+            assert_eq!(
+                factored_winner,
+                Some(if replay_first {
+                    FirstQualifiedParentSource::Replay
+                } else {
+                    FirstQualifiedParentSource::NonReplay(non_replay)
+                }),
+                "CPK and RCPF must preserve the same permanent cross-kind first winner",
+            );
             let comparison = fixture
                 .machine
                 .try_compare_first_qualified_parent_sources(result);
@@ -11077,6 +11103,43 @@ mod mutation_tests {
         assert!(rendered.contains("Claimed"));
         assert!(rendered.contains("Independent"));
         assert!(rendered.contains("Structural"));
+
+        fixture.machine.replay_parent_sets = Default::default();
+        fixture.machine.replay_occurrences = Default::default();
+        fixture.machine.replay_result_summary = Default::default();
+        fixture.machine.non_replay_claim_parents_by_constraint = Default::default();
+        fixture.machine.bounds.upper_replay_claims.clear();
+        fixture
+            .machine
+            .bounds
+            .projection_proofs_by_lower_record
+            .clear();
+        fixture.machine.bounds.record_proof_clauses.clear();
+        fixture
+            .machine
+            .bounds
+            .record_proof_clause_ids_by_lower_record
+            .clear();
+        fixture
+            .machine
+            .bounds
+            .record_proof_clause_links_by_lower_record
+            .clear();
+        fixture
+            .machine
+            .bounds
+            .scheme_projection_lower_record_memberships
+            .clear();
+        fixture
+            .machine
+            .bounds
+            .dependent_records_by_premise
+            .clear();
+        assert_eq!(
+            fixture.machine.logical_proof_snapshot(),
+            snapshot,
+            "the frozen logical snapshot must be independent of every former flat/RCPF read",
+        );
     }
 
     #[test]

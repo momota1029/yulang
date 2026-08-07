@@ -886,7 +886,7 @@ pub(super) enum ProjectionClause {
 }
 
 impl ProjectionClause {
-    fn support(self) -> SchemeProjectionProofSupport {
+    pub(super) fn support(self) -> SchemeProjectionProofSupport {
         match self {
             Self::Standalone { support, .. }
             | Self::DerivedUnary { support, .. }
@@ -1143,12 +1143,20 @@ pub(super) struct ExactQualifiedParent {
     pub(super) parent: ClaimQualifiedParent,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum FirstQualifiedParentSource {
+    Replay,
+    NonReplay(ClaimQualifiedParent),
+}
+
 #[derive(Debug)]
 pub(super) struct PreparedQualifiedParentAdmission {
     result: ConstraintRecordId,
     accepted: Vec<ExactQualifiedParent>,
     canonical: Vec<ExactQualifiedParent>,
     new_result_entries: Option<Vec<ExactQualifiedParent>>,
+    new_first_sources:
+        Vec<((ConstraintRecordId, UpperReplayClaimId), FirstQualifiedParentSource)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1215,6 +1223,10 @@ pub(crate) struct ProofOccurrenceStore {
     qualified_parent_keys: FxHashSet<QualifiedParentKey>,
     qualified_parents_by_result:
         FxHashMap<ConstraintRecordId, Vec<ExactQualifiedParent>>,
+    // The sole historical-order fact retained by CPK: cross-kind first source per result/root.
+    // Canonical qualified-parent storage stays arrival-order independent.
+    first_qualified_parent_source_by_root:
+        FxHashMap<(ConstraintRecordId, UpperReplayClaimId), FirstQualifiedParentSource>,
     projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
     dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
@@ -1266,6 +1278,7 @@ impl Default for ProofOccurrenceStore {
             row_reductions: Vec::new(),
             qualified_parent_keys: FxHashSet::default(),
             qualified_parents_by_result: FxHashMap::default(),
+            first_qualified_parent_source_by_root: FxHashMap::default(),
             projection_lower_record_by_constraint: FxHashMap::default(),
             projection_lower_record_by_replay: FxHashMap::default(),
             dependent_records_by_premise: FxHashMap::default(),
@@ -3199,7 +3212,7 @@ impl<'a> ProjectionPreflight<'a> {
 }
 
 impl ProofOccurrenceStore {
-    fn upper_claim(&self, claim: UpperReplayClaimId) -> Option<&UpperClaimOccurrence> {
+    pub(super) fn upper_claim(&self, claim: UpperReplayClaimId) -> Option<&UpperClaimOccurrence> {
         let index = self.upper_claim_index.get(&claim).copied()?;
         self.upper_claims.get(index)
     }
@@ -4269,6 +4282,14 @@ impl ProofOccurrenceStore {
         pending_keys.try_reserve(parents.len()).map_err(exhausted)?;
         let mut accepted = Vec::new();
         accepted.try_reserve(parents.len()).map_err(exhausted)?;
+        let mut pending_first_source_keys = FxHashSet::default();
+        pending_first_source_keys
+            .try_reserve(parents.len())
+            .map_err(exhausted)?;
+        let mut new_first_sources = Vec::new();
+        new_first_sources
+            .try_reserve(parents.len())
+            .map_err(exhausted)?;
         for &parent in parents {
             let parent_claim = parent.parent_claim();
             let claim = self
@@ -4306,6 +4327,23 @@ impl ProofOccurrenceStore {
                 coverage_root: claim.coverage_root,
                 parent,
             });
+            let source_key = (result, claim.coverage_root);
+            if !self
+                .first_qualified_parent_source_by_root
+                .contains_key(&source_key)
+                && pending_first_source_keys.insert(source_key)
+            {
+                let source = match parent {
+                    ClaimQualifiedParent::ReplayConstraint { .. } => {
+                        FirstQualifiedParentSource::Replay
+                    }
+                    ClaimQualifiedParent::StructuralConstraint { .. }
+                    | ClaimQualifiedParent::ReductionRouteConstraint { .. } => {
+                        FirstQualifiedParentSource::NonReplay(parent)
+                    }
+                };
+                new_first_sources.push((source_key, source));
+            }
         }
 
         #[cfg(test)]
@@ -4318,6 +4356,9 @@ impl ProofOccurrenceStore {
         }
         self.qualified_parent_keys
             .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        self.first_qualified_parent_source_by_root
+            .try_reserve(new_first_sources.len())
             .map_err(exhausted)?;
         let new_result_entries =
             if let Some(entries) = self.qualified_parents_by_result.get_mut(&result) {
@@ -4344,6 +4385,7 @@ impl ProofOccurrenceStore {
             accepted,
             canonical,
             new_result_entries,
+            new_first_sources,
         })
     }
 
@@ -4387,6 +4429,12 @@ impl ProofOccurrenceStore {
                 identity,
             }));
         }
+        for (key, source) in admission.new_first_sources.drain(..) {
+            assert!(self
+                .first_qualified_parent_source_by_root
+                .insert(key, source)
+                .is_none());
+        }
         let entries = self
             .qualified_parents_by_result
             .get_mut(&admission.result)
@@ -4403,6 +4451,16 @@ impl ProofOccurrenceStore {
             .get(&result)
             .map(Vec::as_slice)
             .unwrap_or_default()
+    }
+
+    pub(super) fn first_qualified_parent_source(
+        &self,
+        result: ConstraintRecordId,
+        root: UpperReplayClaimId,
+    ) -> Option<FirstQualifiedParentSource> {
+        self.first_qualified_parent_source_by_root
+            .get(&(result, root))
+            .copied()
     }
 
     #[cfg(test)]
@@ -4585,6 +4643,41 @@ impl ProofOccurrenceStore {
         premise: ProofPremise,
     ) -> Option<&FxHashSet<BoundRecordId>> {
         self.dependent_records_by_premise.get(&premise)
+    }
+
+    pub(super) fn dependency_entries(
+        &self,
+    ) -> impl Iterator<Item = (ProofPremise, &FxHashSet<BoundRecordId>)> {
+        self.dependent_records_by_premise
+            .iter()
+            .map(|(premise, dependents)| (*premise, dependents))
+    }
+
+    pub(super) fn projection_records(&self) -> impl Iterator<Item = BoundRecordId> + '_ {
+        self.projection_supports
+            .keys()
+            .chain(self.projection_formulas.keys())
+            .copied()
+    }
+
+    pub(super) fn projection_supports_for_record(
+        &self,
+        record: BoundRecordId,
+    ) -> &[SchemeProjectionProofSupport] {
+        self.projection_supports
+            .get(&record)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub(super) fn projection_formula_for_record(
+        &self,
+        record: BoundRecordId,
+    ) -> &[ProjectionClause] {
+        self.projection_formulas
+            .get(&record)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     }
 
     #[cfg(test)]
@@ -8210,6 +8303,10 @@ mod tests {
         let cpk_before = (
             machine.proof_store.qualified_parent_keys.clone(),
             machine.proof_store.qualified_parents_by_result.clone(),
+            machine
+                .proof_store
+                .first_qualified_parent_source_by_root
+                .clone(),
         );
         let flat_before = (
             machine.bounds.claim_parents_by_constraint.clone(),
@@ -8226,9 +8323,13 @@ mod tests {
             (
                 machine.proof_store.qualified_parent_keys.clone(),
                 machine.proof_store.qualified_parents_by_result.clone(),
+                machine
+                    .proof_store
+                    .first_qualified_parent_source_by_root
+                    .clone(),
             ),
             cpk_before,
-            "a failed CPK preflight commits no key or result-local order state",
+            "a failed CPK preflight commits no key, first-source, or result-local order state",
         );
         assert_eq!(
             (
@@ -8265,6 +8366,13 @@ mod tests {
                 .map(|entry| entry.parent)
                 .collect::<FxHashSet<_>>(),
             "flat receives exactly the event-local CPK decision",
+        );
+        assert_eq!(
+            machine
+                .proof_store
+                .first_qualified_parent_source(result, first),
+            Some(FirstQualifiedParentSource::Replay),
+            "the event-local first accepted parent wins independently of canonical storage order",
         );
     }
 
