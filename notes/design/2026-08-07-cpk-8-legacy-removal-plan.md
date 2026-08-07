@@ -476,21 +476,67 @@ Rollback: oracle/test-retirementだけのcommitにする。production store削�
 
 ### CPK-8F: legacy reader / authority type removal
 
+**追記（2026-08-07、CPK-8F着手時の調査で判明・ユーザ承認済み）**: CPK-8B/8Eの完了後、
+`ProofReadAuthority::LegacyRollback`と`ReplayReadAuthority::LegacyRollback`は状態が
+大きく異なると判明した。前者はCPK-8Dの封印によりproduction到達不能（test専用、45件の
+fixtureが明示構築するだけ）。後者はRCPFのautomatic retryを通じて**依然production
+到達可能**——CPK-8DはProof側だけを封印し、Replay側はそのままだった。したがって
+下記のGateは、CPK-8Bで安全に維持すると決めた41件のdefer-to-8G fixture（CPK-8Gが
+flat/factored storeを物理撤去するまで明示的に生かす）がまだ存在する限り、CPK-8F単独
+では文字通り達成できない。この矛盾を受けて、以下の2点を決定し、ユーザが承認した。
+
+1. **Gateの分割**: 本節のGateを「通常productionの経路（`run_replay_compilation_attempt`
+   から到達する非test経路）でlegacy reader/authority dispatchがゼロ」へ絞る。
+   「crate全体で参照ゼロ」という文字通りのGateはCPK-8Gの最終Gateへ移す
+   （CPK-8Gが41+3+1件のfixtureを退役させ、flat/RCPF storeを物理撤去した後にのみ
+   達成可能になるため）。
+2. **CPK-8F-3の新設**: Replay側にもCPK-8Dと同型の「production fallback封印 +
+   no-fallback soak」を行う新sub-stageを、CPK-8Fの一部として追加する
+   （下記スライス表を参照）。これはCPK-8D同様、現在生きている安全網
+   （RCPFのautomatic legacy retry）を外す、実装済みの合意なしには進めない
+   behavior-changing commitである。
+
+CPK-8FはCPK-8B同様、内部でスライス分割する。
+
+- **8F-0**（着地済み、`004fb02c`）: CPK-8Eのcensus調査で見つかった
+  `legacy_scheme_projectable_lowers_for_test`依存9 test familyのCPK-only化・退役。
+- **8F-1**: Proof側production-dispatch撤去。`ProofReadAuthority`パラメータを
+  `run_replay_compilation_attempt`と通常のBodyLowerer/AnalysisSession/Arena
+  constructor chainから外し、非test経路をCPK直呼びにする。Legacy variant・
+  field・constructor・分岐そのものは、45件のtestが明示構築するために維持する。
+- **8F-2**: 到達不能になったProof retry配線（telemetry emitter、未使用
+  constructor wrapper）の削除。
+- **8F-3**: RCPF側production fallback封印。`run_replay_compilation_attempt`が
+  RCPF失敗時に`ReplayReadAuthority::LegacyRollback`で自動retryする経路を外し、
+  出力破棄後にhard errorを返す。explicit test-only Replay Legacy構築は維持。
+  封印後、CPK-8D §4.3と同型の3-round no-fallback soakを新たに実行する。
+- **8F-4**: 8F-3のsoak green確認後、Replay側production-dispatch撤去。非test経路を
+  直接Factoredにする。RCPF store/writerそのものは削除しない（CPK-8Gの仕事）。
+
 変更:
 
-- `legacy_scheme_projectable_lowers`とrouting legacy action plannerを削除する。
-- `ProofReadAuthority` dispatchを削除し、CPK queryを直接呼ぶ。
-- dormant `ReplayReadAuthority` reader/adapterを依存順に削除する。
-- legacy retry専用error/helper/telemetryを削除またはCPK hard-failure telemetryへ統合する。
+- `legacy_scheme_projectable_lowers`とrouting legacy action plannerの、非test
+  productionからの到達性をゼロにする（削除自体はCPK-8G、45件のfixtureが
+  存在する間は関数本体を残す）。
+- `ProofReadAuthority` dispatchを通常productionの経路から削除し、CPK queryを
+  直接呼ぶ（8F-1）。
+- `ReplayReadAuthority`のRCPF automatic fallbackを封印する（8F-3、新設）。
+- legacy retry専用error/helper/telemetryのうち、到達不能になったものを削除、
+  または生きているものはCPK hard-failure telemetryへ統合する。
 
-Gate:
+Gate（分割後）:
 
-- production sourceでlegacy reader referenceがゼロ。
-- `ProofReadAuthority::LegacyRollback` / `ReplayReadAuthority::LegacyRollback`がゼロ。
+- 通常production経路（非test）でlegacy reader referenceがゼロ。
+- 通常production経路（非test）で`ProofReadAuthority::LegacyRollback` /
+  `ReplayReadAuthority::LegacyRollback`の自動選択がゼロ。
+- 8F-3のRCPF fallback封印後、3-round no-fallback soakがgreen。
 - targeted/scoped/integration/characterizationがgreen。
 - final output parityとtermination parity。
+- （「crate全体で参照ゼロ」はCPK-8Gの最終Gateへ移動——本節では要求しない）
 
-Rollback: reader/authority removalとstore removalを分ける。問題時にはdormant codeを戻せる。
+Rollback: reader/authority removalとstore removalを分ける。問題時にはdormant codeを
+戻せる。8F-3は他のスライスと独立したcommitとし、authority-seal commitだけをrevert
+すれば旧のfresh legacy retryを復元できる（CPK-8Dの§8ロールバック方針と同型）。
 
 ### CPK-8G: physical store / writer removal
 
