@@ -95,30 +95,13 @@ const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
 
 const CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usize)] = &[
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 2),
-    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 41),
+    // CPK-8G-6c retires eighteen flat/CDM callers after their CPK-owned replacements land.
+    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 23),
     (Cpk8RawFixtureWriterClass::SemanticFixture, 0),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
 
 const CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS: &[&str] = &[
-    "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
-    "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
-    "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
-    "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
-    "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
-    "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
-    "cdm_d_9_3_one_sided_lower_emits_bound_delta",
-    "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
-    "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
-    "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
-    "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
-    "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
-    "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
-    "cdm_linear_materialization_census",
-    "cdm_linear_qualified_carrier_index_census",
-    "dpn_linear_registration_census",
-    "factored_record_lower_projection_includes_direct_and_qualified_roots",
-    "moved_root_collision_reconstructs_original_full_and_delta_lineage",
     "rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage",
     "rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission",
     "rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records",
@@ -206,6 +189,100 @@ const CPK8G6B_RETIRED_PROOF_ORACLE_AND_REPLACEMENT_BACKED_TESTS: &[(&str, &str)]
     ),
 ];
 
+// CPK-8G-6c category-B retirements. These flat/CDM tests characterized the representation that
+// remains dual-written through 8G-6 but is no longer a production reader. Each reason names the
+// CPK-owned contract that survives physical removal; the three dedicated census helpers are
+// tracked separately because their manifest entries stood in for adjacent tests.
+const CPK8G6C_RETIRED_FLAT_CDM_TESTS: &[(&str, &str)] = &[
+    (
+        "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
+        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and the CPK-only logical snapshot pin eager claim materialization without the flat bulk oracle",
+    ),
+    (
+        "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
+        "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly and the CPK-only canonical transition fixtures pin independent-then-claimed support",
+    ),
+    (
+        "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed pins exact-carrier dedup and one-time root materialization in CPK",
+    ),
+    (
+        "cdm_a_9_6_materialized_state_census_is_linear_in_link_events",
+        "cpk_7_slice_a_claim_index_writes_do_not_scan_the_global_claim_store and CPK's event-local claim indexes replace the flat materialization census",
+    ),
+    (
+        "moved_root_collision_reconstructs_original_full_and_delta_lineage",
+        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_claim_move_updates_record_coverage_and_preserves_root_liveness pin moved-root lineage and coverage",
+    ),
+    (
+        "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin every CPK parent kind",
+    ),
+    (
+        "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed plus cpk_8g_4b_evaluator_traps_missing_machine_issued_references replace the flat-index debug cross-check",
+    ),
+    (
+        "cdm_b_qualified_carrier_index_census_is_linear_in_distinct_carriers",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed and cpk_7_slice_a_prepared_parent_blocks_share_exact_entries pin event-local exact-parent indexing without a global scan",
+    ),
+    (
+        "lower_and_upper_replay_planning_capture_legacy_parent_drafts",
+        "cpk_7_slice_a_prepared_parent_blocks_share_exact_entries and the CPK lower-only/upper-only parent-block tests directly pin replay planning payloads",
+    ),
+    (
+        "replay_claim_parent_dedup_keeps_each_exact_replay_carrier",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed pins exact replay carrier identity and dedup in the CPK-owned index",
+    ),
+    (
+        "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
+        "cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow and cpk_evidence_and_trivial_replays_do_not_create_projection_formula pin the evidence-only CPK payload",
+    ),
+    (
+        "cdm_d_9_3_one_sided_lower_emits_bound_delta",
+        "cpk_2_non_replay_proof_events_match_frozen_contract and the direct CPK PreparedReplayRoute tests pin one-sided lower admission",
+    ),
+    (
+        "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
+        "cpk_2_non_replay_proof_events_match_frozen_contract pins the typed CPK bound-derivation occurrence emitted by promotion",
+    ),
+    (
+        "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed and direct CPK parent-block tests pin canonical duplicate exact-carrier admission",
+    ),
+    (
+        "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed and direct CPK replay-route tests pin new replay admission without bulk fallback",
+    ),
+    (
+        "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed pins prefiltered duplicate exact-carrier admission in CPK",
+    ),
+    (
+        "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
+        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin reduction-route lineage",
+    ),
+    (
+        "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
+        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin structural lineage",
+    ),
+    (
+        "mpc_b_clause_and_dpn_a_edge_census_are_linear_in_link_events",
+        "cpk_projection_target_and_dependency_admission_is_atomic_and_target_late pins event-local CPK clause and dependency indexing",
+    ),
+    (
+        "factored_record_lower_projection_includes_direct_and_qualified_roots",
+        "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly and the CPK formula graph tests pin direct and qualified root inclusion",
+    ),
+];
+
+const CPK8G6C_RETIRED_FLAT_CDM_DEDICATED_HELPERS: &[&str] = &[
+    "assert_replay_shadow_does_not_interfere",
+    "cdm_linear_materialization_census",
+    "cdm_linear_qualified_carrier_index_census",
+    "dpn_linear_registration_census",
+];
+
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
@@ -231,24 +308,6 @@ const CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS: &[&str] = &[];
 const CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES: &[&str] = &[];
 
 const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[
-    "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
-    "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
-    "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
-    "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
-    "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
-    "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
-    "cdm_d_9_3_one_sided_lower_emits_bound_delta",
-    "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
-    "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
-    "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
-    "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
-    "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
-    "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
-    "cdm_linear_materialization_census",
-    "cdm_linear_qualified_carrier_index_census",
-    "dpn_linear_registration_census",
-    "factored_record_lower_projection_includes_direct_and_qualified_roots",
-    "moved_root_collision_reconstructs_original_full_and_delta_lineage",
     "rcpf_c1_no_claim_and_replay_only_records_allocate_no_non_replay_storage",
     "rcpf_c1_non_replay_store_failure_quarantines_after_legacy_admission",
     "rcpf_c1_non_replay_store_matches_legacy_for_structural_reduction_and_mixed_records",
@@ -274,7 +333,7 @@ const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[
     "rcpf_summary_first_witness_tracks_legacy_insertion_order",
 ];
 
-const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 41;
+const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 23;
 
 // CPK-8G physical-removal manifest. CPK-8E's 48-entry closure described shared-fixture
 // migration-oracle dependents; physical deletion needs the larger union of 51 explicit Legacy
@@ -289,8 +348,6 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 41;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Cpk8gPhysicalTarget {
     LegacyAuthorityAndMigrationOracle,
-    FlatClaimArenaAndCoverage,
-    FlatQualifiedParentRelations,
     FlatProjectionRelations,
     FlatClauseAttributionAndDependency,
     ParentSetArena,
@@ -307,10 +364,8 @@ struct Cpk8gPhysicalTestGroup {
 }
 
 const CPK8G_ADDITIONAL_EXPLICIT_LEGACY_AUTHORITY_TESTS: &[&str] = &[
-    "lower_and_upper_replay_planning_capture_legacy_parent_drafts",
     "rcpf_d2c_2c_2a_deferred_clause_intent_preserves_immediate_value",
     "rcpf_c3b_terminal_failure_stops_drain_before_the_next_queued_work",
-    "replay_claim_parent_dedup_keeps_each_exact_replay_carrier",
     "target_late_legacy_rollback_reproduces_epoch_publication_and_consumer_sequences",
     "rcpf_d4_4_quarantine_discards_attempt_without_legacy_retry",
 ];
@@ -350,7 +405,7 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
     "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
 ];
 
-const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 53;
+const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 33;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
@@ -362,77 +417,6 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
             Cpk8gPhysicalTarget::ReplayClauseProjection,
         ],
         tests: CPK8G6_IMPLICIT_LEGACY_READER_DEPENDENTS,
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
-            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-        ],
-        tests: &[
-            "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
-            "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
-            "cdm_a_9_5_second_exact_carrier_keeps_bookkeeping_without_rematerializing_root",
-            "cdm_linear_materialization_census",
-            "moved_root_collision_reconstructs_original_full_and_delta_lineage",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
-        ],
-        tests: &[
-            "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
-            "cdm_b_debug_cross_check_rejects_a_deliberately_corrupted_index",
-            "cdm_linear_qualified_carrier_index_census",
-            "lower_and_upper_replay_planning_capture_legacy_parent_drafts",
-            "replay_claim_parent_dedup_keeps_each_exact_replay_carrier",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-            Cpk8gPhysicalTarget::ReplayResultSummary,
-        ],
-        tests: &[
-            "cdm_d_9_3_evidence_only_emits_replay_evidence_delta",
-            "cdm_d_9_3_one_sided_lower_emits_bound_delta",
-            "cdm_d_9_3_promotion_emits_single_bound_derivation_delta",
-            "cdm_d_9_3_replay_canonical_duplicate_emits_exact_carrier_delta",
-            "cdm_d_9_3_replay_new_emits_lower_delta_without_bulk_fallback",
-            "cdm_d_9_3_replay_prefiltered_duplicate_emits_exact_carrier_delta",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
-            Cpk8gPhysicalTarget::NonReplayClaimParentStore,
-        ],
-        tests: &[
-            "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
-            "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
-        ],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
-        ],
-        tests: &["dpn_linear_registration_census"],
-    },
-    Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-            Cpk8gPhysicalTarget::FlatProjectionRelations,
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-            Cpk8gPhysicalTarget::ReplayResultSummary,
-        ],
-        tests: &["factored_record_lower_projection_includes_direct_and_qualified_roots"],
     },
     Cpk8gPhysicalTestGroup {
         targets: &[
@@ -671,15 +655,19 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-3 adds the reviewed flat-mirror transaction and its atomicity assertion; CPK owns
     // exact admission while these references only feed or verify the migration mirror. CPK-8G-5
     // adds one test-only mirror reset (through the non-replay field name) proving the logical
-    // snapshot is independent of every former flat/RCPF read.
-    ("claim_parents_by_constraint", 73),
-    ("replay_claim_parent_keys", 13),
-    ("qualified_carrier_index", 31),
+    // snapshot is independent of every former flat/RCPF read. CPK-8G-6c removes the reviewed
+    // flat/CDM parent-relation characterizations and their dedicated bulk-oracle helpers after
+    // their CPK replacements land.
+    ("claim_parents_by_constraint", 66),
+    // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
+    ("replay_claim_parent_keys", 10),
+    ("qualified_carrier_index", 19),
     ("structural_claim_parent_keys", 5),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
     // projection collection remains a mirror during these ownership-transfer slices. CPK-8G-6a
-    // removes five D3b A-fixture reads now served by the CPK claim/support indexes.
-    ("scheme_projection_claims_by_lower_record", 24),
+    // removes five D3b A-fixture reads now served by the CPK claim/support indexes. CPK-8G-6c
+    // removes the historical flat materialization/projection reads and their oracle snapshots.
+    ("scheme_projection_claims_by_lower_record", 19),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
@@ -688,19 +676,21 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // dangling-occurrence fixtures and their raw flat projection-ledger seeds.
     // CPK-8G-5 adds one test-only mirror reset for the CPK-only snapshot freeze. CPK-8G-6a
     // removes six D3b A-fixture reads/writes now served by the canonical CPK support view.
-    ("projection_proofs_by_lower_record", 45),
+    // CPK-8G-6c removes historical flat bulk/delta oracle reads and snapshots.
+    ("projection_proofs_by_lower_record", 38),
     ("scheme_projection_lower_records_by_root", 9),
     ("scheme_projection_lower_record_memberships", 6),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
     // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
-    ("record_proof_clauses", 12),
+    // CPK-8G-6c removes the DPN linear-registration census helper.
+    ("record_proof_clauses", 11),
     ("record_proof_clause_by_key", 11),
     ("record_proof_clause_ids_by_lower_record", 9),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
     // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
     ("record_proof_clause_links_by_lower_record", 11),
-    ("record_proof_clause_link_keys", 13),
+    ("record_proof_clause_link_keys", 12),
     // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
     ("attributed_claim_supports", 22),
     ("flat_retained_attributed_claim_supports", 5),
@@ -711,7 +701,7 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-5 adds the CPK-owned snapshot iterator and resets the flat dependency mirror once in
     // the snapshot-independence test; neither reference restores flat read authority.
     // CPK-8G-6b removes the replacement-backed Legacy dependency-chain mirror read.
-    ("dependent_records_by_premise", 36),
+    ("dependent_records_by_premise", 35),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 130),
@@ -721,7 +711,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // endpoint correction adds one test-only semantic row-provenance merge assertion.
     // CPK-owned reduction-route dedup resolves its exact semantic carrier once; CPK-8E removes
     // the two remaining migration-only Legacy normalizer reads.
-    ("row_derivations", 52),
+    // CPK-8G-6c removes two historical reduction/structural carrier assertions.
+    ("row_derivations", 50),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
@@ -762,7 +753,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-5 resets the flat claim mirror once in the snapshot-independence test. CPK-8G-6a
     // removes four D3b A-fixture claim reads now served by ProofOccurrenceStore. CPK-8G-6b
     // removes two migration-only outer-census reads with the routing-oracle fault fixture.
-    ("upper_replay_claims", 93),
+    // CPK-8G-6c removes five historical flat claim/lineage assertions.
+    ("upper_replay_claims", 88),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -770,7 +762,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-2b adds both CPK-owned and flat-mirror transaction preflight/atomicity references.
     // CPK-8G-2d adds the CPK-owned move preflight/commit, flat-mirror commit, and direct
     // multi-move/atomicity assertions. The flat index is now observed only as a transition mirror.
-    ("claims_by_upper_record", 64),
+    // CPK-8G-6c removes one historical flat materialization-census read.
+    ("claims_by_upper_record", 63),
     // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
     // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
     ("live_coverage_by_root", 14),
@@ -784,7 +777,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
-    ("replay_result_summary", 42),
+    // CPK-8G-6c removes one historical factored projection assertion.
+    ("replay_result_summary", 41),
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
     ("replay_clause_projection", 22),
     ("non_replay_claim_parents_by_constraint", 10),
@@ -1138,7 +1132,10 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             .unwrap_or_else(|| panic!("CPK mirrored fixture caller moved or disappeared: {caller}"))
             .split("\n    #[test]")
             .next()
-            .expect("test body");
+            .expect("test body")
+            .split("\n    fn legacy_only_cdm_replay_claim_fixture()")
+            .next()
+            .expect("final mirrored test body");
         assert!(
             body.contains("cpk_mirrored_cdm_replay_claim_fixture()"),
             "{caller} must construct the raw claim through the explicit CPK mirror variant",
@@ -1158,7 +1155,7 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
     );
     assert_eq!(
         CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
-        41,
+        23,
         "the reviewed CDM Legacy-only purpose list changed; re-audit every caller",
     );
     assert_eq!(
@@ -1200,7 +1197,7 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             .count()
         - 3; // Two function declarations and the default wrapper's forwarding call.
     assert_eq!(
-        legacy_call_sites, 44,
+        legacy_call_sites, 25,
         "a Legacy-only CDM fixture call site changed; audit its §6 purpose before proceeding",
     );
     for caller in CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS {
@@ -1278,7 +1275,7 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
     assert_eq!(CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len(), 0);
     assert_eq!(CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len(), 0);
     assert_eq!(CPK8E_REPLACEMENT_BACKED_LEGACY_FIXTURES.len(), 0);
-    assert_eq!(CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES.len(), 41);
+    assert_eq!(CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES.len(), 23);
     assert_eq!(
         CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS.len()
             + CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS.len()
@@ -1431,7 +1428,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         explicit_legacy.len(),
-        47,
+        27,
         "the explicit Legacy-authority census changed; classify the source reference before physical removal",
     );
 
@@ -1442,8 +1439,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         authority_oracle_dependents.len(),
-        47,
-        "the reviewed post-8G-6b explicit-authority dependent census changed",
+        27,
+        "the reviewed post-8G-6c explicit-authority dependent census changed",
     );
     let historical_legacy_characterizations = authority_oracle_dependents
         .iter()
@@ -1481,6 +1478,26 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "8G-6b retired test reappeared without a new disposition: {retired}",
         );
     }
+    assert_eq!(CPK8G6C_RETIRED_FLAT_CDM_TESTS.len(), 20);
+    for &(retired, reason) in CPK8G6C_RETIRED_FLAT_CDM_TESTS {
+        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        let source_occurrences = reviewed_physical_sources
+            .iter()
+            .map(|source| source.matches(&format!("fn {retired}")).count())
+            .sum::<usize>();
+        assert_eq!(
+            source_occurrences, 0,
+            "8G-6c retired test reappeared without a new disposition: {retired}",
+        );
+    }
+    assert_eq!(CPK8G6C_RETIRED_FLAT_CDM_DEDICATED_HELPERS.len(), 4);
+    for &retired in CPK8G6C_RETIRED_FLAT_CDM_DEDICATED_HELPERS {
+        assert_eq!(
+            bounds_source.matches(&format!("fn {retired}")).count(),
+            0,
+            "8G-6c retired dedicated census helper reappeared: {retired}",
+        );
+    }
     for replacement in [
         "cpk_7_slice_b_keeps_uncovered_decoupled_route_beside_generic_pair",
         "cpk_7_slice_b_routes_covered_pairs_and_deduplicates_incremental_input",
@@ -1496,6 +1513,26 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             proof_source.matches(&format!("fn {replacement}")).count(),
             1,
             "8G-6b CPK-owned replacement moved or disappeared: {replacement}",
+        );
+    }
+    for replacement in [
+        "cpk_7_slice_a_claim_index_writes_do_not_scan_the_global_claim_store",
+        "cpk_7_slice_a_prepared_parent_blocks_share_exact_entries",
+        "cpk_8g_4b_evaluator_traps_missing_machine_issued_references",
+        "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly",
+        "cpk_gap_1_five_lineages_project_through_the_real_formula_graph",
+        "cpk_claim_payload_matches_flat_across_five_lineages_and_move",
+        "cpk_claim_move_updates_record_coverage_and_preserves_root_liveness",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed",
+        "cpk_projection_target_and_dependency_admission_is_atomic_and_target_late",
+        "cpk_2_non_replay_proof_events_match_frozen_contract",
+        "cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow",
+        "cpk_evidence_and_trivial_replays_do_not_create_projection_formula",
+    ] {
+        assert_eq!(
+            proof_source.matches(&format!("fn {replacement}")).count(),
+            1,
+            "8G-6c CPK-owned replacement moved or disappeared: {replacement}",
         );
     }
 
@@ -1534,8 +1571,6 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
 
     let all_targets = [
         Cpk8gPhysicalTarget::LegacyAuthorityAndMigrationOracle,
-        Cpk8gPhysicalTarget::FlatClaimArenaAndCoverage,
-        Cpk8gPhysicalTarget::FlatQualifiedParentRelations,
         Cpk8gPhysicalTarget::FlatProjectionRelations,
         Cpk8gPhysicalTarget::FlatClauseAttributionAndDependency,
         Cpk8gPhysicalTarget::ParentSetArena,
