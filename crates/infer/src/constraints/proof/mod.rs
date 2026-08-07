@@ -6815,17 +6815,141 @@ mod tests {
 
     #[test]
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
-        let inactive =
-            with_semantic_execution_snapshot_capture_for_new_machines(cpk_3_replay_fixture);
-        let active =
-            with_semantic_execution_snapshot_capture_for_new_machines(cpk_3_replay_fixture);
+        let inactive = with_semantic_execution_snapshot_capture_for_new_machines(|| {
+            cpk_3_replay_fixture_with_oracle(false)
+        });
+        let active = with_semantic_execution_snapshot_capture_for_new_machines(|| {
+            cpk_3_replay_fixture_with_oracle(false)
+        });
         let snapshot = active.proof_store.clone();
-
-        assert_replay_shadow_parity(&active, &snapshot);
-        assert!(!snapshot.replay_finite_map.is_empty());
-        assert!(!snapshot.first_replay_witnesses.is_empty());
-        assert!(!snapshot.row_reductions.is_empty());
-        assert!(!snapshot.live_coverage.is_empty());
+        let carrier = |pivot, lower, upper| BinaryReplayDerivation {
+            pivot: TypeVar(pivot),
+            lower: BoundRecordId(lower),
+            upper: BoundRecordId(upper),
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        let parent = |side, root, claim| ReplayProofParent {
+            side,
+            coverage_root: UpperReplayClaimId(root),
+            representative_claim: UpperReplayClaimId(claim),
+            lineage: ProjectionLineage::Original,
+        };
+        let first_carrier = carrier(31, 0, 3);
+        let second_carrier = carrier(32, 6, 9);
+        assert_eq!(
+            snapshot.replay_finite_map,
+            vec![
+                ReplayProofOccurrence {
+                    result: ConstraintRecordId(2),
+                    carrier: first_carrier,
+                    lower_parents: vec![parent(ReplayClaimParentSide::Lower, 0, 0)],
+                    upper_parents: vec![parent(ReplayClaimParentSide::Upper, 1, 1)],
+                    first_event: 0,
+                },
+                ReplayProofOccurrence {
+                    result: ConstraintRecordId(2),
+                    carrier: second_carrier,
+                    lower_parents: vec![parent(ReplayClaimParentSide::Lower, 4, 4)],
+                    upper_parents: vec![parent(ReplayClaimParentSide::Upper, 5, 5)],
+                    first_event: 1,
+                },
+            ],
+        );
+        assert_eq!(
+            snapshot.first_replay_witnesses,
+            FxHashMap::from_iter([
+                (
+                    (ConstraintRecordId(2), UpperReplayClaimId(0)),
+                    ReplayFirstWitness {
+                        carrier: first_carrier,
+                        side: ReplayClaimParentSide::Lower,
+                        representative_claim: UpperReplayClaimId(0),
+                    },
+                ),
+                (
+                    (ConstraintRecordId(2), UpperReplayClaimId(1)),
+                    ReplayFirstWitness {
+                        carrier: first_carrier,
+                        side: ReplayClaimParentSide::Upper,
+                        representative_claim: UpperReplayClaimId(1),
+                    },
+                ),
+                (
+                    (ConstraintRecordId(2), UpperReplayClaimId(4)),
+                    ReplayFirstWitness {
+                        carrier: second_carrier,
+                        side: ReplayClaimParentSide::Lower,
+                        representative_claim: UpperReplayClaimId(4),
+                    },
+                ),
+                (
+                    (ConstraintRecordId(2), UpperReplayClaimId(5)),
+                    ReplayFirstWitness {
+                        carrier: second_carrier,
+                        side: ReplayClaimParentSide::Upper,
+                        representative_claim: UpperReplayClaimId(5),
+                    },
+                ),
+            ]),
+        );
+        let claim = |id, root, lineage, producer, record| UpperClaimOccurrence {
+            claim: UpperReplayClaimId(id),
+            coverage_root: UpperReplayClaimId(root),
+            lineage,
+            producer: ConstraintRecordId(producer),
+            current_record: BoundRecordId(record),
+        };
+        assert_eq!(
+            snapshot.upper_claims,
+            vec![
+                claim(0, 0, ProjectionLineage::Original, 0, 1),
+                claim(1, 1, ProjectionLineage::Original, 1, 3),
+                claim(2, 0, ProjectionLineage::ReplayConstraint, 2, 5),
+                claim(3, 1, ProjectionLineage::ReplayConstraint, 2, 5),
+                claim(4, 4, ProjectionLineage::Original, 3, 7),
+                claim(5, 5, ProjectionLineage::Original, 4, 9),
+                claim(6, 4, ProjectionLineage::ReplayConstraint, 2, 5),
+                claim(7, 5, ProjectionLineage::ReplayConstraint, 2, 5),
+                claim(8, 8, ProjectionLineage::Original, 5, 11),
+                claim(9, 1, ProjectionLineage::ReductionRouteConstraint, 5, 11),
+                claim(10, 1, ProjectionLineage::ReplayConstraint, 1, 12),
+                claim(11, 1, ProjectionLineage::ReplayEvidence, 1, 13),
+                claim(12, 1, ProjectionLineage::StructuralConstraint, 1, 14),
+                claim(13, 1, ProjectionLineage::ReductionRouteConstraint, 1, 15),
+            ],
+        );
+        assert_eq!(
+            snapshot.row_reductions,
+            vec![RowReductionOccurrence {
+                state: UnweightedRowReductionRecordId(0),
+                root_claim: Some(UpperReplayClaimId(1)),
+                provenance: RowDerivationId(0),
+                current_record: BoundRecordId(3),
+            }],
+        );
+        assert_eq!(
+            snapshot.live_coverage,
+            FxHashSet::from_iter([(
+                UpperReplayClaimId(1),
+                UnweightedRowReductionRecordId(0),
+            )]),
+        );
+        assert_eq!(
+            snapshot.replay_admissions,
+            vec![
+                ReplayAdmissionEvent {
+                    result: Some(ConstraintRecordId(2)),
+                    carrier: first_carrier,
+                    disposition: ReplayAdmissionDisposition::NewSemantic,
+                },
+                ReplayAdmissionEvent {
+                    result: Some(ConstraintRecordId(2)),
+                    carrier: second_carrier,
+                    disposition: ReplayAdmissionDisposition::CanonicalDuplicate,
+                },
+            ],
+        );
+        assert!(snapshot.replay_coverage_connected);
         assert!(snapshot.occurrences.iter().any(|occurrence| {
             matches!(occurrence.cause, ProofCause::ReductionRoute { .. })
         }));
@@ -6844,9 +6968,6 @@ mod tests {
                 ProjectionLineage::ReductionRouteConstraint,
             ]),
         );
-        assert!(snapshot.replay_admissions.iter().any(|event| {
-            event.disposition == ReplayAdmissionDisposition::CanonicalDuplicate
-        }));
         let scc = crate::scc::SccMachine::new();
         let inactive_semantic = inactive.semantic_execution_snapshot(
             SccExecutionSnapshot::new(scc.stats(), Vec::new()),
@@ -7438,6 +7559,8 @@ mod tests {
     #[test]
     fn cpk_3_trivial_replay_records_drop_and_admission_in_active_shadow() {
         let mut fixture = cpk_3_replay_admission_fixture();
+        let admissions_before = fixture.machine.proof_store.replay_admissions.len();
+        let occurrences_before = fixture.machine.proof_store.occurrences.len();
         let attempted = SubtypeConstraintKey {
             lower: fixture.machine.alloc_pos(Pos::Bot),
             upper: fixture.machine.constraint_records[fixture.result.0 as usize]
@@ -7459,21 +7582,33 @@ mod tests {
             machine.replay_drop_records.as_slice(),
             &[expected_drop.clone()]
         );
-        assert!(snapshot.replay_admissions.iter().any(|event| {
-            event.result.is_none()
-                && event.carrier == expected_drop.derivation
-                && event.disposition == ReplayAdmissionDisposition::Trivial
-        }));
-        assert!(snapshot.occurrences.iter().any(|occurrence| {
-            occurrence.result == ProofResult::TrivialReplay(ReplayDropRecordId(0))
-                && occurrence.cause == ProofCause::ReplayDrop(expected_drop.clone())
-        }));
-        assert_replay_shadow_parity(&machine, &snapshot);
+        assert_eq!(
+            &snapshot.replay_admissions[admissions_before..],
+            &[ReplayAdmissionEvent {
+                result: None,
+                carrier: expected_drop.derivation,
+                disposition: ReplayAdmissionDisposition::Trivial,
+            }],
+        );
+        assert_eq!(
+            &snapshot.occurrences[occurrences_before..],
+            &[ProofOccurrence {
+                result: ProofResult::TrivialReplay(ReplayDropRecordId(0)),
+                cause: ProofCause::ReplayDrop(expected_drop),
+                parents: Vec::new(),
+                event: occurrences_before,
+                completeness: ProvenanceCompleteness::Complete,
+            }],
+        );
+        assert!(snapshot.replay_finite_map.is_empty());
+        assert!(snapshot.first_replay_witnesses.is_empty());
     }
 
     #[test]
     fn cpk_3_evidence_only_replay_records_both_bound_edges_in_active_shadow() {
         let mut fixture = cpk_3_replay_admission_fixture();
+        let admissions_before = fixture.machine.proof_store.replay_admissions.len();
+        let occurrences_before = fixture.machine.proof_store.occurrences.len();
         let constraint = SubtypeConstraintKey {
             lower: fixture.machine.alloc_pos(Pos::Var(TypeVar(10))),
             upper: fixture.machine.alloc_neg(Neg::Var(TypeVar(11))),
@@ -7486,38 +7621,40 @@ mod tests {
         let machine = fixture.machine;
         let snapshot = machine.proof_store.clone();
 
-        assert!(snapshot.replay_admissions.iter().any(|event| {
-            event.result.is_none()
-                && event.carrier == carrier
-                && event.disposition == ReplayAdmissionDisposition::EvidenceOnly
-        }));
-        let legacy_records = machine
-            .bounds
-            .records
-            .iter()
-            .enumerate()
-            .filter_map(|(index, record)| {
-                record
-                    .derivations
-                    .contains(&BoundDerivation::ReplayEvidence(carrier))
-                    .then_some(BoundRecordId(index as u32))
-            })
-            .collect::<FxHashSet<_>>();
-        let shadow_records = snapshot
-            .occurrences
-            .iter()
-            .filter_map(|occurrence| match (&occurrence.result, &occurrence.cause) {
-                (ProofResult::EvidenceBound(record), ProofCause::ReplayEvidence(replay))
-                    if *replay == carrier =>
-                {
-                    Some(*record)
-                }
-                _ => None,
-            })
-            .collect::<FxHashSet<_>>();
-        assert_eq!(legacy_records.len(), 2);
-        assert_eq!(shadow_records, legacy_records);
-        assert_replay_shadow_parity(&machine, &snapshot);
+        assert_eq!(
+            &snapshot.replay_admissions[admissions_before..],
+            &[ReplayAdmissionEvent {
+                result: None,
+                carrier,
+                disposition: ReplayAdmissionDisposition::EvidenceOnly,
+            }],
+        );
+        let evidence = &snapshot.occurrences[occurrences_before..];
+        assert_eq!(evidence.len(), 2);
+        assert_eq!(
+            evidence
+                .iter()
+                .map(|occurrence| occurrence.result)
+                .collect::<Vec<_>>(),
+            vec![
+                ProofResult::EvidenceBound(BoundRecordId(3)),
+                ProofResult::EvidenceBound(BoundRecordId(4)),
+            ],
+        );
+        for (offset, occurrence) in evidence.iter().enumerate() {
+            assert_eq!(occurrence.cause, ProofCause::ReplayEvidence(carrier));
+            assert_eq!(
+                occurrence.parents,
+                vec![
+                    ProofParent::Semantic(SemanticFactRef::Bound(carrier.lower)),
+                    ProofParent::Semantic(SemanticFactRef::Bound(carrier.upper)),
+                ],
+            );
+            assert_eq!(occurrence.event, occurrences_before + offset);
+            assert_eq!(occurrence.completeness, ProvenanceCompleteness::Complete);
+        }
+        assert!(snapshot.replay_finite_map.is_empty());
+        assert!(snapshot.first_replay_witnesses.is_empty());
     }
 
     #[test]
@@ -7557,7 +7694,8 @@ mod tests {
             let machine = fixture.machine;
             let snapshot = machine.proof_store.clone();
 
-            assert_replay_shadow_parity(&machine, &snapshot);
+            assert_eq!(snapshot.replay_finite_map.len(), 1);
+            assert_eq!(snapshot.first_replay_witnesses.len(), 1);
             let first = snapshot.first_replay_witnesses[&(result, root)];
             assert_eq!(
                 first.representative_claim, claims[order[0]],
@@ -7568,10 +7706,22 @@ mod tests {
                 .iter()
                 .find(|occurrence| occurrence.result == result)
                 .expect("the permutation produces one exact replay occurrence");
+            assert_eq!(occurrence.carrier, fixture.carrier);
+            assert_eq!(occurrence.first_event, 0);
             assert_eq!(occurrence.lower_parents.len(), 1);
+            assert!(occurrence.upper_parents.is_empty());
             assert_eq!(
-                occurrence.lower_parents[0].representative_claim,
-                claims[order[0]]
+                occurrence.lower_parents[0],
+                ReplayProofParent {
+                    side: ReplayClaimParentSide::Lower,
+                    coverage_root: root,
+                    representative_claim: claims[order[0]],
+                    lineage: if order[0] == 0 {
+                        ProjectionLineage::Original
+                    } else {
+                        ProjectionLineage::ReplayConstraint
+                    },
+                },
             );
         }
     }
@@ -9296,8 +9446,149 @@ mod tests {
                 "an exact metadata duplicate must not create an occurrence",
             );
         let snapshot = machine.proof_store.clone();
-
-        assert_non_replay_shadow_parity(&machine, &snapshot);
+        assert_eq!(snapshot.occurrences.len(), 21);
+        assert_eq!(
+            snapshot
+                .occurrences
+                .iter()
+                .map(|occurrence| occurrence.event)
+                .collect::<Vec<_>>(),
+            (0..21).collect::<Vec<_>>(),
+        );
+        assert!(snapshot
+            .occurrences
+            .iter()
+            .all(|occurrence| occurrence.completeness == ProvenanceCompleteness::Complete));
+        let assert_occurrence =
+            |event: usize, result: ProofResult, cause: ProofCause, parents: Vec<ProofParent>| {
+                let occurrence = &snapshot.occurrences[event];
+                assert_eq!(occurrence.result, result, "event {event} result");
+                assert_eq!(occurrence.cause, cause, "event {event} cause");
+                assert_eq!(occurrence.parents, parents, "event {event} parents");
+            };
+        let semantic_constraint = |id| {
+            ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(id)))
+        };
+        let semantic_bound = |id| ProofResult::Semantic(SemanticFactRef::Bound(BoundRecordId(id)));
+        let constraint_parent = |id| {
+            vec![ProofParent::Semantic(SemanticFactRef::Constraint(
+                ConstraintRecordId(id),
+            ))]
+        };
+        assert_occurrence(
+            0,
+            semantic_constraint(0),
+            ProofCause::Root(origin),
+            vec![ProofParent::Origin(origin)],
+        );
+        for (event, bound, constraint) in [(1, 0, 0), (3, 1, 0), (6, 2, 1), (8, 3, 1), (12, 4, 2), (14, 5, 2)] {
+            assert_occurrence(
+                event,
+                semantic_bound(bound),
+                ProofCause::Bound(BoundDerivation::Constraint(ConstraintRecordId(constraint))),
+                constraint_parent(constraint),
+            );
+        }
+        assert_occurrence(
+            5,
+            semantic_constraint(1),
+            ProofCause::Structural(StructuralDerivation {
+                parent,
+                rule: StructuralDerivationRule::FunctionReturn,
+            }),
+            constraint_parent(0),
+        );
+        assert_occurrence(
+            10,
+            ProofResult::Semantic(SemanticFactRef::RowDerivation(row)),
+            ProofCause::RowDefinition(RowDerivation {
+                rule: RowDerivationRule::RowItemMatch,
+                parents: vec![RowDerivationParent::Constraint(parent)],
+                retained_items: Vec::new(),
+            }),
+            constraint_parent(0),
+        );
+        assert_occurrence(
+            11,
+            semantic_constraint(2),
+            ProofCause::RowConstraint(row),
+            vec![ProofParent::Semantic(SemanticFactRef::RowDerivation(row))],
+        );
+        assert_occurrence(
+            16,
+            ProofResult::Semantic(SemanticFactRef::Subtract(SubtractFactRecordId(0))),
+            ProofCause::Subtract(SubtractFactDerivation::Internal(origin)),
+            vec![ProofParent::Origin(origin)],
+        );
+        assert_occurrence(
+            17,
+            ProofResult::Semantic(SemanticFactRef::SchemeInstantiation(instantiation)),
+            ProofCause::SchemeInstantiationRecord(SchemeInstantiationRecord {
+                source: GeneralizedSchemeRecordId(0),
+                owner: DefId(0),
+                target: DefId(1),
+                use_value: TypeVar(17),
+                completeness: ProvenanceCompleteness::Complete,
+            }),
+            Vec::new(),
+        );
+        let instantiation_derivation = SchemeInstantiationDerivation {
+            instantiation,
+            source_witness: GeneralizedSchemeWitnessId(0),
+            path: GeneralizedTypePath::default(),
+        };
+        let instantiation_parents = vec![
+            ProofParent::Semantic(SemanticFactRef::SchemeInstantiation(instantiation)),
+            ProofParent::GeneralizedWitness(GeneralizedSchemeWitnessId(0)),
+        ];
+        assert_occurrence(
+            18,
+            semantic_constraint(1),
+            ProofCause::SchemeInstantiationDerivation(instantiation_derivation.clone()),
+            instantiation_parents.clone(),
+        );
+        assert_occurrence(
+            19,
+            semantic_constraint(1),
+            ProofCause::SchemeInstantiationRoute(SchemeInstantiationRoute {
+                derivation: instantiation_derivation,
+                remaining: GeneralizedTypePath(vec![GeneralizedTypePathStep::FunctionReturn]),
+            }),
+            instantiation_parents,
+        );
+        assert_occurrence(
+            20,
+            semantic_constraint(0),
+            ProofCause::Root(alternate.origin),
+            vec![ProofParent::Origin(alternate.origin)],
+        );
+        for (event, disposition, direction, owner, endpoint, constraint, bound) in [
+            (2, 0, BoundDirection::Lower, TypeVar(11), BoundEndpoint::Lower(PosId(0)), 0, 0),
+            (4, 1, BoundDirection::Upper, TypeVar(10), BoundEndpoint::Upper(NegId(0)), 0, 1),
+            (7, 2, BoundDirection::Lower, TypeVar(13), BoundEndpoint::Lower(PosId(1)), 1, 2),
+            (9, 3, BoundDirection::Upper, TypeVar(12), BoundEndpoint::Upper(NegId(1)), 1, 3),
+            (13, 4, BoundDirection::Lower, TypeVar(15), BoundEndpoint::Lower(PosId(2)), 2, 4),
+            (15, 5, BoundDirection::Upper, TypeVar(14), BoundEndpoint::Upper(NegId(2)), 2, 5),
+        ] {
+            let occurrence = &snapshot.occurrences[event];
+            assert_eq!(
+                occurrence.result,
+                ProofResult::BoundDisposition(BoundDispositionRecordId(disposition)),
+            );
+            let ProofCause::BoundDisposition(actual) = &occurrence.cause else {
+                panic!("event {event} must retain its bound disposition");
+            };
+            assert_eq!(actual.direction, direction);
+            assert_eq!(actual.owner, owner);
+            assert_eq!(actual.endpoint, endpoint);
+            assert_eq!(actual.weights, ConstraintWeights::empty());
+            assert_eq!(
+                actual.derivation,
+                Some(BoundDerivation::Constraint(ConstraintRecordId(constraint))),
+            );
+            assert_eq!(actual.disposition, BoundDisposition::Inserted(BoundRecordId(bound)));
+            assert!(occurrence.parents.is_empty());
+        }
         for predicate in [
             snapshot
                 .occurrences
