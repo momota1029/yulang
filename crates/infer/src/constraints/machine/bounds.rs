@@ -703,6 +703,14 @@ impl ConstraintMachine {
         let insertion = self
             .bounds
             .add_lower(target, pos, weights.clone(), derivation.clone());
+        if let Some(producer) = producer
+            && !self.admit_projection_index(
+                Some((proof::ProjectionTarget::Constraint(producer), insertion.id)),
+                &[],
+            )
+        {
+            return;
+        }
         if insertion.provenance_changed {
             self.proof_store
                 .record_bound(insertion.id, derivation.clone());
@@ -3322,13 +3330,12 @@ impl ConstraintMachine {
                     upper_premise,
                     ..
                 } => {
-                    self.bounds.insert_dependent_record_edge(
-                        ProofPremise::Record(lower_premise),
-                        lower_record,
-                    );
-                    self.bounds.insert_dependent_record_edge(
-                        ProofPremise::Record(upper_premise),
-                        lower_record,
+                    self.admit_projection_index(
+                        None,
+                        &[
+                            (ProofPremise::Record(lower_premise), lower_record),
+                            (ProofPremise::Record(upper_premise), lower_record),
+                        ],
                     );
                 }
             }
@@ -3357,6 +3364,41 @@ impl ConstraintMachine {
             return;
         }
         self.publish_scheme_projection_intent(intent);
+    }
+
+    fn try_admit_projection_index(
+        &mut self,
+        target: Option<(proof::ProjectionTarget, BoundRecordId)>,
+        edges: &[(ProofPremise, BoundRecordId)],
+    ) -> Result<(), proof::ProofFailure> {
+        let mut admission = self
+            .proof_store
+            .try_prepare_projection_index_admission(target, edges)?;
+        let mirror = self
+            .bounds
+            .try_reserve_projection_index_mirror(&admission)?;
+        self.proof_store
+            .commit_projection_index_admission(&mut admission);
+        self.bounds
+            .commit_projection_index_mirror(&admission, mirror);
+        Ok(())
+    }
+
+    fn admit_projection_index(
+        &mut self,
+        target: Option<(proof::ProjectionTarget, BoundRecordId)>,
+        edges: &[(ProofPremise, BoundRecordId)],
+    ) -> bool {
+        match self.try_admit_projection_index(target, edges) {
+            Ok(()) => true,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                false
+            }
+        }
     }
 
     fn try_evaluate_record_proof_clause_link_batch(
@@ -3416,9 +3458,12 @@ impl ConstraintMachine {
             }
         }
 
-        *visited_constraints = authoritative_visited;
-        for pending in pending_premises {
-            self.bounds.insert_dependent_record_edge(pending, dependent);
+        let edges = pending_premises
+            .into_iter()
+            .map(|pending| (pending, dependent))
+            .collect::<Vec<_>>();
+        if self.admit_projection_index(None, &edges) {
+            *visited_constraints = authoritative_visited;
         }
     }
 
@@ -3591,10 +3636,13 @@ impl ConstraintMachine {
     ) {
         match parent {
             ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
-                self.bounds
-                    .insert_dependent_record_edge(ProofPremise::Record(replay.lower), dependent);
-                self.bounds
-                    .insert_dependent_record_edge(ProofPremise::Record(replay.upper), dependent);
+                self.admit_projection_index(
+                    None,
+                    &[
+                        (ProofPremise::Record(replay.lower), dependent),
+                        (ProofPremise::Record(replay.upper), dependent),
+                    ],
+                );
             }
             ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
                 self.register_premise_dependency_chain(
@@ -3605,8 +3653,10 @@ impl ConstraintMachine {
             }
             ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
                 if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
-                    self.bounds
-                        .insert_dependent_record_edge(ProofPremise::RootCoverage(root), dependent);
+                    self.admit_projection_index(
+                        None,
+                        &[(ProofPremise::RootCoverage(root), dependent)],
+                    );
                 }
             }
         }
@@ -3620,9 +3670,8 @@ impl ConstraintMachine {
         // A late route extends every edge already rooted at this Constraint premise before the
         // caller compares and publishes the dependent records' inclusion states.
         let dependents = self
-            .bounds
-            .dependent_records_by_premise
-            .get(&ProofPremise::Constraint(constraint))
+            .proof_store
+            .dependent_records(ProofPremise::Constraint(constraint))
             .cloned()
             .unwrap_or_default();
         for dependent in dependents {
@@ -4004,6 +4053,13 @@ impl ConstraintMachine {
         &self,
         producer: ConstraintRecordId,
     ) -> Option<BoundRecordId> {
+        if let Some(record) = self
+            .proof_store
+            .projection_lower_record_for_constraint(producer)
+        {
+            return Some(record);
+        }
+        #[cfg(test)]
         if let Some(record) = self
             .bounds
             .scheme_projection_lower_record_by_constraint
@@ -6205,6 +6261,11 @@ impl ConstraintMachine {
             } else {
                 BoundDerivation::IncompleteReplay
             };
+            let projection_replay = match &lower_derivation {
+                BoundDerivation::ReplayEvidence(replay) => Some(*replay),
+                BoundDerivation::IncompleteReplay => None,
+                _ => unreachable!("evidence lower uses replay or incomplete provenance"),
+            };
             let lower_projection_carrier = match &lower_derivation {
                 BoundDerivation::ReplayEvidence(replay) => {
                     ProjectionProofCarrier::ReplayEvidence(*replay)
@@ -6224,6 +6285,14 @@ impl ConstraintMachine {
                 lower_derivation,
             );
             let lower_record = insertion.id;
+            if let Some(replay) = projection_replay
+                && !self.admit_projection_index(
+                    Some((proof::ProjectionTarget::Replay(replay), lower_record)),
+                    &[],
+                )
+            {
+                return;
+            }
             let lower_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Lower, true);
             if insertion.semantic_changed {
@@ -7968,10 +8037,10 @@ mod mutation_tests {
         let mut fixture = legacy_only_cdm_replay_claim_fixture();
         let (result, root) = (fixture.result, fixture.coverage_root);
         let dependent = fixture.upper_record;
-        fixture
-            .machine
-            .bounds
-            .insert_dependent_record_edge(ProofPremise::Constraint(result), dependent);
+        assert!(fixture.machine.admit_projection_index(
+            None,
+            &[(ProofPremise::Constraint(result), dependent)],
+        ));
         let parent = ClaimQualifiedParent::ReductionRouteConstraint {
             parent_claim: root,
             derivation: RowDerivationId(72_001),

@@ -582,6 +582,10 @@ struct PreparedQualifiedParentMirrorCapacity {
     carriers: Option<FxHashSet<QualifiedCarrier>>,
 }
 
+struct PreparedProjectionIndexMirrorCapacity {
+    new_dependent_sets: Vec<(ProofPremise, FxHashSet<BoundRecordId>)>,
+}
+
 /// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -2108,11 +2112,7 @@ impl ConstraintMachine {
             .proof_store
             .try_prepare_original_claim_admission(record, producer, kind)?;
         let issued = admission.occurrence.claim;
-        let lower_record = self
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .get(&producer)
-            .copied();
+        let lower_record = self.lower_record_for_constraint(producer);
         let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
             record,
             Some(producer),
@@ -2196,9 +2196,30 @@ impl ConstraintMachine {
                 Ok(registration)
             }
             proof::PreparedDerivedClaimDecision::New(admission) => {
-                let lower_record = self
-                    .bounds
-                    .scheme_projection_lower_record_for_lineage(producer, lineage);
+                let lower_record = match lineage {
+                    UpperReplayClaimLineage::Original => self.lower_record_for_constraint(producer),
+                    UpperReplayClaimLineage::ReplayConstraint { result, .. }
+                    | UpperReplayClaimLineage::StructuralConstraint { result, .. }
+                    | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
+                        self.lower_record_for_constraint(result)
+                    }
+                    UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
+                        .proof_store
+                        .projection_lower_record_for_replay(replay)
+                        .or_else(|| {
+                            #[cfg(test)]
+                            {
+                                self.bounds
+                                    .scheme_projection_lower_record_by_replay
+                                    .get(&replay)
+                                    .copied()
+                            }
+                            #[cfg(not(test))]
+                            {
+                                None
+                            }
+                        }),
+                };
                 let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
                     record,
                     None,
@@ -2807,6 +2828,99 @@ impl TypeBounds {
         })
     }
 
+    fn try_reserve_projection_index_mirror(
+        &mut self,
+        admission: &proof::PreparedProjectionIndexAdmission,
+    ) -> Result<PreparedProjectionIndexMirrorCapacity, proof::ProofFailure> {
+        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
+            operation: proof::ProofOperation::UpdateClaimLifecycle,
+        };
+        match admission.target() {
+            Some((proof::ProjectionTarget::Constraint(constraint), record)) => {
+                if let Some(existing) = self.scheme_projection_lower_record_by_constraint.get(&constraint)
+                {
+                    assert_eq!(*existing, record);
+                } else {
+                    self.scheme_projection_lower_record_by_constraint
+                        .try_reserve(1)
+                        .map_err(exhausted)?;
+                }
+            }
+            Some((proof::ProjectionTarget::Replay(replay), record)) => {
+                if let Some(existing) = self.scheme_projection_lower_record_by_replay.get(&replay) {
+                    assert_eq!(*existing, record);
+                } else {
+                    self.scheme_projection_lower_record_by_replay
+                        .try_reserve(1)
+                        .map_err(exhausted)?;
+                }
+            }
+            None => {}
+        }
+        let mut counts = FxHashMap::default();
+        counts
+            .try_reserve(admission.accepted_edges().len())
+            .map_err(exhausted)?;
+        for (premise, _) in admission.accepted_edges() {
+            *counts.entry(*premise).or_insert(0usize) += 1;
+        }
+        self.dependent_records_by_premise
+            .try_reserve(counts.len())
+            .map_err(exhausted)?;
+        let mut new_dependent_sets = Vec::new();
+        new_dependent_sets
+            .try_reserve(counts.len())
+            .map_err(exhausted)?;
+        for (premise, count) in counts {
+            if let Some(dependents) = self.dependent_records_by_premise.get_mut(&premise) {
+                dependents.try_reserve(count).map_err(exhausted)?;
+            } else {
+                let mut dependents = FxHashSet::default();
+                dependents.try_reserve(count).map_err(exhausted)?;
+                new_dependent_sets.push((premise, dependents));
+            }
+        }
+        Ok(PreparedProjectionIndexMirrorCapacity { new_dependent_sets })
+    }
+
+    fn commit_projection_index_mirror(
+        &mut self,
+        admission: &proof::PreparedProjectionIndexAdmission,
+        mut prepared: PreparedProjectionIndexMirrorCapacity,
+    ) {
+        match admission.target() {
+            Some((proof::ProjectionTarget::Constraint(constraint), record)) => {
+                if let Some(previous) = self
+                    .scheme_projection_lower_record_by_constraint
+                    .insert(constraint, record)
+                {
+                    assert_eq!(previous, record);
+                }
+            }
+            Some((proof::ProjectionTarget::Replay(replay), record)) => {
+                if let Some(previous) = self
+                    .scheme_projection_lower_record_by_replay
+                    .insert(replay, record)
+                {
+                    assert_eq!(previous, record);
+                }
+            }
+            None => {}
+        }
+        for (premise, dependents) in prepared.new_dependent_sets.drain(..) {
+            assert!(self
+                .dependent_records_by_premise
+                .insert(premise, dependents)
+                .is_none());
+        }
+        for (premise, dependent) in admission.accepted_edges().iter().copied() {
+            self.dependent_records_by_premise
+                .get_mut(&premise)
+                .expect("dependency mirror capacity was prepared before commit")
+                .insert(dependent);
+        }
+    }
+
     fn begin_qualified_parent_mirror_commit(
         &mut self,
         result: ConstraintRecordId,
@@ -2931,17 +3045,6 @@ impl TypeBounds {
         (lower_record, support, clause)
     }
 
-    fn insert_dependent_record_edge(
-        &mut self,
-        premise: ProofPremise,
-        dependent: BoundRecordId,
-    ) -> bool {
-        self.dependent_records_by_premise
-            .entry(premise)
-            .or_default()
-            .insert(dependent)
-    }
-
     fn canonical_coverage_root(&self, claim: UpperReplayClaimId) -> Option<UpperReplayClaimId> {
         let root = self
             .upper_replay_claims
@@ -3000,21 +3103,6 @@ impl TypeBounds {
         link_inserted.then_some((lower_record, admission))
     }
 
-    fn register_linked_record_dependency_edges(
-        &mut self,
-        producer: ConstraintRecordId,
-        lower_record: BoundRecordId,
-    ) {
-        let dependents = self
-            .dependent_records_by_premise
-            .get(&ProofPremise::Constraint(producer))
-            .cloned()
-            .unwrap_or_default();
-        for dependent in dependents {
-            self.insert_dependent_record_edge(ProofPremise::Record(lower_record), dependent);
-        }
-    }
-
     #[cfg(all(test, debug_assertions))]
     fn debug_assert_qualified_carrier_index_matches_linear_scan(&self, result: ConstraintRecordId) {
         let linear_scan = self
@@ -3046,6 +3134,7 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
+        #[cfg(test)]
         let producer = match &derivation {
             BoundDerivation::Constraint(producer) => Some(*producer),
             _ => None,
@@ -3063,10 +3152,12 @@ impl TypeBounds {
             BoundRecordState::Ordinary,
             derivation,
         );
+        // Raw TypeBounds fixtures still seed the migration mirror directly. Normal machine
+        // admission reaches this map only through the CPK-issued projection-index transaction.
+        #[cfg(test)]
         if let Some(producer) = producer {
             self.scheme_projection_lower_record_by_constraint
                 .insert(producer, insertion.id);
-            self.register_linked_record_dependency_edges(producer, insertion.id);
         }
         insertion
     }
@@ -3100,6 +3191,7 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
+        #[cfg(test)]
         let replay = match &derivation {
             BoundDerivation::ReplayEvidence(replay) => Some(*replay),
             _ => None,
@@ -3117,6 +3209,8 @@ impl TypeBounds {
             BoundRecordState::Evidence,
             derivation,
         );
+        // See add_lower: this direct writer is retained only for reviewed raw test fixtures.
+        #[cfg(test)]
         if let Some(replay) = replay {
             self.scheme_projection_lower_record_by_replay
                 .insert(replay, insertion.id);

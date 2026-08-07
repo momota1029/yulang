@@ -650,7 +650,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("flat_retained_attributed_claim_supports", 5),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
-    ("dependent_records_by_premise", 24),
+    // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
+    // test, and the flat one-way mirror preflight/commit. Evaluator reads remain flat until 4b.
+    ("dependent_records_by_premise", 35),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 130),
@@ -882,7 +884,10 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
         "constraints/mod.rs",
         "register_original_claim_standalone_link",
     ),
-    ("constraints/mod.rs", "insert_dependent_record_edge"),
+    (
+        "constraints/machine/bounds.rs",
+        "try_admit_projection_index",
+    ),
     (
         "constraints/machine/bounds.rs",
         "register_claim_parent_dependency_chain",

@@ -1017,6 +1017,29 @@ pub(super) struct PreparedQualifiedParentAdmission {
     new_result_entries: Option<Vec<ExactQualifiedParent>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ProjectionTarget {
+    Constraint(ConstraintRecordId),
+    Replay(BinaryReplayDerivation),
+}
+
+#[derive(Debug)]
+pub(super) struct PreparedProjectionIndexAdmission {
+    target: Option<(ProjectionTarget, BoundRecordId)>,
+    accepted_edges: Vec<(ProofPremise, BoundRecordId)>,
+    new_dependent_sets: Vec<(ProofPremise, FxHashSet<BoundRecordId>)>,
+}
+
+impl PreparedProjectionIndexAdmission {
+    pub(super) fn target(&self) -> Option<(ProjectionTarget, BoundRecordId)> {
+        self.target
+    }
+
+    pub(super) fn accepted_edges(&self) -> &[(ProofPremise, BoundRecordId)] {
+        &self.accepted_edges
+    }
+}
+
 impl PreparedQualifiedParentAdmission {
     pub(super) fn result(&self) -> ConstraintRecordId {
         self.result
@@ -1058,6 +1081,9 @@ pub(crate) struct ProofOccurrenceStore {
     qualified_parent_keys: FxHashSet<QualifiedParentKey>,
     qualified_parents_by_result:
         FxHashMap<ConstraintRecordId, Vec<ExactQualifiedParent>>,
+    projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
+    projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
+    dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     pub(crate) live_coverage: FxHashSet<(UpperReplayClaimId, UnweightedRowReductionRecordId)>,
     live_states_by_coverage_root:
         FxHashMap<UpperReplayClaimId, FxHashSet<UnweightedRowReductionRecordId>>,
@@ -1075,6 +1101,8 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_claim_move_reservation: bool,
     #[cfg(test)]
     fail_next_qualified_parent_reservation: bool,
+    #[cfg(test)]
+    fail_next_projection_index_reservation: bool,
     #[cfg(test)]
     projectability_observations: RefCell<Vec<ShadowProjectabilityObservation>>,
     #[cfg(test)]
@@ -1104,6 +1132,9 @@ impl Default for ProofOccurrenceStore {
             row_reductions: Vec::new(),
             qualified_parent_keys: FxHashSet::default(),
             qualified_parents_by_result: FxHashMap::default(),
+            projection_lower_record_by_constraint: FxHashMap::default(),
+            projection_lower_record_by_replay: FxHashMap::default(),
+            dependent_records_by_premise: FxHashMap::default(),
             live_coverage: FxHashSet::default(),
             live_states_by_coverage_root: FxHashMap::default(),
             replay_coverage_connected: true,
@@ -1120,6 +1151,8 @@ impl Default for ProofOccurrenceStore {
             fail_next_claim_move_reservation: false,
             #[cfg(test)]
             fail_next_qualified_parent_reservation: false,
+            #[cfg(test)]
+            fail_next_projection_index_reservation: false,
             #[cfg(test)]
             projectability_observations: RefCell::default(),
             #[cfg(test)]
@@ -4212,6 +4245,188 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     pub(super) fn fail_next_qualified_parent_reservation(&mut self) {
         self.fail_next_qualified_parent_reservation = true;
+    }
+
+    pub(super) fn try_prepare_projection_index_admission(
+        &mut self,
+        target: Option<(ProjectionTarget, BoundRecordId)>,
+        edges: &[(ProofPremise, BoundRecordId)],
+    ) -> Result<PreparedProjectionIndexAdmission, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        let target = target.and_then(|(target, record)| {
+            let existing = match target {
+                ProjectionTarget::Constraint(constraint) => self
+                    .projection_lower_record_by_constraint
+                    .get(&constraint)
+                    .copied(),
+                ProjectionTarget::Replay(replay) => {
+                    self.projection_lower_record_by_replay.get(&replay).copied()
+                }
+            };
+            if let Some(existing) = existing {
+                assert_eq!(existing, record, "one projection target mapped to two lower records");
+                None
+            } else {
+                Some((target, record))
+            }
+        });
+
+        let mut pending = FxHashSet::default();
+        pending
+            .try_reserve(edges.len().saturating_add(8))
+            .map_err(exhausted)?;
+        pending.extend(edges.iter().copied());
+        if let Some((ProjectionTarget::Constraint(constraint), lower_record)) = target {
+            if let Some(dependents) = self
+                .dependent_records_by_premise
+                .get(&ProofPremise::Constraint(constraint))
+            {
+                pending.extend(
+                    dependents
+                        .iter()
+                        .copied()
+                        .map(|dependent| (ProofPremise::Record(lower_record), dependent)),
+                );
+            }
+        }
+        let constraint_targets = pending
+            .iter()
+            .filter_map(|(premise, dependent)| match premise {
+                ProofPremise::Constraint(constraint) => self
+                    .projection_lower_record_by_constraint
+                    .get(constraint)
+                    .copied()
+                    .or_else(|| match target {
+                        Some((ProjectionTarget::Constraint(incoming), record))
+                            if incoming == *constraint =>
+                        {
+                            Some(record)
+                        }
+                        _ => None,
+                    })
+                    .map(|record| (ProofPremise::Record(record), *dependent)),
+                ProofPremise::Record(_) | ProofPremise::RootCoverage(_) => None,
+            })
+            .collect::<Vec<_>>();
+        pending.extend(constraint_targets);
+
+        let mut accepted_edges = Vec::new();
+        accepted_edges.try_reserve(pending.len()).map_err(exhausted)?;
+        for edge @ (premise, dependent) in pending {
+            if self
+                .dependent_records_by_premise
+                .get(&premise)
+                .is_some_and(|dependents| dependents.contains(&dependent))
+            {
+                continue;
+            }
+            accepted_edges.push(edge);
+        }
+
+        #[cfg(test)]
+        if (target.is_some() || !accepted_edges.is_empty())
+            && std::mem::take(&mut self.fail_next_projection_index_reservation)
+        {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        match target {
+            Some((ProjectionTarget::Constraint(_), _)) => self
+                .projection_lower_record_by_constraint
+                .try_reserve(1)
+                .map_err(exhausted)?,
+            Some((ProjectionTarget::Replay(_), _)) => self
+                .projection_lower_record_by_replay
+                .try_reserve(1)
+                .map_err(exhausted)?,
+            None => {}
+        }
+
+        let mut counts = FxHashMap::default();
+        counts.try_reserve(accepted_edges.len()).map_err(exhausted)?;
+        for (premise, _) in &accepted_edges {
+            *counts.entry(*premise).or_insert(0usize) += 1;
+        }
+        self.dependent_records_by_premise
+            .try_reserve(counts.len())
+            .map_err(exhausted)?;
+        let mut new_dependent_sets = Vec::new();
+        new_dependent_sets.try_reserve(counts.len()).map_err(exhausted)?;
+        for (premise, count) in counts {
+            if let Some(dependents) = self.dependent_records_by_premise.get_mut(&premise) {
+                dependents.try_reserve(count).map_err(exhausted)?;
+            } else {
+                let mut dependents = FxHashSet::default();
+                dependents.try_reserve(count).map_err(exhausted)?;
+                new_dependent_sets.push((premise, dependents));
+            }
+        }
+        Ok(PreparedProjectionIndexAdmission {
+            target,
+            accepted_edges,
+            new_dependent_sets,
+        })
+    }
+
+    pub(super) fn commit_projection_index_admission(
+        &mut self,
+        admission: &mut PreparedProjectionIndexAdmission,
+    ) {
+        if let Some((target, record)) = admission.target {
+            let previous = match target {
+                ProjectionTarget::Constraint(constraint) => self
+                    .projection_lower_record_by_constraint
+                    .insert(constraint, record),
+                ProjectionTarget::Replay(replay) => {
+                    self.projection_lower_record_by_replay.insert(replay, record)
+                }
+            };
+            assert!(previous.is_none());
+        }
+        for (premise, dependents) in admission.new_dependent_sets.drain(..) {
+            assert!(self
+                .dependent_records_by_premise
+                .insert(premise, dependents)
+                .is_none());
+        }
+        for (premise, dependent) in admission.accepted_edges.iter().copied() {
+            assert!(self
+                .dependent_records_by_premise
+                .get_mut(&premise)
+                .expect("dependency index capacity was prepared before commit")
+                .insert(dependent));
+        }
+    }
+
+    pub(super) fn projection_lower_record_for_constraint(
+        &self,
+        constraint: ConstraintRecordId,
+    ) -> Option<BoundRecordId> {
+        self.projection_lower_record_by_constraint
+            .get(&constraint)
+            .copied()
+    }
+
+    pub(super) fn projection_lower_record_for_replay(
+        &self,
+        replay: BinaryReplayDerivation,
+    ) -> Option<BoundRecordId> {
+        self.projection_lower_record_by_replay.get(&replay).copied()
+    }
+
+    pub(super) fn dependent_records(
+        &self,
+        premise: ProofPremise,
+    ) -> Option<&FxHashSet<BoundRecordId>> {
+        self.dependent_records_by_premise.get(&premise)
+    }
+
+    #[cfg(test)]
+    pub(super) fn fail_next_projection_index_reservation(&mut self) {
+        self.fail_next_projection_index_reservation = true;
     }
 
     pub(super) fn record_reduction_route(
@@ -7756,6 +7971,65 @@ mod tests {
     }
 
     #[test]
+    fn cpk_projection_target_and_dependency_admission_is_atomic_and_target_late() {
+        let mut store = ProofOccurrenceStore::default();
+        let constraint = ConstraintRecordId(96_990);
+        let lower_record = BoundRecordId(96_991);
+        let dependent = BoundRecordId(96_992);
+        let edge = (ProofPremise::Constraint(constraint), dependent);
+        let before = (
+            store.projection_lower_record_by_constraint.clone(),
+            store.projection_lower_record_by_replay.clone(),
+            store.dependent_records_by_premise.clone(),
+        );
+
+        store.fail_next_projection_index_reservation();
+        assert!(matches!(
+            store.try_prepare_projection_index_admission(
+                Some((ProjectionTarget::Constraint(constraint), lower_record)),
+                &[edge],
+            ),
+            Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })
+        ));
+        assert_eq!(
+            (
+                store.projection_lower_record_by_constraint.clone(),
+                store.projection_lower_record_by_replay.clone(),
+                store.dependent_records_by_premise.clone(),
+            ),
+            before,
+            "failed preflight leaves every CPK projection index unchanged",
+        );
+
+        let mut dependency = store
+            .try_prepare_projection_index_admission(None, &[edge])
+            .unwrap();
+        store.commit_projection_index_admission(&mut dependency);
+        let mut target = store
+            .try_prepare_projection_index_admission(
+                Some((ProjectionTarget::Constraint(constraint), lower_record)),
+                &[],
+            )
+            .unwrap();
+        store.commit_projection_index_admission(&mut target);
+        assert_eq!(
+            store.projection_lower_record_for_constraint(constraint),
+            Some(lower_record),
+        );
+        assert_eq!(
+            store.dependent_records(ProofPremise::Constraint(constraint)),
+            Some(&FxHashSet::from_iter([dependent])),
+        );
+        assert_eq!(
+            store.dependent_records(ProofPremise::Record(lower_record)),
+            Some(&FxHashSet::from_iter([dependent])),
+            "a late target atomically publishes the derived Record-premise edge",
+        );
+    }
+
+    #[test]
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
         let inactive = with_semantic_execution_snapshot_capture_for_new_machines(|| {
             cpk_3_replay_fixture_with_oracle(false)
@@ -9599,6 +9873,13 @@ mod tests {
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
         let lower_record = machine.bounds.of(target).unwrap().lower_record_ids()[0];
+        assert_eq!(
+            machine
+                .proof_store
+                .projection_lower_record_for_constraint(producer),
+            None,
+            "the replay exists before its target lower record is linked",
+        );
 
         machine.add_upper_bound(
             pivot,
@@ -9648,6 +9929,13 @@ mod tests {
         let published = machine.take_method_role_mutations();
         journal.finish();
         assert_eq!(machine.lower_record_for_constraint(result), Some(lower_record));
+        assert_eq!(
+            machine
+                .proof_store
+                .projection_lower_record_for_constraint(result),
+            Some(lower_record),
+            "target-late linkage is owned by the CPK target index",
+        );
         assert_eq!(
             machine.epoch.as_u64(),
             epoch_before,
@@ -9847,9 +10135,8 @@ mod tests {
         ] {
             let dependents = fixture
                 .machine
-                .bounds
-                .dependent_records_by_premise
-                .get(&premise)
+                .proof_store
+                .dependent_records(premise)
                 .unwrap_or_else(|| panic!("missing exact replay premise {premise:?}"));
             assert!(dependents.contains(&dependent));
             assert_eq!(
