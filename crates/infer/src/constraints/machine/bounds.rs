@@ -2,11 +2,9 @@ use super::*;
 
 use std::hash::{Hash, Hasher};
 
-use crate::constraints::canonical_projection_key::{self, Key as CanonicalProjectionKey};
 use crate::constraints::replay_factored::{
-    FirstQualifiedParentSource, FirstReplayParentWitness, ReplayFactoredResult,
-    ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft, ReplayParentDraftId,
-    ReplayResultSummaryDelta,
+    ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
+    ReplayParentDraftId, ReplayResultSummaryDelta,
 };
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -151,19 +149,6 @@ struct ClaimParentClauseLinkPreflight {
 #[derive(Default)]
 struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
-}
-
-type UpperMaterializationLineages =
-    FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimLineage>;
-type ClaimParentPhaseBPlan = (
-    Option<UpperMaterializationLineages>,
-    Option<LowerProjectionAdapterSnapshot>,
-);
-
-#[derive(Debug, Default, PartialEq, Eq)]
-struct LowerProjectionAdapterSnapshot {
-    claimed_roots: Vec<UpperReplayClaimId>,
-    proof_keys: Vec<CanonicalProjectionKey>,
 }
 
 impl ReplayAdmissionPublicationFence {
@@ -1115,513 +1100,6 @@ impl ConstraintMachine {
         Some(registration.claim)
     }
 
-    fn try_insert_upper_materialization_lineage(
-        &self,
-        lineages: &mut UpperMaterializationLineages,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        root: UpperReplayClaimId,
-        replay_parent: Option<ClaimQualifiedParent>,
-        unmaterialized_only: bool,
-    ) -> ReplayFactoredResult<()> {
-        let parent = match self
-            .replay_result_summary
-            .first_qualified_parent_source(producer, root)?
-            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
-        {
-            FirstQualifiedParentSource::Replay => {
-                replay_parent.ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
-            }
-            FirstQualifiedParentSource::NonReplay(parent) => parent,
-        };
-        let parent_claim = parent.parent_claim();
-        let actual_root = self.bounds.canonical_coverage_root(parent_claim).ok_or(
-            ReplayFactoredShadowFailure::UnknownReplayParentClaim(parent_claim),
-        )?;
-        if actual_root != root {
-            return Err(
-                ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
-                    claim: parent_claim,
-                    root,
-                },
-            );
-        }
-        self.try_insert_upper_materialization_lineage_from_parent(
-            lineages,
-            record,
-            producer,
-            parent,
-            unmaterialized_only,
-        )
-    }
-
-    fn try_insert_upper_materialization_lineage_from_parent(
-        &self,
-        lineages: &mut UpperMaterializationLineages,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        parent: ClaimQualifiedParent,
-        unmaterialized_only: bool,
-    ) -> ReplayFactoredResult<()> {
-        let parent_claim = parent.parent_claim();
-        let parent_record = self
-            .bounds
-            .upper_replay_claims
-            .get(parent_claim.0 as usize)
-            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(
-                parent_claim,
-            ))?;
-        let root = parent_record.coverage_root;
-        let root_record = self
-            .bounds
-            .upper_replay_claims
-            .get(root.0 as usize)
-            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(root))?;
-        if unmaterialized_only
-            && (root_record.current_record == record
-                || self
-                    .bounds
-                    .derived_claim_by_record_and_root
-                    .contains_key(&(record, root)))
-        {
-            return Ok(());
-        }
-        let key = (record, root);
-        if lineages.contains_key(&key) {
-            return Ok(());
-        }
-        let depth = parent_record.lineage.depth().saturating_add(1);
-        let lineage = if root_record.current_record == record {
-            UpperReplayClaimLineage::Original
-        } else {
-            match parent {
-                ClaimQualifiedParent::ReplayConstraint {
-                    parent_side,
-                    replay,
-                    ..
-                } => UpperReplayClaimLineage::ReplayConstraint {
-                    parent_claim,
-                    parent_side,
-                    result: producer,
-                    replay,
-                    depth,
-                },
-                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                    UpperReplayClaimLineage::StructuralConstraint {
-                        parent_claim,
-                        result: producer,
-                        derivation,
-                        depth,
-                    }
-                }
-                ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => {
-                    UpperReplayClaimLineage::ReductionRouteConstraint {
-                        parent_claim,
-                        result: producer,
-                        derivation,
-                        depth,
-                    }
-                }
-            }
-        };
-        lineages
-            .try_reserve(1)
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-        lineages.insert(key, lineage);
-        Ok(())
-    }
-
-    fn try_factored_upper_materialization(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        witnesses: impl IntoIterator<
-            Item = ReplayFactoredResult<(UpperReplayClaimId, FirstReplayParentWitness)>,
-        >,
-        include_non_replay: bool,
-        unmaterialized_only: bool,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        let mut roots = FxHashSet::default();
-        let mut replay_parents = FxHashMap::default();
-        for witness in witnesses {
-            let (root, witness) = witness?;
-            let occurrence = self.replay_occurrence(witness.occurrence)?;
-            if occurrence.result != producer {
-                return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
-            }
-            let parent = ClaimQualifiedParent::ReplayConstraint {
-                parent_claim: witness.parent_claim,
-                parent_side: witness.parent_side,
-                replay: occurrence.carrier,
-            };
-            let parent_root = self
-                .bounds
-                .upper_replay_claims
-                .get(witness.parent_claim.0 as usize)
-                .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(
-                    witness.parent_claim,
-                ))?
-                .coverage_root;
-            if parent_root != root {
-                return Err(
-                    ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
-                        claim: witness.parent_claim,
-                        root,
-                    },
-                );
-            }
-            roots
-                .try_reserve(1)
-                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-            replay_parents
-                .try_reserve(1)
-                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-            roots.insert(root);
-            if replay_parents.insert(root, parent).is_some() {
-                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
-            }
-        }
-        if include_non_replay {
-            for parent in self.non_replay_claim_parents_for_result(producer) {
-                let claim = parent.parent_claim();
-                let root = self
-                    .bounds
-                    .canonical_coverage_root(claim)
-                    .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))?;
-                roots
-                    .try_reserve(1)
-                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-                roots.insert(root);
-            }
-        }
-        let mut lineages = UpperMaterializationLineages::default();
-        for root in roots {
-            self.try_insert_upper_materialization_lineage(
-                &mut lineages,
-                record,
-                producer,
-                root,
-                replay_parents.get(&root).copied(),
-                unmaterialized_only,
-            )?;
-        }
-        Ok(lineages)
-    }
-
-    fn try_factored_upper_materialization_full(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        let witnesses = self
-            .replay_result_summary
-            .roots_for_result(producer)
-            .map(|root| {
-                self.replay_result_summary
-                    .first_parent_witness(producer, root)
-                    .and_then(|witness| {
-                        witness
-                            .copied()
-                            .map(|witness| (root, witness))
-                            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)
-                    })
-            });
-        self.try_factored_upper_materialization(record, producer, witnesses, true, false)
-    }
-
-    fn try_factored_upper_materialization_delta(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        delta: &ReplayResultSummaryDelta,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        self.try_factored_upper_materialization(
-            record,
-            producer,
-            delta.entries.iter().copied().map(Ok),
-            false,
-            true,
-        )
-    }
-
-    #[allow(
-        dead_code,
-        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
-    )]
-    fn try_authoritative_upper_materialization_full(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        self.try_factored_upper_materialization_full(record, producer)
-    }
-
-    #[allow(
-        dead_code,
-        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
-    )]
-    fn try_authoritative_upper_materialization_replay_delta(
-        &self,
-        record: BoundRecordId,
-        producer: ConstraintRecordId,
-        delta: &ReplayResultSummaryDelta,
-    ) -> ReplayFactoredResult<UpperMaterializationLineages> {
-        self.try_factored_upper_materialization_delta(record, producer, delta)
-    }
-
-    fn try_lower_projection_root(
-        &self,
-        claim: UpperReplayClaimId,
-    ) -> ReplayFactoredResult<UpperReplayClaimId> {
-        self.bounds
-            .canonical_coverage_root(claim)
-            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentClaim(claim))
-    }
-
-    fn try_factored_lower_projection(
-        &self,
-        producer: ConstraintRecordId,
-        witnesses: impl IntoIterator<
-            Item = ReplayFactoredResult<(UpperReplayClaimId, FirstReplayParentWitness)>,
-        >,
-        include_non_replay: bool,
-        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        let mut roots = FxHashSet::default();
-        let mut replay_roots = FxHashSet::default();
-        for witness in witnesses {
-            let (root, witness) = witness?;
-            let occurrence = self.replay_occurrence(witness.occurrence)?;
-            if occurrence.result != producer {
-                return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
-            }
-            let actual_root = self.try_lower_projection_root(witness.parent_claim)?;
-            if actual_root != root {
-                return Err(
-                    ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
-                        claim: witness.parent_claim,
-                        root,
-                    },
-                );
-            }
-            roots
-                .try_reserve(1)
-                .and_then(|_| replay_roots.try_reserve(1))
-                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-            roots.insert(root);
-            if !replay_roots.insert(root) {
-                return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
-            }
-        }
-        if include_non_replay {
-            for parent in self.non_replay_claim_parents_for_result(producer) {
-                let claim = parent.parent_claim();
-                let root = self.try_lower_projection_root(claim)?;
-                roots
-                    .try_reserve(1)
-                    .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-                roots.insert(root);
-            }
-        }
-
-        let mut claimed_roots = Vec::new();
-        claimed_roots
-            .try_reserve(roots.len())
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-        for root in roots {
-            match self
-                .replay_result_summary
-                .first_qualified_parent_source(producer, root)?
-                .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)?
-            {
-                FirstQualifiedParentSource::Replay if !replay_roots.contains(&root) => {
-                    return Err(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex);
-                }
-                FirstQualifiedParentSource::Replay => {}
-                FirstQualifiedParentSource::NonReplay(parent) => {
-                    let claim = parent.parent_claim();
-                    let actual_root = self.try_lower_projection_root(claim)?;
-                    if actual_root != root {
-                        return Err(
-                            ReplayFactoredShadowFailure::InvalidReplayParentCoverageRoot {
-                                claim,
-                                root,
-                            },
-                        );
-                    }
-                }
-            }
-            claimed_roots.push(root);
-        }
-        Self::try_lower_projection_adapter_snapshot(claimed_roots, independent_supports)
-    }
-
-    fn try_lower_projection_adapter_snapshot(
-        mut claimed_roots: Vec<UpperReplayClaimId>,
-        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        claimed_roots.sort_by(|left, right| {
-            canonical_projection_key::cmp(
-                &CanonicalProjectionKey::Claimed(*left),
-                &CanonicalProjectionKey::Claimed(*right),
-            )
-        });
-
-        let mut proof_keys = Vec::new();
-        proof_keys
-            .try_reserve(claimed_roots.len())
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-        proof_keys.extend(
-            claimed_roots
-                .iter()
-                .copied()
-                .map(CanonicalProjectionKey::Claimed),
-        );
-        for carrier in independent_supports {
-            proof_keys
-                .try_reserve(1)
-                .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-            proof_keys.push(CanonicalProjectionKey::Independent(carrier));
-        }
-        proof_keys.sort_by(canonical_projection_key::cmp);
-        proof_keys.dedup();
-        Ok(LowerProjectionAdapterSnapshot {
-            claimed_roots,
-            proof_keys,
-        })
-    }
-
-    fn try_factored_lower_projection_full(
-        &self,
-        producer: ConstraintRecordId,
-        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        let witnesses = self
-            .replay_result_summary
-            .roots_for_result(producer)
-            .map(|root| {
-                self.replay_result_summary
-                    .first_parent_witness(producer, root)
-                    .and_then(|witness| {
-                        witness
-                            .copied()
-                            .map(|witness| (root, witness))
-                            .ok_or(ReplayFactoredShadowFailure::CorruptReplayResultSummaryIndex)
-                    })
-            });
-        self.try_factored_lower_projection(producer, witnesses, true, independent_supports)
-    }
-
-    #[allow(
-        dead_code,
-        reason = "RCPF-D3b-1 retains the producer-local delta adapter"
-    )]
-    fn try_factored_lower_projection_delta(
-        &self,
-        producer: ConstraintRecordId,
-        delta: &ReplayResultSummaryDelta,
-        independent_supports: impl IntoIterator<Item = ProjectionProofCarrier>,
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        self.try_factored_lower_projection(
-            producer,
-            delta.entries.iter().copied().map(Ok),
-            false,
-            independent_supports,
-        )
-    }
-
-    #[allow(
-        dead_code,
-        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
-    )]
-    fn try_authoritative_lower_projection_full(
-        &self,
-        producer: ConstraintRecordId,
-        independent_supports: &[ProjectionProofCarrier],
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        self.try_factored_lower_projection_full(producer, independent_supports.iter().copied())
-    }
-
-    #[allow(
-        dead_code,
-        reason = "RCPF-D4-2 preflights the authoritative derived-read plan"
-    )]
-    fn try_authoritative_lower_projection_replay_delta(
-        &self,
-        producer: ConstraintRecordId,
-        delta: &ReplayResultSummaryDelta,
-        independent_supports: &[ProjectionProofCarrier],
-    ) -> ReplayFactoredResult<LowerProjectionAdapterSnapshot> {
-        self.try_factored_lower_projection_delta(
-            producer,
-            delta,
-            independent_supports.iter().copied(),
-        )
-    }
-
-    fn try_d4_pre_consumer_query(&self) -> ReplayFactoredResult<()> {
-        #[cfg(test)]
-        if RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY.with(|fail| fail.replace(false)) {
-            mark_next_replay_soak_failure_as_intentional();
-            return Err(ReplayFactoredShadowFailure::AllocationFailed);
-        }
-        Ok(())
-    }
-
-    fn try_authoritative_claim_parent_full_plan(
-        &self,
-        producer: ConstraintRecordId,
-        target_record: Option<BoundRecordId>,
-        independent_supports: &[ProjectionProofCarrier],
-    ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
-        self.try_d4_pre_consumer_query()?;
-        let upper = target_record
-            .map(|record| self.try_authoritative_upper_materialization_full(record, producer))
-            .transpose()?;
-        let lower = self
-            .lower_record_for_constraint(producer)
-            .map(|_| self.try_authoritative_lower_projection_full(producer, independent_supports))
-            .transpose()?;
-        Ok((upper, lower))
-    }
-
-    fn try_authoritative_replay_delta_plan(
-        &self,
-        producer: ConstraintRecordId,
-        target_record: Option<BoundRecordId>,
-        accepted_parents: &[ClaimQualifiedParent],
-        delta: &ReplayResultSummaryDelta,
-        carrier: ProjectionProofCarrier,
-    ) -> ReplayFactoredResult<ClaimParentPhaseBPlan> {
-        self.try_d4_pre_consumer_query()?;
-        let upper = target_record
-            .filter(|_| !accepted_parents.is_empty())
-            .map(|record| {
-                self.try_authoritative_upper_materialization_replay_delta(record, producer, delta)
-            })
-            .transpose()?;
-        let lower = if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            let independent_supports = self
-                .projection_carrier_is_independent(lower_record, carrier)
-                .then_some(carrier)
-                .into_iter()
-                .collect::<Vec<_>>();
-            if self.proof_store.has_projection_support_ledger(lower_record) {
-                Some(self.try_authoritative_lower_projection_replay_delta(
-                    producer,
-                    delta,
-                    &independent_supports,
-                )?)
-            } else {
-                Some(
-                    self.try_authoritative_lower_projection_full(producer, &independent_supports)?,
-                )
-            }
-        } else {
-            None
-        };
-        Ok((upper, lower))
-    }
 
     #[cfg(test)]
     fn register_claim_parent_clause_links(
@@ -2085,23 +1563,13 @@ impl ConstraintMachine {
         if let Some(lower_record) = self.lower_record_for_constraint(constraint) {
             pending_premises.insert(ProofPremise::Record(lower_record));
         }
-        let occurrence_ids = self.replay_occurrences_for_result(constraint);
-        let mut replay_carriers = Vec::new();
-        replay_carriers
-            .try_reserve(occurrence_ids.size_hint().0)
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
-        for occurrence_id in occurrence_ids {
-            let occurrence = self.replay_occurrence(occurrence_id)?;
-            if occurrence.result != constraint {
-                return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
-            }
-            replay_carriers.push(occurrence.carrier);
-        }
-        for replay in replay_carriers {
-            pending_premises.insert(ProofPremise::Record(replay.lower));
-            pending_premises.insert(ProofPremise::Record(replay.upper));
-        }
-        for parent in self.non_replay_claim_parents_for_result(constraint) {
+        // CPK's exact-parent index is committed atomically with qualified-parent admission and is
+        // now the sole production source for every replay, structural, and reduction dependency.
+        // RCPF remains a write-only downstream representation until its 8G-9 removal.
+        for parent in self
+            .proof_store
+            .qualified_parent_values_for_result(constraint)
+        {
             self.try_collect_claim_parent_dependency_chain(
                 parent,
                 visited_constraints,
@@ -2262,8 +1730,6 @@ impl ConstraintMachine {
         &mut self,
         result: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
-        target_record: Option<BoundRecordId>,
-        lower_carrier: Option<ProjectionProofCarrier>,
     ) -> (
         Option<ReplayAdmissionPublicationFence>,
         Vec<ClaimQualifiedParent>,
@@ -2302,26 +1768,6 @@ impl ConstraintMachine {
                 publication_fence.as_mut(),
             );
         }
-        if self.replay_factored_terminal_failure().is_none() {
-            let independent_supports = self
-                .lower_record_for_constraint(result)
-                .zip(lower_carrier)
-                .filter(|(lower_record, carrier)| {
-                    self.projection_carrier_is_independent(*lower_record, *carrier)
-                })
-                .map(|(_, carrier)| vec![carrier])
-                .unwrap_or_default();
-            if let Err(failure) = self.try_authoritative_claim_parent_full_plan(
-                result,
-                target_record.filter(|_| !accepted.is_empty()),
-                &independent_supports,
-            ) {
-                self.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Read,
-                );
-            }
-        }
         (publication_fence, accepted_parents)
     }
 
@@ -2350,8 +1796,6 @@ impl ConstraintMachine {
         let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
             result,
             parents,
-            None,
-            derivation_inserted.then_some(carrier),
         );
         if self.proof_terminal_failure().is_some()
             || self.replay_factored_terminal_failure().is_some()
@@ -3189,7 +2633,7 @@ impl ConstraintMachine {
         } else {
             None
         };
-        let summary_delta = self.observe_factored_replay_parent_admission(
+        self.observe_factored_replay_parent_admission(
             result,
             replay,
             parents,
@@ -3204,25 +2648,6 @@ impl ConstraintMachine {
             self.seal_record_proof_clause_link_batch(
                 pending_clause_link_snapshot,
                 publication_fence.as_mut(),
-            );
-        }
-        if phase_b_enabled
-            && materialize_existing_target
-            && self.replay_factored_terminal_failure().is_none()
-            && let Err(failure) = self.try_authoritative_replay_delta_plan(
-                result,
-                target_record,
-                &inserted_parents,
-                &summary_delta,
-                ProjectionProofCarrier::ReplayConstraint {
-                    result,
-                    derivation: replay,
-                },
-            )
-        {
-            self.mark_replay_factored_failure(
-                failure,
-                ReplayFactoredFailureOperation::Write,
             );
         }
         if self.replay_factored_terminal_failure().is_some() {
@@ -3498,8 +2923,6 @@ impl ConstraintMachine {
         let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
             result,
             &[parent],
-            target_record,
-            Some(carrier),
         );
         if admitted_parents.is_empty() {
             return;

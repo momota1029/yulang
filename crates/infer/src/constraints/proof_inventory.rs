@@ -907,8 +907,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6g1 removes flat event-oracle claim/root reconstruction reads. CPK-8G-8a0 removes
     // three support/root readers that formerly resolved producer/root through the flat claim Vec.
     // 8G-8a1 removes the flat support decision path's five claim/root lookups; 8G-8a2 removes the
-    // final lookup from the deleted support/root mirror commit.
-    ("upper_replay_claims", 68),
+    // final lookup from the deleted support/root mirror commit. CPK-8G-9-0a removes three more
+    // reads from the retired RCPF upper/lower materialization validation adapter; CPK's claim
+    // arena and exact-parent index already own those production decisions.
+    ("upper_replay_claims", 65),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -935,8 +937,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6d removes RCPF occurrence facade/census comparisons.
     // CPK-8G-6g1 removes Legacy-parity reconstruction and event-boundary reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
-    // CPK-8G-8b0 removes the RCPF occurrence-based exact-link authority preflight.
-    ("replay_occurrences", 16),
+    // CPK-8G-8b0 removes the RCPF occurrence-based exact-link authority preflight. CPK-8G-9-0a
+    // removes the final production occurrence reader from premise-dependency traversal; only the
+    // RCPF writer, direct structure tests, and the test-only evaluator remain.
+    ("replay_occurrences", 15),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
@@ -944,7 +948,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6d removes RCPF first-source/first-witness comparison reads.
     // CPK-8G-6g1 removes event/evaluator oracle activation and comparison reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
-    ("replay_result_summary", 13),
+    // CPK-8G-9-0a removes six full/delta materialization-validation reads; summary population and
+    // its direct structure tests remain intact until the 8G-9c deletion slice.
+    ("replay_result_summary", 7),
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
     // CPK-8G-6g1 removes flat-vs-RCPF attribution and exact-link reconstruction reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
