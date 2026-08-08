@@ -1015,7 +1015,6 @@ impl ConstraintMachine {
             ) else {
                 return claims;
             };
-            self.record_original_claim_standalone_link_in_proof_store(&registration);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             claims.push(registration.claim);
         }
@@ -1693,10 +1692,7 @@ impl ConstraintMachine {
             {
                 continue;
             }
-            let batch_link_key = (
-                TypeBounds::record_proof_clause_key(lower_record, clause),
-                support,
-            );
+            let batch_link_key = ((lower_record, clause), support);
             if !batch_link_keys.insert(batch_link_key) {
                 continue;
             }
@@ -1933,17 +1929,8 @@ impl ConstraintMachine {
             .commit_projection_clause_admission(&mut prepared);
         let mut inserted_clauses = Vec::new();
         for event in prepared.accepted().iter().copied() {
-            let admission = event.admission;
-            let (_, clause_inserted, link_inserted) = self
-                .bounds
-                .register_record_proof_clause_link(lower_record, admission);
-            assert!(
-                link_inserted,
-                "clause-link batch preflight must agree with exact-key insertion"
-            );
-            assert_eq!(clause_inserted, event.clause_inserted);
-            if clause_inserted {
-                inserted_clauses.push(admission.clause);
+            if event.clause_inserted {
+                inserted_clauses.push(event.admission.clause);
             }
         }
         for clause in inserted_clauses {
@@ -2779,10 +2766,7 @@ impl ConstraintMachine {
             {
                 continue;
             }
-            let batch_link_key = (
-                TypeBounds::record_proof_clause_key(lower_record, clause),
-                support,
-            );
+            let batch_link_key = ((lower_record, clause), support);
             if !batch_link_keys.insert(batch_link_key) {
                 continue;
             }
@@ -5658,21 +5642,12 @@ mod mutation_tests {
             machine.bounds.root_claim_by_producer_constraint.capacity(),
             0
         );
-        assert!(machine.bounds.record_proof_clauses.is_empty());
-        assert!(machine.bounds.record_proof_clause_by_key.is_empty());
-        assert!(
+        assert_eq!(
             machine
-                .bounds
-                .record_proof_clause_ids_by_lower_record
-                .is_empty()
+                .proof_store
+                .projection_clause_storage_census_for_test(),
+            (0, 0, 0, 0),
         );
-        assert!(
-            machine
-                .bounds
-                .record_proof_clause_links_by_lower_record
-                .is_empty()
-        );
-        assert!(machine.bounds.record_proof_clause_link_keys.is_empty());
         assert!(machine.bounds.dependent_records_by_premise.is_empty());
     }
 
@@ -5998,22 +5973,18 @@ mod mutation_tests {
             premise: ProofPremise::Record(record),
         };
 
-        assert!(
-            !machine
-                .bounds
-                .record_proof_clause_link_is_registered(record, support, clause)
+        assert!(!machine
+            .proof_store
+            .projection_clause_link_is_registered(record, support, clause));
+        machine.register_record_proof_clause_link(
+            record,
+            RecordProofClauseLinkAdmission::independent(support, clause),
         );
-        let (_, clause_inserted, link_inserted) = machine
-            .bounds
-            .register_record_proof_clause_link(
-                record,
-                RecordProofClauseLinkAdmission::independent(support, clause),
-            );
-        assert!(clause_inserted && link_inserted);
+        assert_eq!(machine.proof_store.projection_clauses_for_test(record), vec![clause]);
         assert!(
             machine
-                .bounds
-                .record_proof_clause_link_is_registered(record, support, clause)
+                .proof_store
+                .projection_clause_link_is_registered(record, support, clause)
         );
 
         let other_support =
@@ -6022,24 +5993,28 @@ mod mutation_tests {
                 origin: OriginId::unknown_internal(),
             });
         assert!(
-            !machine
-                .bounds
-                .record_proof_clause_link_is_registered(record, other_support, clause),
+            !machine.proof_store.projection_clause_link_is_registered(
+                record,
+                other_support,
+                clause
+            ),
             "an existing clause with a new support is a new attribution, not a duplicate"
         );
-        let (_, clause_inserted, link_inserted) =
-            machine
-                .bounds
-                .register_record_proof_clause_link(
-                    record,
-                    RecordProofClauseLinkAdmission::independent(other_support, clause),
-                );
-        assert!(!clause_inserted && link_inserted);
-        assert!(machine.bounds.record_proof_clause_link_is_registered(
+        machine.register_record_proof_clause_link(
             record,
-            other_support,
-            clause
-        ));
+            RecordProofClauseLinkAdmission::independent(other_support, clause),
+        );
+        assert_eq!(machine.proof_store.projection_clauses_for_test(record), vec![clause]);
+        assert!(machine
+            .proof_store
+            .projection_clause_link_is_registered(record, other_support, clause));
+        assert_eq!(
+            machine
+                .proof_store
+                .projection_clause_links_for_test(record)
+                .len(),
+            2,
+        );
     }
 
     fn dpn_b_synthetic_projection_record(
@@ -6077,12 +6052,21 @@ mod mutation_tests {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) {
-        let clauses_before = machine.bounds.record_proof_clauses.len();
+        let clauses_before = machine
+            .proof_store
+            .projection_clauses_for_test(record)
+            .len();
         machine.register_record_proof_clause_link(
             record,
             RecordProofClauseLinkAdmission::independent(support, clause),
         );
-        assert_eq!(machine.bounds.record_proof_clauses.len(), clauses_before + 1);
+        assert_eq!(
+            machine
+                .proof_store
+                .projection_clauses_for_test(record)
+                .len(),
+            clauses_before + 1
+        );
     }
 
     fn dpn_b_synthetic_unary_carrier(ordinal: u32) -> DerivedUnaryCarrier {
@@ -6209,17 +6193,6 @@ mod mutation_tests {
         fixture.machine.replay_result_summary = Default::default();
         fixture.machine.non_replay_claim_parents_by_constraint = Default::default();
         fixture.machine.bounds.upper_replay_claims.clear();
-        fixture.machine.bounds.record_proof_clauses.clear();
-        fixture
-            .machine
-            .bounds
-            .record_proof_clause_ids_by_lower_record
-            .clear();
-        fixture
-            .machine
-            .bounds
-            .record_proof_clause_links_by_lower_record
-            .clear();
         fixture
             .machine
             .bounds
@@ -6355,7 +6328,6 @@ mod mutation_tests {
         machine
             .proof_store
             .record_prepared_upper_claim(&registration.proof_admission);
-        machine.record_original_claim_standalone_link_in_proof_store(&registration);
         machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         let coverage_root = registration.claim;
 

@@ -2202,6 +2202,45 @@ impl ProofOccurrenceStore {
             .contains(&(lower_record, support, clause))
     }
 
+    #[cfg(test)]
+    pub(super) fn projection_clauses_for_test(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> Vec<RecordProofClause> {
+        let mut clauses = self
+            .projection_clause_keys
+            .iter()
+            .filter_map(|(record, clause)| (*record == lower_record).then_some(*clause))
+            .collect::<Vec<_>>();
+        clauses.sort_unstable_by(|left, right| record_proof_clause_cmp(*left, *right));
+        clauses
+    }
+
+    #[cfg(test)]
+    pub(super) fn projection_clause_links_for_test(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> Vec<(SchemeProjectionProofSupport, RecordProofClause)> {
+        self.projection_clause_link_keys
+            .iter()
+            .filter_map(|(record, support, clause)| {
+                (*record == lower_record).then_some((*support, *clause))
+            })
+            .collect()
+    }
+
+    #[cfg(test)]
+    pub(super) fn projection_clause_storage_census_for_test(
+        &self,
+    ) -> (usize, usize, usize, usize) {
+        (
+            self.projection_clause_keys.len(),
+            self.projection_clause_link_keys.len(),
+            self.projection_formulas.len(),
+            self.projection_attributions.len(),
+        )
+    }
+
     pub(super) fn try_prepare_projection_clause_admission(
         &mut self,
         lower_record: BoundRecordId,
@@ -6467,9 +6506,9 @@ mod tests {
         for (support, clause) in &cpk {
             assert!(
                 machine
-                    .bounds
-                    .record_proof_clause_link_is_registered(record, *support, *clause),
-                "each CPK formula entry must be the exact legacy clause link",
+                    .proof_store
+                    .projection_clause_link_is_registered(record, *support, *clause),
+                "each CPK formula entry must retain its exact typed clause link",
             );
         }
         assert!(matches!(
@@ -7967,7 +8006,6 @@ mod tests {
             machine.bounds.original_claim_by_record_and_producer.len(),
             machine.bounds.root_claim_by_producer_constraint.len(),
             machine.bounds.claims_by_upper_record.len(),
-            machine.bounds.record_proof_clauses.len(),
         );
         let next_id = UpperReplayClaimId(cpk_before.0 as u32);
 
@@ -7999,7 +8037,6 @@ mod tests {
                 machine.bounds.original_claim_by_record_and_producer.len(),
                 machine.bounds.root_claim_by_producer_constraint.len(),
                 machine.bounds.claims_by_upper_record.len(),
-                machine.bounds.record_proof_clauses.len(),
             ),
             flat_before
         );

@@ -509,7 +509,6 @@ impl ConstraintMachine {
                     return None;
                 }
             };
-            self.record_original_claim_standalone_link_in_proof_store(&registration);
             self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
             let claim = registration.claim;
             self.insert_scheme_projection_live_coverage_state(claim, id);

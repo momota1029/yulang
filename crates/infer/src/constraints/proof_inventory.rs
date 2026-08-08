@@ -35,9 +35,9 @@
 //   transition/dedup ownership to ProofOccurrenceStore::live_states_by_coverage_root. CPK-8G-8a2
 //   removes the separate five-field flat support/root bundle after CPK takes both its reads and
 //   mutation decisions; clause and claim mirrors remain in their later physical-removal slices.
-// - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. Flat clauses,
-//   attributed supports, and dependent-record edges remain a writer-dependency closure for the
-//   later 8G-8b/c physical-removal slices.
+// - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. CPK-8G-8b0 transfers
+//   typed clause admission to CPK and CPK-8G-8b1 removes the seven-field flat clause/link/
+//   attribution mirror. Dependent-record edges remain for the later 8G-8c removal slice.
 // - ParentSetArena/ReplayOccurrenceStore/ReplayResultSummary/ReplayClauseProjection/
 //   NonReplayClaimParentStore: writers replay admission and parent mutation; readers Factored
 //   replay authority and exact test-only shadow capture. CPK-8B must replace writers before any
@@ -691,6 +691,7 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
 const CPK8G7_COMPLETED_SUBSLICES: &[&str] =
     &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
 const CPK8G8A_COMPLETED_SUBSLICES: &[&str] = &["8G-8a0", "8G-8a1", "8G-8a2"];
+const CPK8G8B_COMPLETED_SUBSLICES: &[&str] = &["8G-8b0", "8G-8b1"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -820,27 +821,18 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("scheme_projection_lower_records_by_root", 0),
     ("scheme_projection_lower_record_memberships", 0),
     ("scheme_projection_claimed_lower_owners", 0),
-    // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
-    // production clause-link writer still updates the flat mirror during the reader cutover.
-    // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
-    // CPK-8G-6c removes the DPN linear-registration census helper. CPK-8G-8b0 moves the final
-    // test evaluator's clause enumeration to CPK's typed canonical formula.
-    ("record_proof_clauses", 10),
-    // CPK-8G-6g1 removes flat-vs-RCPF clause-link reconstruction oracles. CPK-8G-8b0 removes
-    // ReplayClauseProjection's two numeric-ID lookups in favor of typed CPK identity.
-    ("record_proof_clause_by_key", 6),
-    ("record_proof_clause_ids_by_lower_record", 8),
-    // CPK-4's test-only publication oracle checks that capture began before every link writer.
-    // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
-    // CPK-8G-6f removes the final Legacy publication-shadow read.
-    ("record_proof_clause_links_by_lower_record", 8),
-    ("record_proof_clause_link_keys", 6),
-    // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
-    // CPK-8G-6g1 removes the attribution-union comparison reader.
-    // CPK-8G-6g2 adds one test-only physical-census read that pins continued RCPF population after
-    // authority-gated writes become unconditional; it is not a production read authority.
-    ("attributed_claim_supports", 12),
-    ("flat_retained_attributed_claim_supports", 3),
+    // CPK-8G-8b0 transfers exact typed clause admission to CPK and removes RCPF's numeric flat-ID
+    // lookups. CPK-8G-8b1 removes the complete seven-field flat clause/link/attribution mirror.
+    ("record_proof_clauses", 0),
+    ("record_proof_clause_by_key", 0),
+    ("record_proof_clause_ids_by_lower_record", 0),
+    ("record_proof_clause_links_by_lower_record", 0),
+    ("record_proof_clause_link_keys", 0),
+    // The remaining six lexical matches are ReplayClauseProjection's deliberately retained
+    // replay_attributed_claim_supports field and its direct RCPF structure tests, not the removed
+    // TypeBounds attribution mirror.
+    ("attributed_claim_supports", 6),
+    ("flat_retained_attributed_claim_supports", 0),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
@@ -1098,7 +1090,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
         "constraints/machine/bounds.rs",
         "register_record_proof_clause_link",
     ),
-    ("constraints/mod.rs", "register_record_proof_clause_link"),
     (
         "constraints/machine/bounds.rs",
         "commit_record_proof_clause_link_batch_mutation",
@@ -1106,10 +1097,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     (
         "constraints/machine/bounds.rs",
         "register_replay_evidence_clause_link",
-    ),
-    (
-        "constraints/mod.rs",
-        "register_original_claim_standalone_link",
     ),
     (
         "constraints/machine/bounds.rs",
@@ -1346,6 +1333,45 @@ fn cpk_8g_8a2_flat_support_root_relations_are_fully_removed() {
         CPK8G8A_COMPLETED_SUBSLICES,
         &["8G-8a0", "8G-8a1", "8G-8a2"],
         "CPK-8G-8a closure must retain all three reviewed sub-slice dispositions",
+    );
+}
+
+#[test]
+fn cpk_8g_8b1_flat_clause_link_attribution_relations_are_fully_removed() {
+    let reviewed_sources = REVIEWED_SOURCES
+        .iter()
+        .map(|(_, source)| *source)
+        .collect::<Vec<_>>()
+        .join("\n");
+    for surface in [
+        "record_proof_clauses",
+        "record_proof_clause_by_key",
+        "record_proof_clause_ids_by_lower_record",
+        "record_proof_clause_links_by_lower_record",
+        "record_proof_clause_link_keys",
+        "flat_retained_attributed_claim_supports",
+        "RecordProofClauseId",
+        "RecordProofClauseRecord",
+        "RecordProofClauseKey",
+        "RecordProofClauseLinkKey",
+    ] {
+        assert_eq!(
+            reviewed_sources.matches(surface).count(),
+            0,
+            "removed flat clause/link/attribution surface reappeared: {surface}",
+        );
+    }
+    assert_eq!(
+        reviewed_sources.matches("attributed_claim_supports").count(),
+        reviewed_sources
+            .matches("replay_attributed_claim_supports")
+            .count(),
+        "the generic flat attribution mirror must not reappear; only RCPF's scoped replay attribution store remains",
+    );
+    assert_eq!(
+        CPK8G8B_COMPLETED_SUBSLICES,
+        &["8G-8b0", "8G-8b1"],
+        "CPK-8G-8b closure must retain both reviewed sub-slice dispositions",
     );
 }
 

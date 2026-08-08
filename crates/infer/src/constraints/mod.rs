@@ -551,13 +551,10 @@ struct UpperReplayClaimRegistration {
     claim: UpperReplayClaimId,
     proof_admission: proof::PreparedUpperClaimAdmission,
     scheme_projection_mutation: SchemeProjectionMutation,
-    standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
 }
 
 struct PreparedClaimMirrorCapacity {
     record_claims: Option<Vec<UpperReplayClaimId>>,
-    clause_ids: Option<(BoundRecordId, Vec<RecordProofClauseId>)>,
-    clause_links: Option<(BoundRecordId, Vec<RecordProofClauseLink>)>,
 }
 
 struct PreparedClaimMoveMirrorCapacity {
@@ -1050,29 +1047,6 @@ impl RecordProofClauseLinkAdmission {
         }
     }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct RecordProofClauseId(u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct RecordProofClauseRecord {
-    id: RecordProofClauseId,
-    lower_record: BoundRecordId,
-    clause: RecordProofClause,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct RecordProofClauseLink {
-    support: SchemeProjectionProofSupport,
-    clause: RecordProofClauseId,
-}
-
-type RecordProofClauseKey = (BoundRecordId, RecordProofClause);
-type RecordProofClauseLinkKey = (
-    BoundRecordId,
-    SchemeProjectionProofSupport,
-    RecordProofClauseId,
-);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SchemeProjectionProof {
@@ -1863,7 +1837,6 @@ impl ConstraintMachine {
         let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
             record,
             Some(producer),
-            lower_record,
             proof::ProofOperation::AdmitOriginalClaim,
         )?;
         assert_eq!(issued.0 as usize, self.bounds.upper_replay_claims.len());
@@ -1992,7 +1965,6 @@ impl ConstraintMachine {
                 let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
                     record,
                     None,
-                    lower_record,
                     proof::ProofOperation::AdmitDerivedClaim,
                 )?;
                 self.proof_store
@@ -2102,17 +2074,6 @@ impl ConstraintMachine {
         };
         self.proof_store
             .commit_projection_support_mutation(prepared);
-    }
-
-    fn record_original_claim_standalone_link_in_proof_store(
-        &mut self,
-        registration: &UpperReplayClaimRegistration,
-    ) {
-        let Some((lower_record, admission)) = registration.standalone_link else {
-            return;
-        };
-        self.proof_store
-            .record_projection_clause(lower_record, admission);
     }
 
     #[cfg(test)]
@@ -2376,15 +2337,6 @@ pub struct TypeBounds {
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
-    record_proof_clauses: Vec<RecordProofClauseRecord>,
-    record_proof_clause_by_key: FxHashMap<RecordProofClauseKey, RecordProofClauseId>,
-    record_proof_clause_ids_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseId>>,
-    record_proof_clause_links_by_lower_record: FxHashMap<BoundRecordId, Vec<RecordProofClauseLink>>,
-    record_proof_clause_link_keys: FxHashSet<RecordProofClauseLinkKey>,
-    // Append-only claimed-support projection of `record_proof_clause_link_keys`.
-    attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
-    // Claimed attribution whose exact links remain in the flat relation after RCPF-E/F.
-    flat_retained_attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     dependent_records_by_premise: FxHashMap<ProofPremise, FxHashSet<BoundRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
@@ -2502,88 +2454,6 @@ impl TypeBounds {
         }
     }
 
-    fn register_record_proof_clause_link(
-        &mut self,
-        lower_record: BoundRecordId,
-        admission: RecordProofClauseLinkAdmission,
-    ) -> (RecordProofClauseId, bool, bool) {
-        let RecordProofClauseLinkAdmission {
-            support,
-            clause,
-            claimed_attribution_source,
-        } = admission;
-        let clause_key = Self::record_proof_clause_key(lower_record, clause);
-        let (clause_id, clause_inserted) =
-            if let Some(clause_id) = self.record_proof_clause_by_key.get(&clause_key).copied() {
-                (clause_id, false)
-            } else {
-                let clause_id = RecordProofClauseId(self.record_proof_clauses.len() as u32);
-                self.record_proof_clauses.push(RecordProofClauseRecord {
-                    id: clause_id,
-                    lower_record,
-                    clause,
-                });
-                self.record_proof_clause_by_key
-                    .insert(clause_key, clause_id);
-                self.record_proof_clause_ids_by_lower_record
-                    .entry(lower_record)
-                    .or_default()
-                    .push(clause_id);
-                (clause_id, true)
-            };
-        // Claimed supports are normalized to their canonical root by every production caller, so
-        // claim replacement in the flat ledger cannot stale either the clause or its link tag.
-        let link = RecordProofClauseLink {
-            support,
-            clause: clause_id,
-        };
-        let link_key = Self::record_proof_clause_link_key(lower_record, support, clause_id);
-        let link_inserted = self.record_proof_clause_link_keys.insert(link_key);
-        if link_inserted {
-            if let SchemeProjectionProofSupport::Claimed(root) = support {
-                self.attributed_claim_supports.insert((lower_record, root));
-                if claimed_attribution_source == Some(ClaimedAttributionSource::FlatRetained) {
-                    self.flat_retained_attributed_claim_supports
-                        .insert((lower_record, root));
-                }
-            }
-            self.record_proof_clause_links_by_lower_record
-                .entry(lower_record)
-                .or_default()
-                .push(link);
-        }
-        (clause_id, clause_inserted, link_inserted)
-    }
-
-    fn record_proof_clause_link_is_registered(
-        &self,
-        lower_record: BoundRecordId,
-        support: SchemeProjectionProofSupport,
-        clause: RecordProofClause,
-    ) -> bool {
-        let clause_key = Self::record_proof_clause_key(lower_record, clause);
-        let Some(clause_id) = self.record_proof_clause_by_key.get(&clause_key).copied() else {
-            return false;
-        };
-        let link_key = Self::record_proof_clause_link_key(lower_record, support, clause_id);
-        self.record_proof_clause_link_keys.contains(&link_key)
-    }
-
-    fn record_proof_clause_key(
-        lower_record: BoundRecordId,
-        clause: RecordProofClause,
-    ) -> RecordProofClauseKey {
-        (lower_record, clause)
-    }
-
-    fn record_proof_clause_link_key(
-        lower_record: BoundRecordId,
-        support: SchemeProjectionProofSupport,
-        clause: RecordProofClauseId,
-    ) -> RecordProofClauseLinkKey {
-        (lower_record, support, clause)
-    }
-
     fn canonical_coverage_root(&self, claim: UpperReplayClaimId) -> Option<UpperReplayClaimId> {
         let root = self
             .upper_replay_claims
@@ -2614,31 +2484,6 @@ impl TypeBounds {
                 );
             }
         }
-    }
-
-    fn register_original_claim_standalone_link(
-        &mut self,
-        producer: ConstraintRecordId,
-        claim: UpperReplayClaimId,
-    ) -> Option<(BoundRecordId, RecordProofClauseLinkAdmission)> {
-        let Some(lower_record) = self
-            .scheme_projection_lower_record_by_constraint
-            .get(&producer)
-            .copied()
-        else {
-            return None;
-        };
-        let Some(root) = self.canonical_coverage_root(claim) else {
-            return None;
-        };
-        let support = SchemeProjectionProofSupport::Claimed(root);
-        let admission = RecordProofClauseLinkAdmission::claimed(
-            root,
-            RecordProofClause::Standalone { support },
-            ClaimedAttributionSource::FlatRetained,
-        );
-        let (_, _, link_inserted) = self.register_record_proof_clause_link(lower_record, admission);
-        link_inserted.then_some((lower_record, admission))
     }
 
     fn contains_derivation(&self, key: &BoundSemanticKey, derivation: &BoundDerivation) -> bool {
@@ -2896,7 +2741,6 @@ impl TypeBounds {
         &mut self,
         record: BoundRecordId,
         original_producer: Option<ConstraintRecordId>,
-        lower_record: Option<BoundRecordId>,
         operation: proof::ProofOperation,
     ) -> Result<PreparedClaimMirrorCapacity, proof::ProofFailure> {
         let exhausted = |_| proof::ProofFailure::ResourceExhausted { operation };
@@ -2934,55 +2778,7 @@ impl TypeBounds {
             claims.try_reserve(1).map_err(exhausted)?;
             Some(claims)
         };
-        let mut prepared = PreparedClaimMirrorCapacity {
-            record_claims,
-            clause_ids: None,
-            clause_links: None,
-        };
-        if let Some(lower_record) = lower_record {
-            self.record_proof_clauses
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.record_proof_clause_by_key
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.record_proof_clause_ids_by_lower_record
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.record_proof_clause_links_by_lower_record
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            if let Some(ids) = self
-                .record_proof_clause_ids_by_lower_record
-                .get_mut(&lower_record)
-            {
-                ids.try_reserve(1).map_err(exhausted)?;
-            } else {
-                let mut ids = Vec::new();
-                ids.try_reserve(1).map_err(exhausted)?;
-                prepared.clause_ids = Some((lower_record, ids));
-            }
-            if let Some(links) = self
-                .record_proof_clause_links_by_lower_record
-                .get_mut(&lower_record)
-            {
-                links.try_reserve(1).map_err(exhausted)?;
-            } else {
-                let mut links = Vec::new();
-                links.try_reserve(1).map_err(exhausted)?;
-                prepared.clause_links = Some((lower_record, links));
-            }
-            self.record_proof_clause_link_keys
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.attributed_claim_supports
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.flat_retained_attributed_claim_supports
-                .try_reserve(1)
-                .map_err(exhausted)?;
-        }
-        Ok(prepared)
+        Ok(PreparedClaimMirrorCapacity { record_claims })
     }
 
     fn finish_existing_original_upper_replay_claim_mirror(
@@ -2998,13 +2794,7 @@ impl TypeBounds {
         );
         self.register_original_claim_mirror(producer_constraint, claim);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
-        let standalone_link =
-            self.register_original_claim_standalone_link(producer_constraint, claim);
-        self.finish_upper_replay_claim_registration(
-            claim,
-            scheme_projection_mutation,
-            standalone_link,
-        )
+        self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation)
     }
 
     fn commit_original_upper_replay_claim_mirror(
@@ -3030,20 +2820,6 @@ impl TypeBounds {
         if let Some(claims) = prepared.record_claims {
             assert!(self.claims_by_upper_record.insert(record, claims).is_none());
         }
-        if let Some((lower, ids)) = prepared.clause_ids {
-            assert!(
-                self.record_proof_clause_ids_by_lower_record
-                    .insert(lower, ids)
-                    .is_none()
-            );
-        }
-        if let Some((lower, links)) = prepared.clause_links {
-            assert!(
-                self.record_proof_clause_links_by_lower_record
-                    .insert(lower, links)
-                    .is_none()
-            );
-        }
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
@@ -3059,8 +2835,7 @@ impl TypeBounds {
         self.register_original_claim_mirror(producer_constraint, id);
         self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
-        let standalone_link = self.register_original_claim_standalone_link(producer_constraint, id);
-        self.finish_upper_replay_claim_registration(id, scheme_projection_mutation, standalone_link)
+        self.finish_upper_replay_claim_registration(id, scheme_projection_mutation)
     }
 
     fn finish_coalesced_derived_upper_replay_claim_mirror(
@@ -3080,7 +2855,7 @@ impl TypeBounds {
         assert_eq!(claim, expected);
         self.replay_claim_cycle_coalesces += 1;
         let scheme_projection_mutation = SchemeProjectionMutation::None;
-        self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation, None)
+        self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation)
     }
 
     fn commit_derived_upper_replay_claim_mirror(
@@ -3126,20 +2901,6 @@ impl TypeBounds {
         if let Some(claims) = prepared.record_claims {
             assert!(self.claims_by_upper_record.insert(record, claims).is_none());
         }
-        if let Some((lower, ids)) = prepared.clause_ids {
-            assert!(
-                self.record_proof_clause_ids_by_lower_record
-                    .insert(lower, ids)
-                    .is_none()
-            );
-        }
-        if let Some((lower, links)) = prepared.clause_links {
-            assert!(
-                self.record_proof_clause_links_by_lower_record
-                    .insert(lower, links)
-                    .is_none()
-            );
-        }
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
@@ -3156,7 +2917,7 @@ impl TypeBounds {
         self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
         let registration =
-            self.finish_upper_replay_claim_registration(id, scheme_projection_mutation, None);
+            self.finish_upper_replay_claim_registration(id, scheme_projection_mutation);
         assert_eq!(registration.proof_admission, *admission);
         registration
     }
@@ -3165,7 +2926,6 @@ impl TypeBounds {
         &self,
         claim: UpperReplayClaimId,
         scheme_projection_mutation: SchemeProjectionMutation,
-        standalone_link: Option<(BoundRecordId, RecordProofClauseLinkAdmission)>,
     ) -> UpperReplayClaimRegistration {
         let proof_admission =
             proof::prepare_upper_claim_admission(&self.upper_replay_claims[claim.0 as usize]);
@@ -3173,7 +2933,6 @@ impl TypeBounds {
             claim,
             proof_admission,
             scheme_projection_mutation,
-            standalone_link,
         }
     }
 

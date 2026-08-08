@@ -3593,7 +3593,7 @@ fn mpc_a_9_8_duplicate_evidence_and_promotion_preserve_clause_snapshot() {
 #[test]
 fn dpn_a_9_1_structural_clause_uses_constraint_premise_node() {
     let fixture = row_structural_claim_fixture();
-    let clauses = record_proof_clauses(&fixture.machine, fixture.lower_record);
+    let clauses = cpk_projection_clauses(&fixture.machine, fixture.lower_record);
     assert_eq!(
         clauses,
         vec![RecordProofClause::DerivedUnary {
@@ -3605,8 +3605,8 @@ fn dpn_a_9_1_structural_clause_uses_constraint_premise_node() {
     assert_eq!(
         fixture
             .machine
-            .bounds
-            .record_proof_clause_links_by_lower_record[&fixture.lower_record]
+            .proof_store
+            .projection_clause_links_for_test(fixture.lower_record)
             .len(),
         1,
         "the one structural claim link is attributed to the one unary clause"
@@ -3646,7 +3646,7 @@ fn dpn_a_9_2_reduction_route_clause_uses_root_coverage_premise() {
         "the URR root producer remains upper-only and has no linked lower record"
     );
     assert!(
-        record_proof_clauses(&fixture.machine, fixture.lower_record).contains(
+        cpk_projection_clauses(&fixture.machine, fixture.lower_record).contains(
             &RecordProofClause::DerivedUnary {
                 carrier: DerivedUnaryCarrier::ReductionRoute(derivation),
                 premise: ProofPremise::RootCoverage(fixture.coverage_root),
@@ -3779,7 +3779,7 @@ fn dpn_b_9_4_nested_constraint_chain_reaches_the_root_base_case() {
         .bounds
         .scheme_projection_lower_record_by_constraint[&nested_constraint];
     assert!(
-        record_proof_clauses(&fixture.machine, nested_record).contains(
+        cpk_projection_clauses(&fixture.machine, nested_record).contains(
             &RecordProofClause::DerivedUnary {
                 carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
                     parent: fixture.child,
@@ -4191,23 +4191,11 @@ fn observed_mpc_preserved_clause_snapshot(
     }
 }
 
-fn record_proof_clauses(
+fn cpk_projection_clauses(
     machine: &ConstraintMachine,
     lower_record: BoundRecordId,
 ) -> Vec<RecordProofClause> {
-    machine
-        .bounds
-        .record_proof_clause_ids_by_lower_record
-        .get(&lower_record)
-        .into_iter()
-        .flatten()
-        .map(|clause_id| {
-            let clause = machine.bounds.record_proof_clauses[clause_id.0 as usize];
-            assert_eq!(clause.id, *clause_id);
-            assert_eq!(clause.lower_record, lower_record);
-            clause.clause
-        })
-        .collect()
+    machine.proof_store.projection_clauses_for_test(lower_record)
 }
 
 fn dependent_edge_exists(
@@ -4242,12 +4230,10 @@ fn unattributed_record_proof_supports(
     lower_record: BoundRecordId,
 ) -> Vec<SchemeProjectionProofSupport> {
     let attributed = machine
-        .bounds
-        .record_proof_clause_links_by_lower_record
-        .get(&lower_record)
+        .proof_store
+        .projection_clause_links_for_test(lower_record)
         .into_iter()
-        .flatten()
-        .map(|link| link.support)
+        .map(|(support, _)| support)
         .collect::<FxHashSet<_>>();
     machine
         .proof_store
@@ -4279,7 +4265,7 @@ fn assert_all_record_proof_attribution_complete(machine: &ConstraintMachine) {
 fn observed_dpn_replay_registration(
     fixture: &MpcMixedReplayFixture,
 ) -> ObservedDpnReplayRegistration {
-    let clauses = record_proof_clauses(&fixture.machine, fixture.result_record);
+    let clauses = cpk_projection_clauses(&fixture.machine, fixture.result_record);
     assert_eq!(
         clauses,
         vec![RecordProofClause::ReplayConjunction {
@@ -4302,10 +4288,9 @@ fn observed_dpn_replay_registration(
         replay_clauses: clauses.len(),
         attributed_links: fixture
             .machine
-            .bounds
-            .record_proof_clause_links_by_lower_record
-            .get(&fixture.result_record)
-            .map_or(0, Vec::len),
+            .proof_store
+            .projection_clause_links_for_test(fixture.result_record)
+            .len(),
         premise_edges,
         unattributed_supports: unattributed_record_proof_supports(
             &fixture.machine,
