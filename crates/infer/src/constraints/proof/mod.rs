@@ -1,8 +1,8 @@
 //! Constraint Proof Kernel boundary.
 //!
-//! CPK-1 defines read-only adapters over current semantic records and their legacy proof payloads.
-//! CPK-2 established the typed occurrence contract; CPK-8E removes its migration-only
-//! thread-local capture now that tests assert the production store directly.
+//! CPK-1 defines read-only adapters over current semantic records. CPK-2 established the typed
+//! occurrence contract; CPK-8E removes its migration-only thread-local capture now that tests
+//! assert the production store directly.
 
 use super::*;
 use std::sync::Arc;
@@ -376,140 +376,9 @@ impl SemanticFactView for ConstraintMachine {
     }
 }
 
-/// Read-only constraint proof fields retained by the legacy representation.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ConstraintProofPayloadRef<'a> {
-    root_origins: &'a [OriginId],
-    structural_derivations: &'a [StructuralDerivation],
-    row_derivations: &'a [RowDerivationId],
-    replay_derivations: &'a [BinaryReplayDerivation],
-    scheme_instantiation_derivations: &'a [SchemeInstantiationDerivation],
-    scheme_instantiation_routes: &'a [SchemeInstantiationRoute],
-    canonicalization_dispositions: &'a [ConstraintCanonicalizationDisposition],
-    replay_provenance: ProvenanceCompleteness,
-}
-
-impl<'a> ConstraintProofPayloadRef<'a> {
-    pub(crate) fn root_origins(self) -> &'a [OriginId] {
-        self.root_origins
-    }
-
-    pub(crate) fn structural_derivations(self) -> &'a [StructuralDerivation] {
-        self.structural_derivations
-    }
-
-    pub(crate) fn row_derivations(self) -> &'a [RowDerivationId] {
-        self.row_derivations
-    }
-
-    pub(crate) fn replay_derivations(self) -> &'a [BinaryReplayDerivation] {
-        self.replay_derivations
-    }
-
-    pub(crate) fn scheme_instantiation_derivations(self) -> &'a [SchemeInstantiationDerivation] {
-        self.scheme_instantiation_derivations
-    }
-
-    pub(crate) fn scheme_instantiation_routes(self) -> &'a [SchemeInstantiationRoute] {
-        self.scheme_instantiation_routes
-    }
-
-    pub(crate) fn canonicalization_dispositions(
-        self,
-    ) -> &'a [ConstraintCanonicalizationDisposition] {
-        self.canonicalization_dispositions
-    }
-
-    pub(crate) fn replay_provenance(self) -> ProvenanceCompleteness {
-        self.replay_provenance
-    }
-}
-
-/// Read-only bound proof fields retained by the legacy representation.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct BoundProofPayloadRef<'a> {
-    derivations: &'a [BoundDerivation],
-    disposition: Option<BoundDispositionRecordId>,
-}
-
-impl<'a> BoundProofPayloadRef<'a> {
-    pub(crate) fn derivations(self) -> &'a [BoundDerivation] {
-        self.derivations
-    }
-
-    pub(crate) fn disposition(self) -> Option<BoundDispositionRecordId> {
-        self.disposition
-    }
-}
-
-/// Transitional read backend for proof payloads still embedded in semantic records.
-pub(crate) trait ProofPayloadView {
-    fn constraint_payload(&self, id: ConstraintRecordId) -> Option<ConstraintProofPayloadRef<'_>>;
-
-    fn bound_payload(&self, id: BoundRecordId) -> Option<BoundProofPayloadRef<'_>>;
-}
-
-/// Legacy authority adapter. It borrows current storage and cannot mutate it.
-#[derive(Clone, Copy)]
-pub(crate) struct LegacyProofBackend<'a> {
-    machine: &'a ConstraintMachine,
-}
-
-impl<'a> LegacyProofBackend<'a> {
-    pub(crate) fn new(machine: &'a ConstraintMachine) -> Self {
-        Self { machine }
-    }
-}
-
-impl ProofPayloadView for LegacyProofBackend<'_> {
-    fn constraint_payload(&self, id: ConstraintRecordId) -> Option<ConstraintProofPayloadRef<'_>> {
-        self.machine
-            .constraint_records
-            .get(id.0 as usize)
-            .map(ConstraintRecord::proof_payload_ref)
-    }
-
-    fn bound_payload(&self, id: BoundRecordId) -> Option<BoundProofPayloadRef<'_>> {
-        self.machine
-            .bounds
-            .records
-            .get(id.0 as usize)
-            .map(BoundRecord::proof_payload_ref)
-    }
-}
-
-/// Empty backend used while legacy remains authoritative.
-///
-/// It owns no fields by construction and therefore cannot record a shadow write accidentally.
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct NullProofBackend;
-
-impl ProofPayloadView for NullProofBackend {
-    fn constraint_payload(&self, _id: ConstraintRecordId) -> Option<ConstraintProofPayloadRef<'_>> {
-        None
-    }
-
-    fn bound_payload(&self, _id: BoundRecordId) -> Option<BoundProofPayloadRef<'_>> {
-        None
-    }
-}
-
 impl ConstraintRecord {
     fn semantic_ref(&self) -> SemanticConstraintRecordRef<'_> {
         SemanticConstraintRecordRef { key: &self.key }
-    }
-
-    fn proof_payload_ref(&self) -> ConstraintProofPayloadRef<'_> {
-        ConstraintProofPayloadRef {
-            root_origins: &self.root_origins,
-            structural_derivations: &self.structural_derivations,
-            row_derivations: &self.row_derivations,
-            replay_derivations: &self.replay_derivations,
-            scheme_instantiation_derivations: &self.scheme_instantiation_derivations,
-            scheme_instantiation_routes: &self.scheme_instantiation_routes,
-            canonicalization_dispositions: &self.canonicalization_dispositions,
-            replay_provenance: self.replay_provenance,
-        }
     }
 }
 
@@ -521,13 +390,6 @@ impl BoundRecord {
             endpoint: self.endpoint,
             weights: &self.weights,
             state: self.state,
-        }
-    }
-
-    fn proof_payload_ref(&self) -> BoundProofPayloadRef<'_> {
-        BoundProofPayloadRef {
-            derivations: &self.derivations,
-            disposition: self.disposition,
         }
     }
 }
@@ -11102,7 +10964,7 @@ mod tests {
     }
 
     #[test]
-    fn cpk_1_semantic_view_and_legacy_payload_match_embedded_records() {
+    fn cpk_1_semantic_view_matches_embedded_records() {
         let (mut machine, lower, upper) =
             with_semantic_execution_snapshot_capture_for_new_machines(|| {
                 let mut machine = ConstraintMachine::new();
@@ -11178,53 +11040,6 @@ mod tests {
                 .contains(&lower_record)
         );
 
-        let legacy = LegacyProofBackend::new(&machine);
-        let constraint_payload = legacy
-            .constraint_payload(constraint)
-            .expect("legacy constraint payload");
-        let direct_constraint = &machine.constraint_records[constraint.0 as usize];
-        assert_eq!(
-            constraint_payload.root_origins(),
-            direct_constraint.root_origins
-        );
-        assert_eq!(
-            constraint_payload.structural_derivations(),
-            direct_constraint.structural_derivations
-        );
-        assert_eq!(
-            constraint_payload.row_derivations(),
-            direct_constraint.row_derivations
-        );
-        assert_eq!(
-            constraint_payload.replay_derivations(),
-            direct_constraint.replay_derivations
-        );
-        assert_eq!(
-            constraint_payload.scheme_instantiation_derivations(),
-            direct_constraint.scheme_instantiation_derivations
-        );
-        assert_eq!(
-            constraint_payload.scheme_instantiation_routes(),
-            direct_constraint.scheme_instantiation_routes
-        );
-        assert_eq!(
-            constraint_payload.canonicalization_dispositions(),
-            direct_constraint.canonicalization_dispositions
-        );
-        assert_eq!(
-            constraint_payload.replay_provenance(),
-            direct_constraint.replay_provenance
-        );
-        let bound_payload = legacy
-            .bound_payload(lower_record)
-            .expect("legacy bound payload");
-        let direct_bound = &machine.bounds.records[lower_record.0 as usize];
-        assert_eq!(bound_payload.derivations(), direct_bound.derivations);
-        assert_eq!(bound_payload.disposition(), direct_bound.disposition);
-
-        let null = NullProofBackend;
-        assert!(null.constraint_payload(constraint).is_none());
-        assert!(null.bound_payload(lower_record).is_none());
         assert!(machine.constraint(ConstraintRecordId(u32::MAX)).is_none());
         assert!(machine.bound(BoundRecordId(u32::MAX)).is_none());
         assert!(
