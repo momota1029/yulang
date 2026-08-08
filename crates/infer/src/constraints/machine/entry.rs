@@ -13,7 +13,6 @@ impl ConstraintMachine {
             replay_parent_sets: ParentSetArena::new(),
             replay_occurrences: ReplayOccurrenceStore::default(),
             replay_result_summary,
-            non_replay_claim_parents_by_constraint: NonReplayClaimParentStore::default(),
             proof_store: proof::ProofOccurrenceStore::default(),
             proof_terminal_failure: RefCell::new(None),
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),

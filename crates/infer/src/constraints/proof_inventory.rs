@@ -38,9 +38,10 @@
 // - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. CPK-8G-8b0 transfers
 //   typed clause admission to CPK and CPK-8G-8b1 removes the seven-field flat clause/link/
 //   attribution mirror. Dependent-record edges remain for the later 8G-8c removal slice.
-// - ParentSetArena/ReplayOccurrenceStore/ReplayResultSummary/NonReplayClaimParentStore: writers
-//   replay admission and parent mutation. CPK-8G-9a removes the leaf ReplayClauseProjection and
-//   its one-way feed first; the remaining stores follow in reverse-topological order.
+// - ParentSetArena/ReplayOccurrenceStore/ReplayResultSummary: writers replay admission and parent
+//   mutation. CPK-8G-9a removes the leaf ReplayClauseProjection and CPK-8G-9b removes the
+//   independent NonReplayClaimParentStore; the remaining stores follow in reverse-topological
+//   order.
 
 // CPK-8E-0 final migration-parity snapshot, frozen at 8d208792 before oracle retirement.
 // This is a manifest of CPK-observable contracts, not a serialized snapshot of Legacy storage.
@@ -617,7 +618,6 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 enum Cpk8gPhysicalTarget {
     ParentSetArena,
     ReplayOccurrenceStore,
-    NonReplayClaimParentStore,
     ReplayResultSummary,
     ReplayFactoredShellAndTelemetry,
 }
@@ -687,10 +687,6 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
         tests: &[],
     },
     Cpk8gPhysicalTestGroup {
-        targets: &[Cpk8gPhysicalTarget::NonReplayClaimParentStore],
-        tests: &[],
-    },
-    Cpk8gPhysicalTestGroup {
         targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
         tests: &[
             "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
@@ -710,7 +706,7 @@ const CPK8G8_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
 ];
 const CPK8G9_PREPARATION_COMPLETED_SUBSLICES: &[&str] = &["8G-9-0a", "8G-9-0b"];
-const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a"];
+const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a", "8G-9b"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -804,9 +800,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // are the flat mirror definition, capacity preflight, and commit path (plus the separately
     // counted non-replay RCPF store whose name contains this token).
     // CPK-8G-7b4 removes the final flat parent Vec and its complete capacity/commit writer. The
-    // surviving references are the separately counted RCPF NonReplayClaimParentStore field only.
-    // CPK-8G-9-0b removes the final test-evaluator and logical-snapshot fixture reads.
-    ("claim_parents_by_constraint", 4),
+    // surviving references were the separately counted RCPF NonReplayClaimParentStore field only.
+    // CPK-8G-9-0b removes the final test-evaluator and logical-snapshot fixture reads; CPK-8G-9b
+    // removes that independent RCPF leaf and its final writer.
+    ("claim_parents_by_constraint", 0),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
     // CPK-8G-7b1 removes this first flat parent-relation mirror and its writer completely.
     ("replay_claim_parent_keys", 0),
@@ -980,9 +977,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-8b0 removes RCPF from admission dedup and the test evaluator's attribution union.
     // CPK-8G-9a removes the leaf RCPF projection store, field, initializer, and feed.
     ("replay_clause_projection", 0),
-    // CPK-8G-6g2 likewise pins non-replay parent population after removing the authority gate.
-    // CPK-8G-9-0b removes the test evaluator and CPK-0b census/reset reads.
-    ("non_replay_claim_parents_by_constraint", 4),
+    // CPK-8G-9b removes the independent non-replay RCPF store, field, initializer, and writer.
+    ("non_replay_claim_parents_by_constraint", 0),
 ];
 
 const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
@@ -1093,7 +1089,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     ("constraints/replay_factored.rs", "try_insert"),
     ("constraints/replay_factored.rs", "update_parent_versions"),
     ("constraints/replay_factored.rs", "try_record_admission"),
-    ("constraints/replay_factored.rs", "try_admit"),
     // Projection, clauses, attribution, and dependencies.
     (
         "constraints/machine/bounds.rs",
@@ -1323,8 +1318,7 @@ fn cpk_8g_7_flat_parent_relations_are_fully_removed() {
         );
     }
     for (field, expected) in [
-        // The one surviving substring is the distinct RCPF `non_replay_*` machine field.
-        ("claim_parents_by_constraint", 1),
+        ("claim_parents_by_constraint", 0),
         ("qualified_carrier_index", 0),
         ("replay_claim_parent_keys", 0),
         ("structural_claim_parent_keys", 0),
@@ -1477,7 +1471,6 @@ fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
         (".replay_parent_sets", 5),
         (".replay_occurrences", 5),
         (".replay_result_summary", 2),
-        (".non_replay_claim_parents_by_constraint", 1),
     ] {
         assert_eq!(
             bounds_production.matches(field).count(),
@@ -1500,7 +1493,6 @@ fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
             ".replay_parent_sets",
             ".replay_occurrences",
             ".replay_result_summary",
-            ".non_replay_claim_parents_by_constraint",
         ] {
             assert!(
                 !source.contains(field),
@@ -1547,9 +1539,35 @@ fn cpk_8g_9a_replay_clause_projection_is_fully_removed() {
         );
     }
     assert_eq!(
-        CPK8G9_COMPLETED_SUBSLICES,
-        &["8G-9a"],
+        CPK8G9_COMPLETED_SUBSLICES.first(),
+        Some(&"8G-9a"),
         "the RCPF reverse-topological deletion ledger must start with its projection leaf",
+    );
+}
+
+#[test]
+fn cpk_8g_9b_non_replay_claim_parent_store_is_fully_removed() {
+    let removed_type = ["NonReplayClaim", "ParentStore"].concat();
+    let removed_field = ["non_replay_claim_parents", "_by_constraint"].concat();
+    for source in [
+        include_str!("mod.rs"),
+        include_str!("machine/entry.rs"),
+        include_str!("machine/bounds.rs"),
+        include_str!("replay_factored.rs"),
+    ] {
+        assert!(
+            !source.contains(&removed_type),
+            "the removed non-replay RCPF store type must not reappear",
+        );
+        assert!(
+            !source.contains(&removed_field),
+            "the removed non-replay RCPF field/writer must not reappear",
+        );
+    }
+    assert_eq!(
+        CPK8G9_COMPLETED_SUBSLICES,
+        &["8G-9a", "8G-9b"],
+        "RCPF reverse-topological deletion must retain both completed leaf removals",
     );
 }
 
@@ -2264,7 +2282,6 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let all_targets = [
         Cpk8gPhysicalTarget::ParentSetArena,
         Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-        Cpk8gPhysicalTarget::NonReplayClaimParentStore,
         Cpk8gPhysicalTarget::ReplayResultSummary,
         Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
     ];

@@ -1785,7 +1785,6 @@ impl ConstraintMachine {
         entry: proof::ExactQualifiedParent,
     ) {
         let parent = entry.parent;
-        self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
         self.observe_first_qualified_parent_source(constraint, parent);
     }
@@ -1896,27 +1895,6 @@ impl ConstraintMachine {
     ) {
         for intent in fence.intents {
             self.publish_scheme_projection_intent(intent);
-        }
-    }
-
-    /// Observe an already completed legacy admission. Failure quarantines the additive RCPF
-    /// representation without changing legacy route publication or evaluation.
-    fn observe_non_replay_claim_parent_admission(
-        &mut self,
-        result: ConstraintRecordId,
-        parent: ClaimQualifiedParent,
-    ) {
-        if !self.replay_factored_writes_enabled() {
-            return;
-        }
-        if let Err(failure) = self
-            .non_replay_claim_parents_by_constraint
-            .try_admit(result, parent)
-        {
-            self.mark_replay_factored_failure(
-                failure,
-                ReplayFactoredFailureOperation::Write,
-            );
         }
     }
 

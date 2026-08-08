@@ -48,8 +48,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) use proof::ProofFailure;
 pub(crate) use replay_factored::ReplayFactoredShadowFailure;
 use replay_factored::{
-    NonReplayClaimParentStore, ParentSetArena, ReplayFactoredResult, ReplayFactoredShadowStatus,
-    ReplayOccurrenceStore, ReplayResultSummary,
+    ParentSetArena, ReplayFactoredResult, ReplayFactoredShadowStatus, ReplayOccurrenceStore,
+    ReplayResultSummary,
 };
 use replay_soak::ensure_replay_soak_telemetry_header;
 pub(crate) use replay_soak::{
@@ -116,7 +116,6 @@ pub struct ConstraintMachine {
     replay_parent_sets: ParentSetArena,
     replay_occurrences: ReplayOccurrenceStore,
     replay_result_summary: ReplayResultSummary,
-    non_replay_claim_parents_by_constraint: NonReplayClaimParentStore,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
     proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
