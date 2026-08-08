@@ -167,6 +167,18 @@ pub(crate) enum ProofFailure {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ProofEvalNode {
+    Record(BoundRecordId),
+    Constraint(ConstraintRecordId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProofEvalState {
+    Visiting,
+    Done(bool),
+}
+
 /// Memo and cycle-cut state shared only within one immutable projection traversal.
 pub(crate) struct ProjectionEvaluationRound<'a> {
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
@@ -7670,7 +7682,7 @@ mod tests {
             .expect("reduction route constraint");
         machine.register_reduction_route_claim_parent(route, row, root_claim);
 
-        let replay = machine.replay_occurrences.occurrences[0].carrier;
+        let replay = machine.proof_store.replay_finite_map[0].carrier;
         for (offset, lineage) in [
             UpperReplayClaimLineage::ReplayConstraint {
                 parent_claim: root_claim,

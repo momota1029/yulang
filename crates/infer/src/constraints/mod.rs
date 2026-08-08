@@ -1066,313 +1066,20 @@ pub(crate) struct SchemeProjectableLower<'a> {
     pub(crate) reason: SchemeProjectableLowerReason,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ProofEvalNode {
-    Record(BoundRecordId),
-    Constraint(ConstraintRecordId),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProofEvalState {
-    Visiting,
-    Done(bool),
-}
-
-/// One projection pass over the reachable proof graph.
-///
-/// The memo is deliberately pass-local. A `Visiting` re-entry rejects only that circular proof
-/// route; the caller's surrounding OR continues evaluating its remaining clauses or sources.
-#[cfg(test)]
-struct SchemeProjectionEvaluator<'a> {
-    machine: &'a ConstraintMachine,
-    states: FxHashMap<ProofEvalNode, ProofEvalState>,
-    visiting_nodes: usize,
-    record_result_overrides: FxHashMap<BoundRecordId, bool>,
-    cycle_cuts: usize,
-    #[cfg(test)]
-    replay_inspections: usize,
-}
-
-#[cfg(test)]
-impl<'a> SchemeProjectionEvaluator<'a> {
-    fn new(machine: &'a ConstraintMachine) -> Self {
-        Self {
-            machine,
-            states: FxHashMap::default(),
-            visiting_nodes: 0,
-            record_result_overrides: FxHashMap::default(),
-            cycle_cuts: 0,
-            #[cfg(test)]
-            replay_inspections: 0,
-        }
-    }
-
-    fn with_record_result_override(mut self, record: BoundRecordId, result: bool) -> Self {
-        self.record_result_overrides.insert(record, result);
-        self
-    }
-
-    fn eval_premise(&mut self, premise: ProofPremise) -> ReplayFactoredResult<bool> {
-        match premise {
-            ProofPremise::Record(record) => self.eval_record(record),
-            ProofPremise::Constraint(constraint) => self.eval_constraint(constraint),
-            ProofPremise::RootCoverage(root) => Ok(self.eval_root_coverage(root)),
-        }
-    }
-
-    fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
-        let result = if let Some(result) = self.record_result_overrides.get(&record) {
-            Ok(*result)
-        } else {
-            let node = ProofEvalNode::Record(record);
-            if let Some(result) = self.enter(node) {
-                Ok(result)
-            } else {
-                let result = self.eval_record_uncached(record);
-                self.finish_result(node, result)
-            }
-        }?;
-        Ok(result)
-    }
-
-    fn eval_record_uncached(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
-        let Some(bound) = self.machine.bounds.record(record) else {
-            return Ok(true);
-        };
-        if bound.state() == BoundRecordState::Tombstone {
-            return Ok(true);
-        }
-        if bound.direction() == BoundDirection::Upper {
-            let Some(claims) = self.machine.bounds.claims_by_upper_record.get(&record) else {
-                return Ok(true);
-            };
-            if claims.is_empty() {
-                return Ok(true);
-            }
-            return Ok(claims.iter().any(|claim| self.eval_root_coverage(*claim)));
-        }
-        let supports = self
-            .machine
-            .proof_store
-            .projection_supports_for_record(record);
-        if self.proof_fail_open(record, supports) {
-            return Ok(true);
-        }
-
-        let clauses = self
-            .machine
-            .proof_store
-            .projection_formula_for_record(record);
-        if clauses.is_empty() {
-            return Ok(false);
-        }
-        for clause in clauses.iter().copied() {
-            let projectable = self.eval_clause(clause)?;
-            if projectable {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
-    fn proof_fail_open(
-        &self,
-        record: BoundRecordId,
-        supports: &[SchemeProjectionProofSupport],
-    ) -> bool {
-        if !self
-            .machine
-            .proof_store
-            .has_projection_support_ledger(record)
-        {
-            return true;
-        }
-        if supports.is_empty() {
-            return true;
-        }
-        supports.iter().copied().any(|support| {
-            self.support_is_qualifying(support) && !self.support_has_clause_link(record, support)
-        })
-    }
-
-    fn eval_clause(&mut self, clause: proof::ProjectionClause) -> ReplayFactoredResult<bool> {
-        match clause {
-            proof::ProjectionClause::Standalone { support, .. } => {
-                Ok(self.support_is_qualifying(support))
-            }
-            proof::ProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
-            proof::ProjectionClause::ReplayConjunction { lower, upper, .. } => {
-                if !self.eval_record(lower)? {
-                    return Ok(false);
-                }
-                self.eval_record(upper)
-            }
-        }
-    }
-
-    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> ReplayFactoredResult<bool> {
-        let node = ProofEvalNode::Constraint(constraint);
-        if let Some(result) = self.enter(node) {
-            return Ok(result);
-        }
-        let result = self.eval_constraint_uncached(constraint);
-        self.finish_result(node, result)
-    }
-
-    fn eval_constraint_uncached(
-        &mut self,
-        constraint: ConstraintRecordId,
-    ) -> ReplayFactoredResult<bool> {
-        if self
-            .machine
-            .constraint_records
-            .get(constraint.0 as usize)
-            .is_none()
-        {
-            return Ok(true);
-        }
-        let mut has_source = false;
-        if let Some(lower_record) = self.machine.lower_record_for_constraint(constraint) {
-            has_source = true;
-            let projectable = self.eval_record(lower_record)?;
-            if projectable {
-                return Ok(true);
-            }
-        }
-
-        let machine = self.machine;
-        for occurrence_id in machine.replay_occurrences_for_result(constraint) {
-            #[cfg(test)]
-            {
-                self.replay_inspections = self.replay_inspections.saturating_add(1);
-            }
-            let occurrence = machine.replay_occurrence(occurrence_id)?;
-            has_source = true;
-            if self.eval_record(occurrence.carrier.lower)?
-                && self.eval_record(occurrence.carrier.upper)?
-            {
-                return Ok(true);
-            }
-        }
-        for parent in machine.non_replay_claim_parents_for_result(constraint) {
-            has_source = true;
-            let projectable = match parent {
-                ClaimQualifiedParent::ReplayConstraint { .. } => {
-                    return Err(
-                        replay_factored::ReplayFactoredShadowFailure::ReplayParentInNonReplayStore,
-                    );
-                }
-                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                    self.eval_constraint(derivation.parent)?
-                }
-                ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                    self.eval_root_coverage(parent_claim)
-                }
-            };
-            if projectable {
-                return Ok(true);
-            }
-        }
-
-        if let Some(root_claim) = self
-            .machine
-            .bounds
-            .root_claim_by_producer_constraint
-            .get(&constraint)
-            .copied()
-        {
-            has_source = true;
-            let projectable = self.eval_root_coverage(root_claim);
-            if projectable {
-                return Ok(true);
-            }
-        }
-        Ok(!has_source)
-    }
-
-    fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
-        let Some(root) = self.machine.bounds.canonical_coverage_root(claim) else {
-            return true;
-        };
-        self.machine
-            .bounds
-            .live_coverage_by_root
-            .get(&root)
-            .is_none_or(Vec::is_empty)
-    }
-
-    fn support_is_qualifying(&self, support: SchemeProjectionProofSupport) -> bool {
-        match support {
-            SchemeProjectionProofSupport::Independent(_) => true,
-            SchemeProjectionProofSupport::Claimed(claim) => self.eval_root_coverage(claim),
-        }
-    }
-
-    fn support_has_clause_link(
-        &self,
-        record: BoundRecordId,
-        support: SchemeProjectionProofSupport,
-    ) -> bool {
-        self.machine
-            .proof_store
-            .projection_formula_for_record(record)
-            .iter()
-            .any(|clause| clause.support() == support)
-    }
-
-    fn enter(&mut self, node: ProofEvalNode) -> Option<bool> {
-        match self.states.get(&node).copied() {
-            Some(ProofEvalState::Done(result)) => Some(result),
-            Some(ProofEvalState::Visiting) => {
-                self.cycle_cuts += 1;
-                Some(false)
-            }
-            None => {
-                self.states.insert(node, ProofEvalState::Visiting);
-                self.visiting_nodes += 1;
-                None
-            }
-        }
-    }
-
-    fn finish(&mut self, node: ProofEvalNode, result: bool) -> bool {
-        debug_assert_eq!(self.states.get(&node), Some(&ProofEvalState::Visiting));
-        self.states.insert(node, ProofEvalState::Done(result));
-        self.visiting_nodes -= 1;
-        result
-    }
-
-    fn finish_result(
-        &mut self,
-        node: ProofEvalNode,
-        result: ReplayFactoredResult<bool>,
-    ) -> ReplayFactoredResult<bool> {
-        match result {
-            Ok(result) => Ok(self.finish(node, result)),
-            Err(failure) => {
-                debug_assert_eq!(self.states.get(&node), Some(&ProofEvalState::Visiting));
-                self.states.remove(&node);
-                self.visiting_nodes -= 1;
-                Err(failure)
-            }
-        }
-    }
-}
-
 /// Shares acyclic projection results across top-level queries over one fixed view.
 ///
 /// A cycle cut can leave root-dependent `Done` results in the shared evaluator. Once a query cuts
 /// a cycle, that evaluator is discarded and every remaining query uses its own fresh evaluator.
 #[cfg(test)]
-struct SchemeProjectionEvaluationRound<'a> {
+struct CpkTestProjectionEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
     record_result_override: Option<(BoundRecordId, bool)>,
-    shared: Option<SchemeProjectionEvaluator<'a>>,
+    shared: Option<proof::CpkProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
 #[cfg(test)]
-impl<'a> SchemeProjectionEvaluationRound<'a> {
+impl<'a> CpkTestProjectionEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self::new_with_record_result_override(machine, None)
     }
@@ -1397,7 +1104,7 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
         }
     }
 
-    fn eval_record(&mut self, record: BoundRecordId) -> ReplayFactoredResult<bool> {
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if self.sharing_disabled {
             return Self::new_evaluator(self.machine, self.record_result_override)
                 .eval_record(record);
@@ -1407,13 +1114,11 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
             .shared
             .as_mut()
             .expect("sharing remains available until a cycle cut disables it");
-        let cuts_before = shared.cycle_cuts;
+        let cuts_before = shared.cycle_cuts();
         let result = shared.eval_record(record);
-        assert_eq!(
-            shared.visiting_nodes, 0,
-            "projection evaluation left a Visiting node after a top-level query"
-        );
-        let cycle_was_cut = shared.cycle_cuts != cuts_before;
+        assert!(!shared.has_visiting_state(),
+            "projection evaluation left a Visiting node after a top-level query");
+        let cycle_was_cut = shared.cycle_cuts() != cuts_before;
 
         if cycle_was_cut {
             self.shared = None;
@@ -1426,8 +1131,8 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
     fn new_evaluator(
         machine: &'a ConstraintMachine,
         record_result_override: Option<(BoundRecordId, bool)>,
-    ) -> SchemeProjectionEvaluator<'a> {
-        let evaluator = SchemeProjectionEvaluator::new(machine);
+    ) -> proof::CpkProjectionEvaluator<'a> {
+        let evaluator = proof::CpkProjectionEvaluator::new(machine, &machine.proof_store);
         let Some((record, result)) = record_result_override else {
             return evaluator;
         };
@@ -1437,8 +1142,8 @@ impl<'a> SchemeProjectionEvaluationRound<'a> {
 
 /// Publication-time projection evaluation over the CPK-authoritative snapshot.
 ///
-/// RCPF's factored evaluator remains available to its direct structure tests, but publication
-/// decisions use the CPK-authoritative evaluator below.
+/// RCPF's factored stores remain available to their direct structure tests, but publication
+/// decisions and test evaluation rounds use the CPK-authoritative evaluator below.
 struct CpkPublicationEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
     record_result_override: Option<(BoundRecordId, bool)>,
@@ -2080,15 +1785,15 @@ impl ConstraintMachine {
             .cloned()
             .unwrap_or_default();
         self.extend_with_record_dependents(&mut affected_records);
-        let mut before_round = SchemeProjectionEvaluationRound::with_record_result_override(
+        let mut before_round = CpkTestProjectionEvaluationRound::with_record_result_override(
             self,
             lower_record,
             was_included,
         );
-        let mut after_round = SchemeProjectionEvaluationRound::new(self);
+        let mut after_round = CpkTestProjectionEvaluationRound::new(self);
         let mut affected_owners = FxHashSet::default();
         for record in affected_records {
-            if before_round.eval_record(record)? != after_round.eval_record(record)?
+            if before_round.eval_record(record) != after_round.eval_record(record)
                 && let Some(owner) = self.active_projection_record_owner(record)
             {
                 affected_owners.insert(owner);

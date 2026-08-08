@@ -518,12 +518,26 @@ const CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES: &[&str] = &[
 ];
 
 // CPK-8G-6g1 removes the flat-vs-RCPF Legacy comparison adapter after its final historical
-// dependents retire. The surviving Factored evaluator test reads RCPF directly and retains its
-// fresh/shared/canonical-order contract; it no longer selects or compares a Legacy source.
+// dependents retire. CPK-8G-9-0b later retires the last test-only Factored evaluator itself after
+// moving the semantic-snapshot round to the production CPK evaluator.
 const CPK8G6G1_RETIRED_LEGACY_READER_TESTS: &[(&str, &str)] = &[(
     "rcpf_c2_factored_oracle_skips_a_quarantined_shadow",
     "Category B: the test selected the removed Legacy evaluator after corrupting/quarantining the RCPF shadow; CPK publication and typed attempt-terminal failure tests now own the product contract",
 )];
+
+// CPK-8G-9-0b closes the final test-only RCPF consumers before reverse-topological structure
+// deletion. These are representation characterizations, not the direct structure tests retained
+// below: the CPK evaluator and canonical exact-parent contracts own their surviving semantics.
+const CPK8G90B_RETIRED_RCPF_FIXTURES: &[(&str, &str)] = &[
+    (
+        "rcpf_c2_factored_evaluator_matches_fresh_shared_and_insertion_order_queries",
+        "the semantic snapshot and publication rounds now use CpkProjectionEvaluator; CPK cycle-cut, canonical formula-order, and fresh/shared equivalence tests pin the surviving contract",
+    ),
+    (
+        "replay_plan_parent_drafts_match_legacy_parent_order",
+        "CPK qualified-parent canonical exact-order and first-witness permutation tests pin the product identity/order contract; ReplayParentDraft identity was only RCPF writer plumbing",
+    ),
+];
 
 const CPK8G6G1_REMOVED_LEGACY_READER_SURFACES: &[&str] = &[
     "ReplayEvaluatorSource",
@@ -604,7 +618,9 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 enum Cpk8gPhysicalTarget {
     ParentSetArena,
     ReplayOccurrenceStore,
+    NonReplayClaimParentStore,
     ReplayResultSummary,
+    ReplayClauseProjection,
     ReplayFactoredShellAndTelemetry,
 }
 
@@ -645,7 +661,7 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
 
 const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 0;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
-const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 11;
+const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 10;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     Cpk8gPhysicalTestGroup {
@@ -669,13 +685,16 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
         ],
     },
     Cpk8gPhysicalTestGroup {
-        targets: &[
-            Cpk8gPhysicalTarget::ReplayOccurrenceStore,
-            Cpk8gPhysicalTarget::ReplayResultSummary,
-        ],
-        tests: &[
-            "rcpf_c2_factored_evaluator_matches_fresh_shared_and_insertion_order_queries",
-        ],
+        targets: &[Cpk8gPhysicalTarget::ReplayOccurrenceStore],
+        tests: &[],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[Cpk8gPhysicalTarget::NonReplayClaimParentStore],
+        tests: &[],
+    },
+    Cpk8gPhysicalTestGroup {
+        targets: &[Cpk8gPhysicalTarget::ReplayClauseProjection],
+        tests: &[],
     },
     Cpk8gPhysicalTestGroup {
         targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
@@ -696,6 +715,7 @@ const CPK8G8C_COMPLETED_SUBSLICES: &[&str] = &["8G-8c0", "8G-8c1"];
 const CPK8G8_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
 ];
+const CPK8G9_PREPARATION_COMPLETED_SUBSLICES: &[&str] = &["8G-9-0a", "8G-9-0b"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -790,7 +810,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // counted non-replay RCPF store whose name contains this token).
     // CPK-8G-7b4 removes the final flat parent Vec and its complete capacity/commit writer. The
     // surviving references are the separately counted RCPF NonReplayClaimParentStore field only.
-    ("claim_parents_by_constraint", 6),
+    // CPK-8G-9-0b removes the final test-evaluator and logical-snapshot fixture reads.
+    ("claim_parents_by_constraint", 4),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
     // CPK-8G-7b1 removes this first flat parent-relation mirror and its writer completely.
     ("replay_claim_parent_keys", 0),
@@ -832,10 +853,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("record_proof_clause_ids_by_lower_record", 0),
     ("record_proof_clause_links_by_lower_record", 0),
     ("record_proof_clause_link_keys", 0),
-    // The remaining six lexical matches are ReplayClauseProjection's deliberately retained
-    // replay_attributed_claim_supports field and its direct RCPF structure tests, not the removed
-    // TypeBounds attribution mirror.
-    ("attributed_claim_supports", 6),
+    // The remaining five lexical matches are ReplayClauseProjection's deliberately retained
+    // replay_attributed_claim_supports field and writer, not the removed TypeBounds attribution
+    // mirror; CPK-8G-9-0b retires the last RCPF evaluator integration fixture.
+    ("attributed_claim_supports", 5),
     ("flat_retained_attributed_claim_supports", 0),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
@@ -909,8 +930,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // 8G-8a1 removes the flat support decision path's five claim/root lookups; 8G-8a2 removes the
     // final lookup from the deleted support/root mirror commit. CPK-8G-9-0a removes three more
     // reads from the retired RCPF upper/lower materialization validation adapter; CPK's claim
-    // arena and exact-parent index already own those production decisions.
-    ("upper_replay_claims", 65),
+    // arena and exact-parent index already own those production decisions. CPK-8G-9-0b removes
+    // the final test-only RCPF evaluator's flat claim lookup.
+    ("upper_replay_claims", 64),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -918,19 +940,22 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-2b adds both CPK-owned and flat-mirror transaction preflight/atomicity references.
     // CPK-8G-2d adds the CPK-owned move preflight/commit, flat-mirror commit, and direct
     // multi-move/atomicity assertions. The flat index is now observed only as a transition mirror.
-    // CPK-8G-6c removes one historical flat materialization-census read.
-    ("claims_by_upper_record", 62),
+    // CPK-8G-6c removes one historical flat materialization-census read. CPK-8G-9-0b removes the
+    // final test-only RCPF evaluator lookup; the CPK evaluator reads its own upper-claim index.
+    ("claims_by_upper_record", 61),
     // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
     // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
-    // CPK-8G-6f removes the Legacy projectability reader's flat coverage lookup.
-    ("live_coverage_by_root", 13),
+    // CPK-8G-6f removes the Legacy projectability reader's flat coverage lookup. CPK-8G-9-0b
+    // removes the test-only RCPF evaluator lookup in favor of CPK live coverage.
+    ("live_coverage_by_root", 12),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
     // CPK-8G-6g1 removes only comparison-oracle reads; the direct arena API remains.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
     // CPK-8G-8b0 removes the last authority preflight that consulted RCPF parent sets.
-    ("replay_parent_sets", 10),
+    // CPK-8G-9-0b removes the CPK-0b census/reset fixture reads.
+    ("replay_parent_sets", 8),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
@@ -938,9 +963,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6g1 removes Legacy-parity reconstruction and event-boundary reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
     // CPK-8G-8b0 removes the RCPF occurrence-based exact-link authority preflight. CPK-8G-9-0a
-    // removes the final production occurrence reader from premise-dependency traversal; only the
-    // RCPF writer, direct structure tests, and the test-only evaluator remain.
-    ("replay_occurrences", 15),
+    // removes the final production occurrence reader from premise-dependency traversal. CPK-8G-
+    // 9-0b removes the test evaluator, CPK-0b census/reset, and CPK-3 fixture read; only the RCPF
+    // writer and structure definition remain.
+    ("replay_occurrences", 11),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
@@ -949,15 +975,18 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6g1 removes event/evaluator oracle activation and comparison reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
     // CPK-8G-9-0a removes six full/delta materialization-validation reads; summary population and
-    // its direct structure tests remain intact until the 8G-9c deletion slice.
-    ("replay_result_summary", 7),
+    // its direct structure tests remain intact until the 8G-9c deletion slice. CPK-8G-9-0b
+    // removes the CPK-0b census/reset reads.
+    ("replay_result_summary", 5),
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
     // CPK-8G-6g1 removes flat-vs-RCPF attribution and exact-link reconstruction reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
     // CPK-8G-8b0 removes RCPF from admission dedup and the test evaluator's attribution union.
-    ("replay_clause_projection", 6),
+    // CPK-8G-9-0b removes the final CPK-0b census read.
+    ("replay_clause_projection", 5),
     // CPK-8G-6g2 likewise pins non-replay parent population after removing the authority gate.
-    ("non_replay_claim_parents_by_constraint", 6),
+    // CPK-8G-9-0b removes the test evaluator and CPK-0b census/reset reads.
+    ("non_replay_claim_parents_by_constraint", 4),
 ];
 
 const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
@@ -1118,7 +1147,10 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
         "constraints/machine/bounds.rs",
         "register_claim_parent_dependency_chain",
     ),
-    ("constraints/mod.rs", "support_has_clause_link"),
+    (
+        "constraints/mod.rs",
+        "try_evaluate_record_inclusion_publication",
+    ),
     (
         "constraints/replay_factored.rs",
         "try_project_replay_parents",
@@ -1440,6 +1472,68 @@ fn cpk_8g_8_all_flat_projection_relations_are_fully_removed() {
             "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
         ],
         "CPK-8G-8 closure must retain all seven reviewed sub-slice dispositions",
+    );
+}
+
+#[test]
+fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
+    let bounds = include_str!("machine/bounds.rs");
+    let (bounds_production, bounds_tests) = bounds
+        .split_once("#[cfg(test)]\nmod mutation_tests")
+        .expect("bounds production/test boundary");
+    for (field, expected_writer_references) in [
+        (".replay_parent_sets", 6),
+        (".replay_occurrences", 6),
+        (".replay_result_summary", 2),
+        (".replay_clause_projection", 1),
+        (".non_replay_claim_parents_by_constraint", 1),
+    ] {
+        assert_eq!(
+            bounds_production.matches(field).count(),
+            expected_writer_references,
+            "RCPF production surface changed outside its reviewed one-way writer: {field}",
+        );
+        assert_eq!(
+            bounds_tests.matches(field).count(),
+            0,
+            "RCPF test fixture must use CPK state instead of reading {field}",
+        );
+    }
+
+    for source in [
+        include_str!("mod.rs"),
+        include_str!("proof/mod.rs"),
+        include_str!("semantic_execution_snapshot.rs"),
+    ] {
+        for field in [
+            ".replay_parent_sets",
+            ".replay_occurrences",
+            ".replay_result_summary",
+            ".replay_clause_projection",
+            ".non_replay_claim_parents_by_constraint",
+        ] {
+            assert!(
+                !source.contains(field),
+                "RCPF reader escaped the definition/writer/direct-test boundary: {field}",
+            );
+        }
+    }
+    for retired in [
+        "SchemeProjectionEvaluator",
+        "SchemeProjectionEvaluationRound",
+        "register_factored_parent_snapshot",
+    ] {
+        assert!(
+            ![bounds, include_str!("mod.rs"), include_str!("semantic_execution_snapshot.rs")]
+                .iter()
+                .any(|source| source.contains(retired)),
+            "retired RCPF test-reader helper reappeared: {retired}",
+        );
+    }
+    assert_eq!(
+        CPK8G9_PREPARATION_COMPLETED_SUBSLICES,
+        &["8G-9-0a", "8G-9-0b"],
+        "RCPF structure deletion requires both reader-closure preparation slices",
     );
 }
 
@@ -1948,6 +2042,17 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "CPK-8G-6g1 retired Legacy-reader test reappeared: {retired}",
         );
     }
+    for &(retired, reason) in CPK8G90B_RETIRED_RCPF_FIXTURES {
+        assert!(!reason.is_empty(), "retired RCPF fixture must retain its replacement reason");
+        assert_eq!(
+            reviewed_physical_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {retired}(")).count())
+                .sum::<usize>(),
+            0,
+            "CPK-8G-9-0b retired RCPF fixture reappeared: {retired}",
+        );
+    }
     let removed_authority_reader_surfaces = CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES
         .iter()
         .chain(CPK8G6G1_REMOVED_LEGACY_READER_SURFACES)
@@ -2087,7 +2192,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     );
     assert_eq!(
         bounds_rcpf_tests.len(),
-        1,
+        0,
         "the direct machine/bounds.rs rcpf_* test census changed",
     );
     assert_eq!(
@@ -2143,7 +2248,9 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let all_targets = [
         Cpk8gPhysicalTarget::ParentSetArena,
         Cpk8gPhysicalTarget::ReplayOccurrenceStore,
+        Cpk8gPhysicalTarget::NonReplayClaimParentStore,
         Cpk8gPhysicalTarget::ReplayResultSummary,
+        Cpk8gPhysicalTarget::ReplayClauseProjection,
         Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
     ];
     let mut manifested_names = BTreeSet::new();

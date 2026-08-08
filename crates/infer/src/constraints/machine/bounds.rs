@@ -4064,7 +4064,7 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         derivation: BinaryReplayDerivation,
         claim: UpperReplayClaimId,
-    ) {
+    ) -> usize {
         let constraint = self.constraint_records[result.0 as usize].key.clone();
         let mut replay = BoundReplayPlan::default();
         self.push_replay_constraint_or_prefilter(
@@ -4080,10 +4080,35 @@ impl ConstraintMachine {
         );
         assert_eq!(replay.duplicate_actions.len(), 1);
         assert!(replay.trivial_actions.is_empty());
+        let duplicate_count = replay.duplicate_actions.len();
         self.apply_prefiltered_replay_provenance_with_parent_drafts(
             replay.duplicate_actions,
             replay.trivial_actions,
             &replay.parent_drafts,
+        );
+        duplicate_count
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn apply_cpk_replay_parent_arrival_without_materialization_for_test(
+        &mut self,
+        result: ConstraintRecordId,
+        derivation: BinaryReplayDerivation,
+        claim: UpperReplayClaimId,
+    ) {
+        let parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: claim,
+            parent_side: ReplayClaimParentSide::Lower,
+            replay: derivation,
+        };
+        self.admit_claim_qualified_parent(result, parent);
+        self.proof_store.record_cpk_replay_parent_snapshot(
+            result,
+            derivation,
+            &[SideTaggedReplayClaim {
+                claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            }],
         );
     }
 
@@ -4587,225 +4612,6 @@ impl ConstraintMachine {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
-
-    fn replay_plan_actions(replay: &BoundReplayPlan) -> impl Iterator<Item = &BoundReplayAction> {
-        replay
-            .actions
-            .iter()
-            .chain(&replay.evidence_actions)
-            .chain(&replay.duplicate_actions)
-            .chain(&replay.trivial_actions)
-    }
-
-    fn assert_parent_drafts_match_legacy(replay: &BoundReplayPlan) {
-        for action in replay_plan_actions(replay) {
-            for (side, draft_id) in [
-                (ReplayClaimParentSide::Lower, action.lower_parents),
-                (ReplayClaimParentSide::Upper, action.upper_parents),
-            ] {
-                let expected = action
-                    .claim_parents
-                    .iter()
-                    .filter(|parent| parent.parent_side == side)
-                    .map(|parent| parent.claim)
-                    .collect::<Vec<_>>();
-                let actual = if draft_id == ReplayParentDraftId::EMPTY {
-                    &[][..]
-                } else {
-                    replay
-                        .parent_draft(draft_id)
-                        .expect("action draft ID belongs to its replay plan")
-                        .claims
-                        .as_ref()
-                };
-                assert_eq!(actual, expected);
-            }
-        }
-    }
-
-    #[test]
-    fn replay_plan_parent_drafts_match_legacy_parent_order() {
-        let mut machine = ConstraintMachine::new();
-        let source = TypeVar(0);
-        let target = TypeVar(1);
-        let lower = machine.alloc_pos(Pos::Var(source));
-        let upper = machine.alloc_neg(Neg::Var(target));
-        let derivation = BinaryReplayDerivation {
-            pivot: target,
-            lower: BoundRecordId(20),
-            upper: BoundRecordId(21),
-            rule: ReplayRule::LowerBoundAdded,
-        };
-        let claim_parents = ReplayClaimParents::from_iter([
-            SideTaggedReplayClaim {
-                claim: UpperReplayClaimId(30),
-                parent_side: ReplayClaimParentSide::Lower,
-            },
-            SideTaggedReplayClaim {
-                claim: UpperReplayClaimId(31),
-                parent_side: ReplayClaimParentSide::Lower,
-            },
-            SideTaggedReplayClaim {
-                claim: UpperReplayClaimId(40),
-                parent_side: ReplayClaimParentSide::Upper,
-            },
-            SideTaggedReplayClaim {
-                claim: UpperReplayClaimId(41),
-                parent_side: ReplayClaimParentSide::Upper,
-            },
-        ]);
-        let mut replay = BoundReplayPlan::default();
-
-        machine.push_replay_constraint_or_prefilter(
-            lower,
-            ConstraintWeights::empty(),
-            upper,
-            derivation,
-            claim_parents.clone(),
-            &mut replay,
-        );
-
-        let mut actions = replay_plan_actions(&replay);
-        let action = actions.next().expect("planning retains one replay action");
-        assert!(actions.next().is_none());
-        assert_eq!(action.claim_parents, claim_parents);
-        assert_eq!(
-            replay
-                .parent_draft(action.lower_parents)
-                .expect("non-empty lower draft")
-                .claims
-                .as_ref(),
-            &[UpperReplayClaimId(30), UpperReplayClaimId(31)]
-        );
-        assert_eq!(
-            replay
-                .parent_draft(action.upper_parents)
-                .expect("non-empty upper draft")
-                .claims
-                .as_ref(),
-            &[UpperReplayClaimId(40), UpperReplayClaimId(41)]
-        );
-        let first_draft_ids = (action.lower_parents, action.upper_parents);
-        drop(actions);
-
-        machine.push_replay_constraint_or_prefilter(
-            lower,
-            ConstraintWeights::empty(),
-            upper,
-            BinaryReplayDerivation {
-                rule: ReplayRule::UpperBoundAdded,
-                ..derivation
-            },
-            claim_parents,
-            &mut replay,
-        );
-
-        assert_eq!(replay.parent_drafts.len(), 2);
-        assert_eq!(replay_plan_actions(&replay).count(), 2);
-        for action in replay_plan_actions(&replay) {
-            assert_eq!(
-                (action.lower_parents, action.upper_parents),
-                first_draft_ids
-            );
-        }
-        assert_parent_drafts_match_legacy(&replay);
-    }
-
-
-    fn register_factored_parent_snapshot(
-        machine: &mut ConstraintMachine,
-        result: ConstraintRecordId,
-        replay: BinaryReplayDerivation,
-        parents: &[SideTaggedReplayClaim],
-    ) {
-        register_factored_parent_snapshot_with_materialization(
-            machine, result, replay, parents, true,
-        );
-    }
-
-    fn register_factored_parent_snapshot_with_materialization(
-        machine: &mut ConstraintMachine,
-        result: ConstraintRecordId,
-        replay: BinaryReplayDerivation,
-        parents: &[SideTaggedReplayClaim],
-        materialize_existing_target: bool,
-    ) {
-        let claim_parents = parents.iter().copied().collect::<ReplayClaimParents>();
-        let mut plan = BoundReplayPlan::default();
-        let lower = plan.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower);
-        let upper = plan.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Upper);
-        machine.register_replay_claim_parents_with_factored_drafts(
-            result,
-            replay,
-            parents,
-            materialize_existing_target,
-            FactoredReplayParentDrafts {
-                parent_drafts: &plan.parent_drafts,
-                lower,
-                upper,
-            },
-        );
-    }
-
-    #[test]
-    fn rcpf_c2_factored_evaluator_matches_fresh_shared_and_insertion_order_queries() {
-        for standalone_first in [false, true] {
-            let mut machine = ConstraintMachine::new();
-            let (source, cycle_support) =
-                dpn_b_synthetic_projection_record(&mut machine, 100 + standalone_first as u32);
-            let (dependent, dependent_support) =
-                dpn_b_synthetic_projection_record(&mut machine, 110 + standalone_first as u32);
-            let standalone_support =
-                SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
-            let mutation = machine.try_prepare_scheme_projection_mutation(
-                source,
-                &[],
-                &[ProjectionProofCarrier::Incomplete],
-            ).expect("test projection support mutation must have capacity");
-            machine.apply_scheme_projection_mutation(mutation);
-            let cycle_clause = RecordProofClause::DerivedUnary {
-                carrier: dpn_b_synthetic_unary_carrier(100),
-                premise: ProofPremise::Record(dependent),
-            };
-            let standalone_clause = RecordProofClause::Standalone {
-                support: standalone_support,
-            };
-            let clauses = if standalone_first {
-                [
-                    (standalone_support, standalone_clause),
-                    (cycle_support, cycle_clause),
-                ]
-            } else {
-                [
-                    (cycle_support, cycle_clause),
-                    (standalone_support, standalone_clause),
-                ]
-            };
-            for (support, clause) in clauses {
-                dpn_b_register_synthetic_clause(&mut machine, source, support, clause);
-            }
-            dpn_b_register_synthetic_clause(
-                &mut machine,
-                dependent,
-                dependent_support,
-                RecordProofClause::DerivedUnary {
-                    carrier: dpn_b_synthetic_unary_carrier(101),
-                    premise: ProofPremise::Record(source),
-                },
-            );
-
-            for roots in [[source, dependent], [dependent, source]] {
-                let fresh = roots.map(|record| {
-                    let mut evaluator = SchemeProjectionEvaluator::new(&machine);
-                    evaluator.eval_record(record)
-                });
-                let mut round = SchemeProjectionEvaluationRound::new(&machine);
-                let shared = roots.map(|record| round.eval_record(record));
-                assert_eq!(fresh, shared);
-                assert_eq!(fresh, [Ok(true), Ok(true)]);
-            }
-        }
-    }
 
     #[test]
     fn cpk_no_claim_workload_does_not_allocate_qualified_parent_index() {
@@ -5508,29 +5314,14 @@ mod mutation_tests {
     fn cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end() {
         let mut fixture = cpk_mirrored_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
-        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
-            .key
-            .clone();
-        let mut replay_plan = BoundReplayPlan::default();
-        let mut action = cdm_replay_action(&fixture, key, replay);
-        action.lower_parents = replay_plan.intern_parent_draft(
-            &action.claim_parents,
-            ReplayClaimParentSide::Lower,
-        );
-        action.upper_parents = replay_plan.intern_parent_draft(
-            &action.claim_parents,
-            ReplayClaimParentSide::Upper,
-        );
-        let mut actions = BoundReplayActions::new();
-        actions.push(action);
         assert_eq!(
             fixture
                 .machine
-                .apply_bound_replay_actions_with_parent_drafts(
-                    actions,
-                    &replay_plan.parent_drafts,
-                )
-                .duplicate,
+                .apply_cpk_replay_parent_arrival_for_test(
+                    fixture.result,
+                    replay,
+                    fixture.parent.claim,
+                ),
             1,
             "the fixture must exercise canonical-duplicate replay admission",
         );
@@ -5577,47 +5368,10 @@ mod mutation_tests {
         assert!(rendered.contains("Independent"));
         assert!(rendered.contains("Structural"));
 
-        let parent_set_census = fixture.machine.replay_parent_sets.storage_census();
-        let occurrences = &fixture.machine.replay_occurrences;
-        let result_summary = &fixture.machine.replay_result_summary;
-        let clause_projection = &fixture.machine.replay_clause_projection;
-        let non_replay_census = fixture
-            .machine
-            .non_replay_claim_parents_by_constraint
-            .storage_census();
-        let rcpf_storage_census = (
-            parent_set_census.0,
-            parent_set_census.2,
-            occurrences.occurrences.len(),
-            occurrences.by_key.len(),
-            occurrences.by_result.len(),
-            occurrences.attachment_batches.len(),
-            result_summary.first_parent_by_root.len(),
-            result_summary.projected_parent_versions.len(),
-            clause_projection
-                .clause_by_record_and_occurrence
-                .len(),
-            clause_projection
-                .replay_attributed_claim_supports
-                .len(),
-            non_replay_census.0,
-            non_replay_census.2,
-        );
-        assert_eq!(
-            rcpf_storage_census,
-            (1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1),
-            "CPK-8G-6g2 must preserve the representative RCPF physical-storage census",
-        );
-
-        fixture.machine.replay_parent_sets = Default::default();
-        fixture.machine.replay_occurrences = Default::default();
-        fixture.machine.replay_result_summary = Default::default();
-        fixture.machine.non_replay_claim_parents_by_constraint = Default::default();
-        fixture.machine.bounds.upper_replay_claims.clear();
         assert_eq!(
             fixture.machine.logical_proof_snapshot(),
             snapshot,
-            "the frozen logical snapshot must be independent of every former flat/RCPF read",
+            "the CPK-only logical snapshot is stable across repeated construction",
         );
     }
 
@@ -5627,33 +5381,19 @@ mod mutation_tests {
             cpk_mirrored_cdm_replay_claim_fixture()
         });
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
-        let key = fixture.machine.constraint_records[fixture.result.0 as usize]
-            .key
-            .clone();
         let apply_replay = |fixture: &mut CdmReplayClaimFixture| {
-            let mut replay_plan = BoundReplayPlan::default();
-            let mut action = cdm_replay_action(fixture, key.clone(), replay);
-            action.lower_parents = replay_plan.intern_parent_draft(
-                &action.claim_parents,
-                ReplayClaimParentSide::Lower,
-            );
-            action.upper_parents = replay_plan.intern_parent_draft(
-                &action.claim_parents,
-                ReplayClaimParentSide::Upper,
-            );
-            let mut actions = BoundReplayActions::new();
-            actions.push(action);
             fixture
                 .machine
-                .apply_bound_replay_actions_with_parent_drafts(
-                    actions,
-                    &replay_plan.parent_drafts,
+                .apply_cpk_replay_parent_arrival_for_test(
+                    fixture.result,
+                    replay,
+                    fixture.parent.claim,
                 )
         };
-        assert_eq!(apply_replay(&mut fixture).duplicate, 1);
+        assert_eq!(apply_replay(&mut fixture), 1);
 
         let logical_before_noop = fixture.machine.logical_proof_snapshot();
-        assert_eq!(apply_replay(&mut fixture).duplicate, 1);
+        assert_eq!(apply_replay(&mut fixture), 1);
         let logical_after_noop = fixture.machine.logical_proof_snapshot();
         assert_eq!(
             logical_after_noop, logical_before_noop,
@@ -5689,23 +5429,6 @@ mod mutation_tests {
                 upper: self.upper_record,
                 rule,
             }
-        }
-    }
-
-    fn cdm_replay_action(
-        fixture: &CdmReplayClaimFixture,
-        constraint: SubtypeConstraintKey,
-        derivation: BinaryReplayDerivation,
-    ) -> BoundReplayAction {
-        let mut claim_parents = ReplayClaimParents::new();
-        claim_parents.push(fixture.parent);
-        BoundReplayAction {
-            constraint,
-            derivation,
-            claim_parents,
-            lower_parents: ReplayParentDraftId::EMPTY,
-            upper_parents: ReplayParentDraftId::EMPTY,
-            canonicalization_disposition: None,
         }
     }
 
@@ -6021,11 +5744,13 @@ mod mutation_tests {
                 match event {
                     Event::Replay => {
                         assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
-                        let parent = SideTaggedReplayClaim {
-                            claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower,
-                        };
-                        register_factored_parent_snapshot(
-                            &mut self.machine, self.result, self.replay, &[parent],
+                        assert_eq!(
+                            self.machine.apply_cpk_replay_parent_arrival_for_test(
+                                self.result,
+                                self.replay,
+                                self.roots[0],
+                            ),
+                            1,
                         );
                     }
                     Event::NonReplay => {
@@ -6220,12 +5945,12 @@ mod mutation_tests {
 
             fn admit_replay(&mut self) {
                 assert_eq!(self.machine.merge_replay_derivation(self.result, self.replay), ReplayDerivationInsert::Inserted);
-                let parent = SideTaggedReplayClaim {
-                    claim: self.roots[0], parent_side: ReplayClaimParentSide::Lower,
-                };
-                register_factored_parent_snapshot_with_materialization(
-                    &mut self.machine, self.result, self.replay, &[parent], false,
-                );
+                self.machine
+                    .apply_cpk_replay_parent_arrival_without_materialization_for_test(
+                        self.result,
+                        self.replay,
+                        self.roots[0],
+                    );
             }
 
             fn admit_non_replay(&mut self, index: usize) {
