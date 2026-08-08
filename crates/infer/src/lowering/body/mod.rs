@@ -33,10 +33,7 @@ mod yumark_tests;
 use super::*;
 use crate::analysis::AnalysisTiming;
 use crate::constraints::ocast_eligibility::OcastEligibilityMetrics;
-use crate::constraints::{
-    ConstraintTiming, ProofFailure, ReplayFactoredFailureOperation, ReplayFactoredShadowFailure,
-    record_replay_factored_failure,
-};
+use crate::constraints::{ConstraintTiming, ProofFailure};
 use crate::source_range_for_name;
 use register::*;
 use signature_helpers::*;
@@ -648,65 +645,43 @@ pub fn lower_binding_bodies(root: &Cst, lower: Lower) -> BodyLowering {
     lowerer.finish()
 }
 
-struct ReplayCompilationAttempt<T> {
+struct ProofCompilationAttempt<T> {
     output: T,
-    terminal_failure: Option<ReplayFactoredShadowFailure>,
-    proof_terminal_failure: Option<ProofFailure>,
-    terminal_failure_recorded: bool,
+    terminal_failure: Option<ProofFailure>,
 }
 
-impl<T> ReplayCompilationAttempt<T> {
+impl<T> ProofCompilationAttempt<T> {
     #[cfg(test)]
-    fn completed(output: T, terminal_failure: Option<ReplayFactoredShadowFailure>) -> Self {
+    fn completed(output: T, terminal_failure: Option<ProofFailure>) -> Self {
         Self {
             output,
             terminal_failure,
-            proof_terminal_failure: None,
-            terminal_failure_recorded: false,
         }
     }
 
-    fn completed_from_machine(
-        output: T,
-        terminal_failure: Option<ReplayFactoredShadowFailure>,
-        proof_terminal_failure: Option<ProofFailure>,
-    ) -> Self {
+    fn completed_from_machine(output: T, terminal_failure: Option<ProofFailure>) -> Self {
         Self {
             output,
             terminal_failure,
-            proof_terminal_failure,
-            terminal_failure_recorded: terminal_failure.is_some(),
         }
     }
 }
 
-fn run_replay_compilation_attempt<T>(
-    attempt: impl FnOnce() -> Result<ReplayCompilationAttempt<T>, LoadedFilesError>,
+fn run_proof_compilation_attempt<T>(
+    attempt: impl FnOnce() -> Result<ProofCompilationAttempt<T>, LoadedFilesError>,
 ) -> Result<T, LoadedFilesError> {
     let first = attempt()?;
-    if first.proof_terminal_failure.is_some() {
-        drop(first.output);
-        return Err(LoadedFilesError::ProofKernelFailed);
-    }
-    let Some(replay_failure) = first.terminal_failure else {
+    let Some(_proof_failure) = first.terminal_failure else {
         return Ok(first.output);
     };
-    if !first.terminal_failure_recorded {
-        record_replay_factored_failure(replay_failure, ReplayFactoredFailureOperation::Read, true);
-    }
     drop(first.output);
-    Err(LoadedFilesError::ReplayFactoredFailed)
+    Err(LoadedFilesError::ProofKernelFailed)
 }
 
-fn body_lowering_attempt(output: BodyLowering) -> ReplayCompilationAttempt<BodyLowering> {
+fn body_lowering_attempt(output: BodyLowering) -> ProofCompilationAttempt<BodyLowering> {
     let constraints = output.session.infer.constraints();
-    let terminal_failure = constraints.replay_factored_terminal_failure();
-    let proof_terminal_failure = constraints.proof_terminal_failure();
-    ReplayCompilationAttempt::completed_from_machine(
-        output,
-        terminal_failure,
-        proof_terminal_failure,
-    )
+    let terminal_failure = constraints.proof_terminal_failure();
+    ProofCompilationAttempt::completed_from_machine(output, terminal_failure)
 }
 
 /// 複数 `LoadedFile` を1つの module tree として body lowering する。
@@ -733,7 +708,7 @@ fn lower_loaded_files_with_consumer<T>(
     files: &[LoadedFile],
     mut consumer: impl FnMut(&mut BodyLowerer) -> T,
 ) -> Result<(BodyLowering, T), LoadedFilesError> {
-    run_replay_compilation_attempt(|| {
+    run_proof_compilation_attempt(|| {
         lower_loaded_files_with_consumer_once(files, &mut consumer, BodyLowerer::new)
     })
 }
@@ -742,7 +717,7 @@ fn lower_loaded_files_with_consumer_once<T>(
     files: &[LoadedFile],
     consumer: &mut impl FnMut(&mut BodyLowerer) -> T,
     initialize_lowerer: impl FnOnce(Lower) -> BodyLowerer,
-) -> Result<ReplayCompilationAttempt<(BodyLowering, T)>, LoadedFilesError> {
+) -> Result<ProofCompilationAttempt<(BodyLowering, T)>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -814,12 +789,10 @@ fn lower_loaded_files_with_consumer_once<T>(
     timing.phase("finish lowering", measured.finish);
     timing.phase("total lower_loaded_files", measured.total);
     let constraints = output.session.infer.constraints();
-    let terminal_failure = constraints.replay_factored_terminal_failure();
-    let proof_terminal_failure = constraints.proof_terminal_failure();
-    Ok(ReplayCompilationAttempt::completed_from_machine(
+    let terminal_failure = constraints.proof_terminal_failure();
+    Ok(ProofCompilationAttempt::completed_from_machine(
         (output, consumer_output),
         terminal_failure,
-        proof_terminal_failure,
     ))
 }
 
@@ -841,13 +814,13 @@ pub fn lower_loaded_files_with_prefix(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],
 ) -> Result<BodyLowering, LoadedFilesError> {
-    run_replay_compilation_attempt(|| lower_loaded_files_with_prefix_once(prefix, files))
+    run_proof_compilation_attempt(|| lower_loaded_files_with_prefix_once(prefix, files))
 }
 
 fn lower_loaded_files_with_prefix_once(
     prefix: &BodyLoweringPrefix,
     files: &[LoadedFile],
-) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
+) -> Result<ProofCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -946,13 +919,13 @@ pub fn lower_root_loaded_file_with_prefix(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,
 ) -> Result<BodyLowering, LoadedFilesError> {
-    run_replay_compilation_attempt(|| lower_root_loaded_file_with_prefix_once(prefix, root))
+    run_proof_compilation_attempt(|| lower_root_loaded_file_with_prefix_once(prefix, root))
 }
 
 fn lower_root_loaded_file_with_prefix_once(
     prefix: &BodyLoweringPrefix,
     root: &LoadedFile,
-) -> Result<ReplayCompilationAttempt<BodyLowering>, LoadedFilesError> {
+) -> Result<ProofCompilationAttempt<BodyLowering>, LoadedFilesError> {
     let timing = InferTiming::from_env();
     let mut measured = BodyLoweringTiming::default();
     let total_start = Instant::now();
@@ -2798,15 +2771,17 @@ mod rcpf_c3a_retry_tests {
         with_intentional_replay_soak_test_injection,
     };
 
-    const FAILURE: ReplayFactoredShadowFailure = ReplayFactoredShadowFailure::AllocationFailed;
+    const FAILURE: ProofFailure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::UpdateClaimLifecycle,
+    };
 
     #[test]
     fn rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch() {
         let mut next_identity = 0usize;
-        let output = run_replay_compilation_attempt(|| {
+        let output = run_proof_compilation_attempt(|| {
             let identity = next_identity;
             next_identity += 1;
-            Ok(ReplayCompilationAttempt::completed(identity, None))
+            Ok(ProofCompilationAttempt::completed(identity, None))
         })
         .expect("the normal attempt completes");
 
@@ -2828,9 +2803,9 @@ mod rcpf_c3a_retry_tests {
         let mut attempts = 0usize;
         let output_dropped = std::rc::Rc::new(std::cell::Cell::new(false));
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt(|| {
+            run_proof_compilation_attempt(|| {
                 attempts += 1;
-                Ok(ReplayCompilationAttempt::completed(
+                Ok(ProofCompilationAttempt::completed(
                     DropProbe(output_dropped.clone()),
                     Some(FAILURE),
                 ))
@@ -2838,7 +2813,7 @@ mod rcpf_c3a_retry_tests {
         })
         .expect_err("the factored failure is terminal");
 
-        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert!(
             output_dropped.get(),
             "the failed attempt output is discarded"
@@ -2854,18 +2829,16 @@ mod rcpf_c3a_retry_tests {
         let mut next_identity = 0usize;
         let (result, telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
-                run_replay_compilation_attempt(|| {
+                run_proof_compilation_attempt(|| {
                     let identity = next_identity;
                     next_identity += 1;
                     record_proof_terminal_failure(
                         ProofOperation::ProjectLowerEvaluation,
                         &failure,
                     );
-                    Ok(ReplayCompilationAttempt {
+                    Ok(ProofCompilationAttempt {
                         output: identity,
-                        terminal_failure: None,
-                        proof_terminal_failure: (identity == 0).then_some(failure.clone()),
-                        terminal_failure_recorded: false,
+                        terminal_failure: (identity == 0).then_some(failure.clone()),
                     })
                 })
             })
@@ -2893,17 +2866,15 @@ mod rcpf_c3a_retry_tests {
         let mut attempts = 0usize;
         let (error, telemetry) = capture_replay_soak_test_events(|| {
             with_intentional_replay_soak_test_injection(|| {
-                run_replay_compilation_attempt::<()>(|| {
+                run_proof_compilation_attempt::<()>(|| {
                     attempts += 1;
                     record_proof_terminal_failure(
                         ProofOperation::ProjectLowerEvaluation,
                         &failure,
                     );
-                    Ok(ReplayCompilationAttempt {
+                    Ok(ProofCompilationAttempt {
                         output: (),
-                        terminal_failure: None,
-                        proof_terminal_failure: Some(failure.clone()),
-                        terminal_failure_recorded: false,
+                        terminal_failure: Some(failure.clone()),
                     })
                 })
             })
@@ -2927,14 +2898,14 @@ mod rcpf_c3a_retry_tests {
     fn cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt() {
         let mut attempts = 0usize;
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt::<()>(|| {
+            run_proof_compilation_attempt::<()>(|| {
                 attempts += 1;
-                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
+                Ok(ProofCompilationAttempt::completed((), Some(FAILURE)))
             })
         })
         .expect_err("the RCPF failure is terminal before any second attempt");
 
-        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert_eq!(
             attempts, 1,
             "an RCPF failure must not start another compilation attempt",
@@ -2945,15 +2916,15 @@ mod rcpf_c3a_retry_tests {
     fn rcpf_c3a_failure_is_a_typed_hard_error_without_retry() {
         let mut attempt_count = 0usize;
         let error = with_intentional_replay_soak_test_injection(|| {
-            run_replay_compilation_attempt::<()>(|| {
+            run_proof_compilation_attempt::<()>(|| {
                 attempt_count += 1;
-                Ok(ReplayCompilationAttempt::completed((), Some(FAILURE)))
+                Ok(ProofCompilationAttempt::completed((), Some(FAILURE)))
             })
         })
         .expect_err("the first factored failure is terminal");
 
         assert_eq!(attempt_count, 1);
-        assert_eq!(error, LoadedFilesError::ReplayFactoredFailed);
+        assert_eq!(error, LoadedFilesError::ProofKernelFailed);
     }
 
     #[test]
@@ -2969,7 +2940,7 @@ mod rcpf_c3a_retry_tests {
                 .session
                 .infer
                 .constraints()
-                .replay_factored_terminal_failure(),
+                .proof_terminal_failure(),
             None
         );
     }

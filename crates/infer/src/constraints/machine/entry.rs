@@ -11,7 +11,6 @@ impl ConstraintMachine {
             bounds: TypeBounds::new(),
             proof_store: proof::ProofOccurrenceStore::default(),
             proof_terminal_failure: RefCell::new(None),
-            replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
             levels: TypeLevels::new(),
@@ -84,36 +83,6 @@ impl ConstraintMachine {
             record_proof_terminal_failure(operation, &failure);
             *terminal = Some(failure);
         }
-    }
-
-    pub(crate) fn replay_factored_terminal_failure(&self) -> Option<ReplayFactoredShadowFailure> {
-        match self.replay_factored_shadow_status.get() {
-            ReplayFactoredShadowStatus::Active => None,
-            ReplayFactoredShadowStatus::Failed(failure) => Some(failure),
-        }
-    }
-
-    pub(in crate::constraints) fn mark_replay_factored_failure(
-        &self,
-        failure: ReplayFactoredShadowFailure,
-        operation: ReplayFactoredFailureOperation,
-    ) {
-        let first_terminal_failure = matches!(
-            self.replay_factored_shadow_status.get(),
-            ReplayFactoredShadowStatus::Active
-        );
-        record_replay_factored_failure(failure, operation, first_terminal_failure);
-        if first_terminal_failure {
-            self.replay_factored_shadow_status
-                .set(ReplayFactoredShadowStatus::Failed(failure));
-        }
-    }
-
-    pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
-        matches!(
-            self.replay_factored_shadow_status.get(),
-            ReplayFactoredShadowStatus::Active
-        )
     }
 
     pub fn alloc_pos(&mut self, pos: Pos) -> PosId {
@@ -997,9 +966,7 @@ impl ConstraintMachine {
         let mut subtype_work_items = 0usize;
         let mut subtract_work_items = 0usize;
         let mut trace = ConstraintDrainTrace::from_env(self);
-        while self.replay_factored_terminal_failure().is_none()
-            && self.proof_terminal_failure().is_none()
-        {
+        while self.proof_terminal_failure().is_none() {
             let Some(work) = self.queue.pop_front() else {
                 break;
             };

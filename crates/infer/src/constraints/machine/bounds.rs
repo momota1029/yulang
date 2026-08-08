@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::constraints::replay_factored::{ReplayFactoredResult, ReplayFactoredShadowFailure};
+use crate::constraints::proof::ProofKernelResult;
 use smallvec::SmallVec;
 
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
@@ -100,10 +100,12 @@ struct ReplayAdmissionPublicationFence {
 }
 
 impl ReplayAdmissionPublicationFence {
-    fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ReplayFactoredResult<()> {
+    fn try_push(&mut self, intent: SchemeProjectionPublicationIntent) -> ProofKernelResult<()> {
         self.intents
             .try_reserve(1)
-            .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
+            .map_err(|_| proof::ProofFailure::ResourceExhausted {
+                operation: proof::ProofOperation::UpdateClaimLifecycle,
+            })?;
         self.intents.push(intent);
         Ok(())
     }
@@ -1055,7 +1057,7 @@ impl ConstraintMachine {
         // view current may the pending after-view be evaluated and published.
         let snapshot =
             self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
-        if self.replay_factored_terminal_failure().is_none() {
+        if self.proof_terminal_failure().is_none() {
             self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
         }
     }
@@ -1181,9 +1183,9 @@ impl ConstraintMachine {
             let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
                 Ok(intent) => intent,
                 Err(failure) => {
-                    self.mark_replay_factored_failure(
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
                         failure,
-                        ReplayFactoredFailureOperation::Read,
                     );
                     return;
                 }
@@ -1265,14 +1267,14 @@ impl ConstraintMachine {
         let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::ProjectLowerEvaluation,
                     failure,
-                    ReplayFactoredFailureOperation::Read,
                 );
                 return;
             }
         };
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         self.publish_scheme_projection_intent(intent);
@@ -1323,7 +1325,7 @@ impl ConstraintMachine {
     fn try_evaluate_record_proof_clause_link_batch(
         &self,
         snapshot: &ClauseLinkBatchAdmissionSnapshot,
-    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+    ) -> ProofKernelResult<SchemeProjectionPublicationIntent> {
         let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
         Ok(self.evaluate_record_inclusion_publication(
             snapshot.lower_record,
@@ -1349,7 +1351,10 @@ impl ConstraintMachine {
             &mut pending_premises,
         );
         if let Err(failure) = collection {
-            self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
+            self.mark_proof_terminal_failure(
+                proof::ProofOperation::ProjectLowerSupportCollection,
+                failure,
+            );
             return;
         }
 
@@ -1367,7 +1372,7 @@ impl ConstraintMachine {
         premise: ProofPremise,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
         pending_premises: &mut FxHashSet<ProofPremise>,
-    ) -> ReplayFactoredResult<()> {
+    ) -> ProofKernelResult<()> {
         pending_premises.insert(premise);
         let ProofPremise::Constraint(constraint) = premise else {
             return Ok(());
@@ -1404,7 +1409,7 @@ impl ConstraintMachine {
         parent: ClaimQualifiedParent,
         visited_constraints: &mut FxHashSet<ConstraintRecordId>,
         pending_premises: &mut FxHashSet<ProofPremise>,
-    ) -> ReplayFactoredResult<()> {
+    ) -> ProofKernelResult<()> {
         match parent {
             ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
                 pending_premises.insert(ProofPremise::Record(replay.lower));
@@ -1590,7 +1595,7 @@ impl ConstraintMachine {
         let Some(publication_fence) = publication_fence else {
             return;
         };
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         self.publish_replay_admission_publication_fence(publication_fence);
@@ -1608,9 +1613,7 @@ impl ConstraintMachine {
             result,
             parents,
         );
-        if self.proof_terminal_failure().is_some()
-            || self.replay_factored_terminal_failure().is_some()
-        {
+        if self.proof_terminal_failure().is_some() {
             return !admitted_parents.is_empty();
         }
         if derivation_inserted {
@@ -1650,14 +1653,14 @@ impl ConstraintMachine {
         let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::ProjectLowerEvaluation,
                     failure,
-                    ReplayFactoredFailureOperation::Read,
                 );
                 return;
             }
         };
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         self.publish_scheme_projection_intent(intent);
@@ -1666,7 +1669,7 @@ impl ConstraintMachine {
     fn try_evaluate_claim_qualified_parent_admission(
         &self,
         snapshot: &ClaimQualifiedParentAdmissionSnapshot,
-    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+    ) -> ProofKernelResult<SchemeProjectionPublicationIntent> {
         self.try_evaluate_projection_inclusion_snapshot(&snapshot.inclusion_before)
     }
 
@@ -1675,13 +1678,13 @@ impl ConstraintMachine {
         fence: &mut ReplayAdmissionPublicationFence,
         intent: SchemeProjectionPublicationIntent,
     ) {
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         if let Err(failure) = fence.try_push(intent) {
-            self.mark_replay_factored_failure(
+            self.mark_proof_terminal_failure(
+                proof::ProofOperation::UpdateClaimLifecycle,
                 failure,
-                ReplayFactoredFailureOperation::Write,
             );
         }
     }
@@ -1691,15 +1694,15 @@ impl ConstraintMachine {
         fence: &mut ReplayAdmissionPublicationFence,
         snapshot: ClaimQualifiedParentAdmissionSnapshot,
     ) {
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
-                self.mark_replay_factored_failure(
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::ProjectLowerEvaluation,
                     failure,
-                    ReplayFactoredFailureOperation::Read,
                 );
                 return;
             }
@@ -1712,7 +1715,7 @@ impl ConstraintMachine {
         fence: &mut ReplayAdmissionPublicationFence,
         mut mutation: SchemeProjectionMutation,
     ) {
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
@@ -2307,7 +2310,7 @@ impl ConstraintMachine {
             return;
         }
         let target_record = self.var_var_upper_record_for_constraint(result);
-        let phase_b_enabled = self.replay_factored_writes_enabled();
+        let phase_b_enabled = self.proof_terminal_failure().is_none();
         let mut publication_fence = Some(ReplayAdmissionPublicationFence::default());
         let candidates = parents
             .iter()
@@ -2377,14 +2380,14 @@ impl ConstraintMachine {
         };
         if phase_b_enabled
             && materialize_existing_target
-            && self.replay_factored_terminal_failure().is_none()
+            && self.proof_terminal_failure().is_none()
         {
             self.seal_record_proof_clause_link_batch(
                 pending_clause_link_snapshot,
                 publication_fence.as_mut(),
             );
         }
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         // Newly enqueued constraints consume this metadata during their bound admission.
@@ -2402,7 +2405,7 @@ impl ConstraintMachine {
                 publication_fence.as_mut(),
             );
         }
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         if let Some(fence) = publication_fence {
@@ -2430,7 +2433,7 @@ impl ConstraintMachine {
                 publication_fence.as_deref_mut(),
             );
         }
-        if publication_fence.is_some() && self.replay_factored_terminal_failure().is_some() {
+        if publication_fence.is_some() && self.proof_terminal_failure().is_some() {
             return;
         }
         self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
@@ -2495,7 +2498,7 @@ impl ConstraintMachine {
         }
         self.proof_store
             .record_reduction_route(result, derivation, claim);
-        if self.replay_factored_terminal_failure().is_some() {
+        if self.proof_terminal_failure().is_some() {
             return;
         }
         self.materialize_existing_claim_parents_delta(

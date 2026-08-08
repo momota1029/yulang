@@ -22,7 +22,6 @@ mod portable_explain;
 pub(crate) mod proof;
 #[cfg(test)]
 mod proof_inventory;
-mod replay_factored;
 mod replay_soak;
 mod row_effect;
 #[cfg(test)]
@@ -32,7 +31,9 @@ mod tests;
 mod timing;
 mod trace;
 
-use std::cell::{Cell, RefCell};
+#[cfg(test)]
+use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::{VecDeque, hash_map::Entry};
 
 use directed_weight::{
@@ -46,11 +47,9 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) use proof::ProofFailure;
-pub(crate) use replay_factored::ReplayFactoredShadowFailure;
-use replay_factored::{ReplayFactoredResult, ReplayFactoredShadowStatus};
 use replay_soak::ensure_replay_soak_telemetry_header;
 pub(crate) use replay_soak::{
-    ReplayFactoredFailureOperation, record_proof_terminal_failure, record_replay_factored_failure,
+    record_proof_terminal_failure,
 };
 #[cfg(test)]
 pub(crate) use replay_soak::{
@@ -113,7 +112,6 @@ pub struct ConstraintMachine {
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
     proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
-    replay_factored_shadow_status: Cell<ReplayFactoredShadowStatus>,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
     levels: TypeLevels,
@@ -1717,7 +1715,7 @@ impl ConstraintMachine {
         was_included: bool,
         is_included: bool,
         metadata_changed: bool,
-    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         if was_included == is_included {
             let intent = if metadata_changed {
                 SchemeProjectionPublicationIntent::MetadataOnly
@@ -1808,7 +1806,7 @@ impl ConstraintMachine {
     fn try_evaluate_projection_inclusion_snapshot(
         &self,
         before: &FxHashMap<BoundRecordId, bool>,
-    ) -> ReplayFactoredResult<SchemeProjectionPublicationIntent> {
+    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         let mut after_round = CpkPublicationEvaluationRound::new(self);
         let mut affected_owners = FxHashSet::default();
         #[cfg(test)]

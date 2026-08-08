@@ -167,6 +167,8 @@ pub(crate) enum ProofFailure {
     },
 }
 
+pub(crate) type ProofKernelResult<T> = Result<T, ProofFailure>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum ProofEvalNode {
     Record(BoundRecordId),

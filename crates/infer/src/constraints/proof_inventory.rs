@@ -801,10 +801,6 @@ const REVIEWED_SOURCES: &[(&str, &str)] = &[
         include_str!("portable_explain.rs"),
     ),
     ("constraints/proof/mod.rs", include_str!("proof/mod.rs")),
-    (
-        "constraints/replay_factored.rs",
-        include_str!("replay_factored.rs"),
-    ),
     ("constraints/replay_soak.rs", include_str!("replay_soak.rs")),
     ("constraints/row_effect.rs", include_str!("row_effect.rs")),
     ("constraints/timing.rs", include_str!("timing.rs")),
@@ -1821,7 +1817,6 @@ fn cpk_8g_9a_replay_clause_projection_is_fully_removed() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
     ] {
         assert!(
             !source.contains(&removed_type),
@@ -1847,7 +1842,6 @@ fn cpk_8g_9b_non_replay_claim_parent_store_is_fully_removed() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
     ] {
         assert!(
             !source.contains(&removed_type),
@@ -1873,7 +1867,6 @@ fn cpk_8g_9c_replay_result_summary_is_fully_removed() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
     ] {
         assert!(
             !source.contains(&removed_type),
@@ -1905,7 +1898,6 @@ fn cpk_8g_9d_replay_occurrence_store_is_fully_removed() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
     ] {
         for removed in [
             &removed_store,
@@ -1945,7 +1937,6 @@ fn cpk_8g_9e_all_rcpf_structures_are_fully_removed() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
     ] {
         for removed in &removed_surfaces {
             assert!(
@@ -1974,12 +1965,11 @@ fn cpk_8g_9e_all_rcpf_structures_are_fully_removed() {
 }
 
 #[test]
-fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained() {
+fn cpk_8g_12_part_1_hard_failure_channel_is_cpk_only() {
     let runtime_sources = [
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_factored.rs"),
         include_str!("replay_soak.rs"),
         include_str!("../lowering/body/mod.rs"),
         include_str!("../module_map/mod.rs"),
@@ -1993,28 +1983,33 @@ fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained()
         ["RCPF_D2C_FAIL_DEFERRED", "_EVALUATION_AT"].concat(),
         ["RCPF_D4_FAIL_NEXT", "_PRE_CONSUMER_QUERY"].concat(),
         ["RCPF_E2C_FAIL_NEXT", "_A1_READ"].concat(),
+        ["ReplayFactoredShadow", "Failure"].concat(),
+        ["ReplayFactoredShadow", "Status"].concat(),
+        ["ReplayFactored", "Result"].concat(),
+        ["replay_factored_writes_", "enabled"].concat(),
+        ["replay_factored_terminal_", "failure"].concat(),
+        ["record_replay_factored_", "failure"].concat(),
+        ["ReplayFactored", "Failed"].concat(),
     ] {
         assert!(
             runtime_sources
                 .iter()
                 .all(|source| !source.contains(&removed)),
-            "dead RCPF shell surface reappeared after 8G-10: {removed}",
+            "RCPF-named hard-failure surface reappeared after CPK-8G-12 part 1: {removed}",
         );
     }
     for retained in [
-        "ReplayFactoredShadowFailure",
-        "ReplayFactoredShadowStatus",
-        "ReplayFactoredResult",
-        "replay_factored_writes_enabled",
-        "replay_factored_terminal_failure",
-        "record_replay_factored_failure",
-        "ReplayFactoredFailed",
+        "ProofFailure",
+        "ProofCompilationAttempt",
+        "proof_terminal_failure",
+        "record_proof_terminal_failure",
+        "ProofKernelFailed",
     ] {
         assert!(
             runtime_sources
                 .iter()
                 .any(|source| source.contains(retained)),
-            "reachable hard-failure channel must survive until 8G-12: {retained}",
+            "CPK hard-failure channel contract moved or disappeared: {retained}",
         );
     }
     for contract in [
@@ -2035,7 +2030,7 @@ fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained()
     assert_eq!(
         CPK8G10_ACTUAL_SCOPE,
         "dead RCPF oracle/injection shell removed; reachable hard-failure channel retained for 8G-12",
-        "CPK-8G-10 must retain its evidence-based partial-removal disposition",
+        "CPK-8G-10 remains the historical boundary before the part-1 consolidation",
     );
 }
 
@@ -2352,17 +2347,11 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let bounds_source = include_str!("machine/bounds.rs");
     let constraints_source = include_str!("mod.rs");
     let machine_entry_source = include_str!("machine/entry.rs");
-    let replay_factored_source = include_str!("replay_factored.rs");
     let arena_source = include_str!("../arena.rs");
     let lifecycle_source = include_str!("../analysis/session/lifecycle.rs");
     let lowering_body_source = include_str!("../lowering/body/mod.rs");
     let case_02_source = include_str!("tests/case_02.rs");
-    let reviewed_physical_sources = [
-        proof_source,
-        bounds_source,
-        replay_factored_source,
-        lowering_body_source,
-    ];
+    let reviewed_physical_sources = [proof_source, bounds_source, lowering_body_source];
     let reviewed_authority_reader_sources = REVIEWED_SOURCES
         .iter()
         .map(|&(_, source)| source)
@@ -2650,8 +2639,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         );
     }
     assert!(
-        machine_entry_source.contains("ReplayFactoredShadowStatus::Active"),
-        "CPK-8G-6g2 must retain the sticky RCPF quarantine gate while removing authority selection",
+        machine_entry_source.contains("proof_terminal_failure: RefCell"),
+        "CPK-8G-12 part 1 must retain the sticky first-failure cell",
     );
     for surviving_writer in [
         "commit_claim_qualified_parent_mutation",
@@ -2751,7 +2740,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         );
     }
 
-    let replay_factored_tests = source_test_names(replay_factored_source);
+    let replay_factored_tests: Vec<&str> = Vec::new();
     let bounds_rcpf_tests = source_test_names(bounds_source)
         .into_iter()
         .filter(|name| name.starts_with("rcpf_"))

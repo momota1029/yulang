@@ -9,17 +9,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use super::proof::ProofOperation;
-use super::{ProofFailure, ReplayFactoredShadowFailure};
+use super::ProofFailure;
 
 pub(crate) const RCPF_SOAK_TELEMETRY_VERSION: u32 = 1;
 pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 5;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(not(debug_assertions), allow(dead_code))]
-pub(crate) enum ReplayFactoredFailureOperation {
-    Write,
-    Read,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(not(test), allow(dead_code))]
@@ -78,35 +71,6 @@ std::thread_local! {
 pub(crate) fn ensure_replay_soak_telemetry_header() {
     let _ = telemetry_sink();
     let _ = proof_telemetry_sink();
-}
-
-pub(crate) fn record_replay_factored_failure(
-    failure: ReplayFactoredShadowFailure,
-    operation: ReplayFactoredFailureOperation,
-    first_terminal_failure: bool,
-) {
-    let origin = current_event_origin();
-    if operation == ReplayFactoredFailureOperation::Read {
-        FACTORED_READ_ERRORS[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
-        update_test_capture(|snapshot| {
-            snapshot.factored_read_errors[origin_index(origin)] += 1;
-        });
-    }
-    if first_terminal_failure {
-        TERMINAL_FAILURES[terminal_index(origin, operation)].fetch_add(1, Ordering::Relaxed);
-        update_test_capture(|snapshot| {
-            snapshot.terminal_failures[terminal_index(origin, operation)] += 1;
-        });
-        emit_event("terminal_failure", origin, Some(operation), Some(failure));
-    }
-    if operation == ReplayFactoredFailureOperation::Read {
-        emit_event(
-            "factored_read_error",
-            origin,
-            Some(operation),
-            Some(failure),
-        );
-    }
 }
 
 /// Record the first sticky CPK terminal failure for one compilation attempt.
@@ -186,20 +150,6 @@ fn origin_index(origin: ReplaySoakEventOrigin) -> usize {
         ReplaySoakEventOrigin::Organic => 0,
         ReplaySoakEventOrigin::IntentionalTestInjection => 1,
     }
-}
-
-fn operation_index(operation: ReplayFactoredFailureOperation) -> usize {
-    match operation {
-        ReplayFactoredFailureOperation::Write => 0,
-        ReplayFactoredFailureOperation::Read => 1,
-    }
-}
-
-fn terminal_index(
-    origin: ReplaySoakEventOrigin,
-    operation: ReplayFactoredFailureOperation,
-) -> usize {
-    origin_index(origin) * 3 + operation_index(operation)
 }
 
 fn proof_operation_index(operation: ProofOperation) -> usize {
@@ -292,25 +242,6 @@ fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
             }
         })
         .as_ref()
-}
-
-fn emit_event(
-    event: &str,
-    origin: ReplaySoakEventOrigin,
-    operation: Option<ReplayFactoredFailureOperation>,
-    failure: Option<ReplayFactoredShadowFailure>,
-) {
-    let Some(sink) = telemetry_sink() else {
-        return;
-    };
-    let Ok(mut file) = sink.lock() else {
-        return;
-    };
-    let _ = writeln!(
-        file,
-        "RCPF_SOAK_EVENT event={event} origin={origin:?} operation={operation:?} failure={failure:?}"
-    );
-    write_tally(&mut file, replay_soak_telemetry_snapshot());
 }
 
 fn emit_proof_event(
