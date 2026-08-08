@@ -32,10 +32,9 @@
 //   exact-key mirrors independently; CPK-8G-7b3 removes the qualified-carrier projection; and
 //   CPK-8G-7b4 removes the final claim-parent Vec mirror while preserving the CPK admission and
 //   RCPF one-way feed. All five CPK-8G-7 sub-slices are complete.
-// - live_coverage_by_root remains the claim-lifecycle migration mirror after CPK-8B transfers
-//   transition/dedup ownership to ProofOccurrenceStore::live_states_by_coverage_root. CPK-8G-8a2
-//   removes the separate five-field flat support/root bundle after CPK takes both its reads and
-//   mutation decisions; clause and claim mirrors remain in their later physical-removal slices.
+// - CPK-8G-11a2 removes the claim-lifecycle live-coverage mirror after CPK-8G-11a0/a1 close
+//   its production and fixture readers. ProofOccurrenceStore exclusively owns transition/dedup,
+//   while the remaining seven flat claim fields stay in the later CPK-8G-11b slices.
 // - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. CPK-8G-8b0 transfers
 //   typed clause admission to CPK and CPK-8G-8b1 removes the seven-field flat clause/link/
 //   attribution mirror. Dependent-record edges remain for the later 8G-8c removal slice.
@@ -978,13 +977,6 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // final test-only RCPF evaluator lookup; the CPK evaluator reads its own upper-claim index.
     // CPK-8G-11a1 removes the remaining flat record-index fixture assertions.
     ("claims_by_upper_record", 46),
-    // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
-    // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
-    // CPK-8G-6f removes the Legacy projectability reader's flat coverage lookup. CPK-8G-9-0b
-    // removes the test-only RCPF evaluator lookup in favor of CPK live coverage.
-    // CPK-8G-11a1 moves live-membership fixtures to the CPK root-state set without observing its
-    // hash iteration order.
-    ("live_coverage_by_root", 6),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
@@ -1321,7 +1313,6 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
             "derived_claim_by_record_and_root",
             "reduction_claim_by_state",
             "root_claim_by_producer_constraint",
-            "live_coverage_by_root",
             "replay_claim_cycle_coalesces",
         ] {
             assert!(
@@ -1359,7 +1350,6 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
         ("derived_claim_by_record_and_root", 0),
         ("reduction_claim_by_state", 3),
         ("root_claim_by_producer_constraint", 0),
-        ("live_coverage_by_root", 0),
         ("replay_claim_cycle_coalesces", 0),
     ] {
         assert_eq!(
@@ -1372,6 +1362,39 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
         !machine_runtime.contains("canonical_coverage_root"),
         "ConstraintMachine production logic must resolve claim roots through CPK",
     );
+}
+
+#[test]
+fn cpk_8g_11a2_live_coverage_mirror_is_fully_removed() {
+    let removed_identifiers = [
+        ["live_coverage_by_", "root"].concat(),
+        ["PreparedLiveCoverage", "MirrorCapacity"].concat(),
+        ["try_reserve_live_coverage_", "mirror"].concat(),
+        ["commit_live_coverage_", "mirror"].concat(),
+    ];
+    let mut pending = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+    while let Some(directory) = pending.pop() {
+        for entry in
+            std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        {
+            let path = entry.expect("infer source entry must be readable").path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
+                continue;
+            }
+            let source = std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            for identifier in &removed_identifiers {
+                assert!(
+                    !source.contains(identifier),
+                    "CPK-8G-11a2 removed live-coverage mirror identifier reappeared in {}: {identifier}",
+                    path.display(),
+                );
+            }
+        }
+    }
 }
 
 #[test]

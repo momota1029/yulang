@@ -553,10 +553,6 @@ struct PreparedClaimMoveMirrorCapacity {
     record_claims: Option<Vec<UpperReplayClaimId>>,
 }
 
-struct PreparedLiveCoverageMirrorCapacity {
-    states: Option<Vec<UnweightedRowReductionRecordId>>,
-}
-
 /// A CPK-decided projection support transaction and its publication target.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -1355,13 +1351,8 @@ impl ConstraintMachine {
         let mut mutation = self
             .proof_store
             .try_prepare_live_coverage_mutation(root, state, active)?;
-        let mirror_capacity = self
-            .bounds
-            .try_reserve_live_coverage_mirror(mutation.transition)?;
         self.proof_store
             .commit_live_coverage_mutation(&mut mutation);
-        self.bounds
-            .commit_live_coverage_mirror(mutation.transition, mirror_capacity);
         Ok(mutation.transition)
     }
 
@@ -2010,7 +2001,6 @@ pub struct TypeBounds {
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
     // Append-only mirror of Original claims, keyed by their stable producer identity.
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
-    live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     replay_claim_cycle_coalesces: usize,
 }
 
@@ -2611,74 +2601,6 @@ impl TypeBounds {
         }
         self.insert_upper_record_claim_canonical(mutation.current_record, mutation.claim);
     }
-
-    fn try_reserve_live_coverage_mirror(
-        &mut self,
-        transition: proof::PreparedLiveCoverageTransition,
-    ) -> Result<PreparedLiveCoverageMirrorCapacity, proof::ProofFailure> {
-        let proof::PreparedLiveCoverageTransition::Changed {
-            root, active: true, ..
-        } = transition
-        else {
-            return Ok(PreparedLiveCoverageMirrorCapacity { states: None });
-        };
-        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
-            operation: proof::ProofOperation::UpdateClaimLifecycle,
-        };
-        let states = if let Some(states) = self.live_coverage_by_root.get_mut(&root) {
-            states.try_reserve(1).map_err(exhausted)?;
-            None
-        } else {
-            self.live_coverage_by_root
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            let mut states = Vec::new();
-            states.try_reserve(1).map_err(exhausted)?;
-            Some(states)
-        };
-        Ok(PreparedLiveCoverageMirrorCapacity { states })
-    }
-
-    fn commit_live_coverage_mirror(
-        &mut self,
-        transition: proof::PreparedLiveCoverageTransition,
-        prepared: PreparedLiveCoverageMirrorCapacity,
-    ) {
-        let proof::PreparedLiveCoverageTransition::Changed {
-            root,
-            state,
-            active,
-            was_empty,
-            is_empty,
-        } = transition
-        else {
-            return;
-        };
-        if active {
-            if let Some(states) = prepared.states {
-                assert!(self.live_coverage_by_root.insert(root, states).is_none());
-            }
-            let states = self
-                .live_coverage_by_root
-                .get_mut(&root)
-                .expect("prepared live coverage mirror must contain its root");
-            assert_eq!(states.is_empty(), was_empty);
-            assert!(!states.contains(&state));
-            states.push(state);
-            assert_eq!(states.is_empty(), is_empty);
-            return;
-        }
-        let states = self
-            .live_coverage_by_root
-            .get_mut(&root)
-            .expect("removed live coverage must exist in the flat mirror");
-        assert_eq!(states.is_empty(), was_empty);
-        let old_len = states.len();
-        states.retain(|candidate| *candidate != state);
-        assert_eq!(states.len() + 1, old_len);
-        assert_eq!(states.is_empty(), is_empty);
-    }
-
 }
 
 fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {
