@@ -1,12 +1,6 @@
 use super::*;
 
-use std::hash::{Hash, Hasher};
-
-use crate::constraints::replay_factored::{
-    ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
-    ReplayParentDraftId,
-};
-use rustc_hash::FxHasher;
+use crate::constraints::replay_factored::{ReplayFactoredResult, ReplayFactoredShadowFailure};
 use smallvec::SmallVec;
 
 #[cfg(test)]
@@ -55,15 +49,11 @@ struct BoundReplayAction {
     derivation: BinaryReplayDerivation,
     // CPK prepares the event-local exact-parent candidates; admission filters them atomically.
     claim_parents: ReplayClaimParents,
-    lower_parents: ReplayParentDraftId,
-    upper_parents: ReplayParentDraftId,
     canonicalization_disposition: Option<ConstraintCanonicalizationDisposition>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
 struct BoundReplayPlan {
-    parent_drafts: Vec<ReplayParentDraft>,
-    parent_drafts_by_fingerprint: FxHashMap<u64, SmallVec<[ReplayParentDraftId; 1]>>,
     input_count: usize,
     generated: usize,
     var_var: usize,
@@ -120,13 +110,6 @@ fn replay_side_tagged_parents(parents: &[ClaimQualifiedParent]) -> ReplayClaimPa
         .collect()
 }
 
-#[derive(Debug, Clone, Copy)]
-struct FactoredReplayParentDrafts<'plan> {
-    parent_drafts: &'plan [ReplayParentDraft],
-    lower: ReplayParentDraftId,
-    upper: ReplayParentDraftId,
-}
-
 struct ClaimQualifiedParentAdmissionSnapshot {
     inclusion_before: FxHashMap<BoundRecordId, bool>,
 }
@@ -156,87 +139,6 @@ impl ReplayAdmissionPublicationFence {
             .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
         self.intents.push(intent);
         Ok(())
-    }
-}
-
-impl<'plan> FactoredReplayParentDrafts<'plan> {
-    fn resolve(
-        self,
-        id: ReplayParentDraftId,
-    ) -> ReplayFactoredResult<Option<&'plan ReplayParentDraft>> {
-        if id == ReplayParentDraftId::EMPTY {
-            return Ok(None);
-        }
-        let index =
-            id.0.checked_sub(1)
-                .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentDraft(id))?;
-        self.parent_drafts
-            .get(index as usize)
-            .map(Some)
-            .ok_or(ReplayFactoredShadowFailure::UnknownReplayParentDraft(id))
-    }
-}
-
-impl BoundReplayPlan {
-    /// Intern the ordered claim projection for one side. The fingerprint is only an index hint;
-    /// exact draft contents decide reuse.
-    fn intern_parent_draft(
-        &mut self,
-        claim_parents: &ReplayClaimParents,
-        parent_side: ReplayClaimParentSide,
-    ) -> ReplayParentDraftId {
-        let mut parent_count = 0usize;
-        let mut hasher = FxHasher::default();
-        for parent in claim_parents
-            .iter()
-            .filter(|parent| parent.parent_side == parent_side)
-        {
-            parent.claim.hash(&mut hasher);
-            parent_count += 1;
-        }
-        if parent_count == 0 {
-            return ReplayParentDraftId::EMPTY;
-        }
-        parent_count.hash(&mut hasher);
-        let fingerprint = hasher.finish();
-
-        if let Some(candidates) = self.parent_drafts_by_fingerprint.get(&fingerprint) {
-            for &candidate in candidates {
-                let Some(draft) = self.parent_draft(candidate) else {
-                    continue;
-                };
-                if draft.claims.iter().copied().eq(claim_parents
-                    .iter()
-                    .filter(|parent| parent.parent_side == parent_side)
-                    .map(|parent| parent.claim))
-                {
-                    return candidate;
-                }
-            }
-        }
-
-        let id = u32::try_from(self.parent_drafts.len())
-            .ok()
-            .and_then(|index| index.checked_add(1))
-            .map(ReplayParentDraftId)
-            .expect("a replay plan cannot contain more than u32::MAX parent drafts");
-        let claims = claim_parents
-            .iter()
-            .filter(|parent| parent.parent_side == parent_side)
-            .map(|parent| parent.claim)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        self.parent_drafts.push(ReplayParentDraft { claims });
-        self.parent_drafts_by_fingerprint
-            .entry(fingerprint)
-            .or_default()
-            .push(id);
-        id
-    }
-
-    fn parent_draft(&self, id: ReplayParentDraftId) -> Option<&ReplayParentDraft> {
-        let index = id.0.checked_sub(1)?;
-        self.parent_drafts.get(index as usize)
     }
 }
 
@@ -722,13 +624,11 @@ impl ConstraintMachine {
         if self.proof_terminal_failure().is_some() {
             return;
         }
-        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+        self.apply_cpk_prefiltered_replay_provenance(
             replay.duplicate_actions,
             replay.trivial_actions,
-            &replay.parent_drafts,
         );
-        let apply = self
-            .apply_bound_replay_actions_with_parent_drafts(replay.actions, &replay.parent_drafts);
+        let apply = self.apply_cpk_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
         self.apply_bound_replay_evidence_actions(replay.evidence_actions);
@@ -888,13 +788,11 @@ impl ConstraintMachine {
         if self.proof_terminal_failure().is_some() {
             return;
         }
-        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+        self.apply_cpk_prefiltered_replay_provenance(
             replay.duplicate_actions,
             replay.trivial_actions,
-            &replay.parent_drafts,
         );
-        let apply = self
-            .apply_bound_replay_actions_with_parent_drafts(replay.actions, &replay.parent_drafts);
+        let apply = self.apply_cpk_bound_replay_actions(replay.actions);
         replay.stats.absorb(apply);
         let evidence_count = replay.evidence_actions.len();
         self.apply_bound_replay_evidence_actions(replay.evidence_actions);
@@ -1270,8 +1168,6 @@ impl ConstraintMachine {
             }]
             .into_iter()
             .collect(),
-            lower_parents: ReplayParentDraftId::EMPTY,
-            upper_parents: ReplayParentDraftId::EMPTY,
             canonicalization_disposition: None,
         });
         self.apply_bound_replay_evidence_actions(actions);
@@ -2460,13 +2356,12 @@ impl ConstraintMachine {
         self.cdm_lower_delta_census
     }
 
-    fn register_replay_claim_parents_with_factored_drafts(
+    fn register_cpk_replay_claim_parents(
         &mut self,
         result: ConstraintRecordId,
         replay: BinaryReplayDerivation,
         parents: &[SideTaggedReplayClaim],
         materialize_existing_target: bool,
-        factored_drafts: FactoredReplayParentDrafts<'_>,
     ) {
         if !self.constraint_records[result.0 as usize]
             .replay_derivations
@@ -2547,13 +2442,6 @@ impl ConstraintMachine {
         } else {
             None
         };
-        self.observe_factored_replay_parent_admission(
-            result,
-            replay,
-            parents,
-            &inserted_parents,
-            factored_drafts,
-        );
         if phase_b_enabled
             && materialize_existing_target
             && self.replay_factored_terminal_failure().is_none()
@@ -2587,144 +2475,6 @@ impl ConstraintMachine {
         if let Some(fence) = publication_fence {
             self.publish_replay_admission_publication_fence(fence);
         }
-    }
-
-    /// Feed an already completed CPK admission into RCPF. Failure permanently quarantines the
-    /// downstream attempt; no CPK state, epoch, event, or queue decision depends on this result.
-    fn observe_factored_replay_parent_admission(
-        &mut self,
-        result: ConstraintRecordId,
-        replay: BinaryReplayDerivation,
-        legacy_parents: &[SideTaggedReplayClaim],
-        inserted_parents: &[ClaimQualifiedParent],
-        drafts: FactoredReplayParentDrafts<'_>,
-    ) {
-        if !self.replay_factored_writes_enabled() {
-            return;
-        }
-        match self.try_observe_factored_replay_parent_admission(
-            result,
-            replay,
-            legacy_parents,
-            inserted_parents,
-            drafts,
-        ) {
-            Ok(()) => {}
-            Err(failure) => {
-                self.mark_replay_factored_failure(
-                    failure,
-                    ReplayFactoredFailureOperation::Write,
-                );
-            }
-        }
-    }
-
-    fn try_observe_factored_replay_parent_admission(
-        &mut self,
-        result: ConstraintRecordId,
-        replay: BinaryReplayDerivation,
-        legacy_parents: &[SideTaggedReplayClaim],
-        inserted_parents: &[ClaimQualifiedParent],
-        drafts: FactoredReplayParentDrafts<'_>,
-    ) -> ReplayFactoredResult<()> {
-        let planned_lower_draft = drafts.resolve(drafts.lower)?;
-        let planned_upper_draft = drafts.resolve(drafts.upper)?;
-        for (side, draft) in [
-            (ReplayClaimParentSide::Lower, planned_lower_draft),
-            (ReplayClaimParentSide::Upper, planned_upper_draft),
-        ] {
-            let matches_legacy = draft
-                .into_iter()
-                .flat_map(|draft| draft.claims.iter().copied())
-                .eq(legacy_parents
-                    .iter()
-                    .filter(|parent| parent.parent_side == side)
-                    .map(|parent| parent.claim));
-            if !matches_legacy {
-                return Err(ReplayFactoredShadowFailure::ReplayParentDraftMismatch(side));
-            }
-        }
-        if planned_lower_draft.is_none() && planned_upper_draft.is_none() {
-            return Ok(());
-        }
-        let admission_ordinal = self.replay_occurrences.claim_admission_ordinal()?;
-
-        // RCPF receives only the exact parents accepted by CPK for this event. The original
-        // planning drafts remain a debug boundary check above, never an authority input.
-        let prepared_draft = |side| {
-            let claims = inserted_parents
-                .iter()
-                .filter_map(|parent| match *parent {
-                    ClaimQualifiedParent::ReplayConstraint {
-                        parent_claim,
-                        parent_side,
-                        ..
-                    } if parent_side == side => Some(parent_claim),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            (!claims.is_empty()).then(|| ReplayParentDraft {
-                claims: claims.into_boxed_slice(),
-            })
-        };
-        let lower_prepared = prepared_draft(ReplayClaimParentSide::Lower);
-        let upper_prepared = prepared_draft(ReplayClaimParentSide::Upper);
-        let lower_draft = lower_prepared.as_ref();
-        let upper_draft = upper_prepared.as_ref();
-
-        let key = ReplayOccurrenceKey {
-            result,
-            carrier: replay,
-        };
-        let occurrence_id = self.replay_occurrences.occurrence_id(key);
-        let empty = self.replay_parent_sets.empty_version();
-        let (lower_base, upper_base) = if let Some(occurrence_id) = occurrence_id {
-            let occurrence = self.replay_occurrences.occurrence(occurrence_id)?;
-            (occurrence.lower_parents, occurrence.upper_parents)
-        } else {
-            (empty, empty)
-        };
-
-        let (lower_parents, lower_changed) = if let Some(draft) = lower_draft {
-            let plan = self
-                .replay_parent_sets
-                .preflight_extend(lower_base, draft, &self.bounds)?;
-            let extension = self.replay_parent_sets.commit_extend(plan)?;
-            (extension.version, extension.changed)
-        } else {
-            (lower_base, false)
-        };
-        let (upper_parents, upper_changed) = if let Some(draft) = upper_draft {
-            let plan = self
-                .replay_parent_sets
-                .preflight_extend(upper_base, draft, &self.bounds)?;
-            let extension = self.replay_parent_sets.commit_extend(plan)?;
-            (extension.version, extension.changed)
-        } else {
-            (upper_base, false)
-        };
-
-        if let Some(occurrence_id) = occurrence_id {
-            if lower_changed || upper_changed {
-                self.replay_occurrences.update_parent_versions(
-                    occurrence_id,
-                    lower_parents,
-                    upper_parents,
-                )?;
-            }
-        } else if lower_changed || upper_changed {
-            self.replay_occurrences.try_insert(
-                key,
-                lower_parents,
-                upper_parents,
-                admission_ordinal,
-            )?;
-        } else if inserted_parents.is_empty() {
-            return Ok(());
-        } else {
-            return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
-        }
-        Ok(())
     }
 
     fn materialize_existing_claim_parents_delta(
@@ -3392,14 +3142,6 @@ impl ConstraintMachine {
         claim_parents: ReplayClaimParents,
         replay: &mut BoundReplayPlan,
     ) {
-        let (lower_parents, upper_parents) = if self.replay_factored_writes_enabled() {
-            (
-                replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Lower),
-                replay.intern_parent_draft(&claim_parents, ReplayClaimParentSide::Upper),
-            )
-        } else {
-            (ReplayParentDraftId::EMPTY, ReplayParentDraftId::EMPTY)
-        };
         let attempted = SubtypeConstraintKey {
             lower,
             upper,
@@ -3417,8 +3159,6 @@ impl ConstraintMachine {
                 constraint: attempted,
                 derivation,
                 claim_parents,
-                lower_parents,
-                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -3435,8 +3175,6 @@ impl ConstraintMachine {
                 constraint,
                 derivation,
                 claim_parents,
-                lower_parents,
-                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -3447,8 +3185,6 @@ impl ConstraintMachine {
                 constraint,
                 derivation,
                 claim_parents,
-                lower_parents,
-                upper_parents,
                 canonicalization_disposition,
             });
             return;
@@ -3457,8 +3193,6 @@ impl ConstraintMachine {
             constraint,
             derivation,
             claim_parents,
-            lower_parents,
-            upper_parents,
             canonicalization_disposition,
         });
     }
@@ -3583,18 +3317,9 @@ impl ConstraintMachine {
             .has_weighted_frontier_path(*source, *target, &constraint.weights)
     }
 
-    fn apply_bound_replay_actions_with_parent_drafts(
+    fn apply_cpk_bound_replay_actions(
         &mut self,
         actions: BoundReplayActions,
-        parent_drafts: &[ReplayParentDraft],
-    ) -> BoundReplayApplyStats {
-        self.apply_bound_replay_actions_impl(actions, parent_drafts)
-    }
-
-    fn apply_bound_replay_actions_impl(
-        &mut self,
-        actions: BoundReplayActions,
-        parent_drafts: &[ReplayParentDraft],
     ) -> BoundReplayApplyStats {
         let mut stats = BoundReplayApplyStats::default();
         for action in actions {
@@ -3603,16 +3328,11 @@ impl ConstraintMachine {
                 self.enqueue_replay_subtype(action.constraint, action.derivation);
             if disposition != ReplayDerivationInsert::Incomplete {
                 let result = self.canonical_constraints[&constraint];
-                self.register_replay_claim_parents_with_factored_drafts(
+                self.register_cpk_replay_claim_parents(
                     result,
                     action.derivation,
                     &action.claim_parents,
                     !enqueued,
-                    FactoredReplayParentDrafts {
-                        parent_drafts,
-                        lower: action.lower_parents,
-                        upper: action.upper_parents,
-                    },
                 );
             }
             let admission_disposition = match (enqueued, disposition) {
@@ -3809,20 +3529,10 @@ impl ConstraintMachine {
         }
     }
 
-    fn apply_prefiltered_replay_provenance_with_parent_drafts(
+    fn apply_cpk_prefiltered_replay_provenance(
         &mut self,
         duplicates: BoundReplayActions,
         trivial: BoundReplayActions,
-        parent_drafts: &[ReplayParentDraft],
-    ) {
-        self.apply_prefiltered_replay_provenance_impl(duplicates, trivial, parent_drafts);
-    }
-
-    fn apply_prefiltered_replay_provenance_impl(
-        &mut self,
-        duplicates: BoundReplayActions,
-        trivial: BoundReplayActions,
-        parent_drafts: &[ReplayParentDraft],
     ) {
         for action in duplicates {
             let result = *self
@@ -3831,16 +3541,11 @@ impl ConstraintMachine {
                 .expect("prefiltered replay duplicate remains canonical");
             let disposition = self.merge_replay_derivation(result, action.derivation);
             if disposition != ReplayDerivationInsert::Incomplete {
-                self.register_replay_claim_parents_with_factored_drafts(
+                self.register_cpk_replay_claim_parents(
                     result,
                     action.derivation,
                     &action.claim_parents,
                     true,
-                    FactoredReplayParentDrafts {
-                        parent_drafts,
-                        lower: action.lower_parents,
-                        upper: action.upper_parents,
-                    },
                 );
             }
             let admission_disposition = match disposition {
@@ -3916,10 +3621,9 @@ impl ConstraintMachine {
         );
         assert_eq!(replay.trivial_actions.len(), 1);
         assert!(replay.duplicate_actions.is_empty());
-        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+        self.apply_cpk_prefiltered_replay_provenance(
             replay.duplicate_actions,
             replay.trivial_actions,
-            &replay.parent_drafts,
         );
     }
 
@@ -3934,8 +3638,6 @@ impl ConstraintMachine {
             constraint,
             derivation,
             claim_parents: ReplayClaimParents::new(),
-            lower_parents: ReplayParentDraftId::EMPTY,
-            upper_parents: ReplayParentDraftId::EMPTY,
             canonicalization_disposition: None,
         });
         self.apply_bound_replay_evidence_actions(actions);
@@ -3964,10 +3666,9 @@ impl ConstraintMachine {
         assert_eq!(replay.duplicate_actions.len(), 1);
         assert!(replay.trivial_actions.is_empty());
         let duplicate_count = replay.duplicate_actions.len();
-        self.apply_prefiltered_replay_provenance_with_parent_drafts(
+        self.apply_cpk_prefiltered_replay_provenance(
             replay.duplicate_actions,
             replay.trivial_actions,
-            &replay.parent_drafts,
         );
         duplicate_count
     }
@@ -5392,8 +5093,6 @@ mod mutation_tests {
                 rule: ReplayRule::LowerBoundAdded,
             },
             claim_parents: ReplayClaimParents::new(),
-            lower_parents: ReplayParentDraftId::EMPTY,
-            upper_parents: ReplayParentDraftId::EMPTY,
             canonicalization_disposition: None,
         });
         machine.apply_bound_replay_evidence_actions(actions);

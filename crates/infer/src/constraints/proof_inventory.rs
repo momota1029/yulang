@@ -38,10 +38,11 @@
 // - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. CPK-8G-8b0 transfers
 //   typed clause admission to CPK and CPK-8G-8b1 removes the seven-field flat clause/link/
 //   attribution mirror. Dependent-record edges remain for the later 8G-8c removal slice.
-// - ParentSetArena/ReplayOccurrenceStore: writers replay admission and parent mutation.
+// - ParentSetArena remains as the final directly tested RCPF structure.
 //   CPK-8G-9a removes the leaf ReplayClauseProjection, CPK-8G-9b removes the independent
 //   NonReplayClaimParentStore, and CPK-8G-9c removes ReplayResultSummary after retiring its three
-//   direct representation tests. The two foundational stores follow in reverse-topological order.
+//   direct representation tests. CPK-8G-9d removes ReplayOccurrenceStore and stops the sole
+//   production ParentSetArena feed so no dead downstream sink remains; 8G-9e removes the arena.
 
 // CPK-8E-0 final migration-parity snapshot, frozen at 8d208792 before oracle retirement.
 // This is a manifest of CPK-observable contracts, not a serialized snapshot of Legacy storage.
@@ -635,7 +636,6 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Cpk8gPhysicalTarget {
     ParentSetArena,
-    ReplayOccurrenceStore,
     ReplayFactoredShellAndTelemetry,
 }
 
@@ -692,10 +692,6 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
         ],
     },
     Cpk8gPhysicalTestGroup {
-        targets: &[Cpk8gPhysicalTarget::ReplayOccurrenceStore],
-        tests: &[],
-    },
-    Cpk8gPhysicalTestGroup {
         targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
         tests: &[
             "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
@@ -715,7 +711,7 @@ const CPK8G8_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
 ];
 const CPK8G9_PREPARATION_COMPLETED_SUBSLICES: &[&str] = &["8G-9-0a", "8G-9-0b"];
-const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a", "8G-9b", "8G-9c"];
+const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a", "8G-9b", "8G-9c", "8G-9d"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -955,8 +951,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
     // CPK-8G-8b0 removes the last authority preflight that consulted RCPF parent sets.
     // CPK-8G-9-0b removes the CPK-0b census/reset fixture reads. CPK-8G-9a removes the parent-set
-    // argument from the deleted projection feed while leaving the arena's own writer intact.
-    ("replay_parent_sets", 7),
+    // argument from the deleted projection feed. CPK-8G-9d stops the sole remaining production
+    // feed while leaving the arena definition and seven direct tests intact for 8G-9e.
+    ("replay_parent_sets", 2),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
@@ -967,8 +964,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // removes the final production occurrence reader from premise-dependency traversal. CPK-8G-
     // 9-0b removes the test evaluator, CPK-0b census/reset, and CPK-3 fixture read; only the RCPF
     // writer and structure definition remain. CPK-8G-9a removes the occurrence-store argument
-    // from the deleted projection feed.
-    ("replay_occurrences", 10),
+    // from the deleted projection feed, and CPK-8G-9d removes the occurrence store and admission
+    // feed completely.
+    ("replay_occurrences", 0),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
@@ -1083,7 +1081,7 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     ),
     (
         "constraints/machine/bounds.rs",
-        "register_replay_claim_parents_with_factored_drafts",
+        "register_cpk_replay_claim_parents",
     ),
     (
         "constraints/machine/entry.rs",
@@ -1095,8 +1093,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     ),
     ("constraints/replay_factored.rs", "preflight_extend"),
     ("constraints/replay_factored.rs", "commit_extend"),
-    ("constraints/replay_factored.rs", "try_insert"),
-    ("constraints/replay_factored.rs", "update_parent_versions"),
     // Projection, clauses, attribution, and dependencies.
     (
         "constraints/machine/bounds.rs",
@@ -1475,9 +1471,7 @@ fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
     let (bounds_production, bounds_tests) = bounds
         .split_once("#[cfg(test)]\nmod mutation_tests")
         .expect("bounds production/test boundary");
-    for (field, expected_writer_references) in
-        [(".replay_parent_sets", 5), (".replay_occurrences", 5)]
-    {
+    for (field, expected_writer_references) in [(".replay_parent_sets", 0)] {
         assert_eq!(
             bounds_production.matches(field).count(),
             expected_writer_references,
@@ -1495,7 +1489,7 @@ fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
         include_str!("proof/mod.rs"),
         include_str!("semantic_execution_snapshot.rs"),
     ] {
-        for field in [".replay_parent_sets", ".replay_occurrences"] {
+        for field in [".replay_parent_sets"] {
             assert!(
                 !source.contains(field),
                 "RCPF reader escaped the definition/writer/direct-test boundary: {field}",
@@ -1596,10 +1590,48 @@ fn cpk_8g_9c_replay_result_summary_is_fully_removed() {
             "the removed RCPF summary field/feed must not reappear",
         );
     }
+    assert!(
+        CPK8G9_COMPLETED_SUBSLICES.starts_with(&["8G-9a", "8G-9b", "8G-9c"]),
+        "RCPF reverse-topological deletion must retain all three completed removals",
+    );
+}
+
+#[test]
+fn cpk_8g_9d_replay_occurrence_store_is_fully_removed() {
+    let removed_store = ["ReplayOccurrence", "Store"].concat();
+    let removed_id = ["ReplayOccurrence", "Id"].concat();
+    let removed_key = ["ReplayOccurrence", "Key"].concat();
+    let removed_field = ["replay_occurr", "ences"].concat();
+    let removed_attachment = ["ReplayParentAttachment", "Batch"].concat();
+    for source in [
+        include_str!("mod.rs"),
+        include_str!("machine/entry.rs"),
+        include_str!("machine/bounds.rs"),
+        include_str!("replay_factored.rs"),
+    ] {
+        for removed in [
+            &removed_store,
+            &removed_id,
+            &removed_key,
+            &removed_field,
+            &removed_attachment,
+        ] {
+            assert!(
+                !source.contains(removed),
+                "removed RCPF occurrence surface reappeared: {removed}",
+            );
+        }
+    }
+    let bounds = include_str!("machine/bounds.rs");
+    assert_eq!(
+        bounds.matches(".replay_parent_sets").count(),
+        0,
+        "removing occurrence admission must stop the sole production ParentSetArena feed",
+    );
     assert_eq!(
         CPK8G9_COMPLETED_SUBSLICES,
-        &["8G-9a", "8G-9b", "8G-9c"],
-        "RCPF reverse-topological deletion must retain all three completed removals",
+        &["8G-9a", "8G-9b", "8G-9c", "8G-9d"],
+        "RCPF reverse-topological deletion must retain all four completed removals",
     );
 }
 
@@ -2328,7 +2360,6 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
 
     let all_targets = [
         Cpk8gPhysicalTarget::ParentSetArena,
-        Cpk8gPhysicalTarget::ReplayOccurrenceStore,
         Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
     ];
     let mut manifested_names = BTreeSet::new();

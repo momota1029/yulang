@@ -10,7 +10,6 @@ impl ConstraintMachine {
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
             replay_parent_sets: ParentSetArena::new(),
-            replay_occurrences: ReplayOccurrenceStore::default(),
             proof_store: proof::ProofOccurrenceStore::default(),
             proof_terminal_failure: RefCell::new(None),
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),
