@@ -658,14 +658,6 @@ enum QualifiedCarrier {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ReplayClaimParentKey {
-    result: ConstraintRecordId,
-    coverage_root: UpperReplayClaimId,
-    parent_side: ReplayClaimParentSide,
-    replay: BinaryReplayDerivation,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct StructuralClaimParentKey {
     result: ConstraintRecordId,
     coverage_root: UpperReplayClaimId,
@@ -2390,7 +2382,6 @@ pub struct TypeBounds {
     claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
     // Append-only exact-carrier projection of `claim_parents_by_constraint`.
     qualified_carrier_index: FxHashMap<ConstraintRecordId, FxHashSet<QualifiedCarrier>>,
-    replay_claim_parent_keys: FxHashSet<ReplayClaimParentKey>,
     structural_claim_parent_keys: FxHashSet<StructuralClaimParentKey>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
@@ -2484,16 +2475,6 @@ impl TypeBounds {
             carriers.try_reserve(entries.len()).map_err(exhausted)?;
             Some(carriers)
         };
-        self.replay_claim_parent_keys
-            .try_reserve(
-                entries
-                    .iter()
-                    .filter(|entry| {
-                        matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. })
-                    })
-                    .count(),
-            )
-            .map_err(exhausted)?;
         self.structural_claim_parent_keys
             .try_reserve(
                 entries
@@ -2621,25 +2602,12 @@ impl TypeBounds {
         result: ConstraintRecordId,
         entry: proof::ExactQualifiedParent,
     ) {
-        match entry.parent {
-            ClaimQualifiedParent::ReplayConstraint {
-                parent_side,
-                replay,
-                ..
-            } => assert!(self.replay_claim_parent_keys.insert(ReplayClaimParentKey {
+        if let ClaimQualifiedParent::StructuralConstraint { derivation, .. } = entry.parent {
+            assert!(self.structural_claim_parent_keys.insert(StructuralClaimParentKey {
                 result,
                 coverage_root: entry.coverage_root,
-                parent_side,
-                replay,
-            })),
-            ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                assert!(self.structural_claim_parent_keys.insert(StructuralClaimParentKey {
-                    result,
-                    coverage_root: entry.coverage_root,
-                    derivation,
-                }));
-            }
-            ClaimQualifiedParent::ReductionRouteConstraint { .. } => {}
+                derivation,
+            }));
         }
         self.push_claim_qualified_parent(result, entry.parent);
     }

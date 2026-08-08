@@ -27,11 +27,10 @@
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
 //   claim move, register_constraint_upper_replay_claims; after CPK-8G-6f they are write-only flat
 //   mirrors while CPK owns projection/routing reads.
-// - claim_parents_by_constraint, qualified_carrier_index, replay/structural parent keys:
-//   writers commit_claim_qualified_parent_mutation and row/reduction admission; readers legacy
-//   parent drafts/RCPF. Reduction-route exact admission is owned by the CPK
-//   reduction_route_claim_keys index under CPK authority; CPK-8G-6f/6g2 remove both historical
-//   authority-selection surfaces while preserving the dual writers.
+// - claim_parents_by_constraint, qualified_carrier_index, and the structural parent key remain
+//   write-only flat mirrors after CPK-8G-7a closes the CPK parent read view. Reduction-route exact
+//   admission is owned by the CPK reduction_route_claim_keys index. CPK-8G-7b1 removes the replay
+//   exact-key mirror and its writer while leaving the other three mirrors and the RCPF feed intact.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -689,7 +688,7 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     },
 ];
 
-// Rollback readiness at the final reversible CPK-8G dual-write freeze:
+// Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
 //   work. c1c3352e (CPK-8G-5, "freeze final CPK dual-write proof baseline") is the operative last
 //   fully dual-write-capable green point and the rollback target once CPK-8G-6 crosses the
@@ -700,6 +699,12 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
 //   run `cpk_`/`rcpf_`/`dpn_`/`mpc_`, the scoped `constraints::` suite with its reviewed skip list,
 //   `generalize::`/`compact::`/`explain::`/`portable_explain::`, and the logical-proof snapshot
 //   characterization, always with `--test-threads=4` for tests.
+// - CPK-8G-7b1 is the first commit that stops a production flat writer. From that commit onward,
+//   rollback means deploying the archived c1c3352e binary, not reverting source and restarting a
+//   newly built process. Discard every in-flight ConstraintMachine and cross a cold process
+//   boundary; no state built after the writer removal can be transferred into the archived binary.
+//   Start it with a version-scoped or empty cache root, never a cache concurrently writable by the
+//   CPK-8G-7 binary and the archived binary.
 // - ConstraintMachine, TypeBounds, and all RCPF stores are process-local inference state. Neither
 //   the poly cache nor the compiled-source-unit envelopes serialize them: persisted artifacts hold
 //   post-inference poly/compiled syntax, namespace, lowering, typed, and runtime surfaces.
@@ -776,7 +781,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // counted non-replay RCPF store whose name contains this token).
     ("claim_parents_by_constraint", 12),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
-    ("replay_claim_parent_keys", 3),
+    // CPK-8G-7b1 removes this first flat parent-relation mirror and its writer completely.
+    ("replay_claim_parent_keys", 0),
     ("qualified_carrier_index", 5),
     ("structural_claim_parent_keys", 3),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
@@ -1250,6 +1256,10 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
     }
 
     let bounds = source("constraints/mod.rs");
+    assert!(
+        !bounds.contains("ReplayClaimParentKey"),
+        "CPK-8G-7b1 removed replay exact-key mirror type reappeared"
+    );
     for writer in [
         "fn push_claim_qualified_parent",
         "fn try_reserve_qualified_parent_mirror",
@@ -1265,7 +1275,7 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
         // Includes the distinct `non_replay_claim_parents_by_constraint` machine field.
         ("claim_parents_by_constraint", 7),
         ("qualified_carrier_index", 5),
-        ("replay_claim_parent_keys", 3),
+        ("replay_claim_parent_keys", 0),
         ("structural_claim_parent_keys", 3),
     ] {
         assert_eq!(
