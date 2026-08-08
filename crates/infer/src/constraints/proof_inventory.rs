@@ -692,6 +692,7 @@ const CPK8G7_COMPLETED_SUBSLICES: &[&str] =
     &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
 const CPK8G8A_COMPLETED_SUBSLICES: &[&str] = &["8G-8a0", "8G-8a1", "8G-8a2"];
 const CPK8G8B_COMPLETED_SUBSLICES: &[&str] = &["8G-8b0", "8G-8b1"];
+const CPK8G8C_READER_CLOSURE_SUBSLICES: &[&str] = &["8G-8c0"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -837,12 +838,14 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
     // test, and the flat one-way mirror preflight/commit. Evaluator reads remain flat until 4b.
-    // CPK-8G-5 adds the CPK-owned snapshot iterator and resets the flat dependency mirror once in
-    // the snapshot-independence test; neither reference restores flat read authority.
+    // CPK-8G-5 adds the CPK-owned snapshot iterator and one flat-reset independence check;
+    // CPK-8G-8c0 removes that final fixture-only mirror access.
     // CPK-8G-6b removes the replacement-backed Legacy dependency-chain mirror read.
     // CPK-8G-6d removes one downstream RCPF first-source failure assertion.
-    // CPK-8G-6g1 removes the Legacy dependency-edge comparison read.
-    ("dependent_records_by_premise", 23),
+    // CPK-8G-6g1 removes the Legacy dependency-edge comparison read. CPK-8G-8c0 moves root
+    // liveness, before-view capture, transitive closure, and all test assertions to the CPK index;
+    // the remaining references are CPK storage plus the flat definition/reserve/commit mirror.
+    ("dependent_records_by_premise", 17),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read.
     ("origins", 128),
@@ -1372,6 +1375,54 @@ fn cpk_8g_8b1_flat_clause_link_attribution_relations_are_fully_removed() {
         CPK8G8B_COMPLETED_SUBSLICES,
         &["8G-8b0", "8G-8b1"],
         "CPK-8G-8b closure must retain both reviewed sub-slice dispositions",
+    );
+}
+
+#[test]
+fn cpk_8g_8c0_flat_projection_index_is_writer_only() {
+    let bounds = include_str!("mod.rs");
+    assert_eq!(
+        bounds
+            .matches("scheme_projection_lower_record_by_constraint")
+            .count(),
+        4,
+        "constraint-target mirror must be limited to definition/reserve/commit",
+    );
+    assert_eq!(
+        bounds
+            .matches("scheme_projection_lower_record_by_replay")
+            .count(),
+        4,
+        "replay-target mirror must be limited to definition/reserve/commit",
+    );
+    assert_eq!(
+        bounds.matches("dependent_records_by_premise").count(),
+        5,
+        "dependency mirror must be limited to definition/reserve/commit",
+    );
+    let former_readers = [
+        include_str!("machine/bounds.rs"),
+        include_str!("machine/entry.rs"),
+        include_str!("semantic_execution_snapshot.rs"),
+        include_str!("tests/case_02.rs"),
+        include_str!("tests/claim_qualified_provenance.rs"),
+    ]
+    .join("\n");
+    for surface in [
+        "scheme_projection_lower_record_by_constraint",
+        "scheme_projection_lower_record_by_replay",
+        "dependent_records_by_premise",
+    ] {
+        assert_eq!(
+            former_readers.matches(surface).count(),
+            0,
+            "flat projection-index reader reappeared: {surface}",
+        );
+    }
+    assert_eq!(
+        CPK8G8C_READER_CLOSURE_SUBSLICES,
+        &["8G-8c0"],
+        "CPK-8G-8c reader closure must retain its reviewed disposition",
     );
 }
 

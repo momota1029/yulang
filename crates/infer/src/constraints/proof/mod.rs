@@ -7989,10 +7989,10 @@ mod tests {
             )
             .id;
         let producer = ConstraintRecordId(96_003);
-        machine
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .insert(producer, lower_record);
+        machine.admit_projection_target_for_test(
+            ProjectionTarget::Constraint(producer),
+            lower_record,
+        );
         let cpk_before = (
             machine.proof_store.upper_claims.len(),
             machine.proof_store.upper_claim_index.len(),
@@ -10674,7 +10674,10 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(result),
         );
-        let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
+        let lower_record = machine
+            .proof_store
+            .projection_lower_record_for_constraint(result)
+            .expect("CPK projection target");
 
         let upper = machine.alloc_neg(Neg::Con(
             vec!["cpk-7-lower-only-upper".into()],
@@ -10771,7 +10774,10 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(result),
         );
-        let lower_record = machine.bounds.scheme_projection_lower_record_by_constraint[&result];
+        let lower_record = machine
+            .proof_store
+            .projection_lower_record_for_constraint(result)
+            .expect("CPK projection target");
 
         let upper = machine.alloc_neg(Neg::Con(
             vec!["cpk-7-mixed-side-upper".into()],

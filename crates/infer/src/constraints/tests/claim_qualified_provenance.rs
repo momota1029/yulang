@@ -173,8 +173,10 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(sibling_constraint),
         );
-        let audit_bound = machine.bounds.scheme_projection_lower_record_by_constraint
-            [&sibling_constraint];
+        let audit_bound = machine
+            .proof_store
+            .projection_lower_record_for_constraint(sibling_constraint)
+            .expect("CPK sibling projection target");
 
         let replay_pivot = TypeVar(20);
         let replay_lower_pos =

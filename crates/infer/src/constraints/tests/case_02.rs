@@ -2868,10 +2868,9 @@ fn dcp_a_8_6_one_sided_concrete_lower_links_claim_without_var_var_mirror() {
     assert_eq!(
         fixture
             .machine
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .get(&fixture.producer),
-        Some(&fixture.lower_record),
+            .proof_store
+            .projection_lower_record_for_constraint(fixture.producer),
+        Some(fixture.lower_record),
         "the producer resolves to its stable one-sided lower record"
     );
     let projection =
@@ -3488,7 +3487,7 @@ fn mpc_a_9_6_replay_clause_snapshot_is_insertion_order_invariant() {
 }
 
 // MPC §9.7 is intentionally deferred to MPC-D. Its observable contract requires D5's
-// `dependent_records_by_premise` reverse index, which is not introduced until MPC-C; a test in
+// the reverse dependency index, which is not introduced until MPC-C; a test in
 // MPC-A could only repeat the existing root-local empty/non-empty invalidation tests above.
 
 #[test]
@@ -3638,11 +3637,11 @@ fn dpn_a_9_2_reduction_route_clause_uses_root_coverage_premise() {
     };
     let root_claim = &fixture.machine.bounds.upper_replay_claims[fixture.coverage_root.0 as usize];
     assert!(
-        !fixture
+        fixture
             .machine
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .contains_key(&root_claim.producer_constraint),
+            .proof_store
+            .projection_lower_record_for_constraint(root_claim.producer_constraint)
+            .is_none(),
         "the URR root producer remains upper-only and has no linked lower record"
     );
     assert!(
@@ -3726,11 +3725,11 @@ fn dpn_b_9_2_root_coverage_premise_tracks_liveness_without_a_lower_map() {
         [fixture.coverage_root.0 as usize]
         .producer_constraint;
     assert!(
-        !fixture
+        fixture
             .machine
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .contains_key(&root_producer),
+            .proof_store
+            .projection_lower_record_for_constraint(root_producer)
+            .is_none(),
         "the reduction root has no lower-record delegation"
     );
     assert_eq!(
@@ -3776,8 +3775,9 @@ fn dpn_b_9_4_nested_constraint_chain_reaches_the_root_base_case() {
         .expect("the nested structural child is canonical");
     let nested_record = fixture
         .machine
-        .bounds
-        .scheme_projection_lower_record_by_constraint[&nested_constraint];
+        .proof_store
+        .projection_lower_record_for_constraint(nested_constraint)
+        .expect("CPK nested projection target");
     assert!(
         cpk_projection_clauses(&fixture.machine, nested_record).contains(
             &RecordProofClause::DerivedUnary {
@@ -4204,9 +4204,8 @@ fn dependent_edge_exists(
     dependent: BoundRecordId,
 ) -> bool {
     machine
-        .bounds
-        .dependent_records_by_premise
-        .get(&premise)
+        .proof_store
+        .dependent_records(premise)
         .is_some_and(|dependents| dependents.contains(&dependent))
 }
 

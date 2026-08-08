@@ -2020,6 +2020,18 @@ impl ConstraintMachine {
         }
     }
 
+    #[cfg(test)]
+    pub(in crate::constraints) fn admit_projection_target_for_test(
+        &mut self,
+        target: proof::ProjectionTarget,
+        record: BoundRecordId,
+    ) {
+        assert!(
+            self.admit_projection_index(Some((target, record)), &[]),
+            "CPK-aware fixture projection-target admission must succeed",
+        );
+    }
+
     fn try_evaluate_record_proof_clause_link_batch(
         &self,
         snapshot: &ClauseLinkBatchAdmissionSnapshot,
@@ -2539,15 +2551,6 @@ impl ConstraintMachine {
         if let Some(record) = self
             .proof_store
             .projection_lower_record_for_constraint(producer)
-        {
-            return Some(record);
-        }
-        #[cfg(test)]
-        if let Some(record) = self
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .get(&producer)
-            .copied()
         {
             return Some(record);
         }
@@ -5648,7 +5651,7 @@ mod mutation_tests {
                 .projection_clause_storage_census_for_test(),
             (0, 0, 0, 0),
         );
-        assert!(machine.bounds.dependent_records_by_premise.is_empty());
+        assert!(machine.proof_store.dependency_entries().next().is_none());
     }
 
     #[test]
@@ -5831,10 +5834,10 @@ mod mutation_tests {
             )
             .expect("the synthetic constraint is canonical");
         let (record, support) = dpn_b_synthetic_projection_record(&mut machine, 5);
-        machine
-            .bounds
-            .scheme_projection_lower_record_by_constraint
-            .insert(constraint, record);
+        machine.admit_projection_target_for_test(
+            proof::ProjectionTarget::Constraint(constraint),
+            record,
+        );
         dpn_b_register_synthetic_clause(
             &mut machine,
             record,
@@ -6193,11 +6196,6 @@ mod mutation_tests {
         fixture.machine.replay_result_summary = Default::default();
         fixture.machine.non_replay_claim_parents_by_constraint = Default::default();
         fixture.machine.bounds.upper_replay_claims.clear();
-        fixture
-            .machine
-            .bounds
-            .dependent_records_by_premise
-            .clear();
         assert_eq!(
             fixture.machine.logical_proof_snapshot(),
             snapshot,

@@ -1693,9 +1693,8 @@ impl ConstraintMachine {
             .copied()
             .collect::<FxHashSet<_>>();
         affected_records.extend(
-            self.bounds
-                .dependent_records_by_premise
-                .get(&ProofPremise::RootCoverage(root))
+            self.proof_store
+                .dependent_records(ProofPremise::RootCoverage(root))
                 .into_iter()
                 .flatten()
                 .copied(),
@@ -1923,20 +1922,7 @@ impl ConstraintMachine {
             }
             UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
                 .proof_store
-                .projection_lower_record_for_replay(replay)
-                .or_else(|| {
-                    #[cfg(test)]
-                    {
-                        self.bounds
-                            .scheme_projection_lower_record_by_replay
-                            .get(&replay)
-                            .copied()
-                    }
-                    #[cfg(not(test))]
-                    {
-                        None
-                    }
-                }),
+                .projection_lower_record_for_replay(replay),
         };
         match &decision {
             proof::PreparedDerivedClaimDecision::Coalesced {
@@ -2093,9 +2079,8 @@ impl ConstraintMachine {
             return Ok(intent);
         }
         let mut affected_records = self
-            .bounds
-            .dependent_records_by_premise
-            .get(&ProofPremise::Record(lower_record))
+            .proof_store
+            .dependent_records(ProofPremise::Record(lower_record))
             .cloned()
             .unwrap_or_default();
         self.extend_with_record_dependents(&mut affected_records);
@@ -2229,9 +2214,8 @@ impl ConstraintMachine {
         premise: ProofPremise,
     ) -> FxHashMap<BoundRecordId, bool> {
         let mut records = self
-            .bounds
-            .dependent_records_by_premise
-            .get(&premise)
+            .proof_store
+            .dependent_records(premise)
             .cloned()
             .unwrap_or_default();
         self.extend_with_record_dependents(&mut records);
@@ -2266,9 +2250,8 @@ impl ConstraintMachine {
         let mut queue = records.iter().copied().collect::<VecDeque<_>>();
         while let Some(record) = queue.pop_front() {
             let Some(dependents) = self
-                .bounds
-                .dependent_records_by_premise
-                .get(&ProofPremise::Record(record))
+                .proof_store
+                .dependent_records(ProofPremise::Record(record))
             else {
                 continue;
             };
@@ -2500,11 +2483,6 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
-        #[cfg(test)]
-        let producer = match &derivation {
-            BoundDerivation::Constraint(producer) => Some(*producer),
-            _ => None,
-        };
         let insertion = self.add_bound(
             BoundSemanticKey::Lower {
                 owner: var,
@@ -2518,13 +2496,6 @@ impl TypeBounds {
             BoundRecordState::Ordinary,
             derivation,
         );
-        // Raw TypeBounds fixtures still seed the migration mirror directly. Normal machine
-        // admission reaches this map only through the CPK-issued projection-index transaction.
-        #[cfg(test)]
-        if let Some(producer) = producer {
-            self.scheme_projection_lower_record_by_constraint
-                .insert(producer, insertion.id);
-        }
         insertion
     }
 
@@ -2557,11 +2528,6 @@ impl TypeBounds {
         weights: ConstraintWeights,
         derivation: BoundDerivation,
     ) -> BoundInsertResult {
-        #[cfg(test)]
-        let replay = match &derivation {
-            BoundDerivation::ReplayEvidence(replay) => Some(*replay),
-            _ => None,
-        };
         let insertion = self.add_bound(
             BoundSemanticKey::Lower {
                 owner: var,
@@ -2575,12 +2541,6 @@ impl TypeBounds {
             BoundRecordState::Evidence,
             derivation,
         );
-        // See add_lower: this direct writer is retained only for reviewed raw test fixtures.
-        #[cfg(test)]
-        if let Some(replay) = replay {
-            self.scheme_projection_lower_record_by_replay
-                .insert(replay, insertion.id);
-        }
         insertion
     }
 
