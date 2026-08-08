@@ -573,7 +573,6 @@ struct PreparedLiveCoverageMirrorCapacity {
 
 struct PreparedQualifiedParentMirrorCapacity {
     result_parents: Option<Vec<ClaimQualifiedParent>>,
-    carriers: Option<FxHashSet<QualifiedCarrier>>,
 }
 
 struct PreparedProjectionIndexMirrorCapacity {
@@ -636,25 +635,6 @@ impl ClaimQualifiedParent {
             | Self::ReductionRouteConstraint { parent_claim, .. } => parent_claim,
         }
     }
-
-    fn exact_carrier(self) -> QualifiedCarrier {
-        match self {
-            Self::ReplayConstraint { replay, .. } => QualifiedCarrier::Replay(replay),
-            Self::StructuralConstraint { derivation, .. } => {
-                QualifiedCarrier::Structural(derivation)
-            }
-            Self::ReductionRouteConstraint { derivation, .. } => {
-                QualifiedCarrier::ReductionRoute(derivation)
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum QualifiedCarrier {
-    Replay(BinaryReplayDerivation),
-    Structural(StructuralDerivation),
-    ReductionRoute(RowDerivationId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -2373,8 +2353,6 @@ pub struct TypeBounds {
     // Append-only mirror of Original claims, keyed by their stable producer identity.
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
     claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
-    // Append-only exact-carrier projection of `claim_parents_by_constraint`.
-    qualified_carrier_index: FxHashMap<ConstraintRecordId, FxHashSet<QualifiedCarrier>>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
@@ -2424,10 +2402,6 @@ impl TypeBounds {
             .entry(result)
             .or_default()
             .push(parent);
-        self.qualified_carrier_index
-            .entry(result)
-            .or_default()
-            .insert(parent.exact_carrier());
     }
 
     fn try_reserve_qualified_parent_mirror(
@@ -2441,7 +2415,6 @@ impl TypeBounds {
         if entries.is_empty() {
             return Ok(PreparedQualifiedParentMirrorCapacity {
                 result_parents: None,
-                carriers: None,
             });
         }
         let result_parents = if let Some(parents) = self.claim_parents_by_constraint.get_mut(&result)
@@ -2456,21 +2429,7 @@ impl TypeBounds {
             parents.try_reserve(entries.len()).map_err(exhausted)?;
             Some(parents)
         };
-        let carriers = if let Some(carriers) = self.qualified_carrier_index.get_mut(&result) {
-            carriers.try_reserve(entries.len()).map_err(exhausted)?;
-            None
-        } else {
-            self.qualified_carrier_index
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            let mut carriers = FxHashSet::default();
-            carriers.try_reserve(entries.len()).map_err(exhausted)?;
-            Some(carriers)
-        };
-        Ok(PreparedQualifiedParentMirrorCapacity {
-            result_parents,
-            carriers,
-        })
+        Ok(PreparedQualifiedParentMirrorCapacity { result_parents })
     }
 
     fn try_reserve_projection_index_mirror(
@@ -2573,9 +2532,6 @@ impl TypeBounds {
     ) {
         if let Some(parents) = prepared.result_parents {
             assert!(self.claim_parents_by_constraint.insert(result, parents).is_none());
-        }
-        if let Some(carriers) = prepared.carriers {
-            assert!(self.qualified_carrier_index.insert(result, carriers).is_none());
         }
     }
 
