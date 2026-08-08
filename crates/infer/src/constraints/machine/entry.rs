@@ -1598,11 +1598,9 @@ impl ConstraintMachine {
         derivation_inserted: bool,
     ) -> bool {
         let parents = self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&derivation.parent)
-            .cloned()
-            .unwrap_or_default();
+            .proof_store
+            .qualified_parent_values_for_result(derivation.parent)
+            .collect::<Vec<_>>();
         let mut inserted_parents = Vec::new();
         for parent in parents {
             let parent_claim = parent.parent_claim();

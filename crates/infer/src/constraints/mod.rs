@@ -2785,23 +2785,6 @@ impl TypeBounds {
         link_inserted.then_some((lower_record, admission))
     }
 
-    #[cfg(all(test, debug_assertions))]
-    fn debug_assert_qualified_carrier_index_matches_linear_scan(&self, result: ConstraintRecordId) {
-        let linear_scan = self
-            .claim_parents_by_constraint
-            .get(&result)
-            .into_iter()
-            .flatten()
-            .copied()
-            .map(ClaimQualifiedParent::exact_carrier)
-            .collect::<FxHashSet<_>>();
-        debug_assert_eq!(
-            self.qualified_carrier_index.get(&result),
-            Some(&linear_scan),
-            "qualified carrier index diverged from claim-parent linear scan for {result:?}"
-        );
-    }
-
     fn contains_derivation(&self, key: &BoundSemanticKey, derivation: &BoundDerivation) -> bool {
         self.canonical
             .get(key)

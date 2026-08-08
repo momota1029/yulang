@@ -970,11 +970,9 @@ impl ConstraintMachine {
             return Vec::new();
         };
         let parents = self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&producer)
-            .cloned()
-            .unwrap_or_default();
+            .proof_store
+            .qualified_parent_values_for_result(producer)
+            .collect::<Vec<_>>();
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
             self.register_claim_parent_clause_links_after_factored_projection(
                 producer,
@@ -990,7 +988,7 @@ impl ConstraintMachine {
                 .proof_store
                 .claim_coverage_root(parent_claim)
                 .expect("qualified replay parent must exist in the CPK claim arena");
-            // The exact route carrier remains in `claim_parents_by_constraint`, while the
+            // The exact route carrier remains in the CPK result-local parent view, while the
             // materialized upper claim is canonical per record and coverage root. Replaying the
             // second carrier would only count the same proof as a claim cycle.
             if matches!(
@@ -2708,8 +2706,11 @@ impl ConstraintMachine {
             _ => self.cdm_lower_delta_census.other_bound_events += 1,
         }
         let parents = producer
-            .and_then(|producer| self.bounds.claim_parents_by_constraint.get(&producer))
-            .cloned()
+            .map(|producer| {
+                self.proof_store
+                    .qualified_parent_values_for_result(producer)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         let claims = if self
             .bounds
@@ -2754,11 +2755,9 @@ impl ConstraintMachine {
         let parents = if ledger_exists {
             parents.to_vec()
         } else {
-            self.bounds
-                .claim_parents_by_constraint
-                .get(&producer)
-                .cloned()
-                .unwrap_or_default()
+            self.proof_store
+                .qualified_parent_values_for_result(producer)
+                .collect()
         };
         let claims = parents
             .iter()
@@ -2802,11 +2801,7 @@ impl ConstraintMachine {
         #[cfg(test)]
         self.record_cdm_lower_carrier_event(carrier);
         let delta = if !parents.is_empty()
-            && self
-                .bounds
-                .claim_parents_by_constraint
-                .get(&producer)
-                .is_some_and(|all| all.len() == parents.len())
+            && self.proof_store.qualified_parent_count(producer) == parents.len()
         {
             // A producer's bound derivation can predate its first qualified-parent admission.
             // Classify that one bound derivation once; later admissions are exact carrier deltas.
@@ -3028,25 +3023,11 @@ impl ConstraintMachine {
                     self.bounds.upper_replay_claims[claim.0 as usize].producer_constraint
                         == constraint
                 }),
-            ProjectionProofCarrier::StructuralConstraint { result, derivation } => !self
-                .bounds
-                .qualified_carrier_index
-                .get(&result)
-                .is_some_and(|carriers| {
-                    carriers.contains(&QualifiedCarrier::Structural(derivation))
-                }),
-            ProjectionProofCarrier::ReplayConstraint { result, derivation } => !self
-                .bounds
-                .qualified_carrier_index
-                .get(&result)
-                .is_some_and(|carriers| carriers.contains(&QualifiedCarrier::Replay(derivation))),
-            ProjectionProofCarrier::RowConstraint { result, derivation } => !self
-                .bounds
-                .qualified_carrier_index
-                .get(&result)
-                .is_some_and(|carriers| {
-                    carriers.contains(&QualifiedCarrier::ReductionRoute(derivation))
-                }),
+            ProjectionProofCarrier::StructuralConstraint { result, .. }
+            | ProjectionProofCarrier::ReplayConstraint { result, .. }
+            | ProjectionProofCarrier::RowConstraint { result, .. } => !self
+                .proof_store
+                .contains_qualified_parent_carrier(result, carrier),
             ProjectionProofCarrier::SchemeInstantiationConstraint { .. }
             | ProjectionProofCarrier::Origin(_)
             | ProjectionProofCarrier::ReplayEvidence(_)
@@ -3066,11 +3047,9 @@ impl ConstraintMachine {
             return;
         };
         let claim_parents = self
-            .bounds
-            .claim_parents_by_constraint
-            .get(&producer)
-            .cloned()
-            .unwrap_or_default();
+            .proof_store
+            .qualified_parent_values_for_result(producer)
+            .collect::<Vec<_>>();
         let ledger_exists = self
             .bounds
             .projection_proofs_by_lower_record
@@ -3116,14 +3095,17 @@ impl ConstraintMachine {
         for derivation in record.derivations() {
             match derivation {
                 BoundDerivation::Constraint(producer) => {
+                    let owned_parents;
                     let parents = if Some(*producer) == current_producer {
                         current_claim_parents
                     } else {
-                        self.bounds
-                            .claim_parents_by_constraint
-                            .get(producer)
-                            .map(Vec::as_slice)
-                            .unwrap_or(&[])
+                        owned_parents = self
+                            .proof_store
+                            .qualified_parents_for_result(*producer)
+                            .iter()
+                            .map(|entry| entry.parent)
+                            .collect::<Vec<_>>();
+                        &owned_parents
                     };
                     let constraint = &self.constraint_records[producer.0 as usize];
                     let roots_have_claim_support = self
@@ -3323,11 +3305,9 @@ impl ConstraintMachine {
                 .contains_key(&lower_record)
         {
             Some(
-                self.bounds
-                    .claim_parents_by_constraint
-                    .get(&result)
-                    .cloned()
-                    .unwrap_or_default(),
+                self.proof_store
+                    .qualified_parent_values_for_result(result)
+                    .collect::<Vec<_>>(),
             )
         } else {
             None
@@ -5548,7 +5528,7 @@ mod mutation_tests {
     }
 
     #[test]
-    fn cdm_b_no_claim_workload_does_not_allocate_qualified_carrier_index() {
+    fn cpk_no_claim_workload_does_not_allocate_qualified_parent_index() {
         let mut machine = ConstraintMachine::new();
         let target = TypeVar(0);
         let lower = machine.alloc_pos(Pos::Con(vec!["plain".into()], Vec::new()));
@@ -5560,12 +5540,10 @@ mod mutation_tests {
         );
 
         assert!(machine.bounds.upper_replay_claims.is_empty());
-        assert!(machine.bounds.claim_parents_by_constraint.is_empty());
-        assert!(machine.bounds.qualified_carrier_index.is_empty());
         assert_eq!(
-            machine.bounds.qualified_carrier_index.capacity(),
-            0,
-            "an ordinary no-claim bound must not allocate the carrier index"
+            machine.proof_store.qualified_parent_storage_census(),
+            (0, 0, 0, 0),
+            "an ordinary no-claim bound must not allocate the CPK exact-parent indexes"
         );
     }
 

@@ -749,13 +749,10 @@ fn unweighted_row_upper_incremental_route_registers_reduction_route_claim_parent
     );
     assert!(
         machine
-            .bounds
-            .claim_parents_by_constraint
-            .get(&result)
-            .into_iter()
-            .flatten()
+            .proof_store
+            .qualified_parent_values_for_result(result)
             .any(|parent| {
-                *parent
+                parent
                     == ClaimQualifiedParent::ReductionRouteConstraint {
                         parent_claim: claim,
                         derivation: route_derivation,
@@ -952,9 +949,11 @@ fn replay_after_a_same_root_move_uses_only_the_original_exact_parent() {
         .copied()
         .find(|replay| replay.upper == fixture.destination)
         .expect("the live reduction route replays against its current upper record");
-    let exact_parents = fixture.machine.bounds.claim_parents_by_constraint[&result]
-        .iter()
-        .filter_map(|parent| match *parent {
+    let exact_parents = fixture
+        .machine
+        .proof_store
+        .qualified_parent_values_for_result(result)
+        .filter_map(|parent| match parent {
             ClaimQualifiedParent::ReplayConstraint {
                 parent_claim,
                 replay: candidate,
@@ -2835,13 +2834,7 @@ fn dcp_a_8_5_non_row_structural_children_use_the_generic_claim_carrier() {
 fn dcp_c_trivial_structural_child_creates_no_claim_parent() {
     let mut fixture = non_row_structural_claim_fixture(NonRowStructuralShape::FunctionReturnEffect);
     let canonical_before = fixture.machine.canonical_constraint_count();
-    let claim_parents_before = fixture
-        .machine
-        .bounds
-        .claim_parents_by_constraint
-        .values()
-        .map(Vec::len)
-        .sum::<usize>();
+    let claim_parents_before = fixture.machine.proof_store.qualified_parent_storage_census();
     let bottom = fixture.machine.alloc_pos(Pos::Bot);
     let top = fixture.machine.alloc_neg(Neg::Top);
 
@@ -2861,13 +2854,7 @@ fn dcp_c_trivial_structural_child_creates_no_claim_parent() {
         "trivial structural admission creates no canonical constraint"
     );
     assert_eq!(
-        fixture
-            .machine
-            .bounds
-            .claim_parents_by_constraint
-            .values()
-            .map(Vec::len)
-            .sum::<usize>(),
+        fixture.machine.proof_store.qualified_parent_storage_census(),
         claim_parents_before,
         "trivial structural admission creates no claim entry"
     );
@@ -3138,11 +3125,9 @@ fn observed_cdm_bulk_oracle_snapshot(
 ) -> ObservedCdmBulkOracleSnapshot {
     ObservedCdmBulkOracleSnapshot {
         claim_parents: machine
-            .bounds
-            .claim_parents_by_constraint
-            .get(&producer)
-            .cloned()
-            .unwrap_or_default(),
+            .proof_store
+            .qualified_parent_values_for_result(producer)
+            .collect(),
         projection_claims: machine
             .bounds
             .scheme_projection_claims_by_lower_record
@@ -3385,15 +3370,17 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
         "the replay upper is one physical survivor with an uncovered Direct root and the live Reduced root"
     );
     assert!(
-        fixture.machine.bounds.claim_parents_by_constraint[&direct_producer]
-            .iter()
+        fixture
+            .machine
+            .proof_store
+            .qualified_parent_values_for_result(direct_producer)
             .any(|parent| matches!(
                 parent,
                 ClaimQualifiedParent::ReductionRouteConstraint {
                     parent_claim,
                     derivation,
-                } if claim_root(&fixture.machine, *parent_claim) == fixture.coverage_root
-                    && *derivation == reduction_route
+                } if claim_root(&fixture.machine, parent_claim) == fixture.coverage_root
+                    && derivation == reduction_route
             )),
         "the Direct producer is causally downstream of the same exact reduction root"
     );
@@ -4444,12 +4431,9 @@ fn observed_replay_claim_parents(
     replay: BinaryReplayDerivation,
 ) -> Vec<ObservedReplayClaimParent> {
     machine
-        .bounds
-        .claim_parents_by_constraint
-        .get(&result)
-        .into_iter()
-        .flatten()
-        .filter_map(|parent| match *parent {
+        .proof_store
+        .qualified_parent_values_for_result(result)
+        .filter_map(|parent| match parent {
             ClaimQualifiedParent::ReplayConstraint {
                 parent_claim,
                 parent_side,
@@ -4485,12 +4469,9 @@ fn observed_structural_claim_parents(
     derivation: StructuralDerivation,
 ) -> Vec<ObservedStructuralClaimParent> {
     machine
-        .bounds
-        .claim_parents_by_constraint
-        .get(&child)
-        .into_iter()
-        .flatten()
-        .filter_map(|parent| match *parent {
+        .proof_store
+        .qualified_parent_values_for_result(child)
+        .filter_map(|parent| match parent {
             ClaimQualifiedParent::StructuralConstraint {
                 parent_claim,
                 derivation: candidate,

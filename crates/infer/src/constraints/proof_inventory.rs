@@ -770,12 +770,15 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6e removes the final publication/failure ordering and Legacy-reader assertions.
     // CPK-8G-6g1 removes the flat side of the event/projection comparison adapter.
     // CPK-8G-6g2 removes the final authority-selected Legacy premise-chain reader and the unused
-    // flat-parent argument from the now-unconditional Factored phase-B plan.
-    ("claim_parents_by_constraint", 28),
+    // flat-parent argument from the now-unconditional Factored phase-B plan. CPK-8G-7a moves the
+    // remaining production and test readers to the result-local CPK view; the surviving references
+    // are the flat mirror definition, capacity preflight, and commit path (plus the separately
+    // counted non-replay RCPF store whose name contains this token).
+    ("claim_parents_by_constraint", 12),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
-    ("replay_claim_parent_keys", 5),
-    ("qualified_carrier_index", 15),
-    ("structural_claim_parent_keys", 5),
+    ("replay_claim_parent_keys", 3),
+    ("qualified_carrier_index", 5),
+    ("structural_claim_parent_keys", 3),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
     // projection collection remains a mirror during these ownership-transfer slices. CPK-8G-6a
     // removes five D3b A-fixture reads now served by the CPK claim/support indexes. CPK-8G-6c
@@ -1204,6 +1207,71 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
         assert!(
             source.contains(&format!("fn {boundary}")),
             "reviewed proof boundary moved or disappeared: {file}::{boundary}; reclassify the inventory instead of silently dropping it"
+        );
+    }
+}
+
+#[test]
+fn cpk_8g_7a_flat_parent_relations_are_write_only() {
+    let source = |file| {
+        REVIEWED_SOURCES
+            .iter()
+            .find_map(|(candidate, source)| (*candidate == file).then_some(*source))
+            .unwrap_or_else(|| panic!("reviewed source missing: {file}"))
+    };
+    for file in [
+        "constraints/machine/bounds.rs",
+        "constraints/machine/entry.rs",
+        "constraints/proof/mod.rs",
+    ] {
+        let source = source(file);
+        for field in [
+            ".claim_parents_by_constraint",
+            ".qualified_carrier_index",
+            ".replay_claim_parent_keys",
+            ".structural_claim_parent_keys",
+        ] {
+            assert!(
+                !source.contains(field),
+                "CPK-8G-7a forbids flat parent-relation reads outside the TypeBounds mirror writer: {file} contains {field}"
+            );
+        }
+    }
+    for field in [
+        ".claim_parents_by_constraint",
+        ".qualified_carrier_index",
+        ".replay_claim_parent_keys",
+        ".structural_claim_parent_keys",
+    ] {
+        assert!(
+            !include_str!("tests/case_02.rs").contains(field),
+            "CPK-8G-7a forbids flat parent-relation reads in constraints/tests/case_02.rs: {field}"
+        );
+    }
+
+    let bounds = source("constraints/mod.rs");
+    for writer in [
+        "fn push_claim_qualified_parent",
+        "fn try_reserve_qualified_parent_mirror",
+        "fn begin_qualified_parent_mirror_commit",
+        "fn commit_qualified_parent_mirror_entry",
+    ] {
+        assert!(
+            bounds.contains(writer),
+            "flat parent mirror writer boundary disappeared before CPK-8G-7b: {writer}"
+        );
+    }
+    for (field, expected) in [
+        // Includes the distinct `non_replay_claim_parents_by_constraint` machine field.
+        ("claim_parents_by_constraint", 7),
+        ("qualified_carrier_index", 5),
+        ("replay_claim_parent_keys", 3),
+        ("structural_claim_parent_keys", 3),
+    ] {
+        assert_eq!(
+            bounds.matches(field).count(),
+            expected,
+            "flat parent relation {field} gained a reader or lost a reviewed mirror-writer site"
         );
     }
 }

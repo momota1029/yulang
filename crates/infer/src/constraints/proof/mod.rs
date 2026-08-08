@@ -3850,6 +3850,58 @@ impl ProofOccurrenceStore {
             .unwrap_or_default()
     }
 
+    pub(super) fn qualified_parent_values_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl ExactSizeIterator<Item = ClaimQualifiedParent> + '_ {
+        self.qualified_parents_for_result(result)
+            .iter()
+            .map(|entry| entry.parent)
+    }
+
+    pub(super) fn qualified_parent_count(&self, result: ConstraintRecordId) -> usize {
+        self.qualified_parents_for_result(result).len()
+    }
+
+    pub(super) fn contains_qualified_parent_carrier(
+        &self,
+        result: ConstraintRecordId,
+        carrier: ProjectionProofCarrier,
+    ) -> bool {
+        self.qualified_parent_values_for_result(result)
+            .any(|parent| match (parent, carrier) {
+                (
+                    ClaimQualifiedParent::ReplayConstraint { replay, .. },
+                    ProjectionProofCarrier::ReplayConstraint { derivation, .. },
+                ) => replay == derivation,
+                (
+                    ClaimQualifiedParent::StructuralConstraint { derivation, .. },
+                    ProjectionProofCarrier::StructuralConstraint {
+                        derivation: candidate,
+                        ..
+                    },
+                ) => derivation == candidate,
+                (
+                    ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. },
+                    ProjectionProofCarrier::RowConstraint {
+                        derivation: candidate,
+                        ..
+                    },
+                ) => derivation == candidate,
+                _ => false,
+            })
+    }
+
+    #[cfg(test)]
+    pub(super) fn qualified_parent_storage_census(&self) -> (usize, usize, usize, usize) {
+        (
+            self.qualified_parent_keys.len(),
+            self.qualified_parent_keys.capacity(),
+            self.qualified_parents_by_result.len(),
+            self.qualified_parents_by_result.capacity(),
+        )
+    }
+
     pub(super) fn first_qualified_parent_source(
         &self,
         result: ConstraintRecordId,
@@ -7662,13 +7714,6 @@ mod tests {
                 .first_qualified_parent_source_by_root
                 .clone(),
         );
-        let flat_before = (
-            machine.bounds.claim_parents_by_constraint.clone(),
-            machine.bounds.qualified_carrier_index.clone(),
-            machine.bounds.replay_claim_parent_keys.clone(),
-            machine.bounds.structural_claim_parent_keys.clone(),
-        );
-
         machine
             .proof_store
             .fail_next_qualified_parent_reservation();
@@ -7685,17 +7730,6 @@ mod tests {
             cpk_before,
             "a failed CPK preflight commits no key, first-source, or result-local order state",
         );
-        assert_eq!(
-            (
-                machine.bounds.claim_parents_by_constraint.clone(),
-                machine.bounds.qualified_carrier_index.clone(),
-                machine.bounds.replay_claim_parent_keys.clone(),
-                machine.bounds.structural_claim_parent_keys.clone(),
-            ),
-            flat_before,
-            "the flat mirror is untouched until the CPK transaction commits",
-        );
-
         machine.admit_claim_qualified_parents(result, &parents);
         let canonical = machine.proof_store.qualified_parents_for_result(result);
         assert_eq!(canonical.len(), 4);
@@ -7709,17 +7743,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![first, first, second, third],
             "claimed parents remain in canonical coverage-root order",
-        );
-        assert_eq!(
-            machine.bounds.claim_parents_by_constraint[&result]
-                .iter()
-                .copied()
-                .collect::<FxHashSet<_>>(),
-            canonical
-                .iter()
-                .map(|entry| entry.parent)
-                .collect::<FxHashSet<_>>(),
-            "flat receives exactly the event-local CPK decision",
         );
         assert_eq!(
             machine
@@ -9581,12 +9604,10 @@ mod tests {
         };
         assert_eq!(occurrence_count(&machine), 1);
 
-        machine
-            .bounds
-            .claim_parents_by_constraint
-            .get_mut(&result)
-            .expect("the first route wrote the Legacy mirror")
-            .clear();
+        let parents_before = machine
+            .proof_store
+            .qualified_parents_for_result(result)
+            .to_vec();
         machine.register_reduction_route_claim_parent(result, derivation, root);
 
         assert_eq!(
@@ -9594,9 +9615,10 @@ mod tests {
             1,
             "CPK exact dedup must not depend on the corrupted Legacy mirror",
         );
-        assert!(
-            machine.bounds.claim_parents_by_constraint[&result].is_empty(),
-            "a CPK duplicate must return before rewriting the Legacy mirror",
+        assert_eq!(
+            machine.proof_store.qualified_parents_for_result(result),
+            parents_before,
+            "a CPK duplicate must not change the result-local exact-parent view",
         );
     }
 
