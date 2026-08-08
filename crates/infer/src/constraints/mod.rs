@@ -571,10 +571,6 @@ struct PreparedLiveCoverageMirrorCapacity {
     states: Option<Vec<UnweightedRowReductionRecordId>>,
 }
 
-struct PreparedQualifiedParentMirrorCapacity {
-    result_parents: Option<Vec<ClaimQualifiedParent>>,
-}
-
 struct PreparedProjectionIndexMirrorCapacity {
     new_dependent_sets: Vec<(ProofPremise, FxHashSet<BoundRecordId>)>,
 }
@@ -2352,7 +2348,6 @@ pub struct TypeBounds {
     reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
     // Append-only mirror of Original claims, keyed by their stable producer identity.
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
-    claim_parents_by_constraint: FxHashMap<ConstraintRecordId, Vec<ClaimQualifiedParent>>,
     live_coverage_by_root: FxHashMap<UpperReplayClaimId, Vec<UnweightedRowReductionRecordId>>,
     scheme_projection_lower_record_by_constraint: FxHashMap<ConstraintRecordId, BoundRecordId>,
     scheme_projection_lower_record_by_replay: FxHashMap<BinaryReplayDerivation, BoundRecordId>,
@@ -2391,45 +2386,6 @@ impl TypeBounds {
 
     pub fn record(&self, id: BoundRecordId) -> Option<&BoundRecord> {
         self.records.get(id.0 as usize)
-    }
-
-    fn push_claim_qualified_parent(
-        &mut self,
-        result: ConstraintRecordId,
-        parent: ClaimQualifiedParent,
-    ) {
-        self.claim_parents_by_constraint
-            .entry(result)
-            .or_default()
-            .push(parent);
-    }
-
-    fn try_reserve_qualified_parent_mirror(
-        &mut self,
-        result: ConstraintRecordId,
-        entries: &[proof::ExactQualifiedParent],
-    ) -> Result<PreparedQualifiedParentMirrorCapacity, proof::ProofFailure> {
-        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
-            operation: proof::ProofOperation::UpdateClaimLifecycle,
-        };
-        if entries.is_empty() {
-            return Ok(PreparedQualifiedParentMirrorCapacity {
-                result_parents: None,
-            });
-        }
-        let result_parents = if let Some(parents) = self.claim_parents_by_constraint.get_mut(&result)
-        {
-            parents.try_reserve(entries.len()).map_err(exhausted)?;
-            None
-        } else {
-            self.claim_parents_by_constraint
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            let mut parents = Vec::new();
-            parents.try_reserve(entries.len()).map_err(exhausted)?;
-            Some(parents)
-        };
-        Ok(PreparedQualifiedParentMirrorCapacity { result_parents })
     }
 
     fn try_reserve_projection_index_mirror(
@@ -2523,24 +2479,6 @@ impl TypeBounds {
                 .expect("dependency mirror capacity was prepared before commit")
                 .insert(dependent);
         }
-    }
-
-    fn begin_qualified_parent_mirror_commit(
-        &mut self,
-        result: ConstraintRecordId,
-        prepared: PreparedQualifiedParentMirrorCapacity,
-    ) {
-        if let Some(parents) = prepared.result_parents {
-            assert!(self.claim_parents_by_constraint.insert(result, parents).is_none());
-        }
-    }
-
-    fn commit_qualified_parent_mirror_entry(
-        &mut self,
-        result: ConstraintRecordId,
-        entry: proof::ExactQualifiedParent,
-    ) {
-        self.push_claim_qualified_parent(result, entry.parent);
     }
 
     fn register_record_proof_clause_link(

@@ -27,11 +27,10 @@
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
 //   claim move, register_constraint_upper_replay_claims; after CPK-8G-6f they are write-only flat
 //   mirrors while CPK owns projection/routing reads.
-// - claim_parents_by_constraint remains a write-only flat mirror after CPK-8G-7a closes the CPK
-//   parent read view. Reduction-route exact admission is owned by the CPK reduction_route_claim_keys
-//   index. CPK-8G-7b1/b2 remove the replay and structural exact-key mirrors independently;
-//   CPK-8G-7b3 then removes the qualified-carrier projection while leaving the parent Vec and RCPF
-//   feed intact.
+// - CPK-8G-7a closes the CPK parent read view. CPK-8G-7b1/b2 remove the replay and structural
+//   exact-key mirrors independently; CPK-8G-7b3 removes the qualified-carrier projection; and
+//   CPK-8G-7b4 removes the final claim-parent Vec mirror while preserving the CPK admission and
+//   RCPF one-way feed. All five CPK-8G-7 sub-slices are complete.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -689,6 +688,9 @@ const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     },
 ];
 
+const CPK8G7_COMPLETED_SUBSLICES: &[&str] =
+    &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
+
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
 //   work. c1c3352e (CPK-8G-5, "freeze final CPK dual-write proof baseline") is the operative last
@@ -780,9 +782,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // remaining production and test readers to the result-local CPK view; the surviving references
     // are the flat mirror definition, capacity preflight, and commit path (plus the separately
     // counted non-replay RCPF store whose name contains this token).
-    // CPK-8G-7b3 removes the carrier-index field comment that named this parent Vec; all six
-    // TypeBounds definition/reserve/shell/append references remain until CPK-8G-7b4.
-    ("claim_parents_by_constraint", 11),
+    // CPK-8G-7b4 removes the final flat parent Vec and its complete capacity/commit writer. The
+    // surviving references are the separately counted RCPF NonReplayClaimParentStore field only.
+    ("claim_parents_by_constraint", 6),
     // The final dead shadow-interference comparator disappears with the 8G-6c ledger helpers.
     // CPK-8G-7b1 removes this first flat parent-relation mirror and its writer completely.
     ("replay_claim_parent_keys", 0),
@@ -1030,7 +1032,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
         "constraints/machine/bounds.rs",
         "commit_claim_qualified_parent_mutation",
     ),
-    ("constraints/mod.rs", "push_claim_qualified_parent"),
     (
         "constraints/machine/bounds.rs",
         "register_replay_claim_parents_with_factored_drafts",
@@ -1223,7 +1224,7 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
 }
 
 #[test]
-fn cpk_8g_7a_flat_parent_relations_are_write_only() {
+fn cpk_8g_7_flat_parent_relations_are_fully_removed() {
     let source = |file| {
         REVIEWED_SOURCES
             .iter()
@@ -1273,20 +1274,25 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
         !bounds.contains("QualifiedCarrier"),
         "CPK-8G-7b3 removed qualified-carrier mirror type reappeared"
     );
-    for writer in [
+    assert!(
+        !bounds.contains("\n    claim_parents_by_constraint:"),
+        "CPK-8G-7b4 removed flat parent Vec field reappeared"
+    );
+    for removed_writer in [
+        "PreparedQualifiedParentMirrorCapacity",
         "fn push_claim_qualified_parent",
         "fn try_reserve_qualified_parent_mirror",
         "fn begin_qualified_parent_mirror_commit",
         "fn commit_qualified_parent_mirror_entry",
     ] {
         assert!(
-            bounds.contains(writer),
-            "flat parent mirror writer boundary disappeared before CPK-8G-7b: {writer}"
+            !bounds.contains(removed_writer),
+            "CPK-8G-7b4 removed flat parent mirror writer reappeared: {removed_writer}"
         );
     }
     for (field, expected) in [
-        // Includes the distinct `non_replay_claim_parents_by_constraint` machine field.
-        ("claim_parents_by_constraint", 6),
+        // The one surviving substring is the distinct RCPF `non_replay_*` machine field.
+        ("claim_parents_by_constraint", 1),
         ("qualified_carrier_index", 0),
         ("replay_claim_parent_keys", 0),
         ("structural_claim_parent_keys", 0),
@@ -1297,6 +1303,11 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
             "flat parent relation {field} gained a reader or lost a reviewed mirror-writer site"
         );
     }
+    assert_eq!(
+        CPK8G7_COMPLETED_SUBSLICES,
+        &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"],
+        "CPK-8G-7 closure must retain all five reviewed sub-slice dispositions"
+    );
 }
 
 #[test]

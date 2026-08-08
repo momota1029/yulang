@@ -2316,13 +2316,11 @@ impl ConstraintMachine {
         constraint: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
-        let Ok((mut admission, mirror)) =
-            self.try_prepare_qualified_parent_admission(constraint, parents)
+        let Ok(mut admission) = self.try_prepare_qualified_parent_admission(constraint, parents)
         else {
             return;
         };
-        let (accepted, snapshot) =
-            self.begin_qualified_parent_admission(&mut admission, mirror);
+        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
         for entry in accepted.iter().copied() {
             self.commit_claim_qualified_parent_mutation(constraint, entry);
         }
@@ -2335,39 +2333,23 @@ impl ConstraintMachine {
         &mut self,
         result: ConstraintRecordId,
         parents: &[ClaimQualifiedParent],
-    ) -> Result<
-        (
-            proof::PreparedQualifiedParentAdmission,
-            PreparedQualifiedParentMirrorCapacity,
-        ),
-        proof::ProofFailure,
-    > {
-        let admission = self
-            .proof_store
-            .try_prepare_qualified_parent_admission(result, parents)?;
-        let mirror = self
-            .bounds
-            .try_reserve_qualified_parent_mirror(result, admission.accepted())?;
-        Ok((admission, mirror))
+    ) -> Result<proof::PreparedQualifiedParentAdmission, proof::ProofFailure> {
+        self.proof_store
+            .try_prepare_qualified_parent_admission(result, parents)
     }
 
     fn begin_qualified_parent_admission(
         &mut self,
         admission: &mut proof::PreparedQualifiedParentAdmission,
-        mirror: PreparedQualifiedParentMirrorCapacity,
     ) -> (
         Vec<proof::ExactQualifiedParent>,
         ClaimQualifiedParentAdmissionSnapshot,
     ) {
-        let inclusion_before = self
-            .projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()));
+        let inclusion_before =
+            self.projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()));
         let accepted = admission.accepted().to_vec();
         self.proof_store
             .commit_qualified_parent_admission(admission);
-        if !accepted.is_empty() {
-            self.bounds
-                .begin_qualified_parent_mirror_commit(admission.result(), mirror);
-        }
         (
             accepted,
             ClaimQualifiedParentAdmissionSnapshot { inclusion_before },
@@ -2385,19 +2367,17 @@ impl ConstraintMachine {
         Vec<ClaimQualifiedParent>,
     ) {
         let mut publication_fence = Some(ReplayAdmissionPublicationFence::default());
-        let (mut admission, mirror) =
-            match self.try_prepare_qualified_parent_admission(result, parents) {
-                Ok(prepared) => prepared,
-                Err(failure) => {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::UpdateClaimLifecycle,
-                        failure,
-                    );
-                    return (publication_fence, Vec::new());
-                }
-            };
-        let (accepted, snapshot) =
-            self.begin_qualified_parent_admission(&mut admission, mirror);
+        let mut admission = match self.try_prepare_qualified_parent_admission(result, parents) {
+            Ok(prepared) => prepared,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return (publication_fence, Vec::new());
+            }
+        };
+        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
         let accepted_parents = accepted
             .iter()
             .map(|entry| entry.parent)
@@ -2503,8 +2483,6 @@ impl ConstraintMachine {
         entry: proof::ExactQualifiedParent,
     ) {
         let parent = entry.parent;
-        self.bounds
-            .commit_qualified_parent_mirror_entry(constraint, entry);
         self.observe_non_replay_claim_parent_admission(constraint, parent);
         self.register_new_constraint_premise_route_edges(constraint, parent);
         self.observe_first_qualified_parent_source(constraint, parent);
@@ -3261,7 +3239,7 @@ impl ConstraintMachine {
                 replay,
             })
             .collect::<Vec<_>>();
-        let (mut admission, mirror) = match self
+        let mut admission = match self
             .try_prepare_qualified_parent_admission(result, &candidates)
         {
             Ok(prepared) => prepared,
@@ -3273,8 +3251,7 @@ impl ConstraintMachine {
                 return;
             }
         };
-        let (accepted, snapshot) =
-            self.begin_qualified_parent_admission(&mut admission, mirror);
+        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
         let mut inserted_parents = Vec::new();
         inserted_parents.reserve(accepted.len());
         for entry in accepted.iter().copied() {
