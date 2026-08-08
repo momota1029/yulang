@@ -226,7 +226,10 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(root_producer),
         );
-        let original_claim = machine.bounds.root_claim_by_producer_constraint[&root_producer];
+        let original_claim = machine
+            .proof_store
+            .root_claim_for_producer(root_producer)
+            .expect("root producer has a CPK claim");
 
         let selected_claim = match lineage {
             LineageCase::Original => original_claim,
@@ -267,8 +270,9 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                     derived_upper,
                     Some(producer),
                 ).into_iter().find(|claim| {
-                    machine.bounds.upper_replay_claims[claim.0 as usize].current_record
-                        == derived_upper
+                    machine.proof_store.upper_claim(*claim).is_some_and(|claim| {
+                        claim.current_record == derived_upper
+                    })
                 }).expect("qualified parent materializes the derived claim")
             }
             LineageCase::ReplayEvidence => {
@@ -286,7 +290,10 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
             .try_prepare_scheme_projection_mutation(audit_bound, &[selected_claim], &[])
             .expect("test projection support mutation must have capacity");
         machine.apply_scheme_projection_mutation(mutation);
-        let root = machine.bounds.upper_replay_claims[selected_claim.0 as usize].coverage_root;
+        let root = machine
+            .proof_store
+            .claim_coverage_root(selected_claim)
+            .expect("selected CPK claim has a coverage root");
         let support = SchemeProjectionProofSupport::Claimed(root);
         machine.register_cpk_projection_clause_for_test(
             audit_bound,

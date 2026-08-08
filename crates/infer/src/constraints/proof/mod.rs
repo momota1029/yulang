@@ -3696,6 +3696,74 @@ impl ProofOccurrenceStore {
         let index = self.upper_claim_index.get(&claim).copied()?;
         self.upper_claims.get(index)
     }
+
+    #[cfg(test)]
+    pub(super) fn upper_claims_for_test(&self) -> &[UpperClaimOccurrence] {
+        &self.upper_claims
+    }
+
+    #[cfg(test)]
+    pub(super) fn claims_for_upper_record_for_test(
+        &self,
+        record: BoundRecordId,
+    ) -> &[UpperReplayClaimId] {
+        self.claims_by_upper_record
+            .get(&record)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    #[cfg(test)]
+    pub(super) fn upper_claim_record_entries_for_test(
+        &self,
+    ) -> impl Iterator<Item = (BoundRecordId, &[UpperReplayClaimId])> {
+        self.claims_by_upper_record
+            .iter()
+            .map(|(record, claims)| (*record, claims.as_slice()))
+    }
+
+    #[cfg(test)]
+    pub(super) fn live_coverage_states_for_test(
+        &self,
+        root: UpperReplayClaimId,
+    ) -> Option<&FxHashSet<UnweightedRowReductionRecordId>> {
+        self.live_states_by_coverage_root.get(&root)
+    }
+
+    #[cfg(test)]
+    pub(super) fn replay_claim_cycle_coalesces_for_test(&self) -> usize {
+        self.replay_claim_cycle_coalesces
+    }
+
+    #[cfg(test)]
+    pub(super) fn prepared_upper_replay_parents_for_test(
+        &self,
+        upper: BoundRecordId,
+        lower_is_var: bool,
+    ) -> Result<Vec<PreparedReplayParent>, ProofFailure> {
+        let claims = self
+            .claims_by_upper_record
+            .get(&upper)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let entries = self.prepare_replay_parent_entries(
+            upper,
+            upper,
+            ReplayClaimParentSide::Upper,
+            claims,
+            Some(upper),
+        )?;
+        Ok(entries
+            .into_iter()
+            .filter(|parent| {
+                lower_is_var
+                    || self
+                        .live_states_by_coverage_root
+                        .get(&parent.coverage_root)
+                        .is_none_or(FxHashSet::is_empty)
+            })
+            .collect())
+    }
 }
 
 pub(super) struct CpkProjectionEvaluator<'a> {
@@ -5141,9 +5209,6 @@ mod tests {
             ConstraintRecordId(91_000 + ordinal),
             UpperReplayClaimKind::Direct,
         );
-        fixture.machine.proof_store.record_upper_claim(
-            &fixture.machine.bounds.upper_replay_claims[registration.claim.0 as usize],
-        );
         registration.claim
     }
 
@@ -5873,7 +5938,7 @@ mod tests {
         );
         let claim = registration.claim;
 
-        machine.bounds.upper_replay_claims[claim.0 as usize].current_record =
+        machine.proof_store.upper_claims[claim.0 as usize].current_record =
             BoundRecordId(71_103);
         machine
             .proof_store
@@ -7572,9 +7637,6 @@ mod tests {
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
         );
-        machine.proof_store.record_upper_claim(
-            &machine.bounds.upper_replay_claims[registration.claim.0 as usize],
-        );
         machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         CpkReplayAdmissionFixture {
             machine,
@@ -7742,10 +7804,48 @@ mod tests {
         machine
     }
 
-    fn assert_cpk_claim_payload_matches_flat(
+    fn cpk_claim_snapshot(
+        machine: &ConstraintMachine,
         actual: &UpperClaimOccurrence,
-        expected: &UpperReplayClaim,
+    ) -> UpperReplayClaim {
+        let record = machine.bounds.record(actual.current_record)
+            .expect("CPK claim's semantic BoundRecord remains present");
+        let BoundEndpoint::Upper(endpoint) = record.endpoint() else {
+            panic!("CPK upper claim must point at an upper BoundRecord")
+        };
+        let kind = match actual.kind {
+            UpperClaimKind::Direct => UpperReplayClaimKind::Direct,
+            UpperClaimKind::Reduced(state) => UpperReplayClaimKind::Reduced(state),
+        };
+        let lineage = match actual.full_lineage {
+            UpperClaimLineage::Original => UpperReplayClaimLineage::Original,
+            UpperClaimLineage::ReplayConstraint { parent_claim, parent_side, result, replay, depth } =>
+                UpperReplayClaimLineage::ReplayConstraint { parent_claim, parent_side, result, replay, depth },
+            UpperClaimLineage::ReplayEvidence { parent_claim, parent_side, replay, depth } =>
+                UpperReplayClaimLineage::ReplayEvidence { parent_claim, parent_side, replay, depth },
+            UpperClaimLineage::StructuralConstraint { parent_claim, result, derivation, depth } =>
+                UpperReplayClaimLineage::StructuralConstraint { parent_claim, result, derivation, depth },
+            UpperClaimLineage::ReductionRouteConstraint { parent_claim, result, derivation, depth } =>
+                UpperReplayClaimLineage::ReductionRouteConstraint { parent_claim, result, derivation, depth },
+        };
+        UpperReplayClaim {
+            id: actual.claim,
+            source: record.owner(),
+            endpoint,
+            weights: record.weights().clone(),
+            producer_constraint: actual.producer,
+            kind,
+            current_record: actual.current_record,
+            coverage_root: actual.coverage_root,
+            lineage,
+        }
+    }
+
+    fn assert_cpk_claim_payload_matches_semantic_snapshot(
+        machine: &ConstraintMachine,
+        actual: &UpperClaimOccurrence,
     ) {
+        let expected = cpk_claim_snapshot(machine, actual);
         assert_eq!(actual.claim, expected.id);
         assert_eq!(actual.coverage_root, expected.coverage_root);
         assert_eq!(actual.producer, expected.producer_constraint);
@@ -7872,10 +7972,14 @@ mod tests {
             }
         }
         assert_eq!(actual.lineage, projection_lineage(expected.lineage));
+        let record = machine.bounds.record(actual.current_record).unwrap();
+        assert_eq!(expected.source, record.owner());
+        assert_eq!(expected.weights, *record.weights());
+        assert_eq!(BoundEndpoint::Upper(expected.endpoint), record.endpoint());
     }
 
     #[test]
-    fn cpk_claim_payload_matches_flat_across_five_lineages_and_move() {
+    fn cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records() {
         let mut machine = cpk_3_replay_fixture();
         cpk_record_original_claim_with_kind(
             &mut machine,
@@ -7883,17 +7987,14 @@ mod tests {
             UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(0)),
         );
         let cpk_claims = machine.proof_store.upper_claims.clone();
-        assert_eq!(cpk_claims.len(), machine.bounds.upper_replay_claims.len());
+        assert_eq!(cpk_claims.len(), machine.proof_store.upper_claim_index.len());
 
         for actual in &cpk_claims {
             assert_eq!(
                 actual.claim.0 as usize,
                 machine.proof_store.upper_claim_index[&actual.claim]
             );
-            assert_cpk_claim_payload_matches_flat(
-                actual,
-                &machine.bounds.upper_replay_claims[actual.claim.0 as usize],
-            );
+            assert_cpk_claim_payload_matches_semantic_snapshot(&machine, actual);
         }
         assert_eq!(
             machine
@@ -7920,10 +8021,14 @@ mod tests {
         assert!(kinds.contains(&UpperClaimKind::Reduced(
             UnweightedRowReductionRecordId(0)
         )));
+        let reduction_claim = machine
+            .proof_store
+            .reduction_claim(UnweightedRowReductionRecordId(0))
+            .expect("CPK reduction-state index retains its canonical claim");
         assert_eq!(
-            machine.proof_store.reduction_claim_by_state,
-            machine.bounds.reduction_claim_by_state,
-            "the CPK reduction-state index issues the claim mirrored by flat storage"
+            machine.proof_store.upper_claim(reduction_claim).unwrap().claim,
+            reduction_claim,
+            "the CPK reduction-state index remains referentially closed"
         );
 
         let moved_claim = cpk_claims
@@ -7949,29 +8054,13 @@ mod tests {
             .id;
         machine.move_upper_replay_claim(moved_claim, moved_record);
 
-        let expected_after_move =
-            machine.bounds.upper_replay_claims[moved_claim.0 as usize].clone();
         let actual_after_move = &machine.proof_store.upper_claims[moved_index];
-        assert_cpk_claim_payload_matches_flat(actual_after_move, &expected_after_move);
+        assert_cpk_claim_payload_matches_semantic_snapshot(&machine, actual_after_move);
         assert_eq!(actual_after_move.current_record, moved_record);
         assert_eq!(actual_after_move.kind, before_move.kind);
         assert_eq!(actual_after_move.full_lineage, before_move.full_lineage);
-        assert_eq!(
-            machine.proof_store.claims_by_upper_record,
-            machine
-                .bounds
-                .claims_by_upper_record
-                .iter()
-                .filter(|(_, claims)| !claims.is_empty())
-                .map(|(record, claims)| (*record, claims.clone()))
-                .collect(),
-            "the flat record index mirrors every live CPK association while preserving its historical empty containers",
-        );
-        assert_eq!(
-            machine.proof_store.derived_claim_by_record_and_root,
-            machine.bounds.derived_claim_by_record_and_root,
-            "the moved derived lineage remains byte-for-byte mirrored",
-        );
+        assert_eq!(machine.proof_store.derived_claim(moved_record, actual_after_move.coverage_root),
+            Some(moved_claim), "the moved derived lineage remains indexed by CPK");
     }
 
     #[test]
@@ -8012,12 +8101,6 @@ mod tests {
             machine.proof_store.claims_by_upper_record.len(),
             machine.proof_store.projection_supports.len(),
         );
-        let flat_before = (
-            machine.bounds.upper_replay_claims.len(),
-            machine.bounds.original_claim_by_record_and_producer.len(),
-            machine.bounds.root_claim_by_producer_constraint.len(),
-            machine.bounds.claims_by_upper_record.len(),
-        );
         let next_id = UpperReplayClaimId(cpk_before.0 as u32);
 
         machine.proof_store.fail_next_original_claim_reservation();
@@ -8042,15 +8125,6 @@ mod tests {
             ),
             cpk_before
         );
-        assert_eq!(
-            (
-                machine.bounds.upper_replay_claims.len(),
-                machine.bounds.original_claim_by_record_and_producer.len(),
-                machine.bounds.root_claim_by_producer_constraint.len(),
-                machine.bounds.claims_by_upper_record.len(),
-            ),
-            flat_before
-        );
 
         let registration = machine
             .try_original_upper_replay_claim(
@@ -8061,17 +8135,12 @@ mod tests {
             .expect("the failed preflight leaves its dense ID unconsumed");
         assert_eq!(registration.claim, next_id);
         assert_eq!(machine.proof_store.upper_claims[next_id.0 as usize].claim, next_id);
-        assert_eq!(machine.bounds.upper_replay_claims[next_id.0 as usize].id, next_id);
         assert_eq!(
             machine.proof_store.original_claim(upper_record, producer),
             Some(next_id)
         );
         assert_eq!(
             machine.proof_store.root_claim_by_producer_constraint[&producer],
-            next_id
-        );
-        assert_eq!(
-            machine.bounds.original_claim_by_record_and_producer[&(upper_record, producer)],
             next_id
         );
     }
@@ -8151,22 +8220,14 @@ mod tests {
         assert_eq!(duplicate, second);
         assert_eq!(cycle, root);
         assert_eq!(machine.proof_store.replay_claim_cycle_coalesces, 2);
-        assert_eq!(
-            machine.proof_store.replay_claim_cycle_coalesces,
-            machine.bounds.replay_claim_cycle_coalesces
-        );
-        assert_eq!(
-            machine.proof_store.derived_claim_by_record_and_root,
-            machine.bounds.derived_claim_by_record_and_root
-        );
         assert_eq!(machine.proof_store.upper_claims[first.0 as usize].coverage_root, root);
         assert_eq!(machine.proof_store.upper_claims[second.0 as usize].coverage_root, root);
         assert_eq!(machine.proof_store.upper_claims[first.0 as usize].full_lineage.depth(), 1);
         assert_eq!(machine.proof_store.upper_claims[second.0 as usize].full_lineage.depth(), 2);
         for claim in [root, first, second] {
-            assert_cpk_claim_payload_matches_flat(
+            assert_cpk_claim_payload_matches_semantic_snapshot(
+                &machine,
                 &machine.proof_store.upper_claims[claim.0 as usize],
-                &machine.bounds.upper_replay_claims[claim.0 as usize],
             );
         }
     }
@@ -8204,11 +8265,6 @@ mod tests {
             machine.proof_store.claims_by_upper_record.clone(),
             machine.proof_store.reduction_claim_by_state.clone(),
             machine.proof_store.replay_claim_cycle_coalesces,
-            machine.bounds.upper_replay_claims.len(),
-            machine.bounds.derived_claim_by_record_and_root.clone(),
-            machine.bounds.claims_by_upper_record.clone(),
-            machine.bounds.reduction_claim_by_state.clone(),
-            machine.bounds.replay_claim_cycle_coalesces,
         );
         let next = UpperReplayClaimId(before.0 as u32);
         machine.proof_store.fail_next_derived_claim_reservation();
@@ -8234,11 +8290,6 @@ mod tests {
                 machine.proof_store.claims_by_upper_record.clone(),
                 machine.proof_store.reduction_claim_by_state.clone(),
                 machine.proof_store.replay_claim_cycle_coalesces,
-                machine.bounds.upper_replay_claims.len(),
-                machine.bounds.derived_claim_by_record_and_root.clone(),
-                machine.bounds.claims_by_upper_record.clone(),
-                machine.bounds.reduction_claim_by_state.clone(),
-                machine.bounds.replay_claim_cycle_coalesces,
             ),
             before
         );
@@ -8248,10 +8299,6 @@ mod tests {
         assert_eq!(registration.claim, next);
         assert_eq!(
             machine.proof_store.derived_claim_by_record_and_root[&(derived_record, root)],
-            next
-        );
-        assert_eq!(
-            machine.bounds.derived_claim_by_record_and_root[&(derived_record, root)],
             next
         );
     }
@@ -8275,10 +8322,6 @@ mod tests {
             machine.proof_store.original_claim_by_record_and_producer.clone(),
             machine.proof_store.derived_claim_by_record_and_root.clone(),
             machine.proof_store.claims_by_upper_record.clone(),
-            machine.bounds.upper_replay_claims.clone(),
-            machine.bounds.original_claim_by_record_and_producer.clone(),
-            machine.bounds.derived_claim_by_record_and_root.clone(),
-            machine.bounds.claims_by_upper_record.clone(),
         );
 
         machine.proof_store.fail_next_claim_move_reservation();
@@ -8294,13 +8337,9 @@ mod tests {
                 machine.proof_store.original_claim_by_record_and_producer.clone(),
                 machine.proof_store.derived_claim_by_record_and_root.clone(),
                 machine.proof_store.claims_by_upper_record.clone(),
-                machine.bounds.upper_replay_claims.clone(),
-                machine.bounds.original_claim_by_record_and_producer.clone(),
-                machine.bounds.derived_claim_by_record_and_root.clone(),
-                machine.bounds.claims_by_upper_record.clone(),
             ),
             before,
-            "a failed move preflight commits neither CPK state nor flat mirror state",
+            "a failed move preflight commits no partial CPK state",
         );
         assert_eq!(
             machine.proof_store.upper_claims[claim.0 as usize].current_record,
@@ -8312,10 +8351,6 @@ mod tests {
             .expect("the failed preflight leaves the same claim movable");
         assert_eq!(
             machine.proof_store.upper_claims[claim.0 as usize].current_record,
-            new_record,
-        );
-        assert_eq!(
-            machine.bounds.upper_replay_claims[claim.0 as usize].current_record,
             new_record,
         );
     }
@@ -8363,25 +8398,13 @@ mod tests {
         machine.move_upper_replay_claim(first, fourth_record);
         assert!(!machine.proof_store.claims_by_upper_record.contains_key(&third_record));
         assert_eq!(machine.proof_store.claims_by_upper_record[&fourth_record], vec![first]);
-        assert_eq!(
-            machine.proof_store.claims_by_upper_record,
-            machine
-                .bounds
-                .claims_by_upper_record
-                .iter()
-                .filter(|(_, claims)| !claims.is_empty())
-                .map(|(record, claims)| (*record, claims.clone()))
-                .collect(),
-            "flat current-record coverage mirrors every live CPK association after repeated moves",
-        );
         assert!(machine.proof_store.live_coverage.contains(&(first, first_state)));
         assert!(machine.proof_store.live_coverage.contains(&(second, second_state)));
-        assert_eq!(
-            machine.bounds.live_coverage_by_root[&first],
-            vec![first_state],
-            "root liveness follows stable claim identity and is not reassigned by a move",
-        );
-        assert_eq!(machine.bounds.live_coverage_by_root[&second], vec![second_state]);
+        assert_eq!(machine.proof_store.live_coverage_states_for_test(first),
+            Some(&FxHashSet::from_iter([first_state])),
+            "root liveness follows stable claim identity and is not reassigned by a move");
+        assert_eq!(machine.proof_store.live_coverage_states_for_test(second),
+            Some(&FxHashSet::from_iter([second_state])));
         assert!(!machine.proof_store.claims_by_upper_record.contains_key(&second_record));
     }
 
@@ -8758,9 +8781,9 @@ mod tests {
             .expect("the first row stage creates a source-local reduction state");
         assert_eq!(states.len(), 1);
         let state = states[0];
-        let claim = machine.bounds.reduction_claim_by_state[&state];
+        let claim = machine.proof_store.reduction_claim(state).expect("CPK reduction claim");
         let record_before_move =
-            machine.bounds.upper_replay_claims[claim.0 as usize].current_record;
+            machine.proof_store.upper_claim(claim).expect("CPK claim").current_record;
 
         Cpk7ClaimMoveFixture {
             machine,
@@ -8793,9 +8816,8 @@ mod tests {
                 .then_some(BoundRecordId(index as u32))
             })
             .expect("the second row stage must retain its lower record");
-        let upper_record = fixture.machine.bounds.upper_replay_claims
-            [fixture.claim.0 as usize]
-            .current_record;
+        let upper_record = fixture.machine.proof_store.upper_claim(fixture.claim)
+            .expect("CPK claim").current_record;
         let route = IncrementalRouteKey {
             upper: fixture.original_upper,
             upper_record,
@@ -8834,7 +8856,7 @@ mod tests {
         };
         assert_ne!(incremental.route.upper, current_endpoint);
         assert_eq!(
-            fixture.machine.bounds.upper_replay_claims[fixture.claim.0 as usize].current_record,
+            fixture.machine.proof_store.upper_claim(fixture.claim).expect("CPK claim").current_record,
             incremental.route.upper_record,
         );
         assert_ne!(fixture.record_before_move, incremental.route.upper_record);
@@ -8881,7 +8903,7 @@ mod tests {
             upper: reduction.original_upper,
             upper_record: reduction.current_reduced_upper.record,
             provenance: reduction.provenance_head,
-            claim: Some(machine.bounds.reduction_claim_by_state[&state]),
+            claim: Some(machine.proof_store.reduction_claim(state).expect("CPK reduction claim")),
         };
         let prepared = machine
             .proof_store
@@ -8922,7 +8944,7 @@ mod tests {
                     ConstraintWeights::empty(),
                     BoundDerivation::Constraint(producer),
                 );
-                machine.bounds.root_claim_by_producer_constraint[&producer]
+                machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
             });
             let upper_record = machine
                 .bounds
@@ -9086,7 +9108,7 @@ mod tests {
                     ConstraintWeights::empty(),
                     BoundDerivation::Constraint(producer),
                 );
-                machine.bounds.root_claim_by_producer_constraint[&producer]
+                machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
             });
             let upper_record = machine
                 .bounds
@@ -10187,11 +10209,11 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Constraint(producer),
             );
-            machine.bounds.root_claim_by_producer_constraint[&producer]
+            machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
         });
         roots.sort();
         let upper_records = roots.map(|root| {
-            let claim = &machine.bounds.upper_replay_claims[root.0 as usize];
+            let claim = machine.proof_store.upper_claim(root).expect("CPK root claim");
             assert_eq!(claim.coverage_root, root);
             claim.current_record
         });
@@ -10289,7 +10311,7 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
 
         let result = cpk_7_admit_inert_constraint(machine, ordinal, "result");
         let derivation = machine.intern_row_derivation(
@@ -10379,7 +10401,7 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
         machine.add_lower_bound(
             pivot,
             lower,
@@ -10754,7 +10776,7 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.bounds.root_claim_by_producer_constraint[&producer];
+        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
 
         let prepared = cpk_7_direct_pair_route(&machine, lower_record, owner, upper);
         assert_eq!(prepared.routing, ReplayRouting::Generic);

@@ -714,13 +714,12 @@ fn unweighted_row_upper_incremental_route_registers_reduction_route_claim_parent
     let producer =
         constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
     let state = reduction_state_for_source(&machine, source);
-    let claim = machine.bounds.reduction_claim_by_state[&state];
-    let coverage_root = machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root;
+    let claim = machine.proof_store.reduction_claim(state).expect("CPK reduction claim");
+    let coverage_root = machine.proof_store.claim_coverage_root(claim).expect("CPK claim root");
     assert!(
         machine
-            .bounds
-            .live_coverage_by_root
-            .get(&coverage_root)
+            .proof_store
+            .live_coverage_states_for_test(coverage_root)
             .is_some_and(|states| states.contains(&state)),
         "the incremental route starts from a live covered reduction claim"
     );
@@ -771,7 +770,7 @@ struct MovedRootCollisionFixture {
     destination: BoundRecordId,
     root: UpperReplayClaimId,
     displaced: UpperReplayClaimId,
-    displaced_record: UpperReplayClaim,
+    displaced_record: proof::UpperClaimOccurrence,
 }
 
 fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
@@ -793,7 +792,7 @@ fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
     let producer =
         constraint_record_for_key(&machine, source_pos, row_upper, &ConstraintWeights::empty());
     let state = reduction_state_for_source(&machine, source);
-    let root = machine.bounds.reduction_claim_by_state[&state];
+    let root = machine.proof_store.reduction_claim(state).expect("CPK reduction claim");
 
     // The next reduction reuses an exact upper survivor where a qualified parent has already
     // materialized the moving root. The real incremental move below must make the Original root
@@ -820,7 +819,7 @@ fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
     assert_eq!(derived.len(), 1);
     assert_ne!(derived[0], root);
     let displaced = derived[0];
-    let displaced_record = machine.bounds.upper_replay_claims[displaced.0 as usize].clone();
+    let displaced_record = machine.proof_store.upper_claim(displaced).expect("CPK derived claim").clone();
 
     machine.subtype(late_family, source_neg, origin);
 
@@ -845,10 +844,10 @@ fn moved_root_collision_fixture() -> MovedRootCollisionFixture {
 }
 
 fn assert_upper_record_claim_roots_are_unique(machine: &ConstraintMachine) {
-    for (record, claims) in &machine.bounds.claims_by_upper_record {
+    for (record, claims) in machine.proof_store.upper_claim_record_entries_for_test() {
         let roots = claims
             .iter()
-            .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+            .map(|claim| machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root"))
             .collect::<FxHashSet<_>>();
         assert_eq!(
             roots.len(),
@@ -863,25 +862,24 @@ fn unweighted_row_claim_move_displaces_the_same_root_destination_claim() {
     let fixture = moved_root_collision_fixture();
     assert_upper_record_claim_roots_are_unique(&fixture.machine);
     assert_eq!(
-        fixture.machine.bounds.claims_by_upper_record[&fixture.destination],
+        fixture.machine.proof_store.claims_for_upper_record_for_test(fixture.destination),
         vec![fixture.root],
         "the Original root replaces, rather than joins, the derived destination claim"
     );
     assert_eq!(
-        fixture.machine.bounds.original_claim_by_record_and_producer
-            [&(fixture.destination, fixture.producer)],
-        fixture.root
+        fixture.machine.proof_store.original_claim(fixture.destination, fixture.producer),
+        Some(fixture.root)
     );
     assert!(
-        !fixture
+        fixture
             .machine
-            .bounds
-            .derived_claim_by_record_and_root
-            .contains_key(&(fixture.destination, fixture.root))
+            .proof_store
+            .derived_claim(fixture.destination, fixture.root)
+            .is_none()
     );
     assert_eq!(
-        fixture.machine.bounds.upper_replay_claims[fixture.displaced.0 as usize],
-        fixture.displaced_record,
+        fixture.machine.proof_store.upper_claim(fixture.displaced),
+        Some(&fixture.displaced_record),
         "displacement removes only active indexes; historical lineage stays append-only"
     );
 }
@@ -922,9 +920,9 @@ fn non_collision_claim_moves_preserve_unique_roots_across_records() {
         assert_upper_record_claim_roots_are_unique(&machine);
     }
     assert_eq!(
-        machine.bounds.claims_by_upper_record[&records[1]]
+        machine.proof_store.claims_for_upper_record_for_test(records[1])
             .iter()
-            .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+            .map(|claim| machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root"))
             .collect::<FxHashSet<_>>(),
         roots.into_iter().collect()
     );
@@ -2100,7 +2098,7 @@ fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
         "only the independent direct claim may justify scheme projection"
     );
     let [direct_root, covered_root] = [direct_claim, fixture.covered_claim]
-        .map(|claim| fixture.machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root);
+        .map(|claim| fixture.machine.proof_store.claim_coverage_root(claim).expect("CPK claim root"));
     assert!(
         direct_root < covered_root,
         "the pinned claim order follows the ascending coverage-root canonical key"
@@ -2238,8 +2236,8 @@ fn covered_claim_link_publishes_projectable_to_non_projectable_mutation() {
     );
     let claim = root_claim.expect("the admitted reduction owns a live coverage root");
     assert_eq!(
-        machine.bounds.upper_replay_claims[claim.0 as usize].kind,
-        UpperReplayClaimKind::Reduced(state),
+        machine.proof_store.upper_claim(claim).expect("CPK reduction claim").kind,
+        proof::UpperClaimKind::Reduced(state),
         "production reduction admission creates the covered claim before its mirror lower"
     );
     let lower_record = machine
@@ -3203,11 +3201,10 @@ fn mpc_a_9_1_conjunctive_only_mixed_replay_is_suppressed() {
 fn mpc_a_9_2_roots_precede_reduction_registration_before_mixed_replay() {
     let fixture = mpc_mixed_replay_fixture(MpcReplayAdmissionOrder::DirectPremiseFirst, false);
     let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
-    let direct_producer =
-        fixture.machine.bounds.upper_replay_claims[direct_root.0 as usize].producer_constraint;
-    let covered_producer = fixture.machine.bounds.upper_replay_claims
-        [fixture.coverage_root.0 as usize]
-        .producer_constraint;
+    let direct_producer = fixture.machine.proof_store.upper_claim(direct_root)
+        .expect("CPK direct root").producer;
+    let covered_producer = fixture.machine.proof_store.upper_claim(fixture.coverage_root)
+        .expect("CPK covered root").producer;
     let snapshot = observed_mpc_replay_snapshot(&fixture);
 
     assert!(
@@ -3328,8 +3325,8 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
     );
 
     let direct_root = claim_root(&fixture.machine, fixture.direct_claim);
-    let direct_producer =
-        fixture.machine.bounds.upper_replay_claims[direct_root.0 as usize].producer_constraint;
+    let direct_producer = fixture.machine.proof_store.upper_claim(direct_root)
+        .expect("CPK direct root").producer;
     let direct_key = fixture.machine.constraint_records[direct_producer.0 as usize]
         .key
         .clone();
@@ -3353,7 +3350,7 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
         fixture.coverage_root,
     );
 
-    let upper_roots = fixture.machine.bounds.claims_by_upper_record[&fixture.direct_upper_record]
+    let upper_roots = fixture.machine.proof_store.claims_for_upper_record_for_test(fixture.direct_upper_record)
         .iter()
         .map(|claim| claim_root(&fixture.machine, *claim))
         .collect::<FxHashSet<_>>();
@@ -3379,16 +3376,14 @@ fn urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise() {
     assert!(
         fixture
             .machine
-            .bounds
-            .live_coverage_by_root
-            .get(&fixture.coverage_root)
+            .proof_store
+            .live_coverage_states_for_test(fixture.coverage_root)
             .is_some_and(|states| !states.is_empty())
             && fixture
                 .machine
-                .bounds
-                .live_coverage_by_root
-                .get(&direct_root)
-                .is_none_or(Vec::is_empty),
+                .proof_store
+                .live_coverage_states_for_test(direct_root)
+                .is_none_or(FxHashSet::is_empty),
         "only the reduction side of the co-owned survivor is live-covered"
     );
 
@@ -3631,16 +3626,16 @@ fn dpn_a_9_1_structural_clause_uses_constraint_premise_node() {
 #[test]
 fn dpn_a_9_2_reduction_route_clause_uses_root_coverage_premise() {
     let fixture = scheme_projection_unmatched_route_fixture(false);
-    let claim = &fixture.machine.bounds.upper_replay_claims[fixture.covered_claim.0 as usize];
-    let UpperReplayClaimLineage::ReductionRouteConstraint { derivation, .. } = claim.lineage else {
+    let claim = fixture.machine.proof_store.upper_claim(fixture.covered_claim).expect("CPK covered claim");
+    let proof::UpperClaimLineage::ReductionRouteConstraint { derivation, .. } = claim.full_lineage else {
         panic!("the unmatched route fixture must carry a reduction-route claim");
     };
-    let root_claim = &fixture.machine.bounds.upper_replay_claims[fixture.coverage_root.0 as usize];
+    let root_claim = fixture.machine.proof_store.upper_claim(fixture.coverage_root).expect("CPK root claim");
     assert!(
         fixture
             .machine
             .proof_store
-            .projection_lower_record_for_constraint(root_claim.producer_constraint)
+            .projection_lower_record_for_constraint(root_claim.producer)
             .is_none(),
         "the URR root producer remains upper-only and has no linked lower record"
     );
@@ -3704,7 +3699,8 @@ fn dpn_b_9_1_structural_constraint_premise_evaluates_replay_conjunction() {
         0,
         "the child is suppressed while its parent constraint has only a covered replay route"
     );
-    let coverage_state = fixture.machine.bounds.live_coverage_by_root[&fixture.coverage_root][0];
+    let coverage_state = *fixture.machine.proof_store.live_coverage_states_for_test(fixture.coverage_root)
+        .expect("CPK live coverage").iter().next().expect("live state");
 
     assert!(
         fixture
@@ -3721,9 +3717,8 @@ fn dpn_b_9_1_structural_constraint_premise_evaluates_replay_conjunction() {
 #[test]
 fn dpn_b_9_2_root_coverage_premise_tracks_liveness_without_a_lower_map() {
     let mut fixture = scheme_projection_unmatched_route_fixture(false);
-    let root_producer = fixture.machine.bounds.upper_replay_claims
-        [fixture.coverage_root.0 as usize]
-        .producer_constraint;
+    let root_producer = fixture.machine.proof_store.upper_claim(fixture.coverage_root)
+        .expect("CPK root claim").producer;
     assert!(
         fixture
             .machine
@@ -3794,7 +3789,8 @@ fn dpn_b_9_4_nested_constraint_chain_reaches_the_root_base_case() {
         0,
         "two Constraint nodes preserve the covered root result"
     );
-    let coverage_state = fixture.machine.bounds.live_coverage_by_root[&fixture.coverage_root][0];
+    let coverage_state = *fixture.machine.proof_store.live_coverage_states_for_test(fixture.coverage_root)
+        .expect("CPK live coverage").iter().next().expect("live state");
 
     assert!(
         fixture
@@ -3842,7 +3838,8 @@ fn dpn_b_9_5_late_constraint_route_retriggers_dependent_record() {
         ConstraintWeights::empty(),
         BoundDerivation::Constraint(direct_producer),
     );
-    let direct_claim = fixture.machine.bounds.root_claim_by_producer_constraint[&direct_producer];
+    let direct_claim = fixture.machine.proof_store.root_claim_for_producer(direct_producer)
+        .expect("CPK root claim");
     let route = fixture.machine.intern_row_derivation(
         RowDerivationRule::UnweightedReduction,
         vec![RowDerivationParent::Constraint(direct_producer)],
@@ -4022,10 +4019,9 @@ fn mpc_mixed_replay_fixture(
         .find(|parent| {
             parent.side == ObservedReplayParentSide::Upper
                 && machine
-                    .bounds
-                    .live_coverage_by_root
-                    .get(&parent.coverage_root)
-                    .is_none_or(Vec::is_empty)
+                    .proof_store
+                    .live_coverage_states_for_test(parent.coverage_root)
+                    .is_none_or(FxHashSet::is_empty)
         })
         .map(|parent| parent.claim)
         .expect("the upper premise contributes its independent Direct claim");
@@ -4034,21 +4030,21 @@ fn mpc_mixed_replay_fixture(
         .find(|parent| {
             parent.side == ObservedReplayParentSide::Lower
                 && machine
-                    .bounds
-                    .live_coverage_by_root
-                    .get(&parent.coverage_root)
+                    .proof_store
+                    .live_coverage_states_for_test(parent.coverage_root)
                     .is_some_and(|states| !states.is_empty())
         })
         .map(|parent| parent.claim)
         .expect("the lower premise contributes its live covered claim");
     let coverage_root = claim_root(&machine, covered_claim);
-    let coverage_states = &machine.bounds.live_coverage_by_root[&coverage_root];
+    let coverage_states = machine.proof_store.live_coverage_states_for_test(coverage_root)
+        .expect("CPK coverage root");
     assert_eq!(
         coverage_states.len(),
         1,
         "the fixture has one live state for its covered premise"
     );
-    let coverage_state = coverage_states[0];
+    let coverage_state = *coverage_states.iter().next().expect("live coverage state");
 
     MpcMixedReplayFixture {
         machine,
@@ -4380,17 +4376,17 @@ struct RowStructuralClaimFixture {
 }
 
 fn claim_root(machine: &ConstraintMachine, claim: UpperReplayClaimId) -> UpperReplayClaimId {
-    machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root
+    machine.proof_store.claim_coverage_root(claim).expect("CPK claim root")
 }
 
 fn claim_for_upper_record(
     machine: &ConstraintMachine,
     record: BoundRecordId,
 ) -> UpperReplayClaimId {
-    machine.bounds.claims_by_upper_record[&record]
+    machine.proof_store.claims_for_upper_record_for_test(record)
         .iter()
         .copied()
-        .find(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].current_record == record)
+        .find(|claim| machine.proof_store.upper_claim(*claim).is_some_and(|claim| claim.current_record == record))
         .expect("upper record has an exact replay claim")
 }
 
@@ -4977,25 +4973,24 @@ fn scheme_projection_unmatched_route_fixture(
         .iter()
         .copied()
         .find(|claim| {
-            let root = machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root;
+            let root = machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root");
             machine
-                .bounds
-                .live_coverage_by_root
-                .get(&root)
+                .proof_store
+                .live_coverage_states_for_test(root)
                 .is_some_and(|states| !states.is_empty())
         })
         .expect("the unmatched reduction route carries a covered claim");
     let direct_claim = linked_claims.iter().copied().find(|claim| {
-        let claim = &machine.bounds.upper_replay_claims[claim.0 as usize];
+        let claim = machine.proof_store.upper_claim(*claim).expect("CPK linked claim");
         claim.current_record == upper_record
             && machine
-                .bounds
-                .live_coverage_by_root
-                .get(&claim.coverage_root)
-                .is_none_or(Vec::is_empty)
+                .proof_store
+                .live_coverage_states_for_test(claim.coverage_root)
+                .is_none_or(FxHashSet::is_empty)
     });
-    let coverage_root = machine.bounds.upper_replay_claims[covered_claim.0 as usize].coverage_root;
-    let coverage_state = machine.bounds.live_coverage_by_root[&coverage_root][0];
+    let coverage_root = machine.proof_store.claim_coverage_root(covered_claim).expect("CPK claim root");
+    let coverage_state = *machine.proof_store.live_coverage_states_for_test(coverage_root)
+        .expect("CPK live coverage").iter().next().expect("live state");
 
     assert_eq!(
         linked_claims.len(),
@@ -5038,16 +5033,15 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
     ) -> bool {
         let states = self
-            .bounds
-            .live_coverage_by_root
-            .get(&root)
+            .proof_store
+            .live_coverage_states_for_test(root)
             .expect("compact fixture has a live coverage root");
         assert_eq!(
             states.len(),
             1,
             "compact fixture transition must remove the root's last live state"
         );
-        let state = states[0];
+        let state = *states.iter().next().expect("live coverage state");
         self.remove_scheme_projection_live_coverage_state(root, state)
     }
 
@@ -5055,18 +5049,15 @@ impl ConstraintMachine {
         &mut self,
         root: UpperReplayClaimId,
     ) -> bool {
-        let states = self
-            .bounds
-            .live_coverage_by_root
-            .get(&root)
-            .expect("compact fixture retains its empty coverage root");
         assert!(
-            states.is_empty(),
+            self.proof_store
+                .live_coverage_states_for_test(root)
+                .is_none_or(FxHashSet::is_empty),
             "compact fixture reinsertion starts after its last live state leaves"
         );
-        let state = match self.bounds.upper_replay_claims[root.0 as usize].kind {
-            UpperReplayClaimKind::Reduced(state) => state,
-            UpperReplayClaimKind::Direct => {
+        let state = match self.proof_store.upper_claim(root).expect("CPK root claim").kind {
+            proof::UpperClaimKind::Reduced(state) => state,
+            proof::UpperClaimKind::Direct => {
                 panic!("compact fixture coverage root is a reduction claim")
             }
         };
@@ -5169,18 +5160,19 @@ impl ObservedReplayLineage {
 fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage {
     let claim_id = |id: UpperReplayClaimId| ObservedReplayClaimId(id.0);
     let claims = machine
-        .bounds
-        .upper_replay_claims
+        .proof_store
+        .upper_claims_for_test()
         .iter()
         .map(|claim| ObservedLineageClaim {
-            id: claim_id(claim.id),
-            source: claim.source,
-            producer: claim.producer_constraint,
+            id: claim_id(claim.claim),
+            source: machine.bounds.record(claim.current_record)
+                .expect("CPK claim record remains semantic").owner(),
+            producer: claim.producer,
             record: claim.current_record,
             coverage_root: claim_id(claim.coverage_root),
-            lineage: match claim.lineage {
-                UpperReplayClaimLineage::Original => ObservedReplayClaimLineage::Original,
-                UpperReplayClaimLineage::ReplayConstraint {
+            lineage: match claim.full_lineage {
+                proof::UpperClaimLineage::Original => ObservedReplayClaimLineage::Original,
+                proof::UpperClaimLineage::ReplayConstraint {
                     parent_claim,
                     parent_side: _,
                     result,
@@ -5192,7 +5184,7 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                     replay,
                     depth,
                 },
-                UpperReplayClaimLineage::ReplayEvidence {
+                proof::UpperClaimLineage::ReplayEvidence {
                     parent_claim,
                     parent_side: _,
                     replay,
@@ -5202,7 +5194,7 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                     replay,
                     depth,
                 },
-                UpperReplayClaimLineage::StructuralConstraint {
+                proof::UpperClaimLineage::StructuralConstraint {
                     parent_claim,
                     result,
                     derivation,
@@ -5213,7 +5205,7 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
                     derivation,
                     depth,
                 },
-                UpperReplayClaimLineage::ReductionRouteConstraint {
+                proof::UpperClaimLineage::ReductionRouteConstraint {
                     parent_claim,
                     result,
                     derivation,
@@ -5228,16 +5220,21 @@ fn observed_replay_lineage(machine: &ConstraintMachine) -> ObservedReplayLineage
         })
         .collect();
     let covered_roots = machine
-        .bounds
-        .live_coverage_by_root
+        .proof_store
+        .upper_claims_for_test()
         .iter()
-        .filter_map(|(root, states)| (!states.is_empty()).then_some(claim_id(*root)))
+        .filter_map(|claim| {
+            let root = claim.coverage_root;
+            machine.proof_store.live_coverage_states_for_test(root)
+                .is_some_and(|states| !states.is_empty())
+                .then_some(claim_id(root))
+        })
         .collect();
 
     ObservedReplayLineage {
         claims,
         covered_roots,
-        cycle_coalesces: machine.bounds.replay_claim_cycle_coalesces,
+        cycle_coalesces: machine.proof_store.replay_claim_cycle_coalesces_for_test(),
     }
 }
 

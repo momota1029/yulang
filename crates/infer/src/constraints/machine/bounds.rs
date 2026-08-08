@@ -1116,7 +1116,7 @@ impl ConstraintMachine {
         replay: BinaryReplayDerivation,
         parent_claim: UpperReplayClaimId,
     ) -> UpperReplayClaimId {
-        let claim_count_before = self.bounds.upper_replay_claims.len();
+        let claim_count_before = self.proof_store.upper_claims_for_test().len();
         let mut actions = BoundReplayActions::new();
         actions.push(BoundReplayAction {
             constraint: SubtypeConstraintKey {
@@ -1134,16 +1134,16 @@ impl ConstraintMachine {
             canonicalization_disposition: None,
         });
         self.apply_bound_replay_evidence_actions(actions);
-        self.bounds.upper_replay_claims[claim_count_before..]
+        self.proof_store.upper_claims_for_test()[claim_count_before..]
             .iter()
             .find_map(|claim| matches!(
-                claim.lineage,
-                UpperReplayClaimLineage::ReplayEvidence {
+                claim.full_lineage,
+                proof::UpperClaimLineage::ReplayEvidence {
                     parent_claim: found_parent,
                     replay: found_replay,
                     ..
                 } if found_parent == parent_claim && found_replay == replay
-            ).then_some(claim.id))
+            ).then_some(claim.claim))
             .expect("production replay-evidence admission materializes the derived claim")
     }
 
@@ -2882,6 +2882,7 @@ impl ConstraintMachine {
         Ok(replay)
     }
 
+    #[cfg(test)]
     fn lower_record_replay_claim_parents(&self, lower_record: BoundRecordId) -> ReplayClaimParents {
         self.proof_store
             .projection_claims_for_record(lower_record)
@@ -2892,51 +2893,6 @@ impl ConstraintMachine {
                 parent_side: ReplayClaimParentSide::Lower,
             })
             .collect()
-    }
-
-    fn upper_record_replay_claim_parents(
-        &self,
-        lower: PosId,
-        upper_record: BoundRecordId,
-        incremental_routes: &[UnweightedRowReductionReplayRoute],
-    ) -> ReplayClaimParents {
-        let mut parents = self.uncovered_upper_replay_claim_parents(upper_record);
-        if matches!(self.types.pos(lower), Pos::Var(_)) {
-            for claim in self.bounds.covered_claims(upper_record) {
-                let handled_by_incremental_route = incremental_routes
-                    .iter()
-                    .any(|route| route.upper_record == upper_record && route.claim == Some(claim));
-                let parent = SideTaggedReplayClaim {
-                    claim,
-                    parent_side: ReplayClaimParentSide::Upper,
-                };
-                if !handled_by_incremental_route && !parents.contains(&parent) {
-                    parents.push(parent);
-                }
-            }
-        }
-        parents
-    }
-
-    fn uncovered_upper_replay_claim_parents(
-        &self,
-        upper_record: BoundRecordId,
-    ) -> ReplayClaimParents {
-        self.bounds
-            .uncovered_claims(upper_record)
-            .into_iter()
-            .map(|claim| SideTaggedReplayClaim {
-                claim,
-                parent_side: ReplayClaimParentSide::Upper,
-            })
-            .collect()
-    }
-
-    fn upper_record_requires_generic_replay(&self, upper: BoundRecordId) -> bool {
-        if self.bounds.record(upper).is_none() {
-            return false;
-        };
-        self.bounds.claim_requires_generic_replay(upper)
     }
 
     fn merge_unweighted_row_route_provenance(
@@ -4145,7 +4101,7 @@ mod mutation_tests {
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
 
-        assert!(machine.bounds.upper_replay_claims.is_empty());
+        assert!(machine.proof_store.upper_claims_for_test().is_empty());
         assert_eq!(
             machine.proof_store.qualified_parent_storage_census(),
             (0, 0, 0, 0),
@@ -4207,51 +4163,53 @@ mod mutation_tests {
         assert_eq!(direct.claim, direct_again.claim);
         machine.move_upper_replay_claim(direct.claim, moved_record);
         assert!(
-            machine.bounds.claims_by_upper_record[&direct_record].is_empty(),
+            machine.proof_store.claims_for_upper_record_for_test(direct_record).is_empty(),
             "the non-collision move removes the root from its old record"
         );
         assert_eq!(
-            machine.bounds.claims_by_upper_record[&moved_record],
-            vec![direct.claim],
+            machine.proof_store.claims_for_upper_record_for_test(moved_record),
+            &[direct.claim],
             "the non-collision move keeps the existing single-entry behavior"
         );
         assert_eq!(
-            machine.bounds.original_claim_by_record_and_producer[&(moved_record, direct_producer)],
-            direct.claim
+            machine.proof_store.original_claim(moved_record, direct_producer),
+            Some(direct.claim)
         );
         assert!(
-            !machine
-                .bounds
-                .derived_claim_by_record_and_root
-                .contains_key(&(moved_record, direct.claim))
+            machine
+                .proof_store
+                .derived_claim(moved_record, direct.claim)
+                .is_none()
         );
 
         let originals = machine
-            .bounds
-            .upper_replay_claims
+            .proof_store
+            .upper_claims_for_test()
             .iter()
-            .filter(|claim| claim.lineage == UpperReplayClaimLineage::Original)
+            .filter(|claim| claim.full_lineage == proof::UpperClaimLineage::Original)
             .collect::<Vec<_>>();
         assert_eq!(originals.len(), 2);
         assert_eq!(
-            machine.bounds.root_claim_by_producer_constraint.len(),
+            machine.proof_store.upper_claims_for_test().iter()
+                .filter(|claim| claim.full_lineage == proof::UpperClaimLineage::Original)
+                .count(),
             originals.len(),
             "the lazy mirror contains exactly one entry per Original claim"
         );
         for claim in originals {
-            assert_eq!(claim.coverage_root, claim.id);
+            assert_eq!(claim.coverage_root, claim.claim);
             assert_eq!(
-                machine.bounds.root_claim_by_producer_constraint[&claim.producer_constraint],
-                claim.id,
+                machine.proof_store.root_claim_for_producer(claim.producer),
+                Some(claim.claim),
                 "each producer maps injectively to its own Original claim"
             );
         }
         assert_eq!(
-            machine.bounds.root_claim_by_producer_constraint[&direct_producer], direct.claim,
+            machine.proof_store.root_claim_for_producer(direct_producer), Some(direct.claim),
             "moving an Original claim's current record does not change producer identity"
         );
         assert_eq!(
-            machine.bounds.root_claim_by_producer_constraint[&reduced_producer], reduced.claim,
+            machine.proof_store.root_claim_for_producer(reduced_producer), Some(reduced.claim),
             "Reduced roots pass through the same shared constructor mirror"
         );
     }
@@ -4320,21 +4278,20 @@ mod mutation_tests {
         let claim_roots = |machine: &ConstraintMachine, claims: Vec<UpperReplayClaimId>| {
             claims
                 .into_iter()
-                .map(|claim| machine.bounds.upper_replay_claims[claim.0 as usize].coverage_root)
+                .map(|claim| machine.proof_store.claim_coverage_root(claim).expect("CPK claim root"))
                 .collect::<Vec<_>>()
         };
         assert_eq!(
             claim_roots(
                 &machine,
-                machine.bounds.claims_by_upper_record[&target].clone(),
+                machine.proof_store.claims_for_upper_record_for_test(target).to_vec(),
             ),
             roots
         );
         let mut record_lengths = machine
-            .bounds
-            .claims_by_upper_record
-            .values()
-            .map(Vec::len)
+            .proof_store
+            .upper_claim_record_entries_for_test()
+            .map(|(_, claims)| claims.len())
             .collect::<Vec<_>>();
         record_lengths.sort_unstable();
         assert_eq!(record_lengths, vec![1, 1, 1, 1, 1, 1, 1, 1, 8]);
@@ -4348,26 +4305,35 @@ mod mutation_tests {
         assert_eq!(canonical_upper_claim_insertion_census(), (16, 4));
 
         for (index, root) in roots.iter().copied().enumerate().skip(5) {
-            machine.bounds.live_coverage_by_root.insert(
+            machine.insert_scheme_projection_live_coverage_state(
                 root,
-                vec![UnweightedRowReductionRecordId(72_000 + index as u32)],
+                UnweightedRowReductionRecordId(72_000 + index as u32),
             );
         }
+        let target_claims = machine.proof_store.claims_for_upper_record_for_test(target);
         assert_eq!(
-            claim_roots(&machine, machine.bounds.uncovered_claims(target)),
+            claim_roots(&machine, target_claims.iter().copied().filter(|claim| {
+                let root = machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root");
+                machine.proof_store.live_coverage_states_for_test(root).is_none_or(FxHashSet::is_empty)
+            }).collect()),
             roots[..5]
         );
         assert_eq!(
-            claim_roots(&machine, machine.bounds.covered_claims(target)),
+            claim_roots(&machine, target_claims.iter().copied().filter(|claim| {
+                let root = machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root");
+                machine.proof_store.live_coverage_states_for_test(root).is_some_and(|states| !states.is_empty())
+            }).collect()),
             roots[5..]
         );
         let lower = machine.alloc_pos(Pos::Var(TypeVar(73)));
-        let replay_parent_roots = machine
-            .upper_record_replay_claim_parents(lower, target, &[])
+        let replay_parent_roots = machine.proof_store
+            .prepared_upper_replay_parents_for_test(
+                target,
+                matches!(machine.types.pos(lower), Pos::Var(_)),
+            )
+            .expect("CPK prepared upper-parent assertion")
             .iter()
-            .map(|parent| {
-                machine.bounds.upper_replay_claims[parent.claim.0 as usize].coverage_root
-            })
+            .map(|parent| parent.coverage_root)
             .collect::<Vec<_>>();
         assert_eq!(replay_parent_roots, roots);
     }
@@ -4384,11 +4350,7 @@ mod mutation_tests {
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
 
-        assert!(machine.bounds.root_claim_by_producer_constraint.is_empty());
-        assert_eq!(
-            machine.bounds.root_claim_by_producer_constraint.capacity(),
-            0
-        );
+        assert!(machine.proof_store.upper_claims_for_test().is_empty());
         assert_eq!(
             machine
                 .proof_store
@@ -5516,9 +5478,18 @@ mod mutation_tests {
                     SchemeProjectionProofSupport::Independent(carrier) =>
                         Key::Independent(*carrier),
                 }).collect::<Vec<_>>();
-                let upper_replay_parents = self.machine.upper_record_replay_claim_parents(
-                    self.lower, upper_record, &[],
-                );
+                let upper_replay_parents = self.machine.proof_store
+                    .prepared_upper_replay_parents_for_test(
+                        upper_record,
+                        matches!(self.machine.types.pos(self.lower), Pos::Var(_)),
+                    )
+                    .expect("CPK target-late prepared upper parents")
+                    .iter()
+                    .map(|parent| SideTaggedReplayClaim {
+                        claim: parent.representative_claim,
+                        parent_side: parent.side,
+                    })
+                    .collect::<ReplayClaimParents>();
                 let replay_parent_roots = upper_replay_parents.iter().map(|parent| {
                     self.machine.proof_store.upper_claim(parent.claim)
                         .expect("CPK target-late replay parent")
@@ -5599,7 +5570,8 @@ mod mutation_tests {
                     .map(|cause| cause.source_span.clone());
                 let publication = TargetLatePublicationSnapshot {
                     published_claims,
-                    target_claims: self.machine.bounds.claims_by_upper_record[&upper_record].clone(),
+                    target_claims: self.machine.proof_store
+                        .claims_for_upper_record_for_test(upper_record).to_vec(),
                     upper_replay_parents,
                     lower_replay_parents,
                     lower_claims: self.machine.proof_store
@@ -5608,7 +5580,7 @@ mod mutation_tests {
                         .projection_supports_for_record(lower_record).iter().copied()
                         .map(|support| SchemeProjectionProof { lower_record, support })
                         .collect(),
-                    claim_arena: self.machine.bounds.upper_replay_claims.clone(),
+                    claim_arena: self.machine.proof_store.upper_claims_for_test().to_vec(),
                     final_epoch: self.epoch_checkpoint(),
                 };
                 TargetLateMaterialized {
@@ -5682,7 +5654,7 @@ mod mutation_tests {
             lower_replay_parents: ReplayClaimParents,
             lower_claims: Vec<UpperReplayClaimId>,
             lower_proofs: Vec<SchemeProjectionProof>,
-            claim_arena: Vec<UpperReplayClaim>,
+            claim_arena: Vec<proof::UpperClaimOccurrence>,
             final_epoch: TargetLateEpochCheckpoint,
         }
 

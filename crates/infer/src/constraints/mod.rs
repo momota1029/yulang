@@ -2679,50 +2679,6 @@ impl TypeBounds {
         assert_eq!(states.is_empty(), is_empty);
     }
 
-    fn claim_requires_generic_replay(&self, record: BoundRecordId) -> bool {
-        let Some(claims) = self.claims_by_upper_record.get(&record) else {
-            return true;
-        };
-        if claims.is_empty() {
-            return true;
-        }
-        claims.iter().any(|claim| {
-            let claim = &self.upper_replay_claims[claim.0 as usize];
-            self.live_coverage_by_root
-                .get(&claim.coverage_root)
-                .is_none_or(Vec::is_empty)
-        })
-    }
-
-    fn uncovered_claims(&self, record: BoundRecordId) -> Vec<UpperReplayClaimId> {
-        self.claims_by_upper_record
-            .get(&record)
-            .into_iter()
-            .flatten()
-            .copied()
-            .filter(|claim| {
-                let root = self.upper_replay_claims[claim.0 as usize].coverage_root;
-                self.live_coverage_by_root
-                    .get(&root)
-                    .is_none_or(Vec::is_empty)
-            })
-            .collect()
-    }
-
-    fn covered_claims(&self, record: BoundRecordId) -> Vec<UpperReplayClaimId> {
-        self.claims_by_upper_record
-            .get(&record)
-            .into_iter()
-            .flatten()
-            .copied()
-            .filter(|claim| {
-                let root = self.upper_replay_claims[claim.0 as usize].coverage_root;
-                self.live_coverage_by_root
-                    .get(&root)
-                    .is_some_and(|states| !states.is_empty())
-            })
-            .collect()
-    }
 }
 
 fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {

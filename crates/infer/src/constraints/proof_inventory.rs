@@ -177,7 +177,7 @@ const CPK8G6B_RETIRED_PROOF_ORACLE_AND_REPLACEMENT_BACKED_TESTS: &[(&str, &str)]
 const CPK8G6C_RETIRED_FLAT_CDM_TESTS: &[(&str, &str)] = &[
     (
         "cdm_a_9_1_current_eager_path_matches_bulk_oracle",
-        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and the CPK-only logical snapshot pin eager claim materialization without the flat bulk oracle",
+        "cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records and the CPK-only logical snapshot pin eager claim materialization without the flat bulk oracle",
     ),
     (
         "cdm_a_9_4_independent_then_claimed_keeps_both_occurrences",
@@ -193,7 +193,7 @@ const CPK8G6C_RETIRED_FLAT_CDM_TESTS: &[(&str, &str)] = &[
     ),
     (
         "moved_root_collision_reconstructs_original_full_and_delta_lineage",
-        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_claim_move_updates_record_coverage_and_preserves_root_liveness pin moved-root lineage and coverage",
+        "cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records and cpk_claim_move_updates_record_coverage_and_preserves_root_liveness pin moved-root lineage and coverage",
     ),
     (
         "cdm_b_all_claim_parent_writer_kinds_update_qualified_carrier_index",
@@ -241,11 +241,11 @@ const CPK8G6C_RETIRED_FLAT_CDM_TESTS: &[(&str, &str)] = &[
     ),
     (
         "cdm_d_9_3_reduction_route_emits_row_carrier_delta",
-        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin reduction-route lineage",
+        "cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin reduction-route lineage",
     ),
     (
         "cdm_d_9_3_structural_admission_emits_structural_carrier_delta",
-        "cpk_claim_payload_matches_flat_across_five_lineages_and_move and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin structural lineage",
+        "cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records and cpk_gap_1_five_lineages_project_through_the_real_formula_graph pin structural lineage",
     ),
     (
         "mpc_b_clause_and_dpn_a_edge_census_are_linear_in_link_events",
@@ -964,7 +964,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // ParentSetArena-only claim/root resolution and fixture references with the arena itself.
     // CPK-8G-11a0 removes the final two production reads (generalization carrier resolution and
     // replay-evidence producer resolution); both now use the CPK dense claim arena.
-    ("upper_replay_claims", 59),
+    // CPK-8G-11a1 moves every remaining correctness fixture to the CPK claim payload and semantic
+    // BoundRecord view; the residual references are definition/preflight/commit mirror sites.
+    ("upper_replay_claims", 30),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -974,12 +976,15 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // multi-move/atomicity assertions. The flat index is now observed only as a transition mirror.
     // CPK-8G-6c removes one historical flat materialization-census read. CPK-8G-9-0b removes the
     // final test-only RCPF evaluator lookup; the CPK evaluator reads its own upper-claim index.
-    ("claims_by_upper_record", 61),
+    // CPK-8G-11a1 removes the remaining flat record-index fixture assertions.
+    ("claims_by_upper_record", 46),
     // CPK-8E removes the final migration-only live-coverage normalizer read. CPK-8G-2d adds the
     // fallible flat-mirror preflight/commit and direct root-liveness assertions after repeated move.
     // CPK-8G-6f removes the Legacy projectability reader's flat coverage lookup. CPK-8G-9-0b
     // removes the test-only RCPF evaluator lookup in favor of CPK live coverage.
-    ("live_coverage_by_root", 12),
+    // CPK-8G-11a1 moves live-membership fixtures to the CPK root-state set without observing its
+    // hash iteration order.
+    ("live_coverage_by_root", 6),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
@@ -1292,32 +1297,21 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
 }
 
 #[test]
-fn cpk_8g_11a0_flat_claim_mirror_has_no_production_readers() {
+fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
     let bounds_source = include_str!("machine/bounds.rs");
-    let (bounds_production, _) = bounds_source
-        .split_once("#[cfg(test)]\nmod mutation_tests")
-        .expect("bounds production/test boundary");
-    let (before_test_helper, test_helper_and_after) = bounds_production
-        .split_once(
-            "    #[cfg(test)]\n    pub(in crate::constraints) fn materialize_replay_evidence_claim_for_test",
-        )
-        .expect("test-only replay-evidence claim helper");
-    let (_, after_test_helper) = test_helper_and_after
-        .split_once("\n    fn commit_record_proof_clause_link_batch(")
-        .expect("production clause-link boundary after the test helper");
-    let bounds_runtime = [before_test_helper, after_test_helper].concat();
-
     let proof_source = include_str!("proof/mod.rs");
-    let (proof_production, _) = proof_source
-        .split_once("#[cfg(test)]\nmod tests")
-        .expect("proof production/test boundary");
     for (file, source) in [
-        ("constraints/machine/bounds.rs", bounds_runtime.as_str()),
+        ("constraints/machine/bounds.rs", bounds_source),
         ("constraints/machine/entry.rs", include_str!("machine/entry.rs")),
-        ("constraints/proof/mod.rs", proof_production),
+        ("constraints/proof/mod.rs", proof_source),
         (
             "constraints/semantic_execution_snapshot.rs",
             include_str!("semantic_execution_snapshot.rs"),
+        ),
+        ("constraints/tests/case_02.rs", include_str!("tests/case_02.rs")),
+        (
+            "constraints/tests/claim_qualified_provenance.rs",
+            include_str!("tests/claim_qualified_provenance.rs"),
         ),
     ] {
         for field in [
@@ -1334,13 +1328,24 @@ fn cpk_8g_11a0_flat_claim_mirror_has_no_production_readers() {
                 !source.contains(&format!(".bounds.{field}"))
                     && !source.contains(&format!(".bounds\n            .{field}"))
                     && !source.contains(&format!(".bounds\n                .{field}")),
-                "CPK-8G-11a0 forbids flat claim-mirror production reads: {file} contains {field}",
+                "CPK-8G-11a1 forbids flat claim-mirror reads: {file} contains {field}",
             );
         }
         assert!(
             !source.contains(".bounds.canonical_coverage_root"),
-            "CPK-8G-11a0 forbids the flat canonical-root reader: {file}",
+            "CPK-8G-11a1 forbids the flat canonical-root reader: {file}",
         );
+    }
+    for removed_helper in [
+        "fn upper_record_replay_claim_parents(",
+        "fn uncovered_upper_replay_claim_parents(",
+        "fn upper_record_requires_generic_replay(",
+        "fn claim_requires_generic_replay(",
+        "fn uncovered_claims(",
+        "fn covered_claims(",
+    ] {
+        assert!(!bounds_source.contains(removed_helper) && !include_str!("mod.rs").contains(removed_helper),
+            "CPK-8G-11a1 retired flat routing helper reappeared: {removed_helper}");
     }
 
     let machine_source = include_str!("mod.rs");
@@ -2522,7 +2527,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         "cpk_8g_4b_evaluator_traps_missing_machine_issued_references",
         "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly",
         "cpk_gap_1_five_lineages_project_through_the_real_formula_graph",
-        "cpk_claim_payload_matches_flat_across_five_lineages_and_move",
+        "cpk_claim_payload_covers_five_lineages_and_move_from_semantic_records",
         "cpk_claim_move_updates_record_coverage_and_preserves_root_liveness",
         "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed",
         "cpk_projection_target_and_dependency_admission_is_atomic_and_target_late",
