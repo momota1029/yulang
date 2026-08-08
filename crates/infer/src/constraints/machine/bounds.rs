@@ -4946,9 +4946,6 @@ mod mutation_tests {
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
         );
-        machine
-            .proof_store
-            .record_prepared_upper_claim(&registration.proof_admission);
         machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
         let coverage_root = registration.claim;
 

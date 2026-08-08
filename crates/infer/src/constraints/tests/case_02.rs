@@ -4211,8 +4211,8 @@ fn normalized_projection_support(
 ) -> Option<SchemeProjectionProofSupport> {
     match support {
         SchemeProjectionProofSupport::Claimed(claim) => machine
-            .bounds
-            .canonical_coverage_root(claim)
+            .proof_store
+            .claim_coverage_root(claim)
             .map(SchemeProjectionProofSupport::Claimed),
         SchemeProjectionProofSupport::Independent(carrier) => {
             Some(SchemeProjectionProofSupport::Independent(carrier))

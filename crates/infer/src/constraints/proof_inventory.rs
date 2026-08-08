@@ -25,8 +25,8 @@
 //
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
 // - CPK-8G-11b1 removes the five flat record/root/producer/reduction claim indexes after
-//   CPK-8G-11a0/a1 close their production and fixture readers. The flat claim Vec and cycle
-//   counter remain as event mirrors for CPK-8G-11b2; CPK exclusively owns every claim index.
+//   CPK-8G-11a0/a1 close their production and fixture readers. CPK-8G-11b2 removes the final
+//   flat claim Vec/cycle mirror and its compatibility payload; TypeBounds now has no proof mirror.
 // - CPK-8G-7a closes the CPK parent read view. CPK-8G-7b1/b2 remove the replay and structural
 //   exact-key mirrors independently; CPK-8G-7b3 removes the qualified-carrier projection; and
 //   CPK-8G-7b4 removes the final claim-parent Vec mirror while preserving the CPK admission and
@@ -80,7 +80,10 @@ const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usiz
     // CPK-8G-6a moves the D3b canonical-fixture normalization read/write onto the CPK store.
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 5),
     // CPK-8G-6d retires the final raw Legacy parent/occurrence characterization writer.
-    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 0),
+    (
+        Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization,
+        0,
+    ),
     // CPK-8G-2b moves twelve reviewed original-claim fixture calls behind the CPK-owned
     // allocation transaction. CPK-8G-2c moves the final two direct derived-claim fixture
     // calls behind the same CPK-owned transaction; they are no longer raw flat-store writers.
@@ -99,7 +102,10 @@ const CPK8_CDM_FIXTURE_CALLER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usiz
     (Cpk8RawFixtureWriterClass::CorrectnessContract, 2),
     // CPK-8G-6b-e retire every historical Legacy/RCPF comparison caller after its CPK-owned
     // replacement lands.
-    (Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization, 0),
+    (
+        Cpk8RawFixtureWriterClass::HistoricalLegacyCharacterization,
+        0,
+    ),
     (Cpk8RawFixtureWriterClass::SemanticFixture, 0),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
@@ -460,10 +466,7 @@ const CPK8G6_COMPLETED_SUBSLICES: &[(&str, &str)] = &[
         "8G-6b",
         "retired seven proof-oracle and replacement-backed category-B tests",
     ),
-    (
-        "8G-6c",
-        "retired twenty flat/CDM characterization tests",
-    ),
+    ("8G-6c", "retired twenty flat/CDM characterization tests"),
     (
         "8G-6d",
         "retired fourteen RCPF parent/occurrence migration characterizations",
@@ -715,20 +718,17 @@ const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 0;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
 const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 0;
 
-const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
-    Cpk8gPhysicalTestGroup {
-        targets: &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
-        tests: &[
-            "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
-            "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
-            "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
-            "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
-        ],
-    },
-];
+const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[Cpk8gPhysicalTestGroup {
+    targets: &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
+    tests: &[
+        "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
+        "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
+        "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
+        "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
+    ],
+}];
 
-const CPK8G7_COMPLETED_SUBSLICES: &[&str] =
-    &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
+const CPK8G7_COMPLETED_SUBSLICES: &[&str] = &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
 const CPK8G8A_COMPLETED_SUBSLICES: &[&str] = &["8G-8a0", "8G-8a1", "8G-8a2"];
 const CPK8G8B_COMPLETED_SUBSLICES: &[&str] = &["8G-8b0", "8G-8b1"];
 const CPK8G8C_COMPLETED_SUBSLICES: &[&str] = &["8G-8c0", "8G-8c1"];
@@ -736,13 +736,14 @@ const CPK8G8_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
 ];
 const CPK8G9_PREPARATION_COMPLETED_SUBSLICES: &[&str] = &["8G-9-0a", "8G-9-0b"];
-const CPK8G9_COMPLETED_SUBSLICES: &[&str] =
-    &["8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e"];
+const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e"];
 const CPK8G9_ALL_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-9-0a", "8G-9-0b", "8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e",
 ];
 const CPK8G10_ACTUAL_SCOPE: &str =
     "dead RCPF oracle/injection shell removed; reachable hard-failure channel retained for 8G-12";
+const CPK8G11_COMPLETED_SUBSLICES: &[&str] =
+    &["8G-11a0", "8G-11a1", "8G-11a2", "8G-11b1", "8G-11b2"];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -785,10 +786,7 @@ const REVIEWED_SOURCES: &[(&str, &str)] = &[
         "constraints/machine/entry.rs",
         include_str!("machine/entry.rs"),
     ),
-    (
-        "constraints/machine/mod.rs",
-        include_str!("machine/mod.rs"),
-    ),
+    ("constraints/machine/mod.rs", include_str!("machine/mod.rs")),
     (
         "constraints/machine/propagate.rs",
         include_str!("machine/propagate.rs"),
@@ -927,10 +925,11 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // adds two test-only claim-move assertions. Slice C item 2 adds one test-only read proving
     // two uncovered roots share one physical upper record. Item 16 adds one test-only outer-
     // census assertion before corrupting the CPK claim index; none is a production authority.
-    // CPK-8B freezes original/derived claim admission in UpperReplayClaimRegistration. Original
-    // admission removes two production CPK-writer re-reads and adds one reviewed transaction-local
-    // snapshot read plus one test-only mutation proving that the event cannot observe later flat
-    // state. Derived admission then removes the two remaining production CPK-writer re-reads.
+    // CPK-8B froze original/derived claim admission in UpperReplayClaimRegistration. Original
+    // admission removed two production CPK-writer re-reads and added one reviewed transaction-local
+    // snapshot read plus one test-only mutation proving that the event could not observe later flat
+    // state. CPK-8G-11b2 removes that compatibility payload with the final flat Vec mirror while
+    // retaining a direct CPK prepared-occurrence commit contract.
     // Claim move freezes claim/current-record at flat-mutation completion, replacing its only
     // production CPK-writer re-read with one transaction-local snapshot read; the strengthened
     // atomicity fixture mutates the flat claim afterward to prove the event is closed. The total
@@ -963,9 +962,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-11a0 removes the final two production reads (generalization carrier resolution and
     // replay-evidence producer resolution); both now use the CPK dense claim arena.
     // CPK-8G-11a1 moves every remaining correctness fixture to the CPK claim payload and semantic
-    // BoundRecord view. CPK-8G-11b1 removes the five flat index branches while preserving the Vec
-    // and cycle-counter event mirrors for CPK-8G-11b2.
-    ("upper_replay_claims", 25),
+    // BoundRecord view. CPK-8G-11b1 removes the five flat index branches, and CPK-8G-11b2 removes
+    // the Vec/cycle mirror and allocation-snapshot compatibility payload. The remaining lexical
+    // references are semantic registration/query names, not flat storage.
+    ("upper_replay_claims", 9),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -1294,13 +1294,19 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
     let proof_source = include_str!("proof/mod.rs");
     for (file, source) in [
         ("constraints/machine/bounds.rs", bounds_source),
-        ("constraints/machine/entry.rs", include_str!("machine/entry.rs")),
+        (
+            "constraints/machine/entry.rs",
+            include_str!("machine/entry.rs"),
+        ),
         ("constraints/proof/mod.rs", proof_source),
         (
             "constraints/semantic_execution_snapshot.rs",
             include_str!("semantic_execution_snapshot.rs"),
         ),
-        ("constraints/tests/case_02.rs", include_str!("tests/case_02.rs")),
+        (
+            "constraints/tests/case_02.rs",
+            include_str!("tests/case_02.rs"),
+        ),
         (
             "constraints/tests/claim_qualified_provenance.rs",
             include_str!("tests/claim_qualified_provenance.rs"),
@@ -1335,8 +1341,11 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
         "fn uncovered_claims(",
         "fn covered_claims(",
     ] {
-        assert!(!bounds_source.contains(removed_helper) && !include_str!("mod.rs").contains(removed_helper),
-            "CPK-8G-11a1 retired flat routing helper reappeared: {removed_helper}");
+        assert!(
+            !bounds_source.contains(removed_helper)
+                && !include_str!("mod.rs").contains(removed_helper),
+            "CPK-8G-11a1 retired flat routing helper reappeared: {removed_helper}"
+        );
     }
 
     let machine_source = include_str!("mod.rs");
@@ -1344,7 +1353,7 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
         .split_once("pub struct TypeBounds {")
         .expect("ConstraintMachine/TypeBounds boundary");
     for (field, expected_mirror_references) in [
-        ("upper_replay_claims", 1),
+        ("upper_replay_claims", 0),
         ("replay_claim_cycle_coalesces", 0),
     ] {
         assert_eq!(
@@ -1369,8 +1378,7 @@ fn cpk_8g_11a2_live_coverage_mirror_is_fully_removed() {
     ];
     let mut pending = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
     while let Some(directory) = pending.pop() {
-        for entry in
-            std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        for entry in std::fs::read_dir(&directory).expect("infer source directory must be readable")
         {
             let path = entry.expect("infer source entry must be readable").path();
             if path.is_dir() {
@@ -1380,7 +1388,8 @@ fn cpk_8g_11a2_live_coverage_mirror_is_fully_removed() {
             if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
                 continue;
             }
-            let source = std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            let source =
+                std::fs::read_to_string(&path).expect("infer Rust source must be readable");
             for identifier in &removed_identifiers {
                 assert!(
                     !source.contains(identifier),
@@ -1423,8 +1432,7 @@ fn cpk_8g_11b1_flat_claim_indexes_are_fully_removed() {
     ];
     let mut pending = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
     while let Some(directory) = pending.pop() {
-        for entry in
-            std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        for entry in std::fs::read_dir(&directory).expect("infer source directory must be readable")
         {
             let path = entry.expect("infer source entry must be readable").path();
             if path.is_dir() {
@@ -1434,7 +1442,8 @@ fn cpk_8g_11b1_flat_claim_indexes_are_fully_removed() {
             if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
                 continue;
             }
-            let source = std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            let source =
+                std::fs::read_to_string(&path).expect("infer Rust source must be readable");
             for identifier in &removed_flat_helpers {
                 assert!(
                     !source.contains(identifier),
@@ -1444,6 +1453,95 @@ fn cpk_8g_11b1_flat_claim_indexes_are_fully_removed() {
             }
         }
     }
+}
+
+#[test]
+fn cpk_8g_11b2_flat_claim_mirror_is_fully_removed() {
+    let bounds_source = include_str!("mod.rs");
+    let proof_source = include_str!("proof/mod.rs");
+    let removed_flat_fields = [
+        ["upper_replay_", "claims"].concat(),
+        ["claims_by_upper_", "record"].concat(),
+        ["original_claim_by_record_and_", "producer"].concat(),
+        ["derived_claim_by_record_and_", "root"].concat(),
+        ["reduction_claim_by_", "state"].concat(),
+        ["root_claim_by_producer_", "constraint"].concat(),
+        ["live_coverage_by_", "root"].concat(),
+        ["replay_claim_cycle_", "coalesces"].concat(),
+    ];
+    for identifier in &removed_flat_fields {
+        assert!(
+            !bounds_source.contains(identifier),
+            "CPK-8G-11b2 removed flat claim field reappeared in ConstraintMachine/TypeBounds: {identifier}",
+        );
+    }
+
+    let type_bounds = bounds_source
+        .split_once("pub struct TypeBounds {")
+        .and_then(|(_, tail)| tail.split_once("\n}\n\nimpl TypeBounds"))
+        .map(|(fields, _)| fields)
+        .expect("TypeBounds declaration must remain structurally inspectable");
+    assert_eq!(
+        type_bounds,
+        "\n    vars: Vec<Option<VarBounds>>,\n    canonical: FxHashMap<BoundSemanticKey, BoundRecordId>,\n    records: Vec<BoundRecord>,",
+        "TypeBounds must contain semantic bound storage only after CPK-8G-11",
+    );
+
+    for retained_cpk_surface in [
+        "upper_claims: Vec<UpperClaimOccurrence>",
+        "claims_by_upper_record",
+        "original_claim_by_record_and_producer",
+        "derived_claim_by_record_and_root",
+        "reduction_claim_by_state",
+        "root_claim_by_producer_constraint",
+        "replay_claim_cycle_coalesces",
+    ] {
+        assert!(
+            proof_source.contains(retained_cpk_surface),
+            "CPK-8G-11b2 must retain authoritative CPK claim storage: {retained_cpk_surface}",
+        );
+    }
+
+    let removed_compatibility_surfaces = [
+        ["struct UpperReplay", "Claim {"].concat(),
+        ["PreparedClaim", "MirrorCapacity"].concat(),
+        ["PreparedClaimMove", "MirrorCapacity"].concat(),
+        ["try_reserve_upper_replay_claim_", "mirror"].concat(),
+        ["commit_original_upper_replay_claim_", "mirror"].concat(),
+        ["commit_derived_upper_replay_claim_", "mirror"].concat(),
+        ["commit_upper_replay_claim_move_", "mirror"].concat(),
+        ["prepare_upper_claim_", "admission"].concat(),
+        ["proof_", "admission"].concat(),
+    ];
+    let mut pending = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        {
+            let path = entry.expect("infer source entry must be readable").path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
+                continue;
+            }
+            let source =
+                std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            for identifier in &removed_compatibility_surfaces {
+                assert!(
+                    !source.contains(identifier),
+                    "CPK-8G-11b2 removed flat compatibility surface reappeared in {}: {identifier}",
+                    path.display(),
+                );
+            }
+        }
+    }
+
+    assert_eq!(
+        CPK8G11_COMPLETED_SUBSLICES,
+        &["8G-11a0", "8G-11a1", "8G-11a2", "8G-11b1", "8G-11b2"],
+        "CPK-8G-11 closure must retain all five reviewed sub-slice dispositions",
+    );
 }
 
 #[test]
@@ -1588,7 +1686,9 @@ fn cpk_8g_8b1_flat_clause_link_attribution_relations_are_fully_removed() {
         );
     }
     assert_eq!(
-        reviewed_sources.matches("attributed_claim_supports").count(),
+        reviewed_sources
+            .matches("attributed_claim_supports")
+            .count(),
         reviewed_sources
             .matches("replay_attributed_claim_supports")
             .count(),
@@ -1630,7 +1730,9 @@ fn cpk_8g_8_all_flat_projection_relations_are_fully_removed() {
         );
     }
     assert_eq!(
-        reviewed_sources.matches("attributed_claim_supports").count(),
+        reviewed_sources
+            .matches("attributed_claim_supports")
+            .count(),
         reviewed_sources
             .matches("replay_attributed_claim_supports")
             .count(),
@@ -1694,9 +1796,13 @@ fn cpk_8g_9_0b_rcpf_readers_are_closed_before_structure_removal() {
         "register_factored_parent_snapshot",
     ] {
         assert!(
-            ![bounds, include_str!("mod.rs"), include_str!("semantic_execution_snapshot.rs")]
-                .iter()
-                .any(|source| source.contains(retired)),
+            ![
+                bounds,
+                include_str!("mod.rs"),
+                include_str!("semantic_execution_snapshot.rs")
+            ]
+            .iter()
+            .any(|source| source.contains(retired)),
             "retired RCPF test-reader helper reappeared: {retired}",
         );
     }
@@ -1889,7 +1995,9 @@ fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained()
         ["RCPF_E2C_FAIL_NEXT", "_A1_READ"].concat(),
     ] {
         assert!(
-            runtime_sources.iter().all(|source| !source.contains(&removed)),
+            runtime_sources
+                .iter()
+                .all(|source| !source.contains(&removed)),
             "dead RCPF shell surface reappeared after 8G-10: {removed}",
         );
     }
@@ -1903,7 +2011,9 @@ fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained()
         "ReplayFactoredFailed",
     ] {
         assert!(
-            runtime_sources.iter().any(|source| source.contains(retained)),
+            runtime_sources
+                .iter()
+                .any(|source| source.contains(retained)),
             "reachable hard-failure channel must survive until 8G-12: {retained}",
         );
     }
@@ -2025,8 +2135,7 @@ fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
             .iter()
             .map(|(_, count)| *count)
             .sum::<usize>(),
-        CPK8_CDM_MIRRORED_FIXTURE_CALLERS.len()
-            + CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
+        CPK8_CDM_MIRRORED_FIXTURE_CALLERS.len() + CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS.len(),
         "every purpose-split CDM fixture caller must remain classified",
     );
     assert!(
@@ -2163,7 +2272,12 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
             "{dependent} must keep its explicit migration-oracle fixture",
         );
     }
-    assert_eq!(proof_tests.matches("cpk_3_replay_admission_fixture(").count(), 0);
+    assert_eq!(
+        proof_tests
+            .matches("cpk_3_replay_admission_fixture(")
+            .count(),
+        0
+    );
     assert_eq!(
         proof_tests
             .matches("cpk_3_replay_admission_fixture_with_authority(")
@@ -2171,7 +2285,9 @@ fn cpk_8e_migration_oracle_dependent_manifest_is_closed() {
         0,
     );
     assert_eq!(
-        proof_tests.matches("cpk_proof_oracle_active = true").count(),
+        proof_tests
+            .matches("cpk_proof_oracle_active = true")
+            .count(),
         0,
         "CPK-8G-6f removes the final Proof migration-oracle activation",
     );
@@ -2301,7 +2417,10 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         );
     }
     for &(retired, reason) in CPK8G6B_RETIRED_PROOF_ORACLE_AND_REPLACEMENT_BACKED_TESTS {
-        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert!(
+            !reason.is_empty(),
+            "retired test must retain its category-B reason"
+        );
         let source_occurrences = reviewed_physical_sources
             .iter()
             .map(|source| source.matches(&format!("fn {retired}(")).count())
@@ -2313,7 +2432,10 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     }
     assert_eq!(CPK8G6C_RETIRED_FLAT_CDM_TESTS.len(), 20);
     for &(retired, reason) in CPK8G6C_RETIRED_FLAT_CDM_TESTS {
-        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert!(
+            !reason.is_empty(),
+            "retired test must retain its category-B reason"
+        );
         let source_occurrences = reviewed_physical_sources
             .iter()
             .map(|source| source.matches(&format!("fn {retired}")).count())
@@ -2333,7 +2455,10 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     }
     assert_eq!(CPK8G6D_RETIRED_RCPF_PARENT_OCCURRENCE_TESTS.len(), 14);
     for &(retired, reason) in CPK8G6D_RETIRED_RCPF_PARENT_OCCURRENCE_TESTS {
-        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert!(
+            !reason.is_empty(),
+            "retired test must retain its category-B reason"
+        );
         let source_occurrences = reviewed_physical_sources
             .iter()
             .map(|source| source.matches(&format!("fn {retired}")).count())
@@ -2365,7 +2490,10 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         19,
     );
     for &(retired, reason) in CPK8G6E_RETIRED_RCPF_PUBLICATION_FAILURE_READER_TESTS {
-        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert!(
+            !reason.is_empty(),
+            "retired test must retain its category-B reason"
+        );
         let source_occurrences = reviewed_physical_sources
             .iter()
             .map(|source| source.matches(&format!("fn {retired}")).count())
@@ -2398,7 +2526,8 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         "CPK-8G-6 category-B retirement ledger must account for all 60 reviewed tests",
     );
     assert_eq!(
-        historical_legacy_characterizations.len(), 0,
+        historical_legacy_characterizations.len(),
+        0,
         "CPK-8G-6e must leave zero category-B Legacy-reader dependents",
     );
     assert_eq!(
@@ -2409,22 +2538,27 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let completed_subslices = CPK8G6_COMPLETED_SUBSLICES
         .iter()
         .map(|&(slice, summary)| {
-            assert!(!summary.is_empty(), "completed sub-slice must retain its disposition");
+            assert!(
+                !summary.is_empty(),
+                "completed sub-slice must retain its disposition"
+            );
             slice
         })
         .collect::<BTreeSet<_>>();
     assert_eq!(
         completed_subslices,
         [
-            "8G-6a", "8G-6b", "8G-6c", "8G-6d", "8G-6e", "8G-6f", "8G-6g1",
-            "8G-6g2", "8G-6h",
+            "8G-6a", "8G-6b", "8G-6c", "8G-6d", "8G-6e", "8G-6f", "8G-6g1", "8G-6g2", "8G-6h",
         ]
         .into_iter()
         .collect(),
         "the CPK-8G-6 closure ledger must account for every approved sub-slice exactly once",
     );
     for &(retired, reason) in CPK8G6G1_RETIRED_LEGACY_READER_TESTS {
-        assert!(!reason.is_empty(), "retired test must retain its category-B reason");
+        assert!(
+            !reason.is_empty(),
+            "retired test must retain its category-B reason"
+        );
         assert_eq!(
             reviewed_physical_sources
                 .iter()
@@ -2435,7 +2569,10 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         );
     }
     for &(retired, reason) in CPK8G90B_RETIRED_RCPF_FIXTURES {
-        assert!(!reason.is_empty(), "retired RCPF fixture must retain its replacement reason");
+        assert!(
+            !reason.is_empty(),
+            "retired RCPF fixture must retain its replacement reason"
+        );
         assert_eq!(
             reviewed_physical_sources
                 .iter()
