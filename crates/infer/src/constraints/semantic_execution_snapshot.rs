@@ -369,10 +369,9 @@ impl ConstraintMachine {
         let mut constraint_events = trace.publication_events.clone();
         constraint_events.extend(self.events.iter().cloned());
         let mut projectability_included_owners = self
-            .bounds
-            .scheme_projection_claimed_lower_owners
-            .iter()
-            .copied()
+            .proof_store
+            .projection_owners(self)
+            .into_iter()
             .collect::<Vec<_>>();
         projectability_included_owners.sort_by_key(|var| var.0);
         let publication = PublicationSnapshot {

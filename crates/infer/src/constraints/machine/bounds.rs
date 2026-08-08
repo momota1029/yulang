@@ -1608,11 +1608,7 @@ impl ConstraintMachine {
                 .then_some(carrier)
                 .into_iter()
                 .collect::<Vec<_>>();
-            if self
-                .bounds
-                .projection_proofs_by_lower_record
-                .contains_key(&lower_record)
-            {
+            if self.proof_store.has_projection_support_ledger(lower_record) {
                 Some(self.try_authoritative_lower_projection_replay_delta(
                     producer,
                     delta,
@@ -2690,11 +2686,7 @@ impl ConstraintMachine {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let claims = if self
-            .bounds
-            .projection_proofs_by_lower_record
-            .contains_key(&lower_record)
-        {
+        let claims = if self.proof_store.has_projection_support_ledger(lower_record) {
             Vec::new()
         } else {
             parents.iter().map(|parent| parent.parent_claim()).collect()
@@ -2726,10 +2718,7 @@ impl ConstraintMachine {
         let Some(lower_record) = self.lower_record_for_constraint(producer) else {
             return;
         };
-        let ledger_exists = self
-            .bounds
-            .projection_proofs_by_lower_record
-            .contains_key(&lower_record);
+        let ledger_exists = self.proof_store.has_projection_support_ledger(lower_record);
         let parents = if ledger_exists {
             parents.to_vec()
         } else {
@@ -2818,10 +2807,7 @@ impl ConstraintMachine {
         delta: LowerProjectionDelta,
         mut publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
     ) {
-        let ledger_exists = self
-            .bounds
-            .projection_proofs_by_lower_record
-            .contains_key(&lower_record);
+        let ledger_exists = self.proof_store.has_projection_support_ledger(lower_record);
         #[cfg(test)]
         {
             if !claims_to_link.is_empty() {
@@ -2992,14 +2978,13 @@ impl ConstraintMachine {
     ) -> bool {
         match carrier {
             ProjectionProofCarrier::ConstraintOrigin { constraint, .. } => !self
-                .bounds
-                .scheme_projection_claims_by_lower_record
-                .get(&lower_record)
-                .into_iter()
-                .flatten()
+                .proof_store
+                .projection_claims_for_record(lower_record)
+                .iter()
                 .any(|claim| {
-                    self.bounds.upper_replay_claims[claim.0 as usize].producer_constraint
-                        == constraint
+                    self.proof_store
+                        .upper_claim(*claim)
+                        .is_some_and(|claim| claim.producer == constraint)
                 }),
             ProjectionProofCarrier::StructuralConstraint { result, .. }
             | ProjectionProofCarrier::ReplayConstraint { result, .. }
@@ -3029,9 +3014,8 @@ impl ConstraintMachine {
             .qualified_parent_values_for_result(producer)
             .collect::<Vec<_>>();
         let ledger_exists = self
-            .bounds
-            .projection_proofs_by_lower_record
-            .contains_key(&lower_record);
+            .proof_store
+            .has_projection_support_ledger(lower_record);
         if claim_parents.is_empty() && !ledger_exists {
             return;
         }
@@ -3087,14 +3071,13 @@ impl ConstraintMachine {
                     };
                     let constraint = &self.constraint_records[producer.0 as usize];
                     let roots_have_claim_support = self
-                        .bounds
-                        .scheme_projection_claims_by_lower_record
-                        .get(&lower_record)
-                        .into_iter()
-                        .flatten()
+                        .proof_store
+                        .projection_claims_for_record(lower_record)
+                        .iter()
                         .any(|claim| {
-                            self.bounds.upper_replay_claims[claim.0 as usize].producer_constraint
-                                == *producer
+                            self.proof_store
+                                .upper_claim(*claim)
+                                .is_some_and(|claim| claim.producer == *producer)
                         });
                     if !roots_have_claim_support {
                         supports.extend(constraint.root_origins.iter().map(|origin| {
@@ -3276,10 +3259,7 @@ impl ConstraintMachine {
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
-            && !self
-                .bounds
-                .projection_proofs_by_lower_record
-                .contains_key(&lower_record)
+            && !self.proof_store.has_projection_support_ledger(lower_record)
         {
             Some(
                 self.proof_store
@@ -4009,11 +3989,9 @@ impl ConstraintMachine {
     }
 
     fn lower_record_replay_claim_parents(&self, lower_record: BoundRecordId) -> ReplayClaimParents {
-        self.bounds
-            .scheme_projection_claims_by_lower_record
-            .get(&lower_record)
-            .into_iter()
-            .flatten()
+        self.proof_store
+            .projection_claims_for_record(lower_record)
+            .iter()
             .copied()
             .map(|claim| SideTaggedReplayClaim {
                 claim,
@@ -5451,15 +5429,12 @@ mod mutation_tests {
                 dpn_b_synthetic_projection_record(&mut machine, 110 + standalone_first as u32);
             let standalone_support =
                 SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
-            machine
-                .bounds
-                .projection_proofs_by_lower_record
-                .get_mut(&source)
-                .expect("the synthetic record has a proof ledger")
-                .push(SchemeProjectionProof {
-                    lower_record: source,
-                    support: standalone_support,
-                });
+            let mutation = machine.bounds.update_scheme_projection_proofs(
+                source,
+                &[],
+                &[ProjectionProofCarrier::Incomplete],
+            );
+            machine.apply_scheme_projection_mutation(mutation);
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(100),
                 premise: ProofPremise::Record(dependent),
@@ -5844,15 +5819,12 @@ mod mutation_tests {
                 dpn_b_synthetic_projection_record(&mut machine, 7);
             let standalone_carrier = ProjectionProofCarrier::Incomplete;
             let standalone_support = SchemeProjectionProofSupport::Independent(standalone_carrier);
-            machine
-                .bounds
-                .projection_proofs_by_lower_record
-                .get_mut(&source)
-                .expect("the synthetic record has a proof ledger")
-                .push(SchemeProjectionProof {
-                    lower_record: source,
-                    support: standalone_support,
-                });
+            let mutation = machine.bounds.update_scheme_projection_proofs(
+                source,
+                &[],
+                &[ProjectionProofCarrier::Incomplete],
+            );
+            machine.apply_scheme_projection_mutation(mutation);
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(3),
                 premise: ProofPremise::Record(dependent),
@@ -6177,10 +6149,6 @@ mod mutation_tests {
         machine
             .proof_store
             .record_projection_supports(record, &[proof]);
-        machine
-            .bounds
-            .scheme_projection_claimed_lower_owners
-            .insert(TypeVar(10_000 + ordinal));
         (record, SchemeProjectionProofSupport::Independent(carrier))
     }
 
@@ -6322,11 +6290,6 @@ mod mutation_tests {
         fixture.machine.replay_result_summary = Default::default();
         fixture.machine.non_replay_claim_parents_by_constraint = Default::default();
         fixture.machine.bounds.upper_replay_claims.clear();
-        fixture
-            .machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .clear();
         fixture.machine.bounds.record_proof_clauses.clear();
         fixture
             .machine
@@ -6337,11 +6300,6 @@ mod mutation_tests {
             .machine
             .bounds
             .record_proof_clause_links_by_lower_record
-            .clear();
-        fixture
-            .machine
-            .bounds
-            .scheme_projection_lower_record_memberships
             .clear();
         fixture
             .machine
@@ -7094,10 +7052,12 @@ mod mutation_tests {
                     target_claims: self.machine.bounds.claims_by_upper_record[&upper_record].clone(),
                     upper_replay_parents,
                     lower_replay_parents,
-                    lower_claims: self.machine.bounds.scheme_projection_claims_by_lower_record
-                        [&lower_record].clone(),
-                    lower_proofs: self.machine.bounds.projection_proofs_by_lower_record
-                        [&lower_record].clone(),
+                    lower_claims: self.machine.proof_store
+                        .projection_claims_for_record(lower_record).to_vec(),
+                    lower_proofs: self.machine.proof_store
+                        .projection_supports_for_record(lower_record).iter().copied()
+                        .map(|support| SchemeProjectionProof { lower_record, support })
+                        .collect(),
                     claim_arena: self.machine.bounds.upper_replay_claims.clone(),
                     final_epoch: self.epoch_checkpoint(),
                 };

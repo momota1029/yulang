@@ -1187,13 +1187,11 @@ impl<'a> SchemeProjectionEvaluator<'a> {
             }
             return Ok(claims.iter().any(|claim| self.eval_root_coverage(*claim)));
         }
-        let proofs = self
+        let supports = self
             .machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .get(&record)
-            .map(Vec::as_slice);
-        if self.flat_fail_open(record, proofs) {
+            .proof_store
+            .projection_supports_for_record(record);
+        if self.proof_fail_open(record, supports) {
             return Ok(true);
         }
 
@@ -1226,20 +1224,24 @@ impl<'a> SchemeProjectionEvaluator<'a> {
         Ok(false)
     }
 
-    fn flat_fail_open(
+    fn proof_fail_open(
         &self,
         record: BoundRecordId,
-        proofs: Option<&[SchemeProjectionProof]>,
+        supports: &[SchemeProjectionProofSupport],
     ) -> bool {
-        let Some(proofs) = proofs else {
-            return true;
-        };
-        if proofs.is_empty() {
+        if !self
+            .machine
+            .proof_store
+            .has_projection_support_ledger(record)
+        {
             return true;
         }
-        proofs.iter().any(|proof| {
-            self.support_is_qualifying(proof.support)
-                && !self.support_has_clause_link(record, proof.support)
+        if supports.is_empty() {
+            return true;
+        }
+        supports.iter().copied().any(|support| {
+            self.support_is_qualifying(support)
+                && !self.support_has_clause_link(record, support)
         })
     }
 
@@ -1750,11 +1752,9 @@ impl ConstraintMachine {
             return;
         };
         let mut affected_records = self
-            .bounds
-            .scheme_projection_lower_records_by_root
-            .get(&root)
-            .into_iter()
-            .flatten()
+            .proof_store
+            .projection_lower_records_for_root(root)
+            .iter()
             .copied()
             .collect::<FxHashSet<_>>();
         affected_records.extend(
@@ -3982,15 +3982,9 @@ impl ConstraintMachine {
         let GeneralizationParent::BoundClaim { bound, claim } = parent else {
             if let GeneralizationParent::BoundProjectionProof { bound, carrier } = parent {
                 let linked = self
-                    .bounds
-                    .projection_proofs_by_lower_record
-                    .get(&bound)
-                    .is_some_and(|proofs| {
-                        proofs.contains(&SchemeProjectionProof {
-                            lower_record: bound,
-                            support: SchemeProjectionProofSupport::Independent(carrier),
-                        })
-                    });
+                    .proof_store
+                    .projection_supports_for_record(bound)
+                    .contains(&SchemeProjectionProofSupport::Independent(carrier));
                 debug_assert!(
                     linked,
                     "independent projection parent must be ledger-backed"
@@ -4041,15 +4035,17 @@ impl ConstraintMachine {
         let linked = self.bounds.record(bound).is_some()
             && claim_record.is_some()
             && self
-                .bounds
-                .scheme_projection_claims_by_lower_record
-                .get(&bound)
-                .is_some_and(|claims| {
-                    claims.contains(&claim)
-                        || claims.iter().any(|linked| {
-                            self.bounds.upper_replay_claims[linked.0 as usize].coverage_root
-                                == claim_root.expect("checked claim")
-                        })
+                .proof_store
+                .projection_claims_for_record(bound)
+                .iter()
+                .any(|linked| {
+                    *linked == claim
+                        || self
+                            .proof_store
+                            .upper_claim(*linked)
+                            .is_some_and(|linked| {
+                                linked.coverage_root == claim_root.expect("checked claim")
+                            })
                 });
         debug_assert!(
             linked,

@@ -1159,6 +1159,8 @@ pub(crate) struct ProofOccurrenceStore {
     pub(crate) replay_coverage_connected: bool,
     projection_supports: FxHashMap<BoundRecordId, Vec<SchemeProjectionProofSupport>>,
     claimed_parents_by_lower_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
+    projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
+    projection_lower_record_memberships: FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
     #[cfg(test)]
     replay_index_record_comparisons: Cell<usize>,
@@ -1202,6 +1204,8 @@ impl Default for ProofOccurrenceStore {
             replay_coverage_connected: true,
             projection_supports: FxHashMap::default(),
             claimed_parents_by_lower_record: FxHashMap::default(),
+            projection_lower_records_by_root: FxHashMap::default(),
+            projection_lower_record_memberships: FxHashSet::default(),
             projection_formulas: FxHashMap::default(),
             #[cfg(test)]
             replay_index_record_comparisons: Cell::new(0),
@@ -1836,6 +1840,43 @@ impl ProofOccurrenceStore {
                 SchemeProjectionProofSupport::Independent(_) => None,
             })
             .collect::<Vec<_>>();
+        let mut pending_roots = Vec::new();
+        for claim in &claimed_parents {
+            let root = self
+                .upper_claim(*claim)
+                .expect("a projection support must reference an admitted CPK claim")
+                .coverage_root;
+            if !self
+                .projection_lower_record_memberships
+                .contains(&(root, lower_record))
+                && !pending_roots.contains(&root)
+            {
+                pending_roots.push(root);
+            }
+        }
+        self.projection_lower_record_memberships
+            .reserve(pending_roots.len());
+        self.projection_lower_records_by_root
+            .reserve(pending_roots.len());
+        for root in &pending_roots {
+            self.projection_lower_records_by_root
+                .entry(*root)
+                .or_default()
+                .reserve(1);
+        }
+        self.claimed_parents_by_lower_record.reserve(1);
+        self.projection_supports.reserve(1);
+
+        for root in pending_roots {
+            let inserted = self
+                .projection_lower_record_memberships
+                .insert((root, lower_record));
+            debug_assert!(inserted);
+            self.projection_lower_records_by_root
+                .entry(root)
+                .or_default()
+                .push(lower_record);
+        }
         if claimed_parents.is_empty() {
             self.claimed_parents_by_lower_record.remove(&lower_record);
         } else {
@@ -4119,6 +4160,40 @@ impl ProofOccurrenceStore {
             .unwrap_or_default()
     }
 
+    pub(super) fn projection_claims_for_record(
+        &self,
+        record: BoundRecordId,
+    ) -> &[UpperReplayClaimId] {
+        self.claimed_parents_by_lower_record
+            .get(&record)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub(super) fn has_projection_support_ledger(&self, record: BoundRecordId) -> bool {
+        self.projection_supports.contains_key(&record)
+    }
+
+    pub(super) fn projection_lower_records_for_root(
+        &self,
+        root: UpperReplayClaimId,
+    ) -> &[BoundRecordId] {
+        self.projection_lower_records_by_root
+            .get(&root)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub(super) fn projection_owners(
+        &self,
+        view: &impl SemanticFactView,
+    ) -> FxHashSet<TypeVar> {
+        self.projection_supports
+            .keys()
+            .filter_map(|record| view.bound(*record).map(SemanticBoundRecordRef::owner))
+            .collect()
+    }
+
     pub(super) fn projection_formula_for_record(
         &self,
         record: BoundRecordId,
@@ -5152,6 +5227,24 @@ mod tests {
                 .claimed_parents_by_lower_record
                 .get(&lower_record),
             Some(&vec![claim]),
+        );
+        machine
+            .proof_store
+            .record_projection_supports(lower_record, &proofs);
+        let second_lower_record = BoundRecordId(70_001);
+        let second_proofs = [SchemeProjectionProof {
+            lower_record: second_lower_record,
+            support: SchemeProjectionProofSupport::Claimed(claim),
+        }];
+        machine
+            .proof_store
+            .record_projection_supports(second_lower_record, &second_proofs);
+        assert_eq!(
+            machine
+                .proof_store
+                .projection_lower_records_for_root(claim),
+            &[lower_record, second_lower_record],
+            "the CPK reverse membership is first-insertion ordered and idempotent",
         );
 
         let root = claim;
@@ -6190,14 +6283,6 @@ mod tests {
             "the no-claim query must allocate no persistent proof state",
         );
 
-        no_ledger
-            .bounds
-            .projection_proofs_by_lower_record
-            .insert(no_ledger_record, Vec::new());
-        no_ledger
-            .bounds
-            .scheme_projection_claimed_lower_owners
-            .insert(no_ledger_owner);
         no_ledger
             .proof_store
             .projection_supports
@@ -7285,8 +7370,6 @@ mod tests {
             machine.bounds.original_claim_by_record_and_producer.len(),
             machine.bounds.root_claim_by_producer_constraint.len(),
             machine.bounds.claims_by_upper_record.len(),
-            machine.bounds.scheme_projection_claims_by_lower_record.len(),
-            machine.bounds.projection_proofs_by_lower_record.len(),
             machine.bounds.record_proof_clauses.len(),
         );
         let next_id = UpperReplayClaimId(cpk_before.0 as u32);
@@ -7319,8 +7402,6 @@ mod tests {
                 machine.bounds.original_claim_by_record_and_producer.len(),
                 machine.bounds.root_claim_by_producer_constraint.len(),
                 machine.bounds.claims_by_upper_record.len(),
-                machine.bounds.scheme_projection_claims_by_lower_record.len(),
-                machine.bounds.projection_proofs_by_lower_record.len(),
                 machine.bounds.record_proof_clauses.len(),
             ),
             flat_before

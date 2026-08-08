@@ -2050,20 +2050,18 @@ fn covered_unmatched_route_lower_is_raw_but_not_scheme_projectable() {
     assert_eq!(
         fixture
             .machine
-            .bounds
-            .scheme_projection_claims_by_lower_record
-            .get(&fixture.lower_record),
-        Some(&vec![fixture.covered_claim]),
-        "the mirror lower must retain the exact reduction-route claim"
+            .proof_store
+            .projection_claims_for_record(fixture.lower_record),
+        &[fixture.covered_claim],
+        "the CPK lower must retain the exact reduction-route claim"
     );
     assert_eq!(
         fixture
             .machine
-            .bounds
-            .scheme_projection_lower_records_by_root
-            .get(&fixture.coverage_root),
-        Some(&vec![fixture.lower_record]),
-        "the compressed root reverse index must identify the affected raw record"
+            .proof_store
+            .projection_lower_records_for_root(fixture.coverage_root),
+        &[fixture.lower_record],
+        "the CPK root reverse index must identify the affected raw record"
     );
 }
 
@@ -2110,11 +2108,10 @@ fn scheme_projectable_lower_keeps_only_independent_claim_on_mixed_record() {
     assert_eq!(
         fixture
             .machine
-            .bounds
-            .scheme_projection_claims_by_lower_record
-            .get(&fixture.lower_record),
-        Some(&vec![direct_claim, fixture.covered_claim]),
-        "the canonical mirror lower must retain both claim identities"
+            .proof_store
+            .projection_claims_for_record(fixture.lower_record),
+        &[direct_claim, fixture.covered_claim],
+        "the canonical CPK lower must retain both claim identities"
     );
 }
 
@@ -2500,10 +2497,7 @@ fn ordinary_scheme_projectable_lowers_are_byte_for_byte_raw_passthrough() {
         .collect::<Vec<_>>();
 
     assert!(
-        !machine
-            .bounds
-            .scheme_projection_claimed_lower_owners
-            .contains(&owner),
+        !machine.proof_store.projection_owners(&machine).contains(&owner),
         "ordinary lower records stay on the no-claim fast path"
     );
     assert_eq!(
@@ -3129,17 +3123,16 @@ fn observed_cdm_bulk_oracle_snapshot(
             .qualified_parent_values_for_result(producer)
             .collect(),
         projection_claims: machine
-            .bounds
-            .scheme_projection_claims_by_lower_record
-            .get(&lower_record)
-            .cloned()
-            .unwrap_or_default(),
+            .proof_store
+            .projection_claims_for_record(lower_record)
+            .to_vec(),
         projection_proofs: machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .get(&lower_record)
-            .cloned()
-            .unwrap_or_default(),
+            .proof_store
+            .projection_supports_for_record(lower_record)
+            .iter()
+            .copied()
+            .map(|support| SchemeProjectionProof { lower_record, support })
+            .collect(),
         included: machine
             .scheme_projectable_lowers(owner)
             .any(|candidate| candidate.record == lower_record),
@@ -4131,11 +4124,9 @@ fn observed_mpc_replay_snapshot(fixture: &MpcMixedReplayFixture) -> ObservedMpcR
         };
     let mut result_roots = fixture
         .machine
-        .bounds
-        .scheme_projection_claims_by_lower_record
-        .get(&fixture.result_record)
-        .into_iter()
-        .flatten()
+        .proof_store
+        .projection_claims_for_record(fixture.result_record)
+        .iter()
         .map(|claim| claim_root(&fixture.machine, *claim))
         .collect::<Vec<_>>();
     result_roots.sort_by_key(|root| root.0);
@@ -4259,12 +4250,11 @@ fn unattributed_record_proof_supports(
         .map(|link| link.support)
         .collect::<FxHashSet<_>>();
     machine
-        .bounds
-        .projection_proofs_by_lower_record
-        .get(&lower_record)
-        .into_iter()
-        .flatten()
-        .filter_map(|proof| normalized_projection_support(machine, proof.support))
+        .proof_store
+        .projection_supports_for_record(lower_record)
+        .iter()
+        .copied()
+        .filter_map(|support| normalized_projection_support(machine, support))
         .filter(|support| !attributed.contains(support))
         .collect()
 }
@@ -4281,12 +4271,7 @@ fn assert_record_proof_attribution_complete(
 }
 
 fn assert_all_record_proof_attribution_complete(machine: &ConstraintMachine) {
-    for lower_record in machine
-        .bounds
-        .projection_proofs_by_lower_record
-        .keys()
-        .copied()
-    {
+    for lower_record in machine.proof_store.projection_records() {
         assert_record_proof_attribution_complete(machine, lower_record);
     }
 }
@@ -4493,11 +4478,9 @@ fn observed_lower_projection(
     record: BoundRecordId,
 ) -> ObservedLowerProjection {
     let mut claimed_roots = machine
-        .bounds
-        .scheme_projection_claims_by_lower_record
-        .get(&record)
-        .into_iter()
-        .flatten()
+        .proof_store
+        .projection_claims_for_record(record)
+        .iter()
         .map(|claim| claim_root(machine, *claim))
         .collect::<Vec<_>>();
     claimed_roots.sort_by_key(|root| root.0);
@@ -4999,11 +4982,13 @@ fn scheme_projection_unmatched_route_fixture(
     let lower_record = lower_bound_record(&machine, residual, beta_pos);
     let upper_record = upper_bound_record_for_var(&machine, beta, residual);
     let linked_claims = machine
-        .bounds
-        .scheme_projection_claims_by_lower_record
-        .get(&lower_record)
-        .cloned()
-        .expect("the Var-Var admission links its mirror lower record");
+        .proof_store
+        .projection_claims_for_record(lower_record)
+        .to_vec();
+    assert!(
+        machine.proof_store.has_projection_support_ledger(lower_record),
+        "the Var-Var admission links its CPK lower record"
+    );
     let covered_claim = linked_claims
         .iter()
         .copied()
@@ -5127,10 +5112,7 @@ impl ConstraintMachine {
         );
 
         assert!(
-            machine
-                .bounds
-                .scheme_projection_claims_by_lower_record
-                .is_empty(),
+            machine.proof_store.projection_records().next().is_none(),
             "the ordinary alias fixture must not create scheme-projection claims"
         );
         (machine, owner, direct, transitive)

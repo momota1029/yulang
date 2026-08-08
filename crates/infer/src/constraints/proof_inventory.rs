@@ -797,8 +797,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // removes five D3b A-fixture reads now served by the CPK claim/support indexes. CPK-8G-6c
     // removes the historical flat materialization/projection reads and their oracle snapshots.
     // CPK-8G-6d removes two parent-failure ordering fixture reads.
-    // CPK-8G-6g1 removes the final Legacy lower-projection snapshot read.
-    ("scheme_projection_claims_by_lower_record", 13),
+    // CPK-8G-6g1 removes the final Legacy lower-projection snapshot read. CPK-8G-8a0 moves all
+    // remaining production and test readers to the CPK support view; only the flat definition,
+    // preflight, and writer remain.
+    ("scheme_projection_claims_by_lower_record", 6),
     // CPK-4 adds reviewed test-only reads for the writer-boundary snapshot and
     // mutation-oracle readiness, plus one fixture-only empty-ledger seed. CPK-5
     // adds one routing-shadow capture-readiness read. Slice B adds one reviewed test-only
@@ -809,10 +811,16 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // removes six D3b A-fixture reads/writes now served by the canonical CPK support view.
     // CPK-8G-6c removes historical flat bulk/delta oracle reads and snapshots.
     // CPK-8G-6f removes four Legacy projectability/publication shadow reads.
-    // CPK-8G-6g1 removes the remaining lower-projection comparison reads.
-    ("projection_proofs_by_lower_record", 27),
-    ("scheme_projection_lower_records_by_root", 7),
-    ("scheme_projection_lower_record_memberships", 4),
+    // CPK-8G-6g1 removes the remaining lower-projection comparison reads. CPK-8G-8a0 moves the
+    // evaluator, semantic consumers, bulk test oracle, and assertions to the CPK support store.
+    // Two reviewed test-only `.insert` sites still construct an otherwise-unrepresentable empty
+    // or synthetic flat writer seed; neither reads the flat value.
+    ("projection_proofs_by_lower_record", 12),
+    // CPK-8G-8a0 adds the CPK root-to-lower reverse membership and removes the last flat readers.
+    ("scheme_projection_lower_records_by_root", 6),
+    ("scheme_projection_lower_record_memberships", 3),
+    // CPK-8G-8a0 derives the semantic owner census from CPK projection ledgers.
+    ("scheme_projection_claimed_lower_owners", 4),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
     // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
@@ -897,8 +905,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6c removes five historical flat claim/lineage assertions.
     // CPK-8G-6d removes the final test-only Legacy first-witness lineage lookup helper.
     // CPK-8G-6f removes six flat-claim reads from the Proof Legacy reader/planner/shadow path.
-    // CPK-8G-6g1 removes flat event-oracle claim/root reconstruction reads.
-    ("upper_replay_claims", 77),
+    // CPK-8G-6g1 removes flat event-oracle claim/root reconstruction reads. CPK-8G-8a0 removes
+    // three support/root readers that formerly resolved producer/root through the flat claim Vec.
+    ("upper_replay_claims", 74),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -1308,6 +1317,49 @@ fn cpk_8g_7_flat_parent_relations_are_fully_removed() {
         &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"],
         "CPK-8G-7 closure must retain all five reviewed sub-slice dispositions"
     );
+}
+
+#[test]
+fn cpk_8g_8a0_flat_support_root_relations_are_writer_only() {
+    let flat_writer = include_str!("mod.rs");
+    for (field, expected_writer_references) in [
+        ("scheme_projection_claims_by_lower_record", 6),
+        ("projection_proofs_by_lower_record", 10),
+        ("scheme_projection_lower_records_by_root", 6),
+        ("scheme_projection_lower_record_memberships", 3),
+        ("scheme_projection_claimed_lower_owners", 4),
+    ] {
+        assert_eq!(
+            flat_writer.matches(field).count(),
+            expected_writer_references,
+            "flat support/root field {field} gained a reader or lost a reviewed writer site",
+        );
+        for (file, source) in [
+            ("machine/bounds.rs", include_str!("machine/bounds.rs")),
+            ("proof/mod.rs", include_str!("proof/mod.rs")),
+            (
+                "semantic_execution_snapshot.rs",
+                include_str!("semantic_execution_snapshot.rs"),
+            ),
+            ("tests/case_02.rs", include_str!("tests/case_02.rs")),
+        ] {
+            let reviewed_test_writer = match (file, field) {
+                ("machine/bounds.rs", "projection_proofs_by_lower_record") => Some(
+                    ".projection_proofs_by_lower_record\n            .insert(record, vec![proof.clone()]);",
+                ),
+                ("proof/mod.rs", "projection_proofs_by_lower_record") => Some(
+                    ".projection_proofs_by_lower_record\n            .insert(record, Vec::new());",
+                ),
+                _ => None,
+            };
+            let source_without_reviewed_writer = reviewed_test_writer
+                .map_or_else(|| source.to_owned(), |writer| source.replacen(writer, "", 1));
+            assert!(
+                !source_without_reviewed_writer.contains(field),
+                "flat support/root reader reappeared in {file}: {field}",
+            );
+        }
+    }
 }
 
 #[test]
