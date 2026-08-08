@@ -1375,7 +1375,7 @@ impl ConstraintMachine {
             self.bump_provenance_epoch();
             return;
         }
-        let Some(root) = self.bounds.canonical_coverage_root(root) else {
+        let Some(root) = self.proof_store.claim_coverage_root(root) else {
             self.bump_provenance_epoch();
             return;
         };
@@ -3110,7 +3110,7 @@ impl ConstraintMachine {
                 GeneralizationParent::BoundProjectionProof { .. } => unreachable!(),
             });
         };
-        let claim_record = self.bounds.upper_replay_claims.get(claim.0 as usize);
+        let claim_record = self.proof_store.upper_claim(claim);
         let claim_root = claim_record.map(|claim| claim.coverage_root);
         let linked = self.bounds.record(bound).is_some()
             && claim_record.is_some()
@@ -3129,16 +3129,16 @@ impl ConstraintMachine {
             "claim-qualified generalization parent must link claim {claim:?} to bound {bound:?}"
         );
         let claim_record = claim_record.filter(|_| linked)?;
-        Some(match claim_record.lineage {
-            UpperReplayClaimLineage::Original => {
-                GeneralizationParentCarriers::Constraint(claim_record.producer_constraint)
+        Some(match claim_record.full_lineage {
+            proof::UpperClaimLineage::Original => {
+                GeneralizationParentCarriers::Constraint(claim_record.producer)
             }
-            UpperReplayClaimLineage::ReplayConstraint { result, .. }
-            | UpperReplayClaimLineage::StructuralConstraint { result, .. }
-            | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
+            proof::UpperClaimLineage::ReplayConstraint { result, .. }
+            | proof::UpperClaimLineage::StructuralConstraint { result, .. }
+            | proof::UpperClaimLineage::ReductionRouteConstraint { result, .. } => {
                 GeneralizationParentCarriers::Constraint(result)
             }
-            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => {
+            proof::UpperClaimLineage::ReplayEvidence { replay, .. } => {
                 GeneralizationParentCarriers::ReplayEvidence {
                     lower: replay.lower,
                     upper: replay.upper,

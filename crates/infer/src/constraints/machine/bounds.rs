@@ -995,7 +995,7 @@ impl ConstraintMachine {
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
         for parent in parents.iter().copied() {
-            let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
+            let Some(root) = self.proof_store.claim_coverage_root(parent.parent_claim()) else {
                 continue;
             };
             let (clause, attribution_source) = match parent {
@@ -1066,7 +1066,7 @@ impl ConstraintMachine {
         parent_claim: UpperReplayClaimId,
         replay: BinaryReplayDerivation,
     ) {
-        let Some(root) = self.bounds.canonical_coverage_root(parent_claim) else {
+        let Some(root) = self.proof_store.claim_coverage_root(parent_claim) else {
             return;
         };
         self.register_record_proof_clause_link(
@@ -1391,12 +1391,8 @@ impl ConstraintMachine {
                 pending_premises,
             )?;
         }
-        if let Some(root_claim) = self
-            .bounds
-            .root_claim_by_producer_constraint
-            .get(&constraint)
-            .copied()
-            && let Some(root) = self.bounds.canonical_coverage_root(root_claim)
+        if let Some(root_claim) = self.proof_store.root_claim_for_producer(constraint)
+            && let Some(root) = self.proof_store.claim_coverage_root(root_claim)
         {
             pending_premises.insert(ProofPremise::RootCoverage(root));
         }
@@ -1422,7 +1418,7 @@ impl ConstraintMachine {
                 )?;
             }
             ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
+                if let Some(root) = self.proof_store.claim_coverage_root(parent_claim) {
                     pending_premises.insert(ProofPremise::RootCoverage(root));
                 }
             }
@@ -1454,7 +1450,7 @@ impl ConstraintMachine {
                 );
             }
             ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                if let Some(root) = self.bounds.canonical_coverage_root(parent_claim) {
+                if let Some(root) = self.proof_store.claim_coverage_root(parent_claim) {
                     self.admit_projection_index(
                         None,
                         &[(ProofPremise::RootCoverage(root), dependent)],
@@ -3428,8 +3424,11 @@ impl ConstraintMachine {
             }
             if evidence_complete {
                 for parent in action.claim_parents {
-                    let producer = self.bounds.upper_replay_claims[parent.claim.0 as usize]
-                        .producer_constraint;
+                    let producer = self
+                        .proof_store
+                        .upper_claim(parent.claim)
+                        .expect("replay-evidence parents must reference admitted CPK claims")
+                        .producer;
                     let Some(registration) = self.admit_derived_upper_replay_claim(
                         upper_record,
                         parent.claim,

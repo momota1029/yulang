@@ -25,8 +25,9 @@
 //
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
-//   claim move, register_constraint_upper_replay_claims; after CPK-8G-6f they are write-only flat
-//   mirrors while CPK owns projection/routing reads.
+//   claim move, register_constraint_upper_replay_claims; CPK-8G-11a0 closes the final eight
+//   production consumers, leaving only the reviewed flat mirror preflight/commit paths and
+//   test-fixture reads before physical deletion.
 // - CPK-8G-7a closes the CPK parent read view. CPK-8G-7b1/b2 remove the replay and structural
 //   exact-key mirrors independently; CPK-8G-7b3 removes the qualified-carrier projection; and
 //   CPK-8G-7b4 removes the final claim-parent Vec mirror while preserving the CPK admission and
@@ -961,7 +962,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // arena and exact-parent index already own those production decisions. CPK-8G-9-0b removes
     // the final test-only RCPF evaluator's flat claim lookup. CPK-8G-9e removes the last three
     // ParentSetArena-only claim/root resolution and fixture references with the arena itself.
-    ("upper_replay_claims", 61),
+    // CPK-8G-11a0 removes the final two production reads (generalization carrier resolution and
+    // replay-evidence producer resolution); both now use the CPK dense claim arena.
+    ("upper_replay_claims", 59),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -1286,6 +1289,84 @@ fn cpk_0c_proof_state_reference_census_matches_reviewed_inventory() {
             "reviewed proof boundary moved or disappeared: {file}::{boundary}; reclassify the inventory instead of silently dropping it"
         );
     }
+}
+
+#[test]
+fn cpk_8g_11a0_flat_claim_mirror_has_no_production_readers() {
+    let bounds_source = include_str!("machine/bounds.rs");
+    let (bounds_production, _) = bounds_source
+        .split_once("#[cfg(test)]\nmod mutation_tests")
+        .expect("bounds production/test boundary");
+    let (before_test_helper, test_helper_and_after) = bounds_production
+        .split_once(
+            "    #[cfg(test)]\n    pub(in crate::constraints) fn materialize_replay_evidence_claim_for_test",
+        )
+        .expect("test-only replay-evidence claim helper");
+    let (_, after_test_helper) = test_helper_and_after
+        .split_once("\n    fn commit_record_proof_clause_link_batch(")
+        .expect("production clause-link boundary after the test helper");
+    let bounds_runtime = [before_test_helper, after_test_helper].concat();
+
+    let proof_source = include_str!("proof/mod.rs");
+    let (proof_production, _) = proof_source
+        .split_once("#[cfg(test)]\nmod tests")
+        .expect("proof production/test boundary");
+    for (file, source) in [
+        ("constraints/machine/bounds.rs", bounds_runtime.as_str()),
+        ("constraints/machine/entry.rs", include_str!("machine/entry.rs")),
+        ("constraints/proof/mod.rs", proof_production),
+        (
+            "constraints/semantic_execution_snapshot.rs",
+            include_str!("semantic_execution_snapshot.rs"),
+        ),
+    ] {
+        for field in [
+            "upper_replay_claims",
+            "claims_by_upper_record",
+            "original_claim_by_record_and_producer",
+            "derived_claim_by_record_and_root",
+            "reduction_claim_by_state",
+            "root_claim_by_producer_constraint",
+            "live_coverage_by_root",
+            "replay_claim_cycle_coalesces",
+        ] {
+            assert!(
+                !source.contains(&format!(".bounds.{field}"))
+                    && !source.contains(&format!(".bounds\n            .{field}"))
+                    && !source.contains(&format!(".bounds\n                .{field}")),
+                "CPK-8G-11a0 forbids flat claim-mirror production reads: {file} contains {field}",
+            );
+        }
+        assert!(
+            !source.contains(".bounds.canonical_coverage_root"),
+            "CPK-8G-11a0 forbids the flat canonical-root reader: {file}",
+        );
+    }
+
+    let machine_source = include_str!("mod.rs");
+    let (machine_runtime, _) = machine_source
+        .split_once("pub struct TypeBounds {")
+        .expect("ConstraintMachine/TypeBounds boundary");
+    for (field, expected_mirror_references) in [
+        ("upper_replay_claims", 1),
+        ("claims_by_upper_record", 0),
+        ("original_claim_by_record_and_producer", 0),
+        ("derived_claim_by_record_and_root", 0),
+        ("reduction_claim_by_state", 3),
+        ("root_claim_by_producer_constraint", 0),
+        ("live_coverage_by_root", 0),
+        ("replay_claim_cycle_coalesces", 0),
+    ] {
+        assert_eq!(
+            machine_runtime.matches(field).count(),
+            expected_mirror_references,
+            "flat claim field {field} gained a production reader or lost a reviewed mirror preflight/commit site",
+        );
+    }
+    assert!(
+        !machine_runtime.contains("canonical_coverage_root"),
+        "ConstraintMachine production logic must resolve claim roots through CPK",
+    );
 }
 
 #[test]

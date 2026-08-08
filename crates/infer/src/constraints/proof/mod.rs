@@ -1721,6 +1721,15 @@ impl ProofOccurrenceStore {
         claim
     }
 
+    pub(super) fn root_claim_for_producer(
+        &self,
+        producer: ConstraintRecordId,
+    ) -> Option<UpperReplayClaimId> {
+        self.root_claim_by_producer_constraint
+            .get(&producer)
+            .copied()
+    }
+
     pub(super) fn try_reserve_reduction_claim_index(
         &mut self,
     ) -> Result<(), std::collections::TryReserveError> {
