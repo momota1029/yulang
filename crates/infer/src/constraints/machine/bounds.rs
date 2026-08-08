@@ -6154,10 +6154,6 @@ mod mutation_tests {
             support: SchemeProjectionProofSupport::Independent(carrier),
         };
         machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .insert(record, vec![proof.clone()]);
-        machine
             .proof_store
             .record_projection_supports(record, &[proof]);
         (record, SchemeProjectionProofSupport::Independent(carrier))
