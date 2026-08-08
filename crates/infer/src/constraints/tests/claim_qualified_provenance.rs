@@ -280,7 +280,9 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                 )
             }
         };
-        let mutation = machine.bounds.link_scheme_projection_claim(audit_bound, selected_claim);
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(audit_bound, &[selected_claim], &[])
+            .expect("test projection support mutation must have capacity");
         machine.apply_scheme_projection_mutation(mutation);
         let root = machine.bounds.upper_replay_claims[selected_claim.0 as usize].coverage_root;
         let support = SchemeProjectionProofSupport::Claimed(root);

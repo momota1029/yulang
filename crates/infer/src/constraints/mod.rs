@@ -575,7 +575,7 @@ struct PreparedProjectionIndexMirrorCapacity {
     new_dependent_sets: Vec<(ProofPremise, FxHashSet<BoundRecordId>)>,
 }
 
-/// Projection metadata changes inside `TypeBounds`; its owner applies global invalidation.
+/// A CPK-decided projection support transaction plus its event-local flat mirror payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
     None,
@@ -585,6 +585,7 @@ enum SchemeProjectionMutation {
         // Freeze the CPK writer input at admission time; the consumer must not reconstruct this
         // event by re-reading the migration-only flat projection ledger.
         current_proofs: Vec<SchemeProjectionProof>,
+        prepared: proof::PreparedProjectionSupportMutation,
     },
 }
 
@@ -1781,9 +1782,9 @@ impl ConstraintMachine {
         self.record_scheme_projection_mutation(affected_owners);
     }
 
-    fn apply_scheme_projection_mutation(&mut self, mutation: SchemeProjectionMutation) {
+    fn apply_scheme_projection_mutation(&mut self, mut mutation: SchemeProjectionMutation) {
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
-        self.record_projection_mutation_in_proof_store(&mutation);
+        self.commit_scheme_projection_mutation(&mut mutation);
         let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
         self.publish_scheme_projection_intent(intent);
     }
@@ -1856,9 +1857,14 @@ impl ConstraintMachine {
                     .insert(state, claim)
                     .is_none());
             }
-            return Ok(self.bounds.finish_existing_original_upper_replay_claim_mirror(
+            let mut registration = self.bounds.finish_existing_original_upper_replay_claim_mirror(
                 record, producer, claim,
-            ));
+            );
+            if let Some(lower_record) = self.lower_record_for_constraint(producer) {
+                registration.scheme_projection_mutation = self
+                    .try_prepare_scheme_projection_mutation(lower_record, &[claim], &[])?;
+            }
+            return Ok(registration);
         }
         let mut admission = self
             .proof_store
@@ -1874,9 +1880,13 @@ impl ConstraintMachine {
         )?;
         assert_eq!(issued.0 as usize, self.bounds.upper_replay_claims.len());
         self.proof_store.commit_original_claim_admission(&mut admission);
-        let registration = self.bounds.commit_original_upper_replay_claim_mirror(
+        let mut registration = self.bounds.commit_original_upper_replay_claim_mirror(
             issued, record, producer, kind, mirror_capacity,
         );
+        if let Some(lower_record) = lower_record {
+            registration.scheme_projection_mutation = self
+                .try_prepare_scheme_projection_mutation(lower_record, &[issued], &[])?;
+        }
         if let Some(state) = reduction_state {
             self.proof_store.commit_reduction_claim_index(state, issued);
             assert!(self
@@ -1930,48 +1940,57 @@ impl ConstraintMachine {
             producer,
             lineage,
         )?;
+        let lower_record = match lineage {
+            UpperReplayClaimLineage::Original => self.lower_record_for_constraint(producer),
+            UpperReplayClaimLineage::ReplayConstraint { result, .. }
+            | UpperReplayClaimLineage::StructuralConstraint { result, .. }
+            | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
+                self.lower_record_for_constraint(result)
+            }
+            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
+                .proof_store
+                .projection_lower_record_for_replay(replay)
+                .or_else(|| {
+                    #[cfg(test)]
+                    {
+                        self.bounds
+                            .scheme_projection_lower_record_by_replay
+                            .get(&replay)
+                            .copied()
+                    }
+                    #[cfg(not(test))]
+                    {
+                        None
+                    }
+                }),
+        };
         match &decision {
             proof::PreparedDerivedClaimDecision::Coalesced {
                 claim,
                 coverage_root,
             } => {
-                let registration = self
+                let claim = *claim;
+                let mut registration = self
                     .bounds
                     .finish_coalesced_derived_upper_replay_claim_mirror(
                         record,
                         *coverage_root,
-                        *claim,
+                        claim,
                         producer,
                         lineage,
                     );
                 self.proof_store.commit_derived_claim_decision(&mut decision);
+                if let Some(lower_record) = lower_record {
+                    registration.scheme_projection_mutation = self
+                        .try_prepare_scheme_projection_mutation(
+                            lower_record,
+                            &[claim],
+                            &[],
+                        )?;
+                }
                 Ok(registration)
             }
             proof::PreparedDerivedClaimDecision::New(admission) => {
-                let lower_record = match lineage {
-                    UpperReplayClaimLineage::Original => self.lower_record_for_constraint(producer),
-                    UpperReplayClaimLineage::ReplayConstraint { result, .. }
-                    | UpperReplayClaimLineage::StructuralConstraint { result, .. }
-                    | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
-                        self.lower_record_for_constraint(result)
-                    }
-                    UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
-                        .proof_store
-                        .projection_lower_record_for_replay(replay)
-                        .or_else(|| {
-                            #[cfg(test)]
-                            {
-                                self.bounds
-                                    .scheme_projection_lower_record_by_replay
-                                    .get(&replay)
-                                    .copied()
-                            }
-                            #[cfg(not(test))]
-                            {
-                                None
-                            }
-                        }),
-                };
                 let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
                     record,
                     None,
@@ -1983,11 +2002,20 @@ impl ConstraintMachine {
                 let proof::PreparedDerivedClaimDecision::New(admission) = &decision else {
                     unreachable!("prepared derived decision changed variant")
                 };
-                Ok(self.bounds.commit_derived_upper_replay_claim_mirror(
+                let mut registration = self.bounds.commit_derived_upper_replay_claim_mirror(
                     admission,
                     lineage,
                     mirror_capacity,
-                ))
+                );
+                if let Some(lower_record) = lower_record {
+                    registration.scheme_projection_mutation = self
+                        .try_prepare_scheme_projection_mutation(
+                            lower_record,
+                            &[admission.occurrence.claim],
+                            &[],
+                        )?;
+                }
+                Ok(registration)
             }
         }
     }
@@ -2047,20 +2075,66 @@ impl ConstraintMachine {
             .expect("test claim move must have capacity");
     }
 
-    fn record_projection_mutation_in_proof_store(
+    fn try_prepare_scheme_projection_mutation(
         &mut self,
-        mutation: &SchemeProjectionMutation,
-    ) {
+        lower_record: BoundRecordId,
+        claims_to_link: &[UpperReplayClaimId],
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> Result<SchemeProjectionMutation, proof::ProofFailure> {
+        if self.bounds.record(lower_record).is_none() {
+            return Ok(SchemeProjectionMutation::None);
+        }
+        let previous_proofs = self
+            .proof_store
+            .has_projection_support_ledger(lower_record)
+            .then(|| {
+                self.proof_store
+                    .projection_supports_for_record(lower_record)
+                    .iter()
+                    .copied()
+                    .map(|support| SchemeProjectionProof {
+                        lower_record,
+                        support,
+                    })
+                    .collect::<Vec<_>>()
+            });
+        let Some(prepared) = self.proof_store.try_prepare_projection_support_mutation(
+            lower_record,
+            claims_to_link,
+            independent_supports,
+        )? else {
+            return Ok(SchemeProjectionMutation::None);
+        };
+        let current_proofs = prepared
+            .current_supports
+            .iter()
+            .copied()
+            .map(|support| SchemeProjectionProof {
+                lower_record,
+                support,
+            })
+            .collect();
+        Ok(SchemeProjectionMutation::ProofsChanged {
+            lower_record,
+            previous_proofs,
+            current_proofs,
+            prepared,
+        })
+    }
+
+    fn commit_scheme_projection_mutation(&mut self, mutation: &mut SchemeProjectionMutation) {
         let SchemeProjectionMutation::ProofsChanged {
             lower_record,
             current_proofs,
+            prepared,
             ..
-        } = mutation
-        else {
+        } = mutation else {
             return;
         };
         self.proof_store
-            .record_projection_supports(*lower_record, current_proofs);
+            .commit_projection_support_mutation(prepared);
+        self.bounds
+            .commit_scheme_projection_support_mirror(*lower_record, current_proofs);
     }
 
     fn record_original_claim_standalone_link_in_proof_store(
@@ -3004,8 +3078,7 @@ impl TypeBounds {
         let key = (record, producer_constraint);
         assert_eq!(self.original_claim_by_record_and_producer.get(&key), Some(&claim));
         self.register_original_claim_mirror(producer_constraint, claim);
-        let scheme_projection_mutation =
-            self.link_scheme_projection_claim_to_constraint_lower(claim, producer_constraint);
+        let scheme_projection_mutation = SchemeProjectionMutation::None;
         let standalone_link =
             self.register_original_claim_standalone_link(producer_constraint, claim);
         self.finish_upper_replay_claim_registration(
@@ -3082,8 +3155,7 @@ impl TypeBounds {
         self.original_claim_by_record_and_producer.insert(key, id);
         self.register_original_claim_mirror(producer_constraint, id);
         self.insert_upper_record_claim_canonical(record, id);
-        let scheme_projection_mutation =
-            self.link_scheme_projection_claim_to_constraint_lower(id, producer_constraint);
+        let scheme_projection_mutation = SchemeProjectionMutation::None;
         let standalone_link =
             self.register_original_claim_standalone_link(producer_constraint, id);
         self.finish_upper_replay_claim_registration(
@@ -3098,11 +3170,9 @@ impl TypeBounds {
         record: BoundRecordId,
         coverage_root: UpperReplayClaimId,
         claim: UpperReplayClaimId,
-        producer_constraint: ConstraintRecordId,
-        lineage: UpperReplayClaimLineage,
+        _producer_constraint: ConstraintRecordId,
+        _lineage: UpperReplayClaimLineage,
     ) -> UpperReplayClaimRegistration {
-        let lower_record =
-            self.scheme_projection_lower_record_for_lineage(producer_constraint, lineage);
         let expected = if self.upper_replay_claims[coverage_root.0 as usize].current_record == record
         {
             coverage_root
@@ -3111,9 +3181,7 @@ impl TypeBounds {
         };
         assert_eq!(claim, expected);
         self.replay_claim_cycle_coalesces += 1;
-        let scheme_projection_mutation = lower_record
-            .map(|lower_record| self.link_scheme_projection_claim(lower_record, claim))
-            .unwrap_or(SchemeProjectionMutation::None);
+        let scheme_projection_mutation = SchemeProjectionMutation::None;
         self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation, None)
     }
 
@@ -3127,8 +3195,6 @@ impl TypeBounds {
         let record = occurrence.current_record;
         let root = occurrence.coverage_root;
         let producer_constraint = occurrence.producer;
-        let lower_record =
-            self.scheme_projection_lower_record_for_lineage(producer_constraint, lineage);
         let parent_claim = match lineage {
             UpperReplayClaimLineage::Original => unreachable!("derived claim has a parent"),
             UpperReplayClaimLineage::ReplayConstraint { parent_claim, .. }
@@ -3189,9 +3255,7 @@ impl TypeBounds {
         self.derived_claim_by_record_and_root
             .insert((record, root), id);
         self.insert_upper_record_claim_canonical(record, id);
-        let scheme_projection_mutation = lower_record
-            .map(|lower_record| self.link_scheme_projection_claim(lower_record, id))
-            .unwrap_or(SchemeProjectionMutation::None);
+        let scheme_projection_mutation = SchemeProjectionMutation::None;
         let registration = self.finish_upper_replay_claim_registration(
             id,
             scheme_projection_mutation,
@@ -3218,149 +3282,23 @@ impl TypeBounds {
         }
     }
 
-    fn scheme_projection_lower_record_for_lineage(
-        &self,
-        producer_constraint: ConstraintRecordId,
-        lineage: UpperReplayClaimLineage,
-    ) -> Option<BoundRecordId> {
-        match lineage {
-            UpperReplayClaimLineage::Original => self
-                .scheme_projection_lower_record_by_constraint
-                .get(&producer_constraint)
-                .copied(),
-            UpperReplayClaimLineage::ReplayConstraint { result, .. }
-            | UpperReplayClaimLineage::StructuralConstraint { result, .. }
-            | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => self
-                .scheme_projection_lower_record_by_constraint
-                .get(&result)
-                .copied(),
-            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
-                .scheme_projection_lower_record_by_replay
-                .get(&replay)
-                .copied(),
-        }
-    }
-
-    fn link_scheme_projection_claim_to_constraint_lower(
-        &mut self,
-        claim: UpperReplayClaimId,
-        producer_constraint: ConstraintRecordId,
-    ) -> SchemeProjectionMutation {
-        if let Some(lower_record) = self
-            .scheme_projection_lower_record_by_constraint
-            .get(&producer_constraint)
-            .copied()
-        {
-            return self.link_scheme_projection_claim(lower_record, claim);
-        }
-        SchemeProjectionMutation::None
-    }
-
-    fn link_scheme_projection_claim(
+    fn commit_scheme_projection_support_mirror(
         &mut self,
         lower_record: BoundRecordId,
-        claim: UpperReplayClaimId,
-    ) -> SchemeProjectionMutation {
-        self.update_scheme_projection_proofs(lower_record, &[claim], &[])
-    }
-
-    fn update_scheme_projection_proofs(
-        &mut self,
-        lower_record: BoundRecordId,
-        claims_to_link: &[UpperReplayClaimId],
-        independent_supports: &[ProjectionProofCarrier],
-    ) -> SchemeProjectionMutation {
-        let Some(record) = self.records.get(lower_record.0 as usize) else {
-            return SchemeProjectionMutation::None;
-        };
-        let owner = record.owner;
-        if claims_to_link.is_empty()
-            && independent_supports.is_empty()
-            && self.scheme_projection_claimed_lower_owners.contains(&owner)
-        {
-            return SchemeProjectionMutation::None;
-        }
-        if claims_to_link.is_empty()
-            && !self
-                .projection_proofs_by_lower_record
-                .contains_key(&lower_record)
-        {
-            return SchemeProjectionMutation::None;
-        }
-        let previous_proofs = self
-            .projection_proofs_by_lower_record
-            .get(&lower_record)
-            .cloned();
-        let upper_replay_claims = &self.upper_replay_claims;
-        let mut metadata_changed = false;
-        for claim in claims_to_link {
-            let Some(root) = upper_replay_claims
-                .get(claim.0 as usize)
-                .map(|claim| claim.coverage_root)
-            else {
-                continue;
-            };
-            let claims = self
-                .scheme_projection_claims_by_lower_record
-                .entry(lower_record)
-                .or_default();
-            match claims.binary_search_by_key(&root, |existing| {
-                upper_replay_claims[existing.0 as usize].coverage_root
-            }) {
-                Ok(position) => {
-                    if claims[position] < *claim {
-                        claims[position] = *claim;
-                        metadata_changed = true;
-                    }
-                }
-                Err(position) => {
-                    #[cfg(test)]
-                    record_canonical_projection_insertion_moves(claims.len() - position);
-                    claims.insert(position, *claim);
-                    metadata_changed = true;
-                }
-            }
-            let proofs = self
-                .projection_proofs_by_lower_record
-                .entry(lower_record)
-                .or_default();
-            let incoming_key = canonical_projection_key::Key::Claimed(root);
-            match proofs.binary_search_by(|proof| {
-                let existing_key = match proof.support {
-                    SchemeProjectionProofSupport::Claimed(existing) => {
-                        canonical_projection_key::Key::Claimed(
-                            upper_replay_claims[existing.0 as usize].coverage_root,
-                        )
-                    }
-                    SchemeProjectionProofSupport::Independent(carrier) => {
-                        canonical_projection_key::Key::Independent(carrier)
-                    }
-                };
-                canonical_projection_key::cmp(&existing_key, &incoming_key)
-            }) {
-                Ok(position) => {
-                    if matches!(
-                        proofs[position].support,
-                        SchemeProjectionProofSupport::Claimed(existing_claim)
-                            if existing_claim < *claim
-                    ) {
-                        proofs[position].support = SchemeProjectionProofSupport::Claimed(*claim);
-                        metadata_changed = true;
-                    }
-                }
-                Err(position) => {
-                    #[cfg(test)]
-                    record_canonical_projection_insertion_moves(proofs.len() - position);
-                    proofs.insert(
-                        position,
-                        SchemeProjectionProof {
-                            lower_record,
-                            support: SchemeProjectionProofSupport::Claimed(*claim),
-                        },
-                    );
-                    metadata_changed = true;
-                }
-            }
+        current_proofs: &[SchemeProjectionProof],
+    ) {
+        debug_assert!(current_proofs
+            .iter()
+            .all(|proof| proof.lower_record == lower_record));
+        let claims = current_proofs
+            .iter()
+            .filter_map(|proof| match proof.support {
+                SchemeProjectionProofSupport::Claimed(claim) => Some(claim),
+                SchemeProjectionProofSupport::Independent(_) => None,
+            })
+            .collect::<Vec<_>>();
+        for claim in &claims {
+            let root = self.upper_replay_claims[claim.0 as usize].coverage_root;
             if self
                 .scheme_projection_lower_record_memberships
                 .insert((root, lower_record))
@@ -3369,50 +3307,14 @@ impl TypeBounds {
                     .entry(root)
                     .or_default()
                     .push(lower_record);
-                metadata_changed = true;
             }
         }
-        let proofs = self
-            .projection_proofs_by_lower_record
-            .entry(lower_record)
-            .or_default();
-        for carrier in independent_supports {
-            let proof = SchemeProjectionProof {
-                lower_record,
-                support: SchemeProjectionProofSupport::Independent(*carrier),
-            };
-            let incoming_key = canonical_projection_key::Key::Independent(*carrier);
-            if let Err(position) = proofs.binary_search_by(|proof| {
-                let existing_key = match proof.support {
-                    SchemeProjectionProofSupport::Claimed(existing) => {
-                        canonical_projection_key::Key::Claimed(
-                            upper_replay_claims[existing.0 as usize].coverage_root,
-                        )
-                    }
-                    SchemeProjectionProofSupport::Independent(carrier) => {
-                        canonical_projection_key::Key::Independent(carrier)
-                    }
-                };
-                canonical_projection_key::cmp(&existing_key, &incoming_key)
-            }) {
-                #[cfg(test)]
-                record_canonical_projection_insertion_moves(proofs.len() - position);
-                proofs.insert(position, proof);
-                metadata_changed = true;
-            }
-        }
-        if self.scheme_projection_claimed_lower_owners.insert(owner) {
-            metadata_changed = true;
-        }
-        if !metadata_changed {
-            return SchemeProjectionMutation::None;
-        }
-        let current_proofs = self.projection_proofs_by_lower_record[&lower_record].clone();
-        SchemeProjectionMutation::ProofsChanged {
-            lower_record,
-            previous_proofs,
-            current_proofs,
-        }
+        self.scheme_projection_claims_by_lower_record
+            .insert(lower_record, claims);
+        self.projection_proofs_by_lower_record
+            .insert(lower_record, current_proofs.to_vec());
+        let owner = self.records[lower_record.0 as usize].owner;
+        self.scheme_projection_claimed_lower_owners.insert(owner);
     }
 
     fn try_reserve_upper_replay_claim_move_mirror(

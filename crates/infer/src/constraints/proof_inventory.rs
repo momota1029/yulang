@@ -815,12 +815,14 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // evaluator, semantic consumers, bulk test oracle, and assertions to the CPK support store.
     // Two reviewed test-only `.insert` sites still construct an otherwise-unrepresentable empty
     // or synthetic flat writer seed; neither reads the flat value.
-    ("projection_proofs_by_lower_record", 12),
+    // 8G-8a1 removed the four flat-authority decision reads; only mirror storage remains.
+    ("projection_proofs_by_lower_record", 7),
     // CPK-8G-8a0 adds the CPK root-to-lower reverse membership and removes the last flat readers.
     ("scheme_projection_lower_records_by_root", 6),
     ("scheme_projection_lower_record_memberships", 3),
-    // CPK-8G-8a0 derives the semantic owner census from CPK projection ledgers.
-    ("scheme_projection_claimed_lower_owners", 4),
+    // CPK-8G-8a0 derives the semantic owner census from CPK projection ledgers; 8G-8a1 removes
+    // the flat authority check and leaves only mirror storage.
+    ("scheme_projection_claimed_lower_owners", 3),
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
     // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
@@ -907,7 +909,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6f removes six flat-claim reads from the Proof Legacy reader/planner/shadow path.
     // CPK-8G-6g1 removes flat event-oracle claim/root reconstruction reads. CPK-8G-8a0 removes
     // three support/root readers that formerly resolved producer/root through the flat claim Vec.
-    ("upper_replay_claims", 74),
+    // 8G-8a1 removes the flat support decision path's five claim/root lookups.
+    ("upper_replay_claims", 69),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -1060,12 +1063,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     ("constraints/replay_factored.rs", "try_record_admission"),
     ("constraints/replay_factored.rs", "try_admit"),
     // Projection, clauses, attribution, and dependencies.
-    (
-        "constraints/mod.rs",
-        "link_scheme_projection_claim_to_constraint_lower",
-    ),
-    ("constraints/mod.rs", "link_scheme_projection_claim"),
-    ("constraints/mod.rs", "update_scheme_projection_proofs"),
     (
         "constraints/machine/bounds.rs",
         "register_constraint_upper_replay_claims",
@@ -1324,10 +1321,10 @@ fn cpk_8g_8a0_flat_support_root_relations_are_writer_only() {
     let flat_writer = include_str!("mod.rs");
     for (field, expected_writer_references) in [
         ("scheme_projection_claims_by_lower_record", 6),
-        ("projection_proofs_by_lower_record", 10),
+        ("projection_proofs_by_lower_record", 6),
         ("scheme_projection_lower_records_by_root", 6),
         ("scheme_projection_lower_record_memberships", 3),
-        ("scheme_projection_claimed_lower_owners", 4),
+        ("scheme_projection_claimed_lower_owners", 3),
     ] {
         assert_eq!(
             flat_writer.matches(field).count(),

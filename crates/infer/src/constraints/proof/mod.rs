@@ -815,6 +815,16 @@ pub(super) struct PreparedLiveCoverageMutation {
     new_root_states: Option<FxHashSet<UnweightedRowReductionRecordId>>,
 }
 
+/// One capacity-preflighted CPK support-ledger mutation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct PreparedProjectionSupportMutation {
+    pub(super) lower_record: BoundRecordId,
+    pub(super) current_supports: Vec<SchemeProjectionProofSupport>,
+    pub(super) current_claims: Vec<UpperReplayClaimId>,
+    pub(super) new_root_memberships: Vec<UpperReplayClaimId>,
+    new_root_record_entries: Vec<(UpperReplayClaimId, Vec<BoundRecordId>)>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ProjectionClause {
     Standalone {
@@ -1174,6 +1184,8 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_qualified_parent_reservation: bool,
     #[cfg(test)]
     fail_next_projection_index_reservation: bool,
+    #[cfg(test)]
+    fail_next_projection_support_reservation: bool,
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1219,11 +1231,211 @@ impl Default for ProofOccurrenceStore {
             fail_next_qualified_parent_reservation: false,
             #[cfg(test)]
             fail_next_projection_index_reservation: false,
+            #[cfg(test)]
+            fail_next_projection_support_reservation: false,
         }
     }
 }
 
 impl ProofOccurrenceStore {
+    pub(super) fn try_prepare_projection_support_mutation(
+        &mut self,
+        lower_record: BoundRecordId,
+        claims_to_link: &[UpperReplayClaimId],
+        independent_supports: &[ProjectionProofCarrier],
+    ) -> Result<Option<PreparedProjectionSupportMutation>, ProofFailure> {
+        if claims_to_link.is_empty()
+            && !self.projection_supports.contains_key(&lower_record)
+        {
+            return Ok(None);
+        }
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        let existing_supports = self.projection_supports.get(&lower_record);
+        let mut current_supports = Vec::new();
+        current_supports
+            .try_reserve(
+                existing_supports.map_or(0, Vec::len)
+                    + claims_to_link.len()
+                    + independent_supports.len(),
+            )
+            .map_err(exhausted)?;
+        current_supports.extend(existing_supports.into_iter().flatten().copied());
+        let existing_claims = self.claimed_parents_by_lower_record.get(&lower_record);
+        let mut current_claims = Vec::new();
+        current_claims
+            .try_reserve(existing_claims.map_or(0, Vec::len) + claims_to_link.len())
+            .map_err(exhausted)?;
+        current_claims.extend(existing_claims.into_iter().flatten().copied());
+        let mut new_root_memberships = Vec::new();
+        new_root_memberships
+            .try_reserve(claims_to_link.len())
+            .map_err(exhausted)?;
+        let mut metadata_changed = false;
+        for claim in claims_to_link {
+            let Some(root) = self.upper_claim(*claim).map(|claim| claim.coverage_root) else {
+                continue;
+            };
+            match current_claims.binary_search_by_key(&root, |existing| {
+                self.upper_claim(*existing)
+                    .expect("stored projection claims must be admitted")
+                    .coverage_root
+            }) {
+                Ok(position) if current_claims[position] < *claim => {
+                    current_claims[position] = *claim;
+                    metadata_changed = true;
+                }
+                Ok(_) => {}
+                Err(position) => {
+                    #[cfg(test)]
+                    record_canonical_projection_insertion_moves(current_claims.len() - position);
+                    current_claims.insert(position, *claim);
+                    metadata_changed = true;
+                }
+            }
+            let incoming_key = canonical_projection_key::Key::Claimed(root);
+            match current_supports.binary_search_by(|support| {
+                let key = match *support {
+                    SchemeProjectionProofSupport::Claimed(existing) => {
+                        canonical_projection_key::Key::Claimed(
+                            self.upper_claim(existing)
+                                .expect("stored projection supports must be admitted")
+                                .coverage_root,
+                        )
+                    }
+                    SchemeProjectionProofSupport::Independent(carrier) => {
+                        canonical_projection_key::Key::Independent(carrier)
+                    }
+                };
+                canonical_projection_key::cmp(&key, &incoming_key)
+            }) {
+                Ok(position)
+                    if matches!(current_supports[position],
+                        SchemeProjectionProofSupport::Claimed(existing) if existing < *claim) =>
+                {
+                    current_supports[position] = SchemeProjectionProofSupport::Claimed(*claim);
+                    metadata_changed = true;
+                }
+                Ok(_) => {}
+                Err(position) => {
+                    #[cfg(test)]
+                    record_canonical_projection_insertion_moves(current_supports.len() - position);
+                    current_supports.insert(
+                        position,
+                        SchemeProjectionProofSupport::Claimed(*claim),
+                    );
+                    metadata_changed = true;
+                }
+            }
+            if !self
+                .projection_lower_record_memberships
+                .contains(&(root, lower_record))
+                && !new_root_memberships.contains(&root)
+            {
+                new_root_memberships.push(root);
+                metadata_changed = true;
+            }
+        }
+        for carrier in independent_supports {
+            let incoming = SchemeProjectionProofSupport::Independent(*carrier);
+            let incoming_key = canonical_projection_key::Key::Independent(*carrier);
+            if let Err(position) = current_supports.binary_search_by(|support| {
+                let key = match *support {
+                    SchemeProjectionProofSupport::Claimed(existing) => {
+                        canonical_projection_key::Key::Claimed(
+                            self.upper_claim(existing)
+                                .expect("stored projection supports must be admitted")
+                                .coverage_root,
+                        )
+                    }
+                    SchemeProjectionProofSupport::Independent(carrier) => {
+                        canonical_projection_key::Key::Independent(carrier)
+                    }
+                };
+                canonical_projection_key::cmp(&key, &incoming_key)
+            }) {
+                #[cfg(test)]
+                record_canonical_projection_insertion_moves(current_supports.len() - position);
+                current_supports.insert(position, incoming);
+                metadata_changed = true;
+            }
+        }
+        if !metadata_changed {
+            return Ok(None);
+        }
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_projection_support_reservation) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        self.projection_supports.try_reserve(1).map_err(exhausted)?;
+        self.claimed_parents_by_lower_record
+            .try_reserve(1)
+            .map_err(exhausted)?;
+        self.projection_lower_record_memberships
+            .try_reserve(new_root_memberships.len())
+            .map_err(exhausted)?;
+        self.projection_lower_records_by_root
+            .try_reserve(new_root_memberships.len())
+            .map_err(exhausted)?;
+        let mut new_root_record_entries = Vec::new();
+        new_root_record_entries
+            .try_reserve(new_root_memberships.len())
+            .map_err(exhausted)?;
+        for root in &new_root_memberships {
+            if let Some(records) = self.projection_lower_records_by_root.get_mut(root) {
+                records.try_reserve(1).map_err(exhausted)?;
+            } else {
+                let mut records = Vec::new();
+                records.try_reserve(1).map_err(exhausted)?;
+                new_root_record_entries.push((*root, records));
+            }
+        }
+        Ok(Some(PreparedProjectionSupportMutation {
+            lower_record,
+            current_supports,
+            current_claims,
+            new_root_memberships,
+            new_root_record_entries,
+        }))
+    }
+
+    pub(super) fn commit_projection_support_mutation(
+        &mut self,
+        mutation: &mut PreparedProjectionSupportMutation,
+    ) {
+        for (root, records) in mutation.new_root_record_entries.drain(..) {
+            assert!(self
+                .projection_lower_records_by_root
+                .insert(root, records)
+                .is_none());
+        }
+        for root in &mutation.new_root_memberships {
+            assert!(self
+                .projection_lower_record_memberships
+                .insert((*root, mutation.lower_record)));
+            self.projection_lower_records_by_root
+                .get_mut(root)
+                .expect("projection root entry was preflighted")
+                .push(mutation.lower_record);
+        }
+        if mutation.current_claims.is_empty() {
+            self.claimed_parents_by_lower_record
+                .remove(&mutation.lower_record);
+        } else {
+            self.claimed_parents_by_lower_record.insert(
+                mutation.lower_record,
+                std::mem::take(&mut mutation.current_claims),
+            );
+        }
+        self.projection_supports.insert(
+            mutation.lower_record,
+            std::mem::take(&mut mutation.current_supports),
+        );
+    }
+
     pub(super) fn claim_coverage_root(
         &self,
         claim: UpperReplayClaimId,
@@ -4209,6 +4421,11 @@ impl ProofOccurrenceStore {
         self.fail_next_projection_index_reservation = true;
     }
 
+    #[cfg(test)]
+    pub(super) fn fail_next_projection_support_reservation(&mut self) {
+        self.fail_next_projection_support_reservation = true;
+    }
+
     pub(super) fn record_reduction_route(
         &mut self,
         result: ConstraintRecordId,
@@ -5475,15 +5692,15 @@ mod tests {
         let initial = ProjectionProofCarrier::Origin(OriginId(70_101));
         cpk_4_add_independent_support(&mut machine, record, initial);
         let admitted = ProjectionProofCarrier::Origin(OriginId(70_102));
-        let mutation = machine
-            .bounds
-            .update_scheme_projection_proofs(record, &[], &[admitted]);
+        let mut mutation = machine
+            .try_prepare_scheme_projection_mutation(record, &[], &[admitted])
+            .expect("test projection support mutation must have capacity");
 
         let later = ProjectionProofCarrier::Origin(OriginId(70_103));
         let _later_mutation = machine
-            .bounds
-            .update_scheme_projection_proofs(record, &[], &[later]);
-        machine.record_projection_mutation_in_proof_store(&mutation);
+            .try_prepare_scheme_projection_mutation(record, &[], &[later])
+            .expect("test projection support mutation must have capacity");
+        machine.commit_scheme_projection_mutation(&mut mutation);
 
         assert_eq!(
             machine.proof_store.projection_supports[&record],
@@ -5492,6 +5709,68 @@ mod tests {
                 SchemeProjectionProofSupport::Independent(admitted),
             ],
             "the CPK writer must consume the admission-fixed payload, not re-read the flat ledger",
+        );
+    }
+
+    #[test]
+    fn cpk_projection_support_preflight_failure_is_atomic() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 102);
+        machine
+            .proof_store
+            .record_projection_supports(record, &[]);
+        let supports_before = machine.proof_store.projection_supports.clone();
+        let claims_before = machine
+            .proof_store
+            .claimed_parents_by_lower_record
+            .clone();
+        let records_before = machine
+            .proof_store
+            .projection_lower_records_by_root
+            .clone();
+        let memberships_before = machine
+            .proof_store
+            .projection_lower_record_memberships
+            .clone();
+        machine
+            .proof_store
+            .fail_next_projection_support_reservation();
+
+        let failure = machine
+            .try_prepare_scheme_projection_mutation(
+                record,
+                &[],
+                &[ProjectionProofCarrier::Incomplete],
+            )
+            .expect_err("injected support preflight must fail");
+        assert!(matches!(failure, ProofFailure::ResourceExhausted { .. }));
+        assert_eq!(machine.proof_store.projection_supports, supports_before);
+        assert_eq!(
+            machine.proof_store.claimed_parents_by_lower_record,
+            claims_before
+        );
+        assert_eq!(
+            machine.proof_store.projection_lower_records_by_root,
+            records_before
+        );
+        assert_eq!(
+            machine.proof_store.projection_lower_record_memberships,
+            memberships_before
+        );
+
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(
+                record,
+                &[],
+                &[ProjectionProofCarrier::Incomplete],
+            )
+            .expect("the next transaction must reuse the unchanged state");
+        machine.apply_scheme_projection_mutation(mutation);
+        assert_eq!(
+            machine.proof_store.projection_supports[&record],
+            vec![SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Incomplete
+            )]
         );
     }
 
@@ -5940,8 +6219,8 @@ mod tests {
         let independent = ProjectionProofCarrier::Incomplete;
         let independent_support = SchemeProjectionProofSupport::Independent(independent);
         let mutation = machine
-            .bounds
-            .update_scheme_projection_proofs(mixed_record, &[], &[independent]);
+            .try_prepare_scheme_projection_mutation(mixed_record, &[], &[independent])
+            .expect("test projection support mutation must have capacity");
         machine.apply_scheme_projection_mutation(mutation);
         machine.register_cpk_projection_clause_for_test(
             mixed_record,
@@ -6621,11 +6900,11 @@ mod tests {
         );
         let record = cpk_gap_1_projection_record(&mut fixture.machine, 40);
         let owner = fixture.machine.bounds.record(record).unwrap().owner();
-        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
             record,
             &[fixture.coverage_root],
             &[],
-        );
+        ).expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
         fixture.machine.register_cpk_projection_clause_for_test(
             record,
@@ -6661,11 +6940,11 @@ mod tests {
             .find(|support| support.coverage_root == fixture.coverage_root)
             .expect("same-root support")
             .representative_claim;
-        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
             record,
             &[replacement_claim],
             &[],
-        );
+        ).expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
         let expected = ProjectionDecision::Included {
             supports: ProjectionSupportSet {
@@ -6879,12 +7158,11 @@ mod tests {
     ) -> SchemeProjectionProofSupport {
         let support = SchemeProjectionProofSupport::Independent(carrier);
         machine
-            .bounds
-            .projection_proofs_by_lower_record
-            .insert(record, Vec::new());
+            .proof_store
+            .record_projection_supports(record, &[]);
         let mutation = machine
-            .bounds
-            .update_scheme_projection_proofs(record, &[], &[carrier]);
+            .try_prepare_scheme_projection_mutation(record, &[], &[carrier])
+            .expect("test projection support mutation must have capacity");
         machine.apply_scheme_projection_mutation(mutation);
         support
     }

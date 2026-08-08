@@ -3458,8 +3458,8 @@ fn unattributed_claim_link_fixture(
     // This deliberately bypasses every admission occurrence. MPC-B must retain an equivalent
     // test-only path so the claim has no clause tag and D4's flat fail-open remains observable.
     let mutation = machine
-        .bounds
-        .update_scheme_projection_proofs(lower_record, &[claim], &[]);
+        .try_prepare_scheme_projection_mutation(lower_record, &[claim], &[])
+        .expect("test projection support mutation must have capacity");
     machine.apply_scheme_projection_mutation(mutation);
 
     (machine, owner, lower_record, claim)

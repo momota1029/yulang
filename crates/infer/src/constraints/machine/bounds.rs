@@ -2565,13 +2565,13 @@ impl ConstraintMachine {
     fn defer_scheme_projection_mutation(
         &mut self,
         fence: &mut ReplayAdmissionPublicationFence,
-        mutation: SchemeProjectionMutation,
+        mut mutation: SchemeProjectionMutation,
     ) {
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
-        self.record_projection_mutation_in_proof_store(&mutation);
+        self.commit_scheme_projection_mutation(&mut mutation);
         #[cfg(test)]
         if rcpf_d2c_should_fail_deferred_evaluation() {
             self.mark_replay_factored_failure(
@@ -2837,11 +2837,20 @@ impl ConstraintMachine {
         } else {
             self.bootstrap_independent_projection_supports(lower_record)
         };
-        let mutation = self.bounds.update_scheme_projection_proofs(
+        let mutation = match self.try_prepare_scheme_projection_mutation(
             lower_record,
             claims_to_link,
             &independent_supports,
-        );
+        ) {
+            Ok(mutation) => mutation,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return;
+            }
+        };
         if let Some(fence) = publication_fence.as_deref_mut() {
             self.defer_scheme_projection_mutation(fence, mutation);
         } else {
@@ -3025,11 +3034,13 @@ impl ConstraintMachine {
             .collect::<Vec<_>>();
         let independent_supports =
             self.independent_projection_supports_bulk(lower_record, Some(producer), &claim_parents);
-        let mutation = self.bounds.update_scheme_projection_proofs(
-            lower_record,
-            &claims,
-            &independent_supports,
-        );
+        let mutation = self
+            .try_prepare_scheme_projection_mutation(
+                lower_record,
+                &claims,
+                &independent_supports,
+            )
+            .expect("bulk projection oracle must have capacity");
         self.apply_scheme_projection_mutation(mutation);
     }
 
@@ -3038,8 +3049,8 @@ impl ConstraintMachine {
         self.cdm_lower_delta_census.bulk_scans += 1;
         let supports = self.independent_projection_supports_bulk(lower_record, None, &[]);
         let mutation = self
-            .bounds
-            .update_scheme_projection_proofs(lower_record, &[], &supports);
+            .try_prepare_scheme_projection_mutation(lower_record, &[], &supports)
+            .expect("bulk projection oracle must have capacity");
         self.apply_scheme_projection_mutation(mutation);
     }
 
@@ -5429,11 +5440,11 @@ mod mutation_tests {
                 dpn_b_synthetic_projection_record(&mut machine, 110 + standalone_first as u32);
             let standalone_support =
                 SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
-            let mutation = machine.bounds.update_scheme_projection_proofs(
+            let mutation = machine.try_prepare_scheme_projection_mutation(
                 source,
                 &[],
                 &[ProjectionProofCarrier::Incomplete],
-            );
+            ).expect("test projection support mutation must have capacity");
             machine.apply_scheme_projection_mutation(mutation);
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(100),
@@ -5819,11 +5830,11 @@ mod mutation_tests {
                 dpn_b_synthetic_projection_record(&mut machine, 7);
             let standalone_carrier = ProjectionProofCarrier::Incomplete;
             let standalone_support = SchemeProjectionProofSupport::Independent(standalone_carrier);
-            let mutation = machine.bounds.update_scheme_projection_proofs(
+            let mutation = machine.try_prepare_scheme_projection_mutation(
                 source,
                 &[],
                 &[ProjectionProofCarrier::Incomplete],
-            );
+            ).expect("test projection support mutation must have capacity");
             machine.apply_scheme_projection_mutation(mutation);
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(3),
@@ -6210,11 +6221,11 @@ mod mutation_tests {
             1,
             "the fixture must exercise canonical-duplicate replay admission",
         );
-        let mutation = fixture.machine.bounds.update_scheme_projection_proofs(
+        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
             fixture.lower_record,
             &[],
             &[ProjectionProofCarrier::Origin(OriginId::unknown_internal())],
-        );
+        ).expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
 
         let child_lower = fixture
