@@ -2767,8 +2767,8 @@ mod rcpf_c3a_retry_tests {
     use super::*;
     use crate::constraints::proof::ProofOperation;
     use crate::constraints::{
-        ReplaySoakEventOrigin, capture_replay_soak_test_events, record_proof_terminal_failure,
-        with_intentional_replay_soak_test_injection,
+        ProofSoakEventOrigin, capture_proof_soak_test_events, record_proof_terminal_failure,
+        with_intentional_proof_soak_test_injection,
     };
 
     const FAILURE: ProofFailure = ProofFailure::ResourceExhausted {
@@ -2802,7 +2802,7 @@ mod rcpf_c3a_retry_tests {
 
         let mut attempts = 0usize;
         let output_dropped = std::rc::Rc::new(std::cell::Cell::new(false));
-        let error = with_intentional_replay_soak_test_injection(|| {
+        let error = with_intentional_proof_soak_test_injection(|| {
             run_proof_compilation_attempt(|| {
                 attempts += 1;
                 Ok(ProofCompilationAttempt::completed(
@@ -2827,8 +2827,8 @@ mod rcpf_c3a_retry_tests {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
         let mut next_identity = 0usize;
-        let (result, telemetry) = capture_replay_soak_test_events(|| {
-            with_intentional_replay_soak_test_injection(|| {
+        let (result, telemetry) = capture_proof_soak_test_events(|| {
+            with_intentional_proof_soak_test_injection(|| {
                 run_proof_compilation_attempt(|| {
                     let identity = next_identity;
                     next_identity += 1;
@@ -2849,13 +2849,13 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(next_identity, 1, "proof failure must not start a retry");
         assert_eq!(
             telemetry.proof_terminal_failures(
-                ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofSoakEventOrigin::IntentionalTestInjection,
                 ProofOperation::ProjectLowerEvaluation,
             ),
             1,
             "the discarded attempt retains its hard-failure telemetry",
         );
-        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
+        assert_eq!(telemetry.total_for_origin(ProofSoakEventOrigin::Organic), 0);
     }
 
     #[test]
@@ -2864,8 +2864,8 @@ mod rcpf_c3a_retry_tests {
             operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
         };
         let mut attempts = 0usize;
-        let (error, telemetry) = capture_replay_soak_test_events(|| {
-            with_intentional_replay_soak_test_injection(|| {
+        let (error, telemetry) = capture_proof_soak_test_events(|| {
+            with_intentional_proof_soak_test_injection(|| {
                 run_proof_compilation_attempt::<()>(|| {
                     attempts += 1;
                     record_proof_terminal_failure(
@@ -2885,19 +2885,19 @@ mod rcpf_c3a_retry_tests {
         assert_eq!(error, LoadedFilesError::ProofKernelFailed);
         assert_eq!(
             telemetry.proof_terminal_failures(
-                ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofSoakEventOrigin::IntentionalTestInjection,
                 ProofOperation::ProjectLowerEvaluation,
             ),
             1,
             "the typed hard error retains the first CPK terminal-failure event",
         );
-        assert_eq!(telemetry.total_for_origin(ReplaySoakEventOrigin::Organic), 0);
+        assert_eq!(telemetry.total_for_origin(ProofSoakEventOrigin::Organic), 0);
     }
 
     #[test]
     fn cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt() {
         let mut attempts = 0usize;
-        let error = with_intentional_replay_soak_test_injection(|| {
+        let error = with_intentional_proof_soak_test_injection(|| {
             run_proof_compilation_attempt::<()>(|| {
                 attempts += 1;
                 Ok(ProofCompilationAttempt::completed((), Some(FAILURE)))
@@ -2915,7 +2915,7 @@ mod rcpf_c3a_retry_tests {
     #[test]
     fn rcpf_c3a_failure_is_a_typed_hard_error_without_retry() {
         let mut attempt_count = 0usize;
-        let error = with_intentional_replay_soak_test_injection(|| {
+        let error = with_intentional_proof_soak_test_injection(|| {
             run_proof_compilation_attempt::<()>(|| {
                 attempt_count += 1;
                 Ok(ProofCompilationAttempt::completed((), Some(FAILURE)))

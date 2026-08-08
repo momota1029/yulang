@@ -1,7 +1,7 @@
-//! Opt-in process telemetry for the RCPF-F and CPK-8 quarantine soak gates.
+//! Opt-in process telemetry for the CPK proof-kernel soak gate.
 //!
 //! Ordinary compilation pays one cached environment lookup per constraint-machine construction.
-//! Counters and the file sink are touched only on terminal failure/read-error/retry paths.
+//! Counters and the file sink are touched only on terminal proof-failure paths.
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -11,51 +11,40 @@ use std::sync::{Mutex, OnceLock};
 use super::proof::ProofOperation;
 use super::ProofFailure;
 
-pub(crate) const RCPF_SOAK_TELEMETRY_VERSION: u32 = 1;
-pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 5;
+pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 6;
+const CPK_SOAK_TELEMETRY_SCHEMA: &str = "cpk-only";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(not(test), allow(dead_code))]
-pub(crate) enum ReplaySoakEventOrigin {
+pub(crate) enum ProofSoakEventOrigin {
     Organic,
     IntentionalTestInjection,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct ReplaySoakTelemetrySnapshot {
-    terminal_failures: [u64; 6],
-    legacy_rollback_entries: [u64; 2],
-    factored_read_errors: [u64; 2],
+pub(crate) struct ProofSoakTelemetrySnapshot {
     proof_terminal_failures: [u64; 18],
 }
 
-impl ReplaySoakTelemetrySnapshot {
+impl ProofSoakTelemetrySnapshot {
     #[cfg(test)]
     pub(crate) fn proof_terminal_failures(
         self,
-        origin: ReplaySoakEventOrigin,
+        origin: ProofSoakEventOrigin,
         operation: ProofOperation,
     ) -> u64 {
         self.proof_terminal_failures[proof_terminal_index(origin, operation)]
     }
 
     #[cfg(test)]
-    pub(crate) fn total_for_origin(self, origin: ReplaySoakEventOrigin) -> u64 {
-        let start = origin_index(origin) * 3;
-        self.terminal_failures[start..start + 3].iter().sum::<u64>()
-            + self.legacy_rollback_entries[origin_index(origin)]
-            + self.factored_read_errors[origin_index(origin)]
-            + self.proof_terminal_failures[origin_index(origin) * 9..origin_index(origin) * 9 + 9]
-                .iter()
-                .sum::<u64>()
+    pub(crate) fn total_for_origin(self, origin: ProofSoakEventOrigin) -> u64 {
+        self.proof_terminal_failures[origin_index(origin) * 9..origin_index(origin) * 9 + 9]
+            .iter()
+            .sum::<u64>()
     }
 }
 
-static TERMINAL_FAILURES: [AtomicU64; 6] = [const { AtomicU64::new(0) }; 6];
-static LEGACY_ROLLBACK_ENTRIES: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
-static FACTORED_READ_ERRORS: [AtomicU64; 2] = [const { AtomicU64::new(0) }; 2];
 static PROOF_TERMINAL_FAILURES: [AtomicU64; 18] = [const { AtomicU64::new(0) }; 18];
-static TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 static PROOF_TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
 #[cfg(test)]
@@ -63,13 +52,12 @@ std::thread_local! {
     static INTENTIONAL_TEST_INJECTION_DEPTH: std::cell::Cell<usize> = const {
         std::cell::Cell::new(0)
     };
-    static TEST_CAPTURE: std::cell::RefCell<Option<ReplaySoakTelemetrySnapshot>> = const {
+    static TEST_CAPTURE: std::cell::RefCell<Option<ProofSoakTelemetrySnapshot>> = const {
         std::cell::RefCell::new(None)
     };
 }
 
-pub(crate) fn ensure_replay_soak_telemetry_header() {
-    let _ = telemetry_sink();
+pub(crate) fn ensure_proof_soak_telemetry_header() {
     let _ = proof_telemetry_sink();
 }
 
@@ -85,17 +73,8 @@ pub(crate) fn record_proof_terminal_failure(operation: ProofOperation, failure: 
     emit_proof_event("proof_terminal_failure", origin, Some(operation), Some(failure));
 }
 
-pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
-    ReplaySoakTelemetrySnapshot {
-        terminal_failures: std::array::from_fn(|index| {
-            TERMINAL_FAILURES[index].load(Ordering::Relaxed)
-        }),
-        legacy_rollback_entries: std::array::from_fn(|index| {
-            LEGACY_ROLLBACK_ENTRIES[index].load(Ordering::Relaxed)
-        }),
-        factored_read_errors: std::array::from_fn(|index| {
-            FACTORED_READ_ERRORS[index].load(Ordering::Relaxed)
-        }),
+pub(crate) fn proof_soak_telemetry_snapshot() -> ProofSoakTelemetrySnapshot {
+    ProofSoakTelemetrySnapshot {
         proof_terminal_failures: std::array::from_fn(|index| {
             PROOF_TERMINAL_FAILURES[index].load(Ordering::Relaxed)
         }),
@@ -103,7 +82,7 @@ pub(crate) fn replay_soak_telemetry_snapshot() -> ReplaySoakTelemetrySnapshot {
 }
 
 #[cfg(test)]
-pub(crate) fn with_intentional_replay_soak_test_injection<T>(run: impl FnOnce() -> T) -> T {
+pub(crate) fn with_intentional_proof_soak_test_injection<T>(run: impl FnOnce() -> T) -> T {
     struct Guard;
 
     impl Drop for Guard {
@@ -118,37 +97,37 @@ pub(crate) fn with_intentional_replay_soak_test_injection<T>(run: impl FnOnce() 
 }
 
 #[cfg(test)]
-pub(crate) fn capture_replay_soak_test_events<T>(
+pub(crate) fn capture_proof_soak_test_events<T>(
     run: impl FnOnce() -> T,
-) -> (T, ReplaySoakTelemetrySnapshot) {
+) -> (T, ProofSoakTelemetrySnapshot) {
     TEST_CAPTURE.with(|capture| {
-        assert!(capture.borrow().is_none(), "nested RCPF soak capture");
-        *capture.borrow_mut() = Some(ReplaySoakTelemetrySnapshot::default());
+        assert!(capture.borrow().is_none(), "nested CPK proof-soak capture");
+        *capture.borrow_mut() = Some(ProofSoakTelemetrySnapshot::default());
     });
     let output = run();
     let snapshot = TEST_CAPTURE.with(|capture| {
         capture
             .borrow_mut()
             .take()
-            .expect("RCPF soak capture must remain installed")
+            .expect("CPK proof-soak capture must remain installed")
     });
     (output, snapshot)
 }
 
-fn current_event_origin() -> ReplaySoakEventOrigin {
+fn current_event_origin() -> ProofSoakEventOrigin {
     #[cfg(test)]
     {
         if INTENTIONAL_TEST_INJECTION_DEPTH.with(|depth| depth.get() > 0) {
-            return ReplaySoakEventOrigin::IntentionalTestInjection;
+            return ProofSoakEventOrigin::IntentionalTestInjection;
         }
     }
-    ReplaySoakEventOrigin::Organic
+    ProofSoakEventOrigin::Organic
 }
 
-fn origin_index(origin: ReplaySoakEventOrigin) -> usize {
+fn origin_index(origin: ProofSoakEventOrigin) -> usize {
     match origin {
-        ReplaySoakEventOrigin::Organic => 0,
-        ReplaySoakEventOrigin::IntentionalTestInjection => 1,
+        ProofSoakEventOrigin::Organic => 0,
+        ProofSoakEventOrigin::IntentionalTestInjection => 1,
     }
 }
 
@@ -166,11 +145,11 @@ fn proof_operation_index(operation: ProofOperation) -> usize {
     }
 }
 
-fn proof_terminal_index(origin: ReplaySoakEventOrigin, operation: ProofOperation) -> usize {
+fn proof_terminal_index(origin: ProofSoakEventOrigin, operation: ProofOperation) -> usize {
     origin_index(origin) * 9 + proof_operation_index(operation)
 }
 
-fn update_test_capture(update: impl FnOnce(&mut ReplaySoakTelemetrySnapshot)) {
+fn update_test_capture(update: impl FnOnce(&mut ProofSoakTelemetrySnapshot)) {
     #[cfg(test)]
     TEST_CAPTURE.with(|capture| {
         if let Some(snapshot) = capture.borrow_mut().as_mut() {
@@ -181,37 +160,6 @@ fn update_test_capture(update: impl FnOnce(&mut ReplaySoakTelemetrySnapshot)) {
     let _ = update;
 }
 
-fn telemetry_sink() -> Option<&'static Mutex<File>> {
-    TELEMETRY_SINK
-        .get_or_init(|| {
-            let path = std::env::var_os("YULANG_RCPF_SOAK_TELEMETRY_PATH")?;
-            match OpenOptions::new().create(true).append(true).open(&path) {
-                Ok(mut file) => {
-                    let _ = writeln!(
-                        file,
-                        "RCPF_SOAK_HEADER version={} pid={} commit={} workload={} generalize_compact_cache={} source_cache={}",
-                        RCPF_SOAK_TELEMETRY_VERSION,
-                        std::process::id(),
-                        metadata("YULANG_RCPF_SOAK_COMMIT"),
-                        metadata("YULANG_RCPF_SOAK_WORKLOAD"),
-                        generalize_compact_cache_mode(),
-                        metadata("YULANG_RCPF_SOAK_SOURCE_CACHE_MODE"),
-                    );
-                    write_tally(&mut file, replay_soak_telemetry_snapshot());
-                    Some(Mutex::new(file))
-                }
-                Err(error) => {
-                    eprintln!(
-                        "RCPF_SOAK_ERROR telemetry_path={} error={error}",
-                        path.to_string_lossy()
-                    );
-                    None
-                }
-            }
-        })
-        .as_ref()
-}
-
 fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
     PROOF_TELEMETRY_SINK
         .get_or_init(|| {
@@ -220,8 +168,9 @@ fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
                 Ok(mut file) => {
                     let _ = writeln!(
                         file,
-                        "CPK_SOAK_HEADER version={} pid={} commit={} build_profile={} workload={} generalize_compact_cache={} source_cache={}",
+                        "CPK_SOAK_HEADER version={} schema={} pid={} commit={} build_profile={} workload={} generalize_compact_cache={} source_cache={}",
                         CPK_SOAK_TELEMETRY_VERSION,
+                        CPK_SOAK_TELEMETRY_SCHEMA,
                         std::process::id(),
                         metadata("YULANG_CPK_SOAK_COMMIT"),
                         build_profile(),
@@ -229,7 +178,7 @@ fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
                         generalize_compact_cache_mode(),
                         metadata("YULANG_CPK_SOAK_SOURCE_CACHE_MODE"),
                     );
-                    write_proof_tally(&mut file, replay_soak_telemetry_snapshot());
+                    write_proof_tally(&mut file, proof_soak_telemetry_snapshot());
                     Some(Mutex::new(file))
                 }
                 Err(error) => {
@@ -246,7 +195,7 @@ fn proof_telemetry_sink() -> Option<&'static Mutex<File>> {
 
 fn emit_proof_event(
     event: &str,
-    origin: ReplaySoakEventOrigin,
+    origin: ProofSoakEventOrigin,
     operation: Option<ProofOperation>,
     failure: Option<&ProofFailure>,
 ) {
@@ -260,38 +209,14 @@ fn emit_proof_event(
         file,
         "CPK_SOAK_EVENT event={event} origin={origin:?} operation={operation:?} failure={failure:?}"
     );
-    write_proof_tally(&mut file, replay_soak_telemetry_snapshot());
+    write_proof_tally(&mut file, proof_soak_telemetry_snapshot());
 }
 
-fn write_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
+fn write_proof_tally(file: &mut File, snapshot: ProofSoakTelemetrySnapshot) {
     let _ = writeln!(
         file,
         concat!(
-            "RCPF_SOAK_TALLY version={} ",
-            "terminal_organic_write={} terminal_organic_read={} terminal_organic_oracle={} ",
-            "terminal_injected_write={} terminal_injected_read={} terminal_injected_oracle={} ",
-            "rollback_organic={} rollback_injected={} ",
-            "read_error_organic={} read_error_injected={}"
-        ),
-        RCPF_SOAK_TELEMETRY_VERSION,
-        snapshot.terminal_failures[0],
-        snapshot.terminal_failures[1],
-        snapshot.terminal_failures[2],
-        snapshot.terminal_failures[3],
-        snapshot.terminal_failures[4],
-        snapshot.terminal_failures[5],
-        snapshot.legacy_rollback_entries[0],
-        snapshot.legacy_rollback_entries[1],
-        snapshot.factored_read_errors[0],
-        snapshot.factored_read_errors[1],
-    );
-}
-
-fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
-    let _ = writeln!(
-        file,
-        concat!(
-            "CPK_SOAK_TALLY version={} ",
+            "CPK_SOAK_TALLY version={} schema={} ",
             "terminal_organic_project_preflight={} ",
             "terminal_organic_project_supports={} ",
             "terminal_organic_project_evaluation={} ",
@@ -312,6 +237,7 @@ fn write_proof_tally(file: &mut File, snapshot: ReplaySoakTelemetrySnapshot) {
             "terminal_injected_claim_lifecycle={}"
         ),
         CPK_SOAK_TELEMETRY_VERSION,
+        CPK_SOAK_TELEMETRY_SCHEMA,
         snapshot.proof_terminal_failures[0],
         snapshot.proof_terminal_failures[1],
         snapshot.proof_terminal_failures[2],

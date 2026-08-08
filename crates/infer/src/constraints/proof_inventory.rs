@@ -645,22 +645,15 @@ const CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS: &[&str] = &[
     "cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape",
 ];
 
-// Current physical-removal manifest. Historical category-B dispositions remain in their retirement
-// ledgers above; this manifest now contains only the live hard-failure/telemetry coverage awaiting
-// CPK-8G-12 part 3. A test is listed exactly once and carries every target it protects.
-//
-// The target names follow the deletion phase in the approved CPK-8G plan: authority/oracle
-// retirement (8G-6), flat parent/projection layers (8G-7/8), RCPF leaf-to-root removal (8G-9/10),
-// flat claim removal (8G-11), and final shell/telemetry cleanup (8G-12).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Cpk8gPhysicalTarget {
-    ReplayHardFailureChannelAndTelemetry,
-}
-
-struct Cpk8gPhysicalTestGroup {
-    targets: &'static [Cpk8gPhysicalTarget],
-    tests: &'static [&'static str],
-}
+// The physical-removal manifest is closed. These are the still-live CPK whole-attempt contracts,
+// not deferred physical targets; their historical rcpf_c3a names record where the safety boundary
+// was first characterized.
+const CPK8G_FINAL_HARD_FAILURE_CONTRACTS: &[&str] = &[
+    "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
+    "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
+    "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
+    "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
+];
 
 // Category A contracts that survive 8G-6. Ten D3b tests retain canonical storage, target-late,
 // generalized-witness, diagnostic-role, portable-prefix, and query-budget assertions on CPK-only
@@ -685,16 +678,6 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
 
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
 
-const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[Cpk8gPhysicalTestGroup {
-    targets: &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
-    tests: &[
-        "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
-        "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
-        "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
-        "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
-    ],
-}];
-
 const CPK8G7_COMPLETED_SUBSLICES: &[&str] = &["8G-7a", "8G-7b1", "8G-7b2", "8G-7b3", "8G-7b4"];
 const CPK8G8A_COMPLETED_SUBSLICES: &[&str] = &["8G-8a0", "8G-8a1", "8G-8a2"];
 const CPK8G8B_COMPLETED_SUBSLICES: &[&str] = &["8G-8b0", "8G-8b1"];
@@ -711,6 +694,119 @@ const CPK8G10_ACTUAL_SCOPE: &str =
     "dead RCPF oracle/injection shell removed; reachable hard-failure channel retained for 8G-12";
 const CPK8G11_COMPLETED_SUBSLICES: &[&str] =
     &["8G-11a0", "8G-11a1", "8G-11a2", "8G-11b1", "8G-11b2"];
+const CPK8G_COMPLETED_PLAN_ITEMS: &[&str] = &[
+    "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a", "8G-4b",
+    "8G-5", "8G-6", "8G-7", "8G-8", "8G-9", "8G-10", "8G-11", "8G-12",
+];
+
+// Exact removed identifiers are split so this manifest can scan the whole infer crate without
+// matching its own historical ledger. Stage-specific gates stay in place: they provide narrower
+// failure messages and preserve the reviewed deletion order, while this final union prevents a
+// removed surface from reappearing in a file outside the original stage allowlist.
+const CPK8G_FINAL_REMOVED_SURFACE_FRAGMENTS: &[&[&str]] = &[
+    &["ProofRead", "Authority"],
+    &["proof_read_", "authority"],
+    &["cpk_proof_oracle_", "active"],
+    &["ReplayRead", "Authority"],
+    &["replay_read_", "authority"],
+    &["Legacy", "Rollback"],
+    &["ReplayEvaluator", "Source"],
+    &["ReplayRoutingShadow", "Token"],
+    &["ShadowReplayRoute", "Observation"],
+    &["ShadowReplay", "Direction"],
+    &["ShadowReplayEvent", "Observation"],
+    &["ShadowProjectability", "Observation"],
+    &["ShadowProjectionPublication", "Class"],
+    &["ShadowProjectionPublication", "Observation"],
+    &["legacy_prepared_replay_", "route"],
+    &["record_legacy_replay_parent_", "snapshot"],
+    &["legacy_scheme_projectable_", "lowers"],
+    &["try_legacy_lower_", "projection"],
+    &["try_legacy_lower_projection_", "delta"],
+    &["try_legacy_qualified_lower_", "projection"],
+    &["try_legacy_record_lower_", "projection"],
+    &["try_compare_factored_record_lower_", "projection"],
+    &["try_factored_lower_projection_mutation_", "oracle"],
+    &["legacy_replay_parent_", "oracle"],
+    &["factored_replay_parent_", "oracle"],
+    &["legacy_replay_clause_link_", "oracle"],
+    &["factored_replay_clause_link_", "oracle"],
+    &["PreparedQualifiedParent", "MirrorCapacity"],
+    &["ReplayClaimParent", "Key"],
+    &["StructuralClaimParent", "Key"],
+    &["Qualified", "Carrier"],
+    &["PreparedProjectionIndex", "MirrorCapacity"],
+    &["PreparedLiveCoverage", "MirrorCapacity"],
+    &["PreparedClaim", "MirrorCapacity"],
+    &["PreparedClaimMove", "MirrorCapacity"],
+    &["RecordProofClause", "Id"],
+    &["RecordProofClause", "Record"],
+    &["RecordProofClause", "Key"],
+    &["RecordProofClauseLink", "Key"],
+    &["ReplayClause", "Projection"],
+    &["NonReplayClaim", "ParentStore"],
+    &["ReplayResult", "Summary"],
+    &["ReplayResultSummary", "Delta"],
+    &["ReplayOccurrence", "Store"],
+    &["ReplayOccurrence", "Id"],
+    &["ReplayOccurrence", "Key"],
+    &["ReplayParentAttachment", "Batch"],
+    &["ParentSet", "Arena"],
+    &["ParentSetVersion", "Id"],
+    &["ParentSetChunk", "Id"],
+    &["ReplayParentDraft", "Id"],
+    &["FactoredReplayParent", "Drafts"],
+    &["ReplayFactoredShadow", "Failure"],
+    &["ReplayFactoredShadow", "Status"],
+    &["ReplayFactored", "Result"],
+    &["ReplayFactored", "Failed"],
+    &["replay_factored_writes_", "enabled"],
+    &["replay_factored_terminal_", "failure"],
+    &["record_replay_factored_", "failure"],
+    &["LegacyProof", "Backend"],
+    &["NullProof", "Backend"],
+    &["ConstraintProofPayload", "Ref"],
+    &["BoundProofPayload", "Ref"],
+    &["ProofPayload", "View"],
+    &["proof_payload", "_ref"],
+    &["ReplaySoakEvent", "Origin"],
+    &["ReplaySoakTelemetry", "Snapshot"],
+    &["RCPF_SOAK_TELEMETRY_", "VERSION"],
+    &["YULANG_RCPF_SOAK_", "TELEMETRY_PATH"],
+    &["ensure_replay_soak_telemetry_", "header"],
+    &["capture_replay_soak_test_", "events"],
+    &["with_intentional_replay_soak_test_", "injection"],
+];
+
+const CPK8G_FLAT_PROOF_MIRROR_FIELD_FRAGMENTS: &[&[&str]] = &[
+    &["upper_replay_", "claims"],
+    &["claims_by_upper_", "record"],
+    &["original_claim_by_record_and_", "producer"],
+    &["derived_claim_by_record_and_", "root"],
+    &["reduction_claim_by_", "state"],
+    &["root_claim_by_producer_", "constraint"],
+    &["live_coverage_by_", "root"],
+    &["replay_claim_cycle_", "coalesces"],
+    &["claim_parents_by_", "constraint"],
+    &["qualified_carrier_", "index"],
+    &["replay_claim_parent_", "keys"],
+    &["structural_claim_parent_", "keys"],
+    &["scheme_projection_lower_record_by_", "constraint"],
+    &["scheme_projection_lower_record_by_", "replay"],
+    &["scheme_projection_claims_by_lower_", "record"],
+    &["projection_proofs_by_lower_", "record"],
+    &["scheme_projection_lower_records_by_", "root"],
+    &["scheme_projection_lower_record_", "memberships"],
+    &["scheme_projection_claimed_lower_", "owners"],
+    &["record_proof_", "clauses"],
+    &["record_proof_clause_by_", "key"],
+    &["record_proof_clause_ids_by_lower_", "record"],
+    &["record_proof_clause_links_by_lower_", "record"],
+    &["record_proof_clause_link_", "keys"],
+    &["attributed_claim_", "supports"],
+    &["flat_retained_attributed_claim_", "supports"],
+    &["dependent_records_by_", "premise"],
+];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -768,7 +864,7 @@ const REVIEWED_SOURCES: &[(&str, &str)] = &[
         include_str!("portable_explain.rs"),
     ),
     ("constraints/proof/mod.rs", include_str!("proof/mod.rs")),
-    ("constraints/replay_soak.rs", include_str!("replay_soak.rs")),
+    ("constraints/proof_soak.rs", include_str!("proof_soak.rs")),
     ("constraints/row_effect.rs", include_str!("row_effect.rs")),
     ("constraints/timing.rs", include_str!("timing.rs")),
     ("constraints/trace.rs", include_str!("trace.rs")),
@@ -1923,7 +2019,7 @@ fn cpk_8g_12_part_1_hard_failure_channel_is_cpk_only() {
         include_str!("mod.rs"),
         include_str!("machine/entry.rs"),
         include_str!("machine/bounds.rs"),
-        include_str!("replay_soak.rs"),
+        include_str!("proof_soak.rs"),
         include_str!("../lowering/body/mod.rs"),
         include_str!("../module_map/mod.rs"),
     ];
@@ -2013,6 +2109,107 @@ fn cpk_8g_12_part_2_obsolete_payload_seams_are_removed_but_semantic_attribution_
             "semantic attribution contract was mistaken for flat storage: {semantic_contract}",
         );
     }
+}
+
+#[test]
+fn cpk_8g_12_part_3_final_zero_reference_gate_closes_all_17_plan_items() {
+    use std::collections::BTreeSet;
+
+    let mut removed_surfaces = CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES
+        .iter()
+        .chain(CPK8G6G1_REMOVED_LEGACY_READER_SURFACES)
+        .chain(CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES)
+        .map(|surface| (*surface).to_string())
+        .collect::<BTreeSet<_>>();
+    removed_surfaces.extend(
+        CPK8G_FINAL_REMOVED_SURFACE_FRAGMENTS
+            .iter()
+            .map(|fragments| fragments.concat()),
+    );
+    assert!(
+        removed_surfaces.len() >= 90,
+        "the final union must retain broad Legacy/flat/RCPF/authority coverage",
+    );
+
+    let source_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut pending = vec![source_root];
+    while let Some(directory) = pending.pop() {
+        for entry in std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        {
+            let path = entry.expect("infer source entry must be readable").path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs")
+                || path.ends_with("constraints/proof_inventory.rs")
+            {
+                continue;
+            }
+            let source =
+                std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            for removed in &removed_surfaces {
+                assert!(
+                    !source.contains(removed),
+                    "CPK-8G final zero-reference gate found removed surface in {}: {removed}",
+                    path.display(),
+                );
+            }
+        }
+    }
+
+    let constraints_source = include_str!("mod.rs");
+    let type_bounds = constraints_source
+        .split_once("pub struct TypeBounds {")
+        .and_then(|(_, tail)| tail.split_once("\n}\n\nimpl TypeBounds"))
+        .map(|(fields, _)| fields)
+        .expect("TypeBounds declaration must remain structurally inspectable");
+    assert_eq!(
+        CPK8G_FLAT_PROOF_MIRROR_FIELD_FRAGMENTS.len(),
+        27,
+        "the final gate must retain the complete original flat TypeBounds proof-field census",
+    );
+    for removed_flat_field in CPK8G_FLAT_PROOF_MIRROR_FIELD_FRAGMENTS
+        .iter()
+        .map(|fragments| fragments.concat())
+    {
+        assert!(
+            !type_bounds.contains(&removed_flat_field),
+            "CPK-8G final gate found a removed flat proof mirror in TypeBounds: {removed_flat_field}",
+        );
+    }
+    assert_eq!(
+        type_bounds,
+        "\n    vars: Vec<Option<VarBounds>>,\n    canonical: FxHashMap<BoundSemanticKey, BoundRecordId>,\n    records: Vec<BoundRecord>,",
+        "TypeBounds must remain semantic-only after final CPK-8G closure",
+    );
+
+    let proof_soak = include_str!("proof_soak.rs");
+    for cpk_only_telemetry_contract in [
+        "CPK_SOAK_TELEMETRY_VERSION: u32 = 6",
+        "CPK_SOAK_TELEMETRY_SCHEMA: &str = \"cpk-only\"",
+        "ProofSoakEventOrigin",
+        "ProofSoakTelemetrySnapshot",
+        "proof_terminal_failures: [u64; 18]",
+    ] {
+        assert!(
+            proof_soak.contains(cpk_only_telemetry_contract),
+            "final CPK-only telemetry contract moved or disappeared: {cpk_only_telemetry_contract}",
+        );
+    }
+    assert!(
+        include_str!("proof/mod.rs").contains("ClaimedAttributionSource::FlatRetained"),
+        "semantic FlatRetained attribution must survive physical flat-store removal",
+    );
+    assert_eq!(
+        CPK8G_COMPLETED_PLAN_ITEMS,
+        &[
+            "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a",
+            "8G-4b", "8G-5", "8G-6", "8G-7", "8G-8", "8G-9", "8G-10", "8G-11",
+            "8G-12",
+        ],
+        "the final ledger must account for all 17 approved CPK-8G plan items",
+    );
 }
 
 #[test]
@@ -2635,63 +2832,33 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         "the direct lowering/body/mod.rs rcpf_* test census changed",
     );
 
-    for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
-        if group
-            .targets
-            .contains(&Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry)
-        {
-            assert_eq!(
-                group.targets,
-                &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
-                "hard-failure/telemetry coverage must not hide a removed RCPF structure dependency",
-            );
-        }
-    }
     let expected_manifest = bounds_rcpf_tests
         .iter()
         .copied()
         .chain(lowering_body_rcpf_tests.iter().copied())
         .collect::<BTreeSet<_>>();
-
-    let all_targets = [Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry];
-    let mut manifested_names = BTreeSet::new();
-    let mut manifested_targets = BTreeSet::new();
-    for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
-        assert!(
-            !group.targets.is_empty(),
-            "a physical-removal test group must protect at least one concrete target",
-        );
-        let target_set = group.targets.iter().copied().collect::<BTreeSet<_>>();
-        assert_eq!(
-            target_set.len(),
-            group.targets.len(),
-            "a physical target was duplicated inside one classification group",
-        );
-        manifested_targets.extend(target_set);
-        for &name in group.tests {
-            assert!(
-                manifested_names.insert(name),
-                "{name} appears in more than one physical-removal classification; represent multi-target coverage in one target set",
-            );
-            let source_occurrences = reviewed_physical_sources
-                .iter()
-                .map(|source| source.matches(&format!("fn {name}")).count())
-                .sum::<usize>();
-            assert_eq!(
-                source_occurrences, 1,
-                "physical-removal manifest entry moved, disappeared, or became ambiguous: {name}",
-            );
-        }
-    }
-
+    let manifested_names = CPK8G_FINAL_HARD_FAILURE_CONTRACTS
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
     assert_eq!(
-        manifested_targets,
-        all_targets.into_iter().collect(),
-        "every physical-removal layer must retain an explicitly classified protecting test",
+        manifested_names.len(),
+        CPK8G_FINAL_HARD_FAILURE_CONTRACTS.len(),
+        "each final CPK hard-failure contract must be listed exactly once",
     );
+    for &name in CPK8G_FINAL_HARD_FAILURE_CONTRACTS {
+        let source_occurrences = reviewed_physical_sources
+            .iter()
+            .map(|source| source.matches(&format!("fn {name}")).count())
+            .sum::<usize>();
+        assert_eq!(
+            source_occurrences, 1,
+            "final CPK hard-failure contract moved, disappeared, or became ambiguous: {name}",
+        );
+    }
     assert_eq!(
         manifested_names, expected_manifest,
-        "the physical-removal manifest must equal the source-enumerated union; classify additions and remove retired entries together",
+        "the final hard-failure contract manifest must equal the source-enumerated CPK-only union",
     );
 }
 

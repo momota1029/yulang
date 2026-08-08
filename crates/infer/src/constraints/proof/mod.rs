@@ -4919,8 +4919,8 @@ impl ProofOccurrenceStore {
 mod tests {
     use super::*;
     use crate::constraints::{
-        ReplaySoakEventOrigin, capture_replay_soak_test_events,
-        with_intentional_replay_soak_test_injection,
+        ProofSoakEventOrigin, capture_proof_soak_test_events,
+        with_intentional_proof_soak_test_injection,
     };
 
     fn cpk_machine() -> ConstraintMachine {
@@ -10577,7 +10577,7 @@ mod tests {
             "the fixture must corrupt an existing CPK claim index entry",
         );
 
-        let ((), telemetry) = capture_replay_soak_test_events(|| {
+        let ((), telemetry) = capture_proof_soak_test_events(|| {
             cpk_5_trigger_lower_route(&mut fixture, false);
             cpk_5_trigger_lower_route(&mut fixture, true);
         });
@@ -10588,7 +10588,7 @@ mod tests {
         ));
         assert_eq!(
             telemetry.proof_terminal_failures(
-                ReplaySoakEventOrigin::Organic,
+                ProofSoakEventOrigin::Organic,
                 ProofOperation::PrepareReplayRouteBatch,
             ),
             1,
@@ -10596,7 +10596,7 @@ mod tests {
         );
         assert_eq!(
             telemetry.proof_terminal_failures(
-                ReplaySoakEventOrigin::IntentionalTestInjection,
+                ProofSoakEventOrigin::IntentionalTestInjection,
                 ProofOperation::PrepareReplayRouteBatch,
             ),
             0,
@@ -10646,7 +10646,7 @@ mod tests {
             "the fixture must corrupt an existing CPK claim index entry",
         );
 
-        with_intentional_replay_soak_test_injection(|| fixture.machine.drain());
+        with_intentional_proof_soak_test_injection(|| fixture.machine.drain());
 
         assert!(matches!(
             fixture.machine.proof_terminal_failure(),
@@ -10673,17 +10673,17 @@ mod tests {
     #[test]
     fn cpk_8a_successful_cpk_route_emits_no_proof_failure_telemetry() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        let ((), telemetry) = capture_replay_soak_test_events(|| {
+        let ((), telemetry) = capture_proof_soak_test_events(|| {
             cpk_5_trigger_lower_route(&mut fixture, false);
         });
 
         assert_eq!(
-            telemetry.total_for_origin(ReplaySoakEventOrigin::Organic),
+            telemetry.total_for_origin(ProofSoakEventOrigin::Organic),
             0,
             "a normal successful CPK route must not resemble an organic soak failure",
         );
         assert_eq!(
-            telemetry.total_for_origin(ReplaySoakEventOrigin::IntentionalTestInjection),
+            telemetry.total_for_origin(ProofSoakEventOrigin::IntentionalTestInjection),
             0,
         );
     }

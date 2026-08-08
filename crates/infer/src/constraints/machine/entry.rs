@@ -4,7 +4,7 @@ use crate::time::Instant;
 
 impl ConstraintMachine {
     pub fn new() -> Self {
-        ensure_replay_soak_telemetry_header();
+        ensure_proof_soak_telemetry_header();
         Self {
             types: TypeArena::new(),
             queue: VecDeque::new(),

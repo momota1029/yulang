@@ -22,7 +22,7 @@ mod portable_explain;
 pub(crate) mod proof;
 #[cfg(test)]
 mod proof_inventory;
-mod replay_soak;
+mod proof_soak;
 mod row_effect;
 #[cfg(test)]
 mod semantic_execution_snapshot;
@@ -47,14 +47,12 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) use proof::ProofFailure;
-use replay_soak::ensure_replay_soak_telemetry_header;
-pub(crate) use replay_soak::{
-    record_proof_terminal_failure,
-};
+use proof_soak::ensure_proof_soak_telemetry_header;
+pub(crate) use proof_soak::record_proof_terminal_failure;
 #[cfg(test)]
-pub(crate) use replay_soak::{
-    ReplaySoakEventOrigin, capture_replay_soak_test_events,
-    with_intentional_replay_soak_test_injection,
+pub(crate) use proof_soak::{
+    ProofSoakEventOrigin, capture_proof_soak_test_events,
+    with_intentional_proof_soak_test_injection,
 };
 
 #[cfg(test)]
