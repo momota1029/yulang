@@ -19,7 +19,6 @@ pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 5;
 pub(crate) enum ReplayFactoredFailureOperation {
     Write,
     Read,
-    Oracle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,25 +37,6 @@ pub(crate) struct ReplaySoakTelemetrySnapshot {
 }
 
 impl ReplaySoakTelemetrySnapshot {
-    #[cfg(test)]
-    pub(crate) fn terminal_failures(
-        self,
-        origin: ReplaySoakEventOrigin,
-        operation: ReplayFactoredFailureOperation,
-    ) -> u64 {
-        self.terminal_failures[terminal_index(origin, operation)]
-    }
-
-    #[cfg(test)]
-    pub(crate) fn legacy_rollback_entries(self, origin: ReplaySoakEventOrigin) -> u64 {
-        self.legacy_rollback_entries[origin_index(origin)]
-    }
-
-    #[cfg(test)]
-    pub(crate) fn factored_read_errors(self, origin: ReplaySoakEventOrigin) -> u64 {
-        self.factored_read_errors[origin_index(origin)]
-    }
-
     #[cfg(test)]
     pub(crate) fn proof_terminal_failures(
         self,
@@ -93,9 +73,6 @@ std::thread_local! {
     static TEST_CAPTURE: std::cell::RefCell<Option<ReplaySoakTelemetrySnapshot>> = const {
         std::cell::RefCell::new(None)
     };
-    static NEXT_FAILURE_IS_INTENTIONAL: std::cell::Cell<bool> = const {
-        std::cell::Cell::new(false)
-    };
 }
 
 pub(crate) fn ensure_replay_soak_telemetry_header() {
@@ -130,15 +107,6 @@ pub(crate) fn record_replay_factored_failure(
             Some(failure),
         );
     }
-}
-
-pub(crate) fn record_legacy_rollback_entry(failure: ReplayFactoredShadowFailure) {
-    let origin = current_event_origin();
-    LEGACY_ROLLBACK_ENTRIES[origin_index(origin)].fetch_add(1, Ordering::Relaxed);
-    update_test_capture(|snapshot| {
-        snapshot.legacy_rollback_entries[origin_index(origin)] += 1;
-    });
-    emit_event("legacy_rollback_entry", origin, None, Some(failure));
 }
 
 /// Record the first sticky CPK terminal failure for one compilation attempt.
@@ -186,11 +154,6 @@ pub(crate) fn with_intentional_replay_soak_test_injection<T>(run: impl FnOnce() 
 }
 
 #[cfg(test)]
-pub(crate) fn mark_next_replay_soak_failure_as_intentional() {
-    NEXT_FAILURE_IS_INTENTIONAL.with(|next| next.set(true));
-}
-
-#[cfg(test)]
 pub(crate) fn capture_replay_soak_test_events<T>(
     run: impl FnOnce() -> T,
 ) -> (T, ReplaySoakTelemetrySnapshot) {
@@ -211,9 +174,7 @@ pub(crate) fn capture_replay_soak_test_events<T>(
 fn current_event_origin() -> ReplaySoakEventOrigin {
     #[cfg(test)]
     {
-        if INTENTIONAL_TEST_INJECTION_DEPTH.with(|depth| depth.get() > 0)
-            || NEXT_FAILURE_IS_INTENTIONAL.with(|next| next.replace(false))
-        {
+        if INTENTIONAL_TEST_INJECTION_DEPTH.with(|depth| depth.get() > 0) {
             return ReplaySoakEventOrigin::IntentionalTestInjection;
         }
     }
@@ -231,7 +192,6 @@ fn operation_index(operation: ReplayFactoredFailureOperation) -> usize {
     match operation {
         ReplayFactoredFailureOperation::Write => 0,
         ReplayFactoredFailureOperation::Read => 1,
-        ReplayFactoredFailureOperation::Oracle => 2,
     }
 }
 

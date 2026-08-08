@@ -43,6 +43,9 @@
 //   direct representation tests. CPK-8G-9d removes ReplayOccurrenceStore and stops the sole
 //   production ParentSetArena feed so no dead downstream sink remains; CPK-8G-9e removes the final
 //   arena and retires its seven direct representation tests. All five RCPF structures are gone.
+// - CPK-8G-10 removes the dead oracle/fault-injection shell. The still-reachable publication-fence
+//   allocation channel, sticky drain stop, whole-attempt discard, and versioned soak telemetry stay
+//   load-bearing until CPK-8G-12 consolidates them into the CPK hard-failure channel.
 
 // CPK-8E-0 final migration-parity snapshot, frozen at 8d208792 before oracle retirement.
 // This is a manifest of CPK-observable contracts, not a serialized snapshot of Legacy storage.
@@ -661,8 +664,9 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 
 // CPK-8G physical-removal manifest after the 8G-6 closure. The 60 category-B dependents are retired
 // and the 14 category-A contracts are independently pinned above. CPK-8G-9 retires the final
-// direct structure tests with their structures; only the shell/telemetry coverage deferred to
-// 8G-10 remains. A test is listed exactly once and carries every physical target it protects;
+// direct structure tests with their structures. CPK-8G-10 removes dead RCPF-specific shell pieces;
+// only the generic hard-failure/telemetry coverage deferred to 8G-12 remains. A test is listed
+// exactly once and carries every physical target it protects;
 // this prevents a multi-target test from hiding one dependency behind a duplicate name.
 //
 // The target names follow the deletion phase in the approved CPK-8G plan: authority/oracle
@@ -670,7 +674,7 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 // flat claim removal (8G-11), and final shell/telemetry cleanup (8G-12).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Cpk8gPhysicalTarget {
-    ReplayFactoredShellAndTelemetry,
+    ReplayHardFailureChannelAndTelemetry,
 }
 
 struct Cpk8gPhysicalTestGroup {
@@ -714,7 +718,7 @@ const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 0;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     Cpk8gPhysicalTestGroup {
-        targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
+        targets: &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
         tests: &[
             "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
             "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
@@ -738,6 +742,8 @@ const CPK8G9_COMPLETED_SUBSLICES: &[&str] =
 const CPK8G9_ALL_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-9-0a", "8G-9-0b", "8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e",
 ];
+const CPK8G10_ACTUAL_SCOPE: &str =
+    "dead RCPF oracle/injection shell removed; reachable hard-failure channel retained for 8G-12";
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -1704,6 +1710,68 @@ fn cpk_8g_9e_all_rcpf_structures_are_fully_removed() {
 }
 
 #[test]
+fn cpk_8g_10_dead_oracle_shell_is_removed_and_hard_failure_channel_is_retained() {
+    let runtime_sources = [
+        include_str!("mod.rs"),
+        include_str!("machine/entry.rs"),
+        include_str!("machine/bounds.rs"),
+        include_str!("replay_factored.rs"),
+        include_str!("replay_soak.rs"),
+        include_str!("../lowering/body/mod.rs"),
+        include_str!("../module_map/mod.rs"),
+    ];
+    for removed in [
+        ["ReplayFactoredOracle", "Mismatch"].concat(),
+        ["Oracle", "Mismatch"].concat(),
+        ["record_legacy_rollback", "_entry"].concat(),
+        ["mark_next_replay_soak_failure", "_as_intentional"].concat(),
+        ["inject_replay_factored_read", "_failure_for_test"].concat(),
+        ["RCPF_D2C_FAIL_DEFERRED", "_EVALUATION_AT"].concat(),
+        ["RCPF_D4_FAIL_NEXT", "_PRE_CONSUMER_QUERY"].concat(),
+        ["RCPF_E2C_FAIL_NEXT", "_A1_READ"].concat(),
+    ] {
+        assert!(
+            runtime_sources.iter().all(|source| !source.contains(&removed)),
+            "dead RCPF shell surface reappeared after 8G-10: {removed}",
+        );
+    }
+    for retained in [
+        "ReplayFactoredShadowFailure",
+        "ReplayFactoredShadowStatus",
+        "ReplayFactoredResult",
+        "replay_factored_writes_enabled",
+        "replay_factored_terminal_failure",
+        "record_replay_factored_failure",
+        "ReplayFactoredFailed",
+    ] {
+        assert!(
+            runtime_sources.iter().any(|source| source.contains(retained)),
+            "reachable hard-failure channel must survive until 8G-12: {retained}",
+        );
+    }
+    for contract in [
+        "rcpf_c3a_normal_attempt_runs_once_without_authority_dispatch",
+        "rcpf_c3a_failed_attempt_is_discarded_as_typed_hard_error",
+        "rcpf_c3a_failure_is_a_typed_hard_error_without_retry",
+        "rcpf_c3a_loaded_files_driver_finishes_without_terminal_failure",
+    ] {
+        assert_eq!(
+            runtime_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {contract}(")).count())
+                .sum::<usize>(),
+            1,
+            "whole-attempt hard-failure contract moved or disappeared: {contract}",
+        );
+    }
+    assert_eq!(
+        CPK8G10_ACTUAL_SCOPE,
+        "dead RCPF oracle/injection shell removed; reachable hard-failure channel retained for 8G-12",
+        "CPK-8G-10 must retain its evidence-based partial-removal disposition",
+    );
+}
+
+#[test]
 fn cpk_8a_raw_fixture_writer_census_is_fully_classified() {
     let bounds_mutation_tests = include_str!("machine/bounds.rs")
         .split("mod mutation_tests {")
@@ -2418,7 +2486,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .filter(|group| {
             !group
                 .targets
-                .contains(&Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry)
+                .contains(&Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry)
         })
         .flat_map(|group| group.tests.iter().copied())
         .collect::<BTreeSet<_>>();
@@ -2430,12 +2498,12 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
         if group
             .targets
-            .contains(&Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry)
+            .contains(&Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry)
         {
             assert_eq!(
                 group.targets,
-                &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
-                "shell/telemetry coverage must not hide an 8G-9/10 structure dependency",
+                &[Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry],
+                "hard-failure/telemetry coverage must not hide a removed RCPF structure dependency",
             );
         }
     }
@@ -2457,7 +2525,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .chain(lowering_body_rcpf_tests.iter().copied())
         .collect::<BTreeSet<_>>();
 
-    let all_targets = [Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry];
+    let all_targets = [Cpk8gPhysicalTarget::ReplayHardFailureChannelAndTelemetry];
     let mut manifested_names = BTreeSet::new();
     let mut manifested_targets = BTreeSet::new();
     for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {

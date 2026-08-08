@@ -3,39 +3,6 @@ use super::*;
 use crate::constraints::replay_factored::{ReplayFactoredResult, ReplayFactoredShadowFailure};
 use smallvec::SmallVec;
 
-#[cfg(test)]
-std::thread_local! {
-    static RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES: std::cell::Cell<usize> =
-        const { std::cell::Cell::new(0) };
-    static RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES: std::cell::Cell<usize> =
-        const { std::cell::Cell::new(0) };
-    static RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT: std::cell::Cell<Option<usize>> =
-        const { std::cell::Cell::new(None) };
-    static RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES: std::cell::Cell<usize> =
-        const { std::cell::Cell::new(0) };
-    static RCPF_D4_FAIL_NEXT_PRE_CONSUMER_QUERY: std::cell::Cell<bool> =
-        const { std::cell::Cell::new(false) };
-    static RCPF_E2C_FAIL_NEXT_A1_READ: std::cell::Cell<bool> =
-        const { std::cell::Cell::new(false) };
-}
-
-#[cfg(test)]
-fn rcpf_d2c_should_fail_deferred_evaluation() -> bool {
-    RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT.with(|fail_at| {
-        let Some(remaining) = fail_at.get() else {
-            return false;
-        };
-        if remaining == 1 {
-            fail_at.set(None);
-            mark_next_replay_soak_failure_as_intentional();
-            true
-        } else {
-            fail_at.set(Some(remaining - 1));
-            false
-        }
-    })
-}
-
 /// Snapshot of canonical replay work. Applying a replay constraint can mutate
 /// the same bounds table, so replay construction must not keep borrowed bound
 /// rows. Semantic queue admission remains prefiltered, while duplicate/trivial
@@ -1015,10 +982,6 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
-        #[cfg(test)]
-        RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES.with(|probes| {
-            probes.set(probes.get().saturating_add(1));
-        });
         let preflight = self.preflight_claim_parent_clause_links(result, lower_record, parents);
         self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links)
     }
@@ -1735,14 +1698,6 @@ impl ConstraintMachine {
         if self.replay_factored_terminal_failure().is_some() {
             return;
         }
-        #[cfg(test)]
-        if rcpf_d2c_should_fail_deferred_evaluation() {
-            self.mark_replay_factored_failure(
-                ReplayFactoredShadowFailure::AllocationFailed,
-                ReplayFactoredFailureOperation::Read,
-            );
-            return;
-        }
         let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
             Ok(intent) => intent,
             Err(failure) => {
@@ -1753,12 +1708,6 @@ impl ConstraintMachine {
                 return;
             }
         };
-        #[cfg(test)]
-        if matches!(&intent, SchemeProjectionPublicationIntent::OwnersChanged(_)) {
-            RCPF_D2C_PHASE_A_OWNER_INTENT_PROBES.with(|probes| {
-                probes.set(probes.get().saturating_add(1));
-            });
-        }
         self.defer_replay_admission_publication(fence, intent);
     }
 
@@ -1772,14 +1721,6 @@ impl ConstraintMachine {
         }
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
         self.commit_scheme_projection_mutation(&mut mutation);
-        #[cfg(test)]
-        if rcpf_d2c_should_fail_deferred_evaluation() {
-            self.mark_replay_factored_failure(
-                ReplayFactoredShadowFailure::AllocationFailed,
-                ReplayFactoredFailureOperation::Read,
-            );
-            return;
-        }
         let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
         self.defer_replay_admission_publication(fence, intent);
     }
@@ -2396,10 +2337,6 @@ impl ConstraintMachine {
         let mut inserted_parents = Vec::new();
         inserted_parents.reserve(accepted.len());
         for entry in accepted.iter().copied() {
-            #[cfg(test)]
-            RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES.with(|probes| {
-                probes.set(probes.get().saturating_add(1));
-            });
             let parent = entry.parent;
             self.commit_claim_qualified_parent_mutation(result, entry);
             inserted_parents.push(parent);

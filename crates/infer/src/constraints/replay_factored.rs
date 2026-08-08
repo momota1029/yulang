@@ -1,25 +1,11 @@
-//! RCPF attempt-quarantine shell retained until CPK-8G-10.
-
-#![allow(dead_code)]
+//! Generic attempt-quarantine channel retained after the RCPF shell removal.
+//!
+//! The publication fence can still fail capacity preflight, and lowering must discard that whole
+//! attempt. CPK-8G-12 owns the later telemetry/name consolidation into the CPK hard-failure channel.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ReplayFactoredShadowFailure {
     AllocationFailed,
-    #[cfg(any(test, debug_assertions))]
-    OracleMismatch(ReplayFactoredOracleMismatch),
-}
-
-#[cfg(any(test, debug_assertions))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ReplayFactoredOracleMismatch {
-    ExactParentRelation,
-    QualifiedReplayCarriers,
-    ClauseMapping,
-    ExactClauseLinks,
-    AttributedRoots,
-    ClaimedAttributionUnion,
-    ReplayDependencyEdges,
-    DerivedReplayLineage,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

@@ -109,14 +109,6 @@ impl ConstraintMachine {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn inject_replay_factored_read_failure_for_test(
-        &self,
-        failure: ReplayFactoredShadowFailure,
-    ) {
-        self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
-    }
-
     pub(in crate::constraints) fn replay_factored_writes_enabled(&self) -> bool {
         matches!(
             self.replay_factored_shadow_status.get(),

@@ -55,7 +55,7 @@ pub(crate) use replay_soak::{
 #[cfg(test)]
 pub(crate) use replay_soak::{
     ReplaySoakEventOrigin, capture_replay_soak_test_events,
-    mark_next_replay_soak_failure_as_intentional, with_intentional_replay_soak_test_injection,
+    with_intentional_replay_soak_test_injection,
 };
 
 #[cfg(test)]
