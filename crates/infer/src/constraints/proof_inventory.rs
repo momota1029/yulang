@@ -27,10 +27,10 @@
 // - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
 //   claim move, register_constraint_upper_replay_claims; after CPK-8G-6f they are write-only flat
 //   mirrors while CPK owns projection/routing reads.
-// - claim_parents_by_constraint, qualified_carrier_index, and the structural parent key remain
-//   write-only flat mirrors after CPK-8G-7a closes the CPK parent read view. Reduction-route exact
-//   admission is owned by the CPK reduction_route_claim_keys index. CPK-8G-7b1 removes the replay
-//   exact-key mirror and its writer while leaving the other three mirrors and the RCPF feed intact.
+// - claim_parents_by_constraint and qualified_carrier_index remain write-only flat mirrors after
+//   CPK-8G-7a closes the CPK parent read view. Reduction-route exact admission is owned by the CPK
+//   reduction_route_claim_keys index. CPK-8G-7b1/b2 remove the replay and structural exact-key
+//   mirrors independently while leaving these two shared mirrors and the RCPF feed intact.
 // - live_coverage_by_root and scheme_projection_claims_by_lower_record: projection-link admission
 //   still writes both representations. CPK-8B transfers live-coverage transition/dedup ownership
 //   to ProofOccurrenceStore::live_states_by_coverage_root; live_coverage_by_root remains the
@@ -784,7 +784,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-7b1 removes this first flat parent-relation mirror and its writer completely.
     ("replay_claim_parent_keys", 0),
     ("qualified_carrier_index", 5),
-    ("structural_claim_parent_keys", 3),
+    // CPK-8G-7b2 removes the independent structural exact-key mirror and its writer completely.
+    ("structural_claim_parent_keys", 0),
     // CPK-8G-2b/2c add reviewed transaction-preflight and atomicity-test references; the flat
     // projection collection remains a mirror during these ownership-transfer slices. CPK-8G-6a
     // removes five D3b A-fixture reads now served by the CPK claim/support indexes. CPK-8G-6c
@@ -1260,6 +1261,10 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
         !bounds.contains("ReplayClaimParentKey"),
         "CPK-8G-7b1 removed replay exact-key mirror type reappeared"
     );
+    assert!(
+        !bounds.contains("StructuralClaimParentKey"),
+        "CPK-8G-7b2 removed structural exact-key mirror type reappeared"
+    );
     for writer in [
         "fn push_claim_qualified_parent",
         "fn try_reserve_qualified_parent_mirror",
@@ -1276,7 +1281,7 @@ fn cpk_8g_7a_flat_parent_relations_are_write_only() {
         ("claim_parents_by_constraint", 7),
         ("qualified_carrier_index", 5),
         ("replay_claim_parent_keys", 0),
-        ("structural_claim_parent_keys", 3),
+        ("structural_claim_parent_keys", 0),
     ] {
         assert_eq!(
             bounds.matches(field).count(),
