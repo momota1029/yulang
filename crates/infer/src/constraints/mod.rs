@@ -49,7 +49,6 @@ pub(crate) use proof::ProofFailure;
 pub(crate) use replay_factored::ReplayFactoredShadowFailure;
 use replay_factored::{
     ParentSetArena, ReplayFactoredResult, ReplayFactoredShadowStatus, ReplayOccurrenceStore,
-    ReplayResultSummary,
 };
 use replay_soak::ensure_replay_soak_telemetry_header;
 pub(crate) use replay_soak::{
@@ -115,7 +114,6 @@ pub struct ConstraintMachine {
     bounds: TypeBounds,
     replay_parent_sets: ParentSetArena,
     replay_occurrences: ReplayOccurrenceStore,
-    replay_result_summary: ReplayResultSummary,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
     proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,

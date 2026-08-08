@@ -5,14 +5,12 @@ use crate::time::Instant;
 impl ConstraintMachine {
     pub fn new() -> Self {
         ensure_replay_soak_telemetry_header();
-        let replay_result_summary = ReplayResultSummary::default();
         Self {
             types: TypeArena::new(),
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
             replay_parent_sets: ParentSetArena::new(),
             replay_occurrences: ReplayOccurrenceStore::default(),
-            replay_result_summary,
             proof_store: proof::ProofOccurrenceStore::default(),
             proof_terminal_failure: RefCell::new(None),
             replay_factored_shadow_status: Cell::new(ReplayFactoredShadowStatus::Active),

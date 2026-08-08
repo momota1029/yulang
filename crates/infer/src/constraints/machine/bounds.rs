@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::constraints::replay_factored::{
     ReplayFactoredResult, ReplayFactoredShadowFailure, ReplayOccurrenceKey, ReplayParentDraft,
-    ReplayParentDraftId, ReplayResultSummaryDelta,
+    ReplayParentDraftId,
 };
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -1786,7 +1786,6 @@ impl ConstraintMachine {
     ) {
         let parent = entry.parent;
         self.register_new_constraint_premise_route_edges(constraint, parent);
-        self.observe_first_qualified_parent_source(constraint, parent);
     }
 
     fn publish_claim_qualified_parent_admission(
@@ -1895,25 +1894,6 @@ impl ConstraintMachine {
     ) {
         for intent in fence.intents {
             self.publish_scheme_projection_intent(intent);
-        }
-    }
-
-    fn observe_first_qualified_parent_source(
-        &mut self,
-        result: ConstraintRecordId,
-        parent: ClaimQualifiedParent,
-    ) {
-        if !self.replay_factored_writes_enabled() {
-            return;
-        }
-        if let Err(failure) = self
-            .replay_result_summary
-            .try_record_first_qualified_parent_source(result, parent, &self.bounds)
-        {
-            self.mark_replay_factored_failure(
-                failure,
-                ReplayFactoredFailureOperation::Write,
-            );
         }
     }
 
@@ -2618,9 +2598,9 @@ impl ConstraintMachine {
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
-    ) -> ReplayResultSummaryDelta {
+    ) {
         if !self.replay_factored_writes_enabled() {
-            return ReplayResultSummaryDelta::default();
+            return;
         }
         match self.try_observe_factored_replay_parent_admission(
             result,
@@ -2629,13 +2609,12 @@ impl ConstraintMachine {
             inserted_parents,
             drafts,
         ) {
-            Ok(delta) => delta,
+            Ok(()) => {}
             Err(failure) => {
                 self.mark_replay_factored_failure(
                     failure,
                     ReplayFactoredFailureOperation::Write,
                 );
-                ReplayResultSummaryDelta::default()
             }
         }
     }
@@ -2647,7 +2626,7 @@ impl ConstraintMachine {
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
-    ) -> ReplayFactoredResult<ReplayResultSummaryDelta> {
+    ) -> ReplayFactoredResult<()> {
         let planned_lower_draft = drafts.resolve(drafts.lower)?;
         let planned_upper_draft = drafts.resolve(drafts.upper)?;
         for (side, draft) in [
@@ -2666,7 +2645,7 @@ impl ConstraintMachine {
             }
         }
         if planned_lower_draft.is_none() && planned_upper_draft.is_none() {
-            return Ok(ReplayResultSummaryDelta::default());
+            return Ok(());
         }
         let admission_ordinal = self.replay_occurrences.claim_admission_ordinal()?;
 
@@ -2725,7 +2704,7 @@ impl ConstraintMachine {
             (upper_base, false)
         };
 
-        let occurrence_id = if let Some(occurrence_id) = occurrence_id {
+        if let Some(occurrence_id) = occurrence_id {
             if lower_changed || upper_changed {
                 self.replay_occurrences.update_parent_versions(
                     occurrence_id,
@@ -2733,32 +2712,19 @@ impl ConstraintMachine {
                     upper_parents,
                 )?;
             }
-            occurrence_id
         } else if lower_changed || upper_changed {
             self.replay_occurrences.try_insert(
                 key,
                 lower_parents,
                 upper_parents,
                 admission_ordinal,
-            )?
+            )?;
         } else if inserted_parents.is_empty() {
-            return Ok(ReplayResultSummaryDelta::default());
+            return Ok(());
         } else {
             return Err(ReplayFactoredShadowFailure::CorruptReplayOccurrenceIndex);
-        };
-        let summary_delta = self.replay_result_summary.try_record_admission(
-            result,
-            occurrence_id,
-            replay,
-            admission_ordinal,
-            inserted_parents,
-            &[
-                (ReplayClaimParentSide::Lower, lower_parents, lower_changed),
-                (ReplayClaimParentSide::Upper, upper_parents, upper_changed),
-            ],
-            &self.bounds,
-        )?;
-        Ok(summary_delta)
+        }
+        Ok(())
     }
 
     fn materialize_existing_claim_parents_delta(
