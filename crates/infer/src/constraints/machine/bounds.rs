@@ -13,8 +13,6 @@ use smallvec::SmallVec;
 std::thread_local! {
     static RCPF_C3B_REPLAY_PARENT_ADMISSION_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
-    static RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION: std::cell::Cell<bool> =
-        const { std::cell::Cell::new(false) };
     static RCPF_D2C_CLAUSE_LINK_REGISTRATION_PROBES: std::cell::Cell<usize> =
         const { std::cell::Cell::new(0) };
     static RCPF_D2C_FAIL_DEFERRED_EVALUATION_AT: std::cell::Cell<Option<usize>> =
@@ -1192,55 +1190,13 @@ impl ConstraintMachine {
         parents: &[ClaimQualifiedParent],
         publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
     ) {
-        // Phase A is unconditional. Only after Phase B has made the factored occurrence/link view
-        // current may the pending after-view be evaluated and published.
+        // Phase A is unconditional. Only after Phase B has made the factored occurrence/parent
+        // view current may the pending after-view be evaluated and published.
         let snapshot =
             self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
-        self.observe_factored_replay_clause_projection(result, lower_record, parents);
         if self.replay_factored_terminal_failure().is_none() {
             self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
         }
-    }
-
-    fn observe_factored_replay_clause_projection(
-        &mut self,
-        result: ConstraintRecordId,
-        lower_record: BoundRecordId,
-        parents: &[ClaimQualifiedParent],
-    ) {
-        if !self.replay_factored_writes_enabled() {
-            return;
-        }
-        if let Err(failure) =
-            self.try_project_factored_replay_clause_parents(result, lower_record, parents)
-        {
-            self.mark_replay_factored_failure(
-                failure,
-                ReplayFactoredFailureOperation::Write,
-            );
-        }
-    }
-
-    fn try_project_factored_replay_clause_parents(
-        &mut self,
-        result: ConstraintRecordId,
-        lower_record: BoundRecordId,
-        parents: &[ClaimQualifiedParent],
-    ) -> ReplayFactoredResult<()> {
-        #[cfg(test)]
-        if RCPF_D2B_FAIL_NEXT_CLAUSE_PROJECTION.with(|fail| fail.replace(false)) {
-            mark_next_replay_soak_failure_as_intentional();
-            return Err(ReplayFactoredShadowFailure::AllocationFailed);
-        }
-        self.replay_clause_projection.try_project_replay_parents(
-            result,
-            lower_record,
-            parents,
-            &self.replay_parent_sets,
-            &self.replay_occurrences,
-            &self.bounds,
-            &self.proof_store,
-        )
     }
 
     fn register_replay_evidence_clause_link(
@@ -2638,7 +2594,6 @@ impl ConstraintMachine {
             replay,
             parents,
             &inserted_parents,
-            clause_projection_parents,
             factored_drafts,
         );
         if phase_b_enabled
@@ -2684,7 +2639,6 @@ impl ConstraintMachine {
         replay: BinaryReplayDerivation,
         legacy_parents: &[SideTaggedReplayClaim],
         inserted_parents: &[ClaimQualifiedParent],
-        clause_projection_parents: &[ClaimQualifiedParent],
         drafts: FactoredReplayParentDrafts<'_>,
     ) -> ReplayResultSummaryDelta {
         if !self.replay_factored_writes_enabled() {
@@ -2697,22 +2651,7 @@ impl ConstraintMachine {
             inserted_parents,
             drafts,
         ) {
-            Ok(delta) => {
-                if let Some(lower_record) = self.lower_record_for_constraint(result)
-                    && let Err(failure) = self.try_project_factored_replay_clause_parents(
-                        result,
-                        lower_record,
-                        clause_projection_parents,
-                    )
-                {
-                    self.mark_replay_factored_failure(
-                        failure,
-                        ReplayFactoredFailureOperation::Write,
-                    );
-                    return ReplayResultSummaryDelta::default();
-                }
-                delta
-            }
+            Ok(delta) => delta,
             Err(failure) => {
                 self.mark_replay_factored_failure(
                     failure,
