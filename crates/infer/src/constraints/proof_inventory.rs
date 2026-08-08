@@ -38,11 +38,11 @@
 // - CPK-8G-8a2 leaves projection supports solely in ProofOccurrenceStore. CPK-8G-8b0 transfers
 //   typed clause admission to CPK and CPK-8G-8b1 removes the seven-field flat clause/link/
 //   attribution mirror. Dependent-record edges remain for the later 8G-8c removal slice.
-// - ParentSetArena remains as the final directly tested RCPF structure.
-//   CPK-8G-9a removes the leaf ReplayClauseProjection, CPK-8G-9b removes the independent
+// - CPK-8G-9a removes the leaf ReplayClauseProjection, CPK-8G-9b removes the independent
 //   NonReplayClaimParentStore, and CPK-8G-9c removes ReplayResultSummary after retiring its three
 //   direct representation tests. CPK-8G-9d removes ReplayOccurrenceStore and stops the sole
-//   production ParentSetArena feed so no dead downstream sink remains; 8G-9e removes the arena.
+//   production ParentSetArena feed so no dead downstream sink remains; CPK-8G-9e removes the final
+//   arena and retires its seven direct representation tests. All five RCPF structures are gone.
 
 // CPK-8E-0 final migration-parity snapshot, frozen at 8d208792 before oracle retirement.
 // This is a manifest of CPK-observable contracts, not a serialized snapshot of Legacy storage.
@@ -558,6 +558,41 @@ const CPK8G9C_RETIRED_REPLAY_RESULT_SUMMARY_TESTS: &[(&str, &str)] = &[
     ),
 ];
 
+// CPK-8G-9e removes ParentSetArena after 9d has already stopped its sole production feed. These
+// tests pinned the deleted RCPF representation. CPK's authoritative qualified-parent transaction
+// retains the product contracts: exact-key dedup and canonical result-local order, admission-time
+// first-wins identity, capacity preflight with no partial commit, and machine-issued references.
+const CPK8G9E_RETIRED_PARENT_SET_ARENA_TESTS: &[(&str, &str)] = &[
+    (
+        "virtual_empty_arena_has_zero_allocation_and_stays_virtual_on_empty_extend",
+        "cpk_no_claim_workload_does_not_allocate_qualified_parent_index pins the authoritative empty/no-op storage fast path, while CPK qualified-parent admission deduplicates before commit",
+    ),
+    (
+        "extends_an_empty_arena_in_canonical_order",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed pins the authoritative typed canonical result-local parent order",
+    ),
+    (
+        "repeated_extension_of_the_same_roots_preserves_existing_winners",
+        "CPK exact-key dedup plus cpk_3_replay_first_winner_matches_factored_for_every_parent_arrival_order pin no duplicate admission and permanent first-wins identity",
+    ),
+    (
+        "entry_permutations_intern_and_iterate_as_the_same_logical_map",
+        "canonical_qualified_and_generalized_parent_sequences_are_invariant_across_all_permutations and CPK exact-key dedup pin permutation-invariant logical identity/order",
+    ),
+    (
+        "representative_claim_is_first_wins_before_delta_canonicalization",
+        "cpk_3_replay_first_winner_matches_factored_for_every_parent_arrival_order pins admission-order first-wins separately from canonical storage order",
+    ),
+    (
+        "invalid_ids_and_claims_return_errors",
+        "CPK admits machine-issued claims before qualified parents and cpk_8g_4b_evaluator_traps_missing_machine_issued_references pins immediate debug failure if that referential-integrity invariant is violated",
+    ),
+    (
+        "reservation_failure_returns_error_without_committing_storage",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed injects CPK reservation failure and pins no key, first-source, or result-local order commit",
+    ),
+];
+
 const CPK8G6G1_REMOVED_LEGACY_READER_SURFACES: &[&str] = &[
     "ReplayEvaluatorSource",
     "try_legacy_lower_projection",
@@ -625,9 +660,9 @@ const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[];
 const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 
 // CPK-8G physical-removal manifest after the 8G-6 closure. The 60 category-B dependents are retired
-// and the 14 category-A contracts are independently pinned above. What remains here is only the
-// direct RCPF structure/integration coverage deferred to 8G-9/10 and the shell/telemetry coverage
-// deferred beyond it. A test is listed exactly once and carries every physical target it protects;
+// and the 14 category-A contracts are independently pinned above. CPK-8G-9 retires the final
+// direct structure tests with their structures; only the shell/telemetry coverage deferred to
+// 8G-10 remains. A test is listed exactly once and carries every physical target it protects;
 // this prevents a multi-target test from hiding one dependency behind a duplicate name.
 //
 // The target names follow the deletion phase in the approved CPK-8G plan: authority/oracle
@@ -635,7 +670,6 @@ const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 // flat claim removal (8G-11), and final shell/telemetry cleanup (8G-12).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Cpk8gPhysicalTarget {
-    ParentSetArena,
     ReplayFactoredShellAndTelemetry,
 }
 
@@ -676,21 +710,9 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
 
 const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 0;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
-const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 7;
+const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 0;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
-    Cpk8gPhysicalTestGroup {
-        targets: &[Cpk8gPhysicalTarget::ParentSetArena],
-        tests: &[
-            "virtual_empty_arena_has_zero_allocation_and_stays_virtual_on_empty_extend",
-            "extends_an_empty_arena_in_canonical_order",
-            "repeated_extension_of_the_same_roots_preserves_existing_winners",
-            "entry_permutations_intern_and_iterate_as_the_same_logical_map",
-            "representative_claim_is_first_wins_before_delta_canonicalization",
-            "invalid_ids_and_claims_return_errors",
-            "reservation_failure_returns_error_without_committing_storage",
-        ],
-    },
     Cpk8gPhysicalTestGroup {
         targets: &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
         tests: &[
@@ -711,7 +733,11 @@ const CPK8G8_COMPLETED_SUBSLICES: &[&str] = &[
     "8G-8a0", "8G-8a1", "8G-8a2", "8G-8b0", "8G-8b1", "8G-8c0", "8G-8c1",
 ];
 const CPK8G9_PREPARATION_COMPLETED_SUBSLICES: &[&str] = &["8G-9-0a", "8G-9-0b"];
-const CPK8G9_COMPLETED_SUBSLICES: &[&str] = &["8G-9a", "8G-9b", "8G-9c", "8G-9d"];
+const CPK8G9_COMPLETED_SUBSLICES: &[&str] =
+    &["8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e"];
+const CPK8G9_ALL_COMPLETED_SUBSLICES: &[&str] = &[
+    "8G-9-0a", "8G-9-0b", "8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e",
+];
 
 // Rollback readiness across the CPK-8G deployed-state boundary:
 // - f561c8d9 remains the historical fully-Legacy-capable baseline from before physical-removal
@@ -927,8 +953,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // final lookup from the deleted support/root mirror commit. CPK-8G-9-0a removes three more
     // reads from the retired RCPF upper/lower materialization validation adapter; CPK's claim
     // arena and exact-parent index already own those production decisions. CPK-8G-9-0b removes
-    // the final test-only RCPF evaluator's flat claim lookup.
-    ("upper_replay_claims", 64),
+    // the final test-only RCPF evaluator's flat claim lookup. CPK-8G-9e removes the last three
+    // ParentSetArena-only claim/root resolution and fixture references with the arena itself.
+    ("upper_replay_claims", 61),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -952,8 +979,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-8b0 removes the last authority preflight that consulted RCPF parent sets.
     // CPK-8G-9-0b removes the CPK-0b census/reset fixture reads. CPK-8G-9a removes the parent-set
     // argument from the deleted projection feed. CPK-8G-9d stops the sole remaining production
-    // feed while leaving the arena definition and seven direct tests intact for 8G-9e.
-    ("replay_parent_sets", 2),
+    // feed while leaving the arena definition and seven direct tests intact for 8G-9e, which
+    // removes both the final structure and its representation-only tests.
+    ("replay_parent_sets", 0),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
@@ -1091,8 +1119,8 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
         "constraints/machine/bounds.rs",
         "register_reduction_route_claim_parent",
     ),
-    ("constraints/replay_factored.rs", "preflight_extend"),
-    ("constraints/replay_factored.rs", "commit_extend"),
+    // CPK-8G-9e removes the final RCPF ParentSetArena admission boundaries; CPK's prepared
+    // qualified-parent transaction above is now the sole parent-set admission boundary.
     // Projection, clauses, attribution, and dependencies.
     (
         "constraints/machine/bounds.rs",
@@ -1628,10 +1656,50 @@ fn cpk_8g_9d_replay_occurrence_store_is_fully_removed() {
         0,
         "removing occurrence admission must stop the sole production ParentSetArena feed",
     );
+    assert!(
+        CPK8G9_COMPLETED_SUBSLICES.starts_with(&["8G-9a", "8G-9b", "8G-9c", "8G-9d"]),
+        "RCPF reverse-topological deletion must retain all four completed removals",
+    );
+}
+
+#[test]
+fn cpk_8g_9e_all_rcpf_structures_are_fully_removed() {
+    let removed_surfaces = [
+        ["ReplayClause", "Projection"].concat(),
+        ["NonReplayClaim", "ParentStore"].concat(),
+        ["ReplayResult", "Summary"].concat(),
+        ["ReplayOccurrence", "Store"].concat(),
+        ["ParentSet", "Arena"].concat(),
+    ];
+    for source in [
+        include_str!("mod.rs"),
+        include_str!("machine/entry.rs"),
+        include_str!("machine/bounds.rs"),
+        include_str!("replay_factored.rs"),
+    ] {
+        for removed in &removed_surfaces {
+            assert!(
+                !source.contains(removed),
+                "removed RCPF structure reappeared after 8G-9 closure: {removed}",
+            );
+        }
+    }
+    assert_eq!(
+        CPK8G9_PREPARATION_COMPLETED_SUBSLICES,
+        &["8G-9-0a", "8G-9-0b"],
+        "CPK-8G-9 closure must retain both reader/test preparation slices",
+    );
     assert_eq!(
         CPK8G9_COMPLETED_SUBSLICES,
-        &["8G-9a", "8G-9b", "8G-9c", "8G-9d"],
-        "RCPF reverse-topological deletion must retain all four completed removals",
+        &["8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e"],
+        "CPK-8G-9 closure must retain all five reverse-topological deletions",
+    );
+    assert_eq!(
+        CPK8G9_ALL_COMPLETED_SUBSLICES,
+        &[
+            "8G-9-0a", "8G-9-0b", "8G-9a", "8G-9b", "8G-9c", "8G-9d", "8G-9e",
+        ],
+        "CPK-8G-9 closure must account for all seven reviewed sub-slices",
     );
 }
 
@@ -2166,6 +2234,37 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "CPK-8G-9c retired RCPF summary test reappeared: {retired}",
         );
     }
+    assert_eq!(CPK8G9E_RETIRED_PARENT_SET_ARENA_TESTS.len(), 7);
+    for &(retired, reason) in CPK8G9E_RETIRED_PARENT_SET_ARENA_TESTS {
+        assert!(
+            !reason.is_empty(),
+            "retired ParentSetArena test must retain its CPK replacement reason",
+        );
+        assert_eq!(
+            reviewed_physical_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {retired}(")).count())
+                .sum::<usize>(),
+            0,
+            "CPK-8G-9e retired ParentSetArena test reappeared: {retired}",
+        );
+    }
+    for replacement in [
+        "cpk_no_claim_workload_does_not_allocate_qualified_parent_index",
+        "cpk_qualified_parent_admission_is_atomic_and_canonically_indexed",
+        "cpk_3_replay_first_winner_matches_factored_for_every_parent_arrival_order",
+        "canonical_qualified_and_generalized_parent_sequences_are_invariant_across_all_permutations",
+        "cpk_8g_4b_evaluator_traps_missing_machine_issued_references",
+    ] {
+        assert_eq!(
+            reviewed_physical_sources
+                .iter()
+                .map(|source| source.matches(&format!("fn {replacement}(")).count())
+                .sum::<usize>(),
+            1,
+            "CPK-8G-9e ParentSetArena successor contract moved or disappeared: {replacement}",
+        );
+    }
     let removed_authority_reader_surfaces = CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES
         .iter()
         .chain(CPK8G6G1_REMOVED_LEGACY_READER_SURFACES)
@@ -2300,7 +2399,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .collect::<Vec<_>>();
     assert_eq!(
         replay_factored_tests.len(),
-        7,
+        0,
         "the direct replay_factored.rs unit-test census changed",
     );
     assert_eq!(
@@ -2358,10 +2457,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         .chain(lowering_body_rcpf_tests.iter().copied())
         .collect::<BTreeSet<_>>();
 
-    let all_targets = [
-        Cpk8gPhysicalTarget::ParentSetArena,
-        Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry,
-    ];
+    let all_targets = [Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry];
     let mut manifested_names = BTreeSet::new();
     let mut manifested_targets = BTreeSet::new();
     for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
