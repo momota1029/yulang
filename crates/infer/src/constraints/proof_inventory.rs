@@ -823,22 +823,24 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-4b adds two test-only reads in the mixed-cycle fixture helper to verify that the
     // production clause-link writer still updates the flat mirror during the reader cutover.
     // CPK-8G-5 adds test-only resets of the former snapshot clause mirrors.
-    // CPK-8G-6c removes the DPN linear-registration census helper.
-    ("record_proof_clauses", 11),
-    // CPK-8G-6g1 removes flat-vs-RCPF clause-link reconstruction oracles.
-    ("record_proof_clause_by_key", 8),
-    ("record_proof_clause_ids_by_lower_record", 9),
+    // CPK-8G-6c removes the DPN linear-registration census helper. CPK-8G-8b0 moves the final
+    // test evaluator's clause enumeration to CPK's typed canonical formula.
+    ("record_proof_clauses", 10),
+    // CPK-8G-6g1 removes flat-vs-RCPF clause-link reconstruction oracles. CPK-8G-8b0 removes
+    // ReplayClauseProjection's two numeric-ID lookups in favor of typed CPK identity.
+    ("record_proof_clause_by_key", 6),
+    ("record_proof_clause_ids_by_lower_record", 8),
     // CPK-4's test-only publication oracle checks that capture began before every link writer.
     // CPK-8G-6b removes the final replacement-backed Legacy evidence fixture read.
     // CPK-8G-6f removes the final Legacy publication-shadow read.
-    ("record_proof_clause_links_by_lower_record", 9),
-    ("record_proof_clause_link_keys", 7),
+    ("record_proof_clause_links_by_lower_record", 8),
+    ("record_proof_clause_link_keys", 6),
     // CPK-8G-6b removes the replacement-backed Legacy evidence/trivial exclusion read.
     // CPK-8G-6g1 removes the attribution-union comparison reader.
     // CPK-8G-6g2 adds one test-only physical-census read that pins continued RCPF population after
     // authority-gated writes become unconditional; it is not a production read authority.
-    ("attributed_claim_supports", 13),
-    ("flat_retained_attributed_claim_supports", 4),
+    ("attributed_claim_supports", 12),
+    ("flat_retained_attributed_claim_supports", 3),
     // CPK-8E's CPK-only dependency-chain contract reads the index directly to verify its
     // replay-endpoint closure; this is a reviewed test assertion, not a production authority.
     // CPK-8G-4a adds the reviewed CPK-owned reverse index, its atomicity/target-late contract
@@ -927,14 +929,16 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
     // CPK-8G-6g1 removes only comparison-oracle reads; the direct arena API remains.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
-    ("replay_parent_sets", 11),
+    // CPK-8G-8b0 removes the last authority preflight that consulted RCPF parent sets.
+    ("replay_parent_sets", 10),
     // CPK-8E removes the final three migration-only finite-map normalizer reads. CPK-8G-4b
     // retires the three RCPF-only dangling-occurrence publication fault injections. CPK-8G-6b
     // removes the replacement-backed evidence/trivial occurrence-arena assertion.
     // CPK-8G-6d removes RCPF occurrence facade/census comparisons.
     // CPK-8G-6g1 removes Legacy-parity reconstruction and event-boundary reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
-    ("replay_occurrences", 18),
+    // CPK-8G-8b0 removes the RCPF occurrence-based exact-link authority preflight.
+    ("replay_occurrences", 16),
     // CPK-8E removes the final migration-only first-witness normalizer read.
     // CPK-8G-5 adds one parity read for the new CPK first-source index plus the snapshot test's
     // RCPF reset; both are test-only checks at the final dual-write freeze.
@@ -946,7 +950,8 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6b removes four reads from the two replacement-backed clause-projection fixtures.
     // CPK-8G-6g1 removes flat-vs-RCPF attribution and exact-link reconstruction reads.
     // CPK-8G-6g2 adds one test-only physical-census read for writer-continuity verification.
-    ("replay_clause_projection", 8),
+    // CPK-8G-8b0 removes RCPF from admission dedup and the test evaluator's attribution union.
+    ("replay_clause_projection", 6),
     // CPK-8G-6g2 likewise pins non-replay parent population after removing the authority gate.
     ("non_replay_claim_parents_by_constraint", 6),
 ];

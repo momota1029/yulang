@@ -145,8 +145,7 @@ struct ClauseLinkBatchAdmissionSnapshot {
 }
 
 struct ClaimParentClauseLinkPreflight {
-    legacy_phase_a_links: Vec<RecordProofClauseLinkAdmission>,
-    factored_failure: Option<ReplayFactoredShadowFailure>,
+    links: Vec<RecordProofClauseLinkAdmission>,
 }
 
 #[derive(Default)]
@@ -1648,25 +1647,17 @@ impl ConstraintMachine {
             probes.set(probes.get().saturating_add(1));
         });
         let preflight = self.preflight_claim_parent_clause_links(result, lower_record, parents);
-        let snapshot = self.commit_record_proof_clause_link_batch_mutation(
-            lower_record,
-            preflight.legacy_phase_a_links,
-        );
-        if let Some(failure) = preflight.factored_failure {
-            self.mark_replay_factored_failure(failure, ReplayFactoredFailureOperation::Read);
-        }
-        snapshot
+        self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links)
     }
 
     fn preflight_claim_parent_clause_links(
         &self,
-        result: ConstraintRecordId,
+        _result: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> ClaimParentClauseLinkPreflight {
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
-        let mut factored_failure = None;
         for parent in parents.iter().copied() {
             let Some(root) = self.bounds.canonical_coverage_root(parent.parent_claim()) else {
                 continue;
@@ -1696,31 +1687,10 @@ impl ConstraintMachine {
                 ),
             };
             let support = SchemeProjectionProofSupport::Claimed(root);
-            let already_registered = if factored_failure.is_some() {
-                self.bounds
-                    .record_proof_clause_link_is_registered(lower_record, support, clause)
-            } else {
-                match self.try_authoritative_claim_parent_clause_link_is_registered(
-                    result,
-                    lower_record,
-                    parent,
-                    support,
-                    clause,
-                ) {
-                    Ok(already_registered) => already_registered,
-                    Err(failure) => {
-                        factored_failure = Some(failure);
-                        // The failed attempt is discarded, but Phase A still completes the flat
-                        // mirror's attempt-local registration bookkeeping before quarantine.
-                        self.bounds.record_proof_clause_link_is_registered(
-                            lower_record,
-                            support,
-                            clause,
-                        )
-                    }
-                }
-            };
-            if already_registered {
+            if self
+                .proof_store
+                .projection_clause_link_is_registered(lower_record, support, clause)
+            {
                 continue;
             }
             let batch_link_key = (
@@ -1737,8 +1707,7 @@ impl ConstraintMachine {
             ));
         }
         ClaimParentClauseLinkPreflight {
-            legacy_phase_a_links: pending_links,
-            factored_failure,
+            links: pending_links,
         }
     }
 
@@ -1796,72 +1765,8 @@ impl ConstraintMachine {
             &self.replay_parent_sets,
             &self.replay_occurrences,
             &self.bounds,
+            &self.proof_store,
         )
-    }
-
-    fn try_factored_replay_clause_link_is_registered(
-        &self,
-        result: ConstraintRecordId,
-        lower_record: BoundRecordId,
-        root: UpperReplayClaimId,
-        replay: BinaryReplayDerivation,
-        clause: RecordProofClause,
-    ) -> ReplayFactoredResult<bool> {
-        #[cfg(test)]
-        if RCPF_E2C_FAIL_NEXT_A1_READ.with(|fail| fail.replace(false)) {
-            mark_next_replay_soak_failure_as_intentional();
-            return Err(ReplayFactoredShadowFailure::AllocationFailed);
-        }
-        let Some(occurrence_id) = self.replay_occurrences.occurrence_id(ReplayOccurrenceKey {
-            result,
-            carrier: replay,
-        }) else {
-            return Ok(false);
-        };
-        let clause_key = TypeBounds::record_proof_clause_key(lower_record, clause);
-        let Some(clause_id) = self
-            .bounds
-            .record_proof_clause_by_key
-            .get(&clause_key)
-            .copied()
-        else {
-            return Ok(false);
-        };
-        self.replay_clause_projection.try_has_exact_replay_link(
-            lower_record,
-            occurrence_id,
-            root,
-            clause_id,
-            &self.replay_parent_sets,
-            &self.replay_occurrences,
-        )
-    }
-
-    fn try_authoritative_claim_parent_clause_link_is_registered(
-        &self,
-        result: ConstraintRecordId,
-        lower_record: BoundRecordId,
-        parent: ClaimQualifiedParent,
-        support: SchemeProjectionProofSupport,
-        clause: RecordProofClause,
-    ) -> ReplayFactoredResult<bool> {
-        match (parent, support) {
-            (
-                ClaimQualifiedParent::ReplayConstraint { replay, .. },
-                SchemeProjectionProofSupport::Claimed(root),
-            ) => self.try_factored_replay_clause_link_is_registered(
-                result,
-                lower_record,
-                root,
-                replay,
-                clause,
-            ),
-            _ => Ok(self.bounds.record_proof_clause_link_is_registered(
-                lower_record,
-                support,
-                clause,
-            )),
-        }
     }
 
     fn register_replay_evidence_clause_link(
@@ -1895,8 +1800,8 @@ impl ConstraintMachine {
         let support = admission.support;
         let clause = admission.clause;
         if self
-            .bounds
-            .record_proof_clause_link_is_registered(lower_record, support, clause)
+            .proof_store
+            .projection_clause_link_is_registered(lower_record, support, clause)
         {
             return;
         }
@@ -2005,34 +1910,41 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
-        let mut links = links.into_iter().peekable();
-        if links.peek().is_none() {
+        let links = links.into_iter().collect::<Vec<_>>();
+        if links.is_empty() {
             return None;
         }
         let was_included = self.scheme_projection_record_is_included(lower_record);
-        let mut any_link_inserted = false;
+        let mut prepared = match self
+            .proof_store
+            .try_prepare_projection_clause_admission(lower_record, &links)
+        {
+            Ok(Some(prepared)) => prepared,
+            Ok(None) => return None,
+            Err(failure) => {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::UpdateClaimLifecycle,
+                    failure,
+                );
+                return None;
+            }
+        };
+        self.proof_store
+            .commit_projection_clause_admission(&mut prepared);
         let mut inserted_clauses = Vec::new();
-        for admission in links {
-            let clause = admission.clause;
+        for event in prepared.accepted().iter().copied() {
+            let admission = event.admission;
             let (_, clause_inserted, link_inserted) = self
                 .bounds
                 .register_record_proof_clause_link(lower_record, admission);
-            debug_assert!(
+            assert!(
                 link_inserted,
                 "clause-link batch preflight must agree with exact-key insertion"
             );
-            if !link_inserted {
-                continue;
-            }
-            self.proof_store
-                .record_projection_clause(lower_record, admission);
-            any_link_inserted = true;
+            assert_eq!(clause_inserted, event.clause_inserted);
             if clause_inserted {
-                inserted_clauses.push(clause);
+                inserted_clauses.push(admission.clause);
             }
-        }
-        if !any_link_inserted {
-            return None;
         }
         for clause in inserted_clauses {
             match clause {
@@ -2862,8 +2774,8 @@ impl ConstraintMachine {
             let support = SchemeProjectionProofSupport::Independent(support);
             let clause = RecordProofClause::Standalone { support };
             if self
-                .bounds
-                .record_proof_clause_link_is_registered(lower_record, support, clause)
+                .proof_store
+                .projection_clause_link_is_registered(lower_record, support, clause)
             {
                 continue;
             }

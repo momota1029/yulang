@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::proof::{ProofOccurrenceStore, record_proof_clause_cmp};
 use super::*;
 
 const MAX_PARENT_SET_DEPTH: u16 = 32;
@@ -91,8 +92,8 @@ pub(crate) enum ReplayFactoredShadowFailure {
     ReplayClauseProjectionMismatch {
         record: BoundRecordId,
         occurrence: ReplayOccurrenceId,
-        expected: RecordProofClauseId,
-        actual: RecordProofClauseId,
+        expected: RecordProofClause,
+        actual: RecordProofClause,
     },
     #[cfg(any(test, debug_assertions))]
     OracleMismatch(ReplayFactoredOracleMismatch),
@@ -1154,7 +1155,7 @@ impl ReplayResultSummary {
 #[derive(Debug, Default)]
 pub(super) struct ReplayClauseProjection {
     pub(super) clause_by_record_and_occurrence:
-        FxHashMap<(BoundRecordId, ReplayOccurrenceId), RecordProofClauseId>,
+        FxHashMap<(BoundRecordId, ReplayOccurrenceId), RecordProofClause>,
     pub(super) replay_attributed_claim_supports: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
 }
 
@@ -1173,7 +1174,7 @@ impl ReplayClauseProjection {
         lower_record: BoundRecordId,
         occurrence_id: ReplayOccurrenceId,
         root: UpperReplayClaimId,
-        clause: RecordProofClauseId,
+        clause: RecordProofClause,
         parent_sets: &ParentSetArena,
         occurrences: &ReplayOccurrenceStore,
     ) -> ReplayFactoredResult<bool> {
@@ -1208,6 +1209,7 @@ impl ReplayClauseProjection {
         parent_sets: &ParentSetArena,
         occurrences: &ReplayOccurrenceStore,
         bounds: &TypeBounds,
+        proof_store: &ProofOccurrenceStore,
     ) -> ReplayFactoredResult<()> {
         let mut pending_mappings = FxHashMap::default();
         let mut pending_supports = FxHashSet::default();
@@ -1244,15 +1246,8 @@ impl ReplayClauseProjection {
                 lower_premise: replay.lower,
                 upper_premise: replay.upper,
             };
-            let clause_key = TypeBounds::record_proof_clause_key(lower_record, clause);
-            let Some(clause_id) = bounds.record_proof_clause_by_key.get(&clause_key).copied()
-            else {
-                continue;
-            };
             let support = SchemeProjectionProofSupport::Claimed(root);
-            let link_key =
-                TypeBounds::record_proof_clause_link_key(lower_record, support, clause_id);
-            if !bounds.record_proof_clause_link_keys.contains(&link_key) {
+            if !proof_store.projection_clause_link_is_registered(lower_record, support, clause) {
                 continue;
             }
 
@@ -1262,24 +1257,24 @@ impl ReplayClauseProjection {
                 .get(&mapping_key)
                 .copied()
             {
-                if existing != clause_id {
+                if existing != clause {
                     return Err(
                         ReplayFactoredShadowFailure::ReplayClauseProjectionMismatch {
                             record: lower_record,
                             occurrence: occurrence_id,
                             expected: existing,
-                            actual: clause_id,
+                            actual: clause,
                         },
                     );
                 }
             } else if let Some(existing) = pending_mappings.get(&mapping_key).copied() {
-                if existing != clause_id {
+                if existing != clause {
                     return Err(
                         ReplayFactoredShadowFailure::ReplayClauseProjectionMismatch {
                             record: lower_record,
                             occurrence: occurrence_id,
                             expected: existing,
-                            actual: clause_id,
+                            actual: clause,
                         },
                     );
                 }
@@ -1290,7 +1285,7 @@ impl ReplayClauseProjection {
                         .map_err(|_| ReplayFactoredShadowFailure::AllocationFailed)?;
                     mapping_storage_reserved = true;
                 }
-                pending_mappings.insert(mapping_key, clause_id);
+                pending_mappings.insert(mapping_key, clause);
             }
 
             let support_key = (lower_record, root);
@@ -1332,7 +1327,7 @@ impl ReplayClauseProjection {
         parent_sets: &ParentSetArena,
         occurrences: &ReplayOccurrenceStore,
     ) -> ReplayFactoredResult<
-        std::vec::IntoIter<(BoundRecordId, UpperReplayClaimId, RecordProofClauseId)>,
+        std::vec::IntoIter<(BoundRecordId, UpperReplayClaimId, RecordProofClause)>,
     > {
         let mut mappings = Vec::new();
         mappings
@@ -1343,9 +1338,7 @@ impl ReplayClauseProjection {
                 .iter()
                 .map(|(&(record, occurrence), &clause)| (record, occurrence, clause)),
         );
-        mappings.sort_unstable_by_key(|(record, occurrence, clause)| {
-            (record.0, occurrence.0, clause.0)
-        });
+        mappings.sort_unstable_by_key(|(record, occurrence, _)| (record.0, occurrence.0));
 
         let mut links = Vec::new();
         for (record, occurrence_id, clause) in mappings {
@@ -1361,7 +1354,11 @@ impl ReplayClauseProjection {
                     .map(|entry| (record, entry.coverage_root, clause)),
             );
         }
-        links.sort_unstable_by_key(|(record, root, clause)| (record.0, root.0, clause.0));
+        links.sort_unstable_by(|left, right| {
+            (left.0.0, left.1.0)
+                .cmp(&(right.0.0, right.1.0))
+                .then_with(|| record_proof_clause_cmp(left.2, right.2))
+        });
         links.dedup();
         Ok(links.into_iter())
     }

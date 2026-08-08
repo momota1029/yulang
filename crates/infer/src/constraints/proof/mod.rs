@@ -826,6 +826,33 @@ pub(super) struct PreparedProjectionSupportMutation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct AcceptedProjectionClauseAdmission {
+    pub(super) admission: RecordProofClauseLinkAdmission,
+    pub(super) clause_inserted: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct PreparedProjectionClauseAdmission {
+    lower_record: BoundRecordId,
+    accepted: Vec<AcceptedProjectionClauseAdmission>,
+    new_clause_keys: Vec<(BoundRecordId, RecordProofClause)>,
+    new_link_keys: Vec<(
+        BoundRecordId,
+        SchemeProjectionProofSupport,
+        RecordProofClause,
+    )>,
+    canonical_formula: Vec<ProjectionClause>,
+    new_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
+    new_flat_retained_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
+}
+
+impl PreparedProjectionClauseAdmission {
+    pub(super) fn accepted(&self) -> &[AcceptedProjectionClauseAdmission] {
+        &self.accepted
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ProjectionClause {
     Standalone {
         support: SchemeProjectionProofSupport,
@@ -985,6 +1012,54 @@ fn proof_premise_cmp(left: ProofPremise, right: ProofPremise) -> std::cmp::Order
         ProofPremise::RootCoverage(root) => (2, root.0),
     };
     key(left).cmp(&key(right))
+}
+
+pub(super) fn record_proof_clause_cmp(
+    left: RecordProofClause,
+    right: RecordProofClause,
+) -> std::cmp::Ordering {
+    let rank = |clause| match clause {
+        RecordProofClause::Standalone { .. } => 0,
+        RecordProofClause::DerivedUnary { .. } => 1,
+        RecordProofClause::ReplayConjunction { .. } => 2,
+    };
+    rank(left)
+        .cmp(&rank(right))
+        .then_with(|| match (left, right) {
+            (
+                RecordProofClause::Standalone { support: left },
+                RecordProofClause::Standalone { support: right },
+            ) => projection_support_cmp(left, right),
+            (
+                RecordProofClause::DerivedUnary {
+                    carrier: left_carrier,
+                    premise: left_premise,
+                },
+                RecordProofClause::DerivedUnary {
+                    carrier: right_carrier,
+                    premise: right_premise,
+                },
+            ) => derived_unary_carrier_cmp(left_carrier, right_carrier)
+                .then_with(|| proof_premise_cmp(left_premise, right_premise)),
+            (
+                RecordProofClause::ReplayConjunction {
+                    carrier: left_carrier,
+                    lower_premise: left_lower,
+                    upper_premise: left_upper,
+                },
+                RecordProofClause::ReplayConjunction {
+                    carrier: right_carrier,
+                    lower_premise: right_lower,
+                    upper_premise: right_upper,
+                },
+            ) => canonical_projection_key::carrier_cmp(
+                &ProjectionProofCarrier::ReplayEvidence(left_carrier),
+                &ProjectionProofCarrier::ReplayEvidence(right_carrier),
+            )
+            .then_with(|| left_lower.0.cmp(&right_lower.0))
+            .then_with(|| left_upper.0.cmp(&right_upper.0)),
+            _ => std::cmp::Ordering::Equal,
+        })
 }
 
 fn projection_lineage_rank(lineage: Option<ProjectionLineage>) -> u8 {
@@ -1172,6 +1247,14 @@ pub(crate) struct ProofOccurrenceStore {
     projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     projection_lower_record_memberships: FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
+    projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
+    projection_clause_link_keys: FxHashSet<(
+        BoundRecordId,
+        SchemeProjectionProofSupport,
+        RecordProofClause,
+    )>,
+    projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
+    flat_retained_projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     #[cfg(test)]
     replay_index_record_comparisons: Cell<usize>,
     #[cfg(test)]
@@ -1186,6 +1269,8 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_projection_index_reservation: bool,
     #[cfg(test)]
     fail_next_projection_support_reservation: bool,
+    #[cfg(test)]
+    fail_next_projection_clause_reservation: bool,
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1219,6 +1304,10 @@ impl Default for ProofOccurrenceStore {
             projection_lower_records_by_root: FxHashMap::default(),
             projection_lower_record_memberships: FxHashSet::default(),
             projection_formulas: FxHashMap::default(),
+            projection_clause_keys: FxHashSet::default(),
+            projection_clause_link_keys: FxHashSet::default(),
+            projection_attributions: FxHashSet::default(),
+            flat_retained_projection_attributions: FxHashSet::default(),
             #[cfg(test)]
             replay_index_record_comparisons: Cell::new(0),
             #[cfg(test)]
@@ -1233,6 +1322,8 @@ impl Default for ProofOccurrenceStore {
             fail_next_projection_index_reservation: false,
             #[cfg(test)]
             fail_next_projection_support_reservation: false,
+            #[cfg(test)]
+            fail_next_projection_clause_reservation: false,
         }
     }
 }
@@ -2101,63 +2192,242 @@ impl ProofOccurrenceStore {
         );
     }
 
+    pub(super) fn projection_clause_link_is_registered(
+        &self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> bool {
+        self.projection_clause_link_keys
+            .contains(&(lower_record, support, clause))
+    }
+
+    pub(super) fn try_prepare_projection_clause_admission(
+        &mut self,
+        lower_record: BoundRecordId,
+        admissions: &[RecordProofClauseLinkAdmission],
+    ) -> Result<Option<PreparedProjectionClauseAdmission>, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_next_projection_clause_reservation) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        let mut accepted = Vec::new();
+        accepted.try_reserve(admissions.len()).map_err(exhausted)?;
+        let mut pending_clause_keys = FxHashSet::default();
+        pending_clause_keys
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut pending_link_keys = FxHashSet::default();
+        pending_link_keys
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut new_clause_keys = Vec::new();
+        new_clause_keys
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut new_link_keys = Vec::new();
+        new_link_keys
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut new_projection_attributions = Vec::new();
+        new_projection_attributions
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut new_flat_retained_projection_attributions = Vec::new();
+        new_flat_retained_projection_attributions
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut pending_attributed = FxHashSet::default();
+        pending_attributed
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut pending_flat_retained = FxHashSet::default();
+        pending_flat_retained
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+
+        for &admission in admissions {
+            let clause_key = (lower_record, admission.clause);
+            let link_key = (lower_record, admission.support, admission.clause);
+            if self.projection_clause_link_keys.contains(&link_key)
+                || !pending_link_keys.insert(link_key)
+            {
+                continue;
+            }
+            let clause_inserted = !self.projection_clause_keys.contains(&clause_key)
+                && pending_clause_keys.insert(clause_key);
+            if clause_inserted {
+                new_clause_keys.push(clause_key);
+            }
+            new_link_keys.push(link_key);
+            accepted.push(AcceptedProjectionClauseAdmission {
+                admission,
+                clause_inserted,
+            });
+            if let SchemeProjectionProofSupport::Claimed(root) = admission.support {
+                let attribution = (lower_record, root);
+                if !self.projection_attributions.contains(&attribution)
+                    && pending_attributed.insert(attribution)
+                {
+                    new_projection_attributions.push(attribution);
+                }
+                if admission.claimed_attribution_source
+                    == Some(ClaimedAttributionSource::FlatRetained)
+                    && !self
+                        .flat_retained_projection_attributions
+                        .contains(&attribution)
+                    && pending_flat_retained.insert(attribution)
+                {
+                    new_flat_retained_projection_attributions.push(attribution);
+                }
+            }
+        }
+        if accepted.is_empty() {
+            return Ok(None);
+        }
+
+        let existing_formula = self
+            .projection_formulas
+            .get(&lower_record)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let mut canonical_formula = Vec::new();
+        canonical_formula
+            .try_reserve(existing_formula.len().saturating_add(accepted.len()))
+            .map_err(exhausted)?;
+        canonical_formula.extend_from_slice(existing_formula);
+        for event in &accepted {
+            Self::insert_projection_clause_canonical(
+                &mut canonical_formula,
+                Self::projection_clause(event.admission),
+            );
+        }
+
+        self.projection_clause_keys
+            .try_reserve(new_clause_keys.len())
+            .map_err(exhausted)?;
+        self.projection_clause_link_keys
+            .try_reserve(new_link_keys.len())
+            .map_err(exhausted)?;
+        self.projection_attributions
+            .try_reserve(new_projection_attributions.len())
+            .map_err(exhausted)?;
+        self.flat_retained_projection_attributions
+            .try_reserve(new_flat_retained_projection_attributions.len())
+            .map_err(exhausted)?;
+        if !self.projection_formulas.contains_key(&lower_record) {
+            self.projection_formulas.try_reserve(1).map_err(exhausted)?;
+        }
+
+        Ok(Some(PreparedProjectionClauseAdmission {
+            lower_record,
+            accepted,
+            new_clause_keys,
+            new_link_keys,
+            canonical_formula,
+            new_projection_attributions,
+            new_flat_retained_projection_attributions,
+        }))
+    }
+
+    pub(super) fn commit_projection_clause_admission(
+        &mut self,
+        prepared: &mut PreparedProjectionClauseAdmission,
+    ) {
+        for key in prepared.new_clause_keys.drain(..) {
+            assert!(self.projection_clause_keys.insert(key));
+        }
+        for key in prepared.new_link_keys.drain(..) {
+            assert!(self.projection_clause_link_keys.insert(key));
+        }
+        for attribution in prepared.new_projection_attributions.drain(..) {
+            self.projection_attributions.insert(attribution);
+        }
+        for attribution in prepared.new_flat_retained_projection_attributions.drain(..) {
+            self.flat_retained_projection_attributions
+                .insert(attribution);
+        }
+        let canonical_formula = std::mem::take(&mut prepared.canonical_formula);
+        self.projection_formulas
+            .insert(prepared.lower_record, canonical_formula);
+    }
+
     pub(super) fn record_projection_clause(
         &mut self,
         lower_record: BoundRecordId,
         admission: RecordProofClauseLinkAdmission,
     ) {
+        if let Some(mut prepared) = self
+            .try_prepare_projection_clause_admission(lower_record, &[admission])
+            .expect("infallible projection-clause admission")
+        {
+            self.commit_projection_clause_admission(&mut prepared);
+        }
+    }
+
+    fn projection_clause(admission: RecordProofClauseLinkAdmission) -> ProjectionClause {
         let attribution = match (admission.clause, admission.claimed_attribution_source) {
-        (_, None) => None,
-        (RecordProofClause::Standalone { .. }, Some(_)) => Some(ProjectionLineage::Original),
-        (
-            RecordProofClause::DerivedUnary {
-                carrier: DerivedUnaryCarrier::Structural(_),
-                ..
+            (_, None) => None,
+            (RecordProofClause::Standalone { .. }, Some(_)) => Some(ProjectionLineage::Original),
+            (
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(_),
+                    ..
+                },
+                Some(_),
+            ) => Some(ProjectionLineage::StructuralConstraint),
+            (
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(_),
+                    ..
+                },
+                Some(_),
+            ) => Some(ProjectionLineage::ReductionRouteConstraint),
+            (
+                RecordProofClause::ReplayConjunction { .. },
+                Some(ClaimedAttributionSource::CanonicalReplay),
+            ) => Some(ProjectionLineage::ReplayConstraint),
+            (
+                RecordProofClause::ReplayConjunction { .. },
+                Some(ClaimedAttributionSource::FlatRetained),
+            ) => Some(ProjectionLineage::ReplayEvidence),
+        };
+        match admission.clause {
+            RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
+                support: admission.support,
+                attribution,
             },
-            Some(_),
-        ) => Some(ProjectionLineage::StructuralConstraint),
-        (
-            RecordProofClause::DerivedUnary {
-                carrier: DerivedUnaryCarrier::ReductionRoute(_),
-                ..
-            },
-            Some(_),
-        ) => Some(ProjectionLineage::ReductionRouteConstraint),
-        (
-            RecordProofClause::ReplayConjunction { .. },
-            Some(ClaimedAttributionSource::CanonicalReplay),
-        ) => Some(ProjectionLineage::ReplayConstraint),
-        (
-            RecordProofClause::ReplayConjunction { .. },
-            Some(ClaimedAttributionSource::FlatRetained),
-        ) => Some(ProjectionLineage::ReplayEvidence),
-    };
-        let clause = match admission.clause {
-        RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
-            support: admission.support,
-            attribution,
-        },
-        RecordProofClause::DerivedUnary { carrier, premise } => {
-            ProjectionClause::DerivedUnary {
+            RecordProofClause::DerivedUnary { carrier, premise } => {
+                ProjectionClause::DerivedUnary {
+                    support: admission.support,
+                    carrier,
+                    premise,
+                    attribution,
+                }
+            }
+            RecordProofClause::ReplayConjunction {
+                carrier,
+                lower_premise,
+                upper_premise,
+            } => ProjectionClause::ReplayConjunction {
                 support: admission.support,
                 carrier,
-                premise,
+                lower: lower_premise,
+                upper: upper_premise,
                 attribution,
-            }
+            },
         }
-        RecordProofClause::ReplayConjunction {
-            carrier,
-            lower_premise,
-            upper_premise,
-        } => ProjectionClause::ReplayConjunction {
-            support: admission.support,
-            carrier,
-            lower: lower_premise,
-            upper: upper_premise,
-            attribution,
-        },
-    };
-        let formula = self.projection_formulas.entry(lower_record).or_default();
+    }
+
+    fn insert_projection_clause_canonical(
+        formula: &mut Vec<ProjectionClause>,
+        clause: ProjectionClause,
+    ) {
         // Exact-key uniqueness is established before this writer runs. CPK owns the formula's
         // typed canonical order, including the total order within each formula category.
         if formula
@@ -4426,6 +4696,11 @@ impl ProofOccurrenceStore {
         self.fail_next_projection_support_reservation = true;
     }
 
+    #[cfg(test)]
+    pub(super) fn fail_next_projection_clause_reservation(&mut self) {
+        self.fail_next_projection_clause_reservation = true;
+    }
+
     pub(super) fn record_reduction_route(
         &mut self,
         result: ConstraintRecordId,
@@ -5772,6 +6047,50 @@ mod tests {
                 ProjectionProofCarrier::Incomplete
             )]
         );
+    }
+
+    #[test]
+    fn cpk_projection_clause_preflight_failure_is_atomic() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 103);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::Standalone { support },
+        );
+        machine
+            .proof_store
+            .fail_next_projection_clause_reservation();
+
+        let failure = machine
+            .proof_store
+            .try_prepare_projection_clause_admission(record, &[admission])
+            .expect_err("injected clause preflight must fail");
+        assert!(matches!(failure, ProofFailure::ResourceExhausted { .. }));
+        assert!(machine.proof_store.projection_clause_keys.is_empty());
+        assert!(machine.proof_store.projection_clause_link_keys.is_empty());
+        assert!(machine.proof_store.projection_formulas.is_empty());
+        assert!(machine.proof_store.projection_attributions.is_empty());
+        assert!(
+            machine
+                .proof_store
+                .flat_retained_projection_attributions
+                .is_empty()
+        );
+
+        let mut prepared = machine
+            .proof_store
+            .try_prepare_projection_clause_admission(record, &[admission])
+            .expect("the next transaction must reuse the unchanged state")
+            .expect("the clause must still be new");
+        machine
+            .proof_store
+            .commit_projection_clause_admission(&mut prepared);
+        assert!(machine.proof_store.projection_clause_link_is_registered(
+            record,
+            support,
+            admission.clause,
+        ));
     }
 
     #[test]
