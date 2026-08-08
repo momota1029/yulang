@@ -1993,13 +1993,8 @@ impl ConstraintMachine {
         let mut admission = self
             .proof_store
             .try_prepare_projection_index_admission(target, edges)?;
-        let mirror = self
-            .bounds
-            .try_reserve_projection_index_mirror(&admission)?;
         self.proof_store
             .commit_projection_index_admission(&mut admission);
-        self.bounds
-            .commit_projection_index_mirror(&admission, mirror);
         Ok(())
     }
 

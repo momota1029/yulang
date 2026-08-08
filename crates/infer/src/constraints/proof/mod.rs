@@ -1180,16 +1180,6 @@ pub(super) struct PreparedProjectionIndexAdmission {
     new_dependent_sets: Vec<(ProofPremise, FxHashSet<BoundRecordId>)>,
 }
 
-impl PreparedProjectionIndexAdmission {
-    pub(super) fn target(&self) -> Option<(ProjectionTarget, BoundRecordId)> {
-        self.target
-    }
-
-    pub(super) fn accepted_edges(&self) -> &[(ProofPremise, BoundRecordId)] {
-        &self.accepted_edges
-    }
-}
-
 impl PreparedQualifiedParentAdmission {
     pub(super) fn result(&self) -> ConstraintRecordId {
         self.result
