@@ -1716,8 +1716,8 @@ impl ConstraintMachine {
                     Ok(already_registered) => already_registered,
                     Err(failure) => {
                         factored_failure = Some(failure);
-                        // The failed attempt is discarded, but Phase A remains a complete legacy
-                        // oracle for the clean LegacyRollback retry.
+                        // The failed attempt is discarded, but Phase A still completes the flat
+                        // mirror's attempt-local registration bookkeeping before quarantine.
                         self.bounds.record_proof_clause_link_is_registered(
                             lower_record,
                             support,

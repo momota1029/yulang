@@ -446,6 +446,49 @@ const CPK8G6_RETIRED_CATEGORY_B_TOTAL: usize =
         + CPK8G6D_RETIRED_RCPF_PARENT_OCCURRENCE_TESTS.len()
         + CPK8G6E_RETIRED_RCPF_PUBLICATION_FAILURE_READER_TESTS.len();
 
+// CPK-8G-6 closure ledger. The first five slices dispose the reviewed test dependents before the
+// code-level irreversibility boundary; the next three remove the authority/reader surfaces; 6h
+// permanently gates that combined result while leaving the physical RCPF stores for 8G-9/10.
+const CPK8G6_COMPLETED_SUBSLICES: &[(&str, &str)] = &[
+    (
+        "8G-6a",
+        "migrated 14 category-A contracts to CPK-only fixtures and corrected the 60-test category-B census",
+    ),
+    (
+        "8G-6b",
+        "retired seven proof-oracle and replacement-backed category-B tests",
+    ),
+    (
+        "8G-6c",
+        "retired twenty flat/CDM characterization tests",
+    ),
+    (
+        "8G-6d",
+        "retired fourteen RCPF parent/occurrence migration characterizations",
+    ),
+    (
+        "8G-6e",
+        "retired the final nineteen RCPF publication/failure/Legacy-reader characterizations",
+    ),
+    (
+        "8G-6f",
+        "removed Proof authority, migration observations, comparators, and Legacy proof readers",
+    ),
+    (
+        "8G-6g1",
+        "removed flat/RCPF Legacy-comparison reader adapters",
+    ),
+    (
+        "8G-6g2",
+        "removed Replay authority selection while preserving the unconditional RCPF feed",
+    ),
+    (
+        "8G-6h",
+        "closed zero-reference gates and froze the RCPF structure-test deferral",
+    ),
+];
+const CPK8G6_COMPLETED_SUBSLICE_TOTAL: usize = 9;
+
 // CPK-8G-6f crosses the code-level irreversibility boundary after all Category-B dependents retire.
 // These names are mechanically forbidden in the production/test sources that formerly implemented
 // Proof authority selection and its migration observations. Replay authority is tracked separately
@@ -511,6 +554,7 @@ const CPK8G6G1_REMOVED_LEGACY_READER_SURFACES: &[&str] = &[
 // former authority gate is now only the sticky quarantine status, so normal writes are always fed.
 const CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES: &[&str] = &[
     "ReplayReadAuthority",
+    "LegacyRollback",
     "replay_read_authority",
     "new_with_replay_read_authority",
     "new_with_imported_boundary_and_replay_read_authority",
@@ -535,10 +579,9 @@ const CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS: &[&str] = &[
     "cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape",
 ];
 
-// CPK-8E closure manifest. Only the first two groups keep the proof migration oracle active:
-// three exact Legacy event-count parity holdouts and one deliberate corruption injection. The
-// remaining Legacy fixtures all select rollback authority explicitly; three have landed CPK-only
-// replacements and await retirement, while the physical RCPF/container contracts stay until 8G.
+// Historical CPK-8E closure sets. CPK-8G-6 retired every category-B member and removed both
+// authority/Legacy-reader surfaces; these empty sets remain as mechanical proof that none of those
+// reviewed dependents silently returned.
 const CPK8E_ROUTING_COUNT_PARITY_HOLDOUTS: &[&str] = &[];
 
 const CPK8E_PERMANENT_FAULT_INJECTION_DEPENDENTS: &[&str] = &[];
@@ -549,12 +592,11 @@ const CPK8E_PHYSICAL_REMOVAL_DEFERRED_FIXTURES: &[&str] = &[];
 
 const CPK8E_MIGRATION_ORACLE_DEPENDENT_TOTAL: usize = 0;
 
-// CPK-8G physical-removal manifest. CPK-8E's 48-entry closure described shared-fixture
-// migration-oracle dependents; physical deletion needs the larger union of 51 explicit Legacy
-// authority tests, three routing-count holdouts, and every direct RCPF structure test. A test is
-// listed exactly once below and carries every physical target that it protects. This prevents a
-// multi-target test from being split across classifications and having one dependency disappear
-// behind a duplicate name.
+// CPK-8G physical-removal manifest after the 8G-6 closure. The 60 category-B dependents are retired
+// and the 14 category-A contracts are independently pinned above. What remains here is only the
+// direct RCPF structure/integration coverage deferred to 8G-9/10 and the shell/telemetry coverage
+// deferred beyond it. A test is listed exactly once and carries every physical target it protects;
+// this prevents a multi-target test from hiding one dependency behind a duplicate name.
 //
 // The target names follow the deletion phase in the approved CPK-8G plan: authority/oracle
 // retirement (8G-6), flat parent/projection layers (8G-7/8), RCPF leaf-to-root removal (8G-9/10),
@@ -604,6 +646,7 @@ const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACTS: &[&str] = &[
 
 const CPK8G6_HISTORICAL_LEGACY_CHARACTERIZATION_TOTAL: usize = 0;
 const CPK8G6_CPK_ONLY_CORRECTNESS_CONTRACT_TOTAL: usize = 14;
+const CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL: usize = 11;
 
 const CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS: &[Cpk8gPhysicalTestGroup] = &[
     Cpk8gPhysicalTestGroup {
@@ -1483,6 +1526,11 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         replay_factored_source,
         lowering_body_source,
     ];
+    let reviewed_authority_reader_sources = REVIEWED_SOURCES
+        .iter()
+        .map(|&(_, source)| source)
+        .chain([arena_source, lifecycle_source, lowering_body_source])
+        .collect::<Vec<_>>();
 
     let explicit_legacy = CPK8_CDM_LEGACY_ONLY_FIXTURE_CALLERS
         .iter()
@@ -1632,14 +1680,28 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         historical_legacy_characterizations.len(), 0,
         "CPK-8G-6e must leave zero category-B Legacy-reader dependents",
     );
-    for &removed in CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES {
-        assert!(
-            [proof_source, bounds_source, constraints_source, machine_entry_source]
-                .iter()
-                .all(|source| !source.contains(removed)),
-            "CPK-8G-6f removed Proof-authority surface reappeared: {removed}",
-        );
-    }
+    assert_eq!(
+        CPK8G6_COMPLETED_SUBSLICES.len(),
+        CPK8G6_COMPLETED_SUBSLICE_TOTAL,
+        "the CPK-8G-6 closure ledger must contain all nine sub-slices",
+    );
+    let completed_subslices = CPK8G6_COMPLETED_SUBSLICES
+        .iter()
+        .map(|&(slice, summary)| {
+            assert!(!summary.is_empty(), "completed sub-slice must retain its disposition");
+            slice
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        completed_subslices,
+        [
+            "8G-6a", "8G-6b", "8G-6c", "8G-6d", "8G-6e", "8G-6f", "8G-6g1",
+            "8G-6g2", "8G-6h",
+        ]
+        .into_iter()
+        .collect(),
+        "the CPK-8G-6 closure ledger must account for every approved sub-slice exactly once",
+    );
     for &(retired, reason) in CPK8G6G1_RETIRED_LEGACY_READER_TESTS {
         assert!(!reason.is_empty(), "retired test must retain its category-B reason");
         assert_eq!(
@@ -1651,28 +1713,25 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
             "CPK-8G-6g1 retired Legacy-reader test reappeared: {retired}",
         );
     }
-    for &removed in CPK8G6G1_REMOVED_LEGACY_READER_SURFACES {
+    let removed_authority_reader_surfaces = CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES
+        .iter()
+        .chain(CPK8G6G1_REMOVED_LEGACY_READER_SURFACES)
+        .chain(CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        removed_authority_reader_surfaces.len(),
+        CPK8G6F_REMOVED_PROOF_AUTHORITY_SURFACES.len()
+            + CPK8G6G1_REMOVED_LEGACY_READER_SURFACES.len()
+            + CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES.len(),
+        "each removed authority/reader surface must have one unambiguous 8G-6 disposition",
+    );
+    for removed in removed_authority_reader_surfaces {
         assert!(
-            [bounds_source, constraints_source, machine_entry_source]
+            reviewed_authority_reader_sources
                 .iter()
                 .all(|source| !source.contains(removed)),
-            "CPK-8G-6g1 removed Legacy-reader adapter reappeared: {removed}",
-        );
-    }
-    for &removed in CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES {
-        assert!(
-            [
-                replay_factored_source,
-                bounds_source,
-                constraints_source,
-                machine_entry_source,
-                arena_source,
-                lifecycle_source,
-                lowering_body_source,
-            ]
-            .iter()
-            .all(|source| !source.contains(removed)),
-            "CPK-8G-6g2 removed Replay-authority surface reappeared: {removed}",
+            "CPK-8G-6h removed authority/Legacy-reader surface reappeared: {removed}",
         );
     }
     assert!(
@@ -1800,6 +1859,42 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         lowering_body_rcpf_tests.len(),
         4,
         "the direct lowering/body/mod.rs rcpf_* test census changed",
+    );
+
+    let deferred_rcpf_structure_tests = CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS
+        .iter()
+        .filter(|group| {
+            !group
+                .targets
+                .contains(&Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry)
+        })
+        .flat_map(|group| group.tests.iter().copied())
+        .collect::<BTreeSet<_>>();
+    let enumerated_rcpf_structure_tests = replay_factored_tests
+        .iter()
+        .copied()
+        .chain(bounds_rcpf_tests.iter().copied())
+        .collect::<BTreeSet<_>>();
+    for group in CPK8G_PHYSICAL_REMOVAL_TEST_GROUPS {
+        if group
+            .targets
+            .contains(&Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry)
+        {
+            assert_eq!(
+                group.targets,
+                &[Cpk8gPhysicalTarget::ReplayFactoredShellAndTelemetry],
+                "shell/telemetry coverage must not hide an 8G-9/10 structure dependency",
+            );
+        }
+    }
+    assert_eq!(
+        deferred_rcpf_structure_tests.len(),
+        CPK8G9_10_DEFERRED_RCPF_STRUCTURE_TEST_TOTAL,
+        "the direct RCPF structure-test deferral must remain intact for 8G-9/10",
+    );
+    assert_eq!(
+        deferred_rcpf_structure_tests, enumerated_rcpf_structure_tests,
+        "8G-6 closure must not absorb or misclassify direct RCPF structure tests deferred to 8G-9/10",
     );
 
     let expected_manifest = historical_legacy_characterizations
