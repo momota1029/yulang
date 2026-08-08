@@ -545,14 +545,6 @@ struct UpperReplayClaimRegistration {
     scheme_projection_mutation: SchemeProjectionMutation,
 }
 
-struct PreparedClaimMirrorCapacity {
-    record_claims: Option<Vec<UpperReplayClaimId>>,
-}
-
-struct PreparedClaimMoveMirrorCapacity {
-    record_claims: Option<Vec<UpperReplayClaimId>>,
-}
-
 /// A CPK-decided projection support transaction and its publication target.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum SchemeProjectionMutation {
@@ -1457,20 +1449,10 @@ impl ConstraintMachine {
             self.proof_store
                 .try_reserve_reduction_claim_index()
                 .map_err(exhausted)?;
-            self.bounds
-                .reduction_claim_by_state
-                .try_reserve(1)
-                .map_err(exhausted)?;
         }
         if let Some(claim) = self.proof_store.original_claim(record, producer) {
             if let Some(state) = reduction_state {
                 self.proof_store.commit_reduction_claim_index(state, claim);
-                assert!(
-                    self.bounds
-                        .reduction_claim_by_state
-                        .insert(state, claim)
-                        .is_none()
-                );
             }
             let lower_record = self.lower_record_for_constraint(producer);
             let mut clause_admission = match lower_record {
@@ -1492,7 +1474,7 @@ impl ConstraintMachine {
             }
             let mut registration = self
                 .bounds
-                .finish_existing_original_upper_replay_claim_mirror(record, producer, claim);
+                .finish_existing_original_upper_replay_claim_mirror(claim);
             if let Some(lower_record) = lower_record {
                 registration.scheme_projection_mutation =
                     self.try_prepare_scheme_projection_mutation(lower_record, &[claim], &[])?;
@@ -1517,11 +1499,8 @@ impl ConstraintMachine {
             )?,
             None => None,
         };
-        let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
-            record,
-            Some(producer),
-            proof::ProofOperation::AdmitOriginalClaim,
-        )?;
+        self.bounds
+            .try_reserve_upper_replay_claim_mirror(proof::ProofOperation::AdmitOriginalClaim)?;
         assert_eq!(issued.0 as usize, self.bounds.upper_replay_claims.len());
         self.proof_store
             .commit_original_claim_admission(&mut admission);
@@ -1529,25 +1508,15 @@ impl ConstraintMachine {
             self.proof_store
                 .commit_projection_clause_admission(prepared);
         }
-        let mut registration = self.bounds.commit_original_upper_replay_claim_mirror(
-            issued,
-            record,
-            producer,
-            kind,
-            mirror_capacity,
-        );
+        let mut registration = self
+            .bounds
+            .commit_original_upper_replay_claim_mirror(issued, record, producer, kind);
         if let Some(lower_record) = lower_record {
             registration.scheme_projection_mutation =
                 self.try_prepare_scheme_projection_mutation(lower_record, &[issued], &[])?;
         }
         if let Some(state) = reduction_state {
             self.proof_store.commit_reduction_claim_index(state, issued);
-            assert!(
-                self.bounds
-                    .reduction_claim_by_state
-                    .insert(state, issued)
-                    .is_none()
-            );
         }
         assert_eq!(registration.proof_admission, admission);
         Ok(registration)
@@ -1609,20 +1578,11 @@ impl ConstraintMachine {
                 .projection_lower_record_for_replay(replay),
         };
         match &decision {
-            proof::PreparedDerivedClaimDecision::Coalesced {
-                claim,
-                coverage_root,
-            } => {
+            proof::PreparedDerivedClaimDecision::Coalesced { claim, .. } => {
                 let claim = *claim;
                 let mut registration = self
                     .bounds
-                    .finish_coalesced_derived_upper_replay_claim_mirror(
-                        record,
-                        *coverage_root,
-                        claim,
-                        producer,
-                        lineage,
-                    );
+                    .finish_coalesced_derived_upper_replay_claim_mirror(claim);
                 self.proof_store
                     .commit_derived_claim_decision(&mut decision);
                 if let Some(lower_record) = lower_record {
@@ -1632,21 +1592,18 @@ impl ConstraintMachine {
                 Ok(registration)
             }
             proof::PreparedDerivedClaimDecision::New(_) => {
-                let mirror_capacity = self.bounds.try_reserve_upper_replay_claim_mirror(
-                    record,
-                    None,
-                    proof::ProofOperation::AdmitDerivedClaim,
-                )?;
+                self.bounds
+                    .try_reserve_upper_replay_claim_mirror(
+                        proof::ProofOperation::AdmitDerivedClaim,
+                    )?;
                 self.proof_store
                     .commit_derived_claim_decision(&mut decision);
                 let proof::PreparedDerivedClaimDecision::New(admission) = &decision else {
                     unreachable!("prepared derived decision changed variant")
                 };
-                let mut registration = self.bounds.commit_derived_upper_replay_claim_mirror(
-                    admission,
-                    lineage,
-                    mirror_capacity,
-                );
+                let mut registration = self
+                    .bounds
+                    .commit_derived_upper_replay_claim_mirror(admission, lineage);
                 if let Some(lower_record) = lower_record {
                     registration.scheme_projection_mutation = self
                         .try_prepare_scheme_projection_mutation(
@@ -1696,12 +1653,9 @@ impl ConstraintMachine {
         let mut mutation = self
             .proof_store
             .try_prepare_upper_claim_move(claim, current_record)?;
-        let mirror_capacity = self
-            .bounds
-            .try_reserve_upper_replay_claim_move_mirror(&mutation)?;
         self.proof_store.commit_upper_claim_move(&mut mutation);
         self.bounds
-            .commit_upper_replay_claim_move_mirror(&mutation, mirror_capacity);
+            .commit_upper_replay_claim_move_mirror(&mutation);
         Ok(())
     }
 
@@ -1993,14 +1947,6 @@ pub struct TypeBounds {
     canonical: FxHashMap<BoundSemanticKey, BoundRecordId>,
     records: Vec<BoundRecord>,
     upper_replay_claims: Vec<UpperReplayClaim>,
-    claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
-    original_claim_by_record_and_producer:
-        FxHashMap<(BoundRecordId, ConstraintRecordId), UpperReplayClaimId>,
-    derived_claim_by_record_and_root:
-        FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
-    reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
-    // Append-only mirror of Original claims, keyed by their stable producer identity.
-    root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
     replay_claim_cycle_coalesces: usize,
 }
 
@@ -2032,25 +1978,6 @@ impl TypeBounds {
             "coverage roots must already be path-compressed"
         );
         Some(root_claim.coverage_root)
-    }
-
-    fn register_original_claim_mirror(
-        &mut self,
-        producer: ConstraintRecordId,
-        claim: UpperReplayClaimId,
-    ) {
-        match self.root_claim_by_producer_constraint.entry(producer) {
-            Entry::Vacant(entry) => {
-                entry.insert(claim);
-            }
-            Entry::Occupied(entry) => {
-                assert_eq!(
-                    *entry.get(),
-                    claim,
-                    "one producer constraint mapped to two distinct Original replay claims"
-                );
-            }
-        }
     }
 
     fn contains_derivation(&self, key: &BoundSemanticKey, derivation: &BoundDerivation) -> bool {
@@ -2260,83 +2187,18 @@ impl TypeBounds {
         self.bounds_mut(var).epoch = epoch;
     }
 
-    fn insert_upper_record_claim_canonical(
-        &mut self,
-        record: BoundRecordId,
-        claim: UpperReplayClaimId,
-    ) {
-        let incoming_root = self.upper_replay_claims[claim.0 as usize].coverage_root;
-        let upper_replay_claims = &self.upper_replay_claims;
-        let claims = self.claims_by_upper_record.entry(record).or_default();
-        match claims.binary_search_by(|existing| {
-            let existing_root = upper_replay_claims[existing.0 as usize].coverage_root;
-            canonical_upper_claim_key::cmp(existing_root, incoming_root)
-        }) {
-            Ok(position) => claims[position] = claim,
-            Err(position) => {
-                #[cfg(test)]
-                record_canonical_upper_claim_insertion_moves(claims.len() - position);
-                claims.insert(position, claim);
-            }
-        }
-    }
-
     fn try_reserve_upper_replay_claim_mirror(
         &mut self,
-        record: BoundRecordId,
-        original_producer: Option<ConstraintRecordId>,
         operation: proof::ProofOperation,
-    ) -> Result<PreparedClaimMirrorCapacity, proof::ProofFailure> {
+    ) -> Result<(), proof::ProofFailure> {
         let exhausted = |_| proof::ProofFailure::ResourceExhausted { operation };
-        self.upper_replay_claims.try_reserve(1).map_err(exhausted)?;
-        if let Some(producer_constraint) = original_producer {
-            assert!(
-                !self
-                    .original_claim_by_record_and_producer
-                    .contains_key(&(record, producer_constraint))
-            );
-            assert!(
-                !self
-                    .root_claim_by_producer_constraint
-                    .contains_key(&producer_constraint)
-            );
-            self.original_claim_by_record_and_producer
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            self.root_claim_by_producer_constraint
-                .try_reserve(1)
-                .map_err(exhausted)?;
-        } else {
-            self.derived_claim_by_record_and_root
-                .try_reserve(1)
-                .map_err(exhausted)?;
-        }
-        let record_claims = if let Some(claims) = self.claims_by_upper_record.get_mut(&record) {
-            claims.try_reserve(1).map_err(exhausted)?;
-            None
-        } else {
-            self.claims_by_upper_record
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            let mut claims = Vec::new();
-            claims.try_reserve(1).map_err(exhausted)?;
-            Some(claims)
-        };
-        Ok(PreparedClaimMirrorCapacity { record_claims })
+        self.upper_replay_claims.try_reserve(1).map_err(exhausted)
     }
 
     fn finish_existing_original_upper_replay_claim_mirror(
-        &mut self,
-        record: BoundRecordId,
-        producer_constraint: ConstraintRecordId,
+        &self,
         claim: UpperReplayClaimId,
     ) -> UpperReplayClaimRegistration {
-        let key = (record, producer_constraint);
-        assert_eq!(
-            self.original_claim_by_record_and_producer.get(&key),
-            Some(&claim)
-        );
-        self.register_original_claim_mirror(producer_constraint, claim);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
         self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation)
     }
@@ -2347,23 +2209,14 @@ impl TypeBounds {
         record: BoundRecordId,
         producer_constraint: ConstraintRecordId,
         kind: UpperReplayClaimKind,
-        prepared: PreparedClaimMirrorCapacity,
     ) -> UpperReplayClaimRegistration {
-        let key = (record, producer_constraint);
-        assert!(
-            !self
-                .root_claim_by_producer_constraint
-                .contains_key(&producer_constraint),
-            "one producer constraint attempted to create a second Original replay claim"
-        );
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
         };
         assert_eq!(id.0 as usize, self.upper_replay_claims.len());
-        if let Some(claims) = prepared.record_claims {
-            assert!(self.claims_by_upper_record.insert(record, claims).is_none());
-        }
+        #[cfg(test)]
+        self.record_upper_claim_mirror_insertion_census(record, id, None);
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
@@ -2375,28 +2228,14 @@ impl TypeBounds {
             coverage_root: id,
             lineage: UpperReplayClaimLineage::Original,
         });
-        self.original_claim_by_record_and_producer.insert(key, id);
-        self.register_original_claim_mirror(producer_constraint, id);
-        self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
         self.finish_upper_replay_claim_registration(id, scheme_projection_mutation)
     }
 
     fn finish_coalesced_derived_upper_replay_claim_mirror(
         &mut self,
-        record: BoundRecordId,
-        coverage_root: UpperReplayClaimId,
         claim: UpperReplayClaimId,
-        _producer_constraint: ConstraintRecordId,
-        _lineage: UpperReplayClaimLineage,
     ) -> UpperReplayClaimRegistration {
-        let expected =
-            if self.upper_replay_claims[coverage_root.0 as usize].current_record == record {
-                coverage_root
-            } else {
-                self.derived_claim_by_record_and_root[&(record, coverage_root)]
-            };
-        assert_eq!(claim, expected);
         self.replay_claim_cycle_coalesces += 1;
         let scheme_projection_mutation = SchemeProjectionMutation::None;
         self.finish_upper_replay_claim_registration(claim, scheme_projection_mutation)
@@ -2406,7 +2245,6 @@ impl TypeBounds {
         &mut self,
         admission: &proof::PreparedUpperClaimAdmission,
         lineage: UpperReplayClaimLineage,
-        prepared: PreparedClaimMirrorCapacity,
     ) -> UpperReplayClaimRegistration {
         let occurrence = &admission.occurrence;
         let record = occurrence.current_record;
@@ -2429,12 +2267,6 @@ impl TypeBounds {
             self.upper_replay_claims[root.0 as usize].current_record, record,
             "the CPK allocator must coalesce a cycle back to the root"
         );
-        assert!(
-            !self
-                .derived_claim_by_record_and_root
-                .contains_key(&(record, root)),
-            "the CPK allocator must coalesce an existing (record, root) materialization"
-        );
         let bound = &self.records[record.0 as usize];
         let BoundEndpoint::Upper(endpoint) = bound.endpoint else {
             unreachable!("upper replay claims belong to upper records");
@@ -2442,9 +2274,8 @@ impl TypeBounds {
         let id = occurrence.claim;
         assert_eq!(id.0 as usize, self.upper_replay_claims.len());
         debug_assert!(parent_claim < id);
-        if let Some(claims) = prepared.record_claims {
-            assert!(self.claims_by_upper_record.insert(record, claims).is_none());
-        }
+        #[cfg(test)]
+        self.record_upper_claim_mirror_insertion_census(record, root, None);
         self.upper_replay_claims.push(UpperReplayClaim {
             id,
             source: bound.owner,
@@ -2456,9 +2287,6 @@ impl TypeBounds {
             coverage_root: root,
             lineage,
         });
-        self.derived_claim_by_record_and_root
-            .insert((record, root), id);
-        self.insert_upper_record_claim_canonical(record, id);
         let scheme_projection_mutation = SchemeProjectionMutation::None;
         let registration =
             self.finish_upper_replay_claim_registration(id, scheme_projection_mutation);
@@ -2480,57 +2308,9 @@ impl TypeBounds {
         }
     }
 
-    fn try_reserve_upper_replay_claim_move_mirror(
-        &mut self,
-        mutation: &proof::PreparedUpperClaimMove,
-    ) -> Result<PreparedClaimMoveMirrorCapacity, proof::ProofFailure> {
-        let replay_claim = &self.upper_replay_claims[mutation.claim.0 as usize];
-        assert_eq!(replay_claim.current_record, mutation.previous_record);
-        assert_eq!(replay_claim.producer_constraint, mutation.producer);
-        assert_eq!(replay_claim.coverage_root, mutation.coverage_root);
-        assert_eq!(
-            proof::upper_claim_lineage(replay_claim.lineage),
-            mutation.full_lineage
-        );
-        if mutation.previous_record == mutation.current_record {
-            return Ok(PreparedClaimMoveMirrorCapacity {
-                record_claims: None,
-            });
-        }
-        let exhausted = |_| proof::ProofFailure::ResourceExhausted {
-            operation: proof::ProofOperation::UpdateClaimLifecycle,
-        };
-        match replay_claim.lineage {
-            UpperReplayClaimLineage::Original => self
-                .original_claim_by_record_and_producer
-                .try_reserve(1)
-                .map_err(exhausted)?,
-            _ => self
-                .derived_claim_by_record_and_root
-                .try_reserve(1)
-                .map_err(exhausted)?,
-        }
-        let record_claims = if let Some(claims) = self
-            .claims_by_upper_record
-            .get_mut(&mutation.current_record)
-        {
-            claims.try_reserve(1).map_err(exhausted)?;
-            None
-        } else {
-            self.claims_by_upper_record
-                .try_reserve(1)
-                .map_err(exhausted)?;
-            let mut claims = Vec::new();
-            claims.try_reserve(1).map_err(exhausted)?;
-            Some(claims)
-        };
-        Ok(PreparedClaimMoveMirrorCapacity { record_claims })
-    }
-
     fn commit_upper_replay_claim_move_mirror(
         &mut self,
         mutation: &proof::PreparedUpperClaimMove,
-        prepared: PreparedClaimMoveMirrorCapacity,
     ) {
         if mutation.previous_record == mutation.current_record {
             return;
@@ -2547,59 +2327,34 @@ impl TypeBounds {
         };
         let source = bound.owner;
         let weights = bound.weights.clone();
-        if let Some(claims) = self
-            .claims_by_upper_record
-            .get_mut(&mutation.previous_record)
-        {
-            claims.retain(|candidate| *candidate != mutation.claim);
-        }
-        match lineage {
-            UpperReplayClaimLineage::Original => {
-                assert_eq!(
-                    self.original_claim_by_record_and_producer
-                        .remove(&(mutation.previous_record, mutation.producer)),
-                    Some(mutation.claim)
-                );
-            }
-            _ => {
-                assert_eq!(
-                    self.derived_claim_by_record_and_root
-                        .remove(&(mutation.previous_record, mutation.coverage_root)),
-                    Some(mutation.claim)
-                );
-            }
-        }
-        // Once the Original root reaches this record, the existing materialization contract makes
-        // it canonical for `(record, root)`; the displaced child remains append-only history.
-        if lineage == UpperReplayClaimLineage::Original {
-            self.derived_claim_by_record_and_root
-                .remove(&(mutation.current_record, mutation.coverage_root));
-        }
+        #[cfg(test)]
+        self.record_upper_claim_mirror_insertion_census(
+            mutation.current_record,
+            mutation.coverage_root,
+            Some(mutation.claim),
+        );
         let replay_claim = &mut self.upper_replay_claims[mutation.claim.0 as usize];
         replay_claim.current_record = mutation.current_record;
         replay_claim.source = source;
         replay_claim.endpoint = endpoint;
         replay_claim.weights = weights;
-        if let Some(claims) = prepared.record_claims {
-            assert!(
-                self.claims_by_upper_record
-                    .insert(mutation.current_record, claims)
-                    .is_none()
-            );
-        }
-        match lineage {
-            UpperReplayClaimLineage::Original => {
-                self.original_claim_by_record_and_producer
-                    .insert((mutation.current_record, mutation.producer), mutation.claim);
-            }
-            _ => {
-                self.derived_claim_by_record_and_root.insert(
-                    (mutation.current_record, mutation.coverage_root),
-                    mutation.claim,
-                );
-            }
-        }
-        self.insert_upper_record_claim_canonical(mutation.current_record, mutation.claim);
+    }
+
+    #[cfg(test)]
+    fn record_upper_claim_mirror_insertion_census(
+        &self,
+        record: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        excluded_claim: Option<UpperReplayClaimId>,
+    ) {
+        let moves = self
+            .upper_replay_claims
+            .iter()
+            .filter(|claim| Some(claim.id) != excluded_claim)
+            .filter(|claim| claim.current_record == record)
+            .filter(|claim| claim.coverage_root > coverage_root)
+            .count();
+        record_canonical_upper_claim_insertion_moves(moves);
     }
 }
 

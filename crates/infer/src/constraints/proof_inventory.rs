@@ -24,10 +24,9 @@
 // six of those purposes (including the carrier-order helper/test pair); 44 remain compiled for 8G.
 //
 // Production read/write graph for CPK-8B, grouped by physical field ownership:
-// - upper_replay_claims and its record/root/producer indexes: writers original/derived claim,
-//   claim move, register_constraint_upper_replay_claims; CPK-8G-11a0 closes the final eight
-//   production consumers, leaving only the reviewed flat mirror preflight/commit paths and
-//   test-fixture reads before physical deletion.
+// - CPK-8G-11b1 removes the five flat record/root/producer/reduction claim indexes after
+//   CPK-8G-11a0/a1 close their production and fixture readers. The flat claim Vec and cycle
+//   counter remain as event mirrors for CPK-8G-11b2; CPK exclusively owns every claim index.
 // - CPK-8G-7a closes the CPK parent read view. CPK-8G-7b1/b2 remove the replay and structural
 //   exact-key mirrors independently; CPK-8G-7b3 removes the qualified-carrier projection; and
 //   CPK-8G-7b4 removes the final claim-parent Vec mirror while preserving the CPK admission and
@@ -964,8 +963,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-11a0 removes the final two production reads (generalization carrier resolution and
     // replay-evidence producer resolution); both now use the CPK dense claim arena.
     // CPK-8G-11a1 moves every remaining correctness fixture to the CPK claim payload and semantic
-    // BoundRecord view; the residual references are definition/preflight/commit mirror sites.
-    ("upper_replay_claims", 30),
+    // BoundRecord view. CPK-8G-11b1 removes the five flat index branches while preserving the Vec
+    // and cycle-counter event mirrors for CPK-8G-11b2.
+    ("upper_replay_claims", 25),
     // CPK-7 Slice A adds nine reviewed references for the approved production CPK index and its
     // atomicity/no-global-scan tests. Slice B adds the reviewed query read and fault injection.
     // CPK-8G-1 adds one reviewed CPK-only allocation-census read proving the no-claim writer
@@ -975,8 +975,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // multi-move/atomicity assertions. The flat index is now observed only as a transition mirror.
     // CPK-8G-6c removes one historical flat materialization-census read. CPK-8G-9-0b removes the
     // final test-only RCPF evaluator lookup; the CPK evaluator reads its own upper-claim index.
-    // CPK-8G-11a1 removes the remaining flat record-index fixture assertions.
-    ("claims_by_upper_record", 46),
+    // CPK-8G-11a1 removes the remaining flat record-index fixture assertions. CPK-8G-11b1 removes
+    // the flat index itself; every remaining reference belongs to ProofOccurrenceStore.
+    ("claims_by_upper_record", 36),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
@@ -1099,7 +1100,6 @@ const REVIEWED_BOUNDARIES: &[(&str, &str)] = &[
     // Upper claims and claim-parent relations.
     ("constraints/mod.rs", "original_upper_replay_claim"),
     ("constraints/mod.rs", "derived_upper_replay_claim"),
-    ("constraints/mod.rs", "insert_upper_record_claim_canonical"),
     ("constraints/mod.rs", "move_upper_replay_claim"),
     (
         "constraints/mod.rs",
@@ -1345,11 +1345,6 @@ fn cpk_8g_11a1_flat_claim_mirror_has_no_readers() {
         .expect("ConstraintMachine/TypeBounds boundary");
     for (field, expected_mirror_references) in [
         ("upper_replay_claims", 1),
-        ("claims_by_upper_record", 0),
-        ("original_claim_by_record_and_producer", 0),
-        ("derived_claim_by_record_and_root", 0),
-        ("reduction_claim_by_state", 3),
-        ("root_claim_by_producer_constraint", 0),
         ("replay_claim_cycle_coalesces", 0),
     ] {
         assert_eq!(
@@ -1390,6 +1385,60 @@ fn cpk_8g_11a2_live_coverage_mirror_is_fully_removed() {
                 assert!(
                     !source.contains(identifier),
                     "CPK-8G-11a2 removed live-coverage mirror identifier reappeared in {}: {identifier}",
+                    path.display(),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn cpk_8g_11b1_flat_claim_indexes_are_fully_removed() {
+    let removed_flat_indexes = [
+        ["claims_by_upper_", "record"].concat(),
+        ["original_claim_by_record_and_", "producer"].concat(),
+        ["derived_claim_by_record_and_", "root"].concat(),
+        ["reduction_claim_by_", "state"].concat(),
+        ["root_claim_by_producer_", "constraint"].concat(),
+    ];
+    let bounds_source = include_str!("mod.rs");
+    let cpk_source = include_str!("proof/mod.rs");
+    for identifier in removed_flat_indexes {
+        assert!(
+            !bounds_source.contains(&identifier),
+            "CPK-8G-11b1 removed flat claim index reappeared in ConstraintMachine/TypeBounds: {identifier}",
+        );
+        assert!(
+            cpk_source.contains(&identifier),
+            "CPK-8G-11b1 must retain the authoritative CPK claim index: {identifier}",
+        );
+    }
+
+    let removed_flat_helpers = [
+        ["PreparedClaim", "MirrorCapacity"].concat(),
+        ["PreparedClaimMove", "MirrorCapacity"].concat(),
+        ["register_original_claim_", "mirror"].concat(),
+        ["insert_upper_record_claim_", "canonical"].concat(),
+        ["try_reserve_upper_replay_claim_move_", "mirror"].concat(),
+    ];
+    let mut pending = vec![std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+    while let Some(directory) = pending.pop() {
+        for entry in
+            std::fs::read_dir(&directory).expect("infer source directory must be readable")
+        {
+            let path = entry.expect("infer source entry must be readable").path();
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            if path.extension().and_then(std::ffi::OsStr::to_str) != Some("rs") {
+                continue;
+            }
+            let source = std::fs::read_to_string(&path).expect("infer Rust source must be readable");
+            for identifier in &removed_flat_helpers {
+                assert!(
+                    !source.contains(identifier),
+                    "CPK-8G-11b1 removed flat index helper reappeared in {}: {identifier}",
                     path.display(),
                 );
             }
