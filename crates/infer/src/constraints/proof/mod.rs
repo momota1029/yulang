@@ -3019,12 +3019,11 @@ impl<'a> ProjectionPreflight<'a> {
             BoundDirection::Upper => {
                 let claims = self
                     .store
-                    .upper_claims
-                    .iter()
-                    .filter(|claim| claim.current_record == record)
-                    .map(|claim| claim.claim)
-                    .collect::<Vec<_>>();
-                for claim in claims {
+                    .claims_by_upper_record
+                    .get(&record)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                for claim in claims.iter().copied() {
                     self.validate_claim_reference(owner, claim)?;
                 }
                 Ok(())
@@ -3644,14 +3643,15 @@ impl<'a> CpkProjectionEvaluator<'a> {
         if bound.direction() == BoundDirection::Upper {
             let claims = self
                 .store
-                .upper_claims
-                .iter()
-                .filter(|claim| claim.current_record == record)
-                .collect::<Vec<_>>();
+                .claims_by_upper_record
+                .get(&record)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
             return claims.is_empty()
                 || claims
-                    .into_iter()
-                    .any(|claim| self.eval_root_coverage(claim.claim));
+                    .iter()
+                    .copied()
+                    .any(|claim| self.eval_root_coverage(claim));
         }
 
         let Some(supports) = self.store.projection_supports.get(&record) else {
