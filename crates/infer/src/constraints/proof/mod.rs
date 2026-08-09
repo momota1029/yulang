@@ -3746,16 +3746,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 return true;
             }
         }
-        let producer_roots = self
-            .store
-            .upper_claims
-            .iter()
-            .filter(|claim| {
-                claim.producer == constraint && claim.lineage == ProjectionLineage::Original
-            })
-            .map(|claim| claim.claim)
-            .collect::<Vec<_>>();
-        for root in producer_roots {
+        if let Some(root) = self.store.root_claim_for_producer(constraint) {
             has_source = true;
             if self.eval_root_coverage(root) {
                 return true;
@@ -3765,13 +3756,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
     }
 
     fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
-        let Some(root) = self
-            .store
-            .upper_claims
-            .iter()
-            .find(|candidate| candidate.claim == claim)
-            .map(|claim| claim.coverage_root)
-        else {
+        let Some(root) = self.store.claim_coverage_root(claim) else {
             debug_assert!(
                 false,
                 "CPK projection evaluator reached missing machine-issued claim/root {claim:?}"
@@ -3781,11 +3766,11 @@ impl<'a> CpkProjectionEvaluator<'a> {
         if let Some(result) = self.root_overrides.get(&root) {
             return *result;
         }
-        !self
+        self
             .store
-            .live_coverage
-            .iter()
-            .any(|(candidate, _)| *candidate == root)
+            .live_states_by_coverage_root
+            .get(&root)
+            .is_none_or(FxHashSet::is_empty)
     }
 
     fn support_is_qualifying(&self, support: SchemeProjectionProofSupport) -> bool {
@@ -3809,14 +3794,9 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 SchemeProjectionProofSupport::Claimed(left),
                 SchemeProjectionProofSupport::Claimed(right),
             ) => {
-                let root = |claim| {
-                    self.store
-                        .upper_claims
-                        .iter()
-                        .find(|candidate| candidate.claim == claim)
-                        .map(|claim| claim.coverage_root)
-                };
-                root(left).is_some() && root(left) == root(right)
+                let left_root = self.store.claim_coverage_root(left);
+                let right_root = self.store.claim_coverage_root(right);
+                left_root.is_some() && left_root == right_root
             }
             _ => false,
         }
