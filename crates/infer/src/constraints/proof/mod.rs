@@ -1077,8 +1077,10 @@ pub(crate) enum ProofParent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProofOccurrenceStore {
     pub(crate) occurrences: Vec<ProofOccurrence>,
+    dependency_occurrence_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
     pub(crate) replay_finite_map: Vec<ReplayProofOccurrence>,
     replay_finite_map_index: FxHashMap<(ConstraintRecordId, BinaryReplayDerivation), usize>,
+    replay_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
     pub(crate) replay_admissions: Vec<ReplayAdmissionEvent>,
     pub(crate) first_replay_witnesses:
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness>,
@@ -1143,8 +1145,10 @@ impl Default for ProofOccurrenceStore {
     fn default() -> Self {
         Self {
             occurrences: Vec::new(),
+            dependency_occurrence_indices_by_result: FxHashMap::default(),
             replay_finite_map: Vec::new(),
             replay_finite_map_index: FxHashMap::default(),
+            replay_indices_by_result: FxHashMap::default(),
             replay_admissions: Vec::new(),
             first_replay_witnesses: FxHashMap::default(),
             upper_claims: Vec::new(),
@@ -1447,6 +1451,13 @@ impl ProofOccurrenceStore {
         parents: Vec<ProofParent>,
         completeness: ProvenanceCompleteness,
     ) {
+        let dependency_result = match (&result, &cause) {
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                ProofCause::Structural(_) | ProofCause::ReductionRoute { .. },
+            ) => Some(*result),
+            _ => None,
+        };
         let event = self.occurrences.len();
         self.occurrences.push(ProofOccurrence {
             result,
@@ -1455,6 +1466,42 @@ impl ProofOccurrenceStore {
             event,
             completeness,
         });
+        if let Some(result) = dependency_result {
+            self.dependency_occurrence_indices_by_result
+                .entry(result)
+                .or_default()
+                .push(event);
+        }
+    }
+
+    #[cfg(test)]
+    fn debug_assert_result_bucket_indexes_match_linear_scans(&self) {
+        let mut expected_replays = FxHashMap::<ConstraintRecordId, Vec<usize>>::default();
+        for (index, occurrence) in self.replay_finite_map.iter().enumerate() {
+            expected_replays
+                .entry(occurrence.result)
+                .or_default()
+                .push(index);
+        }
+        debug_assert_eq!(self.replay_indices_by_result, expected_replays);
+
+        let mut expected_dependencies = FxHashMap::<ConstraintRecordId, Vec<usize>>::default();
+        for (index, occurrence) in self.occurrences.iter().enumerate() {
+            let ProofResult::Semantic(SemanticFactRef::Constraint(result)) = occurrence.result
+            else {
+                continue;
+            };
+            if matches!(
+                occurrence.cause,
+                ProofCause::Structural(_) | ProofCause::ReductionRoute { .. }
+            ) {
+                expected_dependencies.entry(result).or_default().push(index);
+            }
+        }
+        debug_assert_eq!(
+            self.dependency_occurrence_indices_by_result,
+            expected_dependencies
+        );
     }
 }
 
@@ -3251,10 +3298,23 @@ impl<'a> ProjectionPreflight<'a> {
             }
             let replays = self
                 .store
-                .replay_finite_map
+                .replay_indices_by_result
+                .get(&constraint)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
                 .iter()
-                .filter(|occurrence| occurrence.result == constraint)
-                .map(|occurrence| occurrence.carrier)
+                .map(|index| {
+                    let occurrence = self
+                        .store
+                        .replay_finite_map
+                        .get(*index)
+                        .expect("a replay result bucket must reference a recorded replay");
+                    assert_eq!(
+                        occurrence.result, constraint,
+                        "a replay result bucket must reference its own result"
+                    );
+                    occurrence.carrier
+                })
                 .collect::<Vec<_>>();
             for replay in replays {
                 self.validate_record(replay.lower, owner)?;
@@ -3262,16 +3322,29 @@ impl<'a> ProjectionPreflight<'a> {
             }
             let sources = self
                 .store
-                .occurrences
+                .dependency_occurrence_indices_by_result
+                .get(&constraint)
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
                 .iter()
-                .filter(|occurrence| {
-                    occurrence.result
-                        == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
-                })
-                .filter_map(|occurrence| match occurrence.cause {
-                    ProofCause::Structural(derivation) => Some(Ok(derivation.parent)),
-                    ProofCause::ReductionRoute { parent_claim, .. } => Some(Err(parent_claim)),
-                    _ => None,
+                .map(|index| {
+                    let occurrence = self
+                        .store
+                        .occurrences
+                        .get(*index)
+                        .expect("a dependency result bucket must reference a proof occurrence");
+                    assert_eq!(
+                        occurrence.result,
+                        ProofResult::Semantic(SemanticFactRef::Constraint(constraint)),
+                        "a dependency result bucket must reference its own result"
+                    );
+                    match &occurrence.cause {
+                        ProofCause::Structural(derivation) => Ok(derivation.parent),
+                        ProofCause::ReductionRoute { parent_claim, .. } => Err(*parent_claim),
+                        _ => panic!(
+                            "a dependency result bucket must reference a structural or reduction-route occurrence"
+                        ),
+                    }
                 })
                 .collect::<Vec<_>>();
             for source in sources {
@@ -3888,6 +3961,10 @@ impl ProofOccurrenceStore {
                     first_event,
                 });
                 self.replay_finite_map_index.insert(key, index);
+                self.replay_indices_by_result
+                    .entry(result)
+                    .or_default()
+                    .push(index);
                 index
             });
         let mut inserted = false;
@@ -4949,6 +5026,67 @@ mod tests {
             kind,
         );
         (record, registration.claim)
+    }
+
+    #[test]
+    fn cpk_result_bucket_indexes_mirror_replay_and_dependency_raw_facts() {
+        let mut machine = cpk_machine();
+        let (lower, first_claim) = cpk_7_record_original_claim(&mut machine, 97_100);
+        let (upper, second_claim) = cpk_7_record_original_claim(&mut machine, 97_101);
+        let result = ConstraintRecordId(97_102);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(97_103),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        machine.proof_store.record_cpk_replay_parent_snapshot(
+            result,
+            replay,
+            &[SideTaggedReplayClaim {
+                claim: first_claim,
+                parent_side: ReplayClaimParentSide::Lower,
+            }],
+        );
+        machine.proof_store.record_cpk_replay_parent_snapshot(
+            result,
+            replay,
+            &[SideTaggedReplayClaim {
+                claim: second_claim,
+                parent_side: ReplayClaimParentSide::Upper,
+            }],
+        );
+
+        let structural = StructuralDerivation {
+            parent: ConstraintRecordId(97_104),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        machine.proof_store.record_structural(result, structural);
+        machine
+            .proof_store
+            .record_reduction_route(result, RowDerivationId(97_105), first_claim);
+        machine
+            .proof_store
+            .record_constraint_root(result, OriginId::unknown_internal());
+
+        machine
+            .proof_store
+            .debug_assert_result_bucket_indexes_match_linear_scans();
+        assert_eq!(machine.proof_store.replay_indices_by_result[&result], [0]);
+        let dependency_indices =
+            &machine.proof_store.dependency_occurrence_indices_by_result[&result];
+        assert_eq!(dependency_indices.len(), 2);
+        assert!(matches!(
+            machine.proof_store.occurrences[dependency_indices[0]].cause,
+            ProofCause::Structural(candidate) if candidate == structural
+        ));
+        assert!(matches!(
+            machine.proof_store.occurrences[dependency_indices[1]].cause,
+            ProofCause::ReductionRoute {
+                derivation: RowDerivationId(97_105),
+                parent_claim,
+            } if parent_claim == first_claim
+        ));
     }
 
     struct Cpk7RoutingFixture {
