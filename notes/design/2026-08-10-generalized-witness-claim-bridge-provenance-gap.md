@@ -1,8 +1,10 @@
-# generalized witness の claim bridge provenance 欠落修正設計（GWCB）
+# generalized witness の claim bridge provenance 欠落修正設計（GWCB rev.2）
 
-日付: 2026-08-10（ユーザ承認: 2026-08-10）
+日付: 2026-08-10（rev.1 ユーザ承認: 2026-08-10、rev.2 契約改訂: 2026-08-11）
 
-状態: **ユーザ承認済み**（初回査読の§11 8項目検証で6点の修正要求→反映済み、Claude再査読で内部整合性確認、ユーザ承認済み。GWCB-0から実装着手可）
+状態: **rev.2 Claude 査読完了、ユーザ再承認待ち**（single decisive arm 契約への改訂。9点の改訂項目を確認し、
+`ExactWithoutClaimedArm`/`FailOpenIncomplete`の3値化・Ω(A)撤回理由の明記・motivating testの実要求との整合を確認済み。
+rev.1 の承認は all-true-OR-arms 契約に対するものであり、本 revision の実装再開にはユーザの新たな承認が必要）
 
 基準 commit: `f91fa91d`（行番号はこの commit を基準とし、実装時には再確認する）
 
@@ -13,7 +15,8 @@
 
 generalization が claimed projection support を採用したとき、現行の
 `ProjectionClaimSupport { coverage_root, representative_claim }` だけを渡してはならない。
-record inclusion を成立させた **exact qualifying clause** と、その clause が指す exact carrier / result を
+record inclusion を成立させるため evaluator が canonical order 上で実際に短絡採用した
+**single decisive exact qualifying clause** と、その clause が指す exact carrier / result を
 一緒に凍結した `ClaimedProjectionProof`（実装名は既存命名に合わせてよい）を渡す。
 
 generalized witness の parent には、次の意味を持つ新しい variant を追加する。
@@ -188,6 +191,11 @@ CPK の suppression / inclusion 判定が正しくても、判定に使った pr
 異なれば、portable export、parameter provenance、subtype explanation は CPK の実際の理由を再現できない。
 CPK separation の目的から見て、この差は「表示上の省略」ではなく proof consumer contract の欠落である。
 
+rev.2 はこの動機を、成立可能な全 OR arm の列挙ではなく、**CPK 自身が inclusion を確定するために実際に
+使用した一つの decisive arm** の capture として厳密化する。現行 evaluator は全 true arm を必要とせず、
+canonical order で最初の exact 成立 clause に達した時点で短絡する。したがって未評価の代替 arm まで説明へ
+追加するより、この短絡点の arm をそのまま出す方が「判定に使った proof arm」を忠実かつ再現可能に表す。
+
 ## 2. 先行設計との関係
 
 ### 2.1 DCP: per-proof projectability と mixed record
@@ -218,8 +226,10 @@ MPC D3 の論理構造は次である。
 - exact carrier と stable record ID で dedup
 - memo 付き DAG 一回走査、global scan / fixpoint 禁止
 
-GWCB は評価結果を変えない。成立した clause を provenance payload として保持し、説明側でも同じ arm を
-展開する。複数の成立 arm があれば exact identity で一回ずつ保持し、record-wide な一つの代表へ潰さない。
+GWCB は評価結果を変えない。evaluator が canonical order 上で inclusion を確定した最初の exact clause を
+decisive provenance payload として保持し、説明側でも同じ arm を展開する。これは record-wide な任意の代表を
+後から選ぶことではない。既存の短絡順序そのものを provenance identity に反映し、未評価の代替 OR arm は
+formula / audit source には残すが、その一回の decision の理由として列挙しない。
 
 ### 2.3 DPN: typed premise と event-local exact metadata
 
@@ -377,8 +387,9 @@ ProjectionDecision::Included {
 }
 
 ProjectionEvidence =
-    ExactArms(Vec<ClaimedProjectionProof>)       -- preflight-backed、exact
-  | FailOpenIncomplete                           -- include は維持、exact arm は存在しない
+    DecisiveClaimedArm(ClaimedProjectionProof)  -- preflight-backed、実際に短絡採用した claimed arm
+  | ExactWithoutClaimedArm                       -- exact inclusion だが decisive arm に claimed certificate がない
+  | FailOpenIncomplete                           -- include は維持、exact decisive arm を提示できない
 ```
 
 raw evaluator の内部結果も boolean だけにせず、少なくとも
@@ -394,49 +405,66 @@ semantic decision として投影し、evidence を semantic mutation に使わ�
 から `ProjectionDecision` の sidecar を作る。これにより、direct publication path の fail-open も内部では
 `FailOpenIncomplete` として明示される一方、既存 include / exclude と publication behavior は変わらない。
 
-shared evaluation memo の全 node に `Vec<ClaimedProjectionProof>` を複製してはならない。recursive memo は
-boolean と fail-open / exact の completeness bit（または同等の小さい state）だけを共有し、exact arm vector は
-provenance を要求した top-level record について、同じ evaluation walk と persistent record-local bucket から一回だけ
-組み立てる。publication-only evaluation は arm vector を構築しない。この分離で、明示的 fail-open state を得るために
-CPK-9 以前の per-call allocation や target-specific payload cache を再導入しない。
+`DecisiveClaimedArm` は、provenance を要求する top-level record の
+`projection_formulas[record]` が維持する canonical order（`ProjectionClause::canonical_cmp`）で clause を評価し、
+`CpkProjectionEvaluator::eval_record_uncached(..., prefer_exact_arm = true, ...)` が最初に
+`IncludedExact` を得て短絡した **その clause** の support が claimed である場合に限る。canonical order は clause
+admission 時に維持されるため、挿入順や hash iteration order から arm を選ばない。同率候補を後段で任意選択する
+処理も置かない。direct publication evaluation が先行する fail-open arm で短絡した場合は、exact arm を探索・捏造せず
+`FailOpenIncomplete` とする。
 
-`ExactArms([])` と `FailOpenIncomplete` は異なる。前者は preflight を通った同一 evaluation round で
-「true になった claimed arm が正確にゼロ」と証明した結果であり、たとえば independent arm だけで include された
-record を表せる。後者は、`scheme_projection_record_is_included` が preflight なしで raw evaluator を呼ぶ publication
-path において、missing bound、empty supports、formula-key mirror に存在しない qualifying support、missing
-constraint / claim / root などの既存 fail-open により `true` を返したが、exact true arm を提示できない状態である。
-この二つを空 vector 一つに潰してはならない。
+`ExactWithoutClaimedArm` と `FailOpenIncomplete` は異なる。前者は同じ immutable evaluation round で exact inclusion
+が確定したが、decisive reason に claimed certificate がない状態である。independent clause が decisive だった場合、
+independent provenance は既存 `ProjectionSupportSet` / `ProjectionProofCarrier` / `BoundProjectionProof` contract の
+値・選択規則を変えずに残す。tombstone、upper record、
+その他 clause なしで exact include となる既存経路も、この variant で exact completeness を保つ。後者は、
+`scheme_projection_record_is_included` が preflight なしで raw evaluator を呼ぶ publication path において、missing
+bound、empty supports、formula-key mirror に存在しない qualifying support、missing constraint / claim / root などの
+既存 fail-open により `true` を返したが、exact decisive arm を提示できない状態である。exact-without-claimed と
+incomplete を一つの空 payload に潰してはならない。
 
 recursive evaluation 中に missing reference その他の fail-open が true premise を成立させた場合、その marker は
 memoized child result から caller へ伝播する。top-level inclusion を fully validated な true arm だけで証明できない限り、
 result は `FailOpenIncomplete` とする。successful `project_lower` preflight は confirmed path でこの marker を排除する
 gate であり、marker を見なかったことにする根拠ではない。
 
-`ExactArms` 内の claimed proof は「uncovered claim ごとに一件」ではなく、target record を include した exact qualifying
-clause arm ごとに一件である。複数 arm は record OR の代替理由なので、すべて保持する。
-ReplayConjunction 内の lower / upper は一つの certificate に入り、AND を二つの OR-arm へ分けない。
+rev.1 の `ExactArms(Vec<ClaimedProjectionProof>)` は、成立可能な全 OR arm を保持する契約だった。rev.2 はこれを
+`DecisiveClaimedArm` 一件へ意味上狭める。これは post-hoc に代表 clause を選ぶ妥協ではなく、CPK 自身が inclusion
+を決めた短絡点を expose する契約である。一つの support が任意個の true certificate を持てるため、全 arm 契約には
+出力だけで Ω(A)（A = true arm 数）の下限があり、round memo や persistent materialization でも消せない。
+non-decisive arm は ledger / formula / certificate mirror に残り、別の evaluation で実際に decisive になれば、その
+decision の provenance として出る。ReplayConjunction 内の lower / upper は一つの decisive certificate に入り、AND を
+二つの OR-arm へ分けない。
 
 ここで「qualifying clause」と「uncovered support」を同一視してはならない。`Standalone` は support 自体の
 qualification を読むが、MPC の `DerivedUnary` と `ReplayConjunction` は typed premise を評価する。
 したがって clause link の claimed root が live covered でも、premise が成立してその clause が true になる
-場合がある。evidence は `uncovered_claims` と join して再構成せず、evaluator が true とした claimed clause
-arm 自身から作る。反対に、true independent clause の provenance は既存
+場合がある。evidence は `uncovered_claims` と join して再構成せず、evaluator が decisive とした claimed clause
+arm 自身から作る。反対に、decisive independent clause の provenance は既存
 `ProjectionProofCarrier` / `BoundProjectionProof` contract に残す。
 
-`CpkProjectionEvaluator` の boolean 結果と `ExactArms` は同じ評価 round から作る。
-boolean を返した後に formula をもう一度全走査して理由を再構成してはならない。実装方法は次を推奨する。
+`CpkProjectionEvaluator` の boolean 結果と `DecisiveClaimedArm` は同じ評価 round、同じ top-level
+`eval_record_uncached` walk、同じ short-circuit から作る。既存 O(supports) evaluation walk が最初の exact clause を
+見つけた瞬間、その手元の `ProjectionClause` と support から raw audit identity / normalized semantic key を構成し、
+GWCB-A の persistent certificate mirror を O(1) lookup して certificate を small result に載せる。boolean を返した後の
+全 formula / certificate bucket 走査、true-arm vector の構築・sort、round-scoped evidence cache、materialized true-arm
+cache は置かない。追加 work / storage は decisive clause 一件の key 構成と lookup、payload copy だけなので、既存
+O(supports) walk に対して O(1) である。recursive memo は従来どおり small summary のみを持つ。
+
+実装規則は次とする。
 
 - writer-maintained な record/support-local exact clause-evidence bucket を formula / link admission と同じ
   prepared transaction で更新する。
-- target record の評価時、実際に true となった top-level clause identity を evaluator が small result として
-  返すか、同じ memo 状態を使って bucket の該当 arm だけ判定する。
+- target record の評価時、最初の `IncludedExact` top-level clause identity と certificate lookup を同じ branch で行い、
+  その一件だけを返す。lookup が raw / semantic parity を満たさなければ exact evidence に近似せず corruption /
+  incomplete contract に従う。
 - formula のない support その他の既存 fail-open path では certificate を捏造せず、
   `ProjectionEvidence::FailOpenIncomplete` を返す。relation は現行どおり include 側へ倒す。
 - fail-open は publication / corruption safety の operational state であり、generalization が exact provenance として
   capture してよい証拠ではない。confirmed fixture がこの fallback を一件でも必要とすれば landing しない。
 
 CPK-9 で解消した O(supports × clauses) を再導入しない。全 `projection_clause_link_keys` の走査、
-per-query hash set 再構築、record-local formula の無条件な二回目走査も禁止する。
+per-query hash set / arm vector 再構築、record-local formula / certificate bucket の無条件な二回目走査も禁止する。
 
 ### 4.3 constraints / generalize transport
 
@@ -446,7 +474,9 @@ per-query hash set 再構築、record-local formula の無条件な二回目走�
 compact / alias など semantic consumer は従来どおり `reason` だけを読み、generalization provenance collector
 だけが sidecar を読む。既存 `uncovered_claims` と `independent_supports` の値・順序・dedup は変えない。
 
-`ProjectionEvidence::ExactArms` のときだけ、generalization collector は exact claimed proof parent を作る。
+`ProjectionEvidence::DecisiveClaimedArm` のときだけ、generalization collector は一件の exact claimed proof parent を作る。
+`ExactWithoutClaimedArm` は complete のまま claimed parent を作らず、independent parent は sidecar から再構成せず
+既存 `ProjectionSupportSet` / `BoundProjectionProof` transport をそのまま使う。
 `FailOpenIncomplete` を受けた場合は、current producer shortcut を complete な parent として再利用してはならない。
 semantic projectability は現行どおり保持する一方、その witness edge / scheme record を
 `ProvenanceCompleteness::Incomplete` とし、exact claimed parent を一件も捏造しない。既存 independent support に
@@ -553,8 +583,8 @@ query が local walker と同じ exact view を開始できる形にする。tar
 4. result 付き variant は result constraint が存在し、exact occurrence / carrier と一致する。
 5. ReplayConjunction の `carrier.lower / upper` が certificate の premise と一致する。
 6. DerivedUnary の carrier / premise が formula link と一致する。
-7. `ExactArms` は successful preflight と同じ immutable evaluation round から作られ、
-   `FailOpenIncomplete` は exact certificate bucket を参照しない。
+7. `DecisiveClaimedArm` / `ExactWithoutClaimedArm` は successful preflight と同じ immutable evaluation round と
+   evaluator short-circuit から作られ、`FailOpenIncomplete` は exact certificate を捏造しない。
 
 debug / test build は persistent certificate mirror と full linear source-of-truth scan の parity を assert する。
 release build の既存 fail-open / terminal-failure 方針は弱めない。dangling certificate を別の producer へ
@@ -570,7 +600,11 @@ generalized witness、occurrence root、local / portable explanation の全経�
    claimed support は embedded `Standalone.support` まで coverage root へ正規化する。
 3. **per-proof only**: filtered expansion は selected clause だけを出す。mixed bound の covered sibling、
    unrelated independent support、後発 derivation を混ぜない。
-4. **record OR**: 成立した複数 clause は代替理由として保持する。一つの代表 clause に潰さない。
+4. **record OR / decisive provenance（rev.2 で改訂）**: formula semantics と include / exclude では複数 clause の
+   OR をそのまま保つ。一回の provenance decision には、evaluator が canonical order 上で最初に exact 成立を確認し、
+   実際に短絡採用した一つの clause だけを出す。rev.1 の「成立した全 clause を代替理由として保持する」要件は、
+   true arm 数 A に対する Ω(A) の不可避な列挙・transport cost が Option 1 / 2 の実測で performance / RSS gate を
+   破ったため撤回する。これは任意の代表へ潰す規則ではなく、evaluator 自身の deterministic decision trace である。
 5. **ReplayConjunction AND**: lower / upper premise を一つの exact replay arm として保持する。
    flat な二つの generalized parent へ分解しない。
 6. **typed premise**: DerivedUnary は DPN の `ProofPremise` をそのまま運ぶ。read 時に parent graph を探さない。
@@ -578,7 +612,7 @@ generalized witness、occurrence root、local / portable explanation の全経�
    証明済み 1:1 O(1) index から得る。全 occurrence scan を行わない。
 8. **capture immutability**: generalized parent は capture 時点の exact proof certificate を保持する。
    後の claim move、bound derivation merge、coverage transitionで意味が変わらない。
-9. **fail-open の明示**: `ExactArms([])` と `FailOpenIncomplete` を区別する。fail-open inclusion は現行どおり
+9. **fail-open の明示**: `ExactWithoutClaimedArm` と `FailOpenIncomplete` を区別する。fail-open inclusion は現行どおり
    保持するが、producer shortcut、plain bound、別 arm を exact evidence として捏造せず、全 downstream へ
    incomplete を伝播する。
 10. **node identity / expansion identity 分離**: node emission と `(node, expansion view)` の展開済み判定を分け、
@@ -595,12 +629,14 @@ generalized witness、occurrence root、local / portable explanation の全経�
     claim × clause の未実在直積、proof path 展開、query 回数に比例して増えない。
 16. **exact dedup / insertion-order invariance**: raw link は audit identity で保持し、semantic certificate は
     normalized key ごとに一回だけ登録する。representative claim の置換または admission 順序で
-    certificate set、generalized parent set、explanation edge set が変わらない。
+    certificate set、canonical-first decisive parent、explanation edge set が変わらない。
 17. **no-claim / no-op persistent allocation zero**: claim のない workload、exact duplicate admission、
     independent-only admission、projection を消費しない workload は新 persistent bucket / parent を allocation しない。
     certificate storage は accepted claimed link が一件以上ある場合だけ reserve する。query-local traversal も、
     claimed certificate parent に到達しない query では `ClaimedProjection` expansion view を allocation しない。
 18. **hot-path 非回帰**: CPK-9 で除去した O(S×C)、per-query O(C) 再構築、occurrence scan を戻さない。
+    decisive evidence capture は既存 O(supports) short-circuit branch 上の O(1) key lookup / payload copy に限り、
+    arm collection pass、arm vector、round evidence cache、materialized true-arm cache を追加しない。
 19. **raw audit 不変**: raw bound、semantic constraint、solver replay、claim identity、formula semantics を変えない。
 20. **説明 completeness**: exact certificate がある confirmed path は `Complete` のまま bridge を出す。
     certificate 欠落を producer shortcut で complete と見せない。
@@ -627,8 +663,10 @@ mixed proof、portable completeness、no-claim allocation、説明不能な base
 
 - missing segment は arena ID 非依存の node kind と exact edge endpoint で構造的に確認できる。
 - generalized witness から lower bound、replay result、exact upper premise、original producer へ到達する。
-- recovery 後の exact node set と deduplicated `ExplanationEdge` set が、pre-regression fixture の同じ
-  semantic path と一致し、covered / independent sibling が一件も増えない。これを primary green condition とする。
+- decisive arm が motivating `ReplayConjunction / ReplayConstraint` であることを evaluator の canonical short-circuit と
+  certificate identity の両方で固定する。その一件から回復した exact node set と deduplicated `ExplanationEdge` set が、
+  pre-regression fixture の同じ semantic path と一致し、covered / independent sibling が一件も増えない。これを primary
+  green condition とする。
 - local raw edge vector の cardinality / multiplicity / order は別に比較し、差があれば exact duplicate の identity と
   発生 view を説明する。
 - 現行 node identity と local multiplicity が保たれる場合、35 nodes / 47 raw edges に戻ることを corroborating
@@ -641,6 +679,10 @@ mixed proof、portable completeness、no-claim allocation、説明不能な base
 したがって count だけを合わせる test で終えず、arena ID 非依存の小さい fixture で
 `BoundClaimProjectionProof` の exact carrier と filtered edge set を直接 assert する。
 
+この fixture の欠落は一つの replay bridge であり、green に必要なのはその decisive bridge の exact recovery である。
+同じ formula に別の true OR alternative があっても、それを同じ explanation へ列挙することは test intent ではない。
+したがって single-decisive-arm 契約は、ここで要求する topology completeness を弱めない。
+
 `0ebc4668` は redundant raw-bound wrapper を正当に除去し、同じ test の 36/48 を 35/47 へ意図的に変更した。
 この履歴は、historical cardinality が design intent の有力な証拠であっても、exact topology の代用ではないことを示す。
 
@@ -648,9 +690,10 @@ mixed proof、portable completeness、no-claim allocation、説明不能な base
 
 `inferred-if-condition` で次を満たす。
 
-- parameter query は definition-side bridge 一件を exact node / deduplicated edge set で回復する。
-- same-session call query は definition-side と instantiated-side の bridge 二件を、それぞれの exact carrier / endpoint
-  を区別した node / edge set で回復する。
+- parameter query は evaluator が実際に採用した definition-side decisive bridge 一件を exact node / deduplicated edge
+  set で回復する。
+- same-session call query は別々の evaluation で採用された definition-side と instantiated-side の decisive bridge
+  二件を、それぞれの exact carrier / endpoint を区別した node / edge set で回復する。
 - no sibling leak を含む exact set recovery を primary green condition とする。historical nodes / raw edges / max depth と
   `query_fnv1a64` は、node identity、local multiplicity、stable order が同じなら一致すべき corroborating values とする。
 - original parameter bound への到達、origin kinds、source leaves、completeness は保持する。
@@ -664,6 +707,10 @@ multiplicity、または内部表示が、意味上正しい typed certificate �
 deduplicated edge set、raw vector 差分、順序規則を説明してからのみ expectation を更新できる。
 現行短絡 graph の hash へ合わせない。
 
+PUSP の -3/-3 と -6/-6 は、それぞれ一 decision につき一 bridge が欠け、その同じ欠落が二 decision に現れた値である。
+どちらも一 decision 内の代替 OR arm 列挙を要求しない。primary green は各 evaluator short-circuit が選んだ一件の exact
+bridge set を戻すことであり、全 true alternative の graph 化ではない。
+
 ### 6.3 control tests
 
 最低限、次の contract を直接固定する。
@@ -675,8 +722,11 @@ deduplicated edge set、raw vector 差分、順序規則を説明してからの
 - ReplayConstraint / ReplayEvidence / DerivedUnary / Standalone の各 certificate が exact variant へ解決される。
 - formula mirror / certificate mirror の linear-scan parity。
 - exact duplicate、no-claim、independent-only admission で新 persistent certificate entry / bucket capacity growth がゼロ。
-- `ExactArms([])` と `FailOpenIncomplete` が別 variant で、後者が generalized witness / occurrence root / portable
-  completeness を incomplete にし、producer shortcut を作らない。
+- `ExactWithoutClaimedArm` と `FailOpenIncomplete` が別 variant で、後者が generalized witness / occurrence root /
+  portable completeness を incomplete にし、producer shortcut を作らない。
+- 複数の exact claimed OR arm が true になる fixture で、`ProjectionClause::canonical_cmp` 上の最初の arm が evaluator
+  の short-circuit と `DecisiveClaimedArm` の双方で一致する。admission 順序を並べ替えても同じ一件を選び、
+  non-decisive arm の vector / parent / edge を追加しない。
 - local raw edge vector の multiplicity は保持し、portable snapshot の deduplicated edge set だけが一回になる。
 - local / portable topology set parity。
 - corruption fixture で mismatched result / carrier / root を黙って producer shortcut しない。
@@ -697,7 +747,7 @@ deduplicated edge set、raw vector 差分、順序規則を説明してからの
 - exact replay carrier -> result の既存 index が 1:1 か、同一 carrier の複数 result がありうるか census する。
 - motivating 3-node segment を node / edge set で固定する red unit fixture を追加する。
 - mixed bound の covered sibling control と filtered/raw dual-reach control を作る。
-- raw evaluator の全 fail-open branch を列挙し、`ExactArms([])` と `FailOpenIncomplete` の red control を分ける。
+- raw evaluator の全 fail-open branch を列挙し、`ExactWithoutClaimedArm` と `FailOpenIncomplete` の red control を分ける。
 - local raw edge vector、deduplicated edge set、portable edge set を同じ fixture で別々に記録する。
 
 gate:
@@ -712,8 +762,8 @@ stop:
 
 - writer が複数に分散し exactly-once transaction を保証できない。
 - `RecordProofClause::ReplayConjunction` の carrier から result が一意でなく、writer にも result がない。
-- 現行 formula semantics から「どの true arm を provenance に出すか」を決められない反例がある。
-- fail-open inclusion と exact-empty evidence を downstream で区別できない。
+- 現行 formula semantics / canonical order / short-circuit から decisive arm を一意に再現できない反例がある。
+- fail-open inclusion と exact-without-claimed evidence を downstream で区別できない。
 
 いずれかなら、新 index shape / proof identity を別途レビューし、本書のまま GWCB-A へ進まない。
 
@@ -748,9 +798,10 @@ stop:
 変更:
 
 - `ProjectionDecision::Included` と `SchemeProjectableLower` に private provenance sidecar を追加する。
-- sidecar は `ExactArms` と `FailOpenIncomplete` を型で区別する。
+- sidecar は `DecisiveClaimedArm`、`ExactWithoutClaimedArm`、`FailOpenIncomplete` を型で区別する。
 - `ProjectionSupportSet` / `SchemeProjectableLowerReason::Qualified` の semantic payload は変更しない。
-- evaluator の同一 round から true top-level exact arms を返す。
+- evaluator の同一 round から canonical-first decisive top-level exact arm 一件だけを返す。最初の
+  `IncludedExact` branch でその clause の certificate を O(1) lookup し、別の arm-collection pass は置かない。
 - `GeneralizationParent::BoundClaimProjectionProof` を追加する。
 - `WitnessCollector::collect_var` で exact certificate を capture する。
 - fail-open sidecar は exact parent を作らず witness / scheme completeness を incomplete にする。
@@ -760,18 +811,29 @@ stop:
 gate:
 
 - include / exclude と現行 payload は byte-for-byte 不変。
-- generalized parent certificate set が evaluator の true arm set と一致する。
-- `ExactArms([])` は exact independent-only inclusion、`FailOpenIncomplete` は no-certificate incomplete として
+- generalized parent certificate は evaluator が実際に短絡採用した canonical-first decisive arm と同一で、高々一件。
+- `ExactWithoutClaimedArm` は exact independent-only / no-claimed-certificate inclusion、`FailOpenIncomplete` は
+  no-certificate incomplete として
   downstream まで区別される。
-- 複数 OR arm、ReplayConjunction AND、claim replacement、insertion-order control が green。
-- shared `ProjectionEvaluationRound` の cache に stale provenance payload を混ぜない。
+- 複数 OR arm の decisive-selection、ReplayConjunction AND、claim replacement、insertion-order control が green。
+- shared `ProjectionEvaluationRound` の bool / completeness memo を使っても、top-level decisive certificate は同じ
+  evaluation の short-circuit branch から得られ、別 record / 別 round の payload を再利用しない。
+- decisive evidence の追加 work は既存 O(supports) walk 上の O(1) key lookup / payload copy だけであり、
+  `eval_record_with_evidence` に post-evaluation arm-collection phase、arm vector / sort、evidence cache、persistent
+  true-arm materialization が存在しない。
 - std lowering / representative corpus で CPK-9 performance に有意な回帰がない。
 
 stop:
 
-- reason collection に per-query O(C) reconstruction または O(S×C) が必要。
+- evaluator の最初の exact short-circuit branch に、GWCB-A mirror の一件を O(1) で引くための exact identity がなく、
+  同じ branch で decisive certificate を確定できない。
 - evaluator の bool memo と witness arm が別 snapshot を表す。
 - semantic consumer が private provenance sidecar のため挙動を変える。
+
+performance regression control は、arm 数を増やした fixture でも evidence payload が常に高々一件であること、
+`eval_record_with_evidence` に short-circuit 後の collection entrypoint がないこと、cold std lowering / representative
+corpus が gate 内であることを固定する。rev.2 では per-query O(C) を「避けるべき実装候補」として扱わず、そもそも
+collection phase を設計から除く。将来の変更が再導入した場合だけ、この control で GWCB-B gate を閉じない。
 
 ### GWCB-C: view-aware local / occurrence traversal
 
@@ -781,6 +843,8 @@ stop:
 - explanation walker を `(node, expansion view, depth)` work item へ変更し、node emission、view expansion、
   cycle / duplicate、view-aware depth、node / local edge-vector budget を分離する。
 - claimed projection parent は existing Bound node identity を保ち、certificate の exact edge だけを展開する。
+- 一つの generalized projection decision から開始する filtered view は decisive certificate 高々一件とし、
+  formula に残る non-decisive OR arm を traversal 時に追加探索しない。
 - local edge vector の multiplicity / stable order を保持し、dedup を portable exporter の責務に留める。
 - `analysis/session/occurrence_provenance.rs` の generalized occurrence root に filtered certificate view を運び、
   plain `Bound` root への平坦化を禁止する。
@@ -790,6 +854,8 @@ stop:
 gate:
 
 - §6.1 / §6.2 の missing bridge が構造的に回復する。
+- 回復した bridge は evaluator の canonical-first decisive arm の exact edge set と一致し、non-decisive arm の edge は
+  混入しない。
 - mixed covered sibling control に余分な node / edge が一件もない。
 - traversal order を反転して同じ node / deduplicated edge set、completeness、depth になり、local raw edge-vector
   contract と portable deduplicated set の関係が説明可能である。
@@ -871,9 +937,11 @@ gate:
 - raw link 数ではなく normalized claimed certificate identity 一件につき semantic entry 高々一件とする。
 - accepted claimed link が一件以上あり、新 normalized certificate が存在する transaction だけが bucket を reserve する。
   no-claim、independent-only、exact duplicate、same-root representative replacement は bucket len / capacity を増やさない。
-- evaluator call ごとの hash set / Vec 再構築をしない。
+- evaluator call ごとの hash set / Vec 再構築をしない。decisive evidence は evaluator が既に評価中の一 clause から
+  O(1) lookup し、round evidence memo または materialized true-arm index を持たない。
 - formula / occurrence / bound graph の全走査をしない。
-- explanation query の追加 work は出力する exact proof edge 数に線形。
+- explanation query の追加 work は decisive certificate が出力する exact proof edge 数に線形であり、同じ record の
+  non-decisive formula arm 数には比例しない。
 - generalized witness が存在しない workload は certificate transport allocation をしない。
 - `std::text::parse`、full lowering、representative corpus の cold / warm 測定を GWCB-B と GWCB-E で行う。
 
@@ -890,6 +958,19 @@ GWCB により std lowering の CPK-9 closeout を再び 180 秒超へ戻す、R
 
 ## 10. stop / rollback conditions
 
+rev.1 の all-true-OR-arms 契約では、一つの support が任意個の true certificate を所有できることを
+`gwcb_b_exact_or_arms_are_complete_and_round_local` が実証した。そのため arm 数 A に対する Ω(A) の materialization /
+transport 下限があり、実装と実測でも確認した。単なる cache miss 問題ではない。
+
+- Option 1（`ProjectionEvaluationRound` 内の round-scoped evidence memo）は、同一 round 内の再列挙を避けたが、cold
+  workload は 200.154 秒 / peak RSS 15.57 GiB となり、rev.1 前 baseline 176.341 秒 / 約 8.8 GiB を外れた。
+- Option 2（全 mutation path を invalidation する persistent materialized true-arm index）は、240 秒を超えても完了せず、
+  peak RSS 15.58 GiB となった。invalidation を正しくしても、全 arm の保存・clone・transport 自体の Ω(A) は消えなかった。
+
+両案は性能/RSS gate により abandon した。この履歴を理由に、rev.2 は全 alternative の列挙から、evaluator が
+canonical order で実際に短絡採用した single decisive arm の capture へ契約を改訂する。これは後付け cache の選択では
+なく、§1.4 の「判定に使った proof arm」を decision procedure と同一にする semantic contract の修正である。
+
 ### 10.1 stop conditions
 
 次のいずれかが判明した時点で semantic implementation を止め、Claude / user の設計 review へ戻る。
@@ -897,11 +978,15 @@ GWCB により std lowering の CPK-9 closeout を再び 180 秒超へ戻す、R
 1. motivating path の exact replay result が clause writer でも既存 O(1) index でも一意に得られない。
 2. claimed clause link の writer / remover を完全列挙できない。
 3. formula entry の retraction があり、certificate mirror を同じ transaction で remove できない。
-4. true clause arm を収集すると evaluator の include / exclude semantics が変わる。
-5. `ExactArms([])` と `FailOpenIncomplete` を publication、generalization、occurrence、explanation の全境界で
+4. evaluator の decisive clause / short-circuit identity を capture すると include / exclude semantics が変わる。
+5. `ExactWithoutClaimedArm` と `FailOpenIncomplete` を publication、generalization、occurrence、explanation の全境界で
    区別できない、または fail-open を complete な producer shortcut へ戻す必要がある。
-6. provenance arm 収集に O(S×C)、per-query O(C) reconstruction、global scan が必要になる。
-7. one certificate を選ぶと正当な alternate OR arm を失い、全 arm を持つと非線形に増殖する。
+6. decisive arm capture に既存 evaluator short-circuit branch 上の O(1) lookup を超える arm collection、O(S×C)、
+   per-query O(C) reconstruction、global scan、round / persistent true-arm cache が必要になる。
+7. `DecisiveClaimedArm` が evaluator が実際に短絡採用した clause と一致しない、canonical order が admission 順序で
+   揺れる、または non-decisive alternate を decision provenance として暗黙に追加しなければ motivating bridge を
+   表せない。rev.1 の「one certificate では alternate OR arm を失う」という stop 条件は、全 arm の Ω(A) が gate を
+   破った結果、rev.2 では formula/audit 保持と decision provenance を分離する規則へ明示的に置き換える。
 8. ReplayConjunction の lower / upper AND を flat OR parent にしなければ transport できない。
 9. raw `Bound(bound)` を使わなければ historical node identity を保てず、使うと covered sibling が混入する。
 10. raw / filtered dual reach を traversal-order independent にできない、または view-aware depth / budget / cycleを
@@ -930,15 +1015,16 @@ GWCB により std lowering の CPK-9 closeout を再び 180 秒超へ戻す、R
 
 ## 11. Claude 再査読時の確認事項
 
-本 revision は初回査読の code verification を反映した。Claude は確定前に、少なくとも次の修正後 contract を
-再検証する。
+本 rev.2 は初回査読の code verification に加え、all-true-arms 実装二案の performance / RSS stop を反映した。
+Claude は確定前に、少なくとも次の修正後 contract を再検証する。
 
 1. result-bearing production writer は minimal boundary で exact result を持ち、ReplayEvidence は result なしと
    明示され、test-only generic writer も metadata を捏造せず接続できるか。
 2. `ProjectionClause.attribution` と `RecordProofClauseLinkAdmission.claimed_attribution_source` の対応が
    ReplayConstraint / ReplayEvidence / DerivedUnary の全 writer で完全か。
-3. evaluator 内部結果が `ExactArms([])` と recursive fail-open を含む `FailOpenIncomplete` を区別し、publication の
-   boolean semantics を変えず、generalization / occurrence / explanation へ incomplete を正しく運ぶか。
+3. evaluator 内部結果が `DecisiveClaimedArm`、`ExactWithoutClaimedArm`、recursive fail-open を含む
+   `FailOpenIncomplete` を区別し、publication の boolean semantics を変えず、generalization / occurrence /
+   explanation へ exact / incomplete を正しく運ぶか。
 4. raw clause-link audit identity と normalized semantic certificate identity が分離され、outer / embedded claimed
    support とも coverage root へ正規化され、representative replacement 後も semantic key が stable か。
 5. `(node, expansion view, depth)` work item が current node / local edge-vector / depth budget、cycle、truncation、
@@ -949,7 +1035,8 @@ GWCB により std lowering の CPK-9 closeout を再び 180 秒超へ戻す、R
 7. motivating test は exact node / deduplicated edge-set recovery を primary gate とし、35/47 と PUSP hash を
    corroborating value として扱い、raw vector / ordering の変化を exact diff なしに承認しないか。
 8. CPK-9 の性能改善を壊さず、persistent certificate count / no-op capacity を census に追加し、temporary
-   preparation allocationを別 measurement として正直に扱うか。
+   preparation allocationを別 measurement として正直に扱うか。decisive arm capture が evaluator の既存
+   short-circuit branch 上の O(1) lookup だけで、全 arm 列挙・sort・cache を再導入していないか。
 
 このうち一つでも未確定なら、Claude は「査読・確定」とせず、未承認ドラフトのまま decision point を返す。
 
@@ -957,5 +1044,6 @@ GWCB により std lowering の CPK-9 closeout を再び 180 秒超へ戻す、R
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 
-承認状態: **ユーザ承認済み（2026-08-10）**。本書は `CLAUDE.md` の設計優先順位における
-承認済み正本として扱う。実装は §7 のスライス順（GWCB-0 → A → B → C → D → E）に従う。
+承認状態: **rev.2 未承認**。rev.1 は 2026-08-10 にユーザ承認済みだが、その承認対象だった
+all-true-OR-arms 契約は Option 1 / 2 の performance / RSS stop により撤回候補となった。本 rev.2 は Claude の再査読と
+ユーザの新たな承認を得るまで `CLAUDE.md` の設計優先順位における承認済み正本として扱わず、GWCB-B 実装を再開しない。
