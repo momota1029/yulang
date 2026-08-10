@@ -1076,6 +1076,8 @@ pub(crate) enum ProofParent {
 pub(crate) struct ProofOccurrenceStore {
     pub(crate) occurrences: Vec<ProofOccurrence>,
     dependency_occurrence_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
+    projection_carrier_occurrence_index: FxHashMap<ProjectionProofCarrier, usize>,
+    row_derivation_occurrence_index: FxHashMap<RowDerivationId, usize>,
     pub(crate) replay_finite_map: Vec<ReplayProofOccurrence>,
     replay_finite_map_index: FxHashMap<(ConstraintRecordId, BinaryReplayDerivation), usize>,
     replay_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
@@ -1148,6 +1150,8 @@ impl Default for ProofOccurrenceStore {
         Self {
             occurrences: Vec::new(),
             dependency_occurrence_indices_by_result: FxHashMap::default(),
+            projection_carrier_occurrence_index: FxHashMap::default(),
+            row_derivation_occurrence_index: FxHashMap::default(),
             replay_finite_map: Vec::new(),
             replay_finite_map_index: FxHashMap::default(),
             replay_indices_by_result: FxHashMap::default(),
@@ -1489,6 +1493,172 @@ impl ProofOccurrenceStore {
                 .or_default()
                 .push(event);
         }
+        let occurrence = &self.occurrences[event];
+        let carrier_index = &mut self.projection_carrier_occurrence_index;
+        let mut record_carrier = |carrier| {
+            carrier_index.entry(carrier).or_insert(event);
+        };
+        match (&occurrence.result, &occurrence.cause) {
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(constraint)),
+                ProofCause::Root(origin),
+            ) => record_carrier(ProjectionProofCarrier::ConstraintOrigin {
+                constraint: *constraint,
+                origin: *origin,
+            }),
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                ProofCause::Structural(derivation),
+            ) => record_carrier(ProjectionProofCarrier::StructuralConstraint {
+                result: *result,
+                derivation: *derivation,
+            }),
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                ProofCause::RowConstraint(derivation),
+            ) => record_carrier(ProjectionProofCarrier::RowConstraint {
+                result: *result,
+                derivation: *derivation,
+            }),
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                ProofCause::SchemeInstantiationDerivation(derivation),
+            ) => record_carrier(ProjectionProofCarrier::SchemeInstantiationConstraint {
+                result: *result,
+                source_witness: derivation.source_witness,
+            }),
+            (
+                ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                ProofCause::SchemeInstantiationRoute(route),
+            ) => record_carrier(ProjectionProofCarrier::SchemeInstantiationConstraint {
+                result: *result,
+                source_witness: route.derivation.source_witness,
+            }),
+            _ => {}
+        }
+        match &occurrence.cause {
+            ProofCause::Root(origin) | ProofCause::Bound(BoundDerivation::Origin(origin)) => {
+                record_carrier(ProjectionProofCarrier::Origin(*origin));
+            }
+            ProofCause::ReplayEvidence(derivation) => {
+                record_carrier(ProjectionProofCarrier::ReplayEvidence(*derivation));
+            }
+            _ => {}
+        }
+        for parent in &occurrence.parents {
+            match parent {
+                ProofParent::Origin(origin) => {
+                    record_carrier(ProjectionProofCarrier::Origin(*origin));
+                }
+                ProofParent::GeneralizedWitness(witness) => {
+                    record_carrier(ProjectionProofCarrier::SchemeInstantiation(*witness));
+                }
+                _ => {}
+            }
+        }
+        if let ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)) =
+            occurrence.result
+        {
+            self.row_derivation_occurrence_index
+                .entry(derivation)
+                .or_insert(event);
+        }
+    }
+
+    fn projection_carrier_occurrence(
+        &self,
+        carrier: ProjectionProofCarrier,
+    ) -> Option<&ProofOccurrence> {
+        let index = self
+            .projection_carrier_occurrence_index
+            .get(&carrier)
+            .copied()?;
+        let occurrence = self
+            .occurrences
+            .get(index)
+            .expect("a projection carrier occurrence index must reference a recorded occurrence");
+        assert!(
+            Self::occurrence_matches_projection_carrier(occurrence, carrier),
+            "a projection carrier occurrence index must reference its own carrier"
+        );
+        Some(occurrence)
+    }
+
+    fn row_derivation_occurrence(
+        &self,
+        derivation: RowDerivationId,
+    ) -> Option<&ProofOccurrence> {
+        let index = self
+            .row_derivation_occurrence_index
+            .get(&derivation)
+            .copied()?;
+        let occurrence = self
+            .occurrences
+            .get(index)
+            .expect("a row derivation occurrence index must reference a recorded occurrence");
+        assert_eq!(
+            occurrence.result,
+            ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)),
+            "a row derivation occurrence index must reference its own derivation"
+        );
+        Some(occurrence)
+    }
+
+    fn occurrence_matches_projection_carrier(
+        occurrence: &ProofOccurrence,
+        carrier: ProjectionProofCarrier,
+    ) -> bool {
+        match carrier {
+            ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => {
+                occurrence.result
+                    == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
+                    && matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
+            }
+            ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
+                occurrence.result
+                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                    && matches!(&occurrence.cause, ProofCause::Structural(candidate) if *candidate == derivation)
+            }
+            ProjectionProofCarrier::RowConstraint { result, derivation } => {
+                occurrence.result
+                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                    && matches!(occurrence.cause, ProofCause::RowConstraint(candidate) if candidate == derivation)
+            }
+            ProjectionProofCarrier::SchemeInstantiationConstraint {
+                result,
+                source_witness,
+            } => {
+                occurrence.result
+                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                    && match &occurrence.cause {
+                        ProofCause::SchemeInstantiationDerivation(derivation) => {
+                            derivation.source_witness == source_witness
+                        }
+                        ProofCause::SchemeInstantiationRoute(route) => {
+                            route.derivation.source_witness == source_witness
+                        }
+                        _ => false,
+                    }
+            }
+            ProjectionProofCarrier::Origin(origin) => {
+                matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
+                    || matches!(occurrence.cause, ProofCause::Bound(BoundDerivation::Origin(candidate)) if candidate == origin)
+                    || occurrence
+                        .parents
+                        .iter()
+                        .any(|parent| *parent == ProofParent::Origin(origin))
+            }
+            ProjectionProofCarrier::ReplayEvidence(derivation) => {
+                matches!(&occurrence.cause, ProofCause::ReplayEvidence(candidate) if *candidate == derivation)
+            }
+            ProjectionProofCarrier::SchemeInstantiation(witness) => occurrence
+                .parents
+                .iter()
+                .any(|parent| *parent == ProofParent::GeneralizedWitness(witness)),
+            ProjectionProofCarrier::ReplayConstraint { .. }
+            | ProjectionProofCarrier::Row(_)
+            | ProjectionProofCarrier::Incomplete => false,
+        }
     }
 
     #[cfg(test)]
@@ -1519,6 +1689,106 @@ impl ProofOccurrenceStore {
             self.dependency_occurrence_indices_by_result,
             expected_dependencies
         );
+    }
+
+    #[cfg(test)]
+    fn debug_assert_occurrence_membership_indexes_match_linear_scans(&self) {
+        let mut expected_carriers = FxHashMap::<ProjectionProofCarrier, usize>::default();
+        let mut expected_row_derivations = FxHashMap::<RowDerivationId, usize>::default();
+        for (index, occurrence) in self.occurrences.iter().enumerate() {
+            let mut record_carrier = |carrier| {
+                expected_carriers.entry(carrier).or_insert(index);
+            };
+            match (&occurrence.result, &occurrence.cause) {
+                (
+                    ProofResult::Semantic(SemanticFactRef::Constraint(constraint)),
+                    ProofCause::Root(origin),
+                ) => record_carrier(ProjectionProofCarrier::ConstraintOrigin {
+                    constraint: *constraint,
+                    origin: *origin,
+                }),
+                (
+                    ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                    ProofCause::Structural(derivation),
+                ) => record_carrier(ProjectionProofCarrier::StructuralConstraint {
+                    result: *result,
+                    derivation: *derivation,
+                }),
+                (
+                    ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                    ProofCause::RowConstraint(derivation),
+                ) => record_carrier(ProjectionProofCarrier::RowConstraint {
+                    result: *result,
+                    derivation: *derivation,
+                }),
+                (
+                    ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                    ProofCause::SchemeInstantiationDerivation(derivation),
+                ) => record_carrier(ProjectionProofCarrier::SchemeInstantiationConstraint {
+                    result: *result,
+                    source_witness: derivation.source_witness,
+                }),
+                (
+                    ProofResult::Semantic(SemanticFactRef::Constraint(result)),
+                    ProofCause::SchemeInstantiationRoute(route),
+                ) => record_carrier(ProjectionProofCarrier::SchemeInstantiationConstraint {
+                    result: *result,
+                    source_witness: route.derivation.source_witness,
+                }),
+                _ => {}
+            }
+            match &occurrence.cause {
+                ProofCause::Root(origin) | ProofCause::Bound(BoundDerivation::Origin(origin)) => {
+                    record_carrier(ProjectionProofCarrier::Origin(*origin));
+                }
+                ProofCause::ReplayEvidence(derivation) => {
+                    record_carrier(ProjectionProofCarrier::ReplayEvidence(*derivation));
+                }
+                _ => {}
+            }
+            for parent in &occurrence.parents {
+                match parent {
+                    ProofParent::Origin(origin) => {
+                        record_carrier(ProjectionProofCarrier::Origin(*origin));
+                    }
+                    ProofParent::GeneralizedWitness(witness) => {
+                        record_carrier(ProjectionProofCarrier::SchemeInstantiation(*witness));
+                    }
+                    _ => {}
+                }
+            }
+            if let ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)) =
+                occurrence.result
+            {
+                expected_row_derivations
+                    .entry(derivation)
+                    .or_insert(index);
+            }
+        }
+        debug_assert_eq!(self.projection_carrier_occurrence_index, expected_carriers);
+        debug_assert_eq!(
+            self.row_derivation_occurrence_index,
+            expected_row_derivations
+        );
+        for (carrier, index) in &self.projection_carrier_occurrence_index {
+            let occurrence = self
+                .occurrences
+                .get(*index)
+                .expect("a projection carrier occurrence index must reference a raw occurrence");
+            debug_assert!(Self::occurrence_matches_projection_carrier(
+                occurrence,
+                *carrier
+            ));
+        }
+        for (derivation, index) in &self.row_derivation_occurrence_index {
+            debug_assert_eq!(
+                self.occurrences
+                    .get(*index)
+                    .expect("a row derivation occurrence index must reference a raw occurrence")
+                    .result,
+                ProofResult::Semantic(SemanticFactRef::RowDerivation(*derivation))
+            );
+        }
     }
 
     #[cfg(test)]
@@ -3763,11 +4033,14 @@ impl<'a> ProjectionPreflight<'a> {
                         ProofFactRef::Semantic(SemanticFactRef::Constraint(constraint)),
                     ));
                 }
-                if !self.store.occurrences.iter().any(|occurrence| {
-                        occurrence.result
-                            == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
-                            && matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
-                    }) {
+                if self
+                    .store
+                    .projection_carrier_occurrence(ProjectionProofCarrier::ConstraintOrigin {
+                        constraint,
+                        origin,
+                    })
+                    .is_none()
+                {
                     return Err(self.dangling(owner, ProofFactRef::Origin(origin)));
                 }
             }
@@ -3784,11 +4057,13 @@ impl<'a> ProjectionPreflight<'a> {
                         ProofFactRef::Semantic(SemanticFactRef::Constraint(derivation.parent)),
                     ));
                 }
-                if !self.store.occurrences.iter().any(|occurrence| {
-                        occurrence.result
-                            == ProofResult::Semantic(SemanticFactRef::Constraint(result))
-                            && matches!(&occurrence.cause, ProofCause::Structural(candidate) if *candidate == derivation)
-                    }) {
+                if self
+                    .store
+                    .projection_carrier_occurrence(
+                        ProjectionProofCarrier::StructuralConstraint { result, derivation },
+                    )
+                    .is_none()
+                {
                     return Err(missing_carrier());
                 }
             }
@@ -3831,11 +4106,14 @@ impl<'a> ProjectionPreflight<'a> {
                     ));
                 }
                 self.validate_row_derivation(owner, derivation)?;
-                if !self.store.occurrences.iter().any(|occurrence| {
-                        occurrence.result
-                            == ProofResult::Semantic(SemanticFactRef::Constraint(result))
-                            && matches!(occurrence.cause, ProofCause::RowConstraint(candidate) if candidate == derivation)
-                    }) {
+                if self
+                    .store
+                    .projection_carrier_occurrence(ProjectionProofCarrier::RowConstraint {
+                        result,
+                        derivation,
+                    })
+                    .is_none()
+                {
                     return Err(missing_carrier());
                 }
             }
@@ -3849,18 +4127,16 @@ impl<'a> ProjectionPreflight<'a> {
                         ProofFactRef::Semantic(SemanticFactRef::Constraint(result)),
                     ));
                 }
-                if !self.store.occurrences.iter().any(|occurrence| {
-                    occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
-                        && match &occurrence.cause {
-                            ProofCause::SchemeInstantiationDerivation(derivation) => {
-                                derivation.source_witness == source_witness
-                            }
-                            ProofCause::SchemeInstantiationRoute(route) => {
-                                route.derivation.source_witness == source_witness
-                            }
-                            _ => false,
-                        }
-                }) {
+                if self
+                    .store
+                    .projection_carrier_occurrence(
+                        ProjectionProofCarrier::SchemeInstantiationConstraint {
+                            result,
+                            source_witness,
+                        },
+                    )
+                    .is_none()
+                {
                     return Err(
                         self.dangling(owner, ProofFactRef::GeneralizedWitness(source_witness))
                     );
@@ -3874,9 +4150,13 @@ impl<'a> ProjectionPreflight<'a> {
             ProjectionProofCarrier::ReplayEvidence(derivation) => {
                 self.validate_bound_reference(owner, derivation.lower)?;
                 self.validate_bound_reference(owner, derivation.upper)?;
-                if !self.store.occurrences.iter().any(|occurrence| {
-                        matches!(&occurrence.cause, ProofCause::ReplayEvidence(candidate) if *candidate == derivation)
-                    }) {
+                if self
+                    .store
+                    .projection_carrier_occurrence(ProjectionProofCarrier::ReplayEvidence(
+                        derivation,
+                    ))
+                    .is_none()
+                {
                     return Err(missing_carrier());
                 }
             }
@@ -3925,29 +4205,19 @@ impl<'a> ProjectionPreflight<'a> {
     }
 
     fn has_origin(&self, origin: OriginId) -> bool {
-        self.store.occurrences.iter().any(|occurrence| {
-            matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
-                || matches!(occurrence.cause, ProofCause::Bound(BoundDerivation::Origin(candidate)) if candidate == origin)
-                || occurrence
-                    .parents
-                    .iter()
-                    .any(|parent| *parent == ProofParent::Origin(origin))
-        })
+        self.store
+            .projection_carrier_occurrence(ProjectionProofCarrier::Origin(origin))
+            .is_some()
     }
 
     fn has_row_derivation(&self, derivation: RowDerivationId) -> bool {
-        self.store.occurrences.iter().any(|occurrence| {
-            occurrence.result == ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation))
-        })
+        self.store.row_derivation_occurrence(derivation).is_some()
     }
 
     fn has_generalized_witness(&self, witness: GeneralizedSchemeWitnessId) -> bool {
-        self.store.occurrences.iter().any(|occurrence| {
-            occurrence
-                .parents
-                .iter()
-                .any(|parent| *parent == ProofParent::GeneralizedWitness(witness))
-        })
+        self.store
+            .projection_carrier_occurrence(ProjectionProofCarrier::SchemeInstantiation(witness))
+            .is_some()
     }
 
     fn dangling(&self, owner: ProofFactRef, target: ProofFactRef) -> ProofFailure {
@@ -5457,6 +5727,74 @@ mod tests {
                 parent_claim,
             } if parent_claim == first_claim
         ));
+    }
+
+    #[test]
+    fn cpk_occurrence_membership_indexes_mirror_carriers_and_row_derivations() {
+        let mut store = ProofOccurrenceStore::default();
+        let result = ConstraintRecordId(97_106);
+        let origin = OriginId(97_107);
+        let parent_origin = OriginId(97_108);
+        let structural = StructuralDerivation {
+            parent: ConstraintRecordId(97_109),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        let row = RowDerivationId(97_110);
+        let witness = GeneralizedSchemeWitnessId(97_111);
+        let instantiation = SchemeInstantiationDerivation {
+            instantiation: SchemeInstantiationId(97_112),
+            source_witness: witness,
+            path: GeneralizedTypePath::default(),
+        };
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(97_113),
+            lower: BoundRecordId(97_114),
+            upper: BoundRecordId(97_115),
+            rule: ReplayRule::LowerBoundAdded,
+        };
+
+        store.record_constraint_root(result, origin);
+        store.record_structural(result, structural);
+        store.record_row_definition(
+            row,
+            RowDerivation {
+                rule: RowDerivationRule::RowItemMatch,
+                parents: vec![RowDerivationParent::Origin(parent_origin)],
+                retained_items: Vec::new(),
+            },
+        );
+        store.record_row_constraint(result, row);
+        store.record_scheme_instantiation_derivation(result, instantiation);
+        store.record_replay_evidence(BoundRecordId(97_116), replay);
+
+        store.debug_assert_occurrence_membership_indexes_match_linear_scans();
+        for carrier in [
+            ProjectionProofCarrier::ConstraintOrigin {
+                constraint: result,
+                origin,
+            },
+            ProjectionProofCarrier::StructuralConstraint {
+                result,
+                derivation: structural,
+            },
+            ProjectionProofCarrier::RowConstraint {
+                result,
+                derivation: row,
+            },
+            ProjectionProofCarrier::SchemeInstantiationConstraint {
+                result,
+                source_witness: witness,
+            },
+            ProjectionProofCarrier::Origin(origin),
+            ProjectionProofCarrier::Origin(parent_origin),
+            ProjectionProofCarrier::ReplayEvidence(replay),
+            ProjectionProofCarrier::SchemeInstantiation(witness),
+        ] {
+            assert!(store.projection_carrier_occurrence(carrier).is_some());
+        }
+        assert!(store.row_derivation_occurrence(row).is_some());
+        assert_eq!(store.projection_carrier_occurrence_index.len(), 8);
+        assert_eq!(store.row_derivation_occurrence_index.len(), 1);
     }
 
     #[test]
