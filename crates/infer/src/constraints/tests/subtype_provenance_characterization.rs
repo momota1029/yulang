@@ -965,7 +965,10 @@ fn assert_portable_export_parity(name: &str, source: &str, record: ConstraintRec
         "{name}"
     );
     assert_eq!(export.snapshot.nodes().len(), local.nodes.len(), "{name}");
-    assert_eq!(export.snapshot.edges().len(), local.edges.len(), "{name}");
+    // Portable snapshots export each shared derivation edge once, while local
+    // queries may retain repeated references to the same exact edge.
+    let local_edges = local.edges.iter().collect::<FxHashSet<_>>();
+    assert_eq!(export.snapshot.edges().len(), local_edges.len(), "{name}");
     let local_source_boundaries = local
         .source_leaves
         .iter()
