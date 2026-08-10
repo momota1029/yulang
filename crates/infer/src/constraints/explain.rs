@@ -4,7 +4,9 @@
 //! `visit_*_edges`; records within a category and parents within a hyperedge keep
 //! their append-only insertion order. Traversal is depth-first pre-order, and a
 //! record is expanded only on its first visit. These rules make a truncated
-//! result stable without sorting or enumerating combinations of proof paths.
+//! result stable without sorting or enumerating combinations of proof paths. Node emission and
+//! expansion-view traversal are tracked separately so one bound can retain both a raw derivation
+//! view and an exact claimed-projection view without duplicating its graph node.
 
 use super::*;
 use poly::provenance::{
@@ -82,6 +84,138 @@ pub(crate) enum ExplanationNodeId {
     LowerFilter(LowerFilterRecordId),
     BoundDisposition(BoundDispositionRecordId),
     GeneralizedWitness(GeneralizedSchemeWitnessId),
+}
+
+/// The immutable part of a claimed projection certificate that determines its exact expansion.
+///
+/// `representative_claim` is intentionally absent: replacement by another claim from the same
+/// coverage root cannot change either the semantic view identity or the edges it emits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ClaimedProjectionView {
+    Standalone {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        attribution: proof::ClaimedProjectionProofAttribution,
+    },
+    DerivedUnary {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        carrier: DerivedUnaryCarrier,
+        premise: ProofPremise,
+        attribution: proof::ClaimedProjectionProofAttribution,
+    },
+    ReplayConjunction {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        carrier: BinaryReplayDerivation,
+        lower_premise: BoundRecordId,
+        upper_premise: BoundRecordId,
+        attribution: proof::ClaimedProjectionProofAttribution,
+    },
+}
+
+impl ClaimedProjectionView {
+    fn from_proof(proof: proof::ClaimedProjectionProof) -> Self {
+        match proof.kind() {
+            proof::ClaimedProjectionProofKind::Standalone {
+                bound,
+                coverage_root,
+                producer,
+                attribution,
+                ..
+            } => Self::Standalone {
+                bound,
+                coverage_root,
+                producer,
+                attribution,
+            },
+            proof::ClaimedProjectionProofKind::DerivedUnary {
+                bound,
+                coverage_root,
+                result,
+                carrier,
+                premise,
+                attribution,
+                ..
+            } => Self::DerivedUnary {
+                bound,
+                coverage_root,
+                result,
+                carrier,
+                premise,
+                attribution,
+            },
+            proof::ClaimedProjectionProofKind::ReplayConjunction {
+                bound,
+                coverage_root,
+                carrier,
+                lower_premise,
+                upper_premise,
+                attribution,
+                ..
+            } => Self::ReplayConjunction {
+                bound,
+                coverage_root,
+                carrier,
+                lower_premise,
+                upper_premise,
+                attribution,
+            },
+        }
+    }
+
+    fn bound(self) -> BoundRecordId {
+        match self {
+            Self::Standalone { bound, .. }
+            | Self::DerivedUnary { bound, .. }
+            | Self::ReplayConjunction { bound, .. } => bound,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ExpansionView {
+    Raw(ExplanationNodeId),
+    ClaimedProjection {
+        bound: BoundRecordId,
+        proof_identity: ClaimedProjectionView,
+    },
+}
+
+impl ExpansionView {
+    fn node(self) -> ExplanationNodeId {
+        match self {
+            Self::Raw(node) => node,
+            Self::ClaimedProjection { bound, .. } => ExplanationNodeId::Bound(bound),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TraversalWorkItem {
+    node: ExplanationNodeId,
+    view: ExpansionView,
+    depth: usize,
+}
+
+impl TraversalWorkItem {
+    fn raw(node: ExplanationNodeId, depth: usize) -> Self {
+        Self {
+            node,
+            view: ExpansionView::Raw(node),
+            depth,
+        }
+    }
+
+    fn new(view: ExpansionView, depth: usize) -> Self {
+        Self {
+            node: view.node(),
+            view,
+            depth,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -249,6 +383,10 @@ impl Default for PortableProvenanceExportBudget {
 pub(crate) enum PortableProvenanceExportRoot {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    ClaimedProjection {
+        bound: BoundRecordId,
+        proof: proof::ClaimedProjectionProof,
+    },
     Origin(OriginId),
     RowDerivation(RowDerivationId),
     GeneralizedWitness(GeneralizedSchemeWitnessId),
@@ -259,9 +397,20 @@ impl PortableProvenanceExportRoot {
         match self {
             Self::Constraint(id) => ExplanationNodeId::Constraint(id),
             Self::Bound(id) => ExplanationNodeId::Bound(id),
+            Self::ClaimedProjection { bound, .. } => ExplanationNodeId::Bound(bound),
             Self::Origin(id) => ExplanationNodeId::Origin(id),
             Self::RowDerivation(id) => ExplanationNodeId::RowDerivation(id),
             Self::GeneralizedWitness(id) => ExplanationNodeId::GeneralizedWitness(id),
+        }
+    }
+
+    fn expansion_view(self) -> ExpansionView {
+        match self {
+            Self::ClaimedProjection { bound, proof } => ExpansionView::ClaimedProjection {
+                bound,
+                proof_identity: ClaimedProjectionView::from_proof(proof),
+            },
+            _ => ExpansionView::Raw(self.node()),
         }
     }
 }
@@ -491,7 +640,7 @@ impl ConstraintMachine {
                     max_depth: budget.max_depth,
                 },
             )
-            .run(root.node());
+            .run_with_view(root.expansion_view());
             metrics.max_nodes_per_anchor = metrics.max_nodes_per_anchor.max(query.nodes.len());
             metrics.max_edges_per_anchor = metrics.max_edges_per_anchor.max(query.edges.len());
             let mut anchor_complete = query.completeness == ExplanationCompleteness::Complete;
@@ -672,6 +821,12 @@ impl ConstraintMachine {
             PortableProvenanceExportRoot::Bound(record) if self.bounds.record(record).is_none() => {
                 Err(ExplanationQueryError::UnknownBound(record))
             }
+            PortableProvenanceExportRoot::ClaimedProjection { bound, proof }
+                if self.bounds.record(bound).is_none() || proof.bound() != bound =>
+            {
+                debug_assert_eq!(proof.bound(), bound, "portable filtered root identity");
+                Err(ExplanationQueryError::UnknownBound(bound))
+            }
             _ => Ok(()),
         }
     }
@@ -741,6 +896,34 @@ impl ConstraintMachine {
         Ok(ExplanationQuery::new(self, budget).run(ExplanationNodeId::GeneralizedWitness(witness)))
     }
 
+    #[cfg(test)]
+    pub(crate) fn why_bound_raw_and_claimed_views_for_test(
+        &self,
+        bound: BoundRecordId,
+        proof: proof::ClaimedProjectionProof,
+        raw_first: bool,
+        budget: ExplanationBudget,
+    ) -> Result<ExplanationQueryResult, ExplanationQueryError> {
+        if self.bounds.record(bound).is_none() || proof.bound() != bound {
+            return Err(ExplanationQueryError::UnknownBound(bound));
+        }
+        let raw = ExpansionView::Raw(ExplanationNodeId::Bound(bound));
+        let claimed = ExpansionView::ClaimedProjection {
+            bound,
+            proof_identity: ClaimedProjectionView::from_proof(proof),
+        };
+        let views = if raw_first {
+            [raw, claimed]
+        } else {
+            [claimed, raw]
+        };
+        let mut query = ExplanationQuery::new(self, budget);
+        for view in views {
+            query.visit(TraversalWorkItem::new(view, 0));
+        }
+        Ok(query.finish())
+    }
+
     fn why_bound(
         &self,
         var: TypeVar,
@@ -773,7 +956,8 @@ struct ExplanationQuery<'a> {
     nodes: Vec<ExplanationNode>,
     edges: Vec<ExplanationEdge>,
     source_leaves: Vec<ExplanationSourceLeaf>,
-    visited: FxHashSet<ExplanationNodeId>,
+    emitted_nodes: FxHashSet<ExplanationNodeId>,
+    expanded_views: FxHashSet<ExpansionView>,
     truncation: Option<ExplanationTruncationReason>,
     underlying_incomplete: bool,
     include_scheme_instantiation: bool,
@@ -787,7 +971,8 @@ impl<'a> ExplanationQuery<'a> {
             nodes: Vec::new(),
             edges: Vec::new(),
             source_leaves: Vec::new(),
-            visited: FxHashSet::default(),
+            emitted_nodes: FxHashSet::default(),
+            expanded_views: FxHashSet::default(),
             truncation: None,
             underlying_incomplete: false,
             include_scheme_instantiation: true,
@@ -804,7 +989,16 @@ impl<'a> ExplanationQuery<'a> {
     }
 
     fn run(mut self, root: ExplanationNodeId) -> ExplanationQueryResult {
-        self.visit(root, 0);
+        self.visit(TraversalWorkItem::raw(root, 0));
+        self.finish()
+    }
+
+    fn run_with_view(mut self, view: ExpansionView) -> ExplanationQueryResult {
+        self.visit(TraversalWorkItem::new(view, 0));
+        self.finish()
+    }
+
+    fn finish(self) -> ExplanationQueryResult {
         let completeness = match (self.truncation.is_some(), self.underlying_incomplete) {
             (false, false) => ExplanationCompleteness::Complete,
             (true, false) => ExplanationCompleteness::TruncatedByBudget,
@@ -820,51 +1014,94 @@ impl<'a> ExplanationQuery<'a> {
         }
     }
 
-    fn visit(&mut self, id: ExplanationNodeId, depth: usize) {
-        if self.truncation.is_some() || self.visited.contains(&id) {
+    fn visit(&mut self, work: TraversalWorkItem) {
+        if self.truncation.is_some() {
             return;
         }
-        if self.nodes.len() >= self.budget.max_nodes {
-            self.truncation = Some(ExplanationTruncationReason::NodeBudget {
-                limit: self.budget.max_nodes,
-            });
+        debug_assert_eq!(work.node, work.view.node());
+        if !self.emit_node(work.node) {
             return;
         }
-        let Some(node) = self.node(id) else {
-            self.underlying_incomplete = true;
-            return;
-        };
-        self.visited.insert(id);
-        self.record_source_leaf(&node);
-        self.nodes.push(node);
 
-        if depth >= self.budget.max_depth && self.has_incoming_edges(id) {
+        if self.expanded_views.contains(&work.view) {
+            return;
+        }
+        if work.depth >= self.budget.max_depth && self.view_has_incoming_edges(work.view) {
             self.truncation = Some(ExplanationTruncationReason::DepthBudget {
                 limit: self.budget.max_depth,
             });
             return;
         }
-        self.visit_incoming_edges(id, depth);
+        self.expanded_views.insert(work.view);
+        self.visit_incoming_edges(work.view, work.depth);
     }
 
     fn push_edge(&mut self, edge: ExplanationEdge, depth: usize) {
-        if self.truncation.is_some() {
+        let parent_views = edge
+            .parents
+            .iter()
+            .copied()
+            .map(ExpansionView::Raw)
+            .collect();
+        self.push_edge_with_views(edge, parent_views, depth);
+    }
+
+    fn push_edge_with_views(
+        &mut self,
+        edge: ExplanationEdge,
+        parent_views: Vec<ExpansionView>,
+        depth: usize,
+    ) {
+        debug_assert_eq!(edge.parents.len(), parent_views.len());
+        debug_assert!(
+            edge.parents
+                .iter()
+                .zip(&parent_views)
+                .all(|(parent, view)| *parent == view.node())
+        );
+        if !self.push_edge_without_parent_expansion(edge) {
             return;
+        }
+        for view in parent_views {
+            self.visit(TraversalWorkItem::new(view, depth + 1));
+            if self.truncation.is_some() {
+                break;
+            }
+        }
+    }
+
+    fn emit_node(&mut self, id: ExplanationNodeId) -> bool {
+        if self.emitted_nodes.contains(&id) {
+            return true;
+        }
+        if self.nodes.len() >= self.budget.max_nodes {
+            self.truncation = Some(ExplanationTruncationReason::NodeBudget {
+                limit: self.budget.max_nodes,
+            });
+            return false;
+        }
+        let Some(node) = self.node(id) else {
+            self.underlying_incomplete = true;
+            return false;
+        };
+        self.emitted_nodes.insert(id);
+        self.record_source_leaf(&node);
+        self.nodes.push(node);
+        true
+    }
+
+    fn push_edge_without_parent_expansion(&mut self, edge: ExplanationEdge) -> bool {
+        if self.truncation.is_some() {
+            return false;
         }
         if self.edges.len() >= self.budget.max_edges {
             self.truncation = Some(ExplanationTruncationReason::EdgeBudget {
                 limit: self.budget.max_edges,
             });
-            return;
+            return false;
         }
-        let parents = edge.parents.clone();
         self.edges.push(edge);
-        for parent in parents {
-            self.visit(parent, depth + 1);
-            if self.truncation.is_some() {
-                break;
-            }
-        }
+        true
     }
 
     fn node(&mut self, id: ExplanationNodeId) -> Option<ExplanationNode> {
@@ -975,7 +1212,24 @@ impl<'a> ExplanationQuery<'a> {
         }
     }
 
-    fn has_incoming_edges(&self, id: ExplanationNodeId) -> bool {
+    fn view_has_incoming_edges(&self, view: ExpansionView) -> bool {
+        match view {
+            ExpansionView::Raw(id) => self.has_raw_incoming_edges(id),
+            ExpansionView::ClaimedProjection {
+                bound,
+                proof_identity,
+            } => {
+                let valid = proof_identity.bound() == bound;
+                debug_assert!(
+                    valid,
+                    "claimed projection view must retain its bound identity"
+                );
+                valid
+            }
+        }
+    }
+
+    fn has_raw_incoming_edges(&self, id: ExplanationNodeId) -> bool {
         match id {
             ExplanationNodeId::Constraint(id) => self
                 .machine
@@ -1022,17 +1276,25 @@ impl<'a> ExplanationQuery<'a> {
         }
     }
 
-    fn visit_incoming_edges(&mut self, id: ExplanationNodeId, depth: usize) {
-        match id {
-            ExplanationNodeId::Constraint(id) => self.visit_constraint_edges(id, depth),
-            ExplanationNodeId::Bound(id) => self.visit_bound_edges(id, depth),
-            ExplanationNodeId::Origin(_) => {}
-            ExplanationNodeId::RowDerivation(id) => self.visit_row_edges(id, depth),
-            ExplanationNodeId::SubtractFact(id) => self.visit_subtract_edges(id, depth),
-            ExplanationNodeId::LowerFilter(id) => self.visit_filter_edges(id, depth),
-            ExplanationNodeId::BoundDisposition(id) => self.visit_disposition_edges(id, depth),
-            ExplanationNodeId::GeneralizedWitness(id) => {
-                self.visit_generalized_witness_edges(id, depth)
+    fn visit_incoming_edges(&mut self, view: ExpansionView, depth: usize) {
+        match view {
+            ExpansionView::Raw(id) => match id {
+                ExplanationNodeId::Constraint(id) => self.visit_constraint_edges(id, depth),
+                ExplanationNodeId::Bound(id) => self.visit_bound_edges(id, depth),
+                ExplanationNodeId::Origin(_) => {}
+                ExplanationNodeId::RowDerivation(id) => self.visit_row_edges(id, depth),
+                ExplanationNodeId::SubtractFact(id) => self.visit_subtract_edges(id, depth),
+                ExplanationNodeId::LowerFilter(id) => self.visit_filter_edges(id, depth),
+                ExplanationNodeId::BoundDisposition(id) => self.visit_disposition_edges(id, depth),
+                ExplanationNodeId::GeneralizedWitness(id) => {
+                    self.visit_generalized_witness_edges(id, depth)
+                }
+            },
+            ExpansionView::ClaimedProjection {
+                bound,
+                proof_identity,
+            } => {
+                self.visit_claimed_projection_edges(bound, proof_identity, depth);
             }
         }
     }
@@ -1145,6 +1407,189 @@ impl<'a> ExplanationQuery<'a> {
         }
     }
 
+    fn visit_claimed_projection_edges(
+        &mut self,
+        bound: BoundRecordId,
+        proof: ClaimedProjectionView,
+        depth: usize,
+    ) {
+        if proof.bound() != bound {
+            debug_assert_eq!(proof.bound(), bound, "claimed projection view bound");
+            self.underlying_incomplete = true;
+            return;
+        }
+        let filtered_view = ExpansionView::ClaimedProjection {
+            bound,
+            proof_identity: proof,
+        };
+
+        match proof {
+            ClaimedProjectionView::Standalone {
+                producer,
+                attribution,
+                ..
+            } => {
+                let valid = attribution == proof::ClaimedProjectionProofAttribution::Original;
+                debug_assert!(
+                    valid,
+                    "standalone claimed proof must retain original attribution"
+                );
+                if !valid {
+                    self.underlying_incomplete = true;
+                    return;
+                }
+                let derivation = BoundDerivation::Constraint(producer);
+                let parents = self.bound_derivation_parents(&derivation);
+                self.push_edge(
+                    ExplanationEdge {
+                        child: ExplanationNodeId::Bound(bound),
+                        kind: ExplanationEdgeKind::Bound(derivation),
+                        parents,
+                    },
+                    depth,
+                );
+            }
+            ClaimedProjectionView::DerivedUnary {
+                result,
+                carrier,
+                premise: _,
+                attribution,
+                ..
+            } => {
+                let valid = matches!(
+                    (carrier, attribution),
+                    (
+                        DerivedUnaryCarrier::Structural(_),
+                        proof::ClaimedProjectionProofAttribution::StructuralConstraint
+                    ) | (
+                        DerivedUnaryCarrier::ReductionRoute(_),
+                        proof::ClaimedProjectionProofAttribution::ReductionRouteConstraint
+                    )
+                );
+                debug_assert!(
+                    valid,
+                    "derived-unary claimed proof attribution must match carrier"
+                );
+                if !valid {
+                    self.underlying_incomplete = true;
+                    return;
+                }
+                let result_edge = match carrier {
+                    DerivedUnaryCarrier::Structural(derivation) => ExplanationEdge {
+                        child: ExplanationNodeId::Constraint(result),
+                        kind: ExplanationEdgeKind::Structural(derivation.rule),
+                        parents: vec![ExplanationNodeId::Constraint(derivation.parent)],
+                    },
+                    DerivedUnaryCarrier::ReductionRoute(derivation) => ExplanationEdge {
+                        child: ExplanationNodeId::Constraint(result),
+                        kind: ExplanationEdgeKind::RowResult(derivation),
+                        parents: vec![ExplanationNodeId::RowDerivation(derivation)],
+                    },
+                };
+                let parent_views = result_edge
+                    .parents
+                    .iter()
+                    .copied()
+                    .map(ExpansionView::Raw)
+                    .collect();
+                self.visit_bound_to_exact_constraint(
+                    bound,
+                    result,
+                    result_edge,
+                    parent_views,
+                    depth,
+                );
+            }
+            ClaimedProjectionView::ReplayConjunction {
+                carrier,
+                lower_premise,
+                upper_premise,
+                attribution,
+                ..
+            } => {
+                let premises_match =
+                    carrier.lower == lower_premise && carrier.upper == upper_premise;
+                debug_assert!(
+                    premises_match,
+                    "claimed replay certificate premises must match its exact carrier"
+                );
+                if !premises_match {
+                    self.underlying_incomplete = true;
+                    return;
+                }
+                match attribution {
+                    proof::ClaimedProjectionProofAttribution::ReplayConstraint { result } => {
+                        let premise_view = |premise| {
+                            if premise == bound {
+                                filtered_view
+                            } else {
+                                ExpansionView::Raw(ExplanationNodeId::Bound(premise))
+                            }
+                        };
+                        self.visit_bound_to_exact_constraint(
+                            bound,
+                            result,
+                            ExplanationEdge {
+                                child: ExplanationNodeId::Constraint(result),
+                                kind: ExplanationEdgeKind::BinaryReplay(carrier),
+                                parents: vec![
+                                    ExplanationNodeId::Bound(lower_premise),
+                                    ExplanationNodeId::Bound(upper_premise),
+                                ],
+                            },
+                            vec![premise_view(lower_premise), premise_view(upper_premise)],
+                            depth,
+                        );
+                    }
+                    proof::ClaimedProjectionProofAttribution::ReplayEvidence => {
+                        let derivation = BoundDerivation::ReplayEvidence(carrier);
+                        let parents = self.bound_derivation_parents(&derivation);
+                        self.push_edge(
+                            ExplanationEdge {
+                                child: ExplanationNodeId::Bound(bound),
+                                kind: ExplanationEdgeKind::Bound(derivation),
+                                parents,
+                            },
+                            depth,
+                        );
+                    }
+                    _ => {
+                        debug_assert!(false, "replay certificate must retain replay attribution");
+                        self.underlying_incomplete = true;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    fn visit_bound_to_exact_constraint(
+        &mut self,
+        bound: BoundRecordId,
+        result: ConstraintRecordId,
+        result_edge: ExplanationEdge,
+        result_parent_views: Vec<ExpansionView>,
+        depth: usize,
+    ) {
+        let bound_edge = ExplanationEdge {
+            child: ExplanationNodeId::Bound(bound),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(result)),
+            parents: vec![ExplanationNodeId::Constraint(result)],
+        };
+        if !self.push_edge_without_parent_expansion(bound_edge)
+            || !self.emit_node(ExplanationNodeId::Constraint(result))
+        {
+            return;
+        }
+        if depth + 1 >= self.budget.max_depth {
+            self.truncation = Some(ExplanationTruncationReason::DepthBudget {
+                limit: self.budget.max_depth,
+            });
+            return;
+        }
+        self.push_edge_with_views(result_edge, result_parent_views, depth + 1);
+    }
+
     fn visit_row_edges(&mut self, id: RowDerivationId, depth: usize) {
         let record = self.machine.row_derivations[id.0 as usize].clone();
         self.push_edge(
@@ -1232,40 +1677,60 @@ impl<'a> ExplanationQuery<'a> {
             .clone();
         for derivation in incoming {
             let mut parents = Vec::new();
+            let mut parent_views = Vec::new();
             for parent in derivation.parents {
                 match self.machine.generalization_parent_carriers(&parent) {
                     Some(GeneralizationParentCarriers::Constraint(id)) => {
                         parents.push(ExplanationNodeId::Constraint(id));
+                        parent_views.push(ExpansionView::Raw(ExplanationNodeId::Constraint(id)));
                     }
                     Some(GeneralizationParentCarriers::Bound(id)) => {
                         parents.push(ExplanationNodeId::Bound(id));
+                        parent_views.push(ExpansionView::Raw(ExplanationNodeId::Bound(id)));
+                    }
+                    Some(GeneralizationParentCarriers::ClaimedProjection { bound, proof }) => {
+                        parents.push(ExplanationNodeId::Bound(bound));
+                        parent_views.push(ExpansionView::ClaimedProjection {
+                            bound,
+                            proof_identity: ClaimedProjectionView::from_proof(proof),
+                        });
                     }
                     Some(GeneralizationParentCarriers::ReplayEvidence { lower, upper }) => {
                         parents.extend([
                             ExplanationNodeId::Bound(lower),
                             ExplanationNodeId::Bound(upper),
                         ]);
+                        parent_views.extend([
+                            ExpansionView::Raw(ExplanationNodeId::Bound(lower)),
+                            ExpansionView::Raw(ExplanationNodeId::Bound(upper)),
+                        ]);
                     }
                     Some(GeneralizationParentCarriers::Origin(id)) => {
                         parents.push(ExplanationNodeId::Origin(id));
+                        parent_views.push(ExpansionView::Raw(ExplanationNodeId::Origin(id)));
                     }
                     Some(GeneralizationParentCarriers::RowDerivation(id)) => {
                         parents.push(ExplanationNodeId::RowDerivation(id));
+                        parent_views.push(ExpansionView::Raw(ExplanationNodeId::RowDerivation(id)));
                     }
                     Some(GeneralizationParentCarriers::GeneralizedWitness(id)) => {
                         parents.push(ExplanationNodeId::GeneralizedWitness(id));
+                        parent_views.push(ExpansionView::Raw(
+                            ExplanationNodeId::GeneralizedWitness(id),
+                        ));
                     }
                     None => {
                         self.underlying_incomplete = true;
                     }
                 }
             }
-            self.push_edge(
+            self.push_edge_with_views(
                 ExplanationEdge {
                     child: ExplanationNodeId::GeneralizedWitness(id),
                     kind: ExplanationEdgeKind::Generalization(derivation.rule),
                     parents,
                 },
+                parent_views,
                 depth,
             );
         }

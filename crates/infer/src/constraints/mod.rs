@@ -2369,6 +2369,10 @@ pub use poly::provenance::{
 pub(crate) enum OccurrenceProvenanceRoot {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    ClaimedProjection {
+        bound: BoundRecordId,
+        proof: proof::ClaimedProjectionProof,
+    },
     Origin(OriginId),
     RowDerivation(RowDerivationId),
     GeneralizedWitness(GeneralizedSchemeWitnessId),
@@ -2566,6 +2570,10 @@ pub enum GeneralizationParent {
 pub(crate) enum GeneralizationParentCarriers {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
+    ClaimedProjection {
+        bound: BoundRecordId,
+        proof: proof::ClaimedProjectionProof,
+    },
     ReplayEvidence {
         lower: BoundRecordId,
         upper: BoundRecordId,
@@ -2584,23 +2592,46 @@ impl ConstraintMachine {
         &self,
         parent: &GeneralizationParent,
     ) -> Option<GeneralizationParentCarriers> {
+        if let GeneralizationParent::BoundClaimProjectionProof {
+            bound,
+            coverage_root,
+            representative_claim,
+            proof,
+        } = parent
+        {
+            let identity_matches = proof.bound() == *bound
+                && proof.coverage_root() == *coverage_root
+                && proof.representative_claim() == *representative_claim;
+            let claim_record = self.proof_store.upper_claim(*representative_claim);
+            let root_matches =
+                claim_record.is_some_and(|claim| claim.coverage_root == *coverage_root);
+            let linked = self.bounds.record(*bound).is_some()
+                && root_matches
+                && self
+                    .proof_store
+                    .projection_claims_for_record(*bound)
+                    .iter()
+                    .any(|linked| {
+                        *linked == *representative_claim
+                            || self
+                                .proof_store
+                                .upper_claim(*linked)
+                                .is_some_and(|linked| linked.coverage_root == *coverage_root)
+                    });
+            debug_assert!(
+                identity_matches && root_matches && linked,
+                "claim-projection parent must match its immutable certificate and raw bound link"
+            );
+            return (identity_matches && root_matches && linked).then_some(
+                GeneralizationParentCarriers::ClaimedProjection {
+                    bound: *bound,
+                    proof: **proof,
+                },
+            );
+        }
+
         let claim_parent = match parent {
             GeneralizationParent::BoundClaim { bound, claim } => Some((*bound, *claim)),
-            GeneralizationParent::BoundClaimProjectionProof {
-                bound,
-                coverage_root,
-                representative_claim,
-                proof,
-            } => {
-                let identity_matches = proof.bound() == *bound
-                    && proof.coverage_root() == *coverage_root
-                    && proof.representative_claim() == *representative_claim;
-                debug_assert!(
-                    identity_matches,
-                    "claim-projection parent identity must match its immutable certificate"
-                );
-                identity_matches.then_some((*bound, *representative_claim))
-            }
             _ => None,
         };
         let Some((bound, claim)) = claim_parent else {

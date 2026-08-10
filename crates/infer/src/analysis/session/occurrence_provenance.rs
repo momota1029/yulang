@@ -265,6 +265,15 @@ impl AnalysisSession {
                                     OccurrenceProvenanceRoot::Bound(id),
                                 );
                             }
+                            Some(GeneralizationParentCarriers::ClaimedProjection {
+                                bound,
+                                proof,
+                            }) => {
+                                push_occurrence_root(
+                                    &mut roots,
+                                    OccurrenceProvenanceRoot::ClaimedProjection { bound, proof },
+                                );
+                            }
                             Some(GeneralizationParentCarriers::ReplayEvidence { lower, upper }) => {
                                 push_occurrence_root(
                                     &mut roots,
@@ -321,6 +330,9 @@ impl OccurrenceProvenanceRoot {
         match self {
             Self::Constraint(id) => PortableProvenanceExportRoot::Constraint(id),
             Self::Bound(id) => PortableProvenanceExportRoot::Bound(id),
+            Self::ClaimedProjection { bound, proof } => {
+                PortableProvenanceExportRoot::ClaimedProjection { bound, proof }
+            }
             Self::Origin(id) => PortableProvenanceExportRoot::Origin(id),
             Self::RowDerivation(id) => PortableProvenanceExportRoot::RowDerivation(id),
             Self::GeneralizedWitness(id) => PortableProvenanceExportRoot::GeneralizedWitness(id),

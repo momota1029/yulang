@@ -87,7 +87,6 @@ fn pusp_a_characterizes_parameter_and_scheme_provenance_gaps() {
 }
 
 #[test]
-#[ignore = "GWCB-C must restore the exact filtered replay bridge"]
 fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
     let output = lower(concat!(
         "my subject(pusp_param) = if pusp_param:\n",
@@ -114,13 +113,21 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
                 matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
                     && edge
                         .parents
-                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+                        .contains(&ExplanationNodeId::Bound(bridge.bound))
+                    && local.edges.contains(&ExplanationEdge {
+                        child: ExplanationNodeId::Bound(bridge.bound),
+                        kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(
+                            bridge.result,
+                        )),
+                        parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+                    })
             })
         })
         .expect("the proof store retains the PUSP claimed replay bridge");
     let expected_nodes = FxHashSet::from_iter([
         ExplanationNodeId::Bound(bridge.bound),
         ExplanationNodeId::Constraint(bridge.result),
+        ExplanationNodeId::Bound(bridge.lower),
         ExplanationNodeId::Bound(bridge.upper),
     ]);
     let expected_edges = FxHashSet::from_iter([
@@ -170,7 +177,14 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
                 matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
                     && edge
                         .parents
-                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+                        .contains(&ExplanationNodeId::Bound(bridge.bound))
+                    && call.edges.contains(&ExplanationEdge {
+                        child: ExplanationNodeId::Bound(bridge.bound),
+                        kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(
+                            bridge.result,
+                        )),
+                        parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+                    })
             })
         })
         .collect::<Vec<_>>();
@@ -185,6 +199,7 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
             [
                 ExplanationNodeId::Bound(bridge.bound),
                 ExplanationNodeId::Constraint(bridge.result),
+                ExplanationNodeId::Bound(bridge.lower),
                 ExplanationNodeId::Bound(bridge.upper),
             ]
         })
@@ -220,8 +235,12 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
         .map(ExplanationNode::id)
         .collect::<FxHashSet<_>>();
     let call_edges = call.edges.iter().cloned().collect::<FxHashSet<_>>();
-    let call_missing_nodes = call_expected_nodes.difference(&call_nodes).collect::<Vec<_>>();
-    let call_missing_edges = call_expected_edges.difference(&call_edges).collect::<Vec<_>>();
+    let call_missing_nodes = call_expected_nodes
+        .difference(&call_nodes)
+        .collect::<Vec<_>>();
+    let call_missing_edges = call_expected_edges
+        .difference(&call_edges)
+        .collect::<Vec<_>>();
     assert!(
         missing_nodes.is_empty()
             && missing_edges.is_empty()
@@ -320,17 +339,21 @@ fn cpk_0b_captures_generalized_witnesses_and_located_portable_sources() {
 
     assert!(!snapshot.generalized.schemes.is_empty());
     assert!(!snapshot.generalized.witnesses.is_empty());
-    assert!(snapshot
-        .generalized
-        .witnesses
-        .iter()
-        .any(|witness| !witness.incoming.is_empty()));
-    assert!(snapshot
-        .portable
-        .snapshot
-        .source_sites()
-        .iter()
-        .any(|site| site.location.is_some()));
+    assert!(
+        snapshot
+            .generalized
+            .witnesses
+            .iter()
+            .any(|witness| !witness.incoming.is_empty())
+    );
+    assert!(
+        snapshot
+            .portable
+            .snapshot
+            .source_sites()
+            .iter()
+            .any(|site| site.location.is_some())
+    );
 }
 
 #[test]
@@ -1129,15 +1152,18 @@ struct SemanticBaseline {
 }
 
 fn expected_baselines() -> [Baseline; 5] {
+    // The exact-set fixture above proves that each added path is the evaluator's decisive replay
+    // certificate and that no covered sibling is present; cardinality/hash alone are not the
+    // correctness oracle. Standalone certificates also retain their typed bound view.
     [
         baseline(
             "inferred-if-condition",
             &["BoundRecordId(99)"],
             Some(query(
-                32,
-                39,
+                33,
+                40,
                 13,
-                12_736_020_287_974_442_807,
+                17_768_386_504_748_785_697,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1147,10 +1173,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                54,
-                75,
+                56,
+                77,
                 19,
-                4_575_010_705_800_922_019,
+                17_760_765_525_437_880_643,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1175,10 +1201,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "annotated-parameter-control",
             &["BoundRecordId(17)"],
             Some(query(
-                33,
-                40,
+                34,
+                41,
                 13,
-                9_644_678_397_531_326_783,
+                8_124_893_317_848_988_519,
                 &[
                     "annotation",
                     "internal",
@@ -1189,10 +1215,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                55,
-                76,
+                57,
+                78,
                 19,
-                13_687_912_110_321_903_145,
+                12_210_693_845_174_782_278,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1234,10 +1260,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "imported-cache-loaded-callee",
             &["BoundRecordId(90)"],
             Some(query(
-                32,
-                39,
+                33,
+                40,
                 13,
-                15_220_722_176_271_338_519,
+                6_397_523_539_046_006_471,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1270,10 +1296,10 @@ fn expected_baselines() -> [Baseline; 5] {
             "multiple-body-uses",
             &["BoundRecordId(160)"],
             Some(query(
-                48,
-                61,
+                49,
+                62,
                 13,
-                6_865_798_677_926_543_350,
+                7_501_278_655_382_016_244,
                 &[
                     "internal",
                     "unknown-internal",
@@ -1284,10 +1310,10 @@ fn expected_baselines() -> [Baseline; 5] {
                 [true, true, true, true],
             )),
             Some(query(
-                72,
-                107,
+                74,
+                109,
                 19,
-                7_025_038_626_893_909_947,
+                9_974_680_381_325_004_816,
                 &[
                     "internal",
                     "unknown-internal",

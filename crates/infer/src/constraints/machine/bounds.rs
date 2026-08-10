@@ -5531,6 +5531,11 @@ mod mutation_tests {
                                 vec![PortableProvenanceExportRoot::Constraint(id)],
                             GeneralizationParentCarriers::Bound(id) =>
                                 vec![PortableProvenanceExportRoot::Bound(id)],
+                            GeneralizationParentCarriers::ClaimedProjection { bound, proof } =>
+                                vec![PortableProvenanceExportRoot::ClaimedProjection {
+                                    bound,
+                                    proof,
+                                }],
                             GeneralizationParentCarriers::ReplayEvidence { lower, upper } => vec![
                                 PortableProvenanceExportRoot::Bound(lower),
                                 PortableProvenanceExportRoot::Bound(upper),
@@ -5791,35 +5796,48 @@ mod mutation_tests {
                     };
                     assert_eq!(uncovered_claims, &roots);
                     assert!(independent_supports.is_empty());
-                    let qualified = qualified_parents(
-                        &snapshot.generalized.qualified, snapshot.lower_record,
-                    );
-                    assert_eq!(lower_draft(&snapshot.generalized).incoming.iter()
-                        .flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>(), qualified);
-                    assert_eq!(snapshot.generalized.parents.len(), qualified.len() * 2,
-                        "the root lower and recursive-lower drafts retain the same exact parents");
-                    assert!(snapshot.generalized.parents.chunks(qualified.len())
-                        .all(|parents| parents == qualified));
+                    let decisive = lower_draft(&snapshot.generalized).incoming.iter()
+                        .flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>();
+                    let [GeneralizationParent::BoundClaimProjectionProof {
+                        bound,
+                        coverage_root,
+                        representative_claim,
+                        proof,
+                    }] = decisive.as_slice() else {
+                        panic!("target-late lower must retain one decisive claimed certificate")
+                    };
+                    assert_eq!(*bound, snapshot.lower_record);
+                    assert!(roots.contains(coverage_root));
+                    assert_eq!(proof.bound(), *bound);
+                    assert_eq!(proof.coverage_root(), *coverage_root);
+                    assert_eq!(proof.representative_claim(), *representative_claim);
+                    assert_eq!(snapshot.generalized.parents.len(), 2,
+                        "the root lower and recursive-lower drafts retain the same decisive parent");
+                    assert!(snapshot.generalized.parents.chunks(1)
+                        .all(|parents| parents == decisive));
                     assert_eq!(snapshot.generalized.completeness, ProvenanceCompleteness::Incomplete);
                     assert!(snapshot.generalized.drafts.iter()
                         .all(|draft| draft.completeness == ProvenanceCompleteness::Complete));
                     assert_eq!(snapshot.occurrence_roots.len(), snapshot.occurrence_anchors.len());
                     assert_eq!(snapshot.portable.export.root_anchors.len(),
                         snapshot.occurrence_roots.iter().map(Vec::len).sum::<usize>());
-                    let occurrence_pair = [1, 2].map(|id| PortableProvenanceExportRoot::Constraint(ConstraintRecordId(id)));
+                    let occurrence_pair = [PortableProvenanceExportRoot::ClaimedProjection {
+                        bound: *bound,
+                        proof: **proof,
+                    }];
                     assert!(snapshot.occurrence_roots.iter()
                         .all(|occurrence| occurrence.as_slice() == occurrence_pair));
                     assert!(snapshot.occurrence_anchors.iter().all(|anchors| {
-                        anchors.len() == roots.len() && anchors.iter().all(Option::is_some)
+                        anchors.len() == 1 && anchors.iter().all(Option::is_some)
                     }));
                     assert_eq!(snapshot.portable.export.snapshot.completeness(), PortableCompleteness::Complete);
                     assert_eq!(snapshot.portable.export.snapshot.truncation(), None);
-                    assert_eq!(snapshot.portable.export.snapshot.source_sites().len(), roots.len());
-                    assert_eq!(snapshot.portable.explanation.lower_sites.iter()
-                        .map(|cause| cause.role).collect::<Vec<_>>(), vec![
-                            DiagnosticTypeCauseRole::RequiredByAnnotation,
-                            DiagnosticTypeCauseRole::RequiredByPattern,
-                        ]);
+                    assert_eq!(snapshot.portable.export.snapshot.source_sites().len(), 1);
+                    let lower_roles = snapshot.portable.explanation.lower_sites.iter()
+                        .map(|cause| cause.role).collect::<Vec<_>>();
+                    assert!(matches!(lower_roles.as_slice(),
+                        [DiagnosticTypeCauseRole::RequiredByAnnotation]
+                        | [DiagnosticTypeCauseRole::RequiredByPattern]));
                     assert_eq!(snapshot.portable.explanation.upper_sites,
                         snapshot.portable.explanation.lower_sites);
                     assert_eq!(snapshot.portable.explanation.completeness,
@@ -5830,10 +5848,9 @@ mod mutation_tests {
                         Some(DiagnosticExplanationTruncationReason::EdgeBudget { limit: 0 }));
                     assert_eq!(snapshot.tight_explanation.lower_sites,
                         snapshot.portable.explanation.lower_sites[..snapshot.tight_explanation.lower_sites.len()]);
-                    assert_eq!(snapshot.duplicate_causes.len(), roots.len());
-                    assert_eq!(snapshot.duplicate_causes[0].source_span,
-                        snapshot.duplicate_causes[1].source_span);
-                    assert_eq!([snapshot.duplicate_causes[0].role, snapshot.duplicate_causes[1].role], [DiagnosticTypeCauseRole::RequiredByAnnotation, DiagnosticTypeCauseRole::RequiredByPattern]);
+                    assert_eq!(snapshot.duplicate_causes.len(), 1);
+                    assert_eq!(snapshot.duplicate_causes.iter()
+                        .map(|cause| cause.role).collect::<Vec<_>>(), lower_roles);
                     assert_eq!(snapshot.duplicate_survivors, snapshot.duplicate_causes[..1]);
                     assert_eq!(snapshot.duplicate_primary,
                         Some(snapshot.duplicate_causes[0].source_span.clone()));

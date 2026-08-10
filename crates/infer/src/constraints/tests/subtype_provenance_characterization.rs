@@ -31,6 +31,8 @@ use specialize::{SpecializeError, UnsatisfiedSubtypeOrigin};
 /// structural correlation performed here is therefore not available to production.
 #[test]
 fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
+    // Exact-set fixtures below are authoritative: the added nodes/edges are certificate-typed
+    // bound views, not a return to unfiltered raw-bound expansion.
     let cases = [
         CharacterizationCase {
             name: "tuple-arity",
@@ -45,8 +47,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 35,
                 upper_bounds: 37,
                 record: ConstraintRecordId(45),
-                explanation_nodes: 35,
-                explanation_edges: 47,
+                explanation_nodes: 36,
+                explanation_edges: 48,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,
@@ -68,8 +70,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 65,
                 upper_bounds: 67,
                 record: ConstraintRecordId(89),
-                explanation_nodes: 69,
-                explanation_edges: 92,
+                explanation_nodes: 71,
+                explanation_edges: 94,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,
@@ -92,8 +94,8 @@ fn general_subtype_failures_have_infer_analogs_but_carry_no_record_identity() {
                 lower_bounds: 46,
                 upper_bounds: 50,
                 record: ConstraintRecordId(69),
-                explanation_nodes: 40,
-                explanation_edges: 52,
+                explanation_nodes: 41,
+                explanation_edges: 53,
                 origins: &[
                     ConstraintOriginKind::UnknownInternal,
                     ConstraintOriginKind::Internal,
@@ -371,7 +373,6 @@ fn subp_b_portable_exports_match_local_explanation_topology() {
 }
 
 #[test]
-#[ignore = "GWCB-C must restore the exact filtered replay bridge"]
 fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
     let output = lower("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
     let machine = output.session.infer.constraints();
@@ -387,10 +388,17 @@ fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
                 matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
                     && edge
                         .parents
-                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+                        .contains(&ExplanationNodeId::Bound(bridge.bound))
+                    && local.edges.contains(&ExplanationEdge {
+                        child: ExplanationNodeId::Bound(bridge.bound),
+                        kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(
+                            bridge.result,
+                        )),
+                        parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+                    })
             })
         })
-        .expect("the proof store retains the claimed replay bridge behind the shortcut");
+        .expect("the explanation retains the decisive claimed replay bridge");
     assert_eq!(bridge.coverage_root, bridge.representative_claim);
     assert_eq!(bridge.carrier.lower, bridge.lower);
     assert_eq!(bridge.carrier.upper, bridge.upper);
@@ -398,6 +406,7 @@ fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
     let expected_nodes = FxHashSet::from_iter([
         ExplanationNodeId::Bound(bridge.bound),
         ExplanationNodeId::Constraint(bridge.result),
+        ExplanationNodeId::Bound(bridge.lower),
         ExplanationNodeId::Bound(bridge.upper),
     ]);
     let expected_edges = FxHashSet::from_iter([
@@ -432,6 +441,21 @@ fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
         missing_nodes.is_empty() && missing_edges.is_empty(),
         "missing exact GWCB nodes: {missing_nodes:?}; edges: {missing_edges:?}",
     );
+    let filtered_bound_edges = local
+        .edges
+        .iter()
+        .filter(|edge| edge.child == ExplanationNodeId::Bound(bridge.bound))
+        .cloned()
+        .collect::<FxHashSet<_>>();
+    assert_eq!(
+        filtered_bound_edges,
+        FxHashSet::from_iter([ExplanationEdge {
+            child: ExplanationNodeId::Bound(bridge.bound),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.result)),
+            parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+        }]),
+        "the filtered mixed bound must expose only its decisive certificate",
+    );
 }
 
 #[test]
@@ -450,14 +474,41 @@ fn gwcb_0_motivating_bound_keeps_filtered_and_raw_reach_distinct() {
                 matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
                     && edge
                         .parents
-                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+                        .contains(&ExplanationNodeId::Bound(bridge.bound))
             })
         })
         .expect("the proof store retains the claimed replay bridge");
+    let proof = machine
+        .generalized_scheme_records_iter()
+        .flat_map(|(_, scheme)| scheme.witnesses.iter())
+        .filter_map(|witness| machine.generalized_scheme_witness(*witness))
+        .flat_map(|witness| witness.incoming.iter())
+        .flat_map(|edge| edge.parents.iter())
+        .find_map(|parent| match parent {
+            GeneralizationParent::BoundClaimProjectionProof {
+                bound,
+                proof,
+                ..
+            } if *bound == bridge.bound
+                && matches!(
+                    proof.kind(),
+                    crate::constraints::proof::ClaimedProjectionProofKind::ReplayConjunction {
+                        attribution:
+                            crate::constraints::proof::ClaimedProjectionProofAttribution::ReplayConstraint {
+                                result,
+                            },
+                        ..
+                    } if result == bridge.result
+                ) => Some(**proof),
+            _ => None,
+        })
+        .expect("generalization retains the exact claimed replay certificate");
     let bound = machine.bounds.record(bridge.bound).expect("bridge bound");
-    assert!(bound
-        .derivations
-        .contains(&BoundDerivation::Constraint(bridge.result)));
+    assert!(
+        bound
+            .derivations
+            .contains(&BoundDerivation::Constraint(bridge.result))
+    );
     let formula = machine
         .proof_store
         .projection_formula_for_test(bridge.bound)
@@ -486,8 +537,76 @@ fn gwcb_0_motivating_bound_keeps_filtered_and_raw_reach_distinct() {
             View::Raw(bound) | View::Filtered(bound, _) => ExplanationNodeId::Bound(*bound),
         })
         .collect::<FxHashSet<_>>();
-    assert_eq!(expanded_views.len(), 2, "raw and filtered reach stay distinct");
-    assert_eq!(emitted_nodes.len(), 1, "both views share one graph node identity");
+    assert_eq!(
+        expanded_views.len(),
+        2,
+        "raw and filtered reach stay distinct"
+    );
+    assert_eq!(
+        emitted_nodes.len(),
+        1,
+        "both views share one graph node identity"
+    );
+
+    let raw_first = machine
+        .why_bound_raw_and_claimed_views_for_test(
+            bridge.bound,
+            proof,
+            true,
+            ExplanationBudget::default(),
+        )
+        .expect("raw-first dual-view query");
+    let filtered_first = machine
+        .why_bound_raw_and_claimed_views_for_test(
+            bridge.bound,
+            proof,
+            false,
+            ExplanationBudget::default(),
+        )
+        .expect("filtered-first dual-view query");
+    assert_eq!(raw_first.completeness, filtered_first.completeness);
+    assert_eq!(raw_first.truncation, filtered_first.truncation);
+    assert_eq!(
+        raw_first
+            .nodes
+            .iter()
+            .map(ExplanationNode::id)
+            .collect::<FxHashSet<_>>(),
+        filtered_first
+            .nodes
+            .iter()
+            .map(ExplanationNode::id)
+            .collect::<FxHashSet<_>>(),
+    );
+    assert_eq!(
+        raw_first.edges.iter().collect::<FxHashSet<_>>(),
+        filtered_first.edges.iter().collect::<FxHashSet<_>>(),
+        "raw/filtered traversal order must not change the semantic edge set",
+    );
+
+    for budget in [
+        ExplanationBudget {
+            max_nodes: 0,
+            ..ExplanationBudget::default()
+        },
+        ExplanationBudget {
+            max_edges: 0,
+            ..ExplanationBudget::default()
+        },
+        ExplanationBudget {
+            max_depth: 0,
+            ..ExplanationBudget::default()
+        },
+    ] {
+        let raw_first = machine
+            .why_bound_raw_and_claimed_views_for_test(bridge.bound, proof, true, budget)
+            .expect("budgeted raw-first dual-view query");
+        let filtered_first = machine
+            .why_bound_raw_and_claimed_views_for_test(bridge.bound, proof, false, budget)
+            .expect("budgeted filtered-first dual-view query");
+        assert_eq!(raw_first.completeness, filtered_first.completeness);
+        assert_eq!(raw_first.truncation, filtered_first.truncation);
+    }
 }
 
 #[test]
@@ -508,12 +627,20 @@ fn gwcb_0_records_local_raw_deduplicated_and_portable_edge_baselines() {
         )
         .expect("portable explanation");
 
-    assert_eq!(local.edges.len(), 44, "local keeps raw edge-vector multiplicity");
-    assert_eq!(local_deduplicated.len(), 43, "one exact local edge is repeated");
+    assert_eq!(
+        local.edges.len(),
+        48,
+        "local keeps raw edge-vector multiplicity"
+    );
+    assert_eq!(
+        local_deduplicated.len(),
+        48,
+        "typed filtered parents keep the formerly-collapsed edges distinct",
+    );
     assert_eq!(
         portable.snapshot.edges().len(),
-        43,
-        "portable export deduplicates exact shared edges",
+        48,
+        "portable export preserves the recovered deduplicated topology",
     );
 }
 
