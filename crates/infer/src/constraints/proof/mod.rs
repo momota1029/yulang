@@ -181,8 +181,9 @@ enum ProofEvalState {
     Done(bool),
 }
 
-/// Memo and cycle-cut state shared only within one immutable projection traversal.
+/// Preflight, memo, and cycle-cut state shared only within one immutable projection traversal.
 pub(crate) struct ProjectionEvaluationRound<'a> {
+    preflight: Option<ProjectionPreflight<'a>>,
     states: FxHashMap<ProofEvalNode, ProofEvalState>,
     memo_sharing_disabled: bool,
     terminal_failure: Option<ProofFailure>,
@@ -193,6 +194,7 @@ pub(crate) struct ProjectionEvaluationRound<'a> {
 impl ProjectionEvaluationRound<'_> {
     pub(crate) fn new() -> Self {
         Self {
+            preflight: None,
             states: FxHashMap::default(),
             memo_sharing_disabled: false,
             terminal_failure: None,
@@ -963,17 +965,6 @@ enum ProjectionSupportMatchKey {
 }
 
 impl ResolvedProjectionSupport {
-    fn same_key(self, other: Self) -> bool {
-        match self {
-            Self::Claimed(left) => {
-                matches!(other, Self::Claimed(right) if left.coverage_root == right.coverage_root)
-            }
-            Self::Independent(left) => {
-                matches!(other, Self::Independent(right) if left == right)
-            }
-        }
-    }
-
     fn cmp(self, other: Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Claimed(left), Self::Claimed(right)) => {
@@ -3223,11 +3214,11 @@ impl ProofOccurrenceStore {
         result
     }
 
-    fn project_lower_inner(
-        &self,
-        view: &impl SemanticFactView,
+    fn project_lower_inner<'a>(
+        &'a self,
+        view: &'a impl SemanticFactView,
         record: BoundRecordId,
-        round: &mut ProjectionEvaluationRound<'_>,
+        round: &mut ProjectionEvaluationRound<'a>,
     ) -> Result<ProjectionDecision, ProofFailure> {
         let Some(bound) = view.bound(record) else {
             return Err(ProofFailure::MissingSemanticFact {
@@ -3264,7 +3255,10 @@ impl ProofOccurrenceStore {
             (true, true) => {}
         }
 
-        let mut preflight = ProjectionPreflight::new(self, view, record);
+        let preflight = round
+            .preflight
+            .get_or_insert_with(|| ProjectionPreflight::new(self, view, record));
+        preflight.retarget(record);
         preflight.validate_record(record, ProofFactRef::ProjectionSupports(record))?;
 
         let supports = supports.expect("non-empty supports were classified above");
@@ -3384,6 +3378,14 @@ impl<'a> ProjectionPreflight<'a> {
         }
     }
 
+    fn retarget(&mut self, target_record: BoundRecordId) {
+        // Successful checks are target-independent. Only failure attribution changes between the
+        // top-level records in one immutable query, after the prior traversal has fully unwound.
+        debug_assert!(self.visiting_records.is_empty());
+        debug_assert!(self.visiting_constraints.is_empty());
+        self.target_record = target_record;
+    }
+
     fn validate_record(
         &mut self,
         record: BoundRecordId,
@@ -3493,9 +3495,8 @@ impl<'a> ProjectionPreflight<'a> {
         matched.resize(resolved.len(), false);
         for clause in clauses.iter().copied() {
             let clause_support = self.resolve_support(record, clause.support())?;
-            let Some(index) = resolved
-                .iter()
-                .position(|support| support.same_key(clause_support))
+            let Ok(index) = resolved
+                .binary_search_by(|support| support.cmp(clause_support))
             else {
                 return Err(ProofFailure::ProjectionInvariantViolation {
                     record,
@@ -6453,6 +6454,50 @@ mod tests {
         machine
             .proof_store
             .set_projection_formula_for_test(record, clauses);
+    }
+
+    #[test]
+    fn cpk_preflight_checked_state_is_shared_across_round_targets() {
+        let mut machine = cpk_machine();
+        let records = [
+            cpk_gap_1_projection_record(&mut machine, 200),
+            cpk_gap_1_projection_record(&mut machine, 201),
+        ];
+        let support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        for record in records {
+            cpk_gap_1_set_supports_and_formula(
+                &mut machine,
+                record,
+                vec![support],
+                vec![ProjectionClause::Standalone {
+                    support,
+                    attribution: None,
+                }],
+            );
+        }
+
+        let mut round = ProjectionEvaluationRound::new();
+        for (index, record) in records.into_iter().enumerate() {
+            machine
+                .proof_store
+                .project_lower(&machine, record, &mut round)
+                .expect("shared preflight target has complete proof metadata");
+            let preflight = round
+                .preflight
+                .as_ref()
+                .expect("the first claimed target creates one query preflight");
+            assert_eq!(preflight.target_record, record);
+            assert_eq!(
+                preflight.checked_records.len(),
+                index + 1,
+                "successful record checks remain available to later targets",
+            );
+            assert!(records[..=index].iter().all(|record| {
+                preflight.checked_records.contains(record)
+            }));
+        }
     }
 
     #[test]
