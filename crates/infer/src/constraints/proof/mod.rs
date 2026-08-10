@@ -718,6 +718,7 @@ pub(super) struct PreparedProjectionClauseAdmission {
         RecordProofClause,
     )>,
     canonical_formula: Vec<ProjectionClause>,
+    formula_support_keys: FxHashSet<ProjectionSupportMatchKey>,
     new_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
     new_flat_retained_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
 }
@@ -955,6 +956,12 @@ enum ResolvedProjectionSupport {
     Independent(ProjectionProofCarrier),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ProjectionSupportMatchKey {
+    Claimed(UpperReplayClaimId),
+    Independent(ProjectionProofCarrier),
+}
+
 impl ResolvedProjectionSupport {
     fn same_key(self, other: Self) -> bool {
         match self {
@@ -1115,6 +1122,10 @@ pub(crate) struct ProofOccurrenceStore {
     projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     projection_lower_record_memberships: FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
+    // Formula storage preserves full clauses; this narrow mirror serves semantic support
+    // membership without rebuilding or scanning those formulas in the evaluator hot path.
+    projection_formula_support_keys:
+        FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
     projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
     projection_clause_link_keys: FxHashSet<(
         BoundRecordId,
@@ -1174,6 +1185,7 @@ impl Default for ProofOccurrenceStore {
             projection_lower_records_by_root: FxHashMap::default(),
             projection_lower_record_memberships: FxHashSet::default(),
             projection_formulas: FxHashMap::default(),
+            projection_formula_support_keys: FxHashMap::default(),
             projection_clause_keys: FxHashSet::default(),
             projection_clause_link_keys: FxHashSet::default(),
             projection_attributions: FxHashSet::default(),
@@ -1406,6 +1418,20 @@ impl ProofOccurrenceStore {
             .map(|index| self.upper_claims[*index].coverage_root)
     }
 
+    fn projection_support_match_key(
+        &self,
+        support: SchemeProjectionProofSupport,
+    ) -> Option<ProjectionSupportMatchKey> {
+        match support {
+            SchemeProjectionProofSupport::Claimed(claim) => self
+                .claim_coverage_root(claim)
+                .map(ProjectionSupportMatchKey::Claimed),
+            SchemeProjectionProofSupport::Independent(carrier) => {
+                Some(ProjectionSupportMatchKey::Independent(carrier))
+            }
+        }
+    }
+
     pub(super) fn derived_claim(
         &self,
         record: BoundRecordId,
@@ -1502,6 +1528,23 @@ impl ProofOccurrenceStore {
             self.dependency_occurrence_indices_by_result,
             expected_dependencies
         );
+    }
+
+    #[cfg(test)]
+    fn debug_assert_projection_formula_support_keys_match_linear_scan(&self) {
+        let expected = self
+            .projection_formulas
+            .iter()
+            .map(|(record, clauses)| {
+                let support_keys = clauses
+                    .iter()
+                    .copied()
+                    .filter_map(|clause| self.projection_support_match_key(clause.support()))
+                    .collect::<FxHashSet<_>>();
+                (*record, support_keys)
+            })
+            .collect::<FxHashMap<_, _>>();
+        debug_assert_eq!(self.projection_formula_support_keys, expected);
     }
 }
 
@@ -2109,6 +2152,22 @@ impl ProofOccurrenceStore {
         )
     }
 
+    #[cfg(test)]
+    fn set_projection_formula_for_test(
+        &mut self,
+        record: BoundRecordId,
+        clauses: Vec<ProjectionClause>,
+    ) {
+        let support_keys = clauses
+            .iter()
+            .copied()
+            .filter_map(|clause| self.projection_support_match_key(clause.support()))
+            .collect();
+        self.projection_formulas.insert(record, clauses);
+        self.projection_formula_support_keys
+            .insert(record, support_keys);
+    }
+
     pub(super) fn try_prepare_projection_clause_admission(
         &mut self,
         lower_record: BoundRecordId,
@@ -2214,6 +2273,21 @@ impl ProofOccurrenceStore {
                 Self::projection_clause(event.admission),
             );
         }
+        let existing_formula_support_keys = self
+            .projection_formula_support_keys
+            .get(&lower_record);
+        let mut formula_support_keys = FxHashSet::default();
+        formula_support_keys
+            .try_reserve(
+                existing_formula_support_keys.map_or(0, FxHashSet::len) + accepted.len(),
+            )
+            .map_err(exhausted)?;
+        formula_support_keys.extend(
+            existing_formula_support_keys
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
 
         self.projection_clause_keys
             .try_reserve(new_clause_keys.len())
@@ -2230,6 +2304,14 @@ impl ProofOccurrenceStore {
         if !self.projection_formulas.contains_key(&lower_record) {
             self.projection_formulas.try_reserve(1).map_err(exhausted)?;
         }
+        if !self
+            .projection_formula_support_keys
+            .contains_key(&lower_record)
+        {
+            self.projection_formula_support_keys
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
 
         Ok(Some(PreparedProjectionClauseAdmission {
             lower_record,
@@ -2237,6 +2319,7 @@ impl ProofOccurrenceStore {
             new_clause_keys,
             new_link_keys,
             canonical_formula,
+            formula_support_keys,
             new_projection_attributions,
             new_flat_retained_projection_attributions,
         }))
@@ -2259,9 +2342,17 @@ impl ProofOccurrenceStore {
             self.flat_retained_projection_attributions
                 .insert(attribution);
         }
+        for event in &prepared.accepted {
+            if let Some(key) = self.projection_support_match_key(event.admission.support) {
+                prepared.formula_support_keys.insert(key);
+            }
+        }
         let canonical_formula = std::mem::take(&mut prepared.canonical_formula);
+        let formula_support_keys = std::mem::take(&mut prepared.formula_support_keys);
         self.projection_formulas
             .insert(prepared.lower_record, canonical_formula);
+        self.projection_formula_support_keys
+            .insert(prepared.lower_record, formula_support_keys);
     }
 
     pub(super) fn record_projection_clause(
@@ -3977,13 +4068,23 @@ impl<'a> CpkProjectionEvaluator<'a> {
             return true;
         }
         let clauses = self.store.projection_formulas.get(&record);
+        let clause_support_keys = self
+            .store
+            .projection_formula_support_keys
+            .get(&record);
+        debug_assert_eq!(
+            clauses.is_some(),
+            clause_support_keys.is_some(),
+            "CPK projection formula/support-key mirror presence must match for {record:?}",
+        );
         if supports.iter().copied().any(|support| {
             self.support_is_qualifying(support)
-                && !clauses.is_some_and(|clauses| {
-                    clauses.iter().copied().any(|clause| {
-                        self.supports_match(support, clause.support())
+                && !self
+                    .store
+                    .projection_support_match_key(support)
+                    .is_some_and(|key| {
+                        clause_support_keys.is_some_and(|keys| keys.contains(&key))
                     })
-                })
         }) {
             return true;
         }
@@ -4093,28 +4194,6 @@ impl<'a> CpkProjectionEvaluator<'a> {
         match support {
             SchemeProjectionProofSupport::Independent(_) => true,
             SchemeProjectionProofSupport::Claimed(claim) => self.eval_root_coverage(claim),
-        }
-    }
-
-    fn supports_match(
-        &self,
-        left: SchemeProjectionProofSupport,
-        right: SchemeProjectionProofSupport,
-    ) -> bool {
-        match (left, right) {
-            (
-                SchemeProjectionProofSupport::Independent(left),
-                SchemeProjectionProofSupport::Independent(right),
-            ) => left == right,
-            (
-                SchemeProjectionProofSupport::Claimed(left),
-                SchemeProjectionProofSupport::Claimed(right),
-            ) => {
-                let left_root = self.store.claim_coverage_root(left);
-                let right_root = self.store.claim_coverage_root(right);
-                left_root.is_some() && left_root == right_root
-            }
-            _ => false,
         }
     }
 
@@ -5332,6 +5411,60 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn cpk_projection_formula_support_keys_match_linear_formula_scan() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let replacement = add_same_root_replay_claim(
+            &mut fixture,
+            TypeVar(97_110),
+            ConstraintRecordId(97_111),
+        );
+        let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_112);
+        let independent = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        for admission in [
+            RecordProofClauseLinkAdmission::claimed(
+                fixture.coverage_root,
+                RecordProofClause::Standalone {
+                    support: SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
+                },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                replacement,
+                RecordProofClause::Standalone {
+                    support: SchemeProjectionProofSupport::Claimed(replacement),
+                },
+                ClaimedAttributionSource::FlatRetained,
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                independent,
+                RecordProofClause::Standalone {
+                    support: independent,
+                },
+            ),
+        ] {
+            fixture
+                .machine
+                .proof_store
+                .record_projection_clause(record, admission);
+        }
+
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_projection_formula_support_keys_match_linear_scan();
+        let keys = &fixture.machine.proof_store.projection_formula_support_keys[&record];
+        assert_eq!(keys.len(), 2, "same-root representatives share one key");
+        assert!(keys.contains(&ProjectionSupportMatchKey::Claimed(
+            fixture.coverage_root
+        )));
+        assert!(keys.contains(&ProjectionSupportMatchKey::Independent(
+            ProjectionProofCarrier::Incomplete
+        )));
+    }
+
     struct Cpk7RoutingFixture {
         machine: ConstraintMachine,
         lower: BoundRecordId,
@@ -6272,8 +6405,7 @@ mod tests {
             .insert(record, supports);
         machine
             .proof_store
-            .projection_formulas
-            .insert(record, clauses);
+            .set_projection_formula_for_test(record, clauses);
     }
 
     #[test]
@@ -6463,6 +6595,12 @@ mod tests {
         assert!(machine.proof_store.projection_clause_keys.is_empty());
         assert!(machine.proof_store.projection_clause_link_keys.is_empty());
         assert!(machine.proof_store.projection_formulas.is_empty());
+        assert!(
+            machine
+                .proof_store
+                .projection_formula_support_keys
+                .is_empty()
+        );
         assert!(machine.proof_store.projection_attributions.is_empty());
         assert!(
             machine
@@ -6484,6 +6622,9 @@ mod tests {
             support,
             admission.clause,
         ));
+        machine
+            .proof_store
+            .debug_assert_projection_formula_support_keys_match_linear_scan();
     }
 
     #[test]
@@ -6491,7 +6632,7 @@ mod tests {
         let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 1);
         let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
-        machine.proof_store.projection_formulas.insert(
+        machine.proof_store.set_projection_formula_for_test(
             record,
             vec![ProjectionClause::Standalone {
                 support,
@@ -7258,6 +7399,10 @@ mod tests {
         let before = (
             no_ledger.proof_store.projection_supports.len(),
             no_ledger.proof_store.projection_formulas.len(),
+            no_ledger
+                .proof_store
+                .projection_formula_support_keys
+                .len(),
         );
         assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
@@ -7270,6 +7415,10 @@ mod tests {
             (
                 no_ledger.proof_store.projection_supports.len(),
                 no_ledger.proof_store.projection_formulas.len(),
+                no_ledger
+                    .proof_store
+                    .projection_formula_support_keys
+                    .len(),
             ),
             "the no-claim query must allocate no persistent proof state",
         );
@@ -7280,8 +7429,7 @@ mod tests {
             .insert(no_ledger_record, Vec::new());
         no_ledger
             .proof_store
-            .projection_formulas
-            .insert(no_ledger_record, Vec::new());
+            .set_projection_formula_for_test(no_ledger_record, Vec::new());
         assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
             no_ledger_owner,
@@ -9887,6 +10035,12 @@ mod tests {
 
         assert!(!machine.proof_store.projection_supports.contains_key(&record));
         assert!(!machine.proof_store.projection_formulas.contains_key(&record));
+        assert!(
+            !machine
+                .proof_store
+                .projection_formula_support_keys
+                .contains_key(&record)
+        );
         assert_cpk_projection_decision_and_consumer(
             &machine,
             owner,
