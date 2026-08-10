@@ -1414,6 +1414,14 @@ pub(crate) struct ProofOccurrenceStore {
 }
 
 #[cfg(test)]
+/// Persistent-store allocation census only.
+///
+/// In particular, this does not observe the temporary `Vec` and `FxHashSet`
+/// allocations used while preparing an admission. Therefore equality of two
+/// censuses proves zero persistent index growth, not zero heap allocation for
+/// the whole admission path. The final GWCB audit ledger is a flat map, so its
+/// persistent footprint is represented directly by `(len, capacity)` rather
+/// than by a synthetic per-record bucket count.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct PerformanceIndexAllocationCensus {
     dependency_result_buckets: (usize, usize, usize, usize),
@@ -7080,6 +7088,10 @@ mod tests {
             ),
         );
         let after = independent_store.performance_index_allocation_census();
+        assert!(
+            independent_store.projection_formulas.contains_key(&record),
+            "the independent-only admission must be accepted before its claimed-link allocation is assessed",
+        );
         assert_eq!(after.claimed_projection_audit, before.claimed_projection_audit);
 
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
