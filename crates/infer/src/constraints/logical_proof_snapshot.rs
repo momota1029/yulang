@@ -182,10 +182,11 @@ pub(crate) enum CanonicalGeneralizationParent {
         bound: usize,
         claim: usize,
     },
+    // Raw representative claims are audit payload, not canonical identity. The normalized root
+    // keeps snapshot equality and stable debug hashes invariant under same-root replacement.
     BoundClaimProjectionProof {
         bound: usize,
         coverage_root: usize,
-        representative_claim: usize,
         proof: CanonicalClaimedProjectionProof,
     },
     BoundProjectionProof {
@@ -199,14 +200,12 @@ pub(crate) enum CanonicalClaimedProjectionProof {
     Standalone {
         bound: usize,
         coverage_root: usize,
-        representative_claim: usize,
         producer: usize,
         attribution: CanonicalClaimedProjectionProofAttribution,
     },
     DerivedUnary {
         bound: usize,
         coverage_root: usize,
-        representative_claim: usize,
         result: usize,
         carrier: CanonicalCarrier,
         premise: CanonicalPremise,
@@ -215,7 +214,6 @@ pub(crate) enum CanonicalClaimedProjectionProof {
     ReplayConjunction {
         bound: usize,
         coverage_root: usize,
-        representative_claim: usize,
         carrier: CanonicalCarrier,
         lower_premise: usize,
         upper_premise: usize,
@@ -770,12 +768,11 @@ fn canonical_generalization_parent(
         GeneralizationParent::BoundClaimProjectionProof {
             bound,
             coverage_root,
-            representative_claim,
             proof,
+            ..
         } => CanonicalGeneralizationParent::BoundClaimProjectionProof {
             bound: bound.0 as usize,
             coverage_root: coverage_root.0 as usize,
-            representative_claim: representative_claim.0 as usize,
             proof: canonical_claimed_projection_proof(canonical, proof.as_ref()),
         },
         GeneralizationParent::BoundProjectionProof { bound, carrier } => {
@@ -795,28 +792,26 @@ fn canonical_claimed_projection_proof(
         proof::ClaimedProjectionProofKind::Standalone {
             bound,
             coverage_root,
-            representative_claim,
             producer,
             attribution,
+            ..
         } => CanonicalClaimedProjectionProof::Standalone {
             bound: bound.0 as usize,
             coverage_root: coverage_root.0 as usize,
-            representative_claim: representative_claim.0 as usize,
             producer: producer.0 as usize,
             attribution: canonical_claimed_projection_attribution(attribution),
         },
         proof::ClaimedProjectionProofKind::DerivedUnary {
             bound,
             coverage_root,
-            representative_claim,
             result,
             carrier,
             premise,
             attribution,
+            ..
         } => CanonicalClaimedProjectionProof::DerivedUnary {
             bound: bound.0 as usize,
             coverage_root: coverage_root.0 as usize,
-            representative_claim: representative_claim.0 as usize,
             result: result.0 as usize,
             carrier: match carrier {
                 DerivedUnaryCarrier::Structural(derivation) => CanonicalCarrier::Structural {
@@ -837,11 +832,11 @@ fn canonical_claimed_projection_proof(
         proof::ClaimedProjectionProofKind::ReplayConjunction {
             bound,
             coverage_root,
-            representative_claim,
             carrier,
             lower_premise,
             upper_premise,
             attribution,
+            ..
         } => {
             let result = match attribution {
                 proof::ClaimedProjectionProofAttribution::ReplayConstraint { result } => {
@@ -852,7 +847,6 @@ fn canonical_claimed_projection_proof(
             CanonicalClaimedProjectionProof::ReplayConjunction {
                 bound: bound.0 as usize,
                 coverage_root: coverage_root.0 as usize,
-                representative_claim: representative_claim.0 as usize,
                 carrier: canonical.replay(carrier, result),
                 lower_premise: lower_premise.0 as usize,
                 upper_premise: upper_premise.0 as usize,

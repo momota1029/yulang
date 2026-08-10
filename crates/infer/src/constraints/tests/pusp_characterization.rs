@@ -5,7 +5,8 @@ use std::time::{Duration, Instant};
 use crate::constraints::explain::{
     ExplanationBudget, ExplanationCompleteness, ExplanationEdge, ExplanationEdgeKind,
     ExplanationNode, ExplanationNodeId, ExplanationQueryResult,
-    ParameterBodyRequirementProjectionState, project_parameter_body_requirements,
+    ParameterBodyRequirementProjectionState, PortableProvenanceExportBudget,
+    PortableProvenanceExportRoot, project_parameter_body_requirements,
 };
 use crate::constraints::ocast_eligibility::{
     EligibleBoundaryEvidence, OcastEligibilityOutcome, OcastEligibilityState, ReplaySourceParent,
@@ -15,7 +16,10 @@ use crate::lowering::{
 };
 use crate::{ModuleOrder, Name};
 use poly::expr::{Def, DefId, Expr, Pat};
-use poly::provenance::{PortableByteRange, PortableSourceLocation};
+use poly::provenance::{
+    PortableBoundDerivationKind, PortableByteRange, PortableProvenanceEdgeKind,
+    PortableProvenanceSnapshot, PortableSourceLocation,
+};
 use poly::types::{Neg, Pos, TypeVar};
 
 const JUNCTION_STD: &str = concat!(
@@ -158,6 +162,22 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
     let actual_edges = local.edges.iter().cloned().collect::<FxHashSet<_>>();
     let missing_nodes = expected_nodes.difference(&actual_nodes).collect::<Vec<_>>();
     let missing_edges = expected_edges.difference(&actual_edges).collect::<Vec<_>>();
+    let parameter_portable = machine
+        .export_portable_provenance(
+            &[PortableProvenanceExportRoot::Bound(original)],
+            PortableProvenanceExportBudget::default(),
+            |_, _| None,
+        )
+        .expect("portable parameter explanation");
+    assert_portable_replay_bridge(
+        &local,
+        &parameter_portable.snapshot,
+        bridge.bound,
+        bridge.result,
+        bridge.lower,
+        bridge.upper,
+        bridge.producer,
+    );
 
     let call_producer = output
         .session
@@ -241,6 +261,24 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
     let call_missing_edges = call_expected_edges
         .difference(&call_edges)
         .collect::<Vec<_>>();
+    let call_portable = machine
+        .export_portable_provenance(
+            &[PortableProvenanceExportRoot::Constraint(call_producer)],
+            PortableProvenanceExportBudget::default(),
+            |_, _| None,
+        )
+        .expect("portable same-session call explanation");
+    for bridge in &call_bridges {
+        assert_portable_replay_bridge(
+            &call,
+            &call_portable.snapshot,
+            bridge.bound,
+            bridge.result,
+            bridge.lower,
+            bridge.upper,
+            bridge.producer,
+        );
+    }
     assert!(
         missing_nodes.is_empty()
             && missing_edges.is_empty()
@@ -249,6 +287,58 @@ fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
         "parameter missing nodes: {missing_nodes:?}; edges: {missing_edges:?}; \
          call missing nodes: {call_missing_nodes:?}; edges: {call_missing_edges:?}",
     );
+}
+
+fn assert_portable_replay_bridge(
+    local: &ExplanationQueryResult,
+    portable: &PortableProvenanceSnapshot,
+    bound: BoundRecordId,
+    result: ConstraintRecordId,
+    lower: BoundRecordId,
+    upper: BoundRecordId,
+    producer: ConstraintRecordId,
+) {
+    let portable_node = |id| {
+        let index = local
+            .nodes
+            .iter()
+            .position(|node| node.id() == id)
+            .expect("exact bridge node is present locally");
+        portable.nodes()[index].id
+    };
+    let expected = [
+        (
+            portable_node(ExplanationNodeId::Bound(bound)),
+            PortableProvenanceEdgeKind::Bound(PortableBoundDerivationKind::Constraint),
+            vec![portable_node(ExplanationNodeId::Constraint(result))],
+        ),
+        (
+            portable_node(ExplanationNodeId::Constraint(result)),
+            PortableProvenanceEdgeKind::BinaryReplay,
+            vec![
+                portable_node(ExplanationNodeId::Bound(lower)),
+                portable_node(ExplanationNodeId::Bound(upper)),
+            ],
+        ),
+        (
+            portable_node(ExplanationNodeId::Bound(upper)),
+            PortableProvenanceEdgeKind::Bound(PortableBoundDerivationKind::Constraint),
+            vec![portable_node(ExplanationNodeId::Constraint(producer))],
+        ),
+    ];
+    for (child, kind, parents) in expected {
+        assert_eq!(
+            portable
+                .edges()
+                .iter()
+                .filter(|edge| {
+                    edge.child == child && edge.kind == kind && edge.parents == parents
+                })
+                .count(),
+            1,
+            "the exact claimed replay bridge must be exported once",
+        );
+    }
 }
 
 #[test]

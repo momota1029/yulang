@@ -13,12 +13,12 @@ use crate::lowering::{
 use poly::expr::{Def, Expr, Pat};
 use poly::provenance::{
     PortableBodyRequirementKind, PortableByteRange, PortableConstraintOriginKind,
-    PortableProvenanceNodeKind, PortableProvenanceTruncation, PortableSourceLocation,
-    ProvenanceCompleteness as PortableCompleteness, TypeOccurrenceKey, TypeOccurrenceOwner,
-    TypeOccurrenceRole, TypePositionPath,
+    PortableProvenanceEdgeKind, PortableProvenanceNodeKind, PortableProvenanceTruncation,
+    PortableSourceLocation, ProvenanceCompleteness as PortableCompleteness, TypeOccurrenceKey,
+    TypeOccurrenceOwner, TypeOccurrenceRole, TypePositionPath,
 };
 use poly::types::{Neg, Pos};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use specialize::mono::Type as MonoType;
 use specialize::{SpecializeError, UnsatisfiedSubtypeOrigin};
 
@@ -402,6 +402,54 @@ fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
     assert_eq!(bridge.coverage_root, bridge.representative_claim);
     assert_eq!(bridge.carrier.lower, bridge.lower);
     assert_eq!(bridge.carrier.upper, bridge.upper);
+    let logical = machine.logical_proof_snapshot();
+    let canonical_parent = logical
+        .generalized
+        .witnesses
+        .iter()
+        .flat_map(|witness| &witness.incoming)
+        .flat_map(|edge| &edge.parents)
+        .find(|parent| {
+            matches!(
+                parent,
+                crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundClaimProjectionProof {
+                    bound,
+                    coverage_root,
+                    ..
+                } if *bound == bridge.bound.0 as usize
+                    && *coverage_root == bridge.coverage_root.0 as usize
+            )
+        })
+        .expect("logical snapshot retains the normalized decisive certificate");
+    assert_eq!(
+        canonical_parent,
+        &crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundClaimProjectionProof {
+            bound: bridge.bound.0 as usize,
+            coverage_root: bridge.coverage_root.0 as usize,
+            proof: crate::constraints::logical_proof_snapshot::CanonicalClaimedProjectionProof::ReplayConjunction {
+                bound: bridge.bound.0 as usize,
+                coverage_root: bridge.coverage_root.0 as usize,
+                carrier: crate::constraints::logical_proof_snapshot::CanonicalCarrier::Replay {
+                    result: Some(bridge.result.0 as usize),
+                    pivot: bridge.carrier.pivot.0 as usize,
+                    lower: bridge.lower.0 as usize,
+                    upper: bridge.upper.0 as usize,
+                    rule: format!("{:?}", bridge.carrier.rule),
+                },
+                lower_premise: bridge.lower.0 as usize,
+                upper_premise: bridge.upper.0 as usize,
+                attribution: crate::constraints::logical_proof_snapshot::CanonicalClaimedProjectionProofAttribution::ReplayConstraint {
+                    result: bridge.result.0 as usize,
+                },
+            },
+        },
+        "logical identity must use the normalized root and exact replay carrier",
+    );
+    assert_eq!(
+        machine.logical_proof_snapshot().generalized,
+        logical.generalized,
+        "canonical parent ordering and debug-hash input must be stable across reconstruction",
+    );
 
     let expected_nodes = FxHashSet::from_iter([
         ExplanationNodeId::Bound(bridge.bound),
@@ -1244,6 +1292,58 @@ fn assert_portable_export_parity(name: &str, source: &str, record: ConstraintRec
     // queries may retain repeated references to the same exact edge.
     let local_edges = local.edges.iter().collect::<FxHashSet<_>>();
     assert_eq!(export.snapshot.edges().len(), local_edges.len(), "{name}");
+    let local_node_indices = local
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(index, node)| (node.id(), index))
+        .collect::<FxHashMap<_, _>>();
+    assert_eq!(
+        local.nodes.iter().map(local_node_tag).collect::<Vec<_>>(),
+        export
+            .snapshot
+            .nodes()
+            .iter()
+            .map(|node| portable_node_tag(node.kind))
+            .collect::<Vec<_>>(),
+        "{name}: portable nodes must retain local node kind and order",
+    );
+    let local_topology = local_edges
+        .iter()
+        .map(|edge| PortableTopologyEdge {
+            child: local_node_indices[&edge.child],
+            kind: local_edge_tag(&edge.kind),
+            parents: edge
+                .parents
+                .iter()
+                .map(|parent| local_node_indices[parent])
+                .collect(),
+        })
+        .collect::<FxHashSet<_>>();
+    let portable_topology = export
+        .snapshot
+        .edges()
+        .iter()
+        .map(|edge| PortableTopologyEdge {
+            child: edge.child.index(),
+            kind: portable_edge_tag(edge.kind),
+            parents: edge.parents.iter().map(|parent| parent.index()).collect(),
+        })
+        .collect::<FxHashSet<_>>();
+    assert_eq!(
+        local_topology.len(),
+        local_edges.len(),
+        "{name}: the test topology key must not collapse distinct local edges",
+    );
+    assert_eq!(
+        portable_topology.len(),
+        export.snapshot.edges().len(),
+        "{name}: portable shared edges must be exported once",
+    );
+    assert_eq!(
+        portable_topology, local_topology,
+        "{name}: portable edges must equal the deduplicated local topology",
+    );
     let local_source_boundaries = local
         .source_leaves
         .iter()
@@ -1300,6 +1400,73 @@ fn assert_portable_export_parity(name: &str, source: &str, record: ConstraintRec
         export.snapshot.logical_bytes_proxy(),
         "{name}",
     );
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct PortableTopologyEdge {
+    child: usize,
+    kind: &'static str,
+    parents: Vec<usize>,
+}
+
+fn local_node_tag(node: &ExplanationNode) -> &'static str {
+    match node {
+        ExplanationNode::Constraint { .. } => "constraint",
+        ExplanationNode::Bound { .. } => "bound",
+        ExplanationNode::Origin { .. } => "origin",
+        ExplanationNode::RowDerivation { .. } => "row-derivation",
+        ExplanationNode::SubtractFact { .. } => "subtract-fact",
+        ExplanationNode::LowerFilter { .. } => "lower-filter",
+        ExplanationNode::BoundDisposition { .. } => "bound-disposition",
+        ExplanationNode::GeneralizedWitness { .. } => "generalized-witness",
+    }
+}
+
+fn portable_node_tag(node: PortableProvenanceNodeKind) -> &'static str {
+    match node {
+        PortableProvenanceNodeKind::Constraint { .. } => "constraint",
+        PortableProvenanceNodeKind::Bound { .. } => "bound",
+        PortableProvenanceNodeKind::Origin { .. } => "origin",
+        PortableProvenanceNodeKind::RowDerivation { .. } => "row-derivation",
+        PortableProvenanceNodeKind::SubtractFact { .. } => "subtract-fact",
+        PortableProvenanceNodeKind::LowerFilter => "lower-filter",
+        PortableProvenanceNodeKind::BoundDisposition { .. } => "bound-disposition",
+        PortableProvenanceNodeKind::GeneralizedWitness { .. } => "generalized-witness",
+    }
+}
+
+fn local_edge_tag(kind: &ExplanationEdgeKind) -> &'static str {
+    match kind {
+        ExplanationEdgeKind::RootOrigin => "root-origin",
+        ExplanationEdgeKind::Structural(_) => "structural",
+        ExplanationEdgeKind::BinaryReplay(_) => "binary-replay",
+        ExplanationEdgeKind::RowResult(_) => "row-result",
+        ExplanationEdgeKind::Canonicalization(_) => "canonicalization",
+        ExplanationEdgeKind::Bound(_) => "bound",
+        ExplanationEdgeKind::Row(_) => "row",
+        ExplanationEdgeKind::LowerFilter => "lower-filter",
+        ExplanationEdgeKind::SubtractFact(_) => "subtract-fact",
+        ExplanationEdgeKind::BoundDisposition(_) => "bound-disposition",
+        ExplanationEdgeKind::Generalization(_) => "generalization",
+        ExplanationEdgeKind::SchemeInstantiation(_) => "scheme-instantiation",
+    }
+}
+
+fn portable_edge_tag(kind: PortableProvenanceEdgeKind) -> &'static str {
+    match kind {
+        PortableProvenanceEdgeKind::RootOrigin => "root-origin",
+        PortableProvenanceEdgeKind::Structural(_) => "structural",
+        PortableProvenanceEdgeKind::BinaryReplay => "binary-replay",
+        PortableProvenanceEdgeKind::RowResult => "row-result",
+        PortableProvenanceEdgeKind::Canonicalization => "canonicalization",
+        PortableProvenanceEdgeKind::Bound(_) => "bound",
+        PortableProvenanceEdgeKind::Row(_) => "row",
+        PortableProvenanceEdgeKind::LowerFilter => "lower-filter",
+        PortableProvenanceEdgeKind::SubtractFact(_) => "subtract-fact",
+        PortableProvenanceEdgeKind::BoundDisposition(_) => "bound-disposition",
+        PortableProvenanceEdgeKind::Generalization(_) => "generalization",
+        PortableProvenanceEdgeKind::SchemeInstantiation => "scheme-instantiation",
+    }
 }
 
 fn portable_source_location(
