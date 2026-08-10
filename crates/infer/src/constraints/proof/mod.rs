@@ -1145,6 +1145,16 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_projection_clause_reservation: bool,
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PerformanceIndexAllocationCensus {
+    dependency_result_buckets: (usize, usize, usize, usize),
+    projection_carrier_occurrences: (usize, usize),
+    row_derivation_occurrences: (usize, usize),
+    replay_result_buckets: (usize, usize, usize, usize),
+    formula_support_buckets: (usize, usize, usize, usize),
+}
+
 impl Default for ProofOccurrenceStore {
     fn default() -> Self {
         Self {
@@ -1206,6 +1216,56 @@ impl Default for ProofOccurrenceStore {
 }
 
 impl ProofOccurrenceStore {
+    #[cfg(test)]
+    fn performance_index_allocation_census(&self) -> PerformanceIndexAllocationCensus {
+        PerformanceIndexAllocationCensus {
+            dependency_result_buckets: (
+                self.dependency_occurrence_indices_by_result.len(),
+                self.dependency_occurrence_indices_by_result.capacity(),
+                self.dependency_occurrence_indices_by_result
+                    .values()
+                    .map(Vec::len)
+                    .sum(),
+                self.dependency_occurrence_indices_by_result
+                    .values()
+                    .map(Vec::capacity)
+                    .sum(),
+            ),
+            projection_carrier_occurrences: (
+                self.projection_carrier_occurrence_index.len(),
+                self.projection_carrier_occurrence_index.capacity(),
+            ),
+            row_derivation_occurrences: (
+                self.row_derivation_occurrence_index.len(),
+                self.row_derivation_occurrence_index.capacity(),
+            ),
+            replay_result_buckets: (
+                self.replay_indices_by_result.len(),
+                self.replay_indices_by_result.capacity(),
+                self.replay_indices_by_result
+                    .values()
+                    .map(Vec::len)
+                    .sum(),
+                self.replay_indices_by_result
+                    .values()
+                    .map(Vec::capacity)
+                    .sum(),
+            ),
+            formula_support_buckets: (
+                self.projection_formula_support_keys.len(),
+                self.projection_formula_support_keys.capacity(),
+                self.projection_formula_support_keys
+                    .values()
+                    .map(FxHashSet::len)
+                    .sum(),
+                self.projection_formula_support_keys
+                    .values()
+                    .map(FxHashSet::capacity)
+                    .sum(),
+            ),
+        }
+    }
+
     pub(super) fn try_prepare_projection_support_mutation(
         &mut self,
         lower_record: BoundRecordId,
@@ -5696,6 +5756,24 @@ mod tests {
                 parent_side: ReplayClaimParentSide::Upper,
             }],
         );
+        let indexes_before_duplicate = machine
+            .proof_store
+            .performance_index_allocation_census();
+        machine.proof_store.record_cpk_replay_parent_snapshot(
+            result,
+            replay,
+            &[SideTaggedReplayClaim {
+                claim: second_claim,
+                parent_side: ReplayClaimParentSide::Upper,
+            }],
+        );
+        assert_eq!(
+            machine
+                .proof_store
+                .performance_index_allocation_census(),
+            indexes_before_duplicate,
+            "an exact replay-parent duplicate must not grow either result-bucket index",
+        );
 
         let structural = StructuralDerivation {
             parent: ConstraintRecordId(97_104),
@@ -5836,6 +5914,27 @@ mod tests {
                 .proof_store
                 .record_projection_clause(record, admission);
         }
+        let indexes_before_duplicate = fixture
+            .machine
+            .proof_store
+            .performance_index_allocation_census();
+        fixture.machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                independent,
+                RecordProofClause::Standalone {
+                    support: independent,
+                },
+            ),
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .performance_index_allocation_census(),
+            indexes_before_duplicate,
+            "an exact clause-link duplicate must not grow the formula-support mirror",
+        );
 
         fixture
             .machine
@@ -10466,6 +10565,9 @@ mod tests {
         let owner = machine.bounds.record(record).unwrap().owner();
         let epochs = (machine.epoch, machine.provenance_epoch);
         let journal = machine.activate_method_role_mutations();
+        let indexes_before = machine
+            .proof_store
+            .performance_index_allocation_census();
 
         assert!(!machine.proof_store.projection_supports.contains_key(&record));
         assert!(!machine.proof_store.projection_formulas.contains_key(&record));
@@ -10475,11 +10577,25 @@ mod tests {
                 .projection_formula_support_keys
                 .contains_key(&record)
         );
+        let (decision, round) = project_lower_for_test(&machine, record);
+        assert_eq!(decision, Ok(ProjectionDecision::Unclaimed));
+        assert!(
+            round.preflight.is_none(),
+            "an unclaimed record must not allocate query-local preflight state",
+        );
+        drop(round);
         assert_cpk_projection_decision_and_consumer(
             &machine,
             owner,
             record,
             ProjectionDecision::Unclaimed,
+        );
+        assert_eq!(
+            machine
+                .proof_store
+                .performance_index_allocation_census(),
+            indexes_before,
+            "a no-claim query must not grow any CPK performance mirror",
         );
         assert_eq!((machine.epoch, machine.provenance_epoch), epochs);
         assert!(machine.take_method_role_mutations().is_empty());
@@ -10491,6 +10607,18 @@ mod tests {
         let mut machine = ConstraintMachine::new();
         let before = machine.proof_store.claim_allocation_census();
         assert_eq!(before, (0, 0, 0, 0, 0, 0, 0));
+        assert_eq!(
+            machine
+                .proof_store
+                .performance_index_allocation_census(),
+            PerformanceIndexAllocationCensus {
+                dependency_result_buckets: (0, 0, 0, 0),
+                projection_carrier_occurrences: (0, 0),
+                row_derivation_occurrences: (0, 0),
+                replay_result_buckets: (0, 0, 0, 0),
+                formula_support_buckets: (0, 0, 0, 0),
+            },
+        );
 
         let target = TypeVar(40_010);
         let lower = machine.alloc_pos(Pos::Con(vec!["cpk-no-claim".into()], Vec::new()));
@@ -10505,6 +10633,18 @@ mod tests {
             machine.proof_store.claim_allocation_census(),
             before,
             "an ordinary no-claim bound must not allocate the CPK claim arena, grow either claim index, or perform claim-index maintenance",
+        );
+        let indexes = machine
+            .proof_store
+            .performance_index_allocation_census();
+        assert_eq!(indexes.dependency_result_buckets, (0, 0, 0, 0));
+        assert_eq!(indexes.row_derivation_occurrences, (0, 0));
+        assert_eq!(indexes.replay_result_buckets, (0, 0, 0, 0));
+        assert_eq!(indexes.formula_support_buckets, (0, 0, 0, 0));
+        assert_eq!(indexes.projection_carrier_occurrences.0, 1);
+        assert!(
+            indexes.projection_carrier_occurrences.1 > 0,
+            "the ordinary bound's Origin occurrence is intentionally indexed as a projection carrier",
         );
     }
 
@@ -11784,11 +11924,46 @@ mod tests {
                     structural_upper,
                 )
                 .expect("structural constraint");
+            let indexes_before_structural_duplicate = machine
+                .proof_store
+                .performance_index_allocation_census();
+            assert!(!machine.enqueue_derived_subtype(
+                structural_lower,
+                ConstraintWeights::empty(),
+                structural_upper,
+                parent,
+                StructuralDerivationRule::FunctionReturn,
+            ));
+            assert_eq!(
+                machine
+                    .proof_store
+                    .performance_index_allocation_census(),
+                indexes_before_structural_duplicate,
+                "an exact structural duplicate must not grow dependency or carrier indexes",
+            );
 
             let row = machine.intern_row_derivation(
                 RowDerivationRule::RowItemMatch,
                 vec![RowDerivationParent::Constraint(parent)],
                 Vec::new(),
+            );
+            let indexes_before_row_duplicate = machine
+                .proof_store
+                .performance_index_allocation_census();
+            assert_eq!(
+                machine.intern_row_derivation(
+                    RowDerivationRule::RowItemMatch,
+                    vec![RowDerivationParent::Constraint(parent)],
+                    Vec::new(),
+                ),
+                row,
+            );
+            assert_eq!(
+                machine
+                    .proof_store
+                    .performance_index_allocation_census(),
+                indexes_before_row_duplicate,
+                "an exact row-derivation duplicate must not grow the row membership index",
             );
             let row_lower = machine.alloc_pos(Pos::Var(TypeVar(14)));
             let row_upper = machine.alloc_neg(Neg::Var(TypeVar(15)));
@@ -11837,6 +12012,9 @@ mod tests {
                 alternate.origin,
             ));
             let before_duplicate = machine.proof_store.occurrences.len();
+            let indexes_before_duplicate = machine
+                .proof_store
+                .performance_index_allocation_census();
             assert!(!machine.attach_root_origin_to_existing_subtype(
                 lower,
                 upper,
@@ -11846,6 +12024,13 @@ mod tests {
                 machine.proof_store.occurrences.len(),
                 before_duplicate,
                 "an exact metadata duplicate must not create an occurrence",
+            );
+            assert_eq!(
+                machine
+                    .proof_store
+                    .performance_index_allocation_census(),
+                indexes_before_duplicate,
+                "an exact occurrence duplicate must not grow any occurrence membership index",
             );
         let snapshot = machine.proof_store.clone();
         assert_eq!(snapshot.occurrences.len(), 21);
