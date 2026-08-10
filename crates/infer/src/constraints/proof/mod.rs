@@ -3294,11 +3294,17 @@ impl ProofOccurrenceStore {
                         claim,
                         ProofFactRef::ProjectionSupports(record),
                     )?;
-                    if !self
-                        .live_coverage
-                        .iter()
-                        .any(|(root, _)| *root == resolved.coverage_root)
-                    {
+                    let live_states = self
+                        .live_states_by_coverage_root
+                        .get(&resolved.coverage_root);
+                    #[cfg(test)]
+                    debug_assert_eq!(
+                        live_states.is_some_and(|states| !states.is_empty()),
+                        self.live_coverage
+                            .iter()
+                            .any(|(root, _)| *root == resolved.coverage_root)
+                    );
+                    if live_states.is_none_or(FxHashSet::is_empty) {
                         payload.uncovered_claims.push(resolved);
                     }
                 }
@@ -3544,12 +3550,22 @@ impl<'a> ProjectionPreflight<'a> {
         }
         self.validate_bound_reference(owner, representative.current_record)?;
         self.validate_bound_reference(owner, root_claim.current_record)?;
-        for (_, state) in self
-            .store
-            .live_coverage
-            .iter()
-            .filter(|(candidate, _)| *candidate == root)
+        let live_states = self.store.live_states_by_coverage_root.get(&root);
+        #[cfg(test)]
         {
+            let expected = self
+                .store
+                .live_coverage
+                .iter()
+                .filter_map(|(candidate, state)| (*candidate == root).then_some(*state))
+                .collect::<FxHashSet<_>>();
+            debug_assert_eq!(live_states.cloned().unwrap_or_default(), expected);
+        }
+        for state in live_states.into_iter().flatten() {
+            assert!(
+                self.store.live_coverage.contains(&(root, *state)),
+                "the live coverage root index must reference a recorded live state"
+            );
             if self.view.row_reduction(*state).is_none() {
                 return Err(self.dangling(owner, ProofFactRef::RowReduction(*state)));
             }
@@ -3689,16 +3705,31 @@ impl<'a> ProjectionPreflight<'a> {
                     }
                 }
             }
-            let roots = self
-                .store
-                .upper_claims
-                .iter()
-                .filter(|claim| {
-                    claim.producer == constraint && claim.lineage == ProjectionLineage::Original
-                })
-                .map(|claim| claim.claim)
-                .collect::<Vec<_>>();
-            for root in roots {
+            let root = self.store.root_claim_for_producer(constraint);
+            #[cfg(test)]
+            {
+                let expected = self
+                    .store
+                    .upper_claims
+                    .iter()
+                    .filter(|claim| {
+                        claim.producer == constraint
+                            && claim.lineage == ProjectionLineage::Original
+                    })
+                    .map(|claim| claim.claim)
+                    .collect::<Vec<_>>();
+                debug_assert_eq!(root.into_iter().collect::<Vec<_>>(), expected);
+            }
+            if let Some(root) = root {
+                let root_claim = self
+                    .store
+                    .upper_claim(root)
+                    .ok_or_else(|| self.dangling(owner, ProofFactRef::UpperClaim(root)))?;
+                assert_eq!(
+                    (root_claim.producer, root_claim.lineage),
+                    (constraint, ProjectionLineage::Original),
+                    "the original claim producer index must reference its own original root"
+                );
                 self.validate_claim_reference(owner, root)?;
             }
             Ok(())
@@ -3769,9 +3800,25 @@ impl<'a> ProjectionPreflight<'a> {
                 }
                 self.validate_bound_reference(owner, derivation.lower)?;
                 self.validate_bound_reference(owner, derivation.upper)?;
-                if !self.store.replay_finite_map.iter().any(|occurrence| {
-                    occurrence.result == result && occurrence.carrier == derivation
-                }) {
+                let replay = self
+                    .store
+                    .replay_finite_map_index
+                    .get(&(result, derivation))
+                    .and_then(|index| self.store.replay_finite_map.get(*index));
+                #[cfg(test)]
+                debug_assert_eq!(
+                    replay.is_some(),
+                    self.store.replay_finite_map.iter().any(|occurrence| {
+                        occurrence.result == result && occurrence.carrier == derivation
+                    })
+                );
+                if let Some(replay) = replay {
+                    assert_eq!(
+                        (replay.result, replay.carrier),
+                        (result, derivation),
+                        "the replay finite-map index must reference its own key"
+                    );
+                } else {
                     return Err(missing_carrier());
                 }
             }
