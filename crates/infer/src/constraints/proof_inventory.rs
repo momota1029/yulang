@@ -967,7 +967,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6c removes two historical reduction/structural carrier assertions.
     // CPK-8G-6d removes structural/reduction RCPF comparison fixtures. CPK-8G-12 part 2 removes
     // the seven references belonging solely to the obsolete legacy payload facade.
-    ("row_derivations", 35),
+    // CPK-9 adds four test-only references in the row-derivation occurrence-index parity oracle:
+    // three name its independently reconstructed expected map and one names the dedicated test.
+    // They neither read nor write ConstraintRecord::row_derivations in production.
+    ("row_derivations", 39),
     ("generalized_schemes", 9),
     // Slice B's test-only four-consumer oracle and Included(empty) regression invoke the
     // reviewed generalized-witness reader. Neither adds a production proof-state consumer.
@@ -1038,7 +1041,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // final test-only RCPF evaluator lookup; the CPK evaluator reads its own upper-claim index.
     // CPK-8G-11a1 removes the remaining flat record-index fixture assertions. CPK-8G-11b1 removes
     // the flat index itself; every remaining reference belongs to ProofOccurrenceStore.
-    ("claims_by_upper_record", 36),
+    // CPK-9 adds four reviewed CPK-only readers: two replace upper-claim scans in projection
+    // preflight/evaluation, and replay-route batching adds two net shared-parent reads. All four
+    // read the existing canonical ProofOccurrenceStore index and introduce no writer or mirror.
+    ("claims_by_upper_record", 40),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
