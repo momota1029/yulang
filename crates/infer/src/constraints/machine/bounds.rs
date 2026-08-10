@@ -2787,33 +2787,26 @@ impl ConstraintMachine {
             routes.push(incremental_route_key(route));
         }
 
-        let mut prepared_routes = Vec::new();
-        prepared_routes
-            .try_reserve(uppers.len())
-            .map_err(|_| proof::ProofFailure::ResourceExhausted {
-                operation: proof::ProofOperation::PrepareReplayRouteBatch,
-            })?;
-        for (upper_record, upper) in &uppers {
-            let incremental = routes_by_upper
-                .get(upper_record)
-                .map(Vec::as_slice)
-                .unwrap_or(&[]);
-            let prepared = self.proof_store.prepare_replay_route(
-                self,
-                lower_record,
-                *upper_record,
-                incremental,
-            )?;
-            prepared_routes.push((*upper_record, upper.clone(), prepared));
-        }
+        let prepared_routes = self.proof_store.prepare_replay_routes_for_lower(
+            self,
+            lower_record,
+            uppers.iter().map(|(upper_record, _)| {
+                let incremental = routes_by_upper
+                    .get(upper_record)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                (*upper_record, incremental)
+            }),
+        )?;
+        debug_assert_eq!(prepared_routes.len(), uppers.len());
 
         let pair_count = prepared_routes
             .iter()
-            .filter(|(_, _, route)| route.proof_event.pair_replay.is_some())
+            .filter(|route| route.proof_event.pair_replay.is_some())
             .count();
         let incremental_count = prepared_routes
             .iter()
-            .map(|(_, _, route)| route.proof_event.incremental_replays.len())
+            .map(|route| route.proof_event.incremental_replays.len())
             .sum::<usize>();
         let replay_input_count = pair_count + incremental_count;
         let mut replay = BoundReplayPlan {
@@ -2821,7 +2814,9 @@ impl ConstraintMachine {
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("lower", target, replay_input_count);
-        for (index, (upper_record, upper, prepared)) in prepared_routes.iter().enumerate() {
+        for (index, ((upper_record, upper), prepared)) in
+            uppers.iter().zip(&prepared_routes).enumerate()
+        {
             let Some(parents) = &prepared.proof_event.pair_replay else {
                 continue;
             };
@@ -2852,7 +2847,7 @@ impl ConstraintMachine {
             .map_err(|_| proof::ProofFailure::ResourceExhausted {
                 operation: proof::ProofOperation::PrepareReplayRouteBatch,
             })?;
-        for (_, _, prepared) in &prepared_routes {
+        for prepared in &prepared_routes {
             for incremental in &prepared.proof_event.incremental_replays {
                 residual_by_key.insert(
                     (incremental.route.upper, incremental.route.upper_record),
@@ -2974,31 +2969,24 @@ impl ConstraintMachine {
                 .projection_lower_records()
                 .map(|(record, lower)| (record, lower.clone())),
         );
-        let mut prepared_routes = Vec::new();
-        prepared_routes
-            .try_reserve(lowers.len())
-            .map_err(|_| proof::ProofFailure::ResourceExhausted {
-                operation: proof::ProofOperation::PrepareReplayRouteBatch,
-            })?;
-        for (lower_record, lower) in &lowers {
-            let prepared = self.proof_store.prepare_replay_route(
-                self,
-                *lower_record,
-                upper_record,
-                &[],
-            )?;
-            prepared_routes.push((*lower_record, lower.clone(), prepared));
-        }
+        let prepared_routes = self.proof_store.prepare_replay_routes_for_upper(
+            self,
+            lowers.iter().map(|(lower_record, _)| *lower_record),
+            upper_record,
+        )?;
+        debug_assert_eq!(prepared_routes.len(), lowers.len());
         let replay_input_count = prepared_routes
             .iter()
-            .filter(|(_, _, route)| route.proof_event.pair_replay.is_some())
+            .filter(|route| route.proof_event.pair_replay.is_some())
             .count();
         let mut replay = BoundReplayPlan {
             input_count: replay_input_count,
             ..BoundReplayPlan::default()
         };
         trace_bound_replay_start("upper", source, replay_input_count);
-        for (index, (lower_record, lower, prepared)) in prepared_routes.iter().enumerate() {
+        for (index, ((lower_record, lower), prepared)) in
+            lowers.iter().zip(&prepared_routes).enumerate()
+        {
             let Some(parents) = &prepared.proof_event.pair_replay else {
                 continue;
             };

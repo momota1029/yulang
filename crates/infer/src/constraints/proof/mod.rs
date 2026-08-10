@@ -2360,6 +2360,212 @@ impl ProofOccurrenceStore {
         upper: BoundRecordId,
         incremental_routes: &[IncrementalRouteKey],
     ) -> Result<PreparedReplayRoute, ProofFailure> {
+        let (lower_endpoint, upper_endpoint) =
+            self.validate_replay_route_target(view, lower, upper)?;
+        let lower_ids = self
+            .claimed_parents_by_lower_record
+            .get(&lower)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let lower_block = self.prepare_replay_parent_block(
+            lower,
+            upper,
+            ReplayClaimParentSide::Lower,
+            lower_ids,
+            None,
+        )?;
+        let upper_ids = self
+            .claims_by_upper_record
+            .get(&upper)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let upper_entries = self.prepare_replay_parent_entries(
+            lower,
+            upper,
+            ReplayClaimParentSide::Upper,
+            upper_ids,
+            Some(upper),
+        )?;
+        let prepared = self.compose_prepared_replay_route(
+            view,
+            lower,
+            upper,
+            lower_endpoint,
+            upper_endpoint,
+            lower_block,
+            upper_ids,
+            &upper_entries,
+            incremental_routes,
+        )?;
+        self.validate_prepared_replay_route(lower, upper, &prepared)?;
+        Ok(prepared)
+    }
+
+    pub(crate) fn prepare_replay_routes_for_lower<'a>(
+        &self,
+        view: &impl SemanticFactView,
+        lower: BoundRecordId,
+        requests: impl IntoIterator<Item = (BoundRecordId, &'a [IncrementalRouteKey])>,
+    ) -> Result<Vec<PreparedReplayRoute>, ProofFailure> {
+        let requests = requests.into_iter();
+        let mut prepared_routes = Vec::new();
+        prepared_routes
+            .try_reserve(requests.size_hint().0)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        let mut shared_lower_block: Option<PreparedReplayParentBlock> = None;
+        for (upper, incremental_routes) in requests {
+            let (lower_endpoint, upper_endpoint) =
+                self.validate_replay_route_target(view, lower, upper)?;
+            let lower_block = match &shared_lower_block {
+                Some(block) => block.clone(),
+                None => {
+                    let lower_ids = self
+                        .claimed_parents_by_lower_record
+                        .get(&lower)
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]);
+                    let block = self.prepare_replay_parent_block(
+                        lower,
+                        upper,
+                        ReplayClaimParentSide::Lower,
+                        lower_ids,
+                        None,
+                    )?;
+                    shared_lower_block = Some(block.clone());
+                    block
+                }
+            };
+            let upper_ids = self
+                .claims_by_upper_record
+                .get(&upper)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            let upper_entries = self.prepare_replay_parent_entries(
+                lower,
+                upper,
+                ReplayClaimParentSide::Upper,
+                upper_ids,
+                Some(upper),
+            )?;
+            let prepared = self.compose_prepared_replay_route(
+                view,
+                lower,
+                upper,
+                lower_endpoint,
+                upper_endpoint,
+                lower_block,
+                upper_ids,
+                &upper_entries,
+                incremental_routes,
+            )?;
+            self.validate_prepared_replay_route_payload(lower, upper, &prepared)?;
+            prepared_routes.push(prepared);
+        }
+        Ok(prepared_routes)
+    }
+
+    pub(crate) fn prepare_replay_routes_for_upper(
+        &self,
+        view: &impl SemanticFactView,
+        lowers: impl IntoIterator<Item = BoundRecordId>,
+        upper: BoundRecordId,
+    ) -> Result<Vec<PreparedReplayRoute>, ProofFailure> {
+        let lowers = lowers.into_iter();
+        let mut prepared_routes = Vec::new();
+        prepared_routes
+            .try_reserve(lowers.size_hint().0)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        let upper_ids = self
+            .claims_by_upper_record
+            .get(&upper)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let mut shared_upper_entries = None;
+        let mut shared_upper_variants: [
+            Option<(ReplayRouting, Option<PreparedReplayParentBlock>)>;
+            2
+        ] = [None, None];
+        for lower in lowers {
+            let (lower_endpoint, upper_endpoint) =
+                self.validate_replay_route_target(view, lower, upper)?;
+            let lower_ids = self
+                .claimed_parents_by_lower_record
+                .get(&lower)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            let lower_block = self.prepare_replay_parent_block(
+                lower,
+                upper,
+                ReplayClaimParentSide::Lower,
+                lower_ids,
+                None,
+            )?;
+            let upper_entries = match &shared_upper_entries {
+                Some(entries) => entries,
+                None => {
+                    let entries = self.prepare_replay_parent_entries(
+                        lower,
+                        upper,
+                        ReplayClaimParentSide::Upper,
+                        upper_ids,
+                        Some(upper),
+                    )?;
+                    shared_upper_entries = Some(entries);
+                    shared_upper_entries
+                        .as_ref()
+                        .expect("the shared upper replay entries were just prepared")
+                }
+            };
+            let variant_index = usize::from(view.is_var_pos(lower_endpoint));
+            let prepared = match &shared_upper_variants[variant_index] {
+                Some((routing, upper_block)) => PreparedReplayRoute {
+                    routing: *routing,
+                    proof_event: PreparedReplayParents {
+                        pair_replay: upper_block.clone().map(|upper| PreparedReplayParentSet {
+                            lower: lower_block,
+                            upper,
+                        }),
+                        incremental_replays: Vec::new(),
+                    },
+                },
+                None => {
+                    let prepared = self.compose_prepared_replay_route(
+                        view,
+                        lower,
+                        upper,
+                        lower_endpoint,
+                        upper_endpoint,
+                        lower_block,
+                        upper_ids,
+                        upper_entries,
+                        &[],
+                    )?;
+                    let upper_block = prepared
+                        .proof_event
+                        .pair_replay
+                        .as_ref()
+                        .map(|parents| parents.upper.clone());
+                    shared_upper_variants[variant_index] =
+                        Some((prepared.routing, upper_block));
+                    prepared
+                }
+            };
+            self.validate_prepared_replay_route_payload(lower, upper, &prepared)?;
+            prepared_routes.push(prepared);
+        }
+        Ok(prepared_routes)
+    }
+
+    fn validate_replay_route_target(
+        &self,
+        view: &impl SemanticFactView,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+    ) -> Result<(PosId, NegId), ProofFailure> {
         let lower_bound = view.bound(lower).ok_or(ProofFailure::MissingSemanticFact {
             fact: SemanticFactRef::Bound(lower),
         })?;
@@ -2405,33 +2611,22 @@ impl ProofOccurrenceStore {
                 kind: ReplayRouteTargetViolation::UpperDirectionOrState,
             });
         };
+        Ok((lower_endpoint, upper_endpoint))
+    }
 
-        let lower_ids = self
-            .claimed_parents_by_lower_record
-            .get(&lower)
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
-        let lower_block = self.prepare_replay_parent_block(
-            lower,
-            upper,
-            ReplayClaimParentSide::Lower,
-            lower_ids,
-            None,
-        )?;
-
-        let upper_ids = self
-            .claims_by_upper_record
-            .get(&upper)
-            .map(Vec::as_slice)
-            .unwrap_or(&[]);
-        let upper_entries = self.prepare_replay_parent_entries(
-            lower,
-            upper,
-            ReplayClaimParentSide::Upper,
-            upper_ids,
-            Some(upper),
-        )?;
-
+    #[allow(clippy::too_many_arguments)]
+    fn compose_prepared_replay_route(
+        &self,
+        view: &impl SemanticFactView,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        lower_endpoint: PosId,
+        upper_endpoint: NegId,
+        lower_block: PreparedReplayParentBlock,
+        upper_ids: &[UpperReplayClaimId],
+        upper_entries: &[PreparedReplayParent],
+        incremental_routes: &[IncrementalRouteKey],
+    ) -> Result<PreparedReplayRoute, ProofFailure> {
         let mut handled_incremental_claims = FxHashSet::default();
         handled_incremental_claims
             .try_reserve(incremental_routes.len())
@@ -2453,7 +2648,7 @@ impl ProofOccurrenceStore {
                 operation: ProofOperation::PrepareReplayRouteParentCollection,
             })?;
         let lower_is_var = view.is_var_pos(lower_endpoint);
-        for parent in &upper_entries {
+        for parent in upper_entries {
             let covered = self
                 .live_states_by_coverage_root
                 .get(&parent.coverage_root)
@@ -2534,9 +2729,8 @@ impl ProofOccurrenceStore {
                 incremental_replays: prepared_incremental,
             },
         };
-        self.validate_prepared_replay_route(lower, upper, &prepared)?;
         Ok(prepared)
-        }
+    }
 
     fn prepare_replay_parent_block(
         &self,
@@ -2774,6 +2968,55 @@ impl ProofOccurrenceStore {
                 });
             }
             self.validate_prepared_parent_set(lower, upper, &incremental.parents)?;
+        }
+        Ok(())
+    }
+
+    fn validate_prepared_replay_route_payload(
+        &self,
+        lower: BoundRecordId,
+        upper: BoundRecordId,
+        prepared: &PreparedReplayRoute,
+    ) -> Result<(), ProofFailure> {
+        let payload_matches = match prepared.routing {
+            ReplayRouting::Generic => prepared.proof_event.pair_replay.is_some(),
+            ReplayRouting::IncrementalOnly => {
+                prepared.proof_event.pair_replay.is_some()
+                    || !prepared.proof_event.incremental_replays.is_empty()
+            }
+            ReplayRouting::SkipAlreadyCovered => {
+                prepared.proof_event.pair_replay.is_none()
+                    && prepared.proof_event.incremental_replays.is_empty()
+            }
+        };
+        if !payload_matches {
+            return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                lower,
+                upper,
+                kind: ReplayRoutingInvariantViolation::RoutingPayloadMismatch,
+            });
+        }
+        let mut seen = FxHashSet::default();
+        seen.try_reserve(prepared.proof_event.incremental_replays.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::PrepareReplayRouteBatch,
+            })?;
+        for incremental in &prepared.proof_event.incremental_replays {
+            let key = (incremental.route.upper, incremental.route.upper_record);
+            if !seen.insert(key) {
+                return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                    lower,
+                    upper,
+                    kind: ReplayRoutingInvariantViolation::DuplicatePreparedIncrementalRoute,
+                });
+            }
+            if incremental.route.upper_record != upper {
+                return Err(ProofFailure::ReplayRoutingInvariantViolation {
+                    lower,
+                    upper,
+                    kind: ReplayRoutingInvariantViolation::IncrementalUpperMismatch,
+                });
+            }
         }
         Ok(())
     }
@@ -5150,6 +5393,125 @@ mod tests {
             provenance: RowDerivationId(71_000),
             claim,
         }
+    }
+
+    #[test]
+    fn cpk_replay_route_batches_match_pairwise_preparation() {
+        let mut machine = cpk_machine();
+        let owner = TypeVar(72_000);
+        let concrete_lower_endpoint =
+            machine.alloc_pos(Pos::Con(vec!["cpk-batch-concrete".into()], Vec::new()));
+        let variable_lower_endpoint = machine.alloc_pos(Pos::Var(TypeVar(72_001)));
+        let concrete_lower = machine
+            .bounds
+            .add_lower(
+                owner,
+                concrete_lower_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let variable_lower = machine
+            .bounds
+            .add_lower(
+                owner,
+                variable_lower_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let first_upper_endpoint =
+            machine.alloc_neg(Neg::Con(vec!["cpk-batch-first".into()], Vec::new()));
+        let second_upper_endpoint =
+            machine.alloc_neg(Neg::Con(vec!["cpk-batch-second".into()], Vec::new()));
+        let first_upper = machine
+            .bounds
+            .add_upper(
+                owner,
+                first_upper_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let second_upper = machine
+            .bounds
+            .add_upper(
+                owner,
+                second_upper_endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let first_claim = machine
+            .original_upper_replay_claim(
+                first_upper,
+                ConstraintRecordId(92_000),
+                UpperReplayClaimKind::Direct,
+            )
+            .claim;
+        machine.original_upper_replay_claim(
+            second_upper,
+            ConstraintRecordId(92_001),
+            UpperReplayClaimKind::Direct,
+        );
+        machine.proof_store.record_live_coverage(
+            first_claim,
+            UnweightedRowReductionRecordId(72_000),
+            true,
+        );
+        let incremental = IncrementalRouteKey {
+            upper: machine.alloc_neg(Neg::Con(
+                vec!["cpk-batch-incremental".into()],
+                Vec::new(),
+            )),
+            upper_record: first_upper,
+            provenance: RowDerivationId(72_000),
+            claim: None,
+        };
+
+        let expected_lower = vec![
+            machine
+                .proof_store
+                .prepare_replay_route(&machine, concrete_lower, first_upper, &[incremental])
+                .expect("first pairwise lower-added route"),
+            machine
+                .proof_store
+                .prepare_replay_route(&machine, concrete_lower, second_upper, &[])
+                .expect("second pairwise lower-added route"),
+        ];
+        let incremental_routes = [incremental];
+        let lower_batch = machine
+            .proof_store
+            .prepare_replay_routes_for_lower(
+                &machine,
+                concrete_lower,
+                [
+                    (first_upper, incremental_routes.as_slice()),
+                    (second_upper, &[]),
+                ],
+            )
+            .expect("lower-added replay batch");
+        assert_eq!(lower_batch, expected_lower);
+
+        let expected_upper = vec![
+            machine
+                .proof_store
+                .prepare_replay_route(&machine, concrete_lower, first_upper, &[])
+                .expect("concrete pairwise upper-added route"),
+            machine
+                .proof_store
+                .prepare_replay_route(&machine, variable_lower, first_upper, &[])
+                .expect("variable pairwise upper-added route"),
+        ];
+        let upper_batch = machine
+            .proof_store
+            .prepare_replay_routes_for_upper(
+                &machine,
+                [concrete_lower, variable_lower],
+                first_upper,
+            )
+            .expect("upper-added replay batch");
+        assert_eq!(upper_batch, expected_upper);
     }
 
     #[test]
