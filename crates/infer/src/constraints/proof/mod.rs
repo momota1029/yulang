@@ -6818,10 +6818,14 @@ mod tests {
 
         let mut round = ProjectionEvaluationRound::new();
         for (index, record) in records.into_iter().enumerate() {
-            machine
-                .proof_store
-                .project_lower(&machine, record, &mut round)
-                .expect("shared preflight target has complete proof metadata");
+            let owner = machine
+                .bounds
+                .record(record)
+                .expect("projection target remains registered")
+                .owner();
+            let lowers = machine.scheme_projectable_lowers_in_round(owner, &mut round);
+            assert_eq!(lowers.len(), 1);
+            assert_eq!(lowers[0].record, record);
             let preflight = round
                 .preflight
                 .as_ref()

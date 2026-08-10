@@ -1215,10 +1215,16 @@ impl ConstraintMachine {
         &self,
         var: TypeVar,
     ) -> impl Iterator<Item = SchemeProjectableLower<'_>> {
-        self.cpk_scheme_projectable_lowers(var).into_iter()
+        let mut round = proof::ProjectionEvaluationRound::new();
+        self.scheme_projectable_lowers_in_round(var, &mut round)
+            .into_iter()
     }
 
-    fn cpk_scheme_projectable_lowers(&self, var: TypeVar) -> Vec<SchemeProjectableLower<'_>> {
+    pub(crate) fn scheme_projectable_lowers_in_round<'a>(
+        &'a self,
+        var: TypeVar,
+        round: &mut proof::ProjectionEvaluationRound<'a>,
+    ) -> Vec<SchemeProjectableLower<'a>> {
         if self.proof_terminal_failure().is_some() {
             return Vec::new();
         }
@@ -1229,10 +1235,9 @@ impl ConstraintMachine {
             .and_then(Option::as_ref)
             .into_iter()
             .flat_map(VarBounds::projection_lower_records);
-        let mut round = proof::ProjectionEvaluationRound::new();
         let mut lowers = Vec::new();
         for (record, bound) in records {
-            let decision = match self.proof_store.project_lower(self, record, &mut round) {
+            let decision = match self.proof_store.project_lower(self, record, round) {
                 Ok(decision) => decision,
                 Err(failure) => {
                     lowers.clear();

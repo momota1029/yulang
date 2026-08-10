@@ -42,11 +42,13 @@ fn positive_aliases_for(
     owner: TypeVar,
     allowed: impl IntoIterator<Item = TypeVar>,
 ) -> Vec<TypeVar> {
+    let mut projection_round = ProjectionEvaluationRound::new();
     positive_aliases_within_scheme(
         machine,
         &allowed.into_iter().collect(),
         &mut FxHashMap::default(),
         &mut FxHashSet::default(),
+        &mut projection_round,
         owner,
     )
 }
