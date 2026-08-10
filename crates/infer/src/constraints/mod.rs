@@ -982,23 +982,68 @@ enum ClaimedAttributionSource {
     FlatRetained,
 }
 
+/// Event-local metadata that is not recoverable from a raw clause link after admission.
+/// GWCB-A freezes it at the writer boundary; later slices consume only the resulting certificate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClaimedProjectionProofSource {
+    Original {
+        coverage_root: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+    },
+    DerivedUnary {
+        coverage_root: UpperReplayClaimId,
+        result: ConstraintRecordId,
+    },
+    ReplayConstraint {
+        coverage_root: UpperReplayClaimId,
+        result: ConstraintRecordId,
+    },
+    ReplayEvidence {
+        coverage_root: UpperReplayClaimId,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct RecordProofClauseLinkAdmission {
     support: SchemeProjectionProofSupport,
     clause: RecordProofClause,
     claimed_attribution_source: Option<ClaimedAttributionSource>,
+    claimed_proof_source: Option<ClaimedProjectionProofSource>,
 }
 
 impl RecordProofClauseLinkAdmission {
     fn claimed(
-        root: UpperReplayClaimId,
+        representative_claim: UpperReplayClaimId,
         clause: RecordProofClause,
         source: ClaimedAttributionSource,
+        proof_source: ClaimedProjectionProofSource,
     ) -> Self {
+        let source_matches = matches!(
+            (clause, source, proof_source),
+            (
+                RecordProofClause::Standalone { .. },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original { .. },
+            ) | (
+                RecordProofClause::DerivedUnary { .. },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::DerivedUnary { .. },
+            ) | (
+                RecordProofClause::ReplayConjunction { .. },
+                ClaimedAttributionSource::CanonicalReplay,
+                ClaimedProjectionProofSource::ReplayConstraint { .. },
+            ) | (
+                RecordProofClause::ReplayConjunction { .. },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::ReplayEvidence { .. },
+            )
+        );
+        assert!(source_matches, "claimed clause metadata must match its exact writer kind");
         Self {
-            support: SchemeProjectionProofSupport::Claimed(root),
+            support: SchemeProjectionProofSupport::Claimed(representative_claim),
             clause,
             claimed_attribution_source: Some(source),
+            claimed_proof_source: Some(proof_source),
         }
     }
 
@@ -1011,6 +1056,7 @@ impl RecordProofClauseLinkAdmission {
             support,
             clause,
             claimed_attribution_source: None,
+            claimed_proof_source: None,
         }
     }
 }
@@ -1460,6 +1506,10 @@ impl ConstraintMachine {
                             support: SchemeProjectionProofSupport::Claimed(claim),
                         },
                         ClaimedAttributionSource::FlatRetained,
+                        ClaimedProjectionProofSource::Original {
+                            coverage_root: claim,
+                            producer,
+                        },
                     )],
                 )?,
                 None => None,
@@ -1489,6 +1539,10 @@ impl ConstraintMachine {
                         support: SchemeProjectionProofSupport::Claimed(issued),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: issued,
+                        producer,
+                    },
                 )],
             )?,
             None => None,

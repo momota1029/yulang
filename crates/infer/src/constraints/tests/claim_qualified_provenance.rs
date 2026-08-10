@@ -301,6 +301,10 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                 root,
                 RecordProofClause::Standalone { support },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: root,
+                    producer: root_producer,
+                },
             ),
         );
         assert_eq!(

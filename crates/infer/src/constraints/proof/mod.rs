@@ -721,6 +721,10 @@ pub(super) struct PreparedProjectionClauseAdmission {
     )>,
     canonical_formula: Vec<ProjectionClause>,
     formula_support_keys: FxHashSet<ProjectionSupportMatchKey>,
+    new_claimed_link_audit_entries:
+        Vec<(RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource)>,
+    canonical_claimed_projection_proofs:
+        Option<FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>>,
     new_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
     new_flat_retained_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
 }
@@ -751,6 +755,100 @@ pub(super) enum ProjectionClause {
         attribution: Option<ProjectionLineage>,
     },
 }
+
+/// The exact claimed OR-arm frozen at clause admission time.
+///
+/// `representative_claim` is audit payload only. [`ClaimedProjectionProofKey`] normalizes it to
+/// `coverage_root`, so representative replacement cannot change semantic certificate identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ClaimedProjectionProof {
+    Standalone {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        representative_claim: UpperReplayClaimId,
+        producer: ConstraintRecordId,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+    DerivedUnary {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        representative_claim: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        carrier: DerivedUnaryCarrier,
+        premise: ProofPremise,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+    ReplayConjunction {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        representative_claim: UpperReplayClaimId,
+        carrier: BinaryReplayDerivation,
+        lower_premise: BoundRecordId,
+        upper_premise: BoundRecordId,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+}
+
+impl ClaimedProjectionProof {
+    fn representative_claim(self) -> UpperReplayClaimId {
+        match self {
+            Self::Standalone {
+                representative_claim,
+                ..
+            }
+            | Self::DerivedUnary {
+                representative_claim,
+                ..
+            }
+            | Self::ReplayConjunction {
+                representative_claim,
+                ..
+            } => representative_claim,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ClaimedProjectionProofAttribution {
+    Original,
+    StructuralConstraint,
+    ReductionRouteConstraint,
+    ReplayConstraint { result: ConstraintRecordId },
+    ReplayEvidence,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ClaimedProjectionProofKey {
+    Standalone {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        embedded_support: ProjectionSupportMatchKey,
+        producer: ConstraintRecordId,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+    DerivedUnary {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        result: ConstraintRecordId,
+        carrier: DerivedUnaryCarrier,
+        premise: ProofPremise,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+    ReplayConjunction {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        carrier: BinaryReplayDerivation,
+        lower_premise: BoundRecordId,
+        upper_premise: BoundRecordId,
+        attribution: ClaimedProjectionProofAttribution,
+    },
+}
+
+type RawProjectionClauseLinkIdentity = (
+    BoundRecordId,
+    SchemeProjectionProofSupport,
+    RecordProofClause,
+);
 
 /// Test-only read model for the exact bridge already present in CPK storage before GWCB changes
 /// any production payload. Arena ids are observations, never lookup constants in the fixture.
@@ -974,7 +1072,7 @@ enum ResolvedProjectionSupport {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ProjectionSupportMatchKey {
+pub(crate) enum ProjectionSupportMatchKey {
     Claimed(UpperReplayClaimId),
     Independent(ProjectionProofCarrier),
 }
@@ -1135,11 +1233,13 @@ pub(crate) struct ProofOccurrenceStore {
     projection_formula_support_keys:
         FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
     projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
-    projection_clause_link_keys: FxHashSet<(
+    projection_clause_link_keys: FxHashSet<RawProjectionClauseLinkIdentity>,
+    projection_claimed_link_audit:
+        FxHashMap<RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource>,
+    claimed_projection_proofs: FxHashMap<
         BoundRecordId,
-        SchemeProjectionProofSupport,
-        RecordProofClause,
-    )>,
+        FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
+    >,
     projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     flat_retained_projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     #[cfg(test)]
@@ -1168,6 +1268,8 @@ struct PerformanceIndexAllocationCensus {
     row_derivation_occurrences: (usize, usize),
     replay_result_buckets: (usize, usize, usize, usize),
     formula_support_buckets: (usize, usize, usize, usize),
+    claimed_projection_audit: (usize, usize),
+    claimed_projection_certificate_buckets: (usize, usize, usize, usize),
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1208,6 +1310,8 @@ impl Default for ProofOccurrenceStore {
             projection_formula_support_keys: FxHashMap::default(),
             projection_clause_keys: FxHashSet::default(),
             projection_clause_link_keys: FxHashSet::default(),
+            projection_claimed_link_audit: FxHashMap::default(),
+            claimed_projection_proofs: FxHashMap::default(),
             projection_attributions: FxHashSet::default(),
             flat_retained_projection_attributions: FxHashSet::default(),
             #[cfg(test)]
@@ -1276,6 +1380,22 @@ impl ProofOccurrenceStore {
                 self.projection_formula_support_keys
                     .values()
                     .map(FxHashSet::capacity)
+                    .sum(),
+            ),
+            claimed_projection_audit: (
+                self.projection_claimed_link_audit.len(),
+                self.projection_claimed_link_audit.capacity(),
+            ),
+            claimed_projection_certificate_buckets: (
+                self.claimed_projection_proofs.len(),
+                self.claimed_projection_proofs.capacity(),
+                self.claimed_projection_proofs
+                    .values()
+                    .map(FxHashMap::len)
+                    .sum(),
+                self.claimed_projection_proofs
+                    .values()
+                    .map(FxHashMap::capacity)
                     .sum(),
             ),
         }
@@ -1498,6 +1618,183 @@ impl ProofOccurrenceStore {
                 .map(ProjectionSupportMatchKey::Claimed),
             SchemeProjectionProofSupport::Independent(carrier) => {
                 Some(ProjectionSupportMatchKey::Independent(carrier))
+            }
+        }
+    }
+
+    fn claimed_projection_support_match_key(
+        &self,
+        support: SchemeProjectionProofSupport,
+        representative_claim: UpperReplayClaimId,
+        coverage_root: UpperReplayClaimId,
+    ) -> Result<ProjectionSupportMatchKey, ProofFailure> {
+        match support {
+            SchemeProjectionProofSupport::Claimed(claim) if claim == representative_claim => {
+                Ok(ProjectionSupportMatchKey::Claimed(coverage_root))
+            }
+            SchemeProjectionProofSupport::Claimed(claim) => self
+                .claim_coverage_root(claim)
+                .map(ProjectionSupportMatchKey::Claimed)
+                .ok_or(ProofFailure::MissingProofFact {
+                    fact: ProofFactRef::UpperClaim(claim),
+                }),
+            SchemeProjectionProofSupport::Independent(carrier) => {
+                Ok(ProjectionSupportMatchKey::Independent(carrier))
+            }
+        }
+    }
+
+    fn claimed_projection_proof(
+        &self,
+        bound: BoundRecordId,
+        admission: RecordProofClauseLinkAdmission,
+    ) -> Result<Option<(ClaimedProjectionProofKey, ClaimedProjectionProof)>, ProofFailure> {
+        let SchemeProjectionProofSupport::Claimed(representative_claim) = admission.support else {
+            return Ok(None);
+        };
+        let source = admission
+            .claimed_proof_source
+            .expect("claimed clause admission must carry event-local certificate metadata");
+        let source_coverage_root = match source {
+            ClaimedProjectionProofSource::Original { coverage_root, .. }
+            | ClaimedProjectionProofSource::DerivedUnary { coverage_root, .. }
+            | ClaimedProjectionProofSource::ReplayConstraint { coverage_root, .. }
+            | ClaimedProjectionProofSource::ReplayEvidence { coverage_root } => coverage_root,
+        };
+        if let Some(actual_root) = self.claim_coverage_root(representative_claim) {
+            assert_eq!(
+                source_coverage_root, actual_root,
+                "writer-time certificate root must match the admitted representative claim",
+            );
+        }
+        let (key, proof) = match (admission.clause, source) {
+            (
+                RecordProofClause::Standalone { support },
+                ClaimedProjectionProofSource::Original {
+                    coverage_root,
+                    producer,
+                },
+            ) => {
+                let attribution = ClaimedProjectionProofAttribution::Original;
+                let embedded_support = self.claimed_projection_support_match_key(
+                    support,
+                    representative_claim,
+                    coverage_root,
+                )?;
+                (
+                    ClaimedProjectionProofKey::Standalone {
+                        bound,
+                        coverage_root,
+                        embedded_support,
+                        producer,
+                        attribution,
+                    },
+                    ClaimedProjectionProof::Standalone {
+                        bound,
+                        coverage_root,
+                        representative_claim,
+                        producer,
+                        attribution,
+                    },
+                )
+            }
+            (
+                RecordProofClause::DerivedUnary { carrier, premise },
+                ClaimedProjectionProofSource::DerivedUnary {
+                    coverage_root,
+                    result,
+                },
+            ) => {
+                let attribution = match carrier {
+                    DerivedUnaryCarrier::Structural(_) => {
+                        ClaimedProjectionProofAttribution::StructuralConstraint
+                    }
+                    DerivedUnaryCarrier::ReductionRoute(_) => {
+                        ClaimedProjectionProofAttribution::ReductionRouteConstraint
+                    }
+                };
+                (
+                    ClaimedProjectionProofKey::DerivedUnary {
+                        bound,
+                        coverage_root,
+                        result,
+                        carrier,
+                        premise,
+                        attribution,
+                    },
+                    ClaimedProjectionProof::DerivedUnary {
+                        bound,
+                        coverage_root,
+                        representative_claim,
+                        result,
+                        carrier,
+                        premise,
+                        attribution,
+                    },
+                )
+            }
+            (
+                RecordProofClause::ReplayConjunction {
+                    carrier,
+                    lower_premise,
+                    upper_premise,
+                },
+                source @ (ClaimedProjectionProofSource::ReplayConstraint { .. }
+                | ClaimedProjectionProofSource::ReplayEvidence { .. }),
+            ) => {
+                assert_eq!(carrier.lower, lower_premise);
+                assert_eq!(carrier.upper, upper_premise);
+                let (coverage_root, attribution) = match source {
+                    ClaimedProjectionProofSource::ReplayConstraint {
+                        coverage_root,
+                        result,
+                    } => (
+                        coverage_root,
+                        ClaimedProjectionProofAttribution::ReplayConstraint { result },
+                    ),
+                    ClaimedProjectionProofSource::ReplayEvidence { coverage_root } => {
+                        (coverage_root, ClaimedProjectionProofAttribution::ReplayEvidence)
+                    }
+                    _ => unreachable!(),
+                };
+                (
+                    ClaimedProjectionProofKey::ReplayConjunction {
+                        bound,
+                        coverage_root,
+                        carrier,
+                        lower_premise,
+                        upper_premise,
+                        attribution,
+                    },
+                    ClaimedProjectionProof::ReplayConjunction {
+                        bound,
+                        coverage_root,
+                        representative_claim,
+                        carrier,
+                        lower_premise,
+                        upper_premise,
+                        attribution,
+                    },
+                )
+            }
+            _ => unreachable!("claimed clause constructor rejects mismatched certificate metadata"),
+        };
+        Ok(Some((key, proof)))
+    }
+
+    fn insert_claimed_projection_proof_canonical(
+        bucket: &mut FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
+        key: ClaimedProjectionProofKey,
+        proof: ClaimedProjectionProof,
+    ) {
+        match bucket.entry(key) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(proof);
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                if proof.representative_claim() < entry.get().representative_claim() {
+                    entry.insert(proof);
+                }
             }
         }
     }
@@ -1881,6 +2178,62 @@ impl ProofOccurrenceStore {
             })
             .collect::<FxHashMap<_, _>>();
         debug_assert_eq!(self.projection_formula_support_keys, expected);
+    }
+
+    #[cfg(test)]
+    fn debug_assert_claimed_projection_proofs_match_linear_scan(&self) {
+        let mut expected = FxHashMap::<
+            BoundRecordId,
+            FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
+        >::default();
+        for (&(bound, support, clause), &source) in &self.projection_claimed_link_audit {
+            let raw_identity = (bound, support, clause);
+            debug_assert!(
+                self.projection_clause_link_keys.contains(&raw_identity),
+                "claimed certificate audit identity must remain present in the raw ledger",
+            );
+            let admission = RecordProofClauseLinkAdmission {
+                support,
+                clause,
+                claimed_attribution_source: Some(match source {
+                    ClaimedProjectionProofSource::ReplayConstraint { .. } => {
+                        ClaimedAttributionSource::CanonicalReplay
+                    }
+                    ClaimedProjectionProofSource::Original { .. }
+                    | ClaimedProjectionProofSource::DerivedUnary { .. }
+                    | ClaimedProjectionProofSource::ReplayEvidence { .. } => {
+                        ClaimedAttributionSource::FlatRetained
+                    }
+                }),
+                claimed_proof_source: Some(source),
+            };
+            let (key, proof) = self
+                .claimed_projection_proof(bound, admission)
+                .expect("raw claimed certificate source must remain resolvable")
+                .expect("raw claimed certificate source must produce one certificate");
+            Self::insert_claimed_projection_proof_canonical(
+                expected.entry(bound).or_default(),
+                key,
+                proof,
+            );
+        }
+        for &raw_identity @ (_, support, _) in &self.projection_clause_link_keys {
+            debug_assert_eq!(
+                self.projection_claimed_link_audit
+                    .contains_key(&raw_identity),
+                matches!(support, SchemeProjectionProofSupport::Claimed(_)),
+                "every and only claimed raw links need event-local audit metadata",
+            );
+        }
+        debug_assert_eq!(self.claimed_projection_proofs, expected);
+        debug_assert!(
+            self.claimed_projection_proofs
+                .values()
+                .map(FxHashMap::len)
+                .sum::<usize>()
+                <= self.projection_claimed_link_audit.len(),
+            "normalized certificate count cannot exceed exact raw claimed-link count",
+        );
     }
 }
 
@@ -2552,13 +2905,34 @@ impl ProofOccurrenceStore {
         pending_flat_retained
             .try_reserve(admissions.len())
             .map_err(exhausted)?;
+        let mut new_claimed_link_audit_entries = Vec::new();
+        new_claimed_link_audit_entries
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
+        let mut pending_claimed_projection_proofs = Vec::new();
+        pending_claimed_projection_proofs
+            .try_reserve(admissions.len())
+            .map_err(exhausted)?;
 
         for &admission in admissions {
             let clause_key = (lower_record, admission.clause);
             let link_key = (lower_record, admission.support, admission.clause);
-            if self.projection_clause_link_keys.contains(&link_key)
-                || !pending_link_keys.insert(link_key)
-            {
+            if self.projection_clause_link_keys.contains(&link_key) {
+                assert_eq!(
+                    self.projection_claimed_link_audit.get(&link_key).copied(),
+                    admission.claimed_proof_source,
+                    "an exact raw-link duplicate must retain one event-local certificate identity",
+                );
+                continue;
+            }
+            if !pending_link_keys.insert(link_key) {
+                assert_eq!(
+                    new_claimed_link_audit_entries
+                        .iter()
+                        .find_map(|(pending, source)| (*pending == link_key).then_some(*source)),
+                    admission.claimed_proof_source,
+                    "a batch-local raw-link duplicate must retain one certificate identity",
+                );
                 continue;
             }
             let clause_inserted = !self.projection_clause_keys.contains(&clause_key)
@@ -2572,6 +2946,14 @@ impl ProofOccurrenceStore {
                 clause_inserted,
             });
             if let SchemeProjectionProofSupport::Claimed(root) = admission.support {
+                let proof_source = admission
+                    .claimed_proof_source
+                    .expect("claimed admission metadata was constructor-validated");
+                new_claimed_link_audit_entries.push((link_key, proof_source));
+                pending_claimed_projection_proofs.push(
+                    self.claimed_projection_proof(lower_record, admission)?
+                        .expect("claimed admission produces exactly one certificate"),
+                );
                 let attribution = (lower_record, root);
                 if !self.projection_attributions.contains(&attribution)
                     && pending_attributed.insert(attribution)
@@ -2625,12 +3007,40 @@ impl ProofOccurrenceStore {
                 .copied(),
         );
 
+        let canonical_claimed_projection_proofs =
+            if pending_claimed_projection_proofs.is_empty() {
+                None
+            } else {
+                let mut bucket = self
+                    .claimed_projection_proofs
+                    .get(&lower_record)
+                    .cloned()
+                    .unwrap_or_default();
+                bucket
+                    .try_reserve(pending_claimed_projection_proofs.len())
+                    .map_err(exhausted)?;
+                for (key, proof) in pending_claimed_projection_proofs {
+                    Self::insert_claimed_projection_proof_canonical(&mut bucket, key, proof);
+                }
+                Some(bucket)
+            };
+
         self.projection_clause_keys
             .try_reserve(new_clause_keys.len())
             .map_err(exhausted)?;
         self.projection_clause_link_keys
             .try_reserve(new_link_keys.len())
             .map_err(exhausted)?;
+        self.projection_claimed_link_audit
+            .try_reserve(new_claimed_link_audit_entries.len())
+            .map_err(exhausted)?;
+        if canonical_claimed_projection_proofs.is_some()
+            && !self.claimed_projection_proofs.contains_key(&lower_record)
+        {
+            self.claimed_projection_proofs
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
         self.projection_attributions
             .try_reserve(new_projection_attributions.len())
             .map_err(exhausted)?;
@@ -2656,6 +3066,8 @@ impl ProofOccurrenceStore {
             new_link_keys,
             canonical_formula,
             formula_support_keys,
+            new_claimed_link_audit_entries,
+            canonical_claimed_projection_proofs,
             new_projection_attributions,
             new_flat_retained_projection_attributions,
         }))
@@ -2670,6 +3082,12 @@ impl ProofOccurrenceStore {
         }
         for key in prepared.new_link_keys.drain(..) {
             assert!(self.projection_clause_link_keys.insert(key));
+        }
+        for (key, source) in prepared.new_claimed_link_audit_entries.drain(..) {
+            assert!(self
+                .projection_claimed_link_audit
+                .insert(key, source)
+                .is_none());
         }
         for attribution in prepared.new_projection_attributions.drain(..) {
             self.projection_attributions.insert(attribution);
@@ -2689,6 +3107,10 @@ impl ProofOccurrenceStore {
             .insert(prepared.lower_record, canonical_formula);
         self.projection_formula_support_keys
             .insert(prepared.lower_record, formula_support_keys);
+        if let Some(bucket) = prepared.canonical_claimed_projection_proofs.take() {
+            self.claimed_projection_proofs
+                .insert(prepared.lower_record, bucket);
+        }
     }
 
     pub(super) fn record_projection_clause(
@@ -6089,6 +6511,10 @@ mod tests {
                     support: SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
                 },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: fixture.coverage_root,
+                    producer: ConstraintRecordId(10_000),
+                },
             ),
             RecordProofClauseLinkAdmission::claimed(
                 replacement,
@@ -6096,6 +6522,10 @@ mod tests {
                     support: SchemeProjectionProofSupport::Claimed(replacement),
                 },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: fixture.coverage_root,
+                    producer: ConstraintRecordId(10_000),
+                },
             ),
             RecordProofClauseLinkAdmission::independent(
                 independent,
@@ -6135,6 +6565,10 @@ mod tests {
             .machine
             .proof_store
             .debug_assert_projection_formula_support_keys_match_linear_scan();
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_claimed_projection_proofs_match_linear_scan();
         let keys = &fixture.machine.proof_store.projection_formula_support_keys[&record];
         assert_eq!(keys.len(), 2, "same-root representatives share one key");
         assert!(keys.contains(&ProjectionSupportMatchKey::Claimed(
@@ -6143,6 +6577,174 @@ mod tests {
         assert!(keys.contains(&ProjectionSupportMatchKey::Independent(
             ProjectionProofCarrier::Incomplete
         )));
+    }
+
+    #[test]
+    fn gwcb_a_claimed_certificate_mirror_is_insertion_order_invariant() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let replacement = add_same_root_replay_claim(
+            &mut fixture,
+            TypeVar(97_113),
+            ConstraintRecordId(97_114),
+        );
+        let record = BoundRecordId(97_115);
+        let root = fixture.coverage_root;
+        let source = ClaimedProjectionProofSource::Original {
+            coverage_root: root,
+            producer: ConstraintRecordId(10_000),
+        };
+        let baseline = fixture.machine.proof_store.clone();
+        let mut snapshots = Vec::new();
+        for claims in [[root, replacement], [replacement, root]] {
+            let mut store = baseline.clone();
+            for claim in claims {
+                store.record_projection_clause(
+                    record,
+                    RecordProofClauseLinkAdmission::claimed(
+                        claim,
+                        RecordProofClause::Standalone {
+                            support: SchemeProjectionProofSupport::Claimed(claim),
+                        },
+                        ClaimedAttributionSource::FlatRetained,
+                        source,
+                    ),
+                );
+            }
+            store.debug_assert_claimed_projection_proofs_match_linear_scan();
+            let bucket = store
+                .claimed_projection_proofs
+                .get(&record)
+                .expect("accepted claimed links create one certificate bucket");
+            assert_eq!(
+                store
+                    .projection_claimed_link_audit
+                    .keys()
+                    .filter(|(bound, _, _)| *bound == record)
+                    .count(),
+                2,
+                "both exact raw representative links remain auditable",
+            );
+            assert_eq!(bucket.len(), 1, "same-root raw links share one semantic key");
+            assert_eq!(
+                bucket.values().next().unwrap().representative_claim(),
+                root.min(replacement),
+                "the audit representative is canonical rather than admission-order dependent",
+            );
+            snapshots.push(bucket.clone());
+        }
+        assert_eq!(snapshots[0], snapshots[1]);
+    }
+
+    #[test]
+    fn gwcb_a_certificate_allocation_is_zero_for_independent_and_exact_duplicate_links() {
+        let mut independent_store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_116);
+        let support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        let before = independent_store.performance_index_allocation_census();
+        independent_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        let after = independent_store.performance_index_allocation_census();
+        assert_eq!(after.claimed_projection_audit, before.claimed_projection_audit);
+        assert_eq!(
+            after.claimed_projection_certificate_buckets,
+            before.claimed_projection_certificate_buckets,
+        );
+
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let record = BoundRecordId(97_117);
+        let claim = fixture.coverage_root;
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            claim,
+            RecordProofClause::Standalone {
+                support: SchemeProjectionProofSupport::Claimed(claim),
+            },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: claim,
+                producer: ConstraintRecordId(10_000),
+            },
+        );
+        fixture
+            .machine
+            .proof_store
+            .record_projection_clause(record, admission);
+        let after_first = fixture
+            .machine
+            .proof_store
+            .performance_index_allocation_census();
+        fixture
+            .machine
+            .proof_store
+            .record_projection_clause(record, admission);
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .performance_index_allocation_census(),
+            after_first,
+            "an exact raw-link duplicate must not grow audit or certificate storage",
+        );
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_claimed_projection_proofs_match_linear_scan();
+    }
+
+    #[test]
+    fn gwcb_a_failed_claimed_reservation_keeps_formula_and_certificate_atomic() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let record = BoundRecordId(97_118);
+        let claim = fixture.coverage_root;
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            claim,
+            RecordProofClause::Standalone {
+                support: SchemeProjectionProofSupport::Claimed(claim),
+            },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: claim,
+                producer: ConstraintRecordId(10_000),
+            },
+        );
+        let before = fixture.machine.proof_store.clone();
+        fixture
+            .machine
+            .proof_store
+            .fail_next_projection_clause_reservation();
+        assert!(matches!(
+            fixture
+                .machine
+                .proof_store
+                .try_prepare_projection_clause_admission(record, &[admission]),
+            Err(ProofFailure::ResourceExhausted { .. })
+        ));
+        assert_eq!(fixture.machine.proof_store.projection_formulas, before.projection_formulas);
+        assert_eq!(
+            fixture.machine.proof_store.projection_claimed_link_audit,
+            before.projection_claimed_link_audit,
+        );
+        assert_eq!(
+            fixture.machine.proof_store.claimed_projection_proofs,
+            before.claimed_projection_proofs,
+        );
+
+        fixture
+            .machine
+            .proof_store
+            .record_projection_clause(record, admission);
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_claimed_projection_proofs_match_linear_scan();
+        assert_eq!(fixture.machine.proof_store.projection_formulas[&record].len(), 1);
+        assert_eq!(fixture.machine.proof_store.claimed_projection_proofs[&record].len(), 1);
     }
 
     #[test]
@@ -6163,6 +6765,10 @@ mod tests {
                         support: SchemeProjectionProofSupport::Claimed(claim),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: fixture.coverage_root,
+                        producer: ConstraintRecordId(10_000),
+                    },
                 ),
             );
         }
@@ -6222,6 +6828,10 @@ mod tests {
                         support: SchemeProjectionProofSupport::Claimed(root),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: root,
+                        producer,
+                    },
                 ),
                 Gwcb0WriterCertificateMetadata::Original { producer },
             ),
@@ -6230,6 +6840,10 @@ mod tests {
                     root,
                     replay_clause,
                     ClaimedAttributionSource::CanonicalReplay,
+                    ClaimedProjectionProofSource::ReplayConstraint {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
                 Gwcb0WriterCertificateMetadata::ReplayConstraint { result },
             ),
@@ -6238,6 +6852,9 @@ mod tests {
                     root,
                     replay_clause,
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::ReplayEvidence {
+                        coverage_root: root,
+                    },
                 ),
                 Gwcb0WriterCertificateMetadata::ReplayEvidence,
             ),
@@ -6252,6 +6869,10 @@ mod tests {
                         premise: structural_premise,
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
                 Gwcb0WriterCertificateMetadata::DerivedUnary {
                     result,
@@ -6266,6 +6887,10 @@ mod tests {
                         premise: reduction_premise,
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
                 Gwcb0WriterCertificateMetadata::DerivedUnary {
                     result,
@@ -8000,6 +8625,9 @@ mod tests {
     fn cpk_original_standalone_writer_publishes_mixed_projection_contract() {
         let (machine, endpoint, owner, covered_root) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        machine
+            .proof_store
+            .debug_assert_claimed_projection_proofs_match_linear_scan();
         let record = machine
             .bounds()
             .of(owner)
@@ -8607,6 +9235,10 @@ mod tests {
                     premise: ProofPremise::Record(premise),
                 },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::DerivedUnary {
+                    coverage_root: uncovered.coverage_root,
+                    result: ConstraintRecordId(0),
+                },
             ),
         );
         let state = machine
@@ -8790,6 +9422,10 @@ mod tests {
                 fixture.coverage_root,
                 RecordProofClause::Standalone { support },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: fixture.coverage_root,
+                    producer: ConstraintRecordId(10_000),
+                },
             ),
         );
         (fixture, claims, record)
@@ -8819,6 +9455,10 @@ mod tests {
                     support: SchemeProjectionProofSupport::Claimed(fixture.coverage_root),
                 },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: fixture.coverage_root,
+                    producer: ConstraintRecordId(10_000),
+                },
             ),
         );
         let before = project_lower_for_test(&fixture.machine, record)
@@ -10814,6 +11454,7 @@ mod tests {
     fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
         let machine = cpk_3_replay_fixture();
         let snapshot = machine.proof_store.clone();
+        snapshot.debug_assert_claimed_projection_proofs_match_linear_scan();
         let claimed = |claim| SchemeProjectionProofSupport::Claimed(UpperReplayClaimId(claim));
         let replay = |pivot, lower, upper| BinaryReplayDerivation {
             pivot: TypeVar(pivot),
@@ -11129,6 +11770,8 @@ mod tests {
                 row_derivation_occurrences: (0, 0),
                 replay_result_buckets: (0, 0, 0, 0),
                 formula_support_buckets: (0, 0, 0, 0),
+                claimed_projection_audit: (0, 0),
+                claimed_projection_certificate_buckets: (0, 0, 0, 0),
             },
         );
 
@@ -11153,6 +11796,11 @@ mod tests {
         assert_eq!(indexes.row_derivation_occurrences, (0, 0));
         assert_eq!(indexes.replay_result_buckets, (0, 0, 0, 0));
         assert_eq!(indexes.formula_support_buckets, (0, 0, 0, 0));
+        assert_eq!(indexes.claimed_projection_audit, (0, 0));
+        assert_eq!(
+            indexes.claimed_projection_certificate_buckets,
+            (0, 0, 0, 0)
+        );
         assert_eq!(indexes.projection_carrier_occurrences.0, 1);
         assert!(
             indexes.projection_carrier_occurrences.1 > 0,
@@ -11177,6 +11825,10 @@ mod tests {
                         support: support(UpperReplayClaimId(0)),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: UpperReplayClaimId(0),
+                        producer: ConstraintRecordId(40_000),
+                    },
                 ),
                 RecordProofClauseLinkAdmission::claimed(
                     UpperReplayClaimId(1),
@@ -11186,6 +11838,10 @@ mod tests {
                         upper_premise: replay.upper,
                     },
                     ClaimedAttributionSource::CanonicalReplay,
+                    ClaimedProjectionProofSource::ReplayConstraint {
+                        coverage_root: UpperReplayClaimId(1),
+                        result: ConstraintRecordId(40_001),
+                    },
                 ),
                 RecordProofClauseLinkAdmission::claimed(
                     UpperReplayClaimId(2),
@@ -11195,6 +11851,9 @@ mod tests {
                         upper_premise: replay.upper,
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::ReplayEvidence {
+                        coverage_root: UpperReplayClaimId(2),
+                    },
                 ),
                 RecordProofClauseLinkAdmission::claimed(
                     UpperReplayClaimId(3),
@@ -11206,6 +11865,10 @@ mod tests {
                         premise: ProofPremise::Constraint(ConstraintRecordId(40_003)),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: UpperReplayClaimId(3),
+                        result: ConstraintRecordId(40_003),
+                    },
                 ),
                 RecordProofClauseLinkAdmission::claimed(
                     UpperReplayClaimId(4),
@@ -11214,6 +11877,10 @@ mod tests {
                         premise: ProofPremise::RootCoverage(UpperReplayClaimId(4)),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: UpperReplayClaimId(4),
+                        result: ConstraintRecordId(40_004),
+                    },
                 ),
             ];
             for (index, admission) in entries.into_iter().enumerate() {
@@ -11222,6 +11889,16 @@ mod tests {
                     .record_projection_clause(BoundRecordId(index as u32), admission);
             }
         let snapshot = machine.proof_store.clone();
+        snapshot.debug_assert_claimed_projection_proofs_match_linear_scan();
+        assert_eq!(snapshot.projection_claimed_link_audit.len(), 5);
+        assert_eq!(
+            snapshot
+                .claimed_projection_proofs
+                .values()
+                .map(FxHashMap::len)
+                .sum::<usize>(),
+            5,
+        );
 
         let actual = snapshot
             .projection_formulas

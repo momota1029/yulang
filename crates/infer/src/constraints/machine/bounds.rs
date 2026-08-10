@@ -990,7 +990,7 @@ impl ConstraintMachine {
 
     fn preflight_claim_parent_clause_links(
         &self,
-        _result: ConstraintRecordId,
+        result: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> ClaimParentClauseLinkPreflight {
@@ -1000,7 +1000,7 @@ impl ConstraintMachine {
             let Some(root) = self.proof_store.claim_coverage_root(parent.parent_claim()) else {
                 continue;
             };
-            let (clause, attribution_source) = match parent {
+            let (clause, attribution_source, proof_source) = match parent {
                 ClaimQualifiedParent::ReplayConstraint { replay, .. } => (
                     RecordProofClause::ReplayConjunction {
                         carrier: replay,
@@ -1008,6 +1008,10 @@ impl ConstraintMachine {
                         upper_premise: replay.upper,
                     },
                     ClaimedAttributionSource::CanonicalReplay,
+                    ClaimedProjectionProofSource::ReplayConstraint {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
                 ClaimQualifiedParent::StructuralConstraint { derivation, .. } => (
                     RecordProofClause::DerivedUnary {
@@ -1015,6 +1019,10 @@ impl ConstraintMachine {
                         premise: ProofPremise::Constraint(derivation.parent),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
                 ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. } => (
                     RecordProofClause::DerivedUnary {
@@ -1022,6 +1030,10 @@ impl ConstraintMachine {
                         premise: ProofPremise::RootCoverage(root),
                     },
                     ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::DerivedUnary {
+                        coverage_root: root,
+                        result,
+                    },
                 ),
             };
             let support = SchemeProjectionProofSupport::Claimed(root);
@@ -1039,6 +1051,7 @@ impl ConstraintMachine {
                 root,
                 clause,
                 attribution_source,
+                proof_source,
             ));
         }
         ClaimParentClauseLinkPreflight {
@@ -1081,6 +1094,9 @@ impl ConstraintMachine {
                     upper_premise: replay.upper,
                 },
                 ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::ReplayEvidence {
+                    coverage_root: root,
+                },
             ),
         );
     }
