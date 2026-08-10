@@ -5289,12 +5289,23 @@ mod mutation_tests {
             }
 
             fn consumer_snapshot(&self) -> ConsumerSnapshot {
-                let qualified = self.machine.scheme_projectable_lowers(self.target)
-                    .find(|entry| entry.record == self.lower_record).expect("isolated lower remains projectable").reason;
+                let entry = self.machine.scheme_projectable_lowers(self.target)
+                    .find(|entry| entry.record == self.lower_record)
+                    .expect("isolated lower remains projectable");
+                let qualified = entry.reason.clone();
+                let projection_evidence = entry
+                    .projection_evidence
+                    .expect("qualified lower retains its projection evidence");
                 let (drafts, completeness) = self.capture_witnesses();
                 let parents = drafts.iter().flat_map(|draft| &draft.incoming)
                     .flat_map(|edge| &edge.parents).cloned().collect();
-                ConsumerSnapshot { qualified, drafts, parents, completeness }
+                ConsumerSnapshot {
+                    qualified,
+                    projection_evidence,
+                    drafts,
+                    parents,
+                    completeness,
+                }
             }
 
             fn capture_witnesses(&self) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
@@ -5310,6 +5321,21 @@ mod mutation_tests {
                 let scheme = self.machine.alloc_generalized_scheme_record(poly::expr::DefId(0), 0, drafts, completeness);
                 let witnesses = self.machine.generalized_scheme_record(scheme).expect("oracle scheme").witnesses.clone();
                 witnesses.into_iter().map(PortableProvenanceExportRoot::GeneralizedWitness).collect()
+            }
+
+            fn claimed_constraint_roots(&self) -> Vec<PortableProvenanceExportRoot> {
+                self.roots
+                    .iter()
+                    .map(|claim| {
+                        PortableProvenanceExportRoot::Constraint(
+                            self.machine
+                                .proof_store
+                                .upper_claim(*claim)
+                                .expect("RCPF fixture claim")
+                                .producer,
+                        )
+                    })
+                    .collect()
             }
 
             fn portable_consumer_snapshot(
@@ -5501,8 +5527,13 @@ mod mutation_tests {
                 }).collect::<Vec<_>>();
                 let lower_replay_parents =
                     self.machine.lower_record_replay_claim_parents(lower_record);
-                let qualified = self.machine.scheme_projectable_lowers(self.target)
-                    .find(|entry| entry.record == lower_record).expect("target-late lower remains projectable").reason;
+                let entry = self.machine.scheme_projectable_lowers(self.target)
+                    .find(|entry| entry.record == lower_record)
+                    .expect("target-late lower remains projectable");
+                let qualified = entry.reason.clone();
+                let projection_evidence = entry
+                    .projection_evidence
+                    .expect("target-late qualified lower retains projection evidence");
                 let generalized = GeneralizedCompactRoot {
                     compact: CompactRoot::default(), role_predicates: Vec::new(), quantifiers: Vec::new(),
                     stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
@@ -5599,7 +5630,13 @@ mod mutation_tests {
                         replay_parent_roots,
                         lower_claimed_roots,
                         lower_proof_keys,
-                        generalized: ConsumerSnapshot { qualified, drafts, parents, completeness },
+                        generalized: ConsumerSnapshot {
+                            qualified,
+                            projection_evidence,
+                            drafts,
+                            parents,
+                            completeness,
+                        },
                         occurrence_roots,
                         occurrence_anchors,
                         portable,
@@ -5708,6 +5745,7 @@ mod mutation_tests {
         #[derive(Debug, Clone, PartialEq, Eq)]
         struct ConsumerSnapshot {
             qualified: SchemeProjectableLowerReason,
+            projection_evidence: proof::ProjectionEvidence,
             drafts: Vec<GeneralizedWitnessDraft>,
             parents: Vec<GeneralizationParent>,
             completeness: ProvenanceCompleteness,
@@ -5719,14 +5757,37 @@ mod mutation_tests {
             explanation: DiagnosticSubtypeExplanation,
         }
 
-        fn qualified_parents(reason: &SchemeProjectableLowerReason, bound: BoundRecordId) -> Vec<GeneralizationParent> {
+        fn qualified_parents(
+            reason: &SchemeProjectableLowerReason,
+            evidence: proof::ProjectionEvidence,
+            bound: BoundRecordId,
+        ) -> Vec<GeneralizationParent> {
             let SchemeProjectableLowerReason::Qualified { uncovered_claims, independent_supports } = reason else {
                 panic!("canonical projection fixture must remain qualified")
             };
-            uncovered_claims.iter().map(|claim| GeneralizationParent::BoundClaim { bound, claim: *claim })
-                .chain(independent_supports.iter().map(|carrier| GeneralizationParent::BoundProjectionProof {
-                    bound, carrier: *carrier,
-                })).collect()
+            let mut parents = match evidence {
+                proof::ProjectionEvidence::DecisiveClaimedArm(proof) => {
+                    vec![GeneralizationParent::BoundClaimProjectionProof {
+                        bound,
+                        coverage_root: proof.coverage_root(),
+                        representative_claim: proof.representative_claim(),
+                        proof: Box::new(proof),
+                    }]
+                }
+                proof::ProjectionEvidence::ExactWithoutClaimedArm
+                | proof::ProjectionEvidence::FailOpenIncomplete => Vec::new(),
+            };
+            parents.extend(independent_supports.iter().map(|carrier| {
+                GeneralizationParent::BoundProjectionProof {
+                    bound,
+                    carrier: *carrier,
+                }
+            }));
+            debug_assert!(
+                !uncovered_claims.is_empty() || !parents.is_empty(),
+                "the RCPF fixture keeps either a qualified claim or an independent parent",
+            );
+            parents
         }
 
         fn lower_draft(snapshot: &ConsumerSnapshot) -> &GeneralizedWitnessDraft {
@@ -5740,15 +5801,15 @@ mod mutation_tests {
             let full = PortableProvenanceExportBudget::default();
             vec![
                 ("per-anchor nodes", PortableProvenanceExportBudget {
-                    max_anchors: 1, max_nodes_per_anchor: 4, ..full
-                }, PortableProvenanceTruncation::NodeBudget { limit: 4 }, [true, false]),
+                    max_anchors: 1, max_nodes_per_anchor: 1, ..full
+                }, PortableProvenanceTruncation::NodeBudget { limit: 1 }, [true, false]),
                 ("per-anchor edges", PortableProvenanceExportBudget {
-                    max_anchors: 1, max_edges_per_anchor: 3, ..full
-                }, PortableProvenanceTruncation::EdgeBudget { limit: 3 }, [true, false]),
-                ("global nodes", PortableProvenanceExportBudget { max_nodes: 4, ..full },
-                    PortableProvenanceTruncation::NodeBudget { limit: 4 }, [true, false]),
-                ("global edges", PortableProvenanceExportBudget { max_edges: 3, ..full },
-                    PortableProvenanceTruncation::EdgeBudget { limit: 3 }, [true, true]),
+                    max_anchors: 1, max_edges_per_anchor: 0, ..full
+                }, PortableProvenanceTruncation::EdgeBudget { limit: 0 }, [true, false]),
+                ("global nodes", PortableProvenanceExportBudget { max_nodes: 2, ..full },
+                    PortableProvenanceTruncation::NodeBudget { limit: 2 }, [true, false]),
+                ("global edges", PortableProvenanceExportBudget { max_edges: 1, ..full },
+                    PortableProvenanceTruncation::EdgeBudget { limit: 1 }, [true, true]),
                 ("parent fan-in", PortableProvenanceExportBudget { max_parents_per_edge: 0, ..full },
                     PortableProvenanceTruncation::ParentFanInBudget { limit: 0 }, [true, true]),
             ]
@@ -5759,10 +5820,10 @@ mod mutation_tests {
         )> {
             let full = PortableExplanationBudget::default();
             vec![
-                ("query nodes", PortableExplanationBudget { max_nodes: 4, ..full },
-                    DiagnosticExplanationTruncationReason::NodeBudget { limit: 4 }),
-                ("query edges", PortableExplanationBudget { max_edges: 3, ..full },
-                    DiagnosticExplanationTruncationReason::EdgeBudget { limit: 3 }),
+                ("query nodes", PortableExplanationBudget { max_nodes: 2, ..full },
+                    DiagnosticExplanationTruncationReason::NodeBudget { limit: 2 }),
+                ("query edges", PortableExplanationBudget { max_edges: 1, ..full },
+                    DiagnosticExplanationTruncationReason::EdgeBudget { limit: 1 }),
                 ("query depth", PortableExplanationBudget { max_depth: 0, ..full },
                     DiagnosticExplanationTruncationReason::DepthBudget { limit: 0 }),
             ]
@@ -5915,10 +5976,17 @@ mod mutation_tests {
                 for index in order { fixture.admit(events[index]); }
                 fixture.assert_cpk_projection_is_canonical();
                 let snapshot = fixture.consumer_snapshot();
-                let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
+                let parents = qualified_parents(
+                    &snapshot.qualified,
+                    snapshot.projection_evidence,
+                    fixture.lower_record,
+                );
+                assert_eq!(
+                    snapshot.projection_evidence,
+                    proof::ProjectionEvidence::ExactWithoutClaimedArm,
+                    "the canonical Standalone independent clause is this fixture's decisive arm",
+                );
                 assert_eq!(parents, vec![
-                    GeneralizationParent::BoundClaim { bound: fixture.lower_record, claim: fixture.roots[0] },
-                    GeneralizationParent::BoundClaim { bound: fixture.lower_record, claim: fixture.roots[1] },
                     GeneralizationParent::BoundProjectionProof { bound: fixture.lower_record,
                         carrier: ProjectionProofCarrier::Origin(fixture.origins[0]) },
                     GeneralizationParent::BoundProjectionProof { bound: fixture.lower_record,
@@ -6008,9 +6076,18 @@ mod mutation_tests {
                 assert_eq!(fixture.snapshot().1.len(), 260);
                 fixture.assert_cpk_projection_is_canonical();
                 let snapshot = fixture.consumer_snapshot();
-                let parents = qualified_parents(&snapshot.qualified, fixture.lower_record);
+                let parents = qualified_parents(
+                    &snapshot.qualified,
+                    snapshot.projection_evidence,
+                    fixture.lower_record,
+                );
+                assert_eq!(
+                    snapshot.projection_evidence,
+                    proof::ProjectionEvidence::ExactWithoutClaimedArm,
+                    "the canonical Standalone independent clause is this fixture's decisive arm",
+                );
                 let draft = lower_draft(&snapshot);
-                assert_eq!(parents.len(), 260);
+                assert_eq!(parents.len(), 258);
                 assert_eq!(draft.incoming.len(), 256);
                 assert_eq!(draft.completeness, ProvenanceCompleteness::Incomplete);
                 assert_eq!(snapshot.completeness, ProvenanceCompleteness::Incomplete);
@@ -6057,7 +6134,12 @@ mod mutation_tests {
                 let independent_boundaries = [fixture.boundaries[0], fixture.boundaries[1]];
                 for index in order { fixture.admit(events[index]); }
                 fixture.assert_cpk_projection_is_canonical();
-                let roots = fixture.record_witness_roots();
+                // rev.2 intentionally transports only the decisive projection arm. This fixture's
+                // decisive Standalone arm is independent, so include the claimed producer roots
+                // explicitly: this oracle is about portable diagnostic ordering across source
+                // roles, not about reintroducing non-decisive claims as witness parents.
+                let mut roots = fixture.claimed_constraint_roots();
+                roots.extend(fixture.record_witness_roots());
                 let snapshot = fixture.portable_consumer_snapshot_with_location(
                     &roots, PortableProvenanceExportBudget::default(), move |boundary, _| {
                         let start = if boundary == claimed_boundaries[0]
@@ -6108,8 +6190,8 @@ mod mutation_tests {
                 fixture.assert_cpk_projection_is_canonical();
                 let roots = fixture.record_witness_roots();
                 let full = fixture.portable_consumer_snapshot(&roots, PortableProvenanceExportBudget::default());
-                assert!(full.export.snapshot.nodes().len() > 4);
-                assert!(full.export.snapshot.edges().len() > 3);
+                assert!(full.export.snapshot.nodes().len() > 3);
+                assert!(full.export.snapshot.edges().len() > 1);
                 let mut tight_snapshots = Vec::new();
                 for (name, budget, truncation, anchor_survival) in export_budget_ladder() {
                     let tight = fixture.portable_consumer_snapshot(&roots, budget);

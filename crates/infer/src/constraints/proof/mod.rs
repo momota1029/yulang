@@ -9978,6 +9978,13 @@ mod tests {
         let ProjectionEvidence::DecisiveClaimedArm(proof) = evidence else {
             panic!("the exact derived-unary clause must be the decisive claimed arm");
         };
+        let ClaimedProjectionProofKind::DerivedUnary {
+            result: decisive_result,
+            ..
+        } = proof.kind()
+        else {
+            panic!("the fixture must retain its derived-unary decisive arm");
+        };
         assert_eq!(
             project_lower_for_test(&machine, record).0,
             Ok(ProjectionDecision::Included {
@@ -10050,6 +10057,22 @@ mod tests {
         let target_anchor = snapshot.portable.root_anchors[target_root]
             .expect("portable target-bound anchor");
         let target_node = snapshot.portable.snapshot.anchors()[target_anchor].node;
+        let result_root = snapshot
+            .portable
+            .roots
+            .iter()
+            .position(|root| {
+                matches!(
+                    root,
+                    crate::constraints::logical_proof_snapshot::CanonicalPortableRoot::Constraint(
+                        found
+                    ) if *found == decisive_result.0 as usize
+                )
+            })
+            .expect("portable decisive-result root");
+        let result_anchor = snapshot.portable.root_anchors[result_root]
+            .expect("portable decisive-result anchor");
+        let result_node = snapshot.portable.snapshot.anchors()[result_anchor].node;
         let witness_nodes = snapshot
             .portable
             .roots
@@ -10067,12 +10090,26 @@ mod tests {
                 })
             })
             .collect::<Vec<_>>();
-        assert!(
-            snapshot.portable.snapshot.edges().iter().all(|edge| {
-                !witness_nodes.contains(&edge.child) || !edge.parents.contains(&target_node)
-            }),
-            "portable generalized witnesses must not fabricate the qualified bound as a parent",
-        );
+        let edges = snapshot.portable.snapshot.edges();
+        assert!(edges.iter().any(|edge| {
+            witness_nodes.contains(&edge.child)
+                && edge.parents.contains(&target_node)
+                && matches!(
+                    edge.kind,
+                    poly::provenance::PortableProvenanceEdgeKind::Generalization(_)
+                )
+        }), "portable generalized witnesses must retain the qualified bound node as the filtered-view parent");
+        assert!(edges.iter().any(|edge| {
+            edge.child == target_node
+                && edge.parents.as_slice() == [result_node]
+                && edge.kind
+                    == poly::provenance::PortableProvenanceEdgeKind::Bound(
+                        poly::provenance::PortableBoundDerivationKind::Constraint,
+                    )
+        }), "the filtered qualified-bound view must expose the exact decisive result");
+        assert!(edges.iter().all(|edge| {
+            !witness_nodes.contains(&edge.child) || !edge.parents.contains(&result_node)
+        }), "the decisive result must be reached through the filtered bound, not a producer shortcut");
     }
 
     #[test]
