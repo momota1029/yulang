@@ -1,10 +1,10 @@
 # generalized witness の claim bridge provenance 欠落修正設計（GWCB rev.2）
 
-日付: 2026-08-10（rev.1 ユーザ承認: 2026-08-10、rev.2 契約改訂: 2026-08-11）
+日付: 2026-08-10（rev.1 ユーザ承認: 2026-08-10、rev.2 契約改訂: 2026-08-11、rev.2 ユーザ承認: 2026-08-11）
 
-状態: **rev.2 Claude 査読完了、ユーザ再承認待ち**（single decisive arm 契約への改訂。9点の改訂項目を確認し、
+状態: **rev.2 ユーザ承認済み**（single decisive arm 契約。9点の改訂項目を確認し、
 `ExactWithoutClaimedArm`/`FailOpenIncomplete`の3値化・Ω(A)撤回理由の明記・motivating testの実要求との整合を確認済み。
-rev.1 の承認は all-true-OR-arms 契約に対するものであり、本 revision の実装再開にはユーザの新たな承認が必要）
+本 revision が `CLAUDE.md` の設計優先順位における承認済み正本であり、GWCB-B 実装をこの契約で再開してよい）
 
 基準 commit: `f91fa91d`（行番号はこの commit を基準とし、実装時には再確認する）
 
@@ -1044,6 +1044,6 @@ Claude は確定前に、少なくとも次の修正後 contract を再検証す
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 
-承認状態: **rev.2 未承認**。rev.1 は 2026-08-10 にユーザ承認済みだが、その承認対象だった
-all-true-OR-arms 契約は Option 1 / 2 の performance / RSS stop により撤回候補となった。本 rev.2 は Claude の再査読と
-ユーザの新たな承認を得るまで `CLAUDE.md` の設計優先順位における承認済み正本として扱わず、GWCB-B 実装を再開しない。
+承認状態: **rev.2 ユーザ承認済み（2026-08-11）**。rev.1 は 2026-08-10 にユーザ承認済みだったが、その承認対象だった
+all-true-OR-arms 契約は Option 1 / 2 の performance / RSS stop により撤回された。本 rev.2 が `CLAUDE.md` の
+設計優先順位における承認済み正本であり、single decisive arm 契約で GWCB-B 実装を再開してよい。
