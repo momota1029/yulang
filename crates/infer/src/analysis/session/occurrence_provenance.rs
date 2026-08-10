@@ -252,7 +252,7 @@ impl AnalysisSession {
                 let mut completeness = witness.completeness;
                 for derivation in &witness.incoming {
                     for parent in &derivation.parents {
-                        match machine.generalization_parent_carriers(*parent) {
+                        match machine.generalization_parent_carriers(parent) {
                             Some(GeneralizationParentCarriers::Constraint(id)) => {
                                 push_occurrence_root(
                                     &mut roots,

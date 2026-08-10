@@ -163,6 +163,7 @@ fn witness_references_record(draft: &GeneralizedWitnessDraft, record: BoundRecor
         .any(|parent| match parent {
             GeneralizationParent::Bound(found)
             | GeneralizationParent::BoundClaim { bound: found, .. } => *found == record,
+            GeneralizationParent::BoundClaimProjectionProof { bound, .. } => *bound == record,
             GeneralizationParent::BoundProjectionProof { bound, .. } => *bound == record,
             GeneralizationParent::Constraint(_) => false,
         })

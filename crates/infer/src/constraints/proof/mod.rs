@@ -21,12 +21,23 @@ pub(crate) struct ProjectionSupportSet {
     pub(crate) independent_supports: Vec<ProjectionProofCarrier>,
 }
 
+/// Provenance-only evidence captured by the same projection evaluation that decides inclusion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProjectionEvidence {
+    DecisiveClaimedArm(ClaimedProjectionProof),
+    ExactWithoutClaimedArm,
+    FailOpenIncomplete,
+}
+
 /// Fallible projection result for one active lower record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProjectionDecision {
     Unclaimed,
     Excluded,
-    Included { supports: ProjectionSupportSet },
+    Included {
+        supports: ProjectionSupportSet,
+        evidence: ProjectionEvidence,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -178,7 +189,51 @@ enum ProofEvalNode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProofEvalState {
     Visiting,
-    Done(bool),
+    Done(ProofEvalMemo),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProofEvalMemo {
+    summary: CpkProjectionEvaluationSummary,
+    evidence: ProofEvalEvidenceMemo,
+}
+
+impl ProofEvalMemo {
+    fn summary_only(summary: CpkProjectionEvaluationSummary) -> Self {
+        Self {
+            summary,
+            evidence: ProofEvalEvidenceMemo::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProofEvalEvidenceMemo {
+    None,
+    // The evaluator immutably borrows the store for the whole round, so canonical formula
+    // positions cannot move before a provenance caller materializes this certificate.
+    DecisiveClaimedClauseIndex(u32),
+    ExactWithoutClaimedArm,
+    FailOpenIncomplete,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CpkProjectionEvaluationSummary {
+    Excluded,
+    IncludedExact,
+    IncludedFailOpen,
+}
+
+impl CpkProjectionEvaluationSummary {
+    fn is_included(self) -> bool {
+        self != Self::Excluded
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CpkProjectionEvaluation {
+    Excluded,
+    Included { evidence: ProjectionEvidence },
 }
 
 /// Preflight, memo, and cycle-cut state shared only within one immutable projection traversal.
@@ -721,10 +776,10 @@ pub(super) struct PreparedProjectionClauseAdmission {
     )>,
     canonical_formula: Vec<ProjectionClause>,
     formula_support_keys: FxHashSet<ProjectionSupportMatchKey>,
-    new_claimed_link_audit_entries:
-        Vec<(RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource)>,
-    canonical_claimed_projection_proofs:
-        Option<FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>>,
+    new_claimed_link_audit_entries: Vec<(
+        RawProjectionClauseLinkIdentity,
+        ClaimedProjectionProofSource,
+    )>,
     new_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
     new_flat_retained_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
 }
@@ -760,8 +815,13 @@ pub(super) enum ProjectionClause {
 ///
 /// `representative_claim` is audit payload only. [`ClaimedProjectionProofKey`] normalizes it to
 /// `coverage_root`, so representative replacement cannot change semantic certificate identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ClaimedProjectionProof {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ClaimedProjectionProof {
+    kind: ClaimedProjectionProofKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ClaimedProjectionProofKind {
     Standalone {
         bound: BoundRecordId,
         coverage_root: UpperReplayClaimId,
@@ -790,17 +850,95 @@ pub(crate) enum ClaimedProjectionProof {
 }
 
 impl ClaimedProjectionProof {
-    fn representative_claim(self) -> UpperReplayClaimId {
-        match self {
-            Self::Standalone {
+    fn new(kind: ClaimedProjectionProofKind) -> Self {
+        Self { kind }
+    }
+
+    fn from_key(
+        key: ClaimedProjectionProofKey,
+        representative_claim: UpperReplayClaimId,
+    ) -> Self {
+        let kind = match key {
+            ClaimedProjectionProofKey::Standalone {
+                bound,
+                coverage_root,
+                producer,
+                attribution,
+                ..
+            } => ClaimedProjectionProofKind::Standalone {
+                bound,
+                coverage_root,
+                representative_claim,
+                producer,
+                attribution,
+            },
+            ClaimedProjectionProofKey::DerivedUnary {
+                bound,
+                coverage_root,
+                result,
+                carrier,
+                premise,
+                attribution,
+            } => ClaimedProjectionProofKind::DerivedUnary {
+                bound,
+                coverage_root,
+                representative_claim,
+                result,
+                carrier,
+                premise,
+                attribution,
+            },
+            ClaimedProjectionProofKey::ReplayConjunction {
+                bound,
+                coverage_root,
+                carrier,
+                lower_premise,
+                upper_premise,
+                attribution,
+            } => ClaimedProjectionProofKind::ReplayConjunction {
+                bound,
+                coverage_root,
+                representative_claim,
+                carrier,
+                lower_premise,
+                upper_premise,
+                attribution,
+            },
+        };
+        Self::new(kind)
+    }
+
+    pub(crate) fn kind(&self) -> ClaimedProjectionProofKind {
+        self.kind
+    }
+
+    pub(crate) fn bound(&self) -> BoundRecordId {
+        match self.kind {
+            ClaimedProjectionProofKind::Standalone { bound, .. }
+            | ClaimedProjectionProofKind::DerivedUnary { bound, .. }
+            | ClaimedProjectionProofKind::ReplayConjunction { bound, .. } => bound,
+        }
+    }
+
+    pub(crate) fn coverage_root(&self) -> UpperReplayClaimId {
+        match self.kind {
+            ClaimedProjectionProofKind::Standalone { coverage_root, .. }
+            | ClaimedProjectionProofKind::DerivedUnary { coverage_root, .. }
+            | ClaimedProjectionProofKind::ReplayConjunction { coverage_root, .. } => coverage_root,
+        }
+    }
+
+    pub(crate) fn representative_claim(&self) -> UpperReplayClaimId {
+        match self.kind {
+            ClaimedProjectionProofKind::Standalone {
                 representative_claim,
                 ..
             }
-            | Self::DerivedUnary {
+            | ClaimedProjectionProofKind::DerivedUnary {
                 representative_claim,
                 ..
             }
-            | Self::ReplayConjunction {
+            | ClaimedProjectionProofKind::ReplayConjunction {
                 representative_claim,
                 ..
             } => representative_claim,
@@ -871,6 +1009,25 @@ impl ProjectionClause {
             Self::Standalone { support, .. }
             | Self::DerivedUnary { support, .. }
             | Self::ReplayConjunction { support, .. } => support,
+        }
+    }
+
+    fn record_clause(self) -> RecordProofClause {
+        match self {
+            Self::Standalone { support, .. } => RecordProofClause::Standalone { support },
+            Self::DerivedUnary {
+                carrier, premise, ..
+            } => RecordProofClause::DerivedUnary { carrier, premise },
+            Self::ReplayConjunction {
+                carrier,
+                lower,
+                upper,
+                ..
+            } => RecordProofClause::ReplayConjunction {
+                carrier,
+                lower_premise: lower,
+                upper_premise: upper,
+            },
         }
     }
 
@@ -1236,10 +1393,6 @@ pub(crate) struct ProofOccurrenceStore {
     projection_clause_link_keys: FxHashSet<RawProjectionClauseLinkIdentity>,
     projection_claimed_link_audit:
         FxHashMap<RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource>,
-    claimed_projection_proofs: FxHashMap<
-        BoundRecordId,
-        FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
-    >,
     projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     flat_retained_projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     #[cfg(test)]
@@ -1269,7 +1422,6 @@ struct PerformanceIndexAllocationCensus {
     replay_result_buckets: (usize, usize, usize, usize),
     formula_support_buckets: (usize, usize, usize, usize),
     claimed_projection_audit: (usize, usize),
-    claimed_projection_certificate_buckets: (usize, usize, usize, usize),
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1311,7 +1463,6 @@ impl Default for ProofOccurrenceStore {
             projection_clause_keys: FxHashSet::default(),
             projection_clause_link_keys: FxHashSet::default(),
             projection_claimed_link_audit: FxHashMap::default(),
-            claimed_projection_proofs: FxHashMap::default(),
             projection_attributions: FxHashSet::default(),
             flat_retained_projection_attributions: FxHashSet::default(),
             #[cfg(test)]
@@ -1385,18 +1536,6 @@ impl ProofOccurrenceStore {
             claimed_projection_audit: (
                 self.projection_claimed_link_audit.len(),
                 self.projection_claimed_link_audit.capacity(),
-            ),
-            claimed_projection_certificate_buckets: (
-                self.claimed_projection_proofs.len(),
-                self.claimed_projection_proofs.capacity(),
-                self.claimed_projection_proofs
-                    .values()
-                    .map(FxHashMap::len)
-                    .sum(),
-                self.claimed_projection_proofs
-                    .values()
-                    .map(FxHashMap::capacity)
-                    .sum(),
             ),
         }
     }
@@ -1689,13 +1828,13 @@ impl ProofOccurrenceStore {
                         producer,
                         attribution,
                     },
-                    ClaimedProjectionProof::Standalone {
+                    ClaimedProjectionProof::new(ClaimedProjectionProofKind::Standalone {
                         bound,
                         coverage_root,
                         representative_claim,
                         producer,
                         attribution,
-                    },
+                    }),
                 )
             }
             (
@@ -1722,7 +1861,7 @@ impl ProofOccurrenceStore {
                         premise,
                         attribution,
                     },
-                    ClaimedProjectionProof::DerivedUnary {
+                    ClaimedProjectionProof::new(ClaimedProjectionProofKind::DerivedUnary {
                         bound,
                         coverage_root,
                         representative_claim,
@@ -1730,7 +1869,7 @@ impl ProofOccurrenceStore {
                         carrier,
                         premise,
                         attribution,
-                    },
+                    }),
                 )
             }
             (
@@ -1766,7 +1905,7 @@ impl ProofOccurrenceStore {
                         upper_premise,
                         attribution,
                     },
-                    ClaimedProjectionProof::ReplayConjunction {
+                    ClaimedProjectionProof::new(ClaimedProjectionProofKind::ReplayConjunction {
                         bound,
                         coverage_root,
                         representative_claim,
@@ -1774,7 +1913,7 @@ impl ProofOccurrenceStore {
                         lower_premise,
                         upper_premise,
                         attribution,
-                    },
+                    }),
                 )
             }
             _ => unreachable!("claimed clause constructor rejects mismatched certificate metadata"),
@@ -1782,21 +1921,52 @@ impl ProofOccurrenceStore {
         Ok(Some((key, proof)))
     }
 
-    fn insert_claimed_projection_proof_canonical(
-        bucket: &mut FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
-        key: ClaimedProjectionProofKey,
-        proof: ClaimedProjectionProof,
-    ) {
-        match bucket.entry(key) {
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(proof);
+    fn decisive_claimed_projection_proof(
+        &self,
+        bound: BoundRecordId,
+        clause: ProjectionClause,
+    ) -> Result<Option<ClaimedProjectionProof>, ProofFailure> {
+        let SchemeProjectionProofSupport::Claimed(_) = clause.support() else {
+            return Ok(None);
+        };
+        let raw_identity = (bound, clause.support(), clause.record_clause());
+        let Some(source) = self.projection_claimed_link_audit.get(&raw_identity).copied() else {
+            debug_assert!(
+                false,
+                "decisive claimed projection clause must retain its raw audit link: {raw_identity:?}"
+            );
+            return Ok(None);
+        };
+        let claimed_attribution_source = match source {
+            ClaimedProjectionProofSource::ReplayConstraint { .. } => {
+                ClaimedAttributionSource::CanonicalReplay
             }
-            std::collections::hash_map::Entry::Occupied(mut entry) => {
-                if proof.representative_claim() < entry.get().representative_claim() {
-                    entry.insert(proof);
-                }
+            ClaimedProjectionProofSource::Original { .. }
+            | ClaimedProjectionProofSource::DerivedUnary { .. }
+            | ClaimedProjectionProofSource::ReplayEvidence { .. } => {
+                ClaimedAttributionSource::FlatRetained
             }
+        };
+        let admission = RecordProofClauseLinkAdmission {
+            support: clause.support(),
+            clause: clause.record_clause(),
+            claimed_attribution_source: Some(claimed_attribution_source),
+            claimed_proof_source: Some(source),
+        };
+        if Self::projection_clause(admission) != clause {
+            debug_assert!(
+                false,
+                "decisive claimed clause attribution must match its raw audit metadata"
+            );
+            return Ok(None);
         }
+        let (key, proof) = self
+            .claimed_projection_proof(bound, admission)?
+            .expect("claimed decisive clause produces one normalized certificate key");
+        Ok(Some(ClaimedProjectionProof::from_key(
+            key,
+            proof.representative_claim(),
+        )))
     }
 
     pub(super) fn derived_claim(
@@ -2181,10 +2351,15 @@ impl ProofOccurrenceStore {
     }
 
     #[cfg(test)]
-    fn debug_assert_claimed_projection_proofs_match_linear_scan(&self) {
-        let mut expected = FxHashMap::<
+    fn claimed_projection_proofs_from_audit_for_test(
+        &self,
+    ) -> FxHashMap<
+        BoundRecordId,
+        FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>,
+    > {
+        let mut reconstructed = FxHashMap::<
             BoundRecordId,
-            FxHashMap<ClaimedProjectionProofKey, ClaimedProjectionProof>,
+            FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>,
         >::default();
         for (&(bound, support, clause), &source) in &self.projection_claimed_link_audit {
             let raw_identity = (bound, support, clause);
@@ -2211,12 +2386,19 @@ impl ProofOccurrenceStore {
                 .claimed_projection_proof(bound, admission)
                 .expect("raw claimed certificate source must remain resolvable")
                 .expect("raw claimed certificate source must produce one certificate");
-            Self::insert_claimed_projection_proof_canonical(
-                expected.entry(bound).or_default(),
-                key,
-                proof,
-            );
+            let representative_claim = proof.representative_claim();
+            reconstructed
+                .entry(bound)
+                .or_default()
+                .entry(key)
+                .and_modify(|current| *current = (*current).min(representative_claim))
+                .or_insert(representative_claim);
         }
+        reconstructed
+    }
+
+    #[cfg(test)]
+    fn debug_assert_claimed_projection_audit_reconstructs(&self) {
         for &raw_identity @ (_, support, _) in &self.projection_clause_link_keys {
             debug_assert_eq!(
                 self.projection_claimed_link_audit
@@ -2225,9 +2407,9 @@ impl ProofOccurrenceStore {
                 "every and only claimed raw links need event-local audit metadata",
             );
         }
-        debug_assert_eq!(self.claimed_projection_proofs, expected);
+        let reconstructed = self.claimed_projection_proofs_from_audit_for_test();
         debug_assert!(
-            self.claimed_projection_proofs
+            reconstructed
                 .values()
                 .map(FxHashMap::len)
                 .sum::<usize>()
@@ -2909,10 +3091,6 @@ impl ProofOccurrenceStore {
         new_claimed_link_audit_entries
             .try_reserve(admissions.len())
             .map_err(exhausted)?;
-        let mut pending_claimed_projection_proofs = Vec::new();
-        pending_claimed_projection_proofs
-            .try_reserve(admissions.len())
-            .map_err(exhausted)?;
 
         for &admission in admissions {
             let clause_key = (lower_record, admission.clause);
@@ -2950,10 +3128,8 @@ impl ProofOccurrenceStore {
                     .claimed_proof_source
                     .expect("claimed admission metadata was constructor-validated");
                 new_claimed_link_audit_entries.push((link_key, proof_source));
-                pending_claimed_projection_proofs.push(
-                    self.claimed_projection_proof(lower_record, admission)?
-                        .expect("claimed admission produces exactly one certificate"),
-                );
+                self.claimed_projection_proof(lower_record, admission)?
+                    .expect("claimed admission produces exactly one reconstructible certificate");
                 let attribution = (lower_record, root);
                 if !self.projection_attributions.contains(&attribution)
                     && pending_attributed.insert(attribution)
@@ -3007,24 +3183,6 @@ impl ProofOccurrenceStore {
                 .copied(),
         );
 
-        let canonical_claimed_projection_proofs =
-            if pending_claimed_projection_proofs.is_empty() {
-                None
-            } else {
-                let mut bucket = self
-                    .claimed_projection_proofs
-                    .get(&lower_record)
-                    .cloned()
-                    .unwrap_or_default();
-                bucket
-                    .try_reserve(pending_claimed_projection_proofs.len())
-                    .map_err(exhausted)?;
-                for (key, proof) in pending_claimed_projection_proofs {
-                    Self::insert_claimed_projection_proof_canonical(&mut bucket, key, proof);
-                }
-                Some(bucket)
-            };
-
         self.projection_clause_keys
             .try_reserve(new_clause_keys.len())
             .map_err(exhausted)?;
@@ -3034,13 +3192,6 @@ impl ProofOccurrenceStore {
         self.projection_claimed_link_audit
             .try_reserve(new_claimed_link_audit_entries.len())
             .map_err(exhausted)?;
-        if canonical_claimed_projection_proofs.is_some()
-            && !self.claimed_projection_proofs.contains_key(&lower_record)
-        {
-            self.claimed_projection_proofs
-                .try_reserve(1)
-                .map_err(exhausted)?;
-        }
         self.projection_attributions
             .try_reserve(new_projection_attributions.len())
             .map_err(exhausted)?;
@@ -3067,7 +3218,6 @@ impl ProofOccurrenceStore {
             canonical_formula,
             formula_support_keys,
             new_claimed_link_audit_entries,
-            canonical_claimed_projection_proofs,
             new_projection_attributions,
             new_flat_retained_projection_attributions,
         }))
@@ -3107,10 +3257,6 @@ impl ProofOccurrenceStore {
             .insert(prepared.lower_record, canonical_formula);
         self.projection_formula_support_keys
             .insert(prepared.lower_record, formula_support_keys);
-        if let Some(bucket) = prepared.canonical_claimed_projection_proofs.take() {
-            self.claimed_projection_proofs
-                .insert(prepared.lower_record, bucket);
-        }
     }
 
     pub(super) fn record_projection_clause(
@@ -4152,7 +4298,7 @@ impl ProofOccurrenceStore {
             })?;
         let mut evaluator = CpkProjectionEvaluator::new(view, self);
         evaluator.states = states;
-        let included = evaluator.eval_record(record);
+        let evaluation = evaluator.eval_preflighted_record_with_evidence(record)?;
         if evaluator
             .states
             .values()
@@ -4172,10 +4318,12 @@ impl ProofOccurrenceStore {
             round.states = std::mem::take(&mut evaluator.states);
         }
 
-        Ok(if included {
-            ProjectionDecision::Included { supports: payload }
-        } else {
-            ProjectionDecision::Excluded
+        Ok(match evaluation {
+            CpkProjectionEvaluation::Excluded => ProjectionDecision::Excluded,
+            CpkProjectionEvaluation::Included { evidence } => ProjectionDecision::Included {
+                supports: payload,
+                evidence,
+            },
         })
     }
 }
@@ -4866,6 +5014,11 @@ pub(super) struct CpkProjectionEvaluator<'a> {
     record_overrides: FxHashMap<BoundRecordId, bool>,
     root_overrides: FxHashMap<UpperReplayClaimId, bool>,
     cycle_cuts: usize,
+    preflight_validated_walk: bool,
+    #[cfg(test)]
+    decisive_certificate_lookups: usize,
+    #[cfg(test)]
+    decisive_evidence_markers: usize,
 }
 
 impl<'a> CpkProjectionEvaluator<'a> {
@@ -4880,19 +5033,147 @@ impl<'a> CpkProjectionEvaluator<'a> {
             record_overrides: FxHashMap::default(),
             root_overrides: FxHashMap::default(),
             cycle_cuts: 0,
+            preflight_validated_walk: false,
+            #[cfg(test)]
+            decisive_certificate_lookups: 0,
+            #[cfg(test)]
+            decisive_evidence_markers: 0,
         }
     }
 
     pub(super) fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        self.eval_record_memo(record).summary.is_included()
+    }
+
+    pub(crate) fn eval_record_with_evidence(
+        &mut self,
+        record: BoundRecordId,
+    ) -> Result<CpkProjectionEvaluation, ProofFailure> {
+        self.eval_record_with_evidence_mode(record, false)
+    }
+
+    fn eval_preflighted_record_with_evidence(
+        &mut self,
+        record: BoundRecordId,
+    ) -> Result<CpkProjectionEvaluation, ProofFailure> {
+        self.eval_record_with_evidence_mode(record, true)
+    }
+
+    fn eval_record_with_evidence_mode(
+        &mut self,
+        record: BoundRecordId,
+        preflight_validated_walk: bool,
+    ) -> Result<CpkProjectionEvaluation, ProofFailure> {
         if let Some(result) = self.record_overrides.get(&record) {
-            return *result;
+            return Ok(if *result {
+                CpkProjectionEvaluation::Included {
+                    evidence: ProjectionEvidence::ExactWithoutClaimedArm,
+                }
+            } else {
+                CpkProjectionEvaluation::Excluded
+            });
+        }
+
+        let previous_preflight_mode =
+            std::mem::replace(&mut self.preflight_validated_walk, preflight_validated_walk);
+        let memo = self.eval_record_memo(record);
+        self.preflight_validated_walk = previous_preflight_mode;
+
+        Ok(match memo.summary {
+            CpkProjectionEvaluationSummary::Excluded => CpkProjectionEvaluation::Excluded,
+            CpkProjectionEvaluationSummary::IncludedExact
+            | CpkProjectionEvaluationSummary::IncludedFailOpen => {
+                let evidence = self.resolve_record_evidence(record, memo)?;
+                CpkProjectionEvaluation::Included { evidence }
+            }
+        })
+    }
+
+    fn eval_record_memo(&mut self, record: BoundRecordId) -> ProofEvalMemo {
+        if let Some(result) = self.record_overrides.get(&record) {
+            return if *result {
+                ProofEvalMemo {
+                    summary: CpkProjectionEvaluationSummary::IncludedExact,
+                    evidence: ProofEvalEvidenceMemo::ExactWithoutClaimedArm,
+                }
+            } else {
+                ProofEvalMemo {
+                    summary: CpkProjectionEvaluationSummary::Excluded,
+                    evidence: ProofEvalEvidenceMemo::None,
+                }
+            };
         }
         let node = ProofEvalNode::Record(record);
-        if let Some(result) = self.enter(node) {
-            return result;
+        if let Some(memo) = self.enter(node) {
+            return memo;
         }
-        let result = self.eval_record_uncached(record);
-        self.finish(node, result)
+        let mut decisive_claimed_clause_index = None;
+        let summary = self.eval_record_uncached(
+            record,
+            self.preflight_validated_walk,
+            Some(&mut decisive_claimed_clause_index),
+        );
+        let evidence = match (summary, decisive_claimed_clause_index) {
+            (CpkProjectionEvaluationSummary::Excluded, _) => ProofEvalEvidenceMemo::None,
+            (CpkProjectionEvaluationSummary::IncludedFailOpen, _) => {
+                ProofEvalEvidenceMemo::FailOpenIncomplete
+            }
+            (CpkProjectionEvaluationSummary::IncludedExact, Some(index)) => {
+                #[cfg(test)]
+                {
+                    self.decisive_evidence_markers += 1;
+                }
+                ProofEvalEvidenceMemo::DecisiveClaimedClauseIndex(index)
+            }
+            (CpkProjectionEvaluationSummary::IncludedExact, _) => {
+                ProofEvalEvidenceMemo::ExactWithoutClaimedArm
+            }
+        };
+        self.finish(node, ProofEvalMemo { summary, evidence })
+    }
+
+    fn eval_record_summary(&mut self, record: BoundRecordId) -> CpkProjectionEvaluationSummary {
+        self.eval_record_memo(record).summary
+    }
+
+    fn resolve_record_evidence(
+        &mut self,
+        record: BoundRecordId,
+        memo: ProofEvalMemo,
+    ) -> Result<ProjectionEvidence, ProofFailure> {
+        Ok(match memo.evidence {
+            ProofEvalEvidenceMemo::DecisiveClaimedClauseIndex(index) => {
+                #[cfg(test)]
+                {
+                    self.decisive_certificate_lookups += 1;
+                }
+                let Some(clause) = self
+                    .store
+                    .projection_formulas
+                    .get(&record)
+                    .and_then(|clauses| clauses.get(index as usize))
+                    .copied()
+                else {
+                    debug_assert!(
+                        false,
+                        "decisive claimed projection clause index must remain valid for the immutable evaluation round"
+                    );
+                    return Ok(ProjectionEvidence::FailOpenIncomplete);
+                };
+                self.store
+                    .decisive_claimed_projection_proof(record, clause)?
+                    .map(ProjectionEvidence::DecisiveClaimedArm)
+                    .unwrap_or(ProjectionEvidence::FailOpenIncomplete)
+            }
+            ProofEvalEvidenceMemo::ExactWithoutClaimedArm => {
+                ProjectionEvidence::ExactWithoutClaimedArm
+            }
+            ProofEvalEvidenceMemo::FailOpenIncomplete => ProjectionEvidence::FailOpenIncomplete,
+            ProofEvalEvidenceMemo::None => {
+                debug_assert!(false, "included record memo must carry evidence");
+                ProjectionEvidence::FailOpenIncomplete
+            }
+        })
     }
 
     pub(super) fn with_record_result_override(
@@ -4913,16 +5194,21 @@ impl<'a> CpkProjectionEvaluator<'a> {
         self
     }
 
-    fn eval_record_uncached(&mut self, record: BoundRecordId) -> bool {
+    fn eval_record_uncached(
+        &mut self,
+        record: BoundRecordId,
+        prefer_exact_arm: bool,
+        mut decisive_claimed_clause_index: Option<&mut Option<u32>>,
+    ) -> CpkProjectionEvaluationSummary {
         let Some(bound) = self.view.bound(record) else {
             debug_assert!(
                 false,
                 "CPK projection evaluator reached missing machine-issued bound {record:?}"
             );
-            return true;
+            return CpkProjectionEvaluationSummary::IncludedFailOpen;
         };
         if bound.state() == BoundRecordState::Tombstone {
-            return true;
+            return CpkProjectionEvaluationSummary::IncludedExact;
         }
         if bound.direction() == BoundDirection::Upper {
             let claims = self
@@ -4931,20 +5217,37 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 .get(&record)
                 .map(Vec::as_slice)
                 .unwrap_or(&[]);
-            return claims.is_empty()
-                || claims
-                    .iter()
-                    .copied()
-                    .any(|claim| self.eval_root_coverage(claim));
+            if claims.is_empty() {
+                return CpkProjectionEvaluationSummary::IncludedExact;
+            }
+            for claim in claims.iter().copied() {
+                let result = self.eval_root_coverage(claim);
+                if result.is_included() {
+                    return result;
+                }
+            }
+            return CpkProjectionEvaluationSummary::Excluded;
         }
 
+        let clauses = self.store.projection_formulas.get(&record);
         let Some(supports) = self.store.projection_supports.get(&record) else {
-            return true;
+            return if self.preflight_validated_walk
+                && clauses.is_none_or(|clauses| clauses.is_empty())
+            {
+                CpkProjectionEvaluationSummary::IncludedExact
+            } else {
+                CpkProjectionEvaluationSummary::IncludedFailOpen
+            };
         };
         if supports.is_empty() {
-            return true;
+            return if self.preflight_validated_walk
+                && clauses.is_none_or(|clauses| clauses.is_empty())
+            {
+                CpkProjectionEvaluationSummary::IncludedExact
+            } else {
+                CpkProjectionEvaluationSummary::IncludedFailOpen
+            };
         }
-        let clauses = self.store.projection_formulas.get(&record);
         let clause_support_keys = self
             .store
             .projection_formula_support_keys
@@ -4954,67 +5257,113 @@ impl<'a> CpkProjectionEvaluator<'a> {
             clause_support_keys.is_some(),
             "CPK projection formula/support-key mirror presence must match for {record:?}",
         );
-        if supports.iter().copied().any(|support| {
-            self.support_is_qualifying(support)
+        for support in supports.iter().copied() {
+            if self.support_evaluation(support).is_included()
                 && !self
                     .store
                     .projection_support_match_key(support)
                     .is_some_and(|key| {
                         clause_support_keys.is_some_and(|keys| keys.contains(&key))
                     })
-        }) {
-            return true;
+            {
+                return CpkProjectionEvaluationSummary::IncludedFailOpen;
+            }
         }
-        clauses.is_some_and(|clauses| {
-            clauses
-                .iter()
-                .copied()
-                .any(|clause| self.eval_clause(clause))
-        })
+        let Some(clauses) = clauses else {
+            return CpkProjectionEvaluationSummary::Excluded;
+        };
+        let mut incomplete_arm_exists = false;
+        for (index, clause) in clauses.iter().copied().enumerate() {
+            let result = self.eval_clause(clause);
+            match result {
+                CpkProjectionEvaluationSummary::IncludedExact => {
+                    if matches!(clause.support(), SchemeProjectionProofSupport::Claimed(_)) {
+                        if let Some(found) = decisive_claimed_clause_index.as_deref_mut() {
+                            *found = Some(
+                                u32::try_from(index)
+                                    .expect("projection formula index must fit in u32"),
+                            );
+                        }
+                    }
+                    return result;
+                }
+                CpkProjectionEvaluationSummary::IncludedFailOpen if !prefer_exact_arm => {
+                    return result;
+                }
+                CpkProjectionEvaluationSummary::IncludedFailOpen => incomplete_arm_exists = true,
+                CpkProjectionEvaluationSummary::Excluded => {}
+            }
+        }
+        if incomplete_arm_exists {
+            CpkProjectionEvaluationSummary::IncludedFailOpen
+        } else {
+            CpkProjectionEvaluationSummary::Excluded
+        }
     }
 
-    fn eval_clause(&mut self, clause: ProjectionClause) -> bool {
+    fn eval_clause(&mut self, clause: ProjectionClause) -> CpkProjectionEvaluationSummary {
         match clause {
             ProjectionClause::Standalone { support, .. } => {
-                self.support_is_qualifying(support)
+                self.support_evaluation(support)
             }
             ProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
             ProjectionClause::ReplayConjunction { lower, upper, .. } => {
-                self.eval_record(lower) && self.eval_record(upper)
+                let lower = self.eval_record_summary(lower);
+                if lower == CpkProjectionEvaluationSummary::Excluded {
+                    return CpkProjectionEvaluationSummary::Excluded;
+                }
+                let upper = self.eval_record_summary(upper);
+                if upper == CpkProjectionEvaluationSummary::Excluded {
+                    return CpkProjectionEvaluationSummary::Excluded;
+                }
+                if lower == CpkProjectionEvaluationSummary::IncludedFailOpen
+                    || upper == CpkProjectionEvaluationSummary::IncludedFailOpen
+                {
+                    CpkProjectionEvaluationSummary::IncludedFailOpen
+                } else {
+                    CpkProjectionEvaluationSummary::IncludedExact
+                }
             }
         }
     }
 
-    fn eval_premise(&mut self, premise: ProofPremise) -> bool {
+    fn eval_premise(&mut self, premise: ProofPremise) -> CpkProjectionEvaluationSummary {
         match premise {
-            ProofPremise::Record(record) => self.eval_record(record),
+            ProofPremise::Record(record) => self.eval_record_summary(record),
             ProofPremise::Constraint(constraint) => self.eval_constraint(constraint),
             ProofPremise::RootCoverage(root) => self.eval_root_coverage(root),
         }
     }
 
-    fn eval_constraint(&mut self, constraint: ConstraintRecordId) -> bool {
+    fn eval_constraint(
+        &mut self,
+        constraint: ConstraintRecordId,
+    ) -> CpkProjectionEvaluationSummary {
         let node = ProofEvalNode::Constraint(constraint);
-        if let Some(result) = self.enter(node) {
-            return result;
+        if let Some(memo) = self.enter(node) {
+            return memo.summary;
         }
         let result = self.eval_constraint_uncached(constraint);
-        self.finish(node, result)
+        self.finish(node, ProofEvalMemo::summary_only(result)).summary
     }
 
-    fn eval_constraint_uncached(&mut self, constraint: ConstraintRecordId) -> bool {
+    fn eval_constraint_uncached(
+        &mut self,
+        constraint: ConstraintRecordId,
+    ) -> CpkProjectionEvaluationSummary {
         if self.view.constraint(constraint).is_none() {
             debug_assert!(
                 false,
                 "CPK projection evaluator reached missing machine-issued constraint {constraint:?}"
             );
-            return true;
+            return CpkProjectionEvaluationSummary::IncludedFailOpen;
         }
         let mut has_source = false;
         if let Some(lower_record) = self.view.lower_record_for_constraint(constraint) {
             has_source = true;
-            if self.eval_record(lower_record) {
-                return true;
+            let result = self.eval_record_summary(lower_record);
+            if result.is_included() {
+                return result;
             }
         }
         let qualified_parents = self
@@ -5027,7 +5376,21 @@ impl<'a> CpkProjectionEvaluator<'a> {
             has_source = true;
             let projectable = match parent {
                 ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
-                    self.eval_record(replay.lower) && self.eval_record(replay.upper)
+                    let lower = self.eval_record_summary(replay.lower);
+                    if lower == CpkProjectionEvaluationSummary::Excluded {
+                        CpkProjectionEvaluationSummary::Excluded
+                    } else {
+                        let upper = self.eval_record_summary(replay.upper);
+                        if upper == CpkProjectionEvaluationSummary::Excluded {
+                            CpkProjectionEvaluationSummary::Excluded
+                        } else if lower == CpkProjectionEvaluationSummary::IncludedFailOpen
+                            || upper == CpkProjectionEvaluationSummary::IncludedFailOpen
+                        {
+                            CpkProjectionEvaluationSummary::IncludedFailOpen
+                        } else {
+                            CpkProjectionEvaluationSummary::IncludedExact
+                        }
+                    }
                 }
                 ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
                     self.eval_constraint(derivation.parent)
@@ -5036,50 +5399,74 @@ impl<'a> CpkProjectionEvaluator<'a> {
                     self.eval_root_coverage(parent_claim)
                 }
             };
-            if projectable {
-                return true;
+            if projectable.is_included() {
+                return projectable;
             }
         }
         if let Some(root) = self.store.root_claim_for_producer(constraint) {
             has_source = true;
-            if self.eval_root_coverage(root) {
-                return true;
+            let result = self.eval_root_coverage(root);
+            if result.is_included() {
+                return result;
             }
         }
-        !has_source
+        if has_source {
+            CpkProjectionEvaluationSummary::Excluded
+        } else {
+            CpkProjectionEvaluationSummary::IncludedExact
+        }
     }
 
-    fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> bool {
+    fn eval_root_coverage(
+        &self,
+        claim: UpperReplayClaimId,
+    ) -> CpkProjectionEvaluationSummary {
         let Some(root) = self.store.claim_coverage_root(claim) else {
             debug_assert!(
                 false,
                 "CPK projection evaluator reached missing machine-issued claim/root {claim:?}"
             );
-            return true;
+            return CpkProjectionEvaluationSummary::IncludedFailOpen;
         };
         if let Some(result) = self.root_overrides.get(&root) {
-            return *result;
+            return if *result {
+                CpkProjectionEvaluationSummary::IncludedExact
+            } else {
+                CpkProjectionEvaluationSummary::Excluded
+            };
         }
-        self
+        if self
             .store
             .live_states_by_coverage_root
             .get(&root)
             .is_none_or(FxHashSet::is_empty)
+        {
+            CpkProjectionEvaluationSummary::IncludedExact
+        } else {
+            CpkProjectionEvaluationSummary::Excluded
+        }
     }
 
-    fn support_is_qualifying(&self, support: SchemeProjectionProofSupport) -> bool {
+    fn support_evaluation(
+        &self,
+        support: SchemeProjectionProofSupport,
+    ) -> CpkProjectionEvaluationSummary {
         match support {
-            SchemeProjectionProofSupport::Independent(_) => true,
+            SchemeProjectionProofSupport::Independent(_) => {
+                CpkProjectionEvaluationSummary::IncludedExact
+            }
             SchemeProjectionProofSupport::Claimed(claim) => self.eval_root_coverage(claim),
         }
     }
 
-    fn enter(&mut self, node: ProofEvalNode) -> Option<bool> {
+    fn enter(&mut self, node: ProofEvalNode) -> Option<ProofEvalMemo> {
         match self.states.get(&node).copied() {
-            Some(ProofEvalState::Done(result)) => Some(result),
+            Some(ProofEvalState::Done(memo)) => Some(memo),
             Some(ProofEvalState::Visiting) => {
                 self.cycle_cuts += 1;
-                Some(false)
+                Some(ProofEvalMemo::summary_only(
+                    CpkProjectionEvaluationSummary::Excluded,
+                ))
             }
             None => {
                 self.states.insert(node, ProofEvalState::Visiting);
@@ -5088,13 +5475,27 @@ impl<'a> CpkProjectionEvaluator<'a> {
         }
     }
 
-    fn finish(&mut self, node: ProofEvalNode, result: bool) -> bool {
-        self.states.insert(node, ProofEvalState::Done(result));
-        result
+    fn finish(
+        &mut self,
+        node: ProofEvalNode,
+        memo: ProofEvalMemo,
+    ) -> ProofEvalMemo {
+        self.states.insert(node, ProofEvalState::Done(memo));
+        memo
     }
 
     pub(super) fn cycle_cuts(&self) -> usize {
         self.cycle_cuts
+    }
+
+    #[cfg(test)]
+    fn decisive_certificate_lookups(&self) -> usize {
+        self.decisive_certificate_lookups
+    }
+
+    #[cfg(test)]
+    fn decisive_evidence_markers(&self) -> usize {
+        self.decisive_evidence_markers
     }
 
     pub(super) fn has_visiting_state(&self) -> bool {
@@ -6297,7 +6698,7 @@ mod tests {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Gwcb0EvidenceObservation {
-        ExactArmsEmpty,
+        ExactWithoutClaimedArm,
         FailOpenIncomplete(Gwcb0RawTrueBranch),
     }
 
@@ -6313,6 +6714,22 @@ mod tests {
             .proof_store
             .project_lower(machine, record, &mut round);
         (decision, round)
+    }
+
+    fn projection_evidence_for_test(
+        machine: &ConstraintMachine,
+        record: BoundRecordId,
+    ) -> ProjectionEvidence {
+        let mut evaluator = CpkProjectionEvaluator::new(machine, &machine.proof_store);
+        match evaluator
+            .eval_preflighted_record_with_evidence(record)
+            .expect("test projection evidence must be available")
+        {
+            CpkProjectionEvaluation::Included { evidence } => evidence,
+            CpkProjectionEvaluation::Excluded => {
+                panic!("included test fixture must have projection evidence")
+            }
+        }
     }
 
     fn cpk_7_record_original_claim(
@@ -6568,7 +6985,7 @@ mod tests {
         fixture
             .machine
             .proof_store
-            .debug_assert_claimed_projection_proofs_match_linear_scan();
+            .debug_assert_claimed_projection_audit_reconstructs();
         let keys = &fixture.machine.proof_store.projection_formula_support_keys[&record];
         assert_eq!(keys.len(), 2, "same-root representatives share one key");
         assert!(keys.contains(&ProjectionSupportMatchKey::Claimed(
@@ -6580,7 +6997,7 @@ mod tests {
     }
 
     #[test]
-    fn gwcb_a_claimed_certificate_mirror_is_insertion_order_invariant() {
+    fn gwcb_a_claimed_audit_reconstruction_is_insertion_order_invariant() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let replacement = add_same_root_replay_claim(
             &mut fixture,
@@ -6610,11 +7027,11 @@ mod tests {
                     ),
                 );
             }
-            store.debug_assert_claimed_projection_proofs_match_linear_scan();
-            let bucket = store
-                .claimed_projection_proofs
+            store.debug_assert_claimed_projection_audit_reconstructs();
+            let reconstructed = store.claimed_projection_proofs_from_audit_for_test();
+            let bucket = reconstructed
                 .get(&record)
-                .expect("accepted claimed links create one certificate bucket");
+                .expect("accepted claimed links reconstruct one semantic bucket");
             assert_eq!(
                 store
                     .projection_claimed_link_audit
@@ -6626,11 +7043,23 @@ mod tests {
             );
             assert_eq!(bucket.len(), 1, "same-root raw links share one semantic key");
             assert_eq!(
-                bucket.values().next().unwrap().representative_claim(),
+                *bucket.values().next().unwrap(),
                 root.min(replacement),
                 "the audit representative is canonical rather than admission-order dependent",
             );
-            snapshots.push(bucket.clone());
+            let decisive = store
+                .decisive_claimed_projection_proof(
+                    record,
+                    store.projection_formulas[&record][0],
+                )
+                .expect("the canonical raw clause must reconstruct without a scan")
+                .expect("the canonical raw clause is claimed");
+            assert_eq!(
+                decisive.representative_claim(),
+                root.min(replacement),
+                "lookup-time reconstruction must retain canonical representative stability",
+            );
+            snapshots.push((bucket.clone(), decisive));
         }
         assert_eq!(snapshots[0], snapshots[1]);
     }
@@ -6652,10 +7081,6 @@ mod tests {
         );
         let after = independent_store.performance_index_allocation_census();
         assert_eq!(after.claimed_projection_audit, before.claimed_projection_audit);
-        assert_eq!(
-            after.claimed_projection_certificate_buckets,
-            before.claimed_projection_certificate_buckets,
-        );
 
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let record = BoundRecordId(97_117);
@@ -6694,7 +7119,7 @@ mod tests {
         fixture
             .machine
             .proof_store
-            .debug_assert_claimed_projection_proofs_match_linear_scan();
+            .debug_assert_claimed_projection_audit_reconstructs();
     }
 
     #[test]
@@ -6730,11 +7155,6 @@ mod tests {
             fixture.machine.proof_store.projection_claimed_link_audit,
             before.projection_claimed_link_audit,
         );
-        assert_eq!(
-            fixture.machine.proof_store.claimed_projection_proofs,
-            before.claimed_projection_proofs,
-        );
-
         fixture
             .machine
             .proof_store
@@ -6742,9 +7162,251 @@ mod tests {
         fixture
             .machine
             .proof_store
-            .debug_assert_claimed_projection_proofs_match_linear_scan();
+            .debug_assert_claimed_projection_audit_reconstructs();
         assert_eq!(fixture.machine.proof_store.projection_formulas[&record].len(), 1);
-        assert_eq!(fixture.machine.proof_store.claimed_projection_proofs[&record].len(), 1);
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .claimed_projection_proofs_from_audit_for_test()[&record]
+                .len(),
+            1,
+        );
+    }
+
+    #[test]
+    fn gwcb_a_claimed_audit_prepare_carries_only_the_admission_delta() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let record = BoundRecordId(97_119);
+        let first = fixture.coverage_root;
+        fixture.machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                first,
+                RecordProofClause::Standalone {
+                    support: SchemeProjectionProofSupport::Claimed(first),
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: first,
+                    producer: ConstraintRecordId(10_000),
+                },
+            ),
+        );
+
+        let second_parent = fixture
+            .machine
+            .bounds
+            .add_upper(
+                TypeVar(97_119),
+                fixture.machine.constraint_records[fixture.result.0 as usize]
+                    .key
+                    .upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let second = fixture.machine.original_upper_replay_claim(
+            second_parent,
+            ConstraintRecordId(10_001),
+            UpperReplayClaimKind::Direct,
+        );
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(second.scheme_projection_mutation);
+        let second_admission = RecordProofClauseLinkAdmission::claimed(
+            second.claim,
+            RecordProofClause::Standalone {
+                support: SchemeProjectionProofSupport::Claimed(second.claim),
+            },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: second.claim,
+                producer: ConstraintRecordId(10_001),
+            },
+        );
+        let mut prepared = fixture
+            .machine
+            .proof_store
+            .try_prepare_projection_clause_admission(record, &[second_admission])
+            .expect("delta admission must reserve all commit capacity")
+            .expect("the distinct claimed link must be admitted");
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .projection_claimed_link_audit
+                .keys()
+                .filter(|(bound, _, _)| *bound == record)
+                .count(),
+            1,
+            "preparation must leave the existing raw audit ledger unchanged",
+        );
+        assert_eq!(
+            prepared.new_claimed_link_audit_entries.len(),
+            1,
+            "the prepared transaction must carry only the new raw audit fact",
+        );
+        assert_eq!(
+            prepared.new_claimed_link_audit_entries[0],
+            (
+                (
+                    record,
+                    SchemeProjectionProofSupport::Claimed(second.claim),
+                    RecordProofClause::Standalone {
+                        support: SchemeProjectionProofSupport::Claimed(second.claim),
+                    },
+                ),
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: second.claim,
+                    producer: ConstraintRecordId(10_001),
+                },
+            ),
+        );
+
+        fixture
+            .machine
+            .proof_store
+            .commit_projection_clause_admission(&mut prepared);
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_claimed_projection_audit_reconstructs();
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .projection_claimed_link_audit
+                .keys()
+                .filter(|(bound, _, _)| *bound == record)
+                .count(),
+            2,
+        );
+    }
+
+    #[test]
+    fn gwcb_b_decisive_claimed_arm_is_canonical_memoized_once_and_materialized_lazily() {
+        assert_eq!(
+            std::mem::size_of::<ProofEvalEvidenceMemo>(),
+            8,
+            "the evidence memo must retain only a compact formula index",
+        );
+        assert_eq!(
+            std::mem::size_of::<ProofEvalState>(),
+            12,
+            "the hot round memo must not inline projection clauses or certificates",
+        );
+        #[allow(dead_code)]
+        enum PriorGeneralizationParentLayout {
+            Constraint(ConstraintRecordId),
+            Bound(BoundRecordId),
+            BoundClaim {
+                bound: BoundRecordId,
+                claim: UpperReplayClaimId,
+            },
+            BoundProjectionProof {
+                bound: BoundRecordId,
+                carrier: ProjectionProofCarrier,
+            },
+        }
+        assert_eq!(
+            std::mem::size_of::<PriorGeneralizationParentLayout>(),
+            28,
+            "the comparison layout must continue to model the pre-GWCB parent",
+        );
+        assert_eq!(
+            std::mem::size_of::<GeneralizationParent>(),
+            32,
+            "the boxed certificate must add only one pointer-sized field to the prior parent layout",
+        );
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let second_parent = fixture
+            .machine
+            .bounds
+            .add_upper(
+                TypeVar(97_119),
+                fixture.machine.constraint_records[fixture.result.0 as usize]
+                    .key
+                    .upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let second = fixture.machine.original_upper_replay_claim(
+            second_parent,
+            ConstraintRecordId(10_001),
+            UpperReplayClaimKind::Direct,
+        );
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(second.scheme_projection_mutation);
+        let claims = [fixture.coverage_root, second.claim];
+        let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_119);
+        let mutation = fixture
+            .machine
+            .try_prepare_scheme_projection_mutation(record, &claims, &[])
+            .expect("multi-arm fixture support mutation must have capacity");
+        fixture.machine.apply_scheme_projection_mutation(mutation);
+        for (claim, producer) in claims
+            .into_iter()
+            .zip([ConstraintRecordId(10_000), ConstraintRecordId(10_001)])
+            .rev()
+        {
+            fixture.machine.proof_store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::claimed(
+                    claim,
+                    RecordProofClause::Standalone {
+                        support: SchemeProjectionProofSupport::Claimed(claim),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: claim,
+                        producer,
+                    },
+                ),
+            );
+        }
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .projection_claimed_link_audit
+                .keys()
+                .filter(|(bound, _, _)| *bound == record)
+                .count(),
+            2,
+            "the source-of-truth fixture must contain multiple raw claimed arms",
+        );
+
+        let mut evaluator =
+            CpkProjectionEvaluator::new(&fixture.machine, &fixture.machine.proof_store);
+        let evaluation = evaluator
+            .eval_record_with_evidence(record)
+            .expect("decisive evidence lookup must be fallible without collecting arms");
+        let CpkProjectionEvaluation::Included {
+            evidence: ProjectionEvidence::DecisiveClaimedArm(proof),
+        } = evaluation
+        else {
+            panic!("the canonical first true claimed clause must be the decisive arm");
+        };
+        assert_eq!(proof.coverage_root(), claims.into_iter().min().unwrap());
+        assert_eq!(
+            evaluator
+                .eval_record_with_evidence(record)
+                .expect("the same immutable-round evidence must be memoized"),
+            evaluation,
+        );
+        assert_eq!(
+            evaluator.decisive_certificate_lookups(),
+            2,
+            "the full certificate is materialized lazily only when each caller requests evidence",
+        );
+        assert_eq!(
+            evaluator.decisive_evidence_markers(),
+            1,
+            "the compact decisive-clause marker is computed once with the memoized boolean result",
+        );
     }
 
     #[test]
@@ -6991,10 +7653,15 @@ mod tests {
                 supports: ProjectionSupportSet {
                     ref uncovered_claims,
                     ..
-                }
+                },
+                ..
             }) if uncovered_claims.is_empty()
         ));
-        let exact_observation = Gwcb0EvidenceObservation::ExactArmsEmpty;
+        assert_eq!(
+            projection_evidence_for_test(&exact, exact_record),
+            ProjectionEvidence::ExactWithoutClaimedArm,
+        );
+        let exact_observation = Gwcb0EvidenceObservation::ExactWithoutClaimedArm;
 
         let mut missing_supports = cpk_machine();
         let missing_supports_record =
@@ -7002,6 +7669,12 @@ mod tests {
         let mut raw =
             CpkProjectionEvaluator::new(&missing_supports, &missing_supports.proof_store);
         assert!(raw.eval_record(missing_supports_record));
+        assert_eq!(
+            raw.eval_record_with_evidence(missing_supports_record),
+            Ok(CpkProjectionEvaluation::Included {
+                evidence: ProjectionEvidence::FailOpenIncomplete,
+            }),
+        );
         let missing_observation = Gwcb0EvidenceObservation::FailOpenIncomplete(
             Gwcb0RawTrueBranch::MissingSupports,
         );
@@ -7014,6 +7687,12 @@ mod tests {
             .insert(empty_supports_record, Vec::new());
         let mut raw = CpkProjectionEvaluator::new(&empty_supports, &empty_supports.proof_store);
         assert!(raw.eval_record(empty_supports_record));
+        assert_eq!(
+            raw.eval_record_with_evidence(empty_supports_record),
+            Ok(CpkProjectionEvaluation::Included {
+                evidence: ProjectionEvidence::FailOpenIncomplete,
+            }),
+        );
         let empty_observation =
             Gwcb0EvidenceObservation::FailOpenIncomplete(Gwcb0RawTrueBranch::EmptySupports);
 
@@ -7022,6 +7701,12 @@ mod tests {
         cpk_4_add_independent_support(&mut incomplete, incomplete_record, carrier);
         let mut raw = CpkProjectionEvaluator::new(&incomplete, &incomplete.proof_store);
         assert!(raw.eval_record(incomplete_record), "the direct raw path currently fail-opens");
+        assert_eq!(
+            raw.eval_record_with_evidence(incomplete_record),
+            Ok(CpkProjectionEvaluation::Included {
+                evidence: ProjectionEvidence::FailOpenIncomplete,
+            }),
+        );
         assert!(matches!(
             project_lower_for_test(&incomplete, incomplete_record).0,
             Err(ProofFailure::MissingProofFact {
@@ -8426,14 +9111,26 @@ mod tests {
         }
         let stored_support = SchemeProjectionProofSupport::Claimed(representative);
         let formula_support = SchemeProjectionProofSupport::Claimed(root);
-        cpk_gap_1_set_supports_and_formula(
-            &mut machine,
+        machine.proof_store.record_projection_supports(
             record,
-            vec![stored_support],
-            vec![ProjectionClause::Standalone {
-                support: formula_support,
-                attribution: None,
+            &[SchemeProjectionProof {
+                lower_record: record,
+                support: stored_support,
             }],
+        );
+        machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                root,
+                RecordProofClause::Standalone {
+                    support: formula_support,
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: root,
+                    producer: ConstraintRecordId(50_009),
+                },
+            ),
         );
 
         let (actual, _) = project_lower_for_test(&machine, record);
@@ -8447,6 +9144,7 @@ mod tests {
                     }],
                     independent_supports: Vec::new(),
                 },
+                evidence: projection_evidence_for_test(&machine, record),
             })
         );
     }
@@ -8617,6 +9315,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&machine, record),
             })
         );
     }
@@ -8627,7 +9326,7 @@ mod tests {
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         machine
             .proof_store
-            .debug_assert_claimed_projection_proofs_match_linear_scan();
+            .debug_assert_claimed_projection_audit_reconstructs();
         let record = machine
             .bounds()
             .of(owner)
@@ -8724,6 +9423,7 @@ mod tests {
                     }],
                     independent_supports: Vec::new(),
                 },
+                evidence: projection_evidence_for_test(&machine, record),
             })
         );
     }
@@ -8780,7 +9480,7 @@ mod tests {
                         weights.clone(),
                         SchemeProjectableLowerReason::Unclaimed,
                     )),
-                    ProjectionDecision::Included { supports } => Some((
+                    ProjectionDecision::Included { supports, .. } => Some((
                         *record,
                         *pos,
                         weights.clone(),
@@ -8809,7 +9509,8 @@ mod tests {
             panic!("mixed fixture target must be qualified");
         };
         let (decision, _) = project_lower_for_test(&machine, *record);
-        let ProjectionDecision::Included { supports } = decision.expect("complete CPK decision")
+        let ProjectionDecision::Included { supports, evidence } =
+            decision.expect("complete CPK decision")
         else {
             panic!("mixed fixture target must be included");
         };
@@ -8877,20 +9578,21 @@ mod tests {
             ProvenanceCompleteness::Incomplete,
             "PUSP-C keeps whole-scheme completeness incomplete even when exact parents survive",
         );
-        let expected_parents = supports
-            .uncovered_claims
-            .iter()
-            .map(|support| GeneralizationParent::BoundClaim {
+        let mut expected_parents = Vec::new();
+        if let ProjectionEvidence::DecisiveClaimedArm(proof) = evidence {
+            expected_parents.push(GeneralizationParent::BoundClaimProjectionProof {
                 bound: *record,
-                claim: support.representative_claim,
-            })
-            .chain(supports.independent_supports.iter().map(|carrier| {
+                coverage_root: proof.coverage_root(),
+                representative_claim: proof.representative_claim(),
+                proof: Box::new(proof),
+            });
+        }
+        expected_parents.extend(supports.independent_supports.iter().map(|carrier| {
                 GeneralizationParent::BoundProjectionProof {
                     bound: *record,
                     carrier: *carrier,
                 }
-            }))
-            .collect::<Vec<_>>();
+            }));
         for role in [
             GeneralizedWitnessRole::LowerBound,
             GeneralizedWitnessRole::ConstraintRelation,
@@ -8902,7 +9604,7 @@ mod tests {
                 .incoming
                 .iter()
                 .flat_map(|edge| &edge.parents)
-                .copied()
+                .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(actual, expected_parents, "exact witness parent order for {role:?}");
         }
@@ -8943,6 +9645,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&included, included_record),
             },
         );
 
@@ -9026,27 +9729,31 @@ mod tests {
                     .incoming
                     .iter()
                     .flat_map(|edge| &edge.parents)
-                    .copied()
+                    .cloned()
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
         let expected_parents = match expected {
             ProjectionDecision::Excluded => Vec::new(),
             ProjectionDecision::Unclaimed => vec![GeneralizationParent::Bound(record)],
-            ProjectionDecision::Included { supports } => supports
-                .uncovered_claims
-                .into_iter()
-                .map(|support| GeneralizationParent::BoundClaim {
-                    bound: record,
-                    claim: support.representative_claim,
-                })
-                .chain(supports.independent_supports.into_iter().map(|carrier| {
+            ProjectionDecision::Included { supports, evidence } => {
+                let mut parents = Vec::new();
+                if let ProjectionEvidence::DecisiveClaimedArm(proof) = evidence {
+                    parents.push(GeneralizationParent::BoundClaimProjectionProof {
+                        bound: record,
+                        coverage_root: proof.coverage_root(),
+                        representative_claim: proof.representative_claim(),
+                        proof: Box::new(proof),
+                    });
+                }
+                parents.extend(supports.independent_supports.into_iter().map(|carrier| {
                     GeneralizationParent::BoundProjectionProof {
                         bound: record,
                         carrier,
                     }
-                }))
-                .collect(),
+                }));
+                parents
+            }
         };
         assert_eq!(actual_parents, expected_parents);
     }
@@ -9133,6 +9840,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&standalone, standalone_record),
             },
         );
 
@@ -9171,6 +9879,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&derived, derived_record),
             },
         );
 
@@ -9195,12 +9904,13 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&incomplete, incomplete_record),
             },
         );
     }
 
     #[test]
-    fn cpk_gap_1_included_empty_keeps_generalized_witness_parentless() {
+    fn cpk_gap_1_included_empty_keeps_its_decisive_claimed_parent() {
         let (mut machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         let record = machine
@@ -9213,7 +9923,7 @@ mod tests {
                     .then_some(record)
             })
             .expect("mixed fixture lower record");
-        let ProjectionDecision::Included { supports } =
+        let ProjectionDecision::Included { supports, .. } =
             project_lower_for_test(&machine, record).0.expect("complete initial projection")
         else {
             panic!("mixed fixture must start included");
@@ -9252,10 +9962,15 @@ mod tests {
             uncovered.coverage_root,
             state,
         ));
+        let evidence = projection_evidence_for_test(&machine, record);
+        let ProjectionEvidence::DecisiveClaimedArm(proof) = evidence else {
+            panic!("the exact derived-unary clause must be the decisive claimed arm");
+        };
         assert_eq!(
             project_lower_for_test(&machine, record).0,
             Ok(ProjectionDecision::Included {
                 supports: ProjectionSupportSet::default(),
+                evidence,
             }),
         );
         let generalized = crate::generalize::GeneralizedCompactRoot {
@@ -9269,14 +9984,20 @@ mod tests {
         let (drafts, completeness) =
             crate::generalize::capture_generalized_witnesses(&machine, owner, &generalized);
         assert_eq!(completeness, ProvenanceCompleteness::Incomplete);
-        assert!(drafts.iter().flat_map(|draft| &draft.incoming).flat_map(|edge| {
-            &edge.parents
-        }).all(|parent| match parent {
-            GeneralizationParent::Bound(found)
-            | GeneralizationParent::BoundClaim { bound: found, .. }
-            | GeneralizationParent::BoundProjectionProof { bound: found, .. } => *found != record,
-            GeneralizationParent::Constraint(_) => true,
-        }), "Included(empty) must not fabricate any parent for the qualified record");
+        let exact_parent = GeneralizationParent::BoundClaimProjectionProof {
+            bound: record,
+            coverage_root: proof.coverage_root(),
+            representative_claim: proof.representative_claim(),
+            proof: Box::new(proof),
+        };
+        assert!(
+            drafts
+                .iter()
+                .flat_map(|draft| &draft.incoming)
+                .flat_map(|edge| &edge.parents)
+                .any(|parent| *parent == exact_parent),
+            "Included(empty) must retain the exact clause that established inclusion",
+        );
 
         machine.alloc_generalized_scheme_record(
             poly::expr::DefId(0),
@@ -9292,13 +10013,14 @@ mod tests {
                 .iter()
                 .flat_map(|witness| &witness.incoming)
                 .flat_map(|edge| &edge.parents)
-                .all(|parent| match parent {
-                    crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::Bound(found)
-                    | crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundClaim { bound: found, .. }
-                    | crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundProjectionProof { bound: found, .. } => *found != record.0 as usize,
-                    crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::Constraint(_) => true,
-                }),
-            "stored witnesses must retain the absence of a fallback bound parent",
+                .any(|parent| matches!(
+                    parent,
+                    crate::constraints::logical_proof_snapshot::CanonicalGeneralizationParent::BoundClaimProjectionProof {
+                        bound: found,
+                        ..
+                    } if *found == record.0 as usize
+                )),
+            "logical proof snapshots must retain the decisive certificate parent",
         );
         let target_root = snapshot
             .portable
@@ -9385,6 +10107,7 @@ mod tests {
                         uncovered_claims: Vec::new(),
                         independent_supports: vec![carrier],
                     },
+                    evidence: projection_evidence_for_test(&machine, record),
                 },
             );
         }
@@ -9474,9 +10197,10 @@ mod tests {
                     }],
                     independent_supports: Vec::new(),
                 },
+                evidence: projection_evidence_for_test(&fixture.machine, record),
             },
         );
-        let ProjectionDecision::Included { supports } = before else {
+        let ProjectionDecision::Included { supports, .. } = before else {
             panic!("same-root fixture must be included");
         };
         let before_representative = supports
@@ -9499,8 +10223,9 @@ mod tests {
                 }],
                 independent_supports: Vec::new(),
             },
+            evidence: projection_evidence_for_test(&fixture.machine, record),
         };
-        let ProjectionDecision::Included { supports } = &expected else {
+        let ProjectionDecision::Included { supports, .. } = &expected else {
             panic!("replacement must preserve inclusion");
         };
         let replacement = supports
@@ -9568,6 +10293,7 @@ mod tests {
                     ],
                     independent_supports: Vec::new(),
                 },
+                evidence: projection_evidence_for_test(&fixture.machine, record),
             };
             let (actual, _) = project_lower_for_test(&fixture.machine, record);
             assert_eq!(actual, Ok(expected.clone()), "arrival order {order:?}");
@@ -9577,7 +10303,7 @@ mod tests {
                 record,
                 expected.clone(),
             );
-            let ProjectionDecision::Included { supports } = expected else {
+            let ProjectionDecision::Included { supports, evidence } = expected else {
                 panic!("permutation fixture must be included");
             };
             let representative = supports
@@ -9586,7 +10312,7 @@ mod tests {
                 .find(|support| support.coverage_root == fixture.coverage_root)
                 .expect("same-root permutation support");
             assert_eq!(representative.coverage_root, fixture.coverage_root);
-            let decision = ProjectionDecision::Included { supports };
+            let decision = ProjectionDecision::Included { supports, evidence };
             assert_eq!(
                 decision,
                 *canonical_decision.get_or_insert_with(|| decision.clone()),
@@ -11454,7 +12180,7 @@ mod tests {
     fn cpk_4_replay_formula_and_projectability_match_legacy_end_to_end() {
         let machine = cpk_3_replay_fixture();
         let snapshot = machine.proof_store.clone();
-        snapshot.debug_assert_claimed_projection_proofs_match_linear_scan();
+        snapshot.debug_assert_claimed_projection_audit_reconstructs();
         let claimed = |claim| SchemeProjectionProofSupport::Claimed(UpperReplayClaimId(claim));
         let replay = |pivot, lower, upper| BinaryReplayDerivation {
             pivot: TypeVar(pivot),
@@ -11525,7 +12251,7 @@ mod tests {
         ]);
         assert_eq!(snapshot.projection_formulas, expected_formulas);
 
-        let included = |supports: Vec<(u32, u32)>| ProjectionDecision::Included {
+        let included = |record, supports: Vec<(u32, u32)>| ProjectionDecision::Included {
             supports: ProjectionSupportSet {
                 uncovered_claims: supports
                     .into_iter()
@@ -11536,18 +12262,35 @@ mod tests {
                     .collect(),
                 independent_supports: Vec::new(),
             },
+            evidence: projection_evidence_for_test(&machine, record),
         };
         for (record, owner, decision) in [
-            (BoundRecordId(0), TypeVar(31), included(vec![(0, 0)])),
+            (
+                BoundRecordId(0),
+                TypeVar(31),
+                included(BoundRecordId(0), vec![(0, 0)]),
+            ),
             (BoundRecordId(2), TypeVar(34), ProjectionDecision::Excluded),
             (
                 BoundRecordId(4),
                 TypeVar(34),
-                included(vec![(0, 2), (4, 6), (5, 7)]),
+                included(BoundRecordId(4), vec![(0, 2), (4, 6), (5, 7)]),
             ),
-            (BoundRecordId(6), TypeVar(32), included(vec![(4, 4)])),
-            (BoundRecordId(8), TypeVar(34), included(vec![(5, 5)])),
-            (BoundRecordId(10), TypeVar(36), included(vec![(8, 8)])),
+            (
+                BoundRecordId(6),
+                TypeVar(32),
+                included(BoundRecordId(6), vec![(4, 4)]),
+            ),
+            (
+                BoundRecordId(8),
+                TypeVar(34),
+                included(BoundRecordId(8), vec![(5, 5)]),
+            ),
+            (
+                BoundRecordId(10),
+                TypeVar(36),
+                included(BoundRecordId(10), vec![(8, 8)]),
+            ),
         ] {
             assert_cpk_projection_decision_and_consumer(&machine, owner, record, decision);
         }
@@ -11569,7 +12312,7 @@ mod tests {
                 entry.expect("an unclaimed lower remains a direct consumer input").reason,
                 SchemeProjectableLowerReason::Unclaimed,
             ),
-            ProjectionDecision::Included { supports } => assert_eq!(
+            ProjectionDecision::Included { supports, .. } => assert_eq!(
                 entry.expect("an included lower reaches the direct consumer").reason,
                 SchemeProjectableLowerReason::Qualified {
                     uncovered_claims: supports
@@ -11625,6 +12368,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
+                evidence: projection_evidence_for_test(&machine, record),
             },
         );
     }
@@ -11771,7 +12515,6 @@ mod tests {
                 replay_result_buckets: (0, 0, 0, 0),
                 formula_support_buckets: (0, 0, 0, 0),
                 claimed_projection_audit: (0, 0),
-                claimed_projection_certificate_buckets: (0, 0, 0, 0),
             },
         );
 
@@ -11797,10 +12540,6 @@ mod tests {
         assert_eq!(indexes.replay_result_buckets, (0, 0, 0, 0));
         assert_eq!(indexes.formula_support_buckets, (0, 0, 0, 0));
         assert_eq!(indexes.claimed_projection_audit, (0, 0));
-        assert_eq!(
-            indexes.claimed_projection_certificate_buckets,
-            (0, 0, 0, 0)
-        );
         assert_eq!(indexes.projection_carrier_occurrences.0, 1);
         assert!(
             indexes.projection_carrier_occurrences.1 > 0,
@@ -11889,11 +12628,11 @@ mod tests {
                     .record_projection_clause(BoundRecordId(index as u32), admission);
             }
         let snapshot = machine.proof_store.clone();
-        snapshot.debug_assert_claimed_projection_proofs_match_linear_scan();
+        snapshot.debug_assert_claimed_projection_audit_reconstructs();
         assert_eq!(snapshot.projection_claimed_link_audit.len(), 5);
         assert_eq!(
             snapshot
-                .claimed_projection_proofs
+                .claimed_projection_proofs_from_audit_for_test()
                 .values()
                 .map(FxHashMap::len)
                 .sum::<usize>(),
@@ -12535,6 +13274,7 @@ mod tests {
                     }],
                     independent_supports: vec![independent_carrier],
                 },
+                evidence: projection_evidence_for_test(&machine, lower_record),
             }),
         );
     }

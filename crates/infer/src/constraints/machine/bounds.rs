@@ -5293,7 +5293,7 @@ mod mutation_tests {
                     .find(|entry| entry.record == self.lower_record).expect("isolated lower remains projectable").reason;
                 let (drafts, completeness) = self.capture_witnesses();
                 let parents = drafts.iter().flat_map(|draft| &draft.incoming)
-                    .flat_map(|edge| &edge.parents).copied().collect();
+                    .flat_map(|edge| &edge.parents).cloned().collect();
                 ConsumerSnapshot { qualified, drafts, parents, completeness }
             }
 
@@ -5511,7 +5511,7 @@ mod mutation_tests {
                     &self.machine, self.target, &generalized,
                 );
                 let parents = drafts.iter().flat_map(|draft| &draft.incoming)
-                    .flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>();
+                    .flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>();
                 let scheme = self.machine.alloc_generalized_scheme_record(
                     poly::expr::DefId(0), 0, drafts.clone(), completeness,
                 );
@@ -5523,7 +5523,7 @@ mod mutation_tests {
                         .expect("target-late occurrence witness");
                     let mut roots = Vec::new();
                     for parent in witness.incoming.iter().flat_map(|edge| &edge.parents) {
-                        let Some(carriers) = self.machine.generalization_parent_carriers(*parent) else {
+                        let Some(carriers) = self.machine.generalization_parent_carriers(parent) else {
                             continue;
                         };
                         let candidates = match carriers {
@@ -5795,7 +5795,7 @@ mod mutation_tests {
                         &snapshot.generalized.qualified, snapshot.lower_record,
                     );
                     assert_eq!(lower_draft(&snapshot.generalized).incoming.iter()
-                        .flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>(), qualified);
+                        .flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>(), qualified);
                     assert_eq!(snapshot.generalized.parents.len(), qualified.len() * 2,
                         "the root lower and recursive-lower drafts retain the same exact parents");
                     assert!(snapshot.generalized.parents.chunks(qualified.len())
@@ -5908,7 +5908,7 @@ mod mutation_tests {
                         carrier: ProjectionProofCarrier::Origin(fixture.origins[1]) },
                 ]);
                 assert_eq!(lower_draft(&snapshot).incoming.iter().flat_map(|edge| &edge.parents)
-                    .copied().collect::<Vec<_>>(), parents);
+                    .cloned().collect::<Vec<_>>(), parents);
                 assert_eq!(snapshot, *expected.get_or_insert_with(|| snapshot.clone()));
             }
         }
@@ -5997,7 +5997,7 @@ mod mutation_tests {
                 assert_eq!(draft.incoming.len(), 256);
                 assert_eq!(draft.completeness, ProvenanceCompleteness::Incomplete);
                 assert_eq!(snapshot.completeness, ProvenanceCompleteness::Incomplete);
-                let prefix = draft.incoming.iter().flat_map(|edge| &edge.parents).copied().collect::<Vec<_>>();
+                let prefix = draft.incoming.iter().flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>();
                 assert_eq!(prefix, parents[..256]);
                 let capped = (draft.incoming.clone(), prefix, draft.completeness, snapshot.completeness);
                 assert_eq!(capped, *expected.get_or_insert_with(|| capped.clone()));

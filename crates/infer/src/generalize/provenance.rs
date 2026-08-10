@@ -112,7 +112,7 @@ impl<'a> WitnessCollector<'a> {
                 // no direct support currently contributes provenance. Keep it parentless rather
                 // than fabricating the raw Bound(record) parent used by an unclaimed relation.
                 for parent in parents {
-                    self.add_parent(path, role, *parent);
+                    self.add_parent(path, role, parent.clone());
                 }
             }
         }
@@ -163,6 +163,31 @@ impl<'a> WitnessCollector<'a> {
         self.incoming_edges += 1;
     }
 
+    fn mark_incomplete(
+        &mut self,
+        path: &GeneralizedTypePath,
+        role: GeneralizedWitnessRole,
+    ) {
+        if let Some(draft) = self
+            .drafts
+            .iter_mut()
+            .find(|draft| draft.path == *path && draft.role == role)
+        {
+            draft.completeness = ProvenanceCompleteness::Incomplete;
+            return;
+        }
+        if self.drafts.len() >= MAX_WITNESSES_PER_SCHEME {
+            self.truncated = true;
+            return;
+        }
+        self.drafts.push(GeneralizedWitnessDraft {
+            path: path.clone(),
+            role,
+            incoming: Vec::new(),
+            completeness: ProvenanceCompleteness::Incomplete,
+        });
+    }
+
     fn collect_var(
         &mut self,
         var: TypeVar,
@@ -198,16 +223,34 @@ impl<'a> WitnessCollector<'a> {
                             );
                         }
                         SchemeProjectableLowerReason::Qualified {
-                            uncovered_claims,
+                            uncovered_claims: _,
                             independent_supports,
                         } => {
-                            let mut parents = uncovered_claims
-                                .into_iter()
-                                .map(|claim| GeneralizationParent::BoundClaim {
-                                    bound: entry.record,
-                                    claim,
-                                })
-                                .collect::<Vec<_>>();
+                            let evidence = entry.projection_evidence.expect(
+                                "qualified projection lower must carry its evaluation evidence",
+                            );
+                            let mut parents = Vec::new();
+                            let fail_open = match evidence {
+                                crate::constraints::proof::ProjectionEvidence::DecisiveClaimedArm(
+                                    proof,
+                                ) => {
+                                    parents.push(
+                                        GeneralizationParent::BoundClaimProjectionProof {
+                                            bound: entry.record,
+                                            coverage_root: proof.coverage_root(),
+                                            representative_claim: proof.representative_claim(),
+                                            proof: Box::new(proof),
+                                        },
+                                    );
+                                    false
+                                }
+                                crate::constraints::proof::ProjectionEvidence::ExactWithoutClaimedArm => {
+                                    false
+                                }
+                                crate::constraints::proof::ProjectionEvidence::FailOpenIncomplete => {
+                                    true
+                                }
+                            };
                             parents.extend(independent_supports.into_iter().map(|carrier| {
                                 GeneralizationParent::BoundProjectionProof {
                                     bound: entry.record,
@@ -216,6 +259,12 @@ impl<'a> WitnessCollector<'a> {
                             }));
                             let parents = WitnessParents::Selected(&parents);
                             self.add(&path, GeneralizedWitnessRole::LowerBound, parents);
+                            if fail_open {
+                                self.mark_incomplete(
+                                    &path,
+                                    GeneralizedWitnessRole::LowerBound,
+                                );
+                            }
                             self.collect_pos(endpoint, path.clone(), parents);
                         }
                     }
@@ -790,7 +839,7 @@ mod tests {
                 .iter()
                 .flat_map(|draft| &draft.incoming)
                 .flat_map(|edge| &edge.parents)
-                .all(|parent| !parent_references_bound(*parent, record)),
+                .all(|parent| !parent_references_bound(parent, record)),
             "a live covered-only relation must not be traversed or retained as a witness parent"
         );
     }
@@ -800,37 +849,44 @@ mod tests {
         let (machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         let record = raw_var_lower_record(&machine, owner, endpoint);
-        let uncovered = machine
+        let (uncovered, proof) = machine
             .scheme_projectable_lowers(owner)
             .find_map(|entry| {
                 (entry.record == record)
-                    .then_some(entry.reason)
-                    .and_then(|reason| match reason {
+                    .then_some((entry.reason, entry.projection_evidence))
+                    .and_then(|(reason, evidence)| match reason {
                         SchemeProjectableLowerReason::Qualified {
                             uncovered_claims: claims,
                             ..
-                        } => Some(claims),
+                        } => Some((claims, evidence)),
                         SchemeProjectableLowerReason::Unclaimed => None,
                     })
             })
             .expect("mixed record remains projectable through its independent claim");
         assert_eq!(uncovered.len(), 1, "fixture has one uncovered claim");
+        let Some(crate::constraints::proof::ProjectionEvidence::DecisiveClaimedArm(proof)) = proof
+        else {
+            panic!("the claimed fixture must retain its decisive exact certificate");
+        };
 
         let drafts = capture(&machine, owner);
         let lower = draft_at_root(&drafts, GeneralizedWitnessRole::LowerBound);
-        let expected = GeneralizationParent::BoundClaim {
+        let expected = GeneralizationParent::BoundClaimProjectionProof {
             bound: record,
-            claim: uncovered[0],
+            coverage_root: proof.coverage_root(),
+            representative_claim: proof.representative_claim(),
+            proof: Box::new(proof),
         };
+        assert_eq!(proof.coverage_root(), uncovered[0]);
 
         assert_eq!(
             lower
                 .incoming
                 .iter()
                 .flat_map(|edge| &edge.parents)
-                .copied()
+                .cloned()
                 .collect::<Vec<_>>(),
-            vec![expected],
+            vec![expected.clone()],
             "the covered sibling claim and the plain mixed bound must stay out of provenance"
         );
         assert_eq!(
@@ -838,7 +894,7 @@ mod tests {
                 .incoming
                 .iter()
                 .flat_map(|edge| &edge.parents)
-                .copied()
+                .cloned()
                 .collect::<Vec<_>>(),
             vec![expected],
             "the selected claim identity must survive traversal through the Var endpoint"
@@ -884,7 +940,7 @@ mod tests {
             bound: record,
             claim,
         };
-        let selected = [parent];
+        let selected = [parent.clone()];
         let mut collector = WitnessCollector::new(&machine);
 
         collector.collect_pos(
@@ -902,11 +958,11 @@ mod tests {
             vec![
                 GeneralizationDerivation {
                     rule: GeneralizationDerivationRule::BoundCollection,
-                    parents: vec![parent],
+                    parents: vec![parent.clone()],
                 },
                 GeneralizationDerivation {
                     rule: GeneralizationDerivationRule::BoundCollection,
-                    parents: vec![parent],
+                    parents: vec![parent.clone()],
                 },
             ],
             "both union traversal paths are considered before canonical insertion"
@@ -996,11 +1052,12 @@ mod tests {
         }
     }
 
-    fn parent_references_bound(parent: GeneralizationParent, record: BoundRecordId) -> bool {
+    fn parent_references_bound(parent: &GeneralizationParent, record: BoundRecordId) -> bool {
         match parent {
-            GeneralizationParent::Bound(found) => found == record,
-            GeneralizationParent::BoundClaim { bound, .. } => bound == record,
-            GeneralizationParent::BoundProjectionProof { bound, .. } => bound == record,
+            GeneralizationParent::Bound(found) => *found == record,
+            GeneralizationParent::BoundClaim { bound, .. } => *bound == record,
+            GeneralizationParent::BoundClaimProjectionProof { bound, .. } => *bound == record,
+            GeneralizationParent::BoundProjectionProof { bound, .. } => *bound == record,
             GeneralizationParent::Constraint(_) => false,
         }
     }

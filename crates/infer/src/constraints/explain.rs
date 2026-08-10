@@ -1233,7 +1233,7 @@ impl<'a> ExplanationQuery<'a> {
         for derivation in incoming {
             let mut parents = Vec::new();
             for parent in derivation.parents {
-                match self.machine.generalization_parent_carriers(parent) {
+                match self.machine.generalization_parent_carriers(&parent) {
                     Some(GeneralizationParentCarriers::Constraint(id)) => {
                         parents.push(ExplanationNodeId::Constraint(id));
                     }

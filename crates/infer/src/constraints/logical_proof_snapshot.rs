@@ -182,10 +182,54 @@ pub(crate) enum CanonicalGeneralizationParent {
         bound: usize,
         claim: usize,
     },
+    BoundClaimProjectionProof {
+        bound: usize,
+        coverage_root: usize,
+        representative_claim: usize,
+        proof: CanonicalClaimedProjectionProof,
+    },
     BoundProjectionProof {
         bound: usize,
         carrier: CanonicalCarrier,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CanonicalClaimedProjectionProof {
+    Standalone {
+        bound: usize,
+        coverage_root: usize,
+        representative_claim: usize,
+        producer: usize,
+        attribution: CanonicalClaimedProjectionProofAttribution,
+    },
+    DerivedUnary {
+        bound: usize,
+        coverage_root: usize,
+        representative_claim: usize,
+        result: usize,
+        carrier: CanonicalCarrier,
+        premise: CanonicalPremise,
+        attribution: CanonicalClaimedProjectionProofAttribution,
+    },
+    ReplayConjunction {
+        bound: usize,
+        coverage_root: usize,
+        representative_claim: usize,
+        carrier: CanonicalCarrier,
+        lower_premise: usize,
+        upper_premise: usize,
+        attribution: CanonicalClaimedProjectionProofAttribution,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CanonicalClaimedProjectionProofAttribution {
+    Original,
+    StructuralConstraint,
+    ReductionRouteConstraint,
+    ReplayConstraint { result: usize },
+    ReplayEvidence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -580,7 +624,7 @@ fn capture_generalized(
                     parents: derivation
                         .parents
                         .iter()
-                        .map(|parent| canonical_generalization_parent(canonical, *parent))
+                        .map(|parent| canonical_generalization_parent(canonical, parent))
                         .collect(),
                 })
                 .collect(),
@@ -708,7 +752,7 @@ fn canonical_premise(premise: ProofPremise) -> CanonicalPremise {
 
 fn canonical_generalization_parent(
     canonical: &mut Canonicalizer,
-    parent: GeneralizationParent,
+    parent: &GeneralizationParent,
 ) -> CanonicalGeneralizationParent {
     match parent {
         GeneralizationParent::Constraint(record) => {
@@ -723,11 +767,121 @@ fn canonical_generalization_parent(
                 claim: claim.0 as usize,
             }
         }
+        GeneralizationParent::BoundClaimProjectionProof {
+            bound,
+            coverage_root,
+            representative_claim,
+            proof,
+        } => CanonicalGeneralizationParent::BoundClaimProjectionProof {
+            bound: bound.0 as usize,
+            coverage_root: coverage_root.0 as usize,
+            representative_claim: representative_claim.0 as usize,
+            proof: canonical_claimed_projection_proof(canonical, proof.as_ref()),
+        },
         GeneralizationParent::BoundProjectionProof { bound, carrier } => {
             CanonicalGeneralizationParent::BoundProjectionProof {
                 bound: bound.0 as usize,
-                carrier: canonical.projection(carrier),
+                carrier: canonical.projection(*carrier),
             }
+        }
+    }
+}
+
+fn canonical_claimed_projection_proof(
+    canonical: &mut Canonicalizer,
+    proof: &proof::ClaimedProjectionProof,
+) -> CanonicalClaimedProjectionProof {
+    match proof.kind() {
+        proof::ClaimedProjectionProofKind::Standalone {
+            bound,
+            coverage_root,
+            representative_claim,
+            producer,
+            attribution,
+        } => CanonicalClaimedProjectionProof::Standalone {
+            bound: bound.0 as usize,
+            coverage_root: coverage_root.0 as usize,
+            representative_claim: representative_claim.0 as usize,
+            producer: producer.0 as usize,
+            attribution: canonical_claimed_projection_attribution(attribution),
+        },
+        proof::ClaimedProjectionProofKind::DerivedUnary {
+            bound,
+            coverage_root,
+            representative_claim,
+            result,
+            carrier,
+            premise,
+            attribution,
+        } => CanonicalClaimedProjectionProof::DerivedUnary {
+            bound: bound.0 as usize,
+            coverage_root: coverage_root.0 as usize,
+            representative_claim: representative_claim.0 as usize,
+            result: result.0 as usize,
+            carrier: match carrier {
+                DerivedUnaryCarrier::Structural(derivation) => CanonicalCarrier::Structural {
+                    result: Some(result.0 as usize),
+                    parent: derivation.parent.0 as usize,
+                    rule: format!("{:?}", derivation.rule),
+                },
+                DerivedUnaryCarrier::ReductionRoute(derivation) => {
+                    CanonicalCarrier::ReductionRoute {
+                        result: Some(result.0 as usize),
+                        derivation: derivation.0 as usize,
+                    }
+                }
+            },
+            premise: canonical_premise(premise),
+            attribution: canonical_claimed_projection_attribution(attribution),
+        },
+        proof::ClaimedProjectionProofKind::ReplayConjunction {
+            bound,
+            coverage_root,
+            representative_claim,
+            carrier,
+            lower_premise,
+            upper_premise,
+            attribution,
+        } => {
+            let result = match attribution {
+                proof::ClaimedProjectionProofAttribution::ReplayConstraint { result } => {
+                    Some(result)
+                }
+                _ => None,
+            };
+            CanonicalClaimedProjectionProof::ReplayConjunction {
+                bound: bound.0 as usize,
+                coverage_root: coverage_root.0 as usize,
+                representative_claim: representative_claim.0 as usize,
+                carrier: canonical.replay(carrier, result),
+                lower_premise: lower_premise.0 as usize,
+                upper_premise: upper_premise.0 as usize,
+                attribution: canonical_claimed_projection_attribution(attribution),
+            }
+        }
+    }
+}
+
+fn canonical_claimed_projection_attribution(
+    attribution: proof::ClaimedProjectionProofAttribution,
+) -> CanonicalClaimedProjectionProofAttribution {
+    match attribution {
+        proof::ClaimedProjectionProofAttribution::Original => {
+            CanonicalClaimedProjectionProofAttribution::Original
+        }
+        proof::ClaimedProjectionProofAttribution::StructuralConstraint => {
+            CanonicalClaimedProjectionProofAttribution::StructuralConstraint
+        }
+        proof::ClaimedProjectionProofAttribution::ReductionRouteConstraint => {
+            CanonicalClaimedProjectionProofAttribution::ReductionRouteConstraint
+        }
+        proof::ClaimedProjectionProofAttribution::ReplayConstraint { result } => {
+            CanonicalClaimedProjectionProofAttribution::ReplayConstraint {
+                result: result.0 as usize,
+            }
+        }
+        proof::ClaimedProjectionProofAttribution::ReplayEvidence => {
+            CanonicalClaimedProjectionProofAttribution::ReplayEvidence
         }
     }
 }

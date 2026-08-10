@@ -1081,6 +1081,7 @@ pub(crate) struct SchemeProjectableLower<'a> {
     pub(crate) record: BoundRecordId,
     pub(crate) bound: &'a WeightedLowerBound,
     pub(crate) reason: SchemeProjectableLowerReason,
+    pub(crate) projection_evidence: Option<proof::ProjectionEvidence>,
 }
 
 /// Shares acyclic projection results across top-level queries over one fixed view.
@@ -1294,10 +1295,12 @@ impl ConstraintMachine {
                     break;
                 }
             };
-            let reason = match decision {
+            let (reason, projection_evidence) = match decision {
                 proof::ProjectionDecision::Excluded => continue,
-                proof::ProjectionDecision::Unclaimed => SchemeProjectableLowerReason::Unclaimed,
-                proof::ProjectionDecision::Included { supports } => {
+                proof::ProjectionDecision::Unclaimed => {
+                    (SchemeProjectableLowerReason::Unclaimed, None)
+                }
+                proof::ProjectionDecision::Included { supports, evidence } => (
                     SchemeProjectableLowerReason::Qualified {
                         uncovered_claims: supports
                             .uncovered_claims
@@ -1305,13 +1308,15 @@ impl ConstraintMachine {
                             .map(|support| support.representative_claim)
                             .collect(),
                         independent_supports: supports.independent_supports,
-                    }
-                }
+                    },
+                    Some(evidence),
+                ),
             };
             lowers.push(SchemeProjectableLower {
                 record,
                 bound,
                 reason,
+                projection_evidence,
             });
         }
         lowers
@@ -2537,13 +2542,19 @@ pub enum GeneralizedWitnessRole {
     RecursiveUpperBound,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum GeneralizationParent {
     Constraint(ConstraintRecordId),
     Bound(BoundRecordId),
     BoundClaim {
         bound: BoundRecordId,
         claim: UpperReplayClaimId,
+    },
+    BoundClaimProjectionProof {
+        bound: BoundRecordId,
+        coverage_root: UpperReplayClaimId,
+        representative_claim: UpperReplayClaimId,
+        proof: Box<proof::ClaimedProjectionProof>,
     },
     BoundProjectionProof {
         bound: BoundRecordId,
@@ -2571,14 +2582,33 @@ impl ConstraintMachine {
     /// expand that mixed record: only the selected claim's own lineage is semantic provenance.
     pub(crate) fn generalization_parent_carriers(
         &self,
-        parent: GeneralizationParent,
+        parent: &GeneralizationParent,
     ) -> Option<GeneralizationParentCarriers> {
-        let GeneralizationParent::BoundClaim { bound, claim } = parent else {
+        let claim_parent = match parent {
+            GeneralizationParent::BoundClaim { bound, claim } => Some((*bound, *claim)),
+            GeneralizationParent::BoundClaimProjectionProof {
+                bound,
+                coverage_root,
+                representative_claim,
+                proof,
+            } => {
+                let identity_matches = proof.bound() == *bound
+                    && proof.coverage_root() == *coverage_root
+                    && proof.representative_claim() == *representative_claim;
+                debug_assert!(
+                    identity_matches,
+                    "claim-projection parent identity must match its immutable certificate"
+                );
+                identity_matches.then_some((*bound, *representative_claim))
+            }
+            _ => None,
+        };
+        let Some((bound, claim)) = claim_parent else {
             if let GeneralizationParent::BoundProjectionProof { bound, carrier } = parent {
                 let linked = self
                     .proof_store
-                    .projection_supports_for_record(bound)
-                    .contains(&SchemeProjectionProofSupport::Independent(carrier));
+                    .projection_supports_for_record(*bound)
+                    .contains(&SchemeProjectionProofSupport::Independent(*carrier));
                 debug_assert!(
                     linked,
                     "independent projection parent must be ledger-backed"
@@ -2586,7 +2616,7 @@ impl ConstraintMachine {
                 if !linked {
                     return None;
                 }
-                return Some(match carrier {
+                return Some(match *carrier {
                     ProjectionProofCarrier::ConstraintOrigin { origin, .. }
                     | ProjectionProofCarrier::Origin(origin) => {
                         GeneralizationParentCarriers::Origin(origin)
@@ -2617,10 +2647,11 @@ impl ConstraintMachine {
             }
             return Some(match parent {
                 GeneralizationParent::Constraint(record) => {
-                    GeneralizationParentCarriers::Constraint(record)
+                    GeneralizationParentCarriers::Constraint(*record)
                 }
-                GeneralizationParent::Bound(record) => GeneralizationParentCarriers::Bound(record),
+                GeneralizationParent::Bound(record) => GeneralizationParentCarriers::Bound(*record),
                 GeneralizationParent::BoundClaim { .. } => unreachable!(),
+                GeneralizationParent::BoundClaimProjectionProof { .. } => unreachable!(),
                 GeneralizationParent::BoundProjectionProof { .. } => unreachable!(),
             });
         };
