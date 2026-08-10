@@ -3,7 +3,8 @@ use super::*;
 use std::time::{Duration, Instant};
 
 use crate::constraints::explain::{
-    ExplanationBudget, ExplanationCompleteness, ExplanationNode, PortableProvenanceExportBudget,
+    ExplanationBudget, ExplanationCompleteness, ExplanationEdge, ExplanationEdgeKind,
+    ExplanationNode, ExplanationNodeId, PortableProvenanceExportBudget,
     PortableProvenanceExportRoot,
 };
 use crate::lowering::{
@@ -367,6 +368,153 @@ fn subp_b_portable_exports_match_local_explanation_topology() {
         panic!("record control must retain one exact canonical record");
     };
     assert_portable_export_parity("record-field-through-tuple", record_source, *record);
+}
+
+#[test]
+#[ignore = "GWCB-C must restore the exact filtered replay bridge"]
+fn gwcb_0_motivating_replay_bridge_is_present_by_exact_node_and_edge_set() {
+    let output = lower("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
+    let machine = output.session.infer.constraints();
+    let local = machine
+        .why_constraint(ConstraintRecordId(45), ExplanationBudget::default())
+        .expect("motivating constraint explanation");
+    let bridge = machine
+        .proof_store
+        .gwcb0_claimed_replay_bridges_for_test()
+        .into_iter()
+        .find(|bridge| {
+            local.edges.iter().any(|edge| {
+                matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
+                    && edge
+                        .parents
+                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+            })
+        })
+        .expect("the proof store retains the claimed replay bridge behind the shortcut");
+    assert_eq!(bridge.coverage_root, bridge.representative_claim);
+    assert_eq!(bridge.carrier.lower, bridge.lower);
+    assert_eq!(bridge.carrier.upper, bridge.upper);
+
+    let expected_nodes = FxHashSet::from_iter([
+        ExplanationNodeId::Bound(bridge.bound),
+        ExplanationNodeId::Constraint(bridge.result),
+        ExplanationNodeId::Bound(bridge.upper),
+    ]);
+    let expected_edges = FxHashSet::from_iter([
+        ExplanationEdge {
+            child: ExplanationNodeId::Bound(bridge.bound),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.result)),
+            parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+        },
+        ExplanationEdge {
+            child: ExplanationNodeId::Constraint(bridge.result),
+            kind: ExplanationEdgeKind::BinaryReplay(bridge.carrier),
+            parents: vec![
+                ExplanationNodeId::Bound(bridge.lower),
+                ExplanationNodeId::Bound(bridge.upper),
+            ],
+        },
+        ExplanationEdge {
+            child: ExplanationNodeId::Bound(bridge.upper),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.producer)),
+            parents: vec![ExplanationNodeId::Constraint(bridge.producer)],
+        },
+    ]);
+    let actual_nodes = local
+        .nodes
+        .iter()
+        .map(ExplanationNode::id)
+        .collect::<FxHashSet<_>>();
+    let actual_edges = local.edges.iter().cloned().collect::<FxHashSet<_>>();
+    let missing_nodes = expected_nodes.difference(&actual_nodes).collect::<Vec<_>>();
+    let missing_edges = expected_edges.difference(&actual_edges).collect::<Vec<_>>();
+    assert!(
+        missing_nodes.is_empty() && missing_edges.is_empty(),
+        "missing exact GWCB nodes: {missing_nodes:?}; edges: {missing_edges:?}",
+    );
+}
+
+#[test]
+fn gwcb_0_motivating_bound_keeps_filtered_and_raw_reach_distinct() {
+    let output = lower("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
+    let machine = output.session.infer.constraints();
+    let local = machine
+        .why_constraint(ConstraintRecordId(45), ExplanationBudget::default())
+        .expect("motivating constraint explanation");
+    let bridge = machine
+        .proof_store
+        .gwcb0_claimed_replay_bridges_for_test()
+        .into_iter()
+        .find(|bridge| {
+            local.edges.iter().any(|edge| {
+                matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
+                    && edge
+                        .parents
+                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+            })
+        })
+        .expect("the proof store retains the claimed replay bridge");
+    let bound = machine.bounds.record(bridge.bound).expect("bridge bound");
+    assert!(bound
+        .derivations
+        .contains(&BoundDerivation::Constraint(bridge.result)));
+    let formula = machine
+        .proof_store
+        .projection_formula_for_test(bridge.bound)
+        .expect("claimed replay projection formula");
+    let filtered_clause = crate::constraints::proof::ProjectionClause::ReplayConjunction {
+        support: SchemeProjectionProofSupport::Claimed(bridge.representative_claim),
+        carrier: bridge.carrier,
+        lower: bridge.lower,
+        upper: bridge.upper,
+        attribution: Some(crate::constraints::proof::ProjectionLineage::ReplayConstraint),
+    };
+    assert!(formula.contains(&filtered_clause));
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    enum View {
+        Raw(BoundRecordId),
+        Filtered(BoundRecordId, BinaryReplayDerivation),
+    }
+    let expanded_views = FxHashSet::from_iter([
+        View::Raw(bridge.bound),
+        View::Filtered(bridge.bound, bridge.carrier),
+    ]);
+    let emitted_nodes = expanded_views
+        .iter()
+        .map(|view| match view {
+            View::Raw(bound) | View::Filtered(bound, _) => ExplanationNodeId::Bound(*bound),
+        })
+        .collect::<FxHashSet<_>>();
+    assert_eq!(expanded_views.len(), 2, "raw and filtered reach stay distinct");
+    assert_eq!(emitted_nodes.len(), 1, "both views share one graph node identity");
+}
+
+#[test]
+fn gwcb_0_records_local_raw_deduplicated_and_portable_edge_baselines() {
+    let output = lower("my g(x: (int, int)) = x\ng (1, 2, 3)\n");
+    let machine = output.session.infer.constraints();
+    let local = machine
+        .why_constraint(ConstraintRecordId(45), ExplanationBudget::default())
+        .expect("local explanation");
+    let local_deduplicated = local.edges.iter().collect::<FxHashSet<_>>();
+    let portable = machine
+        .export_portable_provenance(
+            &[PortableProvenanceExportRoot::Constraint(
+                ConstraintRecordId(45),
+            )],
+            PortableProvenanceExportBudget::default(),
+            |boundary, kind| portable_source_location(&output, boundary, kind),
+        )
+        .expect("portable explanation");
+
+    assert_eq!(local.edges.len(), 44, "local keeps raw edge-vector multiplicity");
+    assert_eq!(local_deduplicated.len(), 43, "one exact local edge is repeated");
+    assert_eq!(
+        portable.snapshot.edges().len(),
+        43,
+        "portable export deduplicates exact shared edges",
+    );
 }
 
 #[test]

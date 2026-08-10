@@ -87,6 +87,152 @@ fn pusp_a_characterizes_parameter_and_scheme_provenance_gaps() {
 }
 
 #[test]
+#[ignore = "GWCB-C must restore the exact filtered replay bridge"]
+fn gwcb_0_pusp_parameter_query_contains_exact_claimed_replay_bridge_set() {
+    let output = lower(concat!(
+        "my subject(pusp_param) = if pusp_param:\n",
+        "  1\n",
+        "else:\n",
+        "  2\n",
+        "subject(42)\n",
+    ));
+    let def = subject_def(&output);
+    let parameter = parameter_var(&output, def);
+    let machine = output.session.infer.constraints();
+    let original = *bool_upper_records(machine, parameter)
+        .first()
+        .expect("boolean condition creates the parameter upper bound");
+    let local = machine
+        .why_upper_bound(parameter, original, ExplanationBudget::default())
+        .expect("parameter explanation");
+    let bridge = machine
+        .proof_store
+        .gwcb0_claimed_replay_bridges_for_test()
+        .into_iter()
+        .find(|bridge| {
+            local.edges.iter().any(|edge| {
+                matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
+                    && edge
+                        .parents
+                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+            })
+        })
+        .expect("the proof store retains the PUSP claimed replay bridge");
+    let expected_nodes = FxHashSet::from_iter([
+        ExplanationNodeId::Bound(bridge.bound),
+        ExplanationNodeId::Constraint(bridge.result),
+        ExplanationNodeId::Bound(bridge.upper),
+    ]);
+    let expected_edges = FxHashSet::from_iter([
+        ExplanationEdge {
+            child: ExplanationNodeId::Bound(bridge.bound),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.result)),
+            parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+        },
+        ExplanationEdge {
+            child: ExplanationNodeId::Constraint(bridge.result),
+            kind: ExplanationEdgeKind::BinaryReplay(bridge.carrier),
+            parents: vec![
+                ExplanationNodeId::Bound(bridge.lower),
+                ExplanationNodeId::Bound(bridge.upper),
+            ],
+        },
+        ExplanationEdge {
+            child: ExplanationNodeId::Bound(bridge.upper),
+            kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.producer)),
+            parents: vec![ExplanationNodeId::Constraint(bridge.producer)],
+        },
+    ]);
+    let actual_nodes = local
+        .nodes
+        .iter()
+        .map(ExplanationNode::id)
+        .collect::<FxHashSet<_>>();
+    let actual_edges = local.edges.iter().cloned().collect::<FxHashSet<_>>();
+    let missing_nodes = expected_nodes.difference(&actual_nodes).collect::<Vec<_>>();
+    let missing_edges = expected_edges.difference(&actual_edges).collect::<Vec<_>>();
+
+    let call_producer = output
+        .session
+        .ocast_eligibility_shadow()
+        .first()
+        .expect("same-session call has a nominal-cast producer")
+        .producer;
+    let call = machine
+        .why_constraint(call_producer, ExplanationBudget::default())
+        .expect("same-session call explanation");
+    let call_bridges = machine
+        .proof_store
+        .gwcb0_claimed_replay_bridges_for_test()
+        .into_iter()
+        .filter(|bridge| {
+            call.edges.iter().any(|edge| {
+                matches!(edge.kind, ExplanationEdgeKind::Generalization(_))
+                    && edge
+                        .parents
+                        .contains(&ExplanationNodeId::Constraint(bridge.producer))
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        call_bridges.len(),
+        2,
+        "same-session call loses definition-side and instantiated-side bridges"
+    );
+    let call_expected_nodes = call_bridges
+        .iter()
+        .flat_map(|bridge| {
+            [
+                ExplanationNodeId::Bound(bridge.bound),
+                ExplanationNodeId::Constraint(bridge.result),
+                ExplanationNodeId::Bound(bridge.upper),
+            ]
+        })
+        .collect::<FxHashSet<_>>();
+    let call_expected_edges = call_bridges
+        .iter()
+        .flat_map(|bridge| {
+            [
+                ExplanationEdge {
+                    child: ExplanationNodeId::Bound(bridge.bound),
+                    kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.result)),
+                    parents: vec![ExplanationNodeId::Constraint(bridge.result)],
+                },
+                ExplanationEdge {
+                    child: ExplanationNodeId::Constraint(bridge.result),
+                    kind: ExplanationEdgeKind::BinaryReplay(bridge.carrier),
+                    parents: vec![
+                        ExplanationNodeId::Bound(bridge.lower),
+                        ExplanationNodeId::Bound(bridge.upper),
+                    ],
+                },
+                ExplanationEdge {
+                    child: ExplanationNodeId::Bound(bridge.upper),
+                    kind: ExplanationEdgeKind::Bound(BoundDerivation::Constraint(bridge.producer)),
+                    parents: vec![ExplanationNodeId::Constraint(bridge.producer)],
+                },
+            ]
+        })
+        .collect::<FxHashSet<_>>();
+    let call_nodes = call
+        .nodes
+        .iter()
+        .map(ExplanationNode::id)
+        .collect::<FxHashSet<_>>();
+    let call_edges = call.edges.iter().cloned().collect::<FxHashSet<_>>();
+    let call_missing_nodes = call_expected_nodes.difference(&call_nodes).collect::<Vec<_>>();
+    let call_missing_edges = call_expected_edges.difference(&call_edges).collect::<Vec<_>>();
+    assert!(
+        missing_nodes.is_empty()
+            && missing_edges.is_empty()
+            && call_missing_nodes.is_empty()
+            && call_missing_edges.is_empty(),
+        "parameter missing nodes: {missing_nodes:?}; edges: {missing_edges:?}; \
+         call missing nodes: {call_missing_nodes:?}; edges: {call_missing_edges:?}",
+    );
+}
+
+#[test]
 fn pusp_c_concrete_argument_witness_points_to_original_parameter_upper_bound() {
     let output = lower(concat!(
         "my subject(pusp_param) = if pusp_param:\n",

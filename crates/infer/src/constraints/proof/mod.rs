@@ -752,6 +752,21 @@ pub(super) enum ProjectionClause {
     },
 }
 
+/// Test-only read model for the exact bridge already present in CPK storage before GWCB changes
+/// any production payload. Arena ids are observations, never lookup constants in the fixture.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct Gwcb0ClaimedReplayBridge {
+    pub(super) bound: BoundRecordId,
+    pub(super) coverage_root: UpperReplayClaimId,
+    pub(super) representative_claim: UpperReplayClaimId,
+    pub(super) result: ConstraintRecordId,
+    pub(super) carrier: BinaryReplayDerivation,
+    pub(super) lower: BoundRecordId,
+    pub(super) upper: BoundRecordId,
+    pub(super) producer: ConstraintRecordId,
+}
+
 impl ProjectionClause {
     pub(super) fn support(self) -> SchemeProjectionProofSupport {
         match self {
@@ -3526,6 +3541,68 @@ impl ProofOccurrenceStore {
         self.projection_formulas.get(&record).map(Vec::as_slice)
     }
 
+    /// GWCB-0 read-side observation only. This deliberately reconstructs the bridge with
+    /// linear scans so the red topology fixture can name the exact facts that later slices must
+    /// carry transactionally. Production must never call this helper or adopt its scan shape.
+    #[cfg(test)]
+    pub(super) fn gwcb0_claimed_replay_bridges_for_test(
+        &self,
+    ) -> Vec<Gwcb0ClaimedReplayBridge> {
+        let mut bridges = Vec::new();
+        for (bound, clauses) in &self.projection_formulas {
+            for clause in clauses {
+                let ProjectionClause::ReplayConjunction {
+                    support: SchemeProjectionProofSupport::Claimed(representative_claim),
+                    carrier,
+                    lower,
+                    upper,
+                    attribution: Some(ProjectionLineage::ReplayConstraint),
+                } = *clause
+                else {
+                    continue;
+                };
+                let Some(coverage_root) = self.claim_coverage_root(representative_claim) else {
+                    continue;
+                };
+                let Some(original) = self.upper_claims.iter().find(|claim| {
+                    claim.coverage_root == coverage_root
+                        && claim.lineage == ProjectionLineage::Original
+                        && claim.current_record == upper
+                }) else {
+                    continue;
+                };
+                for replay in self
+                    .replay_finite_map
+                    .iter()
+                    .filter(|replay| replay.carrier == carrier)
+                {
+                    bridges.push(Gwcb0ClaimedReplayBridge {
+                        bound: *bound,
+                        coverage_root,
+                        representative_claim,
+                        result: replay.result,
+                        carrier,
+                        lower,
+                        upper,
+                        producer: original.producer,
+                    });
+                }
+            }
+        }
+        bridges.sort_unstable_by_key(|bridge| {
+            (
+                bridge.bound.0,
+                bridge.result.0,
+                bridge.carrier.pivot.0,
+                bridge.lower.0,
+                bridge.upper.0,
+                bridge.producer.0,
+            )
+        });
+        bridges.dedup();
+        bridges
+    }
+
     pub(crate) fn project_lower<'a>(
         &'a self,
         view: &'a impl SemanticFactView,
@@ -5684,6 +5761,124 @@ mod tests {
         ConstraintMachine::new()
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    enum Gwcb0NormalizedClause {
+        Standalone {
+            embedded_support: ProjectionSupportMatchKey,
+        },
+        DerivedUnary {
+            carrier: DerivedUnaryCarrier,
+            premise: ProofPremise,
+        },
+        ReplayConjunction {
+            carrier: BinaryReplayDerivation,
+            lower: BoundRecordId,
+            upper: BoundRecordId,
+        },
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    struct Gwcb0NormalizedClaimedLinkKey {
+        record: BoundRecordId,
+        support: ProjectionSupportMatchKey,
+        clause: Gwcb0NormalizedClause,
+    }
+
+    fn gwcb0_normalized_claimed_link_key(
+        store: &ProofOccurrenceStore,
+        record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> Option<Gwcb0NormalizedClaimedLinkKey> {
+        let support = store.projection_support_match_key(support)?;
+        if !matches!(support, ProjectionSupportMatchKey::Claimed(_)) {
+            return None;
+        }
+        let clause = match clause {
+            RecordProofClause::Standalone { support } => Gwcb0NormalizedClause::Standalone {
+                embedded_support: store.projection_support_match_key(support)?,
+            },
+            RecordProofClause::DerivedUnary { carrier, premise } => {
+                Gwcb0NormalizedClause::DerivedUnary { carrier, premise }
+            }
+            RecordProofClause::ReplayConjunction {
+                carrier,
+                lower_premise,
+                upper_premise,
+            } => Gwcb0NormalizedClause::ReplayConjunction {
+                carrier,
+                lower: lower_premise,
+                upper: upper_premise,
+            },
+        };
+        Some(Gwcb0NormalizedClaimedLinkKey {
+            record,
+            support,
+            clause,
+        })
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Gwcb0WriterCertificateMetadata {
+        Original {
+            producer: ConstraintRecordId,
+        },
+        ReplayConstraint {
+            result: ConstraintRecordId,
+        },
+        ReplayEvidence,
+        DerivedUnary {
+            result: ConstraintRecordId,
+            premise: ProofPremise,
+        },
+    }
+
+    fn gwcb0_test_writer_with_explicit_metadata(
+        admission: RecordProofClauseLinkAdmission,
+        metadata: Gwcb0WriterCertificateMetadata,
+    ) -> (RecordProofClauseLinkAdmission, Gwcb0WriterCertificateMetadata) {
+        match (admission.clause, metadata) {
+            (
+                RecordProofClause::Standalone { .. },
+                Gwcb0WriterCertificateMetadata::Original { .. },
+            )
+            | (
+                RecordProofClause::ReplayConjunction { .. },
+                Gwcb0WriterCertificateMetadata::ReplayConstraint { .. }
+                    | Gwcb0WriterCertificateMetadata::ReplayEvidence,
+            ) => {}
+            (
+                RecordProofClause::DerivedUnary { premise, .. },
+                Gwcb0WriterCertificateMetadata::DerivedUnary {
+                    premise: supplied, ..
+                },
+            ) => assert_eq!(premise, supplied, "test metadata must be supplied, not inferred"),
+            pair => panic!("clause/metadata mismatch in GWCB-0 test writer: {pair:?}"),
+        }
+        (admission, metadata)
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Gwcb0RawTrueBranch {
+        // Valid recursive base cases, not corruption evidence.
+        Tombstone,
+        UpperWithoutClaims,
+        ConstraintWithoutSource,
+        // Inclusion shortcuts that cannot yield an exact top-level clause arm.
+        MissingBound,
+        MissingSupports,
+        EmptySupports,
+        QualifyingSupportAbsentFromFormulaMirror,
+        MissingConstraint,
+        MissingClaimOrCoverageRoot,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Gwcb0EvidenceObservation {
+        ExactArmsEmpty,
+        FailOpenIncomplete(Gwcb0RawTrueBranch),
+    }
+
     fn project_lower_for_test(
         machine: &ConstraintMachine,
         record: BoundRecordId,
@@ -5948,6 +6143,323 @@ mod tests {
         assert!(keys.contains(&ProjectionSupportMatchKey::Independent(
             ProjectionProofCarrier::Incomplete
         )));
+    }
+
+    #[test]
+    fn gwcb_0_raw_claimed_links_map_totally_to_distinct_normalized_keys() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let replacement = add_same_root_replay_claim(
+            &mut fixture,
+            TypeVar(97_120),
+            ConstraintRecordId(97_121),
+        );
+        let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_122);
+        for claim in [fixture.coverage_root, replacement] {
+            fixture.machine.proof_store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::claimed(
+                    claim,
+                    RecordProofClause::Standalone {
+                        support: SchemeProjectionProofSupport::Claimed(claim),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+            );
+        }
+
+        let raw = fixture
+            .machine
+            .proof_store
+            .projection_clause_links_for_test(record)
+            .into_iter()
+            .filter(|(support, _)| matches!(support, SchemeProjectionProofSupport::Claimed(_)))
+            .collect::<Vec<_>>();
+        let normalized = raw
+            .iter()
+            .map(|(support, clause)| {
+                gwcb0_normalized_claimed_link_key(
+                    &fixture.machine.proof_store,
+                    record,
+                    *support,
+                    *clause,
+                )
+                .expect("every admitted claimed link has a resolvable normalized key")
+            })
+            .collect::<FxHashSet<_>>();
+        assert_eq!(raw.len(), 2, "the audit ledger retains both raw representatives");
+        assert_eq!(
+            normalized.len(),
+            1,
+            "same-root outer and embedded claimed supports collapse to one semantic certificate",
+        );
+    }
+
+    #[test]
+    fn gwcb_0_generic_test_writers_can_supply_exact_certificate_metadata() {
+        let root = UpperReplayClaimId(97_130);
+        let lower = BoundRecordId(97_131);
+        let upper = BoundRecordId(97_132);
+        let result = ConstraintRecordId(97_133);
+        let producer = ConstraintRecordId(97_134);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(97_135),
+            lower,
+            upper,
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        let replay_clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: lower,
+            upper_premise: upper,
+        };
+        let structural_premise = ProofPremise::Constraint(ConstraintRecordId(97_136));
+        let reduction_premise = ProofPremise::RootCoverage(root);
+        let observations = [
+            gwcb0_test_writer_with_explicit_metadata(
+                RecordProofClauseLinkAdmission::claimed(
+                    root,
+                    RecordProofClause::Standalone {
+                        support: SchemeProjectionProofSupport::Claimed(root),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                Gwcb0WriterCertificateMetadata::Original { producer },
+            ),
+            gwcb0_test_writer_with_explicit_metadata(
+                RecordProofClauseLinkAdmission::claimed(
+                    root,
+                    replay_clause,
+                    ClaimedAttributionSource::CanonicalReplay,
+                ),
+                Gwcb0WriterCertificateMetadata::ReplayConstraint { result },
+            ),
+            gwcb0_test_writer_with_explicit_metadata(
+                RecordProofClauseLinkAdmission::claimed(
+                    root,
+                    replay_clause,
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                Gwcb0WriterCertificateMetadata::ReplayEvidence,
+            ),
+            gwcb0_test_writer_with_explicit_metadata(
+                RecordProofClauseLinkAdmission::claimed(
+                    root,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent: ConstraintRecordId(97_136),
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        }),
+                        premise: structural_premise,
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                Gwcb0WriterCertificateMetadata::DerivedUnary {
+                    result,
+                    premise: structural_premise,
+                },
+            ),
+            gwcb0_test_writer_with_explicit_metadata(
+                RecordProofClauseLinkAdmission::claimed(
+                    root,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(97_137)),
+                        premise: reduction_premise,
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                ),
+                Gwcb0WriterCertificateMetadata::DerivedUnary {
+                    result,
+                    premise: reduction_premise,
+                },
+            ),
+        ];
+        assert_eq!(observations.len(), 5);
+        assert!(matches!(
+            observations[0].1,
+            Gwcb0WriterCertificateMetadata::Original { producer: found } if found == producer
+        ));
+        assert!(matches!(
+            observations[1].1,
+            Gwcb0WriterCertificateMetadata::ReplayConstraint { result: found } if found == result
+        ));
+    }
+
+    #[test]
+    fn gwcb_0_replay_carrier_can_have_multiple_results_but_writer_has_result() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let other_result =
+            cpk_7_admit_inert_constraint(&mut fixture.machine, 97_140, "gwcb-other-result");
+        let parent = SideTaggedReplayClaim {
+            claim: fixture.coverage_root,
+            parent_side: ReplayClaimParentSide::Upper,
+        };
+        for result in [fixture.result, other_result] {
+            fixture.machine.proof_store.record_cpk_replay_parent_snapshot(
+                result,
+                fixture.carrier,
+                &[parent],
+            );
+        }
+        let results = fixture
+            .machine
+            .proof_store
+            .replay_finite_map
+            .iter()
+            .filter(|replay| replay.carrier == fixture.carrier)
+            .map(|replay| replay.result)
+            .collect::<FxHashSet<_>>();
+        assert_eq!(results, FxHashSet::from_iter([fixture.result, other_result]));
+        assert!(fixture
+            .machine
+            .proof_store
+            .replay_finite_map_index
+            .contains_key(&(fixture.result, fixture.carrier)));
+        assert!(fixture
+            .machine
+            .proof_store
+            .replay_finite_map_index
+            .contains_key(&(other_result, fixture.carrier)));
+    }
+
+    #[test]
+    fn gwcb_0_raw_true_branches_distinguish_exact_empty_from_fail_open() {
+        let enumerated = [
+            Gwcb0RawTrueBranch::Tombstone,
+            Gwcb0RawTrueBranch::UpperWithoutClaims,
+            Gwcb0RawTrueBranch::ConstraintWithoutSource,
+            Gwcb0RawTrueBranch::MissingBound,
+            Gwcb0RawTrueBranch::MissingSupports,
+            Gwcb0RawTrueBranch::EmptySupports,
+            Gwcb0RawTrueBranch::QualifyingSupportAbsentFromFormulaMirror,
+            Gwcb0RawTrueBranch::MissingConstraint,
+            Gwcb0RawTrueBranch::MissingClaimOrCoverageRoot,
+        ];
+        assert_eq!(enumerated.len(), 9, "keep this census aligned with raw evaluator true exits");
+        let fail_open = [
+            Gwcb0RawTrueBranch::MissingBound,
+            Gwcb0RawTrueBranch::MissingSupports,
+            Gwcb0RawTrueBranch::EmptySupports,
+            Gwcb0RawTrueBranch::QualifyingSupportAbsentFromFormulaMirror,
+            Gwcb0RawTrueBranch::MissingConstraint,
+            Gwcb0RawTrueBranch::MissingClaimOrCoverageRoot,
+        ];
+        let fail_open_observations = fail_open.map(Gwcb0EvidenceObservation::FailOpenIncomplete);
+        assert!(fail_open_observations.iter().all(|observation| matches!(
+            observation,
+            Gwcb0EvidenceObservation::FailOpenIncomplete(_)
+        )));
+
+        let mut exact = cpk_machine();
+        let exact_record = cpk_gap_1_projection_record(&mut exact, 97_150);
+        let carrier = ProjectionProofCarrier::Incomplete;
+        let support = cpk_4_add_independent_support(&mut exact, exact_record, carrier);
+        exact.register_cpk_projection_clause_for_test(
+            exact_record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        assert!(matches!(
+            project_lower_for_test(&exact, exact_record).0,
+            Ok(ProjectionDecision::Included {
+                supports: ProjectionSupportSet {
+                    ref uncovered_claims,
+                    ..
+                }
+            }) if uncovered_claims.is_empty()
+        ));
+        let exact_observation = Gwcb0EvidenceObservation::ExactArmsEmpty;
+
+        let mut missing_supports = cpk_machine();
+        let missing_supports_record =
+            cpk_gap_1_projection_record(&mut missing_supports, 97_152);
+        let mut raw =
+            CpkProjectionEvaluator::new(&missing_supports, &missing_supports.proof_store);
+        assert!(raw.eval_record(missing_supports_record));
+        let missing_observation = Gwcb0EvidenceObservation::FailOpenIncomplete(
+            Gwcb0RawTrueBranch::MissingSupports,
+        );
+
+        let mut empty_supports = cpk_machine();
+        let empty_supports_record = cpk_gap_1_projection_record(&mut empty_supports, 97_153);
+        empty_supports
+            .proof_store
+            .projection_supports
+            .insert(empty_supports_record, Vec::new());
+        let mut raw = CpkProjectionEvaluator::new(&empty_supports, &empty_supports.proof_store);
+        assert!(raw.eval_record(empty_supports_record));
+        let empty_observation =
+            Gwcb0EvidenceObservation::FailOpenIncomplete(Gwcb0RawTrueBranch::EmptySupports);
+
+        let mut incomplete = cpk_machine();
+        let incomplete_record = cpk_gap_1_projection_record(&mut incomplete, 97_151);
+        cpk_4_add_independent_support(&mut incomplete, incomplete_record, carrier);
+        let mut raw = CpkProjectionEvaluator::new(&incomplete, &incomplete.proof_store);
+        assert!(raw.eval_record(incomplete_record), "the direct raw path currently fail-opens");
+        assert!(matches!(
+            project_lower_for_test(&incomplete, incomplete_record).0,
+            Err(ProofFailure::MissingProofFact {
+                fact: ProofFactRef::ProjectionFormula(found),
+            }) if found == incomplete_record
+        ));
+        let incomplete_observation = Gwcb0EvidenceObservation::FailOpenIncomplete(
+            Gwcb0RawTrueBranch::QualifyingSupportAbsentFromFormulaMirror,
+        );
+
+        assert_ne!(exact_observation, missing_observation);
+        assert_ne!(exact_observation, empty_observation);
+        assert_ne!(exact_observation, incomplete_observation);
+    }
+
+    #[test]
+    fn gwcb_0_mixed_bound_filtered_certificate_excludes_raw_sibling_arms() {
+        let (mut machine, endpoint, owner, _) =
+            ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let record = machine
+            .bounds()
+            .of(owner)
+            .expect("mixed fixture owner")
+            .generalized_projection_lowers()
+            .find_map(|(record, bound)| {
+                matches!(machine.types().pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                    .then_some(record)
+            })
+            .expect("mixed fixture target");
+        let independent = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(
+                record,
+                &[],
+                &[ProjectionProofCarrier::Incomplete],
+            )
+            .expect("test projection support mutation must have capacity");
+        machine.apply_scheme_projection_mutation(mutation);
+        machine.register_cpk_projection_clause_for_test(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                independent,
+                RecordProofClause::Standalone {
+                    support: independent,
+                },
+            ),
+        );
+
+        let formula = &machine.proof_store.projection_formulas[&record];
+        let filtered = formula
+            .iter()
+            .copied()
+            .find(|clause| matches!(clause.support(), SchemeProjectionProofSupport::Claimed(_)))
+            .expect("mixed fixture retains one claimed certificate arm");
+        assert!(formula.len() > 1, "raw record contains sibling formula arms");
+        assert!(formula.iter().any(|clause| *clause != filtered));
+        assert!(formula.iter().any(|clause| clause.support() == independent));
+
+        let filtered_view = [filtered];
+        assert_eq!(filtered_view.len(), 1);
+        assert!(!filtered_view.iter().any(|clause| clause.support() == independent));
     }
 
     struct Cpk7RoutingFixture {
