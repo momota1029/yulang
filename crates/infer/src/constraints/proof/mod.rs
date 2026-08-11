@@ -1390,7 +1390,10 @@ pub(crate) struct ProofOccurrenceStore {
     projection_formula_support_keys:
         FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
     projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
-    projection_clause_link_keys: FxHashSet<RawProjectionClauseLinkIdentity>,
+    // Claimed raw links live in `projection_claimed_link_audit`; retaining them here as well
+    // would duplicate the full raw identity for every GWCB certificate.  The two stores are a
+    // disjoint union: this set owns independent links, while the audit map owns claimed links.
+    independent_projection_clause_link_keys: FxHashSet<RawProjectionClauseLinkIdentity>,
     projection_claimed_link_audit:
         FxHashMap<RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource>,
     projection_attributions: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
@@ -1469,7 +1472,7 @@ impl Default for ProofOccurrenceStore {
             projection_formulas: FxHashMap::default(),
             projection_formula_support_keys: FxHashMap::default(),
             projection_clause_keys: FxHashSet::default(),
-            projection_clause_link_keys: FxHashSet::default(),
+            independent_projection_clause_link_keys: FxHashSet::default(),
             projection_claimed_link_audit: FxHashMap::default(),
             projection_attributions: FxHashSet::default(),
             flat_retained_projection_attributions: FxHashSet::default(),
@@ -2370,11 +2373,6 @@ impl ProofOccurrenceStore {
             FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>,
         >::default();
         for (&(bound, support, clause), &source) in &self.projection_claimed_link_audit {
-            let raw_identity = (bound, support, clause);
-            debug_assert!(
-                self.projection_clause_link_keys.contains(&raw_identity),
-                "claimed certificate audit identity must remain present in the raw ledger",
-            );
             let admission = RecordProofClauseLinkAdmission {
                 support,
                 clause,
@@ -2407,12 +2405,16 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_claimed_projection_audit_reconstructs(&self) {
-        for &raw_identity @ (_, support, _) in &self.projection_clause_link_keys {
-            debug_assert_eq!(
-                self.projection_claimed_link_audit
-                    .contains_key(&raw_identity),
+        for &(_, support, _) in &self.independent_projection_clause_link_keys {
+            debug_assert!(
+                matches!(support, SchemeProjectionProofSupport::Independent(_)),
+                "the independent raw-link ledger must not duplicate claimed audit identities",
+            );
+        }
+        for &(_, support, _) in self.projection_claimed_link_audit.keys() {
+            debug_assert!(
                 matches!(support, SchemeProjectionProofSupport::Claimed(_)),
-                "every and only claimed raw links need event-local audit metadata",
+                "the claimed audit ledger must contain only claimed raw-link identities",
             );
         }
         let reconstructed = self.claimed_projection_proofs_from_audit_for_test();
@@ -2988,8 +2990,15 @@ impl ProofOccurrenceStore {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) -> bool {
-        self.projection_clause_link_keys
-            .contains(&(lower_record, support, clause))
+        let identity = (lower_record, support, clause);
+        match support {
+            SchemeProjectionProofSupport::Claimed(_) => {
+                self.projection_claimed_link_audit.contains_key(&identity)
+            }
+            SchemeProjectionProofSupport::Independent(_) => self
+                .independent_projection_clause_link_keys
+                .contains(&identity),
+        }
     }
 
     #[cfg(test)]
@@ -3011,11 +3020,18 @@ impl ProofOccurrenceStore {
         &self,
         lower_record: BoundRecordId,
     ) -> Vec<(SchemeProjectionProofSupport, RecordProofClause)> {
-        self.projection_clause_link_keys
+        self.independent_projection_clause_link_keys
             .iter()
             .filter_map(|(record, support, clause)| {
                 (*record == lower_record).then_some((*support, *clause))
             })
+            .chain(
+                self.projection_claimed_link_audit
+                    .keys()
+                    .filter_map(|(record, support, clause)| {
+                        (*record == lower_record).then_some((*support, *clause))
+                    }),
+            )
             .collect()
     }
 
@@ -3025,7 +3041,8 @@ impl ProofOccurrenceStore {
     ) -> (usize, usize, usize, usize) {
         (
             self.projection_clause_keys.len(),
-            self.projection_clause_link_keys.len(),
+            self.independent_projection_clause_link_keys.len()
+                + self.projection_claimed_link_audit.len(),
             self.projection_formulas.len(),
             self.projection_attributions.len(),
         )
@@ -3103,7 +3120,11 @@ impl ProofOccurrenceStore {
         for &admission in admissions {
             let clause_key = (lower_record, admission.clause);
             let link_key = (lower_record, admission.support, admission.clause);
-            if self.projection_clause_link_keys.contains(&link_key) {
+            if self.projection_clause_link_is_registered(
+                lower_record,
+                admission.support,
+                admission.clause,
+            ) {
                 assert_eq!(
                     self.projection_claimed_link_audit.get(&link_key).copied(),
                     admission.claimed_proof_source,
@@ -3194,8 +3215,15 @@ impl ProofOccurrenceStore {
         self.projection_clause_keys
             .try_reserve(new_clause_keys.len())
             .map_err(exhausted)?;
-        self.projection_clause_link_keys
-            .try_reserve(new_link_keys.len())
+        self.independent_projection_clause_link_keys
+            .try_reserve(
+                new_link_keys
+                    .iter()
+                    .filter(|(_, support, _)| {
+                        matches!(support, SchemeProjectionProofSupport::Independent(_))
+                    })
+                    .count(),
+            )
             .map_err(exhausted)?;
         self.projection_claimed_link_audit
             .try_reserve(new_claimed_link_audit_entries.len())
@@ -3238,8 +3266,10 @@ impl ProofOccurrenceStore {
         for key in prepared.new_clause_keys.drain(..) {
             assert!(self.projection_clause_keys.insert(key));
         }
-        for key in prepared.new_link_keys.drain(..) {
-            assert!(self.projection_clause_link_keys.insert(key));
+        for key @ (_, support, _) in prepared.new_link_keys.drain(..) {
+            if matches!(support, SchemeProjectionProofSupport::Independent(_)) {
+                assert!(self.independent_projection_clause_link_keys.insert(key));
+            }
         }
         for (key, source) in prepared.new_claimed_link_audit_entries.drain(..) {
             assert!(self
@@ -8960,7 +8990,10 @@ mod tests {
             .expect_err("injected clause preflight must fail");
         assert!(matches!(failure, ProofFailure::ResourceExhausted { .. }));
         assert!(machine.proof_store.projection_clause_keys.is_empty());
-        assert!(machine.proof_store.projection_clause_link_keys.is_empty());
+        assert!(machine
+            .proof_store
+            .independent_projection_clause_link_keys
+            .is_empty());
         assert!(machine.proof_store.projection_formulas.is_empty());
         assert!(
             machine
