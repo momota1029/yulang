@@ -6965,16 +6965,9 @@ impl<'a> ProjectionPreflight<'a> {
             resolved.push(support);
         }
 
-        let mut matched = Vec::new();
-        matched
-            .try_reserve_exact(resolved.len())
-            .map_err(|_| ProofFailure::ResourceExhausted {
-                operation: ProofOperation::ProjectLowerPreflight,
-            })?;
-        matched.resize(resolved.len(), false);
         let mut previous_clause = None;
-        let mut cursor = formula_bucket.canonical_run_cursor();
-        while let Some((support_id, entry_id)) = cursor.next() {
+        let mut order_cursor = formula_bucket.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = order_cursor.next() {
             let clause = formula_bucket.reconstructed_clause(support_id, entry_id);
             if previous_clause.is_some_and(|previous: ProjectionClause| {
                 previous.canonical_cmp(clause) == std::cmp::Ordering::Greater
@@ -6982,6 +6975,18 @@ impl<'a> ProjectionPreflight<'a> {
                 return Err(ProofFailure::NonCanonicalProjectionOrder { record });
             }
             previous_clause = Some(clause);
+        }
+
+        let mut matched = Vec::new();
+        matched
+            .try_reserve_exact(resolved.len())
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            })?;
+        matched.resize(resolved.len(), false);
+        let mut cursor = formula_bucket.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = cursor.next() {
+            let clause = formula_bucket.reconstructed_clause(support_id, entry_id);
             let clause_support = self.resolve_support(record, clause.support())?;
             let Ok(index) = resolved
                 .binary_search_by(|support| support.cmp(clause_support))
@@ -12860,6 +12865,59 @@ mod tests {
         assert_eq!(
             actual,
             Err(ProofFailure::NonCanonicalProjectionOrder { record })
+        );
+    }
+
+    #[test]
+    fn cpk_gap_1_noncanonical_formula_precedes_dangling_clause_failure() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 205);
+        let origins = [OriginId(98_000), OriginId(98_001), OriginId(98_002)];
+        for origin in origins {
+            machine.proof_store.record_occurrence(
+                ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(origin.0))),
+                ProofCause::Root(origin),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            );
+        }
+        let supports = origins.map(|origin| {
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(origin))
+        });
+        let clauses = supports
+            .into_iter()
+            .enumerate()
+            .map(|(index, support)| {
+                let dangling = ConstraintRecordId(220_000 + index as u32);
+                ProjectionClause::DerivedUnary {
+                    support,
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: dangling,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(dangling),
+                    attribution: None,
+                }
+            })
+            .collect::<Vec<_>>();
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut machine,
+            record,
+            supports.to_vec(),
+            clauses.clone(),
+        );
+        machine
+            .proof_store
+            .force_noncanonical_projection_formula_order_for_test(
+                record,
+                vec![clauses[0], clauses[2], clauses[1]],
+            );
+
+        let (actual, _) = project_lower_for_test(&machine, record);
+        assert_eq!(
+            actual,
+            Err(ProofFailure::NonCanonicalProjectionOrder { record }),
+            "the complete order-only pass must precede allocation and dangling-clause validation",
         );
     }
 
