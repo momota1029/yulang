@@ -1522,7 +1522,7 @@ impl ReplayQualifiedArmIndex {
         result: ConstraintRecordId,
         entry: ReplayFiniteMapEntryId,
         cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
-    ) {
+    ) -> Option<ReplayQualifiedArmChunkId> {
         let tree = self.by_result[&result];
         let target = self.target_chunk(tree.root.unwrap(), entry, cmp);
         let position = self.chunks[target.0 as usize]
@@ -1530,7 +1530,8 @@ impl ReplayQualifiedArmIndex {
             .iter()
             .position(|candidate| *candidate == entry)
             .expect("QORF arm rekey must remove its existing occurrence");
-        let new_root = if self.chunks[target.0 as usize].entries.len() == 1 {
+        let singleton = self.chunks[target.0 as usize].entries.len() == 1;
+        let new_root = if singleton {
             self.unlink_node(tree.root, target, cmp)
         } else {
             self.chunks[target.0 as usize].entries.remove(position);
@@ -1539,25 +1540,34 @@ impl ReplayQualifiedArmIndex {
         let tree = self.by_result.get_mut(&result).unwrap();
         tree.root = new_root;
         tree.len -= 1;
+        singleton.then_some(target)
     }
 
     fn insert(
         &mut self,
         result: ConstraintRecordId,
         entry: ReplayFiniteMapEntryId,
+        recycled: Option<ReplayQualifiedArmChunkId>,
         mut buffers: QorfPreparedChunkBuffers<ReplayFiniteMapEntryId>,
         cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
     ) {
         let tree = self.by_result.get(&result).copied().unwrap_or_default();
         let Some(root) = tree.root else {
             buffers.merged.push(entry);
-            let id = ReplayQualifiedArmChunkId(self.chunks.len() as u32);
-            self.chunks.push(ReplayQualifiedArmChunkNode {
+            let node = ReplayQualifiedArmChunkNode {
                 entries: buffers.merged,
                 left: None,
                 right: None,
                 height: 1,
-            });
+            };
+            let id = if let Some(id) = recycled {
+                self.chunks[id.0 as usize] = node;
+                id
+            } else {
+                let id = ReplayQualifiedArmChunkId(self.chunks.len() as u32);
+                self.chunks.push(node);
+                id
+            };
             self.by_result.insert(
                 result,
                 ReplayQualifiedArmTree {
@@ -1567,6 +1577,24 @@ impl ReplayQualifiedArmIndex {
             );
             return;
         };
+        // A singleton removed for a rekey owns an arena slot that is no longer reachable from
+        // the AVL. Reinsert through that same slot instead of appending a replacement node. This
+        // keeps physical arm chunks bounded by the logical arm population even when one
+        // occurrence is repeatedly rekeyed to a smaller canonical minimum.
+        if let Some(id) = recycled {
+            buffers.merged.push(entry);
+            self.chunks[id.0 as usize] = ReplayQualifiedArmChunkNode {
+                entries: buffers.merged,
+                left: None,
+                right: None,
+                height: 1,
+            };
+            let root = self.insert_node(Some(root), id, cmp);
+            let tree = self.by_result.get_mut(&result).unwrap();
+            tree.root = Some(root);
+            tree.len += 1;
+            return;
+        }
         let target = self.target_chunk(root, entry, cmp);
         buffers
             .merged
@@ -9982,9 +10010,15 @@ impl ProofOccurrenceStore {
                 },
             ));
         }
-        qualified
-            .root_winner_updates
-            .extend(self.try_prepare_qorf_root_winner_updates(result, replay_root_candidates)?);
+        debug_assert!(
+            qualified.root_winner_updates.is_empty(),
+            "generic qualified-parent preparation excludes replay root candidates",
+        );
+        // Take ownership of the already fallibly allocated update plan. Extending the empty
+        // generic plan here would perform an implicit infallible reservation before the outer
+        // replay event can be appended on preparation failure.
+        qualified.root_winner_updates =
+            self.try_prepare_qorf_root_winner_updates(result, replay_root_candidates)?;
         #[cfg(test)]
         if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterRootWinner) {
             return Err(ProofFailure::ResourceExhausted {
@@ -10118,6 +10152,7 @@ impl ProofOccurrenceStore {
             return;
         }
         let arm_edit = transaction.arm_edit.take();
+        let mut recycled_arm_chunk = None;
         if arm_edit.as_ref().is_some_and(|edit| edit.rekey) {
             let edit = arm_edit.as_ref().unwrap();
             let occurrences = &self.replay_finite_map;
@@ -10128,7 +10163,8 @@ impl ProofOccurrenceStore {
                     &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
                 )
             };
-            self.replay_qualified_arms
+            recycled_arm_chunk = self
+                .replay_qualified_arms
                 .remove(edit.result, edit.occurrence, &cmp);
         }
         let is_new_occurrence = transaction.new_occurrence.is_some();
@@ -10191,7 +10227,13 @@ impl ProofOccurrenceStore {
                 )
             };
             self.replay_qualified_arms
-                .insert(edit.result, edit.occurrence, edit.buffers, &cmp);
+                .insert(
+                    edit.result,
+                    edit.occurrence,
+                    recycled_arm_chunk,
+                    edit.buffers,
+                    &cmp,
+                );
         }
         for (key, witness) in transaction.new_first_witnesses.drain(..) {
             self.first_replay_witnesses.entry(key).or_insert(witness);
@@ -10411,6 +10453,7 @@ impl ProofOccurrenceStore {
             self.replay_qualified_arms.insert(
                 result,
                 ReplayFiniteMapEntryId(occurrence as u32),
+                None,
                 QorfPreparedChunkBuffers::try_new().expect("test arm buffers"),
                 &cmp,
             );
@@ -10436,7 +10479,23 @@ impl ProofOccurrenceStore {
                     ),
                     side: parent_side,
                 },
-                _ => continue,
+                ClaimQualifiedParent::StructuralConstraint { .. }
+                | ClaimQualifiedParent::ReductionRouteConstraint { .. } => {
+                    let parent_id = self
+                        .non_replay_qualified_parents
+                        .by_result
+                        .get(&result)
+                        .into_iter()
+                        .flatten()
+                        .copied()
+                        .find(|id| {
+                            self.non_replay_qualified_parents.entries[id.0 as usize] == entry
+                        })
+                        .expect(
+                            "test compatibility rebuild requires the admitted non-replay parent",
+                        );
+                    CanonicalQualifiedParentRef::NonReplay { parent_id }
+                }
             };
             self.canonical_qualified_parent_by_root.by_result.reserve(1);
             self.canonical_qualified_parent_by_root.chunks.reserve(1);
@@ -18744,6 +18803,195 @@ mod tests {
     }
 
     #[test]
+    fn qorf_d0_root_winner_writer_order_matrix_matches_legacy() {
+        #[derive(Clone, Copy)]
+        enum Event {
+            Replay,
+            Structural,
+            Reduction,
+        }
+
+        fn assert_root_winner_matches_legacy(
+            fixture: &CpkReplayAdmissionFixture,
+            root: UpperReplayClaimId,
+        ) {
+            let expected = fixture
+                .machine
+                .proof_store
+                .qualified_parents_for_result(fixture.result)
+                .iter()
+                .copied()
+                .find(|entry| entry.coverage_root == root)
+                .expect("writer-order fixture has a root-qualified parent");
+            let winner = fixture
+                .machine
+                .proof_store
+                .canonical_qualified_parent_by_root
+                .get(fixture.result, root)
+                .expect("writer-order fixture has a projected root winner");
+            let actual = fixture.machine.proof_store.qorf_exact_parent_for_root_ref(
+                fixture.result,
+                root,
+                winner.winner,
+            );
+            assert_eq!(actual, expected);
+            fixture
+                .machine
+                .proof_store
+                .debug_assert_qorf_d0_projections_match_legacy(fixture.result);
+        }
+
+        for order in [
+            &[Event::Structural, Event::Replay][..],
+            &[Event::Replay, Event::Structural],
+            &[Event::Reduction, Event::Replay],
+            &[Event::Replay, Event::Reduction],
+            &[Event::Replay, Event::Reduction, Event::Structural],
+            &[Event::Structural, Event::Replay, Event::Reduction],
+        ] {
+            let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+            let root = fixture.coverage_root;
+            let structural = StructuralDerivation {
+                parent: ConstraintRecordId(120_970),
+                rule: StructuralDerivationRule::FunctionReturn,
+            };
+            let row = fixture.machine.intern_row_derivation(
+                RowDerivationRule::UnweightedReduction,
+                vec![RowDerivationParent::Constraint(fixture.result)],
+                Vec::new(),
+            );
+            let key = fixture.machine.constraint_records[fixture.result.0 as usize]
+                .key
+                .clone();
+            assert!(!fixture.machine.enqueue_row_derived_subtype(
+                key.lower,
+                key.weights,
+                key.upper,
+                row,
+            ));
+
+            for event in order.iter().copied() {
+                match event {
+                    Event::Replay => {
+                        fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                            fixture.result,
+                            fixture.carrier,
+                            root,
+                        );
+                    }
+                    Event::Structural => {
+                        let parent = ClaimQualifiedParent::StructuralConstraint {
+                            parent_claim: root,
+                            derivation: structural,
+                        };
+                        assert!(fixture.machine.register_structural_claim_parent_admission(
+                            fixture.result,
+                            &[parent],
+                            structural,
+                            false,
+                        ));
+                    }
+                    Event::Reduction => fixture
+                        .machine
+                        .register_reduction_route_claim_parent(fixture.result, row, root),
+                }
+                assert_root_winner_matches_legacy(&fixture, root);
+            }
+        }
+
+        // Exercise the comparator's side and representative-claim tie fields through the real
+        // prepared replay writer, in both arrival orders, rather than only in comparator tests.
+        for upper_first in [false, true] {
+            let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+            let root = fixture.coverage_root;
+            let same_root = add_same_root_replay_claim(
+                &mut fixture,
+                TypeVar(120_980),
+                ConstraintRecordId(120_981),
+            );
+            let ordered = if upper_first {
+                [
+                    (same_root, ReplayClaimParentSide::Upper),
+                    (root, ReplayClaimParentSide::Lower),
+                ]
+            } else {
+                [
+                    (root, ReplayClaimParentSide::Lower),
+                    (same_root, ReplayClaimParentSide::Upper),
+                ]
+            };
+            for (claim, side) in ordered {
+                let parent = ClaimQualifiedParent::ReplayConstraint {
+                    parent_claim: claim,
+                    parent_side: side,
+                    replay: fixture.carrier,
+                };
+                let mut transaction = fixture
+                    .machine
+                    .proof_store
+                    .try_prepare_replay_qualified_parent_transaction(
+                        fixture.result,
+                        fixture.carrier,
+                        &[parent],
+                    )
+                    .expect("tie-field replay admission prepares");
+                fixture
+                    .machine
+                    .proof_store
+                    .commit_replay_qualified_parent_transaction(&mut transaction);
+                assert_root_winner_matches_legacy(&fixture, root);
+            }
+        }
+    }
+
+    #[test]
+    fn qorf_d0_compatibility_snapshot_preserves_existing_non_replay_winner() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let structural = StructuralDerivation {
+            parent: ConstraintRecordId(120_990),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        fixture.machine.admit_claim_qualified_parent(
+            fixture.result,
+            ClaimQualifiedParent::StructuralConstraint {
+                parent_claim: fixture.coverage_root,
+                derivation: structural,
+            },
+        );
+        fixture.machine.admit_claim_qualified_parent(
+            fixture.result,
+            ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: fixture.coverage_root,
+                parent_side: ReplayClaimParentSide::Lower,
+                replay: fixture.carrier,
+            },
+        );
+        fixture.machine.proof_store.record_cpk_replay_parent_snapshot(
+            fixture.result,
+            fixture.carrier,
+            &[SideTaggedReplayClaim {
+                claim: fixture.coverage_root,
+                parent_side: ReplayClaimParentSide::Lower,
+            }],
+        );
+
+        let winner = fixture
+            .machine
+            .proof_store
+            .canonical_qualified_parent_by_root
+            .get(fixture.result, fixture.coverage_root)
+            .expect("compatibility rebuild preserves the structural root winner");
+        assert!(matches!(
+            winner.winner,
+            CanonicalQualifiedParentRef::NonReplay { .. }
+        ));
+        fixture
+            .machine
+            .proof_store
+            .debug_assert_qorf_d0_projections_match_legacy(fixture.result);
+    }
+
+    #[test]
     fn qorf_d0_non_replay_root_reservation_failure_commits_no_inner_state_or_event() {
         let mut machine = cpk_machine();
         let (_, parent_claim) = cpk_7_record_original_claim(&mut machine, 120_950);
@@ -18963,6 +19211,15 @@ mod tests {
             machine.proof_store.qorf_replay_side_allocation_census();
         assert_eq!(nonempty_sides, 1);
         assert_eq!(entries, 1_800);
+        assert_eq!(
+            machine.proof_store.replay_qualified_arms.flatten(result),
+            vec![ReplayFiniteMapEntryId(0)],
+        );
+        assert_eq!(
+            machine.proof_store.replay_qualified_arms.chunks.len(),
+            1,
+            "1,800 minimum-arm rekeys must recycle one physical arena slot",
+        );
         machine
             .proof_store
             .debug_assert_qorf_b_side_shadow_matches_legacy(0);
