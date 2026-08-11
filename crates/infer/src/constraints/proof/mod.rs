@@ -787,6 +787,21 @@ impl ReplayParentChunkArena {
             .binary_search_by_key(&key, |entry| entry.coverage_root)
             .is_ok()
     }
+
+    #[cfg(test)]
+    fn qorf_entry(
+        &self,
+        side: ReplayParentSideIndex,
+        key: UpperReplayClaimId,
+    ) -> Option<QorfReplayParentEntry> {
+        let root = side.root?;
+        let target = self.target_chunk(root, key);
+        let entries = &self.node(target).entries;
+        entries
+            .binary_search_by_key(&key, |entry| entry.coverage_root)
+            .ok()
+            .map(|index| entries[index])
+    }
 }
 
 struct ReplayParentSideCursor<'a> {
@@ -917,6 +932,14 @@ thread_local! {
             split_chunks: 0,
             snapshot_duplicate_comparisons: 0,
         }) };
+}
+
+#[cfg(test)]
+thread_local! {
+    // The full-workload gate performs one exhaustive comparison after lowering. Suppress the
+    // per-event fixture oracle while it runs: retaining both would turn the gate itself into a
+    // repeated side-prefix scan and make its cost unrelated to the production read topology.
+    static QORF_C_FULL_STD_PARITY_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
 fn try_replay_parent_chunk_id(index: usize) -> Result<ReplayParentChunkId, ProofFailure> {
@@ -3152,6 +3175,16 @@ struct QorfReplayRelationSnapshot {
 }
 
 #[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct QorfCFullStdParityReport {
+    occurrences: usize,
+    nonempty_sides: usize,
+    side_entries: usize,
+    qualified_replay_entries: usize,
+    qualified_replay_keys: usize,
+}
+
+#[cfg(test)]
 impl QorfReplayRelationSnapshot {
     fn assert_exact_parity(&self) {
         assert_eq!(self.qualified_duplicate_keys, 0);
@@ -4716,6 +4749,9 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
+        if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
+            return;
+        }
         let legacy = self.legacy_projection_formula_read_model();
         let factored = self.projection_formula_shadow.read_model();
         debug_assert_eq!(factored, legacy);
@@ -9216,6 +9252,9 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_b_side_shadow_matches_legacy(&self, index: usize) {
+        if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
+            return;
+        }
         let occurrence = &self.replay_finite_map[index];
         for (side, legacy) in [
             (ReplayClaimParentSide::Lower, &occurrence.lower_parents),
@@ -9939,6 +9978,117 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     fn debug_assert_qorf_a_replay_relation_matches(&self) {
         self.qorf_a_replay_relation_snapshot().assert_exact_parity();
+    }
+
+    /// Exhaustive, allocation-bounded QORF-C authority gate for the repository-std workload.
+    ///
+    /// This streams the 50M-scale relation instead of constructing the retained QORF-A pair of
+    /// full hash maps. Equality of every legacy side with its sorted cursor, exact lookup of every
+    /// qualified replay entry and key, and equal cardinalities prove a key/value bijection without
+    /// another relation-sized allocation.
+    #[cfg(test)]
+    fn qorf_c_full_std_parity_report(&self) -> QorfCFullStdParityReport {
+        let mut report = QorfCFullStdParityReport {
+            occurrences: self.replay_finite_map.len(),
+            nonempty_sides: 0,
+            side_entries: 0,
+            qualified_replay_entries: 0,
+            qualified_replay_keys: 0,
+        };
+        let mut expected_side = Vec::new();
+
+        for occurrence in &self.replay_finite_map {
+            for (side, legacy) in [
+                (ReplayClaimParentSide::Lower, &occurrence.lower_parents),
+                (ReplayClaimParentSide::Upper, &occurrence.upper_parents),
+            ] {
+                report.nonempty_sides += usize::from(!legacy.is_empty());
+                report.side_entries += legacy.len();
+                expected_side.clear();
+                expected_side
+                    .try_reserve(legacy.len())
+                    .expect("QORF-C full-std parity side scratch allocation");
+                expected_side.extend_from_slice(legacy);
+                expected_side.sort_unstable_by_key(|entry| entry.coverage_root);
+                assert!(expected_side
+                    .windows(2)
+                    .all(|pair| pair[0].coverage_root < pair[1].coverage_root));
+                assert!(
+                    self.replay_parents_for_occurrence_side(occurrence, side)
+                        .eq(expected_side.iter().copied()),
+                    "QORF-C full-std side cursor diverged for ({:?}, {:?}, {:?})",
+                    occurrence.result,
+                    occurrence.carrier,
+                    side,
+                );
+            }
+        }
+
+        for (&result, parents) in &self.qualified_parents_by_result {
+            for parent in parents {
+                let ClaimQualifiedParent::ReplayConstraint {
+                    parent_claim,
+                    parent_side,
+                    replay,
+                } = parent.parent
+                else {
+                    continue;
+                };
+                report.qualified_replay_entries += 1;
+                let occurrence_index = self
+                    .replay_finite_map_index
+                    .get(&(result, replay))
+                    .copied()
+                    .expect("qualified replay entry must have a finite-map occurrence");
+                let occurrence = &self.replay_finite_map[occurrence_index];
+                let side_index = match parent_side {
+                    ReplayClaimParentSide::Lower => occurrence.replay_parent_sides[0],
+                    ReplayClaimParentSide::Upper => occurrence.replay_parent_sides[1],
+                };
+                let actual = self
+                    .replay_parent_chunks
+                    .qorf_entry(side_index, parent.coverage_root)
+                    .expect("qualified replay entry must have an exact side entry");
+                let lineage = self
+                    .upper_claim(parent_claim)
+                    .filter(|claim| claim.claim == parent_claim)
+                    .expect("qualified replay parent must resolve through the claim index")
+                    .lineage;
+                assert_eq!(
+                    actual,
+                    QorfReplayParentEntry {
+                        coverage_root: parent.coverage_root,
+                        representative_claim: parent_claim,
+                        lineage,
+                    },
+                    "QORF-C full-std side value diverged for ({result:?}, {replay:?}, {parent_side:?})",
+                );
+            }
+        }
+
+        for key in &self.qualified_parent_keys {
+            let QualifiedParentIdentity::Replay {
+                parent_side,
+                replay,
+            } = key.identity
+            else {
+                continue;
+            };
+            report.qualified_replay_keys += 1;
+            assert!(
+                self.exact_replay_qualified_parent_is_registered(
+                    key.result,
+                    replay,
+                    parent_side,
+                    key.coverage_root,
+                ),
+                "QORF-C full-std side membership missed legacy key {key:?}",
+            );
+        }
+
+        assert_eq!(report.side_entries, report.qualified_replay_entries);
+        assert_eq!(report.side_entries, report.qualified_replay_keys);
+        report
     }
 
     pub(super) fn contains_qualified_parent_carrier(
@@ -17079,6 +17229,109 @@ mod tests {
             .try_prepare_replay_qualified_parent_transaction(result, carrier, &[duplicate])
             .expect("QORF-C persistent duplicate must prepare as a no-op");
         assert!(duplicate_transaction.accepted().is_empty());
+    }
+
+    /// Reproducible QORF-C cutover gate from design §8. This is intentionally excluded from the
+    /// fast suite: it lowers the complete repository std graph and then streams every legacy
+    /// qualified replay key/value and every occurrence side through the authoritative side AVL.
+    ///
+    /// Run with:
+    /// `YULANG_QORF_C_FULL_STD_PARITY=1 cargo test -p infer --release \
+    ///   constraints::proof::tests::qorf_c_full_std_exhaustive_side_authority_parity \
+    ///   -- --ignored --exact --nocapture`
+    #[test]
+    #[ignore = "full repository-std QORF-C exhaustive parity gate"]
+    fn qorf_c_full_std_exhaustive_side_authority_parity() {
+        assert_eq!(
+            std::env::var("YULANG_QORF_C_FULL_STD_PARITY").as_deref(),
+            Ok("1"),
+            "set YULANG_QORF_C_FULL_STD_PARITY=1 to acknowledge the heavy full-std gate",
+        );
+        struct ActiveGuard;
+        impl Drop for ActiveGuard {
+            fn drop(&mut self) {
+                QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| active.set(false));
+            }
+        }
+        QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| {
+            assert!(!active.replace(true), "QORF-C full-std gate cannot nest");
+        });
+        let _active = ActiveGuard;
+
+        let loaded = qorf_c_repository_std_loaded("use std::prelude::*\nmod std;\n");
+        let output = crate::lowering::lower_loaded_files(&loaded)
+            .expect("lower complete repository std for QORF-C parity");
+        let report = output
+            .session
+            .infer
+            .constraints()
+            .proof_store
+            .qorf_c_full_std_parity_report();
+        assert!(report.occurrences > 0);
+        assert!(report.side_entries > 0);
+        eprintln!(
+            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} mismatches=0",
+            report.occurrences,
+            report.nonempty_sides,
+            report.side_entries,
+            report.qualified_replay_entries,
+            report.qualified_replay_keys,
+        );
+    }
+
+    fn qorf_c_repository_std_loaded(root_source: &str) -> Vec<sources::LoadedFile> {
+        let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("canonical repository root");
+        let lib = repository.join("lib");
+        let mut paths = vec![lib.join("std.yu")];
+        qorf_c_collect_yu_files(&lib.join("std"), &mut paths);
+        paths.sort();
+
+        let mut files = vec![qorf_c_source_file(&[], root_source)];
+        files.extend(paths.into_iter().map(|path| {
+            let relative = path.strip_prefix(&lib).expect("std path below lib");
+            let mut module = relative.to_path_buf();
+            module.set_extension("");
+            let segments = module
+                .components()
+                .map(|component| {
+                    let std::path::Component::Normal(segment) = component else {
+                        panic!("normal std module path component")
+                    };
+                    segment.to_str().expect("utf-8 std path")
+                })
+                .collect::<Vec<_>>();
+            qorf_c_source_file(
+                &segments,
+                &std::fs::read_to_string(path).expect("read std source"),
+            )
+        }));
+        sources::load(files)
+    }
+
+    fn qorf_c_collect_yu_files(directory: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(directory).expect("read repository std directory") {
+            let path = entry.expect("read repository std entry").path();
+            if path.is_dir() {
+                qorf_c_collect_yu_files(&path, files);
+            } else if path.extension().and_then(|extension| extension.to_str()) == Some("yu") {
+                files.push(path);
+            }
+        }
+    }
+
+    fn qorf_c_source_file(path: &[&str], source: &str) -> sources::SourceFile {
+        sources::SourceFile {
+            module_path: sources::Path {
+                segments: path
+                    .iter()
+                    .map(|segment| sources::Name((*segment).to_string()))
+                    .collect(),
+            },
+            source: source.to_string(),
+        }
     }
 
     #[test]
