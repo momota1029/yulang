@@ -367,10 +367,7 @@ impl ConstraintMachine {
         for occurrence in &self.proof_store.replay_finite_map {
             let carrier = canonical.replay(occurrence.carrier, None);
             let mut roots = Vec::new();
-            for side in [
-                ReplayClaimParentSide::Lower,
-                ReplayClaimParentSide::Upper,
-            ] {
+            for side in [ReplayClaimParentSide::Lower, ReplayClaimParentSide::Upper] {
                 for entry in self
                     .proof_store
                     .replay_parents_for_occurrence_side(occurrence, side)
@@ -419,13 +416,15 @@ impl ConstraintMachine {
 
         for result_index in 0..self.constraint_records.len() {
             let result = ConstraintRecordId(result_index as u32);
-            for entry in self.proof_store.qualified_parents_for_result(result) {
-                let parent = entry.parent;
-                if matches!(parent, ClaimQualifiedParent::ReplayConstraint { .. }) {
-                    continue;
-                }
+            for parent in self
+                .proof_store
+                .non_replay_qualified_parent_values_for_result(result)
+            {
                 let claim = parent.parent_claim();
-                let root = entry.coverage_root;
+                let root = self
+                    .proof_store
+                    .claim_coverage_root(claim)
+                    .expect("CPK non-replay parent coverage root");
                 let claim_occurrence = self
                     .proof_store
                     .upper_claim(claim)

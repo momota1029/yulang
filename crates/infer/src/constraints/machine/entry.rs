@@ -1552,7 +1552,8 @@ impl ConstraintMachine {
     ) -> bool {
         let parents = self
             .proof_store
-            .qualified_parent_values_for_result(derivation.parent)
+            .canonical_qualified_parents_by_root(derivation.parent)
+            .map(|entry| entry.parent)
             .collect::<Vec<_>>();
         let mut inserted_parents = Vec::new();
         for parent in parents {

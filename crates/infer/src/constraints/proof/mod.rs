@@ -278,9 +278,7 @@ impl ProofEvalEvidenceMemo {
             Self::EXACT_WITHOUT_CLAIMED_ARM_STATE => {
                 DecodedProofEvalEvidenceMemo::ExactWithoutClaimedArm
             }
-            Self::FAIL_OPEN_INCOMPLETE_STATE => {
-                DecodedProofEvalEvidenceMemo::FailOpenIncomplete
-            }
+            Self::FAIL_OPEN_INCOMPLETE_STATE => DecodedProofEvalEvidenceMemo::FailOpenIncomplete,
             state => panic!("invalid packed proof-evidence memo state {state}"),
         }
     }
@@ -939,6 +937,38 @@ thread_local! {
     static QORF_C_FULL_STD_PARITY_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct QorfD1ReadCensus {
+    evaluation_calls: usize,
+    evaluation_yields: usize,
+    replay_evaluation_yields: usize,
+    non_replay_evaluation_yields: usize,
+    root_winner_calls: usize,
+    root_winner_yields: usize,
+    exact_cursor_calls: usize,
+    exact_cursor_yields: usize,
+    association_cursor_calls: usize,
+    association_cursor_yields: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static QORF_D1_READ_CENSUS: Cell<QorfD1ReadCensus> =
+        const { Cell::new(QorfD1ReadCensus {
+            evaluation_calls: 0,
+            evaluation_yields: 0,
+            replay_evaluation_yields: 0,
+            non_replay_evaluation_yields: 0,
+            root_winner_calls: 0,
+            root_winner_yields: 0,
+            exact_cursor_calls: 0,
+            exact_cursor_yields: 0,
+            association_cursor_calls: 0,
+            association_cursor_yields: 0,
+        }) };
+}
+
 fn try_replay_parent_chunk_id(index: usize) -> Result<ReplayParentChunkId, ProofFailure> {
     u32::try_from(index)
         .map(ReplayParentChunkId)
@@ -1166,6 +1196,16 @@ struct ReplayQualifiedArmIndex {
     chunks: Vec<ReplayQualifiedArmChunkNode>,
 }
 
+const QORF_AVL_CURSOR_STACK_CAPACITY: usize = 64;
+
+struct ReplayQualifiedArmCursor<'a> {
+    index: &'a ReplayQualifiedArmIndex,
+    stack: [std::mem::MaybeUninit<ReplayQualifiedArmChunkId>; QORF_AVL_CURSOR_STACK_CAPACITY],
+    stack_len: usize,
+    current: Option<ReplayQualifiedArmChunkId>,
+    entry_index: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CanonicalQualifiedParentRef {
     Replay {
@@ -1203,10 +1243,39 @@ struct CanonicalQualifiedParentRootIndex {
     chunks: Vec<CanonicalQualifiedParentRootChunkNode>,
 }
 
+struct CanonicalQualifiedParentRootCursor<'a> {
+    index: &'a CanonicalQualifiedParentRootIndex,
+    stack: [std::mem::MaybeUninit<CanonicalQualifiedParentRootChunkId>;
+        QORF_AVL_CURSOR_STACK_CAPACITY],
+    stack_len: usize,
+    current: Option<CanonicalQualifiedParentRootChunkId>,
+    entry_index: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct NonReplayQualifiedParentStore {
     entries: Vec<ExactQualifiedParent>,
     by_result: FxHashMap<ConstraintRecordId, Vec<NonReplayQualifiedParentId>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum QualifiedParentEvaluationItem {
+    Replay(BinaryReplayDerivation),
+    NonReplay(ClaimQualifiedParent),
+}
+
+struct QualifiedParentEvaluationCursor<'a> {
+    store: &'a ProofOccurrenceStore,
+    replay: ReplayQualifiedArmCursor<'a>,
+    replay_head: Option<ReplayFiniteMapEntryId>,
+    non_replay_ids: &'a [NonReplayQualifiedParentId],
+    non_replay_index: usize,
+}
+
+struct CanonicalQualifiedParentByRootCursor<'a> {
+    store: &'a ProofOccurrenceStore,
+    result: ConstraintRecordId,
+    entries: CanonicalQualifiedParentRootCursor<'a>,
 }
 
 enum QorfExactQualifiedParentSource<'a> {
@@ -1274,9 +1343,11 @@ impl Ord for QorfExactQualifiedParentHeapEntry {
     }
 }
 
-struct QorfExactQualifiedParentCursor<'a> {
+pub(super) struct QorfExactQualifiedParentCursor<'a> {
     sources: Vec<QorfExactQualifiedParentSource<'a>>,
     frontier: std::collections::BinaryHeap<QorfExactQualifiedParentHeapEntry>,
+    #[cfg(test)]
+    count_as_exact_query: bool,
 }
 
 impl Iterator for QorfExactQualifiedParentCursor<'_> {
@@ -1292,11 +1363,19 @@ impl Iterator for QorfExactQualifiedParentCursor<'_> {
                 source: head.source,
             });
         }
+        #[cfg(test)]
+        if self.count_as_exact_query {
+            QORF_D1_READ_CENSUS.with(|cell| {
+                let mut census = cell.get();
+                census.exact_cursor_yields += 1;
+                cell.set(census);
+            });
+        }
         Some(head.parent)
     }
 }
 
-struct QorfClauseLinkAssociationCursor<'a> {
+pub(super) struct QorfClauseLinkAssociationCursor<'a> {
     exact: QorfExactQualifiedParentCursor<'a>,
     previous: Option<(UpperReplayClaimId, ProjectionProofCarrier)>,
 }
@@ -1315,6 +1394,12 @@ impl Iterator for QorfClauseLinkAssociationCursor<'_> {
                 continue;
             }
             self.previous = Some(key);
+            #[cfg(test)]
+            QORF_D1_READ_CENSUS.with(|cell| {
+                let mut census = cell.get();
+                census.association_cursor_yields += 1;
+                cell.set(census);
+            });
             return Some(parent);
         }
     }
@@ -1367,6 +1452,11 @@ impl<T> QorfPreparedChunkBuffers<T> {
 }
 
 impl ReplayQualifiedArmIndex {
+    fn cursor(&self, result: ConstraintRecordId) -> ReplayQualifiedArmCursor<'_> {
+        let root = self.by_result.get(&result).and_then(|tree| tree.root);
+        ReplayQualifiedArmCursor::new(self, root)
+    }
+
     fn height(&self, id: Option<ReplayQualifiedArmChunkId>) -> u8 {
         id.map_or(0, |id| self.chunks[id.0 as usize].height)
     }
@@ -1644,7 +1734,64 @@ impl ReplayQualifiedArmIndex {
     }
 }
 
+impl<'a> ReplayQualifiedArmCursor<'a> {
+    fn new(index: &'a ReplayQualifiedArmIndex, root: Option<ReplayQualifiedArmChunkId>) -> Self {
+        let mut cursor = Self {
+            index,
+            stack: [std::mem::MaybeUninit::uninit(); QORF_AVL_CURSOR_STACK_CAPACITY],
+            stack_len: 0,
+            current: None,
+            entry_index: 0,
+        };
+        cursor.push_left(root);
+        cursor
+    }
+
+    fn push_left(&mut self, mut node: Option<ReplayQualifiedArmChunkId>) {
+        while let Some(id) = node {
+            assert!(
+                self.stack_len < QORF_AVL_CURSOR_STACK_CAPACITY,
+                "QORF arm AVL height exceeds the u32-arena cursor bound",
+            );
+            self.stack[self.stack_len].write(id);
+            self.stack_len += 1;
+            node = self.index.chunks[id.0 as usize].left;
+        }
+    }
+}
+
+impl Iterator for ReplayQualifiedArmCursor<'_> {
+    type Item = ReplayFiniteMapEntryId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(current) = self.current {
+                let entries = &self.index.chunks[current.0 as usize].entries;
+                if let Some(&entry) = entries.get(self.entry_index) {
+                    self.entry_index += 1;
+                    return Some(entry);
+                }
+                self.current = None;
+            }
+            if self.stack_len == 0 {
+                return None;
+            }
+            self.stack_len -= 1;
+            // `push_left` initializes every slot below `stack_len`; no other path grows it.
+            let current = unsafe { self.stack[self.stack_len].assume_init_read() };
+            self.push_left(self.index.chunks[current.0 as usize].right);
+            self.current = Some(current);
+            self.entry_index = 0;
+        }
+    }
+}
+
 impl CanonicalQualifiedParentRootIndex {
+    fn cursor(&self, result: ConstraintRecordId) -> CanonicalQualifiedParentRootCursor<'_> {
+        let root = self.by_result.get(&result).and_then(|tree| tree.root);
+        CanonicalQualifiedParentRootCursor::new(self, root)
+    }
+
     fn height(&self, id: Option<CanonicalQualifiedParentRootChunkId>) -> u8 {
         id.map_or(0, |id| self.chunks[id.0 as usize].height)
     }
@@ -1835,6 +1982,132 @@ impl CanonicalQualifiedParentRootIndex {
     }
 }
 
+impl<'a> CanonicalQualifiedParentRootCursor<'a> {
+    fn new(
+        index: &'a CanonicalQualifiedParentRootIndex,
+        root: Option<CanonicalQualifiedParentRootChunkId>,
+    ) -> Self {
+        let mut cursor = Self {
+            index,
+            stack: [std::mem::MaybeUninit::uninit(); QORF_AVL_CURSOR_STACK_CAPACITY],
+            stack_len: 0,
+            current: None,
+            entry_index: 0,
+        };
+        cursor.push_left(root);
+        cursor
+    }
+
+    fn push_left(&mut self, mut node: Option<CanonicalQualifiedParentRootChunkId>) {
+        while let Some(id) = node {
+            assert!(
+                self.stack_len < QORF_AVL_CURSOR_STACK_CAPACITY,
+                "QORF root-winner AVL height exceeds the u32-arena cursor bound",
+            );
+            self.stack[self.stack_len].write(id);
+            self.stack_len += 1;
+            node = self.index.chunks[id.0 as usize].left;
+        }
+    }
+}
+
+impl Iterator for CanonicalQualifiedParentRootCursor<'_> {
+    type Item = CanonicalQualifiedParentRootEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(current) = self.current {
+                let entries = &self.index.chunks[current.0 as usize].entries;
+                if let Some(&entry) = entries.get(self.entry_index) {
+                    self.entry_index += 1;
+                    return Some(entry);
+                }
+                self.current = None;
+            }
+            if self.stack_len == 0 {
+                return None;
+            }
+            self.stack_len -= 1;
+            // `push_left` initializes every slot below `stack_len`; no other path grows it.
+            let current = unsafe { self.stack[self.stack_len].assume_init_read() };
+            self.push_left(self.index.chunks[current.0 as usize].right);
+            self.current = Some(current);
+            self.entry_index = 0;
+        }
+    }
+}
+
+impl Iterator for QualifiedParentEvaluationCursor<'_> {
+    type Item = QualifiedParentEvaluationItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.replay_head.is_none() {
+            self.replay_head = self.replay.next();
+        }
+        let non_replay_head = self.non_replay_ids.get(self.non_replay_index).copied();
+        let take_replay = match (self.replay_head, non_replay_head) {
+            (Some(replay), Some(non_replay)) => {
+                let replay = self.store.qorf_occurrence_first_exact_parent(replay);
+                let non_replay =
+                    self.store.non_replay_qualified_parents.entries[non_replay.0 as usize];
+                let ordering = qualified_parent_entry_cmp(&replay, &non_replay);
+                debug_assert_ne!(ordering, std::cmp::Ordering::Equal);
+                ordering.is_lt()
+            }
+            (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (None, None) => return None,
+        };
+        let item = if take_replay {
+            let occurrence = self.replay_head.take().unwrap();
+            Some(QualifiedParentEvaluationItem::Replay(
+                self.store.replay_finite_map[occurrence.0 as usize].carrier,
+            ))
+        } else {
+            let parent = self.store.non_replay_qualified_parents.entries
+                [non_replay_head.unwrap().0 as usize]
+                .parent;
+            self.non_replay_index += 1;
+            Some(QualifiedParentEvaluationItem::NonReplay(parent))
+        };
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.evaluation_yields += 1;
+            match item {
+                Some(QualifiedParentEvaluationItem::Replay(_)) => {
+                    census.replay_evaluation_yields += 1;
+                }
+                Some(QualifiedParentEvaluationItem::NonReplay(_)) => {
+                    census.non_replay_evaluation_yields += 1;
+                }
+                None => {}
+            }
+            cell.set(census);
+        });
+        item
+    }
+}
+
+impl Iterator for CanonicalQualifiedParentByRootCursor<'_> {
+    type Item = ExactQualifiedParent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let entry = self.entries.next()?;
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.root_winner_yields += 1;
+            cell.set(census);
+        });
+        Some(self.store.qorf_exact_parent_for_root_ref(
+            self.result,
+            entry.coverage_root,
+            entry.winner,
+        ))
+    }
+}
+
 /// QORF-A's non-authoritative constructor boundary: all frontier allocation is fallible before an
 /// eventual cursor is published, while iteration itself cannot allocate or report exhaustion.
 #[cfg(test)]
@@ -2003,9 +2276,7 @@ impl UpperClaimLineage {
             Self::ReplayConstraint { .. } => ProjectionLineage::ReplayConstraint,
             Self::ReplayEvidence { .. } => ProjectionLineage::ReplayEvidence,
             Self::StructuralConstraint { .. } => ProjectionLineage::StructuralConstraint,
-            Self::ReductionRouteConstraint { .. } => {
-                ProjectionLineage::ReductionRouteConstraint
-            }
+            Self::ReductionRouteConstraint { .. } => ProjectionLineage::ReductionRouteConstraint,
         }
     }
 }
@@ -2221,10 +2492,7 @@ impl ClaimedProjectionProof {
         Self { kind }
     }
 
-    fn from_key(
-        key: ClaimedProjectionProofKey,
-        representative_claim: UpperReplayClaimId,
-    ) -> Self {
+    fn from_key(key: ClaimedProjectionProofKey, representative_claim: UpperReplayClaimId) -> Self {
         let kind = match key {
             ClaimedProjectionProofKey::Standalone {
                 bound,
@@ -2366,9 +2634,7 @@ struct ProjectionSupportGroupId(u32);
 
 const PROJECTION_RUN_CHUNK_CAPACITY: usize = 128;
 
-fn try_projection_support_group_id(
-    index: usize,
-) -> Result<ProjectionSupportGroupId, ProofFailure> {
+fn try_projection_support_group_id(index: usize) -> Result<ProjectionSupportGroupId, ProofFailure> {
     let raw = u32::try_from(index).map_err(|_| ProofFailure::ResourceExhausted {
         operation: ProofOperation::UpdateClaimLifecycle,
     })?;
@@ -2454,7 +2720,8 @@ impl CanonicalProjectionRun {
     }
 
     fn chunk(node: &ProjectionRunChunkBox) -> &ProjectionRunChunk {
-        node.first().expect("PCLF chunk box must contain exactly one node")
+        node.first()
+            .expect("PCLF chunk box must contain exactly one node")
     }
 
     fn chunk_mut(node: &mut ProjectionRunChunkBox) -> &mut ProjectionRunChunk {
@@ -2491,20 +2758,10 @@ impl CanonicalProjectionRun {
             chunk_entries.try_reserve_exact(end - start)?;
             chunk_entries.extend_from_slice(&entries[start..end]);
             let mut node = CanonicalProjectionRun::try_box_chunk(chunk_entries)?;
-            CanonicalProjectionRun::chunk_mut(&mut node).left = build(
-                entries,
-                start_chunk,
-                middle,
-                base_len,
-                longer_chunks,
-            )?;
-            CanonicalProjectionRun::chunk_mut(&mut node).right = build(
-                entries,
-                middle + 1,
-                end_chunk,
-                base_len,
-                longer_chunks,
-            )?;
+            CanonicalProjectionRun::chunk_mut(&mut node).left =
+                build(entries, start_chunk, middle, base_len, longer_chunks)?;
+            CanonicalProjectionRun::chunk_mut(&mut node).right =
+                build(entries, middle + 1, end_chunk, base_len, longer_chunks)?;
             CanonicalProjectionRun::update_chunk_height(&mut node);
             Ok(Some(node))
         }
@@ -2686,7 +2943,10 @@ impl CanonicalProjectionRun {
 
     #[cfg(test)]
     fn append_entries_in_order(&self, entries: &mut Vec<ProjectionFormulaEntryId>) {
-        fn append(node: Option<&ProjectionRunChunkBox>, entries: &mut Vec<ProjectionFormulaEntryId>) {
+        fn append(
+            node: Option<&ProjectionRunChunkBox>,
+            entries: &mut Vec<ProjectionFormulaEntryId>,
+        ) {
             let Some(node) = node else {
                 return;
             };
@@ -2789,8 +3049,7 @@ struct ProjectionFormulaBucket {
     entries: Vec<ProjectionFormulaEntry>,
     entry_by_clause: FxHashMap<RecordProofClause, ProjectionFormulaEntryId>,
     support_groups: Vec<ProjectionSupportGroup>,
-    support_group_by_raw:
-        FxHashMap<SchemeProjectionProofSupport, ProjectionSupportGroupId>,
+    support_group_by_raw: FxHashMap<SchemeProjectionProofSupport, ProjectionSupportGroupId>,
     exact_links: FxHashMap<
         (ProjectionSupportGroupId, ProjectionFormulaEntryId),
         ProjectionIncidenceMetadata,
@@ -2861,12 +3120,10 @@ struct ProjectionClauseMembership {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ProjectionFormulaReadModel {
     formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
-    claimed_links:
-        FxHashMap<RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource>,
+    claimed_links: FxHashMap<RawProjectionClauseLinkIdentity, ClaimedProjectionProofSource>,
     independent_links: FxHashSet<RawProjectionClauseLinkIdentity>,
     distinct_clauses: FxHashSet<(BoundRecordId, RecordProofClause)>,
-    normalized_support_keys:
-        FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
+    normalized_support_keys: FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
     attributed_roots: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
     flat_retained_attributed_roots: FxHashSet<(BoundRecordId, UpperReplayClaimId)>,
 }
@@ -3012,9 +3269,7 @@ fn projection_support_cmp(
     right: SchemeProjectionProofSupport,
 ) -> std::cmp::Ordering {
     let key = |support| match support {
-        SchemeProjectionProofSupport::Claimed(root) => {
-            canonical_projection_key::Key::Claimed(root)
-        }
+        SchemeProjectionProofSupport::Claimed(root) => canonical_projection_key::Key::Claimed(root),
         SchemeProjectionProofSupport::Independent(carrier) => {
             canonical_projection_key::Key::Independent(carrier)
         }
@@ -3045,10 +3300,9 @@ fn derived_unary_carrier_cmp(
         (DerivedUnaryCarrier::ReductionRoute(_), DerivedUnaryCarrier::Structural(_)) => {
             std::cmp::Ordering::Greater
         }
-        (
-            DerivedUnaryCarrier::ReductionRoute(left),
-            DerivedUnaryCarrier::ReductionRoute(right),
-        ) => left.0.cmp(&right.0),
+        (DerivedUnaryCarrier::ReductionRoute(left), DerivedUnaryCarrier::ReductionRoute(right)) => {
+            left.0.cmp(&right.0)
+        }
     }
 }
 
@@ -3161,15 +3415,18 @@ impl ProjectionFormulaBucket {
             assert!(self.support_group_by_raw.insert(support, id).is_none());
             id
         };
-        assert!(self
-            .exact_links
-            .insert((support_id, entry_id), metadata)
-            .is_none());
+        assert!(
+            self.exact_links
+                .insert((support_id, entry_id), metadata)
+                .is_none()
+        );
         let category = CanonicalProjectionCategory::from_clause(record_clause);
         let run_position = self.canonical_run_partition_point(category, support);
-        if self.canonical_runs.get(run_position).is_some_and(|run| {
-            run.category == category && run.support_id == support_id
-        }) {
+        if self
+            .canonical_runs
+            .get(run_position)
+            .is_some_and(|run| run.category == category && run.support_id == support_id)
+        {
             let mut entries = Vec::new();
             self.canonical_runs[run_position].append_entries_in_order(&mut entries);
             entries.push(entry_id);
@@ -3181,12 +3438,9 @@ impl ProjectionFormulaBucket {
                     *right,
                 )
             });
-            self.canonical_runs[run_position] = CanonicalProjectionRun::from_sorted_entries(
-                category,
-                support_id,
-                entries,
-            )
-            .expect("test canonical run allocation");
+            self.canonical_runs[run_position] =
+                CanonicalProjectionRun::from_sorted_entries(category, support_id, entries)
+                    .expect("test canonical run allocation");
         } else {
             self.canonical_runs.insert(
                 run_position,
@@ -3303,79 +3557,75 @@ fn reconstructed_projection_clause(
     support_id: ProjectionSupportGroupId,
     entry_id: ProjectionFormulaEntryId,
 ) -> ProjectionClause {
-        let group = &support_groups[support_id.0 as usize];
-        let entry = &entries[entry_id.0 as usize];
-        let metadata = exact_links[&(support_id, entry_id)];
-        let attribution = match (metadata, entry.clause) {
-            (ProjectionIncidenceMetadata::Independent, _) => None,
-            #[cfg(test)]
-            (
-                ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage),
-                RecordProofClause::Standalone { .. },
-            ) => Some(lineage),
-            (
-                ProjectionIncidenceMetadata::Claimed(
-                    ClaimedProjectionSourceTemplate::Original { .. },
-                ),
-                RecordProofClause::Standalone { .. },
-            ) => Some(ProjectionLineage::Original),
-            (
-                ProjectionIncidenceMetadata::Claimed(
-                    ClaimedProjectionSourceTemplate::DerivedUnary { .. },
-                ),
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::Structural(_),
-                    ..
-                },
-            ) => Some(ProjectionLineage::StructuralConstraint),
-            (
-                ProjectionIncidenceMetadata::Claimed(
-                    ClaimedProjectionSourceTemplate::DerivedUnary { .. },
-                ),
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::ReductionRoute(_),
-                    ..
-                },
-            ) => Some(ProjectionLineage::ReductionRouteConstraint),
-            (
-                ProjectionIncidenceMetadata::Claimed(
-                    ClaimedProjectionSourceTemplate::ReplayConstraint { .. },
-                ),
-                RecordProofClause::ReplayConjunction { .. },
-            ) => Some(ProjectionLineage::ReplayConstraint),
-            (
-                ProjectionIncidenceMetadata::Claimed(
-                    ClaimedProjectionSourceTemplate::ReplayEvidence,
-                ),
-                RecordProofClause::ReplayConjunction { .. },
-            ) => Some(ProjectionLineage::ReplayEvidence),
-            _ => panic!("PCLF incidence metadata must match its exact clause kind"),
-        };
-        match entry.clause {
-            RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
-                support: group.raw_support,
-                attribution,
+    let group = &support_groups[support_id.0 as usize];
+    let entry = &entries[entry_id.0 as usize];
+    let metadata = exact_links[&(support_id, entry_id)];
+    let attribution = match (metadata, entry.clause) {
+        (ProjectionIncidenceMetadata::Independent, _) => None,
+        #[cfg(test)]
+        (
+            ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage),
+            RecordProofClause::Standalone { .. },
+        ) => Some(lineage),
+        (
+            ProjectionIncidenceMetadata::Claimed(ClaimedProjectionSourceTemplate::Original {
+                ..
+            }),
+            RecordProofClause::Standalone { .. },
+        ) => Some(ProjectionLineage::Original),
+        (
+            ProjectionIncidenceMetadata::Claimed(ClaimedProjectionSourceTemplate::DerivedUnary {
+                ..
+            }),
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::Structural(_),
+                ..
             },
-            RecordProofClause::DerivedUnary { carrier, premise } => {
-                ProjectionClause::DerivedUnary {
-                    support: group.raw_support,
-                    carrier,
-                    premise,
-                    attribution,
-                }
-            }
-            RecordProofClause::ReplayConjunction {
-                carrier,
-                lower_premise,
-                upper_premise,
-            } => ProjectionClause::ReplayConjunction {
-                support: group.raw_support,
-                carrier,
-                lower: lower_premise,
-                upper: upper_premise,
-                attribution,
+        ) => Some(ProjectionLineage::StructuralConstraint),
+        (
+            ProjectionIncidenceMetadata::Claimed(ClaimedProjectionSourceTemplate::DerivedUnary {
+                ..
+            }),
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(_),
+                ..
             },
-        }
+        ) => Some(ProjectionLineage::ReductionRouteConstraint),
+        (
+            ProjectionIncidenceMetadata::Claimed(
+                ClaimedProjectionSourceTemplate::ReplayConstraint { .. },
+            ),
+            RecordProofClause::ReplayConjunction { .. },
+        ) => Some(ProjectionLineage::ReplayConstraint),
+        (
+            ProjectionIncidenceMetadata::Claimed(ClaimedProjectionSourceTemplate::ReplayEvidence),
+            RecordProofClause::ReplayConjunction { .. },
+        ) => Some(ProjectionLineage::ReplayEvidence),
+        _ => panic!("PCLF incidence metadata must match its exact clause kind"),
+    };
+    match entry.clause {
+        RecordProofClause::Standalone { .. } => ProjectionClause::Standalone {
+            support: group.raw_support,
+            attribution,
+        },
+        RecordProofClause::DerivedUnary { carrier, premise } => ProjectionClause::DerivedUnary {
+            support: group.raw_support,
+            carrier,
+            premise,
+            attribution,
+        },
+        RecordProofClause::ReplayConjunction {
+            carrier,
+            lower_premise,
+            upper_premise,
+        } => ProjectionClause::ReplayConjunction {
+            support: group.raw_support,
+            carrier,
+            lower: lower_premise,
+            upper: upper_premise,
+            attribution,
+        },
+    }
 }
 
 struct ProjectionCanonicalRunCursor<'a> {
@@ -3467,10 +3717,7 @@ fn try_prepare_projection_chunk_outputs(
     support_id: ProjectionSupportGroupId,
     existing: &[ProjectionFormulaEntryId],
     delta: &[(ProjectionFormulaEntryId, ProjectionClause)],
-) -> Result<
-    (Vec<Vec<ProjectionFormulaEntryId>>, usize, usize),
-    std::collections::TryReserveError,
-> {
+) -> Result<(Vec<Vec<ProjectionFormulaEntryId>>, usize, usize), std::collections::TryReserveError> {
     let total_len = existing.len() + delta.len();
     let mut merged = Vec::new();
     merged.try_reserve_exact(total_len)?;
@@ -3604,8 +3851,7 @@ impl ProjectionFormulaStore {
                 let (metadata, match_key, coverage_root) = match clause.support() {
                     SchemeProjectionProofSupport::Claimed(_) => {
                         let source = store.projection_claimed_link_audit[&raw_identity];
-                        let (root, template) =
-                            ClaimedProjectionSourceTemplate::from_source(source);
+                        let (root, template) = ClaimedProjectionSourceTemplate::from_source(source);
                         (
                             ProjectionIncidenceMetadata::Claimed(template),
                             Some(ProjectionSupportMatchKey::Claimed(root)),
@@ -3613,9 +3859,11 @@ impl ProjectionFormulaStore {
                         )
                     }
                     SchemeProjectionProofSupport::Independent(carrier) => {
-                        assert!(store
-                            .independent_projection_clause_link_keys
-                            .contains(&raw_identity));
+                        assert!(
+                            store
+                                .independent_projection_clause_link_keys
+                                .contains(&raw_identity)
+                        );
                         (
                             ProjectionIncidenceMetadata::Independent,
                             Some(ProjectionSupportMatchKey::Independent(carrier)),
@@ -3637,12 +3885,9 @@ impl ProjectionFormulaStore {
             model
                 .normalized_support_keys
                 .insert(record, bucket.normalized_support_keys.clone());
-            model.attributed_roots.extend(
-                bucket
-                    .attributed_roots
-                    .iter()
-                    .map(|root| (record, *root)),
-            );
+            model
+                .attributed_roots
+                .extend(bucket.attributed_roots.iter().map(|root| (record, *root)));
             model.flat_retained_attributed_roots.extend(
                 bucket
                     .flat_retained_attributed_roots
@@ -3666,10 +3911,12 @@ impl ProjectionFormulaStore {
                         let root = group
                             .coverage_root
                             .expect("claimed PCLF support group must freeze one root");
-                        assert!(model
-                            .claimed_links
-                            .insert(identity, template.with_coverage_root(root))
-                            .is_none());
+                        assert!(
+                            model
+                                .claimed_links
+                                .insert(identity, template.with_coverage_root(root))
+                                .is_none()
+                        );
                     }
                 }
             }
@@ -3781,6 +4028,7 @@ struct QorfCFullStdParityReport {
     qualified_replay_keys: usize,
     replay_arms: usize,
     root_winners: usize,
+    evaluation_items: usize,
     d0_projection_census: QorfD0ProjectionAllocationCensus,
 }
 
@@ -3919,14 +4167,12 @@ pub(crate) struct ProofOccurrenceStore {
     derived_claim_by_record_and_root:
         FxHashMap<(BoundRecordId, UpperReplayClaimId), UpperReplayClaimId>,
     root_claim_by_producer_constraint: FxHashMap<ConstraintRecordId, UpperReplayClaimId>,
-    reduction_claim_by_state:
-        FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
+    reduction_claim_by_state: FxHashMap<UnweightedRowReductionRecordId, UpperReplayClaimId>,
     replay_claim_cycle_coalesces: usize,
     claims_by_upper_record: FxHashMap<BoundRecordId, Vec<UpperReplayClaimId>>,
     pub(crate) row_reductions: Vec<RowReductionOccurrence>,
     qualified_parent_keys: FxHashSet<QualifiedParentKey>,
-    qualified_parents_by_result:
-        FxHashMap<ConstraintRecordId, Vec<ExactQualifiedParent>>,
+    qualified_parents_by_result: FxHashMap<ConstraintRecordId, Vec<ExactQualifiedParent>>,
     // The sole historical-order fact retained by CPK: cross-kind first source per result/root.
     // Canonical qualified-parent storage stays arrival-order independent.
     first_qualified_parent_source_by_root:
@@ -3949,8 +4195,7 @@ pub(crate) struct ProofOccurrenceStore {
     #[cfg(test)]
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
     #[cfg(test)]
-    projection_formula_support_keys:
-        FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
+    projection_formula_support_keys: FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
     #[cfg(test)]
     projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
     #[cfg(test)]
@@ -4228,9 +4473,7 @@ impl ProofOccurrenceStore {
                 .map(|bucket| bucket.canonical_runs.capacity())
                 .sum::<usize>(),
         );
-        fn chunk_allocation_census(
-            node: Option<&ProjectionRunChunkBox>,
-        ) -> (usize, usize, usize) {
+        fn chunk_allocation_census(node: Option<&ProjectionRunChunkBox>) -> (usize, usize, usize) {
             let Some(node) = node else {
                 return (0, 0, 0);
             };
@@ -4263,8 +4506,7 @@ impl ProofOccurrenceStore {
         {
             empty_canonical_runs += usize::from(run.entry_len == 0);
             shadow_run_max_entries = shadow_run_max_entries.max(run.entry_len);
-            shadow_run_histogram
-                [Self::projection_formula_movement_bucket(run.entry_len)] += 1;
+            shadow_run_histogram[Self::projection_formula_movement_bucket(run.entry_len)] += 1;
         }
         let shadow_bytes = hash_bytes(
             shadow.by_record.capacity(),
@@ -4337,10 +4579,7 @@ impl ProofOccurrenceStore {
             replay_result_buckets: (
                 self.replay_indices_by_result.len(),
                 self.replay_indices_by_result.capacity(),
-                self.replay_indices_by_result
-                    .values()
-                    .map(Vec::len)
-                    .sum(),
+                self.replay_indices_by_result.values().map(Vec::len).sum(),
                 self.replay_indices_by_result
                     .values()
                     .map(Vec::capacity)
@@ -4432,9 +4671,7 @@ impl ProofOccurrenceStore {
         claims_to_link: &[UpperReplayClaimId],
         independent_supports: &[ProjectionProofCarrier],
     ) -> Result<Option<PreparedProjectionSupportMutation>, ProofFailure> {
-        if claims_to_link.is_empty()
-            && !self.projection_supports.contains_key(&lower_record)
-        {
+        if claims_to_link.is_empty() && !self.projection_supports.contains_key(&lower_record) {
             return Ok(None);
         }
         let exhausted = |_| ProofFailure::ResourceExhausted {
@@ -4551,10 +4788,8 @@ impl ProofOccurrenceStore {
                 Err(position) => {
                     #[cfg(test)]
                     record_canonical_projection_insertion_moves(current_supports.len() - position);
-                    current_supports.insert(
-                        position,
-                        SchemeProjectionProofSupport::Claimed(*claim),
-                    );
+                    current_supports
+                        .insert(position, SchemeProjectionProofSupport::Claimed(*claim));
                     metadata_changed = true;
                 }
             }
@@ -4625,15 +4860,17 @@ impl ProofOccurrenceStore {
         mutation: &mut PreparedProjectionSupportMutation,
     ) {
         for (root, records) in mutation.new_root_record_entries.drain(..) {
-            assert!(self
-                .projection_lower_records_by_root
-                .insert(root, records)
-                .is_none());
+            assert!(
+                self.projection_lower_records_by_root
+                    .insert(root, records)
+                    .is_none()
+            );
         }
         for root in &mutation.new_root_memberships {
-            assert!(self
-                .projection_lower_record_memberships
-                .insert((*root, mutation.lower_record)));
+            assert!(
+                self.projection_lower_record_memberships
+                    .insert((*root, mutation.lower_record))
+            );
             self.projection_lower_records_by_root
                 .get_mut(root)
                 .expect("projection root entry was preflighted")
@@ -4827,9 +5064,10 @@ impl ProofOccurrenceStore {
                         coverage_root,
                         ClaimedProjectionProofAttribution::ReplayConstraint { result },
                     ),
-                    ClaimedProjectionProofSource::ReplayEvidence { coverage_root } => {
-                        (coverage_root, ClaimedProjectionProofAttribution::ReplayEvidence)
-                    }
+                    ClaimedProjectionProofSource::ReplayEvidence { coverage_root } => (
+                        coverage_root,
+                        ClaimedProjectionProofAttribution::ReplayEvidence,
+                    ),
                     _ => unreachable!(),
                 };
                 (
@@ -4867,7 +5105,11 @@ impl ProofOccurrenceStore {
             return Ok(None);
         };
         let raw_identity = (bound, clause.support(), clause.record_clause());
-        let Some(source) = self.projection_claimed_link_audit.get(&raw_identity).copied() else {
+        let Some(source) = self
+            .projection_claimed_link_audit
+            .get(&raw_identity)
+            .copied()
+        else {
             debug_assert!(
                 false,
                 "decisive claimed projection clause must retain its raw audit link: {raw_identity:?}"
@@ -4913,11 +5155,17 @@ impl ProofOccurrenceStore {
         entry_id: ProjectionFormulaEntryId,
     ) -> Result<Option<ClaimedProjectionProof>, ProofFailure> {
         let Some(bucket) = self.projection_formula_shadow.by_record.get(&bound) else {
-            debug_assert!(false, "decisive PCLF incidence must retain its record bucket");
+            debug_assert!(
+                false,
+                "decisive PCLF incidence must retain its record bucket"
+            );
             return Ok(None);
         };
         let Some(group) = bucket.support_groups.get(support_id.0 as usize) else {
-            debug_assert!(false, "decisive PCLF incidence must retain its support group");
+            debug_assert!(
+                false,
+                "decisive PCLF incidence must retain its support group"
+            );
             return Ok(None);
         };
         let Some(entry_id) = bucket.legacy_decisive_entry_id(support_id, entry_id) else {
@@ -4928,21 +5176,33 @@ impl ProofOccurrenceStore {
             return Ok(None);
         };
         let Some(entry) = bucket.entries.get(entry_id.0 as usize) else {
-            debug_assert!(false, "decisive PCLF incidence must retain its clause entry");
+            debug_assert!(
+                false,
+                "decisive PCLF incidence must retain its clause entry"
+            );
             return Ok(None);
         };
         let SchemeProjectionProofSupport::Claimed(_) = group.raw_support else {
-            debug_assert!(false, "decisive claimed PCLF incidence must use a claimed support");
+            debug_assert!(
+                false,
+                "decisive claimed PCLF incidence must use a claimed support"
+            );
             return Ok(None);
         };
         let Some(ProjectionIncidenceMetadata::Claimed(template)) =
             bucket.exact_links.get(&(support_id, entry_id)).copied()
         else {
-            debug_assert!(false, "decisive claimed PCLF incidence must retain claimed metadata");
+            debug_assert!(
+                false,
+                "decisive claimed PCLF incidence must retain claimed metadata"
+            );
             return Ok(None);
         };
         let Some(coverage_root) = group.coverage_root else {
-            debug_assert!(false, "claimed PCLF support group must retain its frozen coverage root");
+            debug_assert!(
+                false,
+                "claimed PCLF support group must retain its frozen coverage root"
+            );
             return Ok(None);
         };
         let source = template.with_coverage_root(coverage_root);
@@ -4988,10 +5248,7 @@ impl ProofOccurrenceStore {
             .copied()
     }
 
-    pub(super) fn next_derived_claim_depth(
-        &self,
-        parent_claim: UpperReplayClaimId,
-    ) -> u32 {
+    pub(super) fn next_derived_claim_depth(&self, parent_claim: UpperReplayClaimId) -> u32 {
         let parent_index = self.upper_claim_index[&parent_claim];
         self.upper_claims[parent_index]
             .full_lineage
@@ -5107,8 +5364,7 @@ impl ProofOccurrenceStore {
                 _ => {}
             }
         }
-        if let ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)) =
-            occurrence.result
+        if let ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)) = occurrence.result
         {
             self.row_derivation_occurrence_index
                 .entry(derivation)
@@ -5135,10 +5391,7 @@ impl ProofOccurrenceStore {
         Some(occurrence)
     }
 
-    fn row_derivation_occurrence(
-        &self,
-        derivation: RowDerivationId,
-    ) -> Option<&ProofOccurrence> {
+    fn row_derivation_occurrence(&self, derivation: RowDerivationId) -> Option<&ProofOccurrence> {
         let index = self
             .row_derivation_occurrence_index
             .get(&derivation)
@@ -5161,26 +5414,22 @@ impl ProofOccurrenceStore {
     ) -> bool {
         match carrier {
             ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => {
-                occurrence.result
-                    == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
+                occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(constraint))
                     && matches!(occurrence.cause, ProofCause::Root(candidate) if candidate == origin)
             }
             ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
-                occurrence.result
-                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
                     && matches!(&occurrence.cause, ProofCause::Structural(candidate) if *candidate == derivation)
             }
             ProjectionProofCarrier::RowConstraint { result, derivation } => {
-                occurrence.result
-                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
                     && matches!(occurrence.cause, ProofCause::RowConstraint(candidate) if candidate == derivation)
             }
             ProjectionProofCarrier::SchemeInstantiationConstraint {
                 result,
                 source_witness,
             } => {
-                occurrence.result
-                    == ProofResult::Semantic(SemanticFactRef::Constraint(result))
+                occurrence.result == ProofResult::Semantic(SemanticFactRef::Constraint(result))
                     && match &occurrence.cause {
                         ProofCause::SchemeInstantiationDerivation(derivation) => {
                             derivation.source_witness == source_witness
@@ -5311,9 +5560,7 @@ impl ProofOccurrenceStore {
             if let ProofResult::Semantic(SemanticFactRef::RowDerivation(derivation)) =
                 occurrence.result
             {
-                expected_row_derivations
-                    .entry(derivation)
-                    .or_insert(index);
+                expected_row_derivations.entry(derivation).or_insert(index);
             }
         }
         debug_assert_eq!(self.projection_carrier_occurrence_index, expected_carriers);
@@ -5327,8 +5574,7 @@ impl ProofOccurrenceStore {
                 .get(*index)
                 .expect("a projection carrier occurrence index must reference a raw occurrence");
             debug_assert!(Self::occurrence_matches_projection_carrier(
-                occurrence,
-                *carrier
+                occurrence, *carrier
             ));
         }
         for (derivation, index) in &self.row_derivation_occurrence_index {
@@ -5368,9 +5614,7 @@ impl ProofOccurrenceStore {
             distinct_clauses: self.projection_clause_keys.clone(),
             normalized_support_keys: self.projection_formula_support_keys.clone(),
             attributed_roots: self.projection_attributions.clone(),
-            flat_retained_attributed_roots: self
-                .flat_retained_projection_attributions
-                .clone(),
+            flat_retained_attributed_roots: self.flat_retained_projection_attributions.clone(),
         }
     }
 
@@ -5387,10 +5631,7 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     fn claimed_projection_proofs_from_audit_for_test(
         &self,
-    ) -> FxHashMap<
-        BoundRecordId,
-        FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>,
-    > {
+    ) -> FxHashMap<BoundRecordId, FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>> {
         let mut reconstructed = FxHashMap::<
             BoundRecordId,
             FxHashMap<ClaimedProjectionProofKey, UpperReplayClaimId>,
@@ -5442,10 +5683,7 @@ impl ProofOccurrenceStore {
         }
         let reconstructed = self.claimed_projection_proofs_from_audit_for_test();
         debug_assert!(
-            reconstructed
-                .values()
-                .map(FxHashMap::len)
-                .sum::<usize>()
+            reconstructed.values().map(FxHashMap::len).sum::<usize>()
                 <= self.projection_claimed_link_audit.len(),
             "normalized certificate count cannot exceed exact raw claimed-link count",
         );
@@ -5538,11 +5776,15 @@ impl ProofOccurrenceStore {
         record: BoundRecordId,
         producer: ConstraintRecordId,
     ) -> Option<UpperReplayClaimId> {
-        let claim = self.original_claim_by_record_and_producer
+        let claim = self
+            .original_claim_by_record_and_producer
             .get(&(record, producer))
             .copied();
         if let Some(claim) = claim {
-            debug_assert_eq!(self.root_claim_by_producer_constraint.get(&producer), Some(&claim));
+            debug_assert_eq!(
+                self.root_claim_by_producer_constraint.get(&producer),
+                Some(&claim)
+            );
         }
         claim
     }
@@ -5617,7 +5859,11 @@ impl ProofOccurrenceStore {
             }
         })?;
         Ok(prepare_original_upper_claim_admission(
-            UpperReplayClaimId(next), record, producer, kind, new_record_claims,
+            UpperReplayClaimId(next),
+            record,
+            producer,
+            kind,
+            new_record_claims,
         ))
     }
 
@@ -5632,19 +5878,22 @@ impl ProofOccurrenceStore {
         let index = self.upper_claims.len();
         self.upper_claims.push(claim.clone());
         assert!(self.upper_claim_index.insert(claim.claim, index).is_none());
-        assert!(self
-            .original_claim_by_record_and_producer
-            .insert((claim.current_record, claim.producer), claim.claim)
-            .is_none());
-        assert!(self
-            .root_claim_by_producer_constraint
-            .insert(claim.producer, claim.claim)
-            .is_none());
+        assert!(
+            self.original_claim_by_record_and_producer
+                .insert((claim.current_record, claim.producer), claim.claim)
+                .is_none()
+        );
+        assert!(
+            self.root_claim_by_producer_constraint
+                .insert(claim.producer, claim.claim)
+                .is_none()
+        );
         if let Some(claims) = admission.new_record_claims.take() {
-            assert!(self
-                .claims_by_upper_record
-                .insert(claim.current_record, claims)
-                .is_none());
+            assert!(
+                self.claims_by_upper_record
+                    .insert(claim.current_record, claims)
+                    .is_none()
+            );
         }
         self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
     }
@@ -5749,15 +5998,17 @@ impl ProofOccurrenceStore {
                 let index = self.upper_claims.len();
                 self.upper_claims.push(claim.clone());
                 assert!(self.upper_claim_index.insert(claim.claim, index).is_none());
-                assert!(self
-                    .derived_claim_by_record_and_root
-                    .insert((claim.current_record, claim.coverage_root), claim.claim)
-                    .is_none());
+                assert!(
+                    self.derived_claim_by_record_and_root
+                        .insert((claim.current_record, claim.coverage_root), claim.claim)
+                        .is_none()
+                );
                 if let Some(claims) = admission.new_record_claims.take() {
-                    assert!(self
-                        .claims_by_upper_record
-                        .insert(claim.current_record, claims)
-                        .is_none());
+                    assert!(
+                        self.claims_by_upper_record
+                            .insert(claim.current_record, claims)
+                            .is_none()
+                    );
                 }
                 self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
             }
@@ -5850,7 +6101,10 @@ impl ProofOccurrenceStore {
             return;
         }
         assert_eq!(self.upper_claims[index].producer, mutation.producer);
-        assert_eq!(self.upper_claims[index].coverage_root, mutation.coverage_root);
+        assert_eq!(
+            self.upper_claims[index].coverage_root,
+            mutation.coverage_root
+        );
         assert_eq!(self.upper_claims[index].full_lineage, mutation.full_lineage);
         if mutation.full_lineage == UpperClaimLineage::Original {
             assert_eq!(
@@ -5858,10 +6112,11 @@ impl ProofOccurrenceStore {
                     .remove(&(old_record, mutation.producer)),
                 Some(mutation.claim)
             );
-            assert!(self
-                .original_claim_by_record_and_producer
-                .insert((mutation.current_record, mutation.producer), mutation.claim)
-                .is_none());
+            assert!(
+                self.original_claim_by_record_and_producer
+                    .insert((mutation.current_record, mutation.producer), mutation.claim)
+                    .is_none()
+            );
             self.derived_claim_by_record_and_root
                 .remove(&(mutation.current_record, mutation.coverage_root));
         } else {
@@ -5870,19 +6125,19 @@ impl ProofOccurrenceStore {
                     .remove(&(old_record, mutation.coverage_root)),
                 Some(mutation.claim)
             );
-            self.derived_claim_by_record_and_root
-                .insert(
-                    (mutation.current_record, mutation.coverage_root),
-                    mutation.claim,
-                );
+            self.derived_claim_by_record_and_root.insert(
+                (mutation.current_record, mutation.coverage_root),
+                mutation.claim,
+            );
         }
         self.remove_claim_from_upper_record_index(old_record, mutation.claim);
         self.upper_claims[index].current_record = mutation.current_record;
         if let Some(claims) = mutation.new_record_claims.take() {
-            assert!(self
-                .claims_by_upper_record
-                .insert(mutation.current_record, claims)
-                .is_none());
+            assert!(
+                self.claims_by_upper_record
+                    .insert(mutation.current_record, claims)
+                    .is_none()
+            );
         }
         self.insert_claim_into_upper_record_index(mutation.current_record, mutation.claim);
     }
@@ -6024,8 +6279,8 @@ impl ProofOccurrenceStore {
         clause: RecordProofClause,
     ) -> ProjectionClauseMembership {
         let bucket = self.projection_formula_shadow.by_record.get(&lower_record);
-        let support_id = bucket
-            .and_then(|bucket| bucket.support_group_by_raw.get(&support).copied());
+        let support_id =
+            bucket.and_then(|bucket| bucket.support_group_by_raw.get(&support).copied());
         let entry_id = bucket.and_then(|bucket| bucket.entry_by_clause.get(&clause).copied());
         let exact_link_registered = match (bucket, support_id, entry_id) {
             (Some(bucket), Some(support_id), Some(entry_id)) => {
@@ -6072,11 +6327,13 @@ impl ProofOccurrenceStore {
             (
                 SchemeProjectionProofSupport::Claimed(_),
                 ProjectionIncidenceMetadata::Claimed(template),
-            ) => Some(template.with_coverage_root(
-                group
-                    .coverage_root
-                    .expect("claimed PCLF support group must retain its frozen root"),
-            )),
+            ) => Some(
+                template.with_coverage_root(
+                    group
+                        .coverage_root
+                        .expect("claimed PCLF support group must retain its frozen root"),
+                ),
+            ),
             (
                 SchemeProjectionProofSupport::Independent(_),
                 ProjectionIncidenceMetadata::Independent,
@@ -6136,9 +6393,7 @@ impl ProofOccurrenceStore {
     }
 
     #[cfg(test)]
-    fn projection_clause_membership_census_for_test(
-        &self,
-    ) -> ProjectionClauseMembershipCensus {
+    fn projection_clause_membership_census_for_test(&self) -> ProjectionClauseMembershipCensus {
         PROJECTION_CLAUSE_MEMBERSHIP_CENSUS.with(Cell::get)
     }
 
@@ -6166,20 +6421,16 @@ impl ProofOccurrenceStore {
             .filter_map(|(record, support, clause)| {
                 (*record == lower_record).then_some((*support, *clause))
             })
-            .chain(
-                self.projection_claimed_link_audit
-                    .keys()
-                    .filter_map(|(record, support, clause)| {
-                        (*record == lower_record).then_some((*support, *clause))
-                    }),
-            )
+            .chain(self.projection_claimed_link_audit.keys().filter_map(
+                |(record, support, clause)| {
+                    (*record == lower_record).then_some((*support, *clause))
+                },
+            ))
             .collect()
     }
 
     #[cfg(test)]
-    pub(super) fn projection_clause_storage_census_for_test(
-        &self,
-    ) -> (usize, usize, usize, usize) {
+    pub(super) fn projection_clause_storage_census_for_test(&self) -> (usize, usize, usize, usize) {
         (
             self.projection_clause_keys.len(),
             self.independent_projection_clause_link_keys.len()
@@ -6274,7 +6525,12 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     fn force_present_empty_projection_formula_for_test(&mut self, record: BoundRecordId) {
         assert!(!self.projection_formulas.contains_key(&record));
-        assert!(!self.projection_formula_shadow.by_record.contains_key(&record));
+        assert!(
+            !self
+                .projection_formula_shadow
+                .by_record
+                .contains_key(&record)
+        );
         self.projection_formulas.insert(record, Vec::new());
         self.projection_formula_support_keys
             .insert(record, FxHashSet::default());
@@ -6503,9 +6759,7 @@ impl ProofOccurrenceStore {
             left.0
                 .cmp(&right.0)
                 .then_with(|| projection_support_cmp(left.1, right.1))
-                .then_with(|| {
-                    canonical_projection_incidence_cmp(left.4, left.3, right.4, right.3)
-                })
+                .then_with(|| canonical_projection_incidence_cmp(left.4, left.3, right.4, right.3))
         });
         let mut cursor = 0;
         while cursor < pending_run_entries.len() {
@@ -6619,12 +6873,8 @@ impl ProofOccurrenceStore {
                 entry_ids.try_reserve(entries.len()).map_err(exhausted)?;
                 entry_ids.extend(entries.into_iter().map(|item| item.0));
                 delta.new_canonical_runs.push(
-                    CanonicalProjectionRun::from_sorted_entries(
-                        category,
-                        support_id,
-                        entry_ids,
-                    )
-                    .map_err(exhausted)?,
+                    CanonicalProjectionRun::from_sorted_entries(category, support_id, entry_ids)
+                        .map_err(exhausted)?,
                 );
             }
             cursor = end;
@@ -6790,9 +7040,7 @@ impl ProofOccurrenceStore {
                 for new_chunk in chunk_delta.new_chunks {
                     let root = run.chunk_root.take();
                     run.chunk_root = Some(CanonicalProjectionRun::insert_chunk_by(
-                        root,
-                        new_chunk,
-                        &compare,
+                        root, new_chunk, &compare,
                     ));
                 }
                 movement.merge_calls += 1;
@@ -6803,9 +7051,8 @@ impl ProofOccurrenceStore {
                 movement.merge_max_scanned_entries = movement
                     .merge_max_scanned_entries
                     .max(chunk_delta.scanned_existing);
-                movement.merge_scan_histogram[Self::projection_formula_movement_bucket(
-                    chunk_delta.scanned_existing,
-                )] += 1;
+                movement.merge_scan_histogram
+                    [Self::projection_formula_movement_bucket(chunk_delta.scanned_existing)] += 1;
                 movement.chunk_splits += output_count.saturating_sub(1) as u64;
             }
             bucket.canonical_runs[run_index].entry_len += delta_len;
@@ -6814,8 +7061,7 @@ impl ProofOccurrenceStore {
             for run in &delta.new_canonical_runs {
                 movement.run_delta_count += 1;
                 movement.run_delta_entries += run.entry_len as u64;
-                movement.run_delta_max_entries =
-                    movement.run_delta_max_entries.max(run.entry_len);
+                movement.run_delta_max_entries = movement.run_delta_max_entries.max(run.entry_len);
                 movement.run_delta_size_histogram
                     [Self::projection_formula_movement_bucket(run.entry_len)] += 1;
             }
@@ -6834,10 +7080,8 @@ impl ProofOccurrenceStore {
             while old_cursor > 0 && new_cursor > 0 {
                 let old_run = &bucket.canonical_runs[old_cursor - 1];
                 let new_run = &delta.new_canonical_runs[new_cursor - 1];
-                let old_support =
-                    bucket.support_groups[old_run.support_id.0 as usize].raw_support;
-                let new_support =
-                    bucket.support_groups[new_run.support_id.0 as usize].raw_support;
+                let old_support = bucket.support_groups[old_run.support_id.0 as usize].raw_support;
+                let new_support = bucket.support_groups[new_run.support_id.0 as usize].raw_support;
                 comparisons += 1;
                 let ordering = old_run
                     .category
@@ -6861,11 +7105,10 @@ impl ProofOccurrenceStore {
                 } else {
                     new_cursor -= 1;
                     moved += 1;
-                    bucket.canonical_runs[output_cursor] =
-                        std::mem::replace(
-                            &mut delta.new_canonical_runs[new_cursor],
-                            CanonicalProjectionRun::merge_placeholder(),
-                        );
+                    bucket.canonical_runs[output_cursor] = std::mem::replace(
+                        &mut delta.new_canonical_runs[new_cursor],
+                        CanonicalProjectionRun::merge_placeholder(),
+                    );
                 }
             }
             while new_cursor > 0 {
@@ -6882,8 +7125,8 @@ impl ProofOccurrenceStore {
             movement.descriptor_comparisons += comparisons as u64;
             movement.descriptor_moved += moved as u64;
             movement.descriptor_max_moved = movement.descriptor_max_moved.max(moved);
-            movement.descriptor_move_histogram
-                [Self::projection_formula_movement_bucket(moved)] += 1;
+            movement.descriptor_move_histogram[Self::projection_formula_movement_bucket(moved)] +=
+                1;
             delta.new_canonical_runs.clear();
         }
         for (support_id, match_key) in delta.support_match_key_promotions.drain(..) {
@@ -7049,9 +7292,11 @@ impl ProofOccurrenceStore {
                 );
                 continue;
             }
-            assert!(pending_link_sources
-                .insert(link_key, admission.claimed_proof_source)
-                .is_none());
+            assert!(
+                pending_link_sources
+                    .insert(link_key, admission.claimed_proof_source)
+                    .is_none()
+            );
             let clause_inserted =
                 !membership.clause_registered && pending_clause_keys.insert(clause_key);
             #[cfg(test)]
@@ -7064,10 +7309,7 @@ impl ProofOccurrenceStore {
                 admission,
                 clause_inserted,
             });
-            if matches!(
-                admission.support,
-                SchemeProjectionProofSupport::Claimed(_)
-            ) {
+            if matches!(admission.support, SchemeProjectionProofSupport::Claimed(_)) {
                 self.claimed_projection_proof(lower_record, admission)?
                     .expect("claimed admission produces exactly one reconstructible certificate");
                 #[cfg(test)]
@@ -7127,12 +7369,8 @@ impl ProofOccurrenceStore {
                     existing_formula_support_keys.map_or(0, FxHashSet::len) + accepted.len(),
                 )
                 .map_err(exhausted)?;
-            formula_support_keys.extend(
-                existing_formula_support_keys
-                    .into_iter()
-                    .flatten()
-                    .copied(),
-            );
+            formula_support_keys
+                .extend(existing_formula_support_keys.into_iter().flatten().copied());
             (canonical_formula, formula_support_keys)
         };
 
@@ -7226,10 +7464,11 @@ impl ProofOccurrenceStore {
                 }
             }
             for (key, source) in prepared.new_claimed_link_audit_entries.drain(..) {
-                assert!(self
-                    .projection_claimed_link_audit
-                    .insert(key, source)
-                    .is_none());
+                assert!(
+                    self.projection_claimed_link_audit
+                        .insert(key, source)
+                        .is_none()
+                );
             }
             for attribution in prepared.new_projection_attributions.drain(..) {
                 self.projection_attributions.insert(attribution);
@@ -7498,10 +7737,8 @@ impl ProofOccurrenceStore {
             .map(Vec::as_slice)
             .unwrap_or(&[]);
         let mut shared_upper_entries = None;
-        let mut shared_upper_variants: [
-            Option<(ReplayRouting, Option<PreparedReplayParentBlock>)>;
-            2
-        ] = [None, None];
+        let mut shared_upper_variants: [Option<(ReplayRouting, Option<PreparedReplayParentBlock>)>;
+            2] = [None, None];
         for lower in lowers {
             let (lower_endpoint, upper_endpoint) =
                 self.validate_replay_route_target(view, lower, upper)?;
@@ -7562,8 +7799,7 @@ impl ProofOccurrenceStore {
                         .pair_replay
                         .as_ref()
                         .map(|parents| parents.upper.clone());
-                    shared_upper_variants[variant_index] =
-                        Some((prepared.routing, upper_block));
+                    shared_upper_variants[variant_index] = Some((prepared.routing, upper_block));
                     prepared
                 }
             };
@@ -7724,7 +7960,7 @@ impl ProofOccurrenceStore {
             Some(PreparedReplayParentSet {
                 lower: lower_block,
                 upper: prepared_parent_block_from_entries(pair_upper_entries),
-                })
+            })
         } else {
             None
         };
@@ -7795,7 +8031,7 @@ impl ProofOccurrenceStore {
             entries.push(parent);
         }
         Ok(entries)
-        }
+    }
 
     fn resolve_prepared_replay_parent(
         &self,
@@ -7890,8 +8126,8 @@ impl ProofOccurrenceStore {
                 lower,
                 upper,
                 kind: ReplayRoutingInvariantViolation::IncrementalUpperMismatch,
-                });
-            }
+            });
+        }
         let Some(claim) = route.claim else {
             return Ok(());
         };
@@ -7903,8 +8139,8 @@ impl ProofOccurrenceStore {
                 lower,
                 upper,
                 kind: ReplayRoutingInvariantViolation::IncrementalClaimMismatch,
-                });
-            }
+            });
+        }
         let root = occurrence.coverage_root;
         let representative = upper_claims.binary_search_by(|candidate| {
             let Some(index) = self.upper_claim_index.get(candidate).copied() else {
@@ -7930,7 +8166,7 @@ impl ProofOccurrenceStore {
             Some(upper),
         )?;
         Ok(())
-        }
+    }
 
     fn validate_prepared_replay_route(
         &self,
@@ -8131,9 +8367,7 @@ impl ProofOccurrenceStore {
     /// linear scans so the red topology fixture can name the exact facts that later slices must
     /// carry transactionally. Production must never call this helper or adopt its scan shape.
     #[cfg(test)]
-    pub(super) fn gwcb0_claimed_replay_bridges_for_test(
-        &self,
-    ) -> Vec<Gwcb0ClaimedReplayBridge> {
+    pub(super) fn gwcb0_claimed_replay_bridges_for_test(&self) -> Vec<Gwcb0ClaimedReplayBridge> {
         let mut bridges = Vec::new();
         for (bound, clauses) in &self.projection_formulas {
             for clause in clauses {
@@ -8443,8 +8677,7 @@ impl<'a> ProjectionPreflight<'a> {
         }
 
         let supports = supports.expect("non-empty supports were classified above");
-        let formula_bucket =
-            formula_bucket.expect("non-empty clauses were classified above");
+        let formula_bucket = formula_bucket.expect("non-empty clauses were classified above");
         let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
         resolved.try_reserve_exact(supports.len()).map_err(|_| {
             ProofFailure::ResourceExhausted {
@@ -8498,9 +8731,7 @@ impl<'a> ProjectionPreflight<'a> {
         while let Some((support_id, entry_id)) = cursor.next() {
             let clause = formula_bucket.reconstructed_clause(support_id, entry_id);
             let clause_support = self.resolve_support(record, clause.support())?;
-            let Ok(index) = resolved
-                .binary_search_by(|support| support.cmp(clause_support))
-            else {
+            let Ok(index) = resolved.binary_search_by(|support| support.cmp(clause_support)) else {
                 return Err(ProofFailure::ProjectionInvariantViolation {
                     record,
                     kind: ProjectionInvariantViolation::OrphanFormula,
@@ -8717,8 +8948,7 @@ impl<'a> ProjectionPreflight<'a> {
                     .upper_claims
                     .iter()
                     .filter(|claim| {
-                        claim.producer == constraint
-                            && claim.lineage == ProjectionLineage::Original
+                        claim.producer == constraint && claim.lineage == ProjectionLineage::Original
                     })
                     .map(|claim| claim.claim)
                     .collect::<Vec<_>>();
@@ -8792,9 +9022,10 @@ impl<'a> ProjectionPreflight<'a> {
                 }
                 if self
                     .store
-                    .projection_carrier_occurrence(
-                        ProjectionProofCarrier::StructuralConstraint { result, derivation },
-                    )
+                    .projection_carrier_occurrence(ProjectionProofCarrier::StructuralConstraint {
+                        result,
+                        derivation,
+                    })
                     .is_none()
                 {
                     return Err(missing_carrier());
@@ -9048,10 +9279,7 @@ pub(super) struct CpkProjectionEvaluator<'a> {
 }
 
 impl<'a> CpkProjectionEvaluator<'a> {
-    pub(super) fn new(
-        view: &'a dyn SemanticFactView,
-        store: &'a ProofOccurrenceStore,
-    ) -> Self {
+    pub(super) fn new(view: &'a dyn SemanticFactView, store: &'a ProofOccurrenceStore) -> Self {
         Self {
             view,
             store,
@@ -9177,11 +9405,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
                     self.decisive_certificate_lookups += 1;
                 }
                 self.store
-                    .decisive_claimed_projection_proof_from_incidence(
-                        record,
-                        support_id,
-                        entry_id,
-                    )?
+                    .decisive_claimed_projection_proof_from_incidence(record, support_id, entry_id)?
                     .map(ProjectionEvidence::DecisiveClaimedArm)
                     .unwrap_or(ProjectionEvidence::FailOpenIncomplete)
             }
@@ -9353,9 +9577,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
     #[cfg(test)]
     fn eval_clause(&mut self, clause: ProjectionClause) -> CpkProjectionEvaluationSummary {
         match clause {
-            ProjectionClause::Standalone { support, .. } => {
-                self.support_evaluation(support)
-            }
+            ProjectionClause::Standalone { support, .. } => self.support_evaluation(support),
             ProjectionClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
             ProjectionClause::ReplayConjunction { lower, upper, .. } => {
                 let lower = self.eval_record_summary(lower);
@@ -9394,7 +9616,8 @@ impl<'a> CpkProjectionEvaluator<'a> {
             return memo.summary;
         }
         let result = self.eval_constraint_uncached(constraint);
-        self.finish(node, ProofEvalMemo::summary_only(result)).summary
+        self.finish(node, ProofEvalMemo::summary_only(result))
+            .summary
     }
 
     fn eval_constraint_uncached(
@@ -9416,16 +9639,10 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 return result;
             }
         }
-        let qualified_parents = self
-            .store
-            .qualified_parents_for_result(constraint)
-            .iter()
-            .map(|entry| entry.parent)
-            .collect::<Vec<_>>();
-        for parent in qualified_parents {
+        for item in self.store.qualified_parent_evaluation_items(constraint) {
             has_source = true;
-            let projectable = match parent {
-                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+            let projectable = match item {
+                QualifiedParentEvaluationItem::Replay(replay) => {
                     let lower = self.eval_record_summary(replay.lower);
                     if lower == CpkProjectionEvaluationSummary::Excluded {
                         CpkProjectionEvaluationSummary::Excluded
@@ -9442,12 +9659,15 @@ impl<'a> CpkProjectionEvaluator<'a> {
                         }
                     }
                 }
-                ClaimQualifiedParent::StructuralConstraint { derivation, .. } => {
-                    self.eval_constraint(derivation.parent)
-                }
-                ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. } => {
-                    self.eval_root_coverage(parent_claim)
-                }
+                QualifiedParentEvaluationItem::NonReplay(
+                    ClaimQualifiedParent::StructuralConstraint { derivation, .. },
+                ) => self.eval_constraint(derivation.parent),
+                QualifiedParentEvaluationItem::NonReplay(
+                    ClaimQualifiedParent::ReductionRouteConstraint { parent_claim, .. },
+                ) => self.eval_root_coverage(parent_claim),
+                QualifiedParentEvaluationItem::NonReplay(
+                    ClaimQualifiedParent::ReplayConstraint { .. },
+                ) => unreachable!("QORF non-replay store contains a replay parent"),
             };
             if projectable.is_included() {
                 return projectable;
@@ -9467,10 +9687,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
         }
     }
 
-    fn eval_root_coverage(
-        &self,
-        claim: UpperReplayClaimId,
-    ) -> CpkProjectionEvaluationSummary {
+    fn eval_root_coverage(&self, claim: UpperReplayClaimId) -> CpkProjectionEvaluationSummary {
         let Some(root) = self.store.claim_coverage_root(claim) else {
             debug_assert!(
                 false,
@@ -9525,11 +9742,7 @@ impl<'a> CpkProjectionEvaluator<'a> {
         }
     }
 
-    fn finish(
-        &mut self,
-        node: ProofEvalNode,
-        memo: ProofEvalMemo,
-    ) -> ProofEvalMemo {
+    fn finish(&mut self, node: ProofEvalNode, memo: ProofEvalMemo) -> ProofEvalMemo {
         self.states.insert(node, ProofEvalState::Done(memo));
         memo
     }
@@ -9575,7 +9788,11 @@ impl ProofOccurrenceStore {
         side: ReplayClaimParentSide,
         root: UpperReplayClaimId,
     ) -> bool {
-        let Some(index) = self.replay_finite_map_index.get(&(result, carrier)).copied() else {
+        let Some(index) = self
+            .replay_finite_map_index
+            .get(&(result, carrier))
+            .copied()
+        else {
             return false;
         };
         let occurrence = &self.replay_finite_map[index];
@@ -9906,8 +10123,7 @@ impl ProofOccurrenceStore {
                     new_replay_result_indices = Some(indices);
                 }
                 #[cfg(test)]
-                if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterReplayResultIndex)
-                {
+                if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterReplayResultIndex) {
                     return Err(ProofFailure::ResourceExhausted {
                         operation: ProofOperation::UpdateClaimLifecycle,
                     });
@@ -10163,9 +10379,9 @@ impl ProofOccurrenceStore {
                     &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
                 )
             };
-            recycled_arm_chunk = self
-                .replay_qualified_arms
-                .remove(edit.result, edit.occurrence, &cmp);
+            recycled_arm_chunk =
+                self.replay_qualified_arms
+                    .remove(edit.result, edit.occurrence, &cmp);
         }
         let is_new_occurrence = transaction.new_occurrence.is_some();
         let index = if let Some(occurrence) = transaction.new_occurrence.take() {
@@ -10226,14 +10442,13 @@ impl ProofOccurrenceStore {
                     &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
                 )
             };
-            self.replay_qualified_arms
-                .insert(
-                    edit.result,
-                    edit.occurrence,
-                    recycled_arm_chunk,
-                    edit.buffers,
-                    &cmp,
-                );
+            self.replay_qualified_arms.insert(
+                edit.result,
+                edit.occurrence,
+                recycled_arm_chunk,
+                edit.buffers,
+                &cmp,
+            );
         }
         for (key, witness) in transaction.new_first_witnesses.drain(..) {
             self.first_replay_witnesses.entry(key).or_insert(witness);
@@ -10589,7 +10804,10 @@ impl ProofOccurrenceStore {
     ) -> Result<PreparedLiveCoverageMutation, ProofFailure> {
         let transition = self.prepare_live_coverage_transition(root, state, active);
         let mut new_root_states = None;
-        if matches!(transition, PreparedLiveCoverageTransition::Changed { active: true, .. }) {
+        if matches!(
+            transition,
+            PreparedLiveCoverageTransition::Changed { active: true, .. }
+        ) {
             let exhausted = |_| ProofFailure::ResourceExhausted {
                 operation: ProofOperation::UpdateClaimLifecycle,
             };
@@ -10622,10 +10840,11 @@ impl ProofOccurrenceStore {
             Some(states),
         ) = (mutation.transition, mutation.new_root_states.take())
         {
-            assert!(self
-                .live_states_by_coverage_root
-                .insert(root, states)
-                .is_none());
+            assert!(
+                self.live_states_by_coverage_root
+                    .insert(root, states)
+                    .is_none()
+            );
         }
         self.record_prepared_live_coverage(mutation.transition);
     }
@@ -10784,8 +11003,7 @@ impl ProofOccurrenceStore {
         }
 
         #[cfg(test)]
-        if !accepted.is_empty()
-            && std::mem::take(&mut self.fail_next_qualified_parent_reservation)
+        if !accepted.is_empty() && std::mem::take(&mut self.fail_next_qualified_parent_reservation)
         {
             return Err(ProofFailure::ResourceExhausted {
                 operation: ProofOperation::UpdateClaimLifecycle,
@@ -10818,9 +11036,7 @@ impl ProofOccurrenceStore {
                 Some(entries)
             };
         let mut canonical = Vec::new();
-        canonical
-            .try_reserve(accepted.len())
-            .map_err(exhausted)?;
+        canonical.try_reserve(accepted.len()).map_err(exhausted)?;
         canonical.extend_from_slice(&accepted);
         canonical.sort_unstable_by(qualified_parent_entry_cmp);
         let mut new_non_replay_parents = Vec::new();
@@ -10930,10 +11146,11 @@ impl ProofOccurrenceStore {
             return;
         }
         if let Some(entries) = admission.new_result_entries.take() {
-            assert!(self
-                .qualified_parents_by_result
-                .insert(admission.result, entries)
-                .is_none());
+            assert!(
+                self.qualified_parents_by_result
+                    .insert(admission.result, entries)
+                    .is_none()
+            );
         }
         for &entry in &admission.accepted {
             let identity = match entry.parent {
@@ -10963,10 +11180,11 @@ impl ProofOccurrenceStore {
             }));
         }
         for (key, source) in admission.new_first_sources.drain(..) {
-            assert!(self
-                .first_qualified_parent_source_by_root
-                .insert(key, source)
-                .is_none());
+            assert!(
+                self.first_qualified_parent_source_by_root
+                    .insert(key, source)
+                    .is_none()
+            );
         }
         self.non_replay_qualified_parents
             .entries
@@ -11017,9 +11235,81 @@ impl ProofOccurrenceStore {
         self.qualified_parents_for_result(result).len()
     }
 
-    fn try_exact_qualified_parents(
+    pub(super) fn qualified_parent_evaluation_items(
         &self,
         result: ConstraintRecordId,
+    ) -> impl Iterator<Item = QualifiedParentEvaluationItem> + '_ {
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.evaluation_calls += 1;
+            cell.set(census);
+        });
+        let non_replay_ids = self
+            .non_replay_qualified_parents
+            .by_result
+            .get(&result)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        QualifiedParentEvaluationCursor {
+            store: self,
+            replay: self.replay_qualified_arms.cursor(result),
+            replay_head: None,
+            non_replay_ids,
+            non_replay_index: 0,
+        }
+    }
+
+    pub(super) fn canonical_qualified_parents_by_root(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = ExactQualifiedParent> + '_ {
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.root_winner_calls += 1;
+            cell.set(census);
+        });
+        CanonicalQualifiedParentByRootCursor {
+            store: self,
+            result,
+            entries: self.canonical_qualified_parent_by_root.cursor(result),
+        }
+    }
+
+    pub(super) fn non_replay_qualified_parent_values_for_result(
+        &self,
+        result: ConstraintRecordId,
+    ) -> impl Iterator<Item = ClaimQualifiedParent> + '_ {
+        self.non_replay_qualified_parents
+            .by_result
+            .get(&result)
+            .into_iter()
+            .flatten()
+            .map(|id| self.non_replay_qualified_parents.entries[id.0 as usize].parent)
+    }
+
+    pub(super) fn try_exact_qualified_parents(
+        &self,
+        result: ConstraintRecordId,
+    ) -> ProofKernelResult<QorfExactQualifiedParentCursor<'_>> {
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.exact_cursor_calls += 1;
+            cell.set(census);
+        });
+        self.try_exact_qualified_parents_with_census(
+            result,
+            #[cfg(test)]
+            true,
+        )
+    }
+
+    fn try_exact_qualified_parents_with_census(
+        &self,
+        result: ConstraintRecordId,
+        #[cfg(test)] count_as_exact_query: bool,
     ) -> ProofKernelResult<QorfExactQualifiedParentCursor<'_>> {
         let exhausted = |_| ProofFailure::ResourceExhausted {
             operation: ProofOperation::UpdateClaimLifecycle,
@@ -11091,15 +11381,30 @@ impl ProofOccurrenceStore {
                 .expect("QORF exact cursor sources must be nonempty");
             frontier.push(QorfExactQualifiedParentHeapEntry { parent, source });
         }
-        Ok(QorfExactQualifiedParentCursor { sources, frontier })
+        Ok(QorfExactQualifiedParentCursor {
+            sources,
+            frontier,
+            #[cfg(test)]
+            count_as_exact_query,
+        })
     }
 
-    fn try_replay_clause_link_associations(
+    pub(super) fn try_replay_clause_link_associations(
         &self,
         result: ConstraintRecordId,
     ) -> ProofKernelResult<QorfClauseLinkAssociationCursor<'_>> {
+        #[cfg(test)]
+        QORF_D1_READ_CENSUS.with(|cell| {
+            let mut census = cell.get();
+            census.association_cursor_calls += 1;
+            cell.set(census);
+        });
         Ok(QorfClauseLinkAssociationCursor {
-            exact: self.try_exact_qualified_parents(result)?,
+            exact: self.try_exact_qualified_parents_with_census(
+                result,
+                #[cfg(test)]
+                false,
+            )?,
             previous: None,
         })
     }
@@ -11190,17 +11495,27 @@ impl ProofOccurrenceStore {
         }
 
         let mut expected_arms = Vec::new();
+        let mut expected_evaluation = Vec::new();
         let mut seen = FxHashSet::default();
         for entry in legacy {
-            let ClaimQualifiedParent::ReplayConstraint { replay, .. } = entry.parent else {
-                continue;
-            };
-            let occurrence = self.replay_finite_map_index[&(result, replay)];
-            if seen.insert(occurrence) {
-                expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+            match entry.parent {
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                    let occurrence = self.replay_finite_map_index[&(result, replay)];
+                    if seen.insert(occurrence) {
+                        expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+                        expected_evaluation.push(QualifiedParentEvaluationItem::Replay(replay));
+                    }
+                }
+                parent => {
+                    expected_evaluation.push(QualifiedParentEvaluationItem::NonReplay(parent));
+                }
             }
         }
         assert_eq!(self.replay_qualified_arms.flatten(result), expected_arms);
+        assert!(
+            self.qualified_parent_evaluation_items(result)
+                .eq(expected_evaluation)
+        );
 
         let mut expected_winners = Vec::new();
         let mut previous_root = None;
@@ -11284,6 +11599,7 @@ impl ProofOccurrenceStore {
             qualified_replay_keys: 0,
             replay_arms: 0,
             root_winners: 0,
+            evaluation_items: 0,
             d0_projection_census: QorfD0ProjectionAllocationCensus::default(),
         };
         let mut expected_side = Vec::new();
@@ -11301,9 +11617,11 @@ impl ProofOccurrenceStore {
                     .expect("QORF-C full-std parity side scratch allocation");
                 expected_side.extend_from_slice(legacy);
                 expected_side.sort_unstable_by_key(|entry| entry.coverage_root);
-                assert!(expected_side
-                    .windows(2)
-                    .all(|pair| pair[0].coverage_root < pair[1].coverage_root));
+                assert!(
+                    expected_side
+                        .windows(2)
+                        .all(|pair| pair[0].coverage_root < pair[1].coverage_root)
+                );
                 assert!(
                     self.replay_parents_for_occurrence_side(occurrence, side)
                         .eq(expected_side.iter().copied()),
@@ -11380,6 +11698,7 @@ impl ProofOccurrenceStore {
                 );
             }
             let mut expected_arms = Vec::new();
+            let mut expected_evaluation = Vec::new();
             let mut seen_occurrences = FxHashSet::default();
             let mut expected_winners = Vec::new();
             let mut previous_root = None;
@@ -11388,17 +11707,27 @@ impl ProofOccurrenceStore {
                     previous_root = Some(parent.coverage_root);
                     expected_winners.push(parent);
                 }
-                let ClaimQualifiedParent::ReplayConstraint { replay, .. } = parent.parent else {
-                    continue;
-                };
-                let occurrence = self.replay_finite_map_index[&(result, replay)];
-                if seen_occurrences.insert(occurrence) {
-                    expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+                match parent.parent {
+                    ClaimQualifiedParent::ReplayConstraint { replay, .. } => {
+                        let occurrence = self.replay_finite_map_index[&(result, replay)];
+                        if seen_occurrences.insert(occurrence) {
+                            expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+                            expected_evaluation.push(QualifiedParentEvaluationItem::Replay(replay));
+                        }
+                    }
+                    parent => {
+                        expected_evaluation.push(QualifiedParentEvaluationItem::NonReplay(parent))
+                    }
                 }
             }
             let actual_arms = self.replay_qualified_arms.flatten(result);
             assert_eq!(actual_arms, expected_arms);
             report.replay_arms += actual_arms.len();
+            assert!(
+                self.qualified_parent_evaluation_items(result)
+                    .eq(expected_evaluation.iter().copied())
+            );
+            report.evaluation_items += expected_evaluation.len();
             let actual_winners = self
                 .canonical_qualified_parent_by_root
                 .flatten(result)
@@ -11515,28 +11844,32 @@ impl ProofOccurrenceStore {
         result: ConstraintRecordId,
         carrier: ProjectionProofCarrier,
     ) -> bool {
-        self.qualified_parent_values_for_result(result)
-            .any(|parent| match (parent, carrier) {
-                (
-                    ClaimQualifiedParent::ReplayConstraint { replay, .. },
-                    ProjectionProofCarrier::ReplayConstraint { derivation, .. },
-                ) => replay == derivation,
-                (
-                    ClaimQualifiedParent::StructuralConstraint { derivation, .. },
-                    ProjectionProofCarrier::StructuralConstraint {
-                        derivation: candidate,
-                        ..
-                    },
-                ) => derivation == candidate,
-                (
-                    ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. },
-                    ProjectionProofCarrier::RowConstraint {
-                        derivation: candidate,
-                        ..
-                    },
-                ) => derivation == candidate,
-                _ => false,
-            })
+        match carrier {
+            ProjectionProofCarrier::ReplayConstraint { derivation, .. } => self
+                .replay_finite_map_index
+                .contains_key(&(result, derivation)),
+            ProjectionProofCarrier::StructuralConstraint {
+                derivation: candidate,
+                ..
+            } => self
+                .non_replay_qualified_parent_values_for_result(result)
+                .any(|parent| {
+                    matches!(parent,
+                    ClaimQualifiedParent::StructuralConstraint { derivation, .. }
+                        if derivation == candidate)
+                }),
+            ProjectionProofCarrier::RowConstraint {
+                derivation: candidate,
+                ..
+            } => self
+                .non_replay_qualified_parent_values_for_result(result)
+                .any(|parent| {
+                    matches!(parent,
+                    ClaimQualifiedParent::ReductionRouteConstraint { derivation, .. }
+                        if derivation == candidate)
+                }),
+            _ => false,
+        }
     }
 
     #[cfg(test)]
@@ -11622,7 +11955,10 @@ impl ProofOccurrenceStore {
                 }
             };
             if let Some(existing) = existing {
-                assert_eq!(existing, record, "one projection target mapped to two lower records");
+                assert_eq!(
+                    existing, record,
+                    "one projection target mapped to two lower records"
+                );
                 None
             } else {
                 Some((target, record))
@@ -11669,7 +12005,9 @@ impl ProofOccurrenceStore {
         pending.extend(constraint_targets);
 
         let mut accepted_edges = Vec::new();
-        accepted_edges.try_reserve(pending.len()).map_err(exhausted)?;
+        accepted_edges
+            .try_reserve(pending.len())
+            .map_err(exhausted)?;
         for edge @ (premise, dependent) in pending {
             if self
                 .dependent_records_by_premise
@@ -11702,7 +12040,9 @@ impl ProofOccurrenceStore {
         }
 
         let mut counts = FxHashMap::default();
-        counts.try_reserve(accepted_edges.len()).map_err(exhausted)?;
+        counts
+            .try_reserve(accepted_edges.len())
+            .map_err(exhausted)?;
         for (premise, _) in &accepted_edges {
             *counts.entry(*premise).or_insert(0usize) += 1;
         }
@@ -11710,7 +12050,9 @@ impl ProofOccurrenceStore {
             .try_reserve(counts.len())
             .map_err(exhausted)?;
         let mut new_dependent_sets = Vec::new();
-        new_dependent_sets.try_reserve(counts.len()).map_err(exhausted)?;
+        new_dependent_sets
+            .try_reserve(counts.len())
+            .map_err(exhausted)?;
         for (premise, count) in counts {
             if let Some(dependents) = self.dependent_records_by_premise.get_mut(&premise) {
                 dependents.try_reserve(count).map_err(exhausted)?;
@@ -11736,24 +12078,26 @@ impl ProofOccurrenceStore {
                 ProjectionTarget::Constraint(constraint) => self
                     .projection_lower_record_by_constraint
                     .insert(constraint, record),
-                ProjectionTarget::Replay(replay) => {
-                    self.projection_lower_record_by_replay.insert(replay, record)
-                }
+                ProjectionTarget::Replay(replay) => self
+                    .projection_lower_record_by_replay
+                    .insert(replay, record),
             };
             assert!(previous.is_none());
         }
         for (premise, dependents) in admission.new_dependent_sets.drain(..) {
-            assert!(self
-                .dependent_records_by_premise
-                .insert(premise, dependents)
-                .is_none());
+            assert!(
+                self.dependent_records_by_premise
+                    .insert(premise, dependents)
+                    .is_none()
+            );
         }
         for (premise, dependent) in admission.accepted_edges.iter().copied() {
-            assert!(self
-                .dependent_records_by_premise
-                .get_mut(&premise)
-                .expect("dependency index capacity was prepared before commit")
-                .insert(dependent));
+            assert!(
+                self.dependent_records_by_premise
+                    .get_mut(&premise)
+                    .expect("dependency index capacity was prepared before commit")
+                    .insert(dependent)
+            );
         }
     }
 
@@ -11829,10 +12173,7 @@ impl ProofOccurrenceStore {
             .unwrap_or_default()
     }
 
-    pub(super) fn projection_owners(
-        &self,
-        view: &impl SemanticFactView,
-    ) -> FxHashSet<TypeVar> {
+    pub(super) fn projection_owners(&self, view: &impl SemanticFactView) -> FxHashSet<TypeVar> {
         self.projection_supports
             .keys()
             .filter_map(|record| view.bound(*record).map(SemanticBoundRecordRef::owner))
@@ -11843,13 +12184,16 @@ impl ProofOccurrenceStore {
         &self,
         record: BoundRecordId,
     ) -> ProjectionFormulaRecordCursor<'_> {
-        self.projection_formula_shadow.by_record.get(&record).map_or(
-            ProjectionFormulaRecordCursor {
-                cursor: None,
-                empty: true,
-            },
-            ProjectionFormulaBucket::canonical_clause_cursor,
-        )
+        self.projection_formula_shadow
+            .by_record
+            .get(&record)
+            .map_or(
+                ProjectionFormulaRecordCursor {
+                    cursor: None,
+                    empty: true,
+                },
+                ProjectionFormulaBucket::canonical_clause_cursor,
+            )
     }
 
     #[cfg(test)]
@@ -11988,12 +12332,16 @@ fn merge_qualified_parent_entries(
     // canonical runs backward so unread existing entries are never overwritten and commit needs
     // neither another allocation nor a full-bucket re-sort.
     debug_assert!(entries.capacity() - entries.len() >= incoming.len());
-    debug_assert!(entries
-        .windows(2)
-        .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
-    debug_assert!(incoming
-        .windows(2)
-        .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
+    debug_assert!(
+        entries
+            .windows(2)
+            .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt())
+    );
+    debug_assert!(
+        incoming
+            .windows(2)
+            .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt())
+    );
     if incoming.is_empty() {
         return;
     }
@@ -12115,11 +12463,7 @@ fn bound_derivation_parents(derivation: &BoundDerivation) -> Vec<ProofParent> {
 }
 
 impl ProofOccurrenceStore {
-    pub(crate) fn record_constraint_root(
-        &mut self,
-        result: ConstraintRecordId,
-        origin: OriginId,
-    ) {
+    pub(crate) fn record_constraint_root(&mut self, result: ConstraintRecordId, origin: OriginId) {
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::Root(origin),
@@ -12143,11 +12487,7 @@ impl ProofOccurrenceStore {
         );
     }
 
-    pub(crate) fn record_row_definition(
-        &mut self,
-        id: RowDerivationId,
-        derivation: RowDerivation,
-    ) {
+    pub(crate) fn record_row_definition(&mut self, id: RowDerivationId, derivation: RowDerivation) {
         let parents = derivation.parents.iter().copied().map(row_parent).collect();
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::RowDerivation(id)),
@@ -12574,7 +12914,6 @@ mod tests {
         }
     }
 
-
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     enum Gwcb0NormalizedClause {
         Standalone {
@@ -12650,7 +12989,10 @@ mod tests {
     fn gwcb0_test_writer_with_explicit_metadata(
         admission: RecordProofClauseLinkAdmission,
         metadata: Gwcb0WriterCertificateMetadata,
-    ) -> (RecordProofClauseLinkAdmission, Gwcb0WriterCertificateMetadata) {
+    ) -> (
+        RecordProofClauseLinkAdmission,
+        Gwcb0WriterCertificateMetadata,
+    ) {
         match (admission.clause, metadata) {
             (
                 RecordProofClause::Standalone { .. },
@@ -12659,14 +13001,17 @@ mod tests {
             | (
                 RecordProofClause::ReplayConjunction { .. },
                 Gwcb0WriterCertificateMetadata::ReplayConstraint { .. }
-                    | Gwcb0WriterCertificateMetadata::ReplayEvidence,
+                | Gwcb0WriterCertificateMetadata::ReplayEvidence,
             ) => {}
             (
                 RecordProofClause::DerivedUnary { premise, .. },
                 Gwcb0WriterCertificateMetadata::DerivedUnary {
                     premise: supplied, ..
                 },
-            ) => assert_eq!(premise, supplied, "test metadata must be supplied, not inferred"),
+            ) => assert_eq!(
+                premise, supplied,
+                "test metadata must be supplied, not inferred"
+            ),
             pair => panic!("clause/metadata mismatch in GWCB-0 test writer: {pair:?}"),
         }
         (admission, metadata)
@@ -12745,11 +13090,8 @@ mod tests {
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             )
             .id;
-        let registration = machine.original_upper_replay_claim(
-            record,
-            ConstraintRecordId(90_000 + ordinal),
-            kind,
-        );
+        let registration =
+            machine.original_upper_replay_claim(record, ConstraintRecordId(90_000 + ordinal), kind);
         (record, registration.claim)
     }
 
@@ -12791,9 +13133,7 @@ mod tests {
             }],
         );
         assert_eq!(
-            machine
-                .proof_store
-                .performance_index_allocation_census(),
+            machine.proof_store.performance_index_allocation_census(),
             indexes_before_duplicate,
             "an exact replay-parent duplicate must not grow either result-bucket index",
         );
@@ -13006,10 +13346,8 @@ mod tests {
                 );
                 assert_eq!(
                     store.projection_clause_is_registered(record, admission.clause),
-                    store.legacy_projection_clause_is_registered_for_test(
-                        record,
-                        admission.clause,
-                    ),
+                    store
+                        .legacy_projection_clause_is_registered_for_test(record, admission.clause,),
                 );
             }
             store.debug_assert_pclf_a_read_model_matches_legacy();
@@ -13142,10 +13480,7 @@ mod tests {
             );
             assert_eq!(
                 store.projection_clause_is_registered(record, admission.clause),
-                store.legacy_projection_clause_is_registered_for_test(
-                    record,
-                    admission.clause,
-                ),
+                store.legacy_projection_clause_is_registered_for_test(record, admission.clause,),
             );
         }
         assert_eq!(store.projection_formulas[&record].len(), 4);
@@ -13171,9 +13506,11 @@ mod tests {
 
         store.reset_projection_clause_membership_census_for_test();
         for _ in 0..QUERIES {
-            let membership = std::hint::black_box(
-                store.projection_clause_membership(record, target_support, clause),
-            );
+            let membership = std::hint::black_box(store.projection_clause_membership(
+                record,
+                target_support,
+                clause,
+            ));
             assert!(membership.exact_link_registered);
             assert!(membership.clause_registered);
         }
@@ -13194,9 +13531,7 @@ mod tests {
     fn pclf_a_canonical_read_model_preserves_category_and_suffix_order() {
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_140);
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         let replay = BinaryReplayDerivation {
             pivot: TypeVar(97_141),
             lower: BoundRecordId(97_142),
@@ -13269,9 +13604,7 @@ mod tests {
     fn pclf_d1_evaluator_items_match_legacy_clauses_in_canonical_order() {
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_168);
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         let replay = BinaryReplayDerivation {
             pivot: TypeVar(97_169),
             lower: BoundRecordId(97_170),
@@ -13343,9 +13676,9 @@ mod tests {
         const LINKS: u32 = 1_800;
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_170);
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Origin(OriginId(97_171)),
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(97_171),
+        ));
         for ordinal in (0..LINKS).rev() {
             let parent = ConstraintRecordId(100_000 + ordinal);
             store.record_projection_clause(
@@ -13368,7 +13701,10 @@ mod tests {
         assert_eq!(bucket.canonical_runs[0].entry_len, LINKS as usize);
         assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
         assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
-        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+        assert_eq!(
+            bucket.canonical_clauses(),
+            store.projection_formulas[&record]
+        );
         let movement = store.projection_formula_shadow.movement;
         assert_eq!(movement.merge_calls, u64::from(LINKS - 1));
         assert_eq!(movement.merge_comparisons, 2 * u64::from(LINKS - 1));
@@ -13386,9 +13722,9 @@ mod tests {
     fn pclf_d0_full_chunk_middle_singleton_reuses_endpoint_scans() {
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_172);
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Origin(OriginId(97_173)),
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(97_173),
+        ));
         let admission = |parent: ConstraintRecordId| {
             RecordProofClauseLinkAdmission::independent(
                 support,
@@ -13412,7 +13748,10 @@ mod tests {
         let bucket = &store.projection_formula_shadow.by_record[&record];
         assert_eq!(bucket.canonical_runs.len(), 1);
         assert_eq!(bucket.canonical_runs[0].chunk_count(), 1);
-        assert_eq!(bucket.canonical_runs[0].entry_len, PROJECTION_RUN_CHUNK_CAPACITY);
+        assert_eq!(
+            bucket.canonical_runs[0].entry_len,
+            PROJECTION_RUN_CHUNK_CAPACITY
+        );
 
         let before = store.projection_formula_shadow.movement;
         store.record_projection_clause(record, admission(ConstraintRecordId(200_001)));
@@ -13429,7 +13768,10 @@ mod tests {
         );
         assert_eq!(after.chunk_splits - before.chunk_splits, 1);
         let bucket = &store.projection_formula_shadow.by_record[&record];
-        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+        assert_eq!(
+            bucket.canonical_clauses(),
+            store.projection_formulas[&record]
+        );
         assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
         assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
     }
@@ -13703,15 +14045,11 @@ mod tests {
     #[test]
     fn cpk_projection_formula_support_keys_match_linear_formula_scan() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        let replacement = add_same_root_replay_claim(
-            &mut fixture,
-            TypeVar(97_110),
-            ConstraintRecordId(97_111),
-        );
+        let replacement =
+            add_same_root_replay_claim(&mut fixture, TypeVar(97_110), ConstraintRecordId(97_111));
         let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_112);
-        let independent = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let independent =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         for admission in [
             RecordProofClauseLinkAdmission::claimed(
                 fixture.coverage_root,
@@ -13783,9 +14121,7 @@ mod tests {
             .debug_assert_pclf_a_read_model_matches_legacy();
         let keys = &fixture.machine.proof_store.projection_formula_support_keys[&record];
         assert_eq!(keys.len(), 2, "same-root representatives share one key");
-        assert!(keys.contains(&ProjectionSupportMatchKey::Claimed(
-            fixture.coverage_root
-        )));
+        assert!(keys.contains(&ProjectionSupportMatchKey::Claimed(fixture.coverage_root)));
         assert!(keys.contains(&ProjectionSupportMatchKey::Independent(
             ProjectionProofCarrier::Incomplete
         )));
@@ -13794,11 +14130,8 @@ mod tests {
     #[test]
     fn gwcb_a_claimed_audit_reconstruction_is_insertion_order_invariant() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        let replacement = add_same_root_replay_claim(
-            &mut fixture,
-            TypeVar(97_113),
-            ConstraintRecordId(97_114),
-        );
+        let replacement =
+            add_same_root_replay_claim(&mut fixture, TypeVar(97_113), ConstraintRecordId(97_114));
         let record = BoundRecordId(97_115);
         let root = fixture.coverage_root;
         let source = ClaimedProjectionProofSource::Original {
@@ -13836,17 +14169,18 @@ mod tests {
                 2,
                 "both exact raw representative links remain auditable",
             );
-            assert_eq!(bucket.len(), 1, "same-root raw links share one semantic key");
+            assert_eq!(
+                bucket.len(),
+                1,
+                "same-root raw links share one semantic key"
+            );
             assert_eq!(
                 *bucket.values().next().unwrap(),
                 root.min(replacement),
                 "the audit representative is canonical rather than admission-order dependent",
             );
             let decisive = store
-                .decisive_claimed_projection_proof(
-                    record,
-                    store.projection_formulas[&record][0],
-                )
+                .decisive_claimed_projection_proof(record, store.projection_formulas[&record][0])
                 .expect("the canonical raw clause must reconstruct without a scan")
                 .expect("the canonical raw clause is claimed");
             assert_eq!(
@@ -13863,9 +14197,7 @@ mod tests {
     fn gwcb_a_certificate_allocation_is_zero_for_independent_and_exact_duplicate_links() {
         let mut independent_store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_116);
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         let before = independent_store.performance_index_allocation_census();
         independent_store.record_projection_clause(
             record,
@@ -13879,7 +14211,10 @@ mod tests {
             independent_store.projection_formulas.contains_key(&record),
             "the independent-only admission must be accepted before its claimed-link allocation is assessed",
         );
-        assert_eq!(after.claimed_projection_audit, before.claimed_projection_audit);
+        assert_eq!(
+            after.claimed_projection_audit,
+            before.claimed_projection_audit
+        );
         independent_store.debug_assert_pclf_a_read_model_matches_legacy();
 
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
@@ -13954,7 +14289,10 @@ mod tests {
                 .try_prepare_projection_clause_admission(record, &[admission]),
             Err(ProofFailure::ResourceExhausted { .. })
         ));
-        assert_eq!(fixture.machine.proof_store.projection_formulas, before.projection_formulas);
+        assert_eq!(
+            fixture.machine.proof_store.projection_formulas,
+            before.projection_formulas
+        );
         assert_eq!(
             fixture.machine.proof_store.projection_claimed_link_audit,
             before.projection_claimed_link_audit,
@@ -13971,7 +14309,10 @@ mod tests {
             .machine
             .proof_store
             .debug_assert_pclf_a_read_model_matches_legacy();
-        assert_eq!(fixture.machine.proof_store.projection_formulas[&record].len(), 1);
+        assert_eq!(
+            fixture.machine.proof_store.projection_formulas[&record].len(),
+            1
+        );
         assert_eq!(
             fixture
                 .machine
@@ -14209,7 +14550,11 @@ mod tests {
         else {
             panic!("the packed memo must retain the exact decisive PCLF incidence");
         };
-        let bucket = &fixture.machine.proof_store.projection_formula_shadow.by_record[&record];
+        let bucket = &fixture
+            .machine
+            .proof_store
+            .projection_formula_shadow
+            .by_record[&record];
         assert!(matches!(
             bucket.exact_links[&(support_id, entry_id)],
             ProjectionIncidenceMetadata::Claimed(_),
@@ -14254,9 +14599,7 @@ mod tests {
         fixture.machine.apply_scheme_projection_mutation(mutation);
 
         let mismatched_clause = RecordProofClause::Standalone {
-            support: SchemeProjectionProofSupport::Independent(
-                ProjectionProofCarrier::Incomplete,
-            ),
+            support: SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete),
         };
         let legacy_matching_clause = RecordProofClause::Standalone {
             support: outer_support,
@@ -14309,10 +14652,13 @@ mod tests {
         else {
             panic!("the packed memo must retain legacy's decisive incidence");
         };
-        let bucket = &fixture.machine.proof_store.projection_formula_shadow.by_record[&record];
+        let bucket = &fixture
+            .machine
+            .proof_store
+            .projection_formula_shadow
+            .by_record[&record];
         assert_eq!(
-            entry_id,
-            bucket.entry_by_clause[&legacy_matching_clause],
+            entry_id, bucket.entry_by_clause[&legacy_matching_clause],
             "legacy resolves the collapsed Standalone clause through the embedded-outer audit identity",
         );
         assert!(bucket.exact_links.contains_key(&(support_id, entry_id)));
@@ -14322,9 +14668,8 @@ mod tests {
     fn pclf_d1_standalone_ties_split_chunks_without_equal_pivots() {
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_177);
-        let outer_support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let outer_support =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         let admission = |ordinal: u32| {
             RecordProofClauseLinkAdmission::independent(
                 outer_support,
@@ -14343,17 +14688,17 @@ mod tests {
             .expect("tied standalone initial reservation")
             .expect("tied standalone initial admission");
         store.commit_projection_clause_admission(&mut prepared);
-        store.record_projection_clause(
-            record,
-            admission(PROJECTION_RUN_CHUNK_CAPACITY as u32),
-        );
+        store.record_projection_clause(record, admission(PROJECTION_RUN_CHUNK_CAPACITY as u32));
 
         let bucket = &store.projection_formula_shadow.by_record[&record];
         assert_eq!(bucket.canonical_runs.len(), 1);
         assert_eq!(bucket.canonical_runs[0].entry_len, 129);
         assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
         assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
-        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+        assert_eq!(
+            bucket.canonical_clauses(),
+            store.projection_formulas[&record]
+        );
     }
 
     #[test]
@@ -14381,13 +14726,15 @@ mod tests {
                 entry_id,
             },
         );
-        assert!(std::panic::catch_unwind(|| {
-            ProofEvalEvidenceMemo::decisive_claimed_incidence(
-                ProjectionSupportGroupId(u32::MAX),
-                entry_id,
-            )
-        })
-        .is_err());
+        assert!(
+            std::panic::catch_unwind(|| {
+                ProofEvalEvidenceMemo::decisive_claimed_incidence(
+                    ProjectionSupportGroupId(u32::MAX),
+                    entry_id,
+                )
+            })
+            .is_err()
+        );
         assert_eq!(
             try_projection_support_group_id(u32::MAX as usize - 1),
             Ok(ProjectionSupportGroupId(u32::MAX - 1)),
@@ -14403,11 +14750,8 @@ mod tests {
     #[test]
     fn gwcb_0_raw_claimed_links_map_totally_to_distinct_normalized_keys() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        let replacement = add_same_root_replay_claim(
-            &mut fixture,
-            TypeVar(97_120),
-            ConstraintRecordId(97_121),
-        );
+        let replacement =
+            add_same_root_replay_claim(&mut fixture, TypeVar(97_120), ConstraintRecordId(97_121));
         let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_122);
         for claim in [fixture.coverage_root, replacement] {
             fixture.machine.proof_store.record_projection_clause(
@@ -14445,7 +14789,11 @@ mod tests {
                 .expect("every admitted claimed link has a resolvable normalized key")
             })
             .collect::<FxHashSet<_>>();
-        assert_eq!(raw.len(), 2, "the audit ledger retains both raw representatives");
+        assert_eq!(
+            raw.len(),
+            2,
+            "the audit ledger retains both raw representatives"
+        );
         assert_eq!(
             normalized.len(),
             1,
@@ -14585,17 +14933,24 @@ mod tests {
             .filter(|replay| replay.carrier == fixture.carrier)
             .map(|replay| replay.result)
             .collect::<FxHashSet<_>>();
-        assert_eq!(results, FxHashSet::from_iter([fixture.result, other_result]));
-        assert!(fixture
-            .machine
-            .proof_store
-            .replay_finite_map_index
-            .contains_key(&(fixture.result, fixture.carrier)));
-        assert!(fixture
-            .machine
-            .proof_store
-            .replay_finite_map_index
-            .contains_key(&(other_result, fixture.carrier)));
+        assert_eq!(
+            results,
+            FxHashSet::from_iter([fixture.result, other_result])
+        );
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .replay_finite_map_index
+                .contains_key(&(fixture.result, fixture.carrier))
+        );
+        assert!(
+            fixture
+                .machine
+                .proof_store
+                .replay_finite_map_index
+                .contains_key(&(other_result, fixture.carrier))
+        );
     }
 
     #[test]
@@ -14611,7 +14966,11 @@ mod tests {
             Gwcb0RawTrueBranch::MissingConstraint,
             Gwcb0RawTrueBranch::MissingClaimOrCoverageRoot,
         ];
-        assert_eq!(enumerated.len(), 9, "keep this census aligned with raw evaluator true exits");
+        assert_eq!(
+            enumerated.len(),
+            9,
+            "keep this census aligned with raw evaluator true exits"
+        );
         let fail_open = [
             Gwcb0RawTrueBranch::MissingBound,
             Gwcb0RawTrueBranch::MissingSupports,
@@ -14654,10 +15013,8 @@ mod tests {
         let exact_observation = Gwcb0EvidenceObservation::ExactWithoutClaimedArm;
 
         let mut missing_supports = cpk_machine();
-        let missing_supports_record =
-            cpk_gap_1_projection_record(&mut missing_supports, 97_152);
-        let mut raw =
-            CpkProjectionEvaluator::new(&missing_supports, &missing_supports.proof_store);
+        let missing_supports_record = cpk_gap_1_projection_record(&mut missing_supports, 97_152);
+        let mut raw = CpkProjectionEvaluator::new(&missing_supports, &missing_supports.proof_store);
         assert!(raw.eval_record(missing_supports_record));
         assert_eq!(
             raw.eval_record_with_evidence(missing_supports_record),
@@ -14665,9 +15022,8 @@ mod tests {
                 evidence: ProjectionEvidence::FailOpenIncomplete,
             }),
         );
-        let missing_observation = Gwcb0EvidenceObservation::FailOpenIncomplete(
-            Gwcb0RawTrueBranch::MissingSupports,
-        );
+        let missing_observation =
+            Gwcb0EvidenceObservation::FailOpenIncomplete(Gwcb0RawTrueBranch::MissingSupports);
 
         let mut empty_supports = cpk_machine();
         let empty_supports_record = cpk_gap_1_projection_record(&mut empty_supports, 97_153);
@@ -14690,7 +15046,10 @@ mod tests {
         let incomplete_record = cpk_gap_1_projection_record(&mut incomplete, 97_151);
         cpk_4_add_independent_support(&mut incomplete, incomplete_record, carrier);
         let mut raw = CpkProjectionEvaluator::new(&incomplete, &incomplete.proof_store);
-        assert!(raw.eval_record(incomplete_record), "the direct raw path currently fail-opens");
+        assert!(
+            raw.eval_record(incomplete_record),
+            "the direct raw path currently fail-opens"
+        );
         assert_eq!(
             raw.eval_record_with_evidence(incomplete_record),
             Ok(CpkProjectionEvaluation::Included {
@@ -14726,9 +15085,8 @@ mod tests {
                     .then_some(record)
             })
             .expect("mixed fixture target");
-        let independent = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let independent =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         let mutation = machine
             .try_prepare_scheme_projection_mutation(
                 record,
@@ -14753,13 +15111,20 @@ mod tests {
             .copied()
             .find(|clause| matches!(clause.support(), SchemeProjectionProofSupport::Claimed(_)))
             .expect("mixed fixture retains one claimed certificate arm");
-        assert!(formula.len() > 1, "raw record contains sibling formula arms");
+        assert!(
+            formula.len() > 1,
+            "raw record contains sibling formula arms"
+        );
         assert!(formula.iter().any(|clause| *clause != filtered));
         assert!(formula.iter().any(|clause| clause.support() == independent));
 
         let filtered_view = [filtered];
         assert_eq!(filtered_view.len(), 1);
-        assert!(!filtered_view.iter().any(|clause| clause.support() == independent));
+        assert!(
+            !filtered_view
+                .iter()
+                .any(|clause| clause.support() == independent)
+        );
     }
 
     struct Cpk7RoutingFixture {
@@ -14890,10 +15255,7 @@ mod tests {
             true,
         );
         let incremental = IncrementalRouteKey {
-            upper: machine.alloc_neg(Neg::Con(
-                vec!["cpk-batch-incremental".into()],
-                Vec::new(),
-            )),
+            upper: machine.alloc_neg(Neg::Con(vec!["cpk-batch-incremental".into()], Vec::new())),
             upper_record: first_upper,
             provenance: RowDerivationId(72_000),
             claim: None,
@@ -15194,22 +15556,16 @@ mod tests {
             UnweightedRowReductionRecordId(71_000),
             true,
         );
-        let residual_endpoint = fixture.machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-original-upper".into()],
-            Vec::new(),
-        ));
+        let residual_endpoint = fixture
+            .machine
+            .alloc_neg(Neg::Con(vec!["cpk-7-original-upper".into()], Vec::new()));
         let mut route = cpk_7_incremental_route(&fixture, Some(claim));
         route.upper = residual_endpoint;
 
         let prepared = fixture
             .machine
             .proof_store
-            .prepare_replay_route(
-                &fixture.machine,
-                fixture.lower,
-                fixture.upper,
-                &[route],
-            )
+            .prepare_replay_route(&fixture.machine, fixture.lower, fixture.upper, &[route])
             .expect("a covered decoupled route remains incremental work");
 
         assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
@@ -15230,22 +15586,16 @@ mod tests {
     fn cpk_7_slice_b_keeps_uncovered_decoupled_route_beside_generic_pair() {
         let mut fixture = cpk_7_routing_fixture(false);
         let claim = cpk_7_add_upper_claim(&mut fixture, 0);
-        let residual_endpoint = fixture.machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-original-upper".into()],
-            Vec::new(),
-        ));
+        let residual_endpoint = fixture
+            .machine
+            .alloc_neg(Neg::Con(vec!["cpk-7-original-upper".into()], Vec::new()));
         let mut route = cpk_7_incremental_route(&fixture, Some(claim));
         route.upper = residual_endpoint;
 
         let prepared = fixture
             .machine
             .proof_store
-            .prepare_replay_route(
-                &fixture.machine,
-                fixture.lower,
-                fixture.upper,
-                &[route],
-            )
+            .prepare_replay_route(&fixture.machine, fixture.lower, fixture.upper, &[route])
             .expect("a generic pair retains decoupled residual incremental work");
 
         assert_eq!(prepared.routing, ReplayRouting::Generic);
@@ -15335,7 +15685,7 @@ mod tests {
         let make_parent = |claim| {
             let occurrence = fixture
                 .machine
-            .proof_store
+                .proof_store
                 .upper_claim(claim)
                 .expect("fixture claim");
             PreparedReplayParent {
@@ -15343,7 +15693,7 @@ mod tests {
                 coverage_root: occurrence.coverage_root,
                 representative_claim: claim,
                 lineage: occurrence.lineage,
-    }
+            }
         };
         let first = make_parent(first_claim);
         let second = make_parent(second_claim);
@@ -15492,10 +15842,8 @@ mod tests {
         let entries: Arc<[PreparedReplayParent]> = Arc::from([lower_parent]);
         let first = PreparedReplayParentBlock::Shared(Arc::clone(&entries));
         let second = PreparedReplayParentBlock::Shared(Arc::clone(&entries));
-        let (
-            PreparedReplayParentBlock::Shared(first),
-            PreparedReplayParentBlock::Shared(second),
-        ) = (first, second)
+        let (PreparedReplayParentBlock::Shared(first), PreparedReplayParentBlock::Shared(second)) =
+            (first, second)
         else {
             unreachable!("the fixture constructs shared parent blocks")
         };
@@ -15521,7 +15869,10 @@ mod tests {
         let mut machine = cpk_machine();
         let (old_record, claim) = cpk_7_record_original_claim(&mut machine, 0);
         let occurrence_index = machine.proof_store.upper_claim_index[&claim];
-        assert_eq!(machine.proof_store.upper_claims[occurrence_index].claim, claim);
+        assert_eq!(
+            machine.proof_store.upper_claims[occurrence_index].claim,
+            claim
+        );
         assert_eq!(
             machine.proof_store.claims_by_upper_record.get(&old_record),
             Some(&vec![claim]),
@@ -15529,7 +15880,12 @@ mod tests {
 
         let (new_record, existing_claim) = cpk_7_record_original_claim(&mut machine, 1);
         machine.move_upper_replay_claim(claim, new_record);
-        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&old_record));
+        assert!(
+            !machine
+                .proof_store
+                .claims_by_upper_record
+                .contains_key(&old_record)
+        );
         assert_eq!(
             machine.proof_store.claims_by_upper_record.get(&new_record),
             Some(&vec![claim, existing_claim]),
@@ -15567,9 +15923,7 @@ mod tests {
             .proof_store
             .record_projection_supports(second_lower_record, &second_proofs);
         assert_eq!(
-            machine
-                .proof_store
-                .projection_lower_records_for_root(claim),
+            machine.proof_store.projection_lower_records_for_root(claim),
             &[lower_record, second_lower_record],
             "the CPK reverse membership is first-insertion ordered and idempotent",
         );
@@ -15670,10 +16024,7 @@ mod tests {
     #[test]
     fn cpk_7_slice_a_claim_index_writes_do_not_scan_the_global_claim_store() {
         let mut machine = cpk_machine();
-        machine
-            .proof_store
-            .replay_index_record_comparisons
-            .set(0);
+        machine.proof_store.replay_index_record_comparisons.set(0);
         for ordinal in 0..128 {
             cpk_7_record_original_claim(&mut machine, ordinal);
         }
@@ -15701,11 +16052,14 @@ mod tests {
             .projection_supports
             .insert(record, supports);
         for clause in clauses {
-            assert_eq!(projection_lineage_rank(match clause {
-                ProjectionClause::Standalone { attribution, .. }
-                | ProjectionClause::DerivedUnary { attribution, .. }
-                | ProjectionClause::ReplayConjunction { attribution, .. } => attribution,
-            }), 0);
+            assert_eq!(
+                projection_lineage_rank(match clause {
+                    ProjectionClause::Standalone { attribution, .. }
+                    | ProjectionClause::DerivedUnary { attribution, .. }
+                    | ProjectionClause::ReplayConjunction { attribution, .. } => attribution,
+                }),
+                0
+            );
             let support = clause.support();
             machine.proof_store.record_projection_clause(
                 record,
@@ -15721,9 +16075,7 @@ mod tests {
             cpk_gap_1_projection_record(&mut machine, 200),
             cpk_gap_1_projection_record(&mut machine, 201),
         ];
-        let support = SchemeProjectionProofSupport::Independent(
-            ProjectionProofCarrier::Incomplete,
-        );
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
         for record in records {
             cpk_gap_1_set_supports_and_admit_independent_formula(
                 &mut machine,
@@ -15756,9 +16108,11 @@ mod tests {
                 index + 1,
                 "successful record checks remain available to later targets",
             );
-            assert!(records[..=index].iter().all(|record| {
-                preflight.checked_records.contains(record)
-            }));
+            assert!(
+                records[..=index]
+                    .iter()
+                    .all(|record| { preflight.checked_records.contains(record) })
+            );
         }
     }
 
@@ -15794,9 +16148,8 @@ mod tests {
         traps(Box::new(|| {
             let mut machine = cpk_machine();
             let record = cpk_gap_1_projection_record(&mut machine, 102);
-            let support = SchemeProjectionProofSupport::Independent(
-                ProjectionProofCarrier::Incomplete,
-            );
+            let support =
+                SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
             cpk_gap_1_set_supports_and_admit_independent_formula(
                 &mut machine,
                 record,
@@ -15917,18 +16270,10 @@ mod tests {
     fn cpk_projection_support_preflight_failure_is_atomic() {
         let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 102);
-        machine
-            .proof_store
-            .record_projection_supports(record, &[]);
+        machine.proof_store.record_projection_supports(record, &[]);
         let supports_before = machine.proof_store.projection_supports.clone();
-        let claims_before = machine
-            .proof_store
-            .claimed_parents_by_lower_record
-            .clone();
-        let records_before = machine
-            .proof_store
-            .projection_lower_records_by_root
-            .clone();
+        let claims_before = machine.proof_store.claimed_parents_by_lower_record.clone();
+        let records_before = machine.proof_store.projection_lower_records_by_root.clone();
         let memberships_before = machine
             .proof_store
             .projection_lower_record_memberships
@@ -15994,10 +16339,12 @@ mod tests {
             .expect_err("injected clause preflight must fail");
         assert!(matches!(failure, ProofFailure::ResourceExhausted { .. }));
         assert!(machine.proof_store.projection_clause_keys.is_empty());
-        assert!(machine
-            .proof_store
-            .independent_projection_clause_link_keys
-            .is_empty());
+        assert!(
+            machine
+                .proof_store
+                .independent_projection_clause_link_keys
+                .is_empty()
+        );
         assert!(machine.proof_store.projection_formulas.is_empty());
         assert!(
             machine
@@ -16630,8 +16977,7 @@ mod tests {
                 matches!(machine.types().pos(*pos), Pos::Var(found) if *found == endpoint)
             })
             .expect("mixed fixture target record");
-        let SchemeProjectableLowerReason::Qualified { .. } = reason
-        else {
+        let SchemeProjectableLowerReason::Qualified { .. } = reason else {
             panic!("mixed fixture target must be qualified");
         };
         let (decision, _) = project_lower_for_test(&machine, *record);
@@ -16671,10 +17017,12 @@ mod tests {
             },
         );
         assert_eq!(supports.independent_supports, vec![independent]);
-        assert!(supports
-            .uncovered_claims
-            .windows(2)
-            .all(|pair| pair[0].coverage_root.0 < pair[1].coverage_root.0));
+        assert!(
+            supports
+                .uncovered_claims
+                .windows(2)
+                .all(|pair| pair[0].coverage_root.0 < pair[1].coverage_root.0)
+        );
 
         let compact = crate::compact::compact_type_var_for_scheme(&machine, owner);
         assert_eq!(
@@ -16714,11 +17062,11 @@ mod tests {
             });
         }
         expected_parents.extend(supports.independent_supports.iter().map(|carrier| {
-                GeneralizationParent::BoundProjectionProof {
-                    bound: *record,
-                    carrier: *carrier,
-                }
-            }));
+            GeneralizationParent::BoundProjectionProof {
+                bound: *record,
+                carrier: *carrier,
+            }
+        }));
         for role in [
             GeneralizedWitnessRole::LowerBound,
             GeneralizedWitnessRole::ConstraintRelation,
@@ -16732,7 +17080,10 @@ mod tests {
                 .flat_map(|edge| &edge.parents)
                 .cloned()
                 .collect::<Vec<_>>();
-            assert_eq!(actual, expected_parents, "exact witness parent order for {role:?}");
+            assert_eq!(
+                actual, expected_parents,
+                "exact witness parent order for {role:?}"
+            );
         }
     }
 
@@ -16827,12 +17178,14 @@ mod tests {
                 crate::compact::compact_type_var(machine, owner),
             );
         }
-        assert!(crate::generalize::positive_aliases_within_scheme_for_cpk_test(
-            machine,
-            std::iter::empty(),
-            owner,
-        )
-        .is_empty());
+        assert!(
+            crate::generalize::positive_aliases_within_scheme_for_cpk_test(
+                machine,
+                std::iter::empty(),
+                owner,
+            )
+            .is_empty()
+        );
 
         let generalized = crate::generalize::GeneralizedCompactRoot {
             compact: crate::compact::CompactRoot::default(),
@@ -16905,10 +17258,7 @@ mod tests {
         let before = (
             no_ledger.proof_store.projection_supports.len(),
             no_ledger.proof_store.projection_formulas.len(),
-            no_ledger
-                .proof_store
-                .projection_formula_support_keys
-                .len(),
+            no_ledger.proof_store.projection_formula_support_keys.len(),
         );
         assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
@@ -16921,10 +17271,7 @@ mod tests {
             (
                 no_ledger.proof_store.projection_supports.len(),
                 no_ledger.proof_store.projection_formulas.len(),
-                no_ledger
-                    .proof_store
-                    .projection_formula_support_keys
-                    .len(),
+                no_ledger.proof_store.projection_formula_support_keys.len(),
             ),
             "the no-claim query must allocate no persistent proof state",
         );
@@ -17050,7 +17397,9 @@ mod tests {
             })
             .expect("mixed fixture lower record");
         let ProjectionDecision::Included { supports, .. } =
-            project_lower_for_test(&machine, record).0.expect("complete initial projection")
+            project_lower_for_test(&machine, record)
+                .0
+                .expect("complete initial projection")
         else {
             panic!("mixed fixture must start included");
         };
@@ -17084,10 +17433,9 @@ mod tests {
             .next()
             .expect("fixture has a live reduction state")
             .1;
-        assert!(machine.insert_scheme_projection_live_coverage_state(
-            uncovered.coverage_root,
-            state,
-        ));
+        assert!(
+            machine.insert_scheme_projection_live_coverage_state(uncovered.coverage_root, state,)
+        );
         let evidence = projection_evidence_for_test(&machine, record);
         let ProjectionEvidence::DecisiveClaimedArm(proof) = evidence else {
             panic!("the exact derived-unary clause must be the decisive claimed arm");
@@ -17132,12 +17480,7 @@ mod tests {
             "Included(empty) must retain the exact clause that established inclusion",
         );
 
-        machine.alloc_generalized_scheme_record(
-            poly::expr::DefId(0),
-            0,
-            drafts,
-            completeness,
-        );
+        machine.alloc_generalized_scheme_record(poly::expr::DefId(0), 0, drafts, completeness);
         let snapshot = machine.logical_proof_snapshot();
         assert!(
             snapshot
@@ -17168,8 +17511,8 @@ mod tests {
                 )
             })
             .expect("portable target-bound root");
-        let target_anchor = snapshot.portable.root_anchors[target_root]
-            .expect("portable target-bound anchor");
+        let target_anchor =
+            snapshot.portable.root_anchors[target_root].expect("portable target-bound anchor");
         let target_node = snapshot.portable.snapshot.anchors()[target_anchor].node;
         let result_root = snapshot
             .portable
@@ -17184,8 +17527,8 @@ mod tests {
                 )
             })
             .expect("portable decisive-result root");
-        let result_anchor = snapshot.portable.root_anchors[result_root]
-            .expect("portable decisive-result anchor");
+        let result_anchor =
+            snapshot.portable.root_anchors[result_root].expect("portable decisive-result anchor");
         let result_node = snapshot.portable.snapshot.anchors()[result_anchor].node;
         let witness_nodes = snapshot
             .portable
@@ -17205,25 +17548,34 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let edges = snapshot.portable.snapshot.edges();
-        assert!(edges.iter().any(|edge| {
-            witness_nodes.contains(&edge.child)
-                && edge.parents.contains(&target_node)
-                && matches!(
-                    edge.kind,
-                    poly::provenance::PortableProvenanceEdgeKind::Generalization(_)
-                )
-        }), "portable generalized witnesses must retain the qualified bound node as the filtered-view parent");
-        assert!(edges.iter().any(|edge| {
-            edge.child == target_node
-                && edge.parents.as_slice() == [result_node]
-                && edge.kind
-                    == poly::provenance::PortableProvenanceEdgeKind::Bound(
-                        poly::provenance::PortableBoundDerivationKind::Constraint,
+        assert!(
+            edges.iter().any(|edge| {
+                witness_nodes.contains(&edge.child)
+                    && edge.parents.contains(&target_node)
+                    && matches!(
+                        edge.kind,
+                        poly::provenance::PortableProvenanceEdgeKind::Generalization(_)
                     )
-        }), "the filtered qualified-bound view must expose the exact decisive result");
-        assert!(edges.iter().all(|edge| {
-            !witness_nodes.contains(&edge.child) || !edge.parents.contains(&result_node)
-        }), "the decisive result must be reached through the filtered bound, not a producer shortcut");
+            }),
+            "portable generalized witnesses must retain the qualified bound node as the filtered-view parent"
+        );
+        assert!(
+            edges.iter().any(|edge| {
+                edge.child == target_node
+                    && edge.parents.as_slice() == [result_node]
+                    && edge.kind
+                        == poly::provenance::PortableProvenanceEdgeKind::Bound(
+                            poly::provenance::PortableBoundDerivationKind::Constraint,
+                        )
+            }),
+            "the filtered qualified-bound view must expose the exact decisive result"
+        );
+        assert!(
+            edges.iter().all(|edge| {
+                !witness_nodes.contains(&edge.child) || !edge.parents.contains(&result_node)
+            }),
+            "the decisive result must be reached through the filtered bound, not a producer shortcut"
+        );
     }
 
     #[test]
@@ -17271,20 +17623,16 @@ mod tests {
 
     fn make_same_root_projection_included(
         order: [usize; 3],
-    ) -> (CpkReplayAdmissionFixture, [UpperReplayClaimId; 3], BoundRecordId) {
+    ) -> (
+        CpkReplayAdmissionFixture,
+        [UpperReplayClaimId; 3],
+        BoundRecordId,
+    ) {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
         let claims = [
             fixture.coverage_root,
-            add_same_root_replay_claim(
-                &mut fixture,
-                TypeVar(62_000),
-                ConstraintRecordId(62_000),
-            ),
-            add_same_root_replay_claim(
-                &mut fixture,
-                TypeVar(62_001),
-                ConstraintRecordId(62_001),
-            ),
+            add_same_root_replay_claim(&mut fixture, TypeVar(62_000), ConstraintRecordId(62_000)),
+            add_same_root_replay_claim(&mut fixture, TypeVar(62_001), ConstraintRecordId(62_001)),
         ];
         for index in order {
             fixture.machine.apply_cpk_replay_parent_arrival_for_test(
@@ -17313,18 +17661,14 @@ mod tests {
     #[test]
     fn cpk_gap_1_same_root_representative_replacement_matches_all_consumers() {
         let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
-        let replacement_claim = add_same_root_replay_claim(
-            &mut fixture,
-            TypeVar(63_000),
-            ConstraintRecordId(63_000),
-        );
+        let replacement_claim =
+            add_same_root_replay_claim(&mut fixture, TypeVar(63_000), ConstraintRecordId(63_000));
         let record = cpk_gap_1_projection_record(&mut fixture.machine, 40);
         let owner = fixture.machine.bounds.record(record).unwrap().owner();
-        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
-            record,
-            &[fixture.coverage_root],
-            &[],
-        ).expect("test projection support mutation must have capacity");
+        let mutation = fixture
+            .machine
+            .try_prepare_scheme_projection_mutation(record, &[fixture.coverage_root], &[])
+            .expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
         fixture.machine.register_cpk_projection_clause_for_test(
             record,
@@ -17365,11 +17709,10 @@ mod tests {
             .find(|support| support.coverage_root == fixture.coverage_root)
             .expect("same-root support")
             .representative_claim;
-        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
-            record,
-            &[replacement_claim],
-            &[],
-        ).expect("test projection support mutation must have capacity");
+        let mutation = fixture
+            .machine
+            .try_prepare_scheme_projection_mutation(record, &[replacement_claim], &[])
+            .expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
         let expected = ProjectionDecision::Included {
             supports: ProjectionSupportSet {
@@ -17511,11 +17854,15 @@ mod tests {
             let mut round = ProjectionEvaluationRound::new();
             round.terminal_failure = Some(failure.clone());
             assert_eq!(
-                machine.proof_store.project_lower(&machine, record, &mut round),
+                machine
+                    .proof_store
+                    .project_lower(&machine, record, &mut round),
                 Err(failure.clone()),
             );
             assert_eq!(
-                machine.proof_store.project_lower(&machine, record, &mut round),
+                machine
+                    .proof_store
+                    .project_lower(&machine, record, &mut round),
                 Err(failure),
                 "an attempt-terminal failure must remain sticky",
             );
@@ -17533,7 +17880,9 @@ mod tests {
             let mut round = ProjectionEvaluationRound::new();
             round.terminal_failure = Some(failure.clone());
             assert_eq!(
-                machine.proof_store.project_lower(&machine, record, &mut round),
+                machine
+                    .proof_store
+                    .project_lower(&machine, record, &mut round),
                 Err(failure),
             );
         }
@@ -17546,7 +17895,9 @@ mod tests {
             let mut round = ProjectionEvaluationRound::new();
             round.terminal_failure = Some(failure.clone());
             assert_eq!(
-                machine.proof_store.project_lower(&machine, record, &mut round),
+                machine
+                    .proof_store
+                    .project_lower(&machine, record, &mut round),
                 Err(failure),
             );
         }
@@ -17584,9 +17935,7 @@ mod tests {
         carrier: ProjectionProofCarrier,
     ) -> SchemeProjectionProofSupport {
         let support = SchemeProjectionProofSupport::Independent(carrier);
-        machine
-            .proof_store
-            .record_projection_supports(record, &[]);
+        machine.proof_store.record_projection_supports(record, &[]);
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[], &[carrier])
             .expect("test projection support mutation must have capacity");
@@ -17664,17 +18013,18 @@ mod tests {
                 BoundDerivation::Origin(OriginId::unknown_internal()),
             )
             .id;
-        let registration = fixture
-            .machine
-            .derived_upper_replay_claim(record, fixture.coverage_root, producer, |depth| {
-                UpperReplayClaimLineage::ReplayConstraint {
-                    parent_claim: fixture.coverage_root,
-                    parent_side: ReplayClaimParentSide::Lower,
-                    result: fixture.result,
-                    replay: fixture.carrier,
-                    depth,
-                }
-            });
+        let registration = fixture.machine.derived_upper_replay_claim(
+            record,
+            fixture.coverage_root,
+            producer,
+            |depth| UpperReplayClaimLineage::ReplayConstraint {
+                parent_claim: fixture.coverage_root,
+                parent_side: ReplayClaimParentSide::Lower,
+                result: fixture.result,
+                replay: fixture.carrier,
+                depth,
+            },
+        );
         registration.claim
     }
 
@@ -17704,7 +18054,9 @@ mod tests {
             .enumerate()
             .find_map(|(index, record)| {
                 (record.direction == BoundDirection::Upper
-                    && record.derivations.contains(&BoundDerivation::Constraint(producer)))
+                    && record
+                        .derivations
+                        .contains(&BoundDerivation::Constraint(producer)))
                 .then_some(BoundRecordId(index as u32))
             })
             .expect("producer upper record");
@@ -17713,8 +18065,8 @@ mod tests {
             vec![RowDerivationParent::Constraint(producer)],
             Vec::new(),
         );
-        let (state, root_claim) = machine.register_unweighted_row_reduction_for_test(
-            UnweightedRowReductionRecord {
+        let (state, root_claim) =
+            machine.register_unweighted_row_reduction_for_test(UnweightedRowReductionRecord {
                 source: TypeVar(31),
                 producer_constraint: Some(producer),
                 original_items: Vec::new(),
@@ -17728,8 +18080,7 @@ mod tests {
                 },
                 processed_lower_records: FxHashSet::default(),
                 provenance_head: row,
-            },
-        );
+            });
         assert_eq!(state, UnweightedRowReductionRecordId(0));
         let root_claim = root_claim.expect("reduction live coverage root");
         let route_lower = machine.alloc_pos(Pos::Var(TypeVar(35)));
@@ -17787,12 +18138,7 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Origin(origin),
             );
-            machine.derived_upper_replay_claim(
-                insertion.id,
-                root_claim,
-                producer,
-                |_| lineage,
-            );
+            machine.derived_upper_replay_claim(insertion.id, root_claim, producer, |_| lineage);
         }
         machine
     }
@@ -17814,10 +18160,21 @@ mod tests {
             Some(actual),
             "the dense CPK ID resolves to the complete accepted occurrence",
         );
-        assert_eq!(record.owner(), machine.bounds.record(actual.current_record).unwrap().owner());
+        assert_eq!(
+            record.owner(),
+            machine
+                .bounds
+                .record(actual.current_record)
+                .unwrap()
+                .owner()
+        );
         assert_eq!(
             record.weights(),
-            machine.bounds.record(actual.current_record).unwrap().weights()
+            machine
+                .bounds
+                .record(actual.current_record)
+                .unwrap()
+                .weights()
         );
         assert_eq!(BoundEndpoint::Upper(endpoint), record.endpoint());
     }
@@ -17831,7 +18188,10 @@ mod tests {
             UpperReplayClaimKind::Reduced(UnweightedRowReductionRecordId(0)),
         );
         let cpk_claims = machine.proof_store.upper_claims.clone();
-        assert_eq!(cpk_claims.len(), machine.proof_store.upper_claim_index.len());
+        assert_eq!(
+            cpk_claims.len(),
+            machine.proof_store.upper_claim_index.len()
+        );
 
         for actual in &cpk_claims {
             assert_eq!(
@@ -17862,15 +18222,17 @@ mod tests {
             .map(|claim| claim.kind)
             .collect::<FxHashSet<_>>();
         assert!(kinds.contains(&UpperClaimKind::Direct));
-        assert!(kinds.contains(&UpperClaimKind::Reduced(
-            UnweightedRowReductionRecordId(0)
-        )));
+        assert!(kinds.contains(&UpperClaimKind::Reduced(UnweightedRowReductionRecordId(0))));
         let reduction_claim = machine
             .proof_store
             .reduction_claim(UnweightedRowReductionRecordId(0))
             .expect("CPK reduction-state index retains its canonical claim");
         assert_eq!(
-            machine.proof_store.upper_claim(reduction_claim).unwrap().claim,
+            machine
+                .proof_store
+                .upper_claim(reduction_claim)
+                .unwrap()
+                .claim,
             reduction_claim,
             "the CPK reduction-state index remains referentially closed"
         );
@@ -17883,10 +18245,8 @@ mod tests {
             .expect("the five-lineage fixture contains one replay-evidence claim");
         let moved_index = machine.proof_store.upper_claim_index[&moved_claim];
         let before_move = machine.proof_store.upper_claims[moved_index].clone();
-        let moved_endpoint = machine.alloc_neg(Neg::Con(
-            vec!["cpk-claim-payload-move".into()],
-            Vec::new(),
-        ));
+        let moved_endpoint =
+            machine.alloc_neg(Neg::Con(vec!["cpk-claim-payload-move".into()], Vec::new()));
         let moved_record = machine
             .bounds
             .add_upper(
@@ -17903,8 +18263,13 @@ mod tests {
         assert_eq!(actual_after_move.current_record, moved_record);
         assert_eq!(actual_after_move.kind, before_move.kind);
         assert_eq!(actual_after_move.full_lineage, before_move.full_lineage);
-        assert_eq!(machine.proof_store.derived_claim(moved_record, actual_after_move.coverage_root),
-            Some(moved_claim), "the moved derived lineage remains indexed by CPK");
+        assert_eq!(
+            machine
+                .proof_store
+                .derived_claim(moved_record, actual_after_move.coverage_root),
+            Some(moved_claim),
+            "the moved derived lineage remains indexed by CPK"
+        );
     }
 
     #[test]
@@ -17933,14 +18298,15 @@ mod tests {
             )
             .id;
         let producer = ConstraintRecordId(96_003);
-        machine.admit_projection_target_for_test(
-            ProjectionTarget::Constraint(producer),
-            lower_record,
-        );
+        machine
+            .admit_projection_target_for_test(ProjectionTarget::Constraint(producer), lower_record);
         let cpk_before = (
             machine.proof_store.upper_claims.len(),
             machine.proof_store.upper_claim_index.len(),
-            machine.proof_store.original_claim_by_record_and_producer.len(),
+            machine
+                .proof_store
+                .original_claim_by_record_and_producer
+                .len(),
             machine.proof_store.root_claim_by_producer_constraint.len(),
             machine.proof_store.claims_by_upper_record.len(),
             machine.proof_store.projection_supports.len(),
@@ -17962,7 +18328,10 @@ mod tests {
             (
                 machine.proof_store.upper_claims.len(),
                 machine.proof_store.upper_claim_index.len(),
-                machine.proof_store.original_claim_by_record_and_producer.len(),
+                machine
+                    .proof_store
+                    .original_claim_by_record_and_producer
+                    .len(),
                 machine.proof_store.root_claim_by_producer_constraint.len(),
                 machine.proof_store.claims_by_upper_record.len(),
                 machine.proof_store.projection_supports.len(),
@@ -17971,14 +18340,13 @@ mod tests {
         );
 
         let registration = machine
-            .try_original_upper_replay_claim(
-                upper_record,
-                producer,
-                UpperReplayClaimKind::Direct,
-            )
+            .try_original_upper_replay_claim(upper_record, producer, UpperReplayClaimKind::Direct)
             .expect("the failed preflight leaves its dense ID unconsumed");
         assert_eq!(registration.claim, next_id);
-        assert_eq!(machine.proof_store.upper_claims[next_id.0 as usize].claim, next_id);
+        assert_eq!(
+            machine.proof_store.upper_claims[next_id.0 as usize].claim,
+            next_id
+        );
         assert_eq!(
             machine.proof_store.original_claim(upper_record, producer),
             Some(next_id)
@@ -18064,10 +18432,26 @@ mod tests {
         assert_eq!(duplicate, second);
         assert_eq!(cycle, root);
         assert_eq!(machine.proof_store.replay_claim_cycle_coalesces, 2);
-        assert_eq!(machine.proof_store.upper_claims[first.0 as usize].coverage_root, root);
-        assert_eq!(machine.proof_store.upper_claims[second.0 as usize].coverage_root, root);
-        assert_eq!(machine.proof_store.upper_claims[first.0 as usize].full_lineage.depth(), 1);
-        assert_eq!(machine.proof_store.upper_claims[second.0 as usize].full_lineage.depth(), 2);
+        assert_eq!(
+            machine.proof_store.upper_claims[first.0 as usize].coverage_root,
+            root
+        );
+        assert_eq!(
+            machine.proof_store.upper_claims[second.0 as usize].coverage_root,
+            root
+        );
+        assert_eq!(
+            machine.proof_store.upper_claims[first.0 as usize]
+                .full_lineage
+                .depth(),
+            1
+        );
+        assert_eq!(
+            machine.proof_store.upper_claims[second.0 as usize]
+                .full_lineage
+                .depth(),
+            2
+        );
         for claim in [root, first, second] {
             assert_cpk_claim_payload_matches_semantic_snapshot(
                 &machine,
@@ -18163,7 +18547,10 @@ mod tests {
             .id;
         let before = (
             machine.proof_store.upper_claims.clone(),
-            machine.proof_store.original_claim_by_record_and_producer.clone(),
+            machine
+                .proof_store
+                .original_claim_by_record_and_producer
+                .clone(),
             machine.proof_store.derived_claim_by_record_and_root.clone(),
             machine.proof_store.claims_by_upper_record.clone(),
         );
@@ -18178,7 +18565,10 @@ mod tests {
         assert_eq!(
             (
                 machine.proof_store.upper_claims.clone(),
-                machine.proof_store.original_claim_by_record_and_producer.clone(),
+                machine
+                    .proof_store
+                    .original_claim_by_record_and_producer
+                    .clone(),
                 machine.proof_store.derived_claim_by_record_and_root.clone(),
                 machine.proof_store.claims_by_upper_record.clone(),
             ),
@@ -18237,19 +18627,52 @@ mod tests {
             .id;
 
         machine.move_upper_replay_claim(first, third_record);
-        assert_eq!(machine.proof_store.claims_by_upper_record[&shared_record], vec![second]);
-        assert_eq!(machine.proof_store.claims_by_upper_record[&third_record], vec![first]);
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record[&shared_record],
+            vec![second]
+        );
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record[&third_record],
+            vec![first]
+        );
         machine.move_upper_replay_claim(first, fourth_record);
-        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&third_record));
-        assert_eq!(machine.proof_store.claims_by_upper_record[&fourth_record], vec![first]);
-        assert!(machine.proof_store.live_coverage.contains(&(first, first_state)));
-        assert!(machine.proof_store.live_coverage.contains(&(second, second_state)));
-        assert_eq!(machine.proof_store.live_coverage_states_for_test(first),
+        assert!(
+            !machine
+                .proof_store
+                .claims_by_upper_record
+                .contains_key(&third_record)
+        );
+        assert_eq!(
+            machine.proof_store.claims_by_upper_record[&fourth_record],
+            vec![first]
+        );
+        assert!(
+            machine
+                .proof_store
+                .live_coverage
+                .contains(&(first, first_state))
+        );
+        assert!(
+            machine
+                .proof_store
+                .live_coverage
+                .contains(&(second, second_state))
+        );
+        assert_eq!(
+            machine.proof_store.live_coverage_states_for_test(first),
             Some(&FxHashSet::from_iter([first_state])),
-            "root liveness follows stable claim identity and is not reassigned by a move");
-        assert_eq!(machine.proof_store.live_coverage_states_for_test(second),
-            Some(&FxHashSet::from_iter([second_state])));
-        assert!(!machine.proof_store.claims_by_upper_record.contains_key(&second_record));
+            "root liveness follows stable claim identity and is not reassigned by a move"
+        );
+        assert_eq!(
+            machine.proof_store.live_coverage_states_for_test(second),
+            Some(&FxHashSet::from_iter([second_state]))
+        );
+        assert!(
+            !machine
+                .proof_store
+                .claims_by_upper_record
+                .contains_key(&second_record)
+        );
     }
 
     #[test]
@@ -18307,9 +18730,7 @@ mod tests {
                 .first_qualified_parent_source_by_root
                 .clone(),
         );
-        machine
-            .proof_store
-            .fail_next_qualified_parent_reservation();
+        machine.proof_store.fail_next_qualified_parent_reservation();
         machine.admit_claim_qualified_parents(result, &parents);
         assert_eq!(
             (
@@ -18329,9 +18750,11 @@ mod tests {
         machine.admit_claim_qualified_parents(result, &parents[2..]);
         let canonical = machine.proof_store.qualified_parents_for_result(result);
         assert_eq!(canonical.len(), 4);
-        assert!(canonical
-            .windows(2)
-            .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
+        assert!(
+            canonical
+                .windows(2)
+                .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt())
+        );
         assert_eq!(
             canonical
                 .iter()
@@ -18658,32 +19081,54 @@ mod tests {
             );
         }
 
-        let lower_root = machine.proof_store.claim_coverage_root(lower_claim).unwrap();
-        let upper_root = machine.proof_store.claim_coverage_root(upper_claim).unwrap();
-        assert!(machine.proof_store.exact_replay_qualified_parent_is_registered(
-            result,
-            carrier,
-            ReplayClaimParentSide::Lower,
-            lower_root,
-        ));
-        assert!(machine.proof_store.exact_replay_qualified_parent_is_registered(
-            result,
-            carrier,
-            ReplayClaimParentSide::Upper,
-            upper_root,
-        ));
-        assert!(!machine.proof_store.exact_replay_qualified_parent_is_registered(
-            result,
-            carrier,
-            ReplayClaimParentSide::Lower,
-            upper_root,
-        ));
-        assert!(!machine.proof_store.exact_replay_qualified_parent_is_registered(
-            result,
-            carrier,
-            ReplayClaimParentSide::Upper,
-            lower_root,
-        ));
+        let lower_root = machine
+            .proof_store
+            .claim_coverage_root(lower_claim)
+            .unwrap();
+        let upper_root = machine
+            .proof_store
+            .claim_coverage_root(upper_claim)
+            .unwrap();
+        assert!(
+            machine
+                .proof_store
+                .exact_replay_qualified_parent_is_registered(
+                    result,
+                    carrier,
+                    ReplayClaimParentSide::Lower,
+                    lower_root,
+                )
+        );
+        assert!(
+            machine
+                .proof_store
+                .exact_replay_qualified_parent_is_registered(
+                    result,
+                    carrier,
+                    ReplayClaimParentSide::Upper,
+                    upper_root,
+                )
+        );
+        assert!(
+            !machine
+                .proof_store
+                .exact_replay_qualified_parent_is_registered(
+                    result,
+                    carrier,
+                    ReplayClaimParentSide::Lower,
+                    upper_root,
+                )
+        );
+        assert!(
+            !machine
+                .proof_store
+                .exact_replay_qualified_parent_is_registered(
+                    result,
+                    carrier,
+                    ReplayClaimParentSide::Upper,
+                    lower_root,
+                )
+        );
 
         let occurrence = &machine.proof_store.replay_finite_map[0];
         for (side, legacy) in [
@@ -18891,9 +19336,11 @@ mod tests {
                             false,
                         ));
                     }
-                    Event::Reduction => fixture
-                        .machine
-                        .register_reduction_route_claim_parent(fixture.result, row, root),
+                    Event::Reduction => fixture.machine.register_reduction_route_claim_parent(
+                        fixture.result,
+                        row,
+                        root,
+                    ),
                 }
                 assert_root_winner_matches_legacy(&fixture, root);
             }
@@ -18966,14 +19413,17 @@ mod tests {
                 replay: fixture.carrier,
             },
         );
-        fixture.machine.proof_store.record_cpk_replay_parent_snapshot(
-            fixture.result,
-            fixture.carrier,
-            &[SideTaggedReplayClaim {
-                claim: fixture.coverage_root,
-                parent_side: ReplayClaimParentSide::Lower,
-            }],
-        );
+        fixture
+            .machine
+            .proof_store
+            .record_cpk_replay_parent_snapshot(
+                fixture.result,
+                fixture.carrier,
+                &[SideTaggedReplayClaim {
+                    claim: fixture.coverage_root,
+                    parent_side: ReplayClaimParentSide::Lower,
+                }],
+            );
 
         let winner = fixture
             .machine
@@ -19069,11 +19519,18 @@ mod tests {
         QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| {
             assert!(!active.replace(true), "QORF-C full-std gate cannot nest");
         });
+        QORF_D1_READ_CENSUS.with(|census| census.set(QorfD1ReadCensus::default()));
         let _active = ActiveGuard;
 
         let loaded = qorf_c_repository_std_loaded("use std::prelude::*\nmod std;\n");
         let output = crate::lowering::lower_loaded_files(&loaded)
             .expect("lower complete repository std for QORF-C parity");
+        let read_census = QORF_D1_READ_CENSUS.with(Cell::get);
+        assert_eq!(
+            read_census.exact_cursor_calls, 0,
+            "QORF-D1 normal lowering must not construct the full-value compatibility cursor",
+        );
+        assert_eq!(read_census.exact_cursor_yields, 0);
         let report = output
             .session
             .infer
@@ -19082,6 +19539,7 @@ mod tests {
             .qorf_c_full_std_parity_report();
         assert!(report.occurrences > 0);
         assert!(report.side_entries > 0);
+        assert!(report.evaluation_items > 0);
         assert_eq!(
             report.d0_projection_census.arm_entries.0,
             report.occurrences
@@ -19096,7 +19554,7 @@ mod tests {
             "QORF-D0 compact projections must not reproduce exact-parent cardinality",
         );
         eprintln!(
-            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} replay_arms={} root_winners={} d0_census={:?} mismatches=0",
+            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} replay_arms={} root_winners={} evaluation_items={} d1_reads={:?} d0_census={:?} mismatches=0",
             report.occurrences,
             report.nonempty_sides,
             report.side_entries,
@@ -19104,6 +19562,8 @@ mod tests {
             report.qualified_replay_keys,
             report.replay_arms,
             report.root_winners,
+            report.evaluation_items,
+            read_census,
             report.d0_projection_census,
         );
     }
@@ -19469,12 +19929,15 @@ mod tests {
             .qualified_parents_for_result(result)
             .iter()
             .filter_map(|entry| match entry.parent {
-                ClaimQualifiedParent::ReplayConstraint { replay, .. }
-                    if seen.insert(replay) => Some(replay),
+                ClaimQualifiedParent::ReplayConstraint { replay, .. } if seen.insert(replay) => {
+                    Some(replay)
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
-        let mut occurrence_minima = machine.proof_store.replay_finite_map
+        let mut occurrence_minima = machine
+            .proof_store
+            .replay_finite_map
             .iter()
             .map(|occurrence| {
                 [
@@ -19634,12 +20097,10 @@ mod tests {
 
     #[test]
     fn cpk_3_exact_replay_and_first_witness_match_factored_oracle() {
-        let inactive = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            cpk_3_replay_fixture()
-        });
-        let active = with_semantic_execution_snapshot_capture_for_new_machines(|| {
-            cpk_3_replay_fixture()
-        });
+        let inactive =
+            with_semantic_execution_snapshot_capture_for_new_machines(|| cpk_3_replay_fixture());
+        let active =
+            with_semantic_execution_snapshot_capture_for_new_machines(|| cpk_3_replay_fixture());
         let snapshot = active.proof_store.clone();
         let carrier = |pivot, lower, upper| BinaryReplayDerivation {
             pivot: TypeVar(pivot),
@@ -19783,10 +20244,7 @@ mod tests {
         );
         assert_eq!(
             snapshot.live_coverage,
-            FxHashSet::from_iter([(
-                UpperReplayClaimId(1),
-                UnweightedRowReductionRecordId(0),
-            )]),
+            FxHashSet::from_iter([(UpperReplayClaimId(1), UnweightedRowReductionRecordId(0),)]),
         );
         assert_eq!(
             snapshot.replay_admissions,
@@ -19804,9 +20262,11 @@ mod tests {
             ],
         );
         assert!(snapshot.replay_coverage_connected);
-        assert!(snapshot.occurrences.iter().any(|occurrence| {
-            matches!(occurrence.cause, ProofCause::ReductionRoute { .. })
-        }));
+        assert!(
+            snapshot.occurrences.iter().any(|occurrence| {
+                matches!(occurrence.cause, ProofCause::ReductionRoute { .. })
+            })
+        );
         let lineages = snapshot
             .upper_claims
             .iter()
@@ -19849,14 +20309,10 @@ mod tests {
         let mut machine = ConstraintMachine::new();
         let source = TypeVar(72_000);
         let residual = TypeVar(72_001);
-        let initial_family =
-            machine.alloc_pos(Pos::Con(vec!["cpk-7-family-f".into()], Vec::new()));
-        let late_family =
-            machine.alloc_pos(Pos::Con(vec!["cpk-7-family-g".into()], Vec::new()));
-        let first_upper =
-            machine.alloc_neg(Neg::Con(vec!["cpk-7-family-f".into()], Vec::new()));
-        let second_upper =
-            machine.alloc_neg(Neg::Con(vec!["cpk-7-family-g".into()], Vec::new()));
+        let initial_family = machine.alloc_pos(Pos::Con(vec!["cpk-7-family-f".into()], Vec::new()));
+        let late_family = machine.alloc_pos(Pos::Con(vec!["cpk-7-family-g".into()], Vec::new()));
+        let first_upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-family-f".into()], Vec::new()));
+        let second_upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-family-g".into()], Vec::new()));
         let source_neg = machine.alloc_neg(Neg::Var(source));
         let source_pos = machine.alloc_pos(Pos::Var(source));
         let tail = machine.alloc_neg(Neg::Var(residual));
@@ -19872,9 +20328,15 @@ mod tests {
             .expect("the first row stage creates a source-local reduction state");
         assert_eq!(states.len(), 1);
         let state = states[0];
-        let claim = machine.proof_store.reduction_claim(state).expect("CPK reduction claim");
-        let record_before_move =
-            machine.proof_store.upper_claim(claim).expect("CPK claim").current_record;
+        let claim = machine
+            .proof_store
+            .reduction_claim(state)
+            .expect("CPK reduction claim");
+        let record_before_move = machine
+            .proof_store
+            .upper_claim(claim)
+            .expect("CPK claim")
+            .current_record;
 
         Cpk7ClaimMoveFixture {
             machine,
@@ -19887,9 +20349,7 @@ mod tests {
         }
     }
 
-    fn cpk_7_run_second_row_stage(
-        fixture: &mut Cpk7ClaimMoveFixture,
-    ) -> PreparedReplayRoute {
+    fn cpk_7_run_second_row_stage(fixture: &mut Cpk7ClaimMoveFixture) -> PreparedReplayRoute {
         fixture.machine.subtype(
             fixture.late_family,
             fixture.source_neg,
@@ -19907,13 +20367,16 @@ mod tests {
                 .then_some(BoundRecordId(index as u32))
             })
             .expect("the second row stage must retain its lower record");
-        let upper_record = fixture.machine.proof_store.upper_claim(fixture.claim)
-            .expect("CPK claim").current_record;
+        let upper_record = fixture
+            .machine
+            .proof_store
+            .upper_claim(fixture.claim)
+            .expect("CPK claim")
+            .current_record;
         let route = IncrementalRouteKey {
             upper: fixture.original_upper,
             upper_record,
-            provenance: fixture.machine.unweighted_row_reduction_records
-                [fixture.state.0 as usize]
+            provenance: fixture.machine.unweighted_row_reduction_records[fixture.state.0 as usize]
                 .provenance_head,
             claim: Some(fixture.claim),
         };
@@ -19947,7 +20410,12 @@ mod tests {
         };
         assert_ne!(incremental.route.upper, current_endpoint);
         assert_eq!(
-            fixture.machine.proof_store.upper_claim(fixture.claim).expect("CPK claim").current_record,
+            fixture
+                .machine
+                .proof_store
+                .upper_claim(fixture.claim)
+                .expect("CPK claim")
+                .current_record,
             incremental.route.upper_record,
         );
         assert_ne!(fixture.record_before_move, incremental.route.upper_record);
@@ -19959,18 +20427,17 @@ mod tests {
                 incremental.route.upper,
             )
             .expect("the residual semantic action is admitted at the original endpoint");
-        assert!(fixture.machine.constraint_records[result.0 as usize]
-            .row_derivations
-            .contains(&incremental.route.provenance));
+        assert!(
+            fixture.machine.constraint_records[result.0 as usize]
+                .row_derivations
+                .contains(&incremental.route.provenance)
+        );
     }
 
     #[test]
     fn cpk_7_shadow_real_row_route_is_incremental_only_end_to_end() {
         let mut machine = cpk_3_replay_fixture();
-        let lower = machine.alloc_pos(Pos::Con(
-            vec!["cpk-7-real-incremental".into()],
-            Vec::new(),
-        ));
+        let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-real-incremental".into()], Vec::new()));
         machine.add_lower_bound(
             TypeVar(31),
             lower,
@@ -19983,9 +20450,8 @@ mod tests {
             .iter()
             .enumerate()
             .find_map(|(index, record)| {
-                (record.owner() == TypeVar(31)
-                    && record.endpoint() == BoundEndpoint::Lower(lower))
-                .then_some(BoundRecordId(index as u32))
+                (record.owner() == TypeVar(31) && record.endpoint() == BoundEndpoint::Lower(lower))
+                    .then_some(BoundRecordId(index as u32))
             })
             .expect("the real incremental route must retain its lower record");
         let state = UnweightedRowReductionRecordId(0);
@@ -19994,7 +20460,12 @@ mod tests {
             upper: reduction.original_upper,
             upper_record: reduction.current_reduced_upper.record,
             provenance: reduction.provenance_head,
-            claim: Some(machine.proof_store.reduction_claim(state).expect("CPK reduction claim")),
+            claim: Some(
+                machine
+                    .proof_store
+                    .reduction_claim(state)
+                    .expect("CPK reduction claim"),
+            ),
         };
         let prepared = machine
             .proof_store
@@ -20002,10 +20473,7 @@ mod tests {
             .expect("the real row-reduction route must validate directly in CPK");
         assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
         assert!(prepared.proof_event.pair_replay.is_none());
-        assert_eq!(
-            prepared.proof_event.incremental_replays.len(),
-            1,
-        );
+        assert_eq!(prepared.proof_event.incremental_replays.len(), 1,);
         assert_eq!(prepared.proof_event.incremental_replays[0].route, route);
         assert_eq!(
             prepared.proof_event.incremental_replays[0]
@@ -20035,7 +20503,10 @@ mod tests {
                     ConstraintWeights::empty(),
                     BoundDerivation::Constraint(producer),
                 );
-                machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
+                machine
+                    .proof_store
+                    .root_claim_for_producer(producer)
+                    .expect("CPK root claim")
             });
             let upper_record = machine
                 .bounds
@@ -20104,9 +20575,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == source
-                        && record.endpoint() == BoundEndpoint::Lower(lower))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == source && record.endpoint() == BoundEndpoint::Lower(lower))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the direct incremental route must retain its lower record");
             let routes = order.map(|index| IncrementalRouteKey {
@@ -20167,8 +20637,7 @@ mod tests {
         assert_eq!(first.routing, second.routing);
         assert_eq!(first_normalized, second_normalized);
         assert_ne!(
-            first.proof_event.incremental_replays,
-            second.proof_event.incremental_replays,
+            first.proof_event.incremental_replays, second.proof_event.incremental_replays,
             "the contract preserves semantic input order instead of sorting distinct routes",
         );
     }
@@ -20178,18 +20647,12 @@ mod tests {
         let run = |order: [usize; 2]| {
             let mut machine = ConstraintMachine::new();
             let source = TypeVar(72_200);
-            let current_upper = machine.alloc_neg(Neg::Con(
-                vec!["cpk-7-dedup-current".into()],
-                Vec::new(),
-            ));
-            let original_upper = machine.alloc_neg(Neg::Con(
-                vec!["cpk-7-dedup-original".into()],
-                Vec::new(),
-            ));
-            let matched_upper = machine.alloc_neg(Neg::Con(
-                vec!["cpk-7-dedup-matched".into()],
-                Vec::new(),
-            ));
+            let current_upper =
+                machine.alloc_neg(Neg::Con(vec!["cpk-7-dedup-current".into()], Vec::new()));
+            let original_upper =
+                machine.alloc_neg(Neg::Con(vec!["cpk-7-dedup-original".into()], Vec::new()));
+            let matched_upper =
+                machine.alloc_neg(Neg::Con(vec!["cpk-7-dedup-matched".into()], Vec::new()));
             let producers = [0, 1]
                 .map(|index| cpk_7_admit_inert_constraint(&mut machine, 120 + index, "dedup"));
             let roots = producers.map(|producer| {
@@ -20199,7 +20662,10 @@ mod tests {
                     ConstraintWeights::empty(),
                     BoundDerivation::Constraint(producer),
                 );
-                machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
+                machine
+                    .proof_store
+                    .root_claim_for_producer(producer)
+                    .expect("CPK root claim")
             });
             let upper_record = machine
                 .bounds
@@ -20242,10 +20708,7 @@ mod tests {
                 assert_eq!(registered_root, Some(roots[index]));
             }
 
-            let lower = machine.alloc_pos(Pos::Con(
-                vec!["cpk-7-dedup-matched".into()],
-                Vec::new(),
-            ));
+            let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-dedup-matched".into()], Vec::new()));
             machine.add_lower_bound(
                 source,
                 lower,
@@ -20258,9 +20721,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == source
-                        && record.endpoint() == BoundEndpoint::Lower(lower))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == source && record.endpoint() == BoundEndpoint::Lower(lower))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the direct duplicate route must retain its lower record");
             let routes = order.map(|index| IncrementalRouteKey {
@@ -20291,8 +20753,8 @@ mod tests {
                 .expect("the first-seen semantic action is admitted once");
             let merged = &machine.constraint_records[result.0 as usize].row_derivations;
             for state in states {
-                let successor = machine.unweighted_row_reduction_records[state.0 as usize]
-                    .provenance_head;
+                let successor =
+                    machine.unweighted_row_reduction_records[state.0 as usize].provenance_head;
                 assert!(
                     merged.contains(&successor),
                     "deduping semantic work must not drop either row-provenance merge",
@@ -20311,27 +20773,23 @@ mod tests {
 
         assert_eq!(prepared.routing, ReplayRouting::IncrementalOnly);
         assert!(prepared.proof_event.pair_replay.is_none());
-        assert_eq!(
-            prepared.proof_event.incremental_replays.len(),
-            1,
-        );
+        assert_eq!(prepared.proof_event.incremental_replays.len(), 1,);
         assert_cpk_7_decoupled_claim_move_route(&fixture, &prepared);
     }
 
     #[test]
     fn cpk_7_shadow_generic_pair_keeps_decoupled_incremental_route() {
         let mut fixture = cpk_7_two_stage_row_claim_move_fixture();
-        assert!(fixture
-            .machine
-            .remove_scheme_projection_live_coverage_state(fixture.claim, fixture.state));
+        assert!(
+            fixture
+                .machine
+                .remove_scheme_projection_live_coverage_state(fixture.claim, fixture.state)
+        );
         let prepared = cpk_7_run_second_row_stage(&mut fixture);
 
         assert_eq!(prepared.routing, ReplayRouting::Generic);
         assert!(prepared.proof_event.pair_replay.is_some());
-        assert_eq!(
-            prepared.proof_event.incremental_replays.len(),
-            1,
-        );
+        assert_eq!(prepared.proof_event.incremental_replays.len(), 1,);
         assert_cpk_7_decoupled_claim_move_route(&fixture, &prepared);
     }
 
@@ -20379,9 +20837,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == owner
-                        && record.endpoint() == BoundEndpoint::Lower(lower))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == owner && record.endpoint() == BoundEndpoint::Lower(lower))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the lineage route must retain its lower record");
             let prepared = machine
@@ -20524,16 +20981,8 @@ mod tests {
             let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
             let claims = [
                 fixture.coverage_root,
-                add_same_root_replay_claim(
-                    &mut fixture,
-                    TypeVar(20),
-                    ConstraintRecordId(20_000),
-                ),
-                add_same_root_replay_claim(
-                    &mut fixture,
-                    TypeVar(21),
-                    ConstraintRecordId(20_001),
-                ),
+                add_same_root_replay_claim(&mut fixture, TypeVar(20), ConstraintRecordId(20_000)),
+                add_same_root_replay_claim(&mut fixture, TypeVar(21), ConstraintRecordId(20_001)),
             ];
             for index in order {
                 fixture.machine.apply_cpk_replay_parent_arrival_for_test(
@@ -20659,10 +21108,12 @@ mod tests {
             supports: ProjectionSupportSet {
                 uncovered_claims: supports
                     .into_iter()
-                    .map(|(coverage_root, representative_claim)| ProjectionClaimSupport {
-                        coverage_root: UpperReplayClaimId(coverage_root),
-                        representative_claim: UpperReplayClaimId(representative_claim),
-                    })
+                    .map(
+                        |(coverage_root, representative_claim)| ProjectionClaimSupport {
+                            coverage_root: UpperReplayClaimId(coverage_root),
+                            representative_claim: UpperReplayClaimId(representative_claim),
+                        },
+                    )
                     .collect(),
                 independent_supports: Vec::new(),
             },
@@ -20706,18 +21157,25 @@ mod tests {
         record: BoundRecordId,
         expected: ProjectionDecision,
     ) {
-        assert_eq!(project_lower_for_test(machine, record).0, Ok(expected.clone()));
+        assert_eq!(
+            project_lower_for_test(machine, record).0,
+            Ok(expected.clone())
+        );
         let entry = machine
             .scheme_projectable_lowers(owner)
             .find(|entry| entry.record == record);
         match expected {
             ProjectionDecision::Excluded => assert!(entry.is_none()),
             ProjectionDecision::Unclaimed => assert_eq!(
-                entry.expect("an unclaimed lower remains a direct consumer input").reason,
+                entry
+                    .expect("an unclaimed lower remains a direct consumer input")
+                    .reason,
                 SchemeProjectableLowerReason::Unclaimed,
             ),
             ProjectionDecision::Included { supports, .. } => assert_eq!(
-                entry.expect("an included lower reaches the direct consumer").reason,
+                entry
+                    .expect("an included lower reaches the direct consumer")
+                    .reason,
                 SchemeProjectableLowerReason::Qualified {
                     uncovered_claims: supports
                         .uncovered_claims
@@ -20809,8 +21267,7 @@ mod tests {
                 },
             ),
         );
-        let cycle_parent =
-            cpk_7_admit_inert_constraint(&mut machine, 40_006, "projection-cycle");
+        let cycle_parent = cpk_7_admit_inert_constraint(&mut machine, 40_006, "projection-cycle");
         let semantic_epoch = machine.epoch;
         let journal = machine.activate_method_role_mutations();
         machine.register_cpk_projection_clause_for_test(
@@ -20866,12 +21323,20 @@ mod tests {
         let owner = machine.bounds.record(record).unwrap().owner();
         let epochs = (machine.epoch, machine.provenance_epoch);
         let journal = machine.activate_method_role_mutations();
-        let indexes_before = machine
-            .proof_store
-            .performance_index_allocation_census();
+        let indexes_before = machine.proof_store.performance_index_allocation_census();
 
-        assert!(!machine.proof_store.projection_supports.contains_key(&record));
-        assert!(!machine.proof_store.projection_formulas.contains_key(&record));
+        assert!(
+            !machine
+                .proof_store
+                .projection_supports
+                .contains_key(&record)
+        );
+        assert!(
+            !machine
+                .proof_store
+                .projection_formulas
+                .contains_key(&record)
+        );
         assert!(
             !machine
                 .proof_store
@@ -20892,9 +21357,7 @@ mod tests {
             ProjectionDecision::Unclaimed,
         );
         assert_eq!(
-            machine
-                .proof_store
-                .performance_index_allocation_census(),
+            machine.proof_store.performance_index_allocation_census(),
             indexes_before,
             "a no-claim query must not grow any CPK performance mirror",
         );
@@ -20909,9 +21372,7 @@ mod tests {
         let before = machine.proof_store.claim_allocation_census();
         assert_eq!(before, (0, 0, 0, 0, 0, 0, 0));
         assert_eq!(
-            machine
-                .proof_store
-                .performance_index_allocation_census(),
+            machine.proof_store.performance_index_allocation_census(),
             PerformanceIndexAllocationCensus {
                 dependency_result_buckets: (0, 0, 0, 0),
                 projection_carrier_occurrences: (0, 0),
@@ -20944,9 +21405,7 @@ mod tests {
             before,
             "an ordinary no-claim bound must not allocate the CPK claim arena, grow either claim index, or perform claim-index maintenance",
         );
-        let indexes = machine
-            .proof_store
-            .performance_index_allocation_census();
+        let indexes = machine.proof_store.performance_index_allocation_census();
         assert_eq!(indexes.dependency_result_buckets, (0, 0, 0, 0));
         assert_eq!(indexes.row_derivation_occurrences, (0, 0));
         assert_eq!(indexes.replay_result_buckets, (0, 0, 0, 0));
@@ -20962,83 +21421,83 @@ mod tests {
     #[test]
     fn cpk_4_five_source_attribution_matrix_is_writer_classified() {
         let mut machine = cpk_machine();
-            let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
-            let replay = BinaryReplayDerivation {
-                pivot: TypeVar(40_000),
-                lower: BoundRecordId(40_001),
-                upper: BoundRecordId(40_002),
-                rule: ReplayRule::LowerBoundAdded,
-            };
-            let entries = [
-                RecordProofClauseLinkAdmission::claimed(
-                    UpperReplayClaimId(0),
-                    RecordProofClause::Standalone {
-                        support: support(UpperReplayClaimId(0)),
-                    },
-                    ClaimedAttributionSource::FlatRetained,
-                    ClaimedProjectionProofSource::Original {
-                        coverage_root: UpperReplayClaimId(0),
-                        producer: ConstraintRecordId(40_000),
-                    },
-                ),
-                RecordProofClauseLinkAdmission::claimed(
-                    UpperReplayClaimId(1),
-                    RecordProofClause::ReplayConjunction {
-                        carrier: replay,
-                        lower_premise: replay.lower,
-                        upper_premise: replay.upper,
-                    },
-                    ClaimedAttributionSource::CanonicalReplay,
-                    ClaimedProjectionProofSource::ReplayConstraint {
-                        coverage_root: UpperReplayClaimId(1),
-                        result: ConstraintRecordId(40_001),
-                    },
-                ),
-                RecordProofClauseLinkAdmission::claimed(
-                    UpperReplayClaimId(2),
-                    RecordProofClause::ReplayConjunction {
-                        carrier: replay,
-                        lower_premise: replay.lower,
-                        upper_premise: replay.upper,
-                    },
-                    ClaimedAttributionSource::FlatRetained,
-                    ClaimedProjectionProofSource::ReplayEvidence {
-                        coverage_root: UpperReplayClaimId(2),
-                    },
-                ),
-                RecordProofClauseLinkAdmission::claimed(
-                    UpperReplayClaimId(3),
-                    RecordProofClause::DerivedUnary {
-                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
-                            parent: ConstraintRecordId(40_003),
-                            rule: StructuralDerivationRule::FunctionReturn,
-                        }),
-                        premise: ProofPremise::Constraint(ConstraintRecordId(40_003)),
-                    },
-                    ClaimedAttributionSource::FlatRetained,
-                    ClaimedProjectionProofSource::DerivedUnary {
-                        coverage_root: UpperReplayClaimId(3),
-                        result: ConstraintRecordId(40_003),
-                    },
-                ),
-                RecordProofClauseLinkAdmission::claimed(
-                    UpperReplayClaimId(4),
-                    RecordProofClause::DerivedUnary {
-                        carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(40_004)),
-                        premise: ProofPremise::RootCoverage(UpperReplayClaimId(4)),
-                    },
-                    ClaimedAttributionSource::FlatRetained,
-                    ClaimedProjectionProofSource::DerivedUnary {
-                        coverage_root: UpperReplayClaimId(4),
-                        result: ConstraintRecordId(40_004),
-                    },
-                ),
-            ];
-            for (index, admission) in entries.into_iter().enumerate() {
-                machine
-                    .proof_store
-                    .record_projection_clause(BoundRecordId(index as u32), admission);
-            }
+        let support = |claim| SchemeProjectionProofSupport::Claimed(claim);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(40_000),
+            lower: BoundRecordId(40_001),
+            upper: BoundRecordId(40_002),
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let entries = [
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(0),
+                RecordProofClause::Standalone {
+                    support: support(UpperReplayClaimId(0)),
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: UpperReplayClaimId(0),
+                    producer: ConstraintRecordId(40_000),
+                },
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(1),
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                },
+                ClaimedAttributionSource::CanonicalReplay,
+                ClaimedProjectionProofSource::ReplayConstraint {
+                    coverage_root: UpperReplayClaimId(1),
+                    result: ConstraintRecordId(40_001),
+                },
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(2),
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::ReplayEvidence {
+                    coverage_root: UpperReplayClaimId(2),
+                },
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(3),
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: ConstraintRecordId(40_003),
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(ConstraintRecordId(40_003)),
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::DerivedUnary {
+                    coverage_root: UpperReplayClaimId(3),
+                    result: ConstraintRecordId(40_003),
+                },
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(4),
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(40_004)),
+                    premise: ProofPremise::RootCoverage(UpperReplayClaimId(4)),
+                },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::DerivedUnary {
+                    coverage_root: UpperReplayClaimId(4),
+                    result: ConstraintRecordId(40_004),
+                },
+            ),
+        ];
+        for (index, admission) in entries.into_iter().enumerate() {
+            machine
+                .proof_store
+                .record_projection_clause(BoundRecordId(index as u32), admission);
+        }
         let snapshot = machine.proof_store.clone();
         snapshot.debug_assert_claimed_projection_audit_reconstructs();
         snapshot.debug_assert_pclf_a_read_model_matches_legacy();
@@ -21074,17 +21533,13 @@ mod tests {
         );
     }
 
-    fn cpk_5_trigger_lower_route(
-        fixture: &mut CpkReplayAdmissionFixture,
-        lower_is_var: bool,
-    ) {
+    fn cpk_5_trigger_lower_route(fixture: &mut CpkReplayAdmissionFixture, lower_is_var: bool) {
         let lower = if lower_is_var {
             fixture.machine.alloc_pos(Pos::Var(TypeVar(41_000)))
         } else {
-            fixture.machine.alloc_pos(Pos::Con(
-                vec!["cpk-5-lower".into()],
-                Vec::new(),
-            ))
+            fixture
+                .machine
+                .alloc_pos(Pos::Con(vec!["cpk-5-lower".into()], Vec::new()))
         };
         let upper = fixture.machine.alloc_neg(Neg::Var(fixture.parent_owner));
         fixture
@@ -21150,20 +21605,16 @@ mod tests {
         let mut incomplete = ConstraintMachine::new();
         incomplete.set_replay_derivation_budget_for_test(0, usize::MAX);
         let incomplete_owner = TypeVar(43_101);
-        let incomplete_upper = incomplete.alloc_neg(Neg::Con(
-            vec!["cpk-7-incomplete-upper".into()],
-            Vec::new(),
-        ));
+        let incomplete_upper =
+            incomplete.alloc_neg(Neg::Con(vec!["cpk-7-incomplete-upper".into()], Vec::new()));
         incomplete.add_upper_bound(
             incomplete_owner,
             incomplete_upper,
             ConstraintWeights::empty(),
             BoundDerivation::Origin(OriginId::unknown_internal()),
         );
-        let incomplete_lower = incomplete.alloc_pos(Pos::Con(
-            vec!["cpk-7-incomplete-lower".into()],
-            Vec::new(),
-        ));
+        let incomplete_lower =
+            incomplete.alloc_pos(Pos::Con(vec!["cpk-7-incomplete-lower".into()], Vec::new()));
         incomplete.add_lower_bound(
             incomplete_owner,
             incomplete_lower,
@@ -21178,7 +21629,9 @@ mod tests {
             ReplayAdmissionDisposition::Incomplete,
         ];
         assert!(
-            required.iter().all(|disposition| dispositions.contains(disposition)),
+            required
+                .iter()
+                .all(|disposition| dispositions.contains(disposition)),
             "natural replay-event dispositions were {dispositions:?}",
         );
 
@@ -21241,9 +21694,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == owner
-                        && record.endpoint() == BoundEndpoint::Lower(lower))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == owner && record.endpoint() == BoundEndpoint::Lower(lower))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the no-claim lower must be a semantic record");
             let prepared = cpk_7_direct_pair_route(&machine, lower_record, owner, upper);
@@ -21266,14 +21718,10 @@ mod tests {
         let run = |lower_first: bool| {
             let mut machine = ConstraintMachine::new();
             let owner = TypeVar(73_000 + u32::from(lower_first));
-            let lower = machine.alloc_pos(Pos::Con(
-                vec!["cpk-7-target-late-lower".into()],
-                Vec::new(),
-            ));
-            let upper = machine.alloc_neg(Neg::Con(
-                vec!["cpk-7-target-late-upper".into()],
-                Vec::new(),
-            ));
+            let lower =
+                machine.alloc_pos(Pos::Con(vec!["cpk-7-target-late-lower".into()], Vec::new()));
+            let upper =
+                machine.alloc_neg(Neg::Con(vec!["cpk-7-target-late-upper".into()], Vec::new()));
             let owner_pos = machine.alloc_pos(Pos::Var(owner));
             let owner_neg = machine.alloc_neg(Neg::Var(owner));
             let origin = OriginId::unknown_internal();
@@ -21328,9 +21776,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == owner
-                        && record.endpoint() == BoundEndpoint::Lower(lower))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == owner && record.endpoint() == BoundEndpoint::Lower(lower))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the target lower record exists after the late insertion");
             let upper_record = machine
@@ -21339,9 +21786,8 @@ mod tests {
                 .iter()
                 .enumerate()
                 .find_map(|(index, record)| {
-                    (record.owner() == owner
-                        && record.endpoint() == BoundEndpoint::Upper(upper))
-                    .then_some(BoundRecordId(index as u32))
+                    (record.owner() == owner && record.endpoint() == BoundEndpoint::Upper(upper))
+                        .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the target upper record exists after the late insertion");
             let late_record = if lower_first {
@@ -21366,11 +21812,19 @@ mod tests {
             assert!(prepared.proof_event.incremental_replays.is_empty());
             let admissions = &machine.proof_store.replay_admissions[admissions_before..];
             assert_eq!(admissions.len(), 1);
-            assert_eq!(admissions[0].disposition, ReplayAdmissionDisposition::NewSemantic);
+            assert_eq!(
+                admissions[0].disposition,
+                ReplayAdmissionDisposition::NewSemantic
+            );
             let accepted = admissions[0]
                 .result
                 .expect("the late-frontier replay must retain its accepted result");
-            assert!(machine.constraint_records.get(accepted.0 as usize).is_some());
+            assert!(
+                machine
+                    .constraint_records
+                    .get(accepted.0 as usize)
+                    .is_some()
+            );
         };
 
         run(true);
@@ -21381,10 +21835,7 @@ mod tests {
     fn cpk_7_shadow_generic_route_preserves_all_uncovered_upper_roots() {
         let mut machine = ConstraintMachine::new();
         let owner = TypeVar(73_200);
-        let upper = machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-multi-root-upper".into()],
-            Vec::new(),
-        ));
+        let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-multi-root-upper".into()], Vec::new()));
         let origin = OriginId::unknown_internal();
         let producers = ["first", "second"].map(|suffix| {
             let lower = machine.alloc_pos(Pos::Con(
@@ -21407,21 +21858,24 @@ mod tests {
                 ConstraintWeights::empty(),
                 BoundDerivation::Constraint(producer),
             );
-            machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim")
+            machine
+                .proof_store
+                .root_claim_for_producer(producer)
+                .expect("CPK root claim")
         });
         roots.sort();
         let upper_records = roots.map(|root| {
-            let claim = machine.proof_store.upper_claim(root).expect("CPK root claim");
+            let claim = machine
+                .proof_store
+                .upper_claim(root)
+                .expect("CPK root claim");
             assert_eq!(claim.coverage_root, root);
             claim.current_record
         });
         assert_eq!(upper_records[0], upper_records[1]);
 
         let admissions_before = machine.proof_store.replay_admissions.len();
-        let lower = machine.alloc_pos(Pos::Con(
-            vec!["cpk-7-multi-root-lower".into()],
-            Vec::new(),
-        ));
+        let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-multi-root-lower".into()], Vec::new()));
         machine.add_lower_bound(
             owner,
             lower,
@@ -21463,11 +21917,19 @@ mod tests {
         assert!(prepared.proof_event.incremental_replays.is_empty());
         let admissions = &machine.proof_store.replay_admissions[admissions_before..];
         assert_eq!(admissions.len(), 1);
-        assert_eq!(admissions[0].disposition, ReplayAdmissionDisposition::NewSemantic);
+        assert_eq!(
+            admissions[0].disposition,
+            ReplayAdmissionDisposition::NewSemantic
+        );
         let accepted = admissions[0]
             .result
             .expect("the multi-root replay must retain its accepted result");
-        assert!(machine.constraint_records.get(accepted.0 as usize).is_some());
+        assert!(
+            machine
+                .constraint_records
+                .get(accepted.0 as usize)
+                .is_some()
+        );
     }
 
     fn cpk_7_admit_inert_constraint(
@@ -21476,11 +21938,19 @@ mod tests {
         role: &str,
     ) -> ConstraintRecordId {
         let lower = machine.alloc_pos(Pos::Con(
-            vec!["cpk-7-sided-parent".into(), role.into(), ordinal.to_string()],
+            vec![
+                "cpk-7-sided-parent".into(),
+                role.into(),
+                ordinal.to_string(),
+            ],
             Vec::new(),
         ));
         let upper = machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-sided-result".into(), role.into(), ordinal.to_string()],
+            vec![
+                "cpk-7-sided-result".into(),
+                role.into(),
+                ordinal.to_string(),
+            ],
             Vec::new(),
         ));
         assert!(machine.enqueue_subtype(lower, ConstraintWeights::empty(), upper));
@@ -21509,7 +21979,10 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
+        let root = machine
+            .proof_store
+            .root_claim_for_producer(producer)
+            .expect("CPK root claim");
 
         let result = cpk_7_admit_inert_constraint(machine, ordinal, "result");
         let derivation = machine.intern_row_derivation(
@@ -21599,7 +22072,10 @@ mod tests {
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
+        let root = machine
+            .proof_store
+            .root_claim_for_producer(producer)
+            .expect("CPK root claim");
         machine.add_lower_bound(
             pivot,
             lower,
@@ -21623,7 +22099,12 @@ mod tests {
             }],
             "the typed replay occurrence exists before target metadata",
         );
-        assert!(!machine.proof_store.projection_formulas.contains_key(&lower_record));
+        assert!(
+            !machine
+                .proof_store
+                .projection_formulas
+                .contains_key(&lower_record)
+        );
         assert!(
             machine.queue.pop_back().is_some(),
             "delay only the newly admitted replay constraint",
@@ -21640,7 +22121,10 @@ mod tests {
         );
         let published = machine.take_method_role_mutations();
         journal.finish();
-        assert_eq!(machine.lower_record_for_constraint(result), Some(lower_record));
+        assert_eq!(
+            machine.lower_record_for_constraint(result),
+            Some(lower_record)
+        );
         assert_eq!(
             machine
                 .proof_store
@@ -21755,8 +22239,14 @@ mod tests {
             (ProofResult::TrivialReplay(_), ProofCause::ReplayDrop(drop))
                 if drop.derivation == fixture.carrier
         )));
-        assert_eq!(fixture.machine.proof_store.projection_formulas, formulas_before);
-        assert_eq!(fixture.machine.proof_store.projection_supports, supports_before);
+        assert_eq!(
+            fixture.machine.proof_store.projection_formulas,
+            formulas_before
+        );
+        assert_eq!(
+            fixture.machine.proof_store.projection_supports,
+            supports_before
+        );
         assert_eq!(
             fixture.machine.proof_store.claimed_parents_by_lower_record,
             claimed_before,
@@ -21799,10 +22289,9 @@ mod tests {
         assert_eq!(fixture.machine.proof_store.replay_finite_map.len(), 2);
 
         let dependent_owner = TypeVar(80_300);
-        let dependent_endpoint = fixture.machine.alloc_pos(Pos::Con(
-            vec!["cpk-premise-dependent".into()],
-            Vec::new(),
-        ));
+        let dependent_endpoint = fixture
+            .machine
+            .alloc_pos(Pos::Con(vec!["cpk-premise-dependent".into()], Vec::new()));
         fixture.machine.add_lower_bound(
             dependent_owner,
             dependent_endpoint,
@@ -21853,7 +22342,10 @@ mod tests {
                 .unwrap_or_else(|| panic!("missing exact replay premise {premise:?}"));
             assert!(dependents.contains(&dependent));
             assert_eq!(
-                dependents.iter().filter(|record| **record == dependent).count(),
+                dependents
+                    .iter()
+                    .filter(|record| **record == dependent)
+                    .count(),
                 1,
             );
         }
@@ -21911,10 +22403,7 @@ mod tests {
             .projection_lower_record_for_constraint(result)
             .expect("CPK projection target");
 
-        let upper = machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-lower-only-upper".into()],
-            Vec::new(),
-        ));
+        let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-lower-only-upper".into()], Vec::new()));
         machine.add_upper_bound(
             owner,
             upper,
@@ -21943,10 +22432,7 @@ mod tests {
     fn cpk_7_shadow_pair_parents_preserve_upper_only_block() {
         let mut machine = ConstraintMachine::new();
         let owner = TypeVar(73_401);
-        let lower = machine.alloc_pos(Pos::Con(
-            vec!["cpk-7-upper-only-lower".into()],
-            Vec::new(),
-        ));
+        let lower = machine.alloc_pos(Pos::Con(vec!["cpk-7-upper-only-lower".into()], Vec::new()));
         machine.add_lower_bound(
             owner,
             lower,
@@ -21965,17 +22451,17 @@ mod tests {
             .expect("the lower-only frontier record exists");
         let producer = cpk_7_admit_inert_constraint(&mut machine, 1, "upper-only");
 
-        let upper = machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-upper-only-upper".into()],
-            Vec::new(),
-        ));
+        let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-upper-only-upper".into()], Vec::new()));
         machine.add_upper_bound(
             owner,
             upper,
             ConstraintWeights::empty(),
             BoundDerivation::Constraint(producer),
         );
-        let root = machine.proof_store.root_claim_for_producer(producer).expect("CPK root claim");
+        let root = machine
+            .proof_store
+            .root_claim_for_producer(producer)
+            .expect("CPK root claim");
 
         let prepared = cpk_7_direct_pair_route(&machine, lower_record, owner, upper);
         assert_eq!(prepared.routing, ReplayRouting::Generic);
@@ -22011,10 +22497,7 @@ mod tests {
             .projection_lower_record_for_constraint(result)
             .expect("CPK projection target");
 
-        let upper = machine.alloc_neg(Neg::Con(
-            vec!["cpk-7-mixed-side-upper".into()],
-            Vec::new(),
-        ));
+        let upper = machine.alloc_neg(Neg::Con(vec!["cpk-7-mixed-side-upper".into()], Vec::new()));
         machine.add_upper_bound(
             owner,
             upper,
@@ -22098,12 +22581,7 @@ mod tests {
         let failure = fixture
             .machine
             .proof_store
-            .prepare_replay_route(
-                &fixture.machine,
-                lower_record,
-                fixture.parent_record,
-                &[],
-            )
+            .prepare_replay_route(&fixture.machine, lower_record, fixture.parent_record, &[])
             .expect_err("CPK authority preflight must reject internal claim-index corruption");
         assert!(matches!(
             failure,
@@ -22241,139 +22719,119 @@ mod tests {
     #[test]
     fn cpk_2_non_replay_proof_events_match_frozen_contract() {
         let mut machine = ConstraintMachine::new();
-            let origin = OriginId::unknown_internal();
-            let lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
-            let upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
-            machine.subtype(lower, upper, origin);
-            let parent = machine
-                .constraint_record_id(lower, ConstraintWeights::empty(), upper)
-                .expect("root constraint");
+        let origin = OriginId::unknown_internal();
+        let lower = machine.alloc_pos(Pos::Var(TypeVar(10)));
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(11)));
+        machine.subtype(lower, upper, origin);
+        let parent = machine
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("root constraint");
 
-            let structural_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
-            let structural_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
-            assert!(machine.enqueue_derived_subtype(
+        let structural_lower = machine.alloc_pos(Pos::Var(TypeVar(12)));
+        let structural_upper = machine.alloc_neg(Neg::Var(TypeVar(13)));
+        assert!(machine.enqueue_derived_subtype(
+            structural_lower,
+            ConstraintWeights::empty(),
+            structural_upper,
+            parent,
+            StructuralDerivationRule::FunctionReturn,
+        ));
+        machine.drain();
+        let structural = machine
+            .constraint_record_id(
                 structural_lower,
                 ConstraintWeights::empty(),
                 structural_upper,
-                parent,
-                StructuralDerivationRule::FunctionReturn,
-            ));
-            machine.drain();
-            let structural = machine
-                .constraint_record_id(
-                    structural_lower,
-                    ConstraintWeights::empty(),
-                    structural_upper,
-                )
-                .expect("structural constraint");
-            let indexes_before_structural_duplicate = machine
-                .proof_store
-                .performance_index_allocation_census();
-            assert!(!machine.enqueue_derived_subtype(
-                structural_lower,
-                ConstraintWeights::empty(),
-                structural_upper,
-                parent,
-                StructuralDerivationRule::FunctionReturn,
-            ));
-            assert_eq!(
-                machine
-                    .proof_store
-                    .performance_index_allocation_census(),
-                indexes_before_structural_duplicate,
-                "an exact structural duplicate must not grow dependency or carrier indexes",
-            );
+            )
+            .expect("structural constraint");
+        let indexes_before_structural_duplicate =
+            machine.proof_store.performance_index_allocation_census();
+        assert!(!machine.enqueue_derived_subtype(
+            structural_lower,
+            ConstraintWeights::empty(),
+            structural_upper,
+            parent,
+            StructuralDerivationRule::FunctionReturn,
+        ));
+        assert_eq!(
+            machine.proof_store.performance_index_allocation_census(),
+            indexes_before_structural_duplicate,
+            "an exact structural duplicate must not grow dependency or carrier indexes",
+        );
 
-            let row = machine.intern_row_derivation(
+        let row = machine.intern_row_derivation(
+            RowDerivationRule::RowItemMatch,
+            vec![RowDerivationParent::Constraint(parent)],
+            Vec::new(),
+        );
+        let indexes_before_row_duplicate =
+            machine.proof_store.performance_index_allocation_census();
+        assert_eq!(
+            machine.intern_row_derivation(
                 RowDerivationRule::RowItemMatch,
                 vec![RowDerivationParent::Constraint(parent)],
                 Vec::new(),
-            );
-            let indexes_before_row_duplicate = machine
-                .proof_store
-                .performance_index_allocation_census();
-            assert_eq!(
-                machine.intern_row_derivation(
-                    RowDerivationRule::RowItemMatch,
-                    vec![RowDerivationParent::Constraint(parent)],
-                    Vec::new(),
-                ),
-                row,
-            );
-            assert_eq!(
-                machine
-                    .proof_store
-                    .performance_index_allocation_census(),
-                indexes_before_row_duplicate,
-                "an exact row-derivation duplicate must not grow the row membership index",
-            );
-            let row_lower = machine.alloc_pos(Pos::Var(TypeVar(14)));
-            let row_upper = machine.alloc_neg(Neg::Var(TypeVar(15)));
-            assert!(machine.enqueue_row_derived_subtype(
-                row_lower,
-                ConstraintWeights::empty(),
-                row_upper,
-                row,
-            ));
-            machine.drain();
+            ),
+            row,
+        );
+        assert_eq!(
+            machine.proof_store.performance_index_allocation_census(),
+            indexes_before_row_duplicate,
+            "an exact row-derivation duplicate must not grow the row membership index",
+        );
+        let row_lower = machine.alloc_pos(Pos::Var(TypeVar(14)));
+        let row_upper = machine.alloc_neg(Neg::Var(TypeVar(15)));
+        assert!(machine.enqueue_row_derived_subtype(
+            row_lower,
+            ConstraintWeights::empty(),
+            row_upper,
+            row,
+        ));
+        machine.drain();
 
-            machine.subtract_fact(TypeVar(16), SubtractId(7), Subtractability::All);
+        machine.subtract_fact(TypeVar(16), SubtractId(7), Subtractability::All);
 
-            let instantiation = machine.intern_scheme_instantiation(
-                GeneralizedSchemeRecordId(0),
-                DefId(0),
-                DefId(1),
-                TypeVar(17),
-                ProvenanceCompleteness::Complete,
-            );
-            let derivation = SchemeInstantiationDerivation {
-                instantiation,
-                source_witness: GeneralizedSchemeWitnessId(0),
-                path: GeneralizedTypePath::default(),
-            };
-            machine.merge_scheme_instantiation_routes_for_test(
-                structural,
-                vec![
-                    SchemeInstantiationRoute {
-                        derivation: derivation.clone(),
-                        remaining: GeneralizedTypePath::default(),
-                    },
-                    SchemeInstantiationRoute {
-                        derivation,
-                        remaining: GeneralizedTypePath(vec![
-                            GeneralizedTypePathStep::FunctionReturn,
-                        ]),
-                    },
-                ],
-            );
+        let instantiation = machine.intern_scheme_instantiation(
+            GeneralizedSchemeRecordId(0),
+            DefId(0),
+            DefId(1),
+            TypeVar(17),
+            ProvenanceCompleteness::Complete,
+        );
+        let derivation = SchemeInstantiationDerivation {
+            instantiation,
+            source_witness: GeneralizedSchemeWitnessId(0),
+            path: GeneralizedTypePath::default(),
+        };
+        machine.merge_scheme_instantiation_routes_for_test(
+            structural,
+            vec![
+                SchemeInstantiationRoute {
+                    derivation: derivation.clone(),
+                    remaining: GeneralizedTypePath::default(),
+                },
+                SchemeInstantiationRoute {
+                    derivation,
+                    remaining: GeneralizedTypePath(vec![GeneralizedTypePathStep::FunctionReturn]),
+                },
+            ],
+        );
 
-            let alternate = machine.alloc_source_boundary(ConstraintOriginKind::Annotation);
-            assert!(machine.attach_root_origin_to_existing_subtype(
-                lower,
-                upper,
-                alternate.origin,
-            ));
-            let before_duplicate = machine.proof_store.occurrences.len();
-            let indexes_before_duplicate = machine
-                .proof_store
-                .performance_index_allocation_census();
-            assert!(!machine.attach_root_origin_to_existing_subtype(
-                lower,
-                upper,
-                alternate.origin,
-            ));
-            assert_eq!(
-                machine.proof_store.occurrences.len(),
-                before_duplicate,
-                "an exact metadata duplicate must not create an occurrence",
-            );
-            assert_eq!(
-                machine
-                    .proof_store
-                    .performance_index_allocation_census(),
-                indexes_before_duplicate,
-                "an exact occurrence duplicate must not grow any occurrence membership index",
-            );
+        let alternate = machine.alloc_source_boundary(ConstraintOriginKind::Annotation);
+        assert!(machine.attach_root_origin_to_existing_subtype(lower, upper, alternate.origin,));
+        let before_duplicate = machine.proof_store.occurrences.len();
+        let indexes_before_duplicate = machine.proof_store.performance_index_allocation_census();
+        assert!(!machine.attach_root_origin_to_existing_subtype(lower, upper, alternate.origin,));
+        assert_eq!(
+            machine.proof_store.occurrences.len(),
+            before_duplicate,
+            "an exact metadata duplicate must not create an occurrence",
+        );
+        assert_eq!(
+            machine.proof_store.performance_index_allocation_census(),
+            indexes_before_duplicate,
+            "an exact occurrence duplicate must not grow any occurrence membership index",
+        );
         let snapshot = machine.proof_store.clone();
         assert_eq!(snapshot.occurrences.len(), 21);
         assert_eq!(
@@ -22384,10 +22842,12 @@ mod tests {
                 .collect::<Vec<_>>(),
             (0..21).collect::<Vec<_>>(),
         );
-        assert!(snapshot
-            .occurrences
-            .iter()
-            .all(|occurrence| occurrence.completeness == ProvenanceCompleteness::Complete));
+        assert!(
+            snapshot
+                .occurrences
+                .iter()
+                .all(|occurrence| occurrence.completeness == ProvenanceCompleteness::Complete)
+        );
         let assert_occurrence =
             |event: usize, result: ProofResult, cause: ProofCause, parents: Vec<ProofParent>| {
                 let occurrence = &snapshot.occurrences[event];
@@ -22395,9 +22855,8 @@ mod tests {
                 assert_eq!(occurrence.cause, cause, "event {event} cause");
                 assert_eq!(occurrence.parents, parents, "event {event} parents");
             };
-        let semantic_constraint = |id| {
-            ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(id)))
-        };
+        let semantic_constraint =
+            |id| ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(id)));
         let semantic_bound = |id| ProofResult::Semantic(SemanticFactRef::Bound(BoundRecordId(id)));
         let constraint_parent = |id| {
             vec![ProofParent::Semantic(SemanticFactRef::Constraint(
@@ -22410,7 +22869,14 @@ mod tests {
             ProofCause::Root(origin),
             vec![ProofParent::Origin(origin)],
         );
-        for (event, bound, constraint) in [(1, 0, 0), (3, 1, 0), (6, 2, 1), (8, 3, 1), (12, 4, 2), (14, 5, 2)] {
+        for (event, bound, constraint) in [
+            (1, 0, 0),
+            (3, 1, 0),
+            (6, 2, 1),
+            (8, 3, 1),
+            (12, 4, 2),
+            (14, 5, 2),
+        ] {
             assert_occurrence(
                 event,
                 semantic_bound(bound),
@@ -22492,12 +22958,60 @@ mod tests {
             vec![ProofParent::Origin(alternate.origin)],
         );
         for (event, disposition, direction, owner, endpoint, constraint, bound) in [
-            (2, 0, BoundDirection::Lower, TypeVar(11), BoundEndpoint::Lower(PosId(0)), 0, 0),
-            (4, 1, BoundDirection::Upper, TypeVar(10), BoundEndpoint::Upper(NegId(0)), 0, 1),
-            (7, 2, BoundDirection::Lower, TypeVar(13), BoundEndpoint::Lower(PosId(1)), 1, 2),
-            (9, 3, BoundDirection::Upper, TypeVar(12), BoundEndpoint::Upper(NegId(1)), 1, 3),
-            (13, 4, BoundDirection::Lower, TypeVar(15), BoundEndpoint::Lower(PosId(2)), 2, 4),
-            (15, 5, BoundDirection::Upper, TypeVar(14), BoundEndpoint::Upper(NegId(2)), 2, 5),
+            (
+                2,
+                0,
+                BoundDirection::Lower,
+                TypeVar(11),
+                BoundEndpoint::Lower(PosId(0)),
+                0,
+                0,
+            ),
+            (
+                4,
+                1,
+                BoundDirection::Upper,
+                TypeVar(10),
+                BoundEndpoint::Upper(NegId(0)),
+                0,
+                1,
+            ),
+            (
+                7,
+                2,
+                BoundDirection::Lower,
+                TypeVar(13),
+                BoundEndpoint::Lower(PosId(1)),
+                1,
+                2,
+            ),
+            (
+                9,
+                3,
+                BoundDirection::Upper,
+                TypeVar(12),
+                BoundEndpoint::Upper(NegId(1)),
+                1,
+                3,
+            ),
+            (
+                13,
+                4,
+                BoundDirection::Lower,
+                TypeVar(15),
+                BoundEndpoint::Lower(PosId(2)),
+                2,
+                4,
+            ),
+            (
+                15,
+                5,
+                BoundDirection::Upper,
+                TypeVar(14),
+                BoundEndpoint::Upper(NegId(2)),
+                2,
+                5,
+            ),
         ] {
             let occurrence = &snapshot.occurrences[event];
             assert_eq!(
@@ -22515,7 +23029,10 @@ mod tests {
                 actual.derivation,
                 Some(BoundDerivation::Constraint(ConstraintRecordId(constraint))),
             );
-            assert_eq!(actual.disposition, BoundDisposition::Inserted(BoundRecordId(bound)));
+            assert_eq!(
+                actual.disposition,
+                BoundDisposition::Inserted(BoundRecordId(bound))
+            );
             assert!(occurrence.parents.is_empty());
         }
         for predicate in [
@@ -22545,9 +23062,10 @@ mod tests {
                 .occurrences
                 .iter()
                 .any(|entry| matches!(entry.cause, ProofCause::SchemeInstantiationRecord(_))),
-            snapshot.occurrences.iter().any(|entry| {
-                matches!(entry.cause, ProofCause::SchemeInstantiationDerivation(_))
-            }),
+            snapshot
+                .occurrences
+                .iter()
+                .any(|entry| matches!(entry.cause, ProofCause::SchemeInstantiationDerivation(_))),
             snapshot
                 .occurrences
                 .iter()

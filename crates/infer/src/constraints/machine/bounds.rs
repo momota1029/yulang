@@ -802,15 +802,18 @@ impl ConstraintMachine {
         };
         let parents = self
             .proof_store
-            .qualified_parent_values_for_result(producer)
+            .canonical_qualified_parents_by_root(producer)
+            .map(|entry| entry.parent)
             .collect::<Vec<_>>();
         if let Some(lower_record) = self.lower_record_for_constraint(producer) {
-            self.register_claim_parent_clause_links_after_factored_projection(
+            self.register_all_claim_parent_clause_links_after_factored_projection(
                 producer,
                 lower_record,
-                &parents,
                 None,
             );
+            if self.proof_terminal_failure().is_some() {
+                return Vec::new();
+            }
         }
         let mut claims: Vec<UpperReplayClaimId> = Vec::new();
         for parent in parents {
@@ -825,9 +828,10 @@ impl ConstraintMachine {
             if matches!(
                 parent,
                 ClaimQualifiedParent::ReductionRouteConstraint { .. }
-            ) && claims.iter().any(|claim| {
-                self.proof_store.claim_coverage_root(*claim) == Some(coverage_root)
-            }) {
+            ) && claims
+                .iter()
+                .any(|claim| self.proof_store.claim_coverage_root(*claim) == Some(coverage_root))
+            {
                 continue;
             }
             let Some(claim) =
@@ -879,7 +883,11 @@ impl ConstraintMachine {
                 .expect("qualified replay parent must exist in the CPK claim arena");
             // Materialization is canonical per (record, root), not per exact carrier. The caller
             // has already recorded every newly admitted key and qualified parent unconditionally.
-            if self.proof_store.derived_claim(record, coverage_root).is_some() {
+            if self
+                .proof_store
+                .derived_claim(record, coverage_root)
+                .is_some()
+            {
                 continue;
             }
             let Some(claim) = self.materialize_constraint_upper_replay_claim(
@@ -910,16 +918,15 @@ impl ConstraintMachine {
                 parent_side,
                 replay,
                 ..
-            } => self
-                .admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
-                    UpperReplayClaimLineage::ReplayConstraint {
-                        parent_claim,
-                        parent_side,
-                        result: producer,
-                        replay,
-                        depth,
-                    }
-                }),
+            } => self.admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
+                UpperReplayClaimLineage::ReplayConstraint {
+                    parent_claim,
+                    parent_side,
+                    result: producer,
+                    replay,
+                    depth,
+                }
+            }),
             ClaimQualifiedParent::StructuralConstraint { derivation, .. } => self
                 .admit_derived_upper_replay_claim(record, parent_claim, producer, |depth| {
                     UpperReplayClaimLineage::StructuralConstraint {
@@ -947,7 +954,6 @@ impl ConstraintMachine {
         Some(registration.claim)
     }
 
-
     #[cfg(test)]
     fn register_claim_parent_clause_links(
         &mut self,
@@ -966,19 +972,36 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
-        let preflight = self.preflight_claim_parent_clause_links(result, lower_record, parents);
+        let preflight =
+            self.preflight_claim_parent_clause_links(result, lower_record, parents.iter().copied());
         self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links)
+    }
+
+    fn try_commit_all_claim_parent_clause_links_mutation(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+    ) -> ProofKernelResult<Option<ClauseLinkBatchAdmissionSnapshot>> {
+        let associations = self
+            .proof_store
+            .try_replay_clause_link_associations(result)?;
+        let preflight = self.preflight_claim_parent_clause_links(
+            result,
+            lower_record,
+            associations.map(|entry| entry.parent),
+        );
+        Ok(self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links))
     }
 
     fn preflight_claim_parent_clause_links(
         &self,
         result: ConstraintRecordId,
         lower_record: BoundRecordId,
-        parents: &[ClaimQualifiedParent],
+        parents: impl IntoIterator<Item = ClaimQualifiedParent>,
     ) -> ClaimParentClauseLinkPreflight {
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
-        for parent in parents.iter().copied() {
+        for parent in parents {
             let Some(root) = self.proof_store.claim_coverage_root(parent.parent_claim()) else {
                 continue;
             };
@@ -1052,6 +1075,28 @@ impl ConstraintMachine {
         // view current may the pending after-view be evaluated and published.
         let snapshot =
             self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
+        if self.proof_terminal_failure().is_none() {
+            self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
+        }
+    }
+
+    fn register_all_claim_parent_clause_links_after_factored_projection(
+        &mut self,
+        result: ConstraintRecordId,
+        lower_record: BoundRecordId,
+        publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
+    ) {
+        let snapshot =
+            match self.try_commit_all_claim_parent_clause_links_mutation(result, lower_record) {
+                Ok(snapshot) => snapshot,
+                Err(failure) => {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerSupportCollection,
+                        failure,
+                    );
+                    return;
+                }
+            };
         if self.proof_terminal_failure().is_none() {
             self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
         }
@@ -1136,14 +1181,17 @@ impl ConstraintMachine {
         self.apply_bound_replay_evidence_actions(actions);
         self.proof_store.upper_claims_for_test()[claim_count_before..]
             .iter()
-            .find_map(|claim| matches!(
-                claim.full_lineage,
-                proof::UpperClaimLineage::ReplayEvidence {
-                    parent_claim: found_parent,
-                    replay: found_replay,
-                    ..
-                } if found_parent == parent_claim && found_replay == replay
-            ).then_some(claim.claim))
+            .find_map(|claim| {
+                matches!(
+                    claim.full_lineage,
+                    proof::UpperClaimLineage::ReplayEvidence {
+                        parent_claim: found_parent,
+                        replay: found_replay,
+                        ..
+                    } if found_parent == parent_claim && found_replay == replay
+                )
+                .then_some(claim.claim)
+            })
             .expect("production replay-evidence admission materializes the derived claim")
     }
 
@@ -1381,18 +1429,23 @@ impl ConstraintMachine {
         if let Some(lower_record) = self.lower_record_for_constraint(constraint) {
             pending_premises.insert(ProofPremise::Record(lower_record));
         }
-        // CPK's exact-parent index is committed atomically with qualified-parent admission and is
-        // now the sole production source for every replay, structural, and reduction dependency.
-        // RCPF remains a write-only downstream representation until its 8G-9 removal.
-        for parent in self
+        for item in self
             .proof_store
-            .qualified_parent_values_for_result(constraint)
+            .qualified_parent_evaluation_items(constraint)
         {
-            self.try_collect_claim_parent_dependency_chain(
-                parent,
-                visited_constraints,
-                pending_premises,
-            )?;
+            match item {
+                proof::QualifiedParentEvaluationItem::Replay(replay) => {
+                    pending_premises.insert(ProofPremise::Record(replay.lower));
+                    pending_premises.insert(ProofPremise::Record(replay.upper));
+                }
+                proof::QualifiedParentEvaluationItem::NonReplay(parent) => {
+                    self.try_collect_claim_parent_dependency_chain(
+                        parent,
+                        visited_constraints,
+                        pending_premises,
+                    )?;
+                }
+            }
         }
         if let Some(root_claim) = self.proof_store.root_claim_for_producer(constraint)
             && let Some(root) = self.proof_store.claim_coverage_root(root_claim)
@@ -1635,10 +1688,8 @@ impl ConstraintMachine {
         derivation_inserted: bool,
     ) -> bool {
         let carrier = ProjectionProofCarrier::StructuralConstraint { result, derivation };
-        let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
-            result,
-            parents,
-        );
+        let (mut publication_fence, admitted_parents) =
+            self.begin_non_replay_claim_parent_admission(result, parents);
         if self.proof_terminal_failure().is_some() {
             return !admitted_parents.is_empty();
         }
@@ -1708,10 +1759,7 @@ impl ConstraintMachine {
             return;
         }
         if let Err(failure) = fence.try_push(intent) {
-            self.mark_proof_terminal_failure(
-                proof::ProofOperation::UpdateClaimLifecycle,
-                failure,
-            );
+            self.mark_proof_terminal_failure(proof::ProofOperation::UpdateClaimLifecycle, failure);
         }
     }
 
@@ -1799,7 +1847,8 @@ impl ConstraintMachine {
         let parents = producer
             .map(|producer| {
                 self.proof_store
-                    .qualified_parent_values_for_result(producer)
+                    .canonical_qualified_parents_by_root(producer)
+                    .map(|entry| entry.parent)
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
@@ -1815,10 +1864,9 @@ impl ConstraintMachine {
             None,
         );
         if let Some(producer) = producer {
-            self.register_claim_parent_clause_links_after_factored_projection(
+            self.register_all_claim_parent_clause_links_after_factored_projection(
                 producer,
                 lower_record,
-                &parents,
                 None,
             );
         }
@@ -1836,11 +1884,13 @@ impl ConstraintMachine {
             return;
         };
         let ledger_exists = self.proof_store.has_projection_support_ledger(lower_record);
+        let bootstrap = !ledger_exists;
         let parents = if ledger_exists {
             parents.to_vec()
         } else {
             self.proof_store
-                .qualified_parent_values_for_result(producer)
+                .canonical_qualified_parents_by_root(producer)
+                .map(|entry| entry.parent)
                 .collect()
         };
         let claims = parents
@@ -1854,12 +1904,20 @@ impl ConstraintMachine {
             publication_fence.as_deref_mut(),
         );
         if !replay_clause_work_precommitted {
-            self.register_claim_parent_clause_links_after_factored_projection(
-                producer,
-                lower_record,
-                &parents,
-                publication_fence.as_deref_mut(),
-            );
+            if bootstrap {
+                self.register_all_claim_parent_clause_links_after_factored_projection(
+                    producer,
+                    lower_record,
+                    publication_fence.as_deref_mut(),
+                );
+            } else {
+                self.register_claim_parent_clause_links_after_factored_projection(
+                    producer,
+                    lower_record,
+                    &parents,
+                    publication_fence.as_deref_mut(),
+                );
+            }
         }
     }
 
@@ -1988,9 +2046,7 @@ impl ConstraintMachine {
             if !batch_link_keys.insert(batch_link_key) {
                 continue;
             }
-            pending_links.push(RecordProofClauseLinkAdmission::independent(
-                support, clause,
-            ));
+            pending_links.push(RecordProofClauseLinkAdmission::independent(support, clause));
         }
         if pending_links.is_empty() {
             return;
@@ -2136,9 +2192,7 @@ impl ConstraintMachine {
             .proof_store
             .qualified_parent_values_for_result(producer)
             .collect::<Vec<_>>();
-        let ledger_exists = self
-            .proof_store
-            .has_projection_support_ledger(lower_record);
+        let ledger_exists = self.proof_store.has_projection_support_ledger(lower_record);
         if claim_parents.is_empty() && !ledger_exists {
             return;
         }
@@ -2149,11 +2203,7 @@ impl ConstraintMachine {
         let independent_supports =
             self.independent_projection_supports_bulk(lower_record, Some(producer), &claim_parents);
         let mutation = self
-            .try_prepare_scheme_projection_mutation(
-                lower_record,
-                &claims,
-                &independent_supports,
-            )
+            .try_prepare_scheme_projection_mutation(lower_record, &claims, &independent_supports)
             .expect("bulk projection oracle must have capacity");
         self.apply_scheme_projection_mutation(mutation);
     }
@@ -2373,37 +2423,38 @@ impl ConstraintMachine {
                 self.publish_claim_qualified_parent_admission(snapshot);
             }
         }
-        let bootstrap_clause_projection_parents = if phase_b_enabled
+        let clause_projection_lower = self.lower_record_for_constraint(result);
+        let bootstrap_clause_projection = phase_b_enabled
             && materialize_existing_target
-            && let Some(lower_record) = self.lower_record_for_constraint(result)
-            && !self.proof_store.has_projection_support_ledger(lower_record)
-        {
-            Some(
-                self.proof_store
-                    .qualified_parent_values_for_result(result)
-                    .collect::<Vec<_>>(),
-            )
-        } else {
-            None
-        };
-        let clause_projection_parents = bootstrap_clause_projection_parents
-            .as_deref()
-            .unwrap_or(&inserted_parents);
+            && clause_projection_lower.is_some_and(|lower_record| {
+                !self.proof_store.has_projection_support_ledger(lower_record)
+            });
         let pending_clause_link_snapshot = if phase_b_enabled
             && materialize_existing_target
-            && let Some(lower_record) = self.lower_record_for_constraint(result)
+            && let Some(lower_record) = clause_projection_lower
         {
-            self.commit_claim_parent_clause_links_mutation(
-                result,
-                lower_record,
-                clause_projection_parents,
-            )
+            if bootstrap_clause_projection {
+                match self.try_commit_all_claim_parent_clause_links_mutation(result, lower_record) {
+                    Ok(snapshot) => snapshot,
+                    Err(failure) => {
+                        self.mark_proof_terminal_failure(
+                            proof::ProofOperation::ProjectLowerSupportCollection,
+                            failure,
+                        );
+                        None
+                    }
+                }
+            } else {
+                self.commit_claim_parent_clause_links_mutation(
+                    result,
+                    lower_record,
+                    &inserted_parents,
+                )
+            }
         } else {
             None
         };
-        if phase_b_enabled
-            && materialize_existing_target
-            && self.proof_terminal_failure().is_none()
+        if phase_b_enabled && materialize_existing_target && self.proof_terminal_failure().is_none()
         {
             self.seal_record_proof_clause_link_batch(
                 pending_clause_link_snapshot,
@@ -2512,10 +2563,8 @@ impl ConstraintMachine {
         };
         let target_record = self.var_var_upper_record_for_constraint(result);
         let carrier = ProjectionProofCarrier::RowConstraint { result, derivation };
-        let (mut publication_fence, admitted_parents) = self.begin_non_replay_claim_parent_admission(
-            result,
-            &[parent],
-        );
+        let (mut publication_fence, admitted_parents) =
+            self.begin_non_replay_claim_parent_admission(result, &[parent]);
         if admitted_parents.is_empty() {
             return;
         }
@@ -2753,20 +2802,14 @@ impl ConstraintMachine {
         weights: &ConstraintWeights,
         incremental_routes: &[UnweightedRowReductionReplayRoute],
     ) -> BoundReplayPlan {
-        self.cpk_lower_bound_replay_actions(
-            target,
-            lower_record,
-            pos,
-            weights,
-            incremental_routes,
-        )
-        .unwrap_or_else(|failure| {
-            self.mark_proof_terminal_failure(
-                proof::ProofOperation::PrepareReplayRouteBatch,
-                failure,
-            );
-            BoundReplayPlan::default()
-        })
+        self.cpk_lower_bound_replay_actions(target, lower_record, pos, weights, incremental_routes)
+            .unwrap_or_else(|failure| {
+                self.mark_proof_terminal_failure(
+                    proof::ProofOperation::PrepareReplayRouteBatch,
+                    failure,
+                );
+                BoundReplayPlan::default()
+            })
     }
 
     fn cpk_lower_bound_replay_actions(
@@ -4124,7 +4167,6 @@ mod mutation_tests {
         );
     }
 
-
     #[test]
     fn dpn_a_original_claim_mirror_is_injective_for_direct_and_reduced_roots() {
         let mut machine = ConstraintMachine::new();
@@ -4178,16 +4220,23 @@ mod mutation_tests {
         assert_eq!(direct.claim, direct_again.claim);
         machine.move_upper_replay_claim(direct.claim, moved_record);
         assert!(
-            machine.proof_store.claims_for_upper_record_for_test(direct_record).is_empty(),
+            machine
+                .proof_store
+                .claims_for_upper_record_for_test(direct_record)
+                .is_empty(),
             "the non-collision move removes the root from its old record"
         );
         assert_eq!(
-            machine.proof_store.claims_for_upper_record_for_test(moved_record),
+            machine
+                .proof_store
+                .claims_for_upper_record_for_test(moved_record),
             &[direct.claim],
             "the non-collision move keeps the existing single-entry behavior"
         );
         assert_eq!(
-            machine.proof_store.original_claim(moved_record, direct_producer),
+            machine
+                .proof_store
+                .original_claim(moved_record, direct_producer),
             Some(direct.claim)
         );
         assert!(
@@ -4205,7 +4254,10 @@ mod mutation_tests {
             .collect::<Vec<_>>();
         assert_eq!(originals.len(), 2);
         assert_eq!(
-            machine.proof_store.upper_claims_for_test().iter()
+            machine
+                .proof_store
+                .upper_claims_for_test()
+                .iter()
                 .filter(|claim| claim.full_lineage == proof::UpperClaimLineage::Original)
                 .count(),
             originals.len(),
@@ -4220,11 +4272,15 @@ mod mutation_tests {
             );
         }
         assert_eq!(
-            machine.proof_store.root_claim_for_producer(direct_producer), Some(direct.claim),
+            machine.proof_store.root_claim_for_producer(direct_producer),
+            Some(direct.claim),
             "moving an Original claim's current record does not change producer identity"
         );
         assert_eq!(
-            machine.proof_store.root_claim_for_producer(reduced_producer), Some(reduced.claim),
+            machine
+                .proof_store
+                .root_claim_for_producer(reduced_producer),
+            Some(reduced.claim),
             "Reduced roots pass through the same shared constructor mirror"
         );
     }
@@ -4232,8 +4288,7 @@ mod mutation_tests {
     #[test]
     fn canonical_upper_claim_insertion_census_and_read_subsequences_are_root_ordered() {
         use crate::constraints::{
-            canonical_upper_claim_insertion_census,
-            reset_canonical_upper_claim_insertion_census,
+            canonical_upper_claim_insertion_census, reset_canonical_upper_claim_insertion_census,
         };
 
         reset_canonical_upper_claim_insertion_census();
@@ -4293,13 +4348,21 @@ mod mutation_tests {
         let claim_roots = |machine: &ConstraintMachine, claims: Vec<UpperReplayClaimId>| {
             claims
                 .into_iter()
-                .map(|claim| machine.proof_store.claim_coverage_root(claim).expect("CPK claim root"))
+                .map(|claim| {
+                    machine
+                        .proof_store
+                        .claim_coverage_root(claim)
+                        .expect("CPK claim root")
+                })
                 .collect::<Vec<_>>()
         };
         assert_eq!(
             claim_roots(
                 &machine,
-                machine.proof_store.claims_for_upper_record_for_test(target).to_vec(),
+                machine
+                    .proof_store
+                    .claims_for_upper_record_for_test(target)
+                    .to_vec(),
             ),
             roots
         );
@@ -4314,7 +4377,11 @@ mod mutation_tests {
             record_lengths[(record_lengths.len() * percentile).div_ceil(100) - 1]
         };
         assert_eq!(
-            (*record_lengths.last().unwrap(), percentile(95), percentile(99)),
+            (
+                *record_lengths.last().unwrap(),
+                percentile(95),
+                percentile(99)
+            ),
             (8, 8, 8)
         );
         assert_eq!(canonical_upper_claim_insertion_census(), (16, 4));
@@ -4327,21 +4394,48 @@ mod mutation_tests {
         }
         let target_claims = machine.proof_store.claims_for_upper_record_for_test(target);
         assert_eq!(
-            claim_roots(&machine, target_claims.iter().copied().filter(|claim| {
-                let root = machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root");
-                machine.proof_store.live_coverage_states_for_test(root).is_none_or(FxHashSet::is_empty)
-            }).collect()),
+            claim_roots(
+                &machine,
+                target_claims
+                    .iter()
+                    .copied()
+                    .filter(|claim| {
+                        let root = machine
+                            .proof_store
+                            .claim_coverage_root(*claim)
+                            .expect("CPK claim root");
+                        machine
+                            .proof_store
+                            .live_coverage_states_for_test(root)
+                            .is_none_or(FxHashSet::is_empty)
+                    })
+                    .collect()
+            ),
             roots[..5]
         );
         assert_eq!(
-            claim_roots(&machine, target_claims.iter().copied().filter(|claim| {
-                let root = machine.proof_store.claim_coverage_root(*claim).expect("CPK claim root");
-                machine.proof_store.live_coverage_states_for_test(root).is_some_and(|states| !states.is_empty())
-            }).collect()),
+            claim_roots(
+                &machine,
+                target_claims
+                    .iter()
+                    .copied()
+                    .filter(|claim| {
+                        let root = machine
+                            .proof_store
+                            .claim_coverage_root(*claim)
+                            .expect("CPK claim root");
+                        machine
+                            .proof_store
+                            .live_coverage_states_for_test(root)
+                            .is_some_and(|states| !states.is_empty())
+                    })
+                    .collect()
+            ),
             roots[5..]
         );
         let lower = machine.alloc_pos(Pos::Var(TypeVar(73)));
-        let replay_parent_roots = machine.proof_store
+        let replay_parent_roots = machine
+            .proof_store
             .prepared_upper_replay_parents_for_test(
                 target,
                 matches!(machine.types.pos(lower), Pos::Var(_)),
@@ -4352,7 +4446,6 @@ mod mutation_tests {
             .collect::<Vec<_>>();
         assert_eq!(replay_parent_roots, roots);
     }
-
 
     #[test]
     fn dpn_a_no_claim_workload_allocates_no_registration_ledgers() {
@@ -4437,15 +4530,16 @@ mod mutation_tests {
         for standalone_first in [false, true] {
             let mut machine = ConstraintMachine::new();
             let (source, cycle_support) = dpn_b_synthetic_projection_record(&mut machine, 3);
-            let (dependent, dependent_support) =
-                dpn_b_synthetic_projection_record(&mut machine, 7);
+            let (dependent, dependent_support) = dpn_b_synthetic_projection_record(&mut machine, 7);
             let standalone_carrier = ProjectionProofCarrier::Incomplete;
             let standalone_support = SchemeProjectionProofSupport::Independent(standalone_carrier);
-            let mutation = machine.try_prepare_scheme_projection_mutation(
-                source,
-                &[],
-                &[ProjectionProofCarrier::Incomplete],
-            ).expect("test projection support mutation must have capacity");
+            let mutation = machine
+                .try_prepare_scheme_projection_mutation(
+                    source,
+                    &[],
+                    &[ProjectionProofCarrier::Incomplete],
+                )
+                .expect("test projection support mutation must have capacity");
             machine.apply_scheme_projection_mutation(mutation);
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(3),
@@ -4500,10 +4594,8 @@ mod mutation_tests {
                 if shared.sharing_disabled {
                     assert!(
                         roots.into_iter().any(|record| {
-                            let mut evaluator = proof::CpkProjectionEvaluator::new(
-                                &machine,
-                                &machine.proof_store,
-                            );
+                            let mut evaluator =
+                                proof::CpkProjectionEvaluator::new(&machine, &machine.proof_store);
                             evaluator.eval_record(record);
                             evaluator.cycle_cuts() != 0
                         }),
@@ -4687,7 +4779,6 @@ mod mutation_tests {
         journal.finish();
     }
 
-
     #[test]
     fn exact_clause_link_duplicate_preflight_keeps_new_support_distinct() {
         let mut machine = ConstraintMachine::new();
@@ -4697,14 +4788,19 @@ mod mutation_tests {
             premise: ProofPremise::Record(record),
         };
 
-        assert!(!machine
-            .proof_store
-            .projection_clause_link_is_registered(record, support, clause));
+        assert!(
+            !machine
+                .proof_store
+                .projection_clause_link_is_registered(record, support, clause)
+        );
         machine.register_record_proof_clause_link(
             record,
             RecordProofClauseLinkAdmission::independent(support, clause),
         );
-        assert_eq!(machine.proof_store.projection_clauses_for_test(record), vec![clause]);
+        assert_eq!(
+            machine.proof_store.projection_clauses_for_test(record),
+            vec![clause]
+        );
         assert!(
             machine
                 .proof_store
@@ -4728,10 +4824,15 @@ mod mutation_tests {
             record,
             RecordProofClauseLinkAdmission::independent(other_support, clause),
         );
-        assert_eq!(machine.proof_store.projection_clauses_for_test(record), vec![clause]);
-        assert!(machine
-            .proof_store
-            .projection_clause_link_is_registered(record, other_support, clause));
+        assert_eq!(
+            machine.proof_store.projection_clauses_for_test(record),
+            vec![clause]
+        );
+        assert!(machine.proof_store.projection_clause_link_is_registered(
+            record,
+            other_support,
+            clause
+        ));
         assert_eq!(
             machine
                 .proof_store
@@ -4801,32 +4902,27 @@ mod mutation_tests {
     }
 
     #[cfg(debug_assertions)]
-
-
-
-
-
-
     #[test]
     fn cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end() {
         let mut fixture = cpk_mirrored_cdm_replay_claim_fixture();
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         assert_eq!(
-            fixture
-                .machine
-                .apply_cpk_replay_parent_arrival_for_test(
-                    fixture.result,
-                    replay,
-                    fixture.parent.claim,
-                ),
+            fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                fixture.result,
+                replay,
+                fixture.parent.claim,
+            ),
             1,
             "the fixture must exercise canonical-duplicate replay admission",
         );
-        let mutation = fixture.machine.try_prepare_scheme_projection_mutation(
-            fixture.lower_record,
-            &[],
-            &[ProjectionProofCarrier::Origin(OriginId::unknown_internal())],
-        ).expect("test projection support mutation must have capacity");
+        let mutation = fixture
+            .machine
+            .try_prepare_scheme_projection_mutation(
+                fixture.lower_record,
+                &[],
+                &[ProjectionProofCarrier::Origin(OriginId::unknown_internal())],
+            )
+            .expect("test projection support mutation must have capacity");
         fixture.machine.apply_scheme_projection_mutation(mutation);
 
         let child_lower = fixture
@@ -4845,15 +4941,19 @@ mod mutation_tests {
         let snapshot = fixture.machine.logical_proof_snapshot();
         assert!(snapshot.occurrences.len() >= 2);
         assert!(!snapshot.claim_relation.is_empty());
-        assert!(snapshot
-            .claim_relation
-            .windows(2)
-            .all(|pair| pair[0] <= pair[1]));
+        assert!(
+            snapshot
+                .claim_relation
+                .windows(2)
+                .all(|pair| pair[0] <= pair[1])
+        );
         assert!(!snapshot.projection.is_empty());
-        assert!(snapshot
-            .projection
-            .iter()
-            .any(|entry| !entry.supports.is_empty() && !entry.clauses.is_empty()));
+        assert!(
+            snapshot
+                .projection
+                .iter()
+                .any(|entry| !entry.supports.is_empty() && !entry.clauses.is_empty())
+        );
         assert!(!snapshot.dependencies.is_empty());
         assert!(!snapshot.portable.snapshot.nodes().is_empty());
         assert_eq!(
@@ -4879,13 +4979,11 @@ mod mutation_tests {
         });
         let replay = fixture.replay(ReplayRule::LowerBoundAdded);
         let apply_replay = |fixture: &mut CdmReplayClaimFixture| {
-            fixture
-                .machine
-                .apply_cpk_replay_parent_arrival_for_test(
-                    fixture.result,
-                    replay,
-                    fixture.parent.claim,
-                )
+            fixture.machine.apply_cpk_replay_parent_arrival_for_test(
+                fixture.result,
+                replay,
+                fixture.parent.claim,
+            )
         };
         assert_eq!(apply_replay(&mut fixture), 1);
 
