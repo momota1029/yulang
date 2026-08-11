@@ -202,19 +202,88 @@ impl ProofEvalMemo {
     fn summary_only(summary: CpkProjectionEvaluationSummary) -> Self {
         Self {
             summary,
-            evidence: ProofEvalEvidenceMemo::None,
+            evidence: ProofEvalEvidenceMemo::none(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ProofEvalEvidenceMemo {
+struct ProofEvalEvidenceMemo {
+    support_or_tag: u32,
+    entry_or_state: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecodedProofEvalEvidenceMemo {
     None,
-    // The evaluator immutably borrows the store for the whole round, so canonical formula
-    // positions cannot move before a provenance caller materializes this certificate.
-    DecisiveClaimedClauseIndex(u32),
+    DecisiveClaimedIncidence {
+        support_id: ProjectionSupportGroupId,
+        entry_id: ProjectionFormulaEntryId,
+    },
     ExactWithoutClaimedArm,
     FailOpenIncomplete,
+}
+
+impl ProofEvalEvidenceMemo {
+    const STATE_TAG: u32 = u32::MAX;
+    const NONE_STATE: u32 = 0;
+    const EXACT_WITHOUT_CLAIMED_ARM_STATE: u32 = 1;
+    const FAIL_OPEN_INCOMPLETE_STATE: u32 = 2;
+
+    const fn none() -> Self {
+        Self {
+            support_or_tag: Self::STATE_TAG,
+            entry_or_state: Self::NONE_STATE,
+        }
+    }
+
+    const fn exact_without_claimed_arm() -> Self {
+        Self {
+            support_or_tag: Self::STATE_TAG,
+            entry_or_state: Self::EXACT_WITHOUT_CLAIMED_ARM_STATE,
+        }
+    }
+
+    const fn fail_open_incomplete() -> Self {
+        Self {
+            support_or_tag: Self::STATE_TAG,
+            entry_or_state: Self::FAIL_OPEN_INCOMPLETE_STATE,
+        }
+    }
+
+    fn decisive_claimed_incidence(
+        support_id: ProjectionSupportGroupId,
+        entry_id: ProjectionFormulaEntryId,
+    ) -> Self {
+        assert_ne!(
+            support_id.0,
+            Self::STATE_TAG,
+            "PCLF support-group IDs must not collide with the evidence state tag",
+        );
+        Self {
+            support_or_tag: support_id.0,
+            entry_or_state: entry_id.0,
+        }
+    }
+
+    fn decode(self) -> DecodedProofEvalEvidenceMemo {
+        if self.support_or_tag != Self::STATE_TAG {
+            return DecodedProofEvalEvidenceMemo::DecisiveClaimedIncidence {
+                support_id: ProjectionSupportGroupId(self.support_or_tag),
+                entry_id: ProjectionFormulaEntryId(self.entry_or_state),
+            };
+        }
+        match self.entry_or_state {
+            Self::NONE_STATE => DecodedProofEvalEvidenceMemo::None,
+            Self::EXACT_WITHOUT_CLAIMED_ARM_STATE => {
+                DecodedProofEvalEvidenceMemo::ExactWithoutClaimedArm
+            }
+            Self::FAIL_OPEN_INCOMPLETE_STATE => {
+                DecodedProofEvalEvidenceMemo::FailOpenIncomplete
+            }
+            state => panic!("invalid packed proof-evidence memo state {state}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1862,6 +1931,19 @@ impl ProjectionFormulaBucket {
         )
     }
 
+    fn evaluation_item(
+        &self,
+        support_id: ProjectionSupportGroupId,
+        entry_id: ProjectionFormulaEntryId,
+    ) -> ProjectionEvaluationItem {
+        ProjectionEvaluationItem {
+            support_id,
+            entry_id,
+            raw_support: self.support_groups[support_id.0 as usize].raw_support,
+            clause: self.entries[entry_id.0 as usize].clause,
+        }
+    }
+
     fn canonical_run_partition_point(
         &self,
         category: CanonicalProjectionCategory,
@@ -1897,6 +1979,14 @@ impl ProjectionFormulaBucket {
         }
         clauses
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProjectionEvaluationItem {
+    support_id: ProjectionSupportGroupId,
+    entry_id: ProjectionFormulaEntryId,
+    raw_support: SchemeProjectionProofSupport,
+    clause: RecordProofClause,
 }
 
 fn reconstructed_projection_clause(
@@ -3251,6 +3341,7 @@ impl ProofOccurrenceStore {
         Ok(Some((key, proof)))
     }
 
+    #[cfg(test)]
     fn decisive_claimed_projection_proof(
         &self,
         bound: BoundRecordId,
@@ -3297,6 +3388,71 @@ impl ProofOccurrenceStore {
             key,
             proof.representative_claim(),
         )))
+    }
+
+    fn decisive_claimed_projection_proof_from_incidence(
+        &self,
+        bound: BoundRecordId,
+        support_id: ProjectionSupportGroupId,
+        entry_id: ProjectionFormulaEntryId,
+    ) -> Result<Option<ClaimedProjectionProof>, ProofFailure> {
+        let Some(bucket) = self.projection_formula_shadow.by_record.get(&bound) else {
+            debug_assert!(false, "decisive PCLF incidence must retain its record bucket");
+            return Ok(None);
+        };
+        let Some(group) = bucket.support_groups.get(support_id.0 as usize) else {
+            debug_assert!(false, "decisive PCLF incidence must retain its support group");
+            return Ok(None);
+        };
+        let Some(entry) = bucket.entries.get(entry_id.0 as usize) else {
+            debug_assert!(false, "decisive PCLF incidence must retain its clause entry");
+            return Ok(None);
+        };
+        let SchemeProjectionProofSupport::Claimed(_) = group.raw_support else {
+            debug_assert!(false, "decisive claimed PCLF incidence must use a claimed support");
+            return Ok(None);
+        };
+        let Some(ProjectionIncidenceMetadata::Claimed(template)) =
+            bucket.exact_links.get(&(support_id, entry_id)).copied()
+        else {
+            debug_assert!(false, "decisive claimed PCLF incidence must retain claimed metadata");
+            return Ok(None);
+        };
+        let Some(coverage_root) = group.coverage_root else {
+            debug_assert!(false, "claimed PCLF support group must retain its frozen coverage root");
+            return Ok(None);
+        };
+        let source = template.with_coverage_root(coverage_root);
+        let claimed_attribution_source = match source {
+            ClaimedProjectionProofSource::ReplayConstraint { .. } => {
+                ClaimedAttributionSource::CanonicalReplay
+            }
+            ClaimedProjectionProofSource::Original { .. }
+            | ClaimedProjectionProofSource::DerivedUnary { .. }
+            | ClaimedProjectionProofSource::ReplayEvidence { .. } => {
+                ClaimedAttributionSource::FlatRetained
+            }
+        };
+        let admission = RecordProofClauseLinkAdmission {
+            support: group.raw_support,
+            clause: entry.clause,
+            claimed_attribution_source: Some(claimed_attribution_source),
+            claimed_proof_source: Some(source),
+        };
+        let (key, proof) = self
+            .claimed_projection_proof(bound, admission)?
+            .expect("claimed decisive PCLF incidence produces one normalized certificate key");
+        let proof = ClaimedProjectionProof::from_key(key, proof.representative_claim());
+        #[cfg(test)]
+        {
+            let legacy_clause = Self::projection_clause(admission);
+            debug_assert_eq!(
+                self.decisive_claimed_projection_proof(bound, legacy_clause)?,
+                Some(proof),
+                "PCLF decisive incidence reconstruction must remain byte-equal to legacy audit lookup",
+            );
+        }
+        Ok(Some(proof))
     }
 
     pub(super) fn derived_claim(
@@ -4531,9 +4687,13 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     fn force_present_empty_projection_formula_for_test(&mut self, record: BoundRecordId) {
         assert!(!self.projection_formulas.contains_key(&record));
+        assert!(!self.projection_formula_shadow.by_record.contains_key(&record));
         self.projection_formulas.insert(record, Vec::new());
         self.projection_formula_support_keys
             .insert(record, FxHashSet::default());
+        self.projection_formula_shadow
+            .by_record
+            .insert(record, ProjectionFormulaBucket::default());
     }
 
     fn try_prepare_projection_formula_shadow_admission(
@@ -7307,12 +7467,12 @@ impl<'a> CpkProjectionEvaluator<'a> {
             return if *result {
                 ProofEvalMemo {
                     summary: CpkProjectionEvaluationSummary::IncludedExact,
-                    evidence: ProofEvalEvidenceMemo::ExactWithoutClaimedArm,
+                    evidence: ProofEvalEvidenceMemo::exact_without_claimed_arm(),
                 }
             } else {
                 ProofEvalMemo {
                     summary: CpkProjectionEvaluationSummary::Excluded,
-                    evidence: ProofEvalEvidenceMemo::None,
+                    evidence: ProofEvalEvidenceMemo::none(),
                 }
             };
         }
@@ -7320,26 +7480,26 @@ impl<'a> CpkProjectionEvaluator<'a> {
         if let Some(memo) = self.enter(node) {
             return memo;
         }
-        let mut decisive_claimed_clause_index = None;
+        let mut decisive_claimed_incidence = None;
         let summary = self.eval_record_uncached(
             record,
             self.preflight_validated_walk,
-            Some(&mut decisive_claimed_clause_index),
+            Some(&mut decisive_claimed_incidence),
         );
-        let evidence = match (summary, decisive_claimed_clause_index) {
-            (CpkProjectionEvaluationSummary::Excluded, _) => ProofEvalEvidenceMemo::None,
+        let evidence = match (summary, decisive_claimed_incidence) {
+            (CpkProjectionEvaluationSummary::Excluded, _) => ProofEvalEvidenceMemo::none(),
             (CpkProjectionEvaluationSummary::IncludedFailOpen, _) => {
-                ProofEvalEvidenceMemo::FailOpenIncomplete
+                ProofEvalEvidenceMemo::fail_open_incomplete()
             }
-            (CpkProjectionEvaluationSummary::IncludedExact, Some(index)) => {
+            (CpkProjectionEvaluationSummary::IncludedExact, Some((support_id, entry_id))) => {
                 #[cfg(test)]
                 {
                     self.decisive_evidence_markers += 1;
                 }
-                ProofEvalEvidenceMemo::DecisiveClaimedClauseIndex(index)
+                ProofEvalEvidenceMemo::decisive_claimed_incidence(support_id, entry_id)
             }
             (CpkProjectionEvaluationSummary::IncludedExact, _) => {
-                ProofEvalEvidenceMemo::ExactWithoutClaimedArm
+                ProofEvalEvidenceMemo::exact_without_claimed_arm()
             }
         };
         self.finish(node, ProofEvalMemo { summary, evidence })
@@ -7354,35 +7514,31 @@ impl<'a> CpkProjectionEvaluator<'a> {
         record: BoundRecordId,
         memo: ProofEvalMemo,
     ) -> Result<ProjectionEvidence, ProofFailure> {
-        Ok(match memo.evidence {
-            ProofEvalEvidenceMemo::DecisiveClaimedClauseIndex(index) => {
+        Ok(match memo.evidence.decode() {
+            DecodedProofEvalEvidenceMemo::DecisiveClaimedIncidence {
+                support_id,
+                entry_id,
+            } => {
                 #[cfg(test)]
                 {
                     self.decisive_certificate_lookups += 1;
                 }
-                let Some(clause) = self
-                    .store
-                    .projection_formulas
-                    .get(&record)
-                    .and_then(|clauses| clauses.get(index as usize))
-                    .copied()
-                else {
-                    debug_assert!(
-                        false,
-                        "decisive claimed projection clause index must remain valid for the immutable evaluation round"
-                    );
-                    return Ok(ProjectionEvidence::FailOpenIncomplete);
-                };
                 self.store
-                    .decisive_claimed_projection_proof(record, clause)?
+                    .decisive_claimed_projection_proof_from_incidence(
+                        record,
+                        support_id,
+                        entry_id,
+                    )?
                     .map(ProjectionEvidence::DecisiveClaimedArm)
                     .unwrap_or(ProjectionEvidence::FailOpenIncomplete)
             }
-            ProofEvalEvidenceMemo::ExactWithoutClaimedArm => {
+            DecodedProofEvalEvidenceMemo::ExactWithoutClaimedArm => {
                 ProjectionEvidence::ExactWithoutClaimedArm
             }
-            ProofEvalEvidenceMemo::FailOpenIncomplete => ProjectionEvidence::FailOpenIncomplete,
-            ProofEvalEvidenceMemo::None => {
+            DecodedProofEvalEvidenceMemo::FailOpenIncomplete => {
+                ProjectionEvidence::FailOpenIncomplete
+            }
+            DecodedProofEvalEvidenceMemo::None => {
                 debug_assert!(false, "included record memo must carry evidence");
                 ProjectionEvidence::FailOpenIncomplete
             }
@@ -7411,7 +7567,9 @@ impl<'a> CpkProjectionEvaluator<'a> {
         &mut self,
         record: BoundRecordId,
         prefer_exact_arm: bool,
-        mut decisive_claimed_clause_index: Option<&mut Option<u32>>,
+        mut decisive_claimed_incidence: Option<
+            &mut Option<(ProjectionSupportGroupId, ProjectionFormulaEntryId)>,
+        >,
     ) -> CpkProjectionEvaluationSummary {
         let Some(bound) = self.view.bound(record) else {
             debug_assert!(
@@ -7442,10 +7600,10 @@ impl<'a> CpkProjectionEvaluator<'a> {
             return CpkProjectionEvaluationSummary::Excluded;
         }
 
-        let clauses = self.store.projection_formulas.get(&record);
+        let formula_bucket = self.store.projection_formula_shadow.by_record.get(&record);
         let Some(supports) = self.store.projection_supports.get(&record) else {
             return if self.preflight_validated_walk
-                && clauses.is_none_or(|clauses| clauses.is_empty())
+                && formula_bucket.is_none_or(|bucket| bucket.exact_links.is_empty())
             {
                 CpkProjectionEvaluationSummary::IncludedExact
             } else {
@@ -7454,48 +7612,39 @@ impl<'a> CpkProjectionEvaluator<'a> {
         };
         if supports.is_empty() {
             return if self.preflight_validated_walk
-                && clauses.is_none_or(|clauses| clauses.is_empty())
+                && formula_bucket.is_none_or(|bucket| bucket.exact_links.is_empty())
             {
                 CpkProjectionEvaluationSummary::IncludedExact
             } else {
                 CpkProjectionEvaluationSummary::IncludedFailOpen
             };
         }
-        let clause_support_keys = self
-            .store
-            .projection_formula_support_keys
-            .get(&record);
-        debug_assert_eq!(
-            clauses.is_some(),
-            clause_support_keys.is_some(),
-            "CPK projection formula/support-key mirror presence must match for {record:?}",
-        );
+        let normalized_support_keys = formula_bucket.map(|bucket| &bucket.normalized_support_keys);
         for support in supports.iter().copied() {
             if self.support_evaluation(support).is_included()
                 && !self
                     .store
                     .projection_support_match_key(support)
                     .is_some_and(|key| {
-                        clause_support_keys.is_some_and(|keys| keys.contains(&key))
+                        normalized_support_keys.is_some_and(|keys| keys.contains(&key))
                     })
             {
                 return CpkProjectionEvaluationSummary::IncludedFailOpen;
             }
         }
-        let Some(clauses) = clauses else {
+        let Some(formula_bucket) = formula_bucket else {
             return CpkProjectionEvaluationSummary::Excluded;
         };
         let mut incomplete_arm_exists = false;
-        for (index, clause) in clauses.iter().copied().enumerate() {
-            let result = self.eval_clause(clause);
+        let mut cursor = formula_bucket.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = cursor.next() {
+            let item = formula_bucket.evaluation_item(support_id, entry_id);
+            let result = self.eval_formula_item(item);
             match result {
                 CpkProjectionEvaluationSummary::IncludedExact => {
-                    if matches!(clause.support(), SchemeProjectionProofSupport::Claimed(_)) {
-                        if let Some(found) = decisive_claimed_clause_index.as_deref_mut() {
-                            *found = Some(
-                                u32::try_from(index)
-                                    .expect("projection formula index must fit in u32"),
-                            );
+                    if matches!(item.raw_support, SchemeProjectionProofSupport::Claimed(_)) {
+                        if let Some(found) = decisive_claimed_incidence.as_deref_mut() {
+                            *found = Some((item.support_id, item.entry_id));
                         }
                     }
                     return result;
@@ -7514,6 +7663,38 @@ impl<'a> CpkProjectionEvaluator<'a> {
         }
     }
 
+    fn eval_formula_item(
+        &mut self,
+        item: ProjectionEvaluationItem,
+    ) -> CpkProjectionEvaluationSummary {
+        match item.clause {
+            RecordProofClause::Standalone { .. } => self.support_evaluation(item.raw_support),
+            RecordProofClause::DerivedUnary { premise, .. } => self.eval_premise(premise),
+            RecordProofClause::ReplayConjunction {
+                lower_premise,
+                upper_premise,
+                ..
+            } => {
+                let lower = self.eval_record_summary(lower_premise);
+                if lower == CpkProjectionEvaluationSummary::Excluded {
+                    return CpkProjectionEvaluationSummary::Excluded;
+                }
+                let upper = self.eval_record_summary(upper_premise);
+                if upper == CpkProjectionEvaluationSummary::Excluded {
+                    return CpkProjectionEvaluationSummary::Excluded;
+                }
+                if lower == CpkProjectionEvaluationSummary::IncludedFailOpen
+                    || upper == CpkProjectionEvaluationSummary::IncludedFailOpen
+                {
+                    CpkProjectionEvaluationSummary::IncludedFailOpen
+                } else {
+                    CpkProjectionEvaluationSummary::IncludedExact
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn eval_clause(&mut self, clause: ProjectionClause) -> CpkProjectionEvaluationSummary {
         match clause {
             ProjectionClause::Standalone { support, .. } => {
@@ -8476,10 +8657,11 @@ impl ProofOccurrenceStore {
     pub(super) fn projection_formula_for_record(
         &self,
         record: BoundRecordId,
-    ) -> &[ProjectionClause] {
-        self.projection_formulas
+    ) -> Vec<ProjectionClause> {
+        self.projection_formula_shadow
+            .by_record
             .get(&record)
-            .map(Vec::as_slice)
+            .map(ProjectionFormulaBucket::canonical_clauses)
             .unwrap_or_default()
     }
 
@@ -9587,6 +9769,79 @@ mod tests {
     }
 
     #[test]
+    fn pclf_d1_evaluator_items_match_legacy_clauses_in_canonical_order() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_168);
+        let support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(97_169),
+            lower: BoundRecordId(97_170),
+            upper: BoundRecordId(97_171),
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        for admission in [
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(97_172)),
+                    premise: ProofPremise::Record(BoundRecordId(97_173)),
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        ] {
+            store.record_projection_clause(record, admission);
+        }
+
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        let mut cursor = bucket.canonical_run_cursor();
+        let mut factored_items = Vec::new();
+        while let Some((support_id, entry_id)) = cursor.next() {
+            factored_items.push((
+                bucket.evaluation_item(support_id, entry_id),
+                bucket.reconstructed_clause(support_id, entry_id),
+            ));
+        }
+        assert_eq!(
+            factored_items
+                .iter()
+                .map(|(_, clause)| *clause)
+                .collect::<Vec<_>>(),
+            store.projection_formulas[&record],
+            "the evaluator cursor must expose the byte-identical legacy clause sequence",
+        );
+
+        let machine = ConstraintMachine::new();
+        for (item, legacy_clause) in factored_items {
+            let mut factored = CpkProjectionEvaluator::new(&machine, &store)
+                .with_record_result_override(replay.lower, true)
+                .with_record_result_override(replay.upper, false)
+                .with_record_result_override(BoundRecordId(97_173), true);
+            let mut legacy = CpkProjectionEvaluator::new(&machine, &store)
+                .with_record_result_override(replay.lower, true)
+                .with_record_result_override(replay.upper, false)
+                .with_record_result_override(BoundRecordId(97_173), true);
+            assert_eq!(
+                factored.eval_formula_item(item),
+                legacy.eval_clause(legacy_clause),
+                "factored evaluator items must preserve legacy per-clause semantics",
+            );
+        }
+    }
+
+    #[test]
     fn pclf_d0_large_single_run_repeated_small_admissions_bounds_writer_cost() {
         const LINKS: u32 = 1_800;
         let mut store = ProofOccurrenceStore::default();
@@ -10345,7 +10600,7 @@ mod tests {
         assert_eq!(
             std::mem::size_of::<ProofEvalEvidenceMemo>(),
             8,
-            "the evidence memo must retain only a compact formula index",
+            "the evidence memo must retain only a compact support/entry identity",
         );
         assert_eq!(
             std::mem::size_of::<ProofEvalState>(),
@@ -10447,6 +10702,30 @@ mod tests {
             panic!("the canonical first true claimed clause must be the decisive arm");
         };
         assert_eq!(proof.coverage_root(), claims.into_iter().min().unwrap());
+        let ProofEvalState::Done(memo) = evaluator.states[&ProofEvalNode::Record(record)] else {
+            panic!("the decisive record must be memoized after its first evaluation");
+        };
+        let DecodedProofEvalEvidenceMemo::DecisiveClaimedIncidence {
+            support_id,
+            entry_id,
+        } = memo.evidence.decode()
+        else {
+            panic!("the packed memo must retain the exact decisive PCLF incidence");
+        };
+        let bucket = &fixture.machine.proof_store.projection_formula_shadow.by_record[&record];
+        assert!(matches!(
+            bucket.exact_links[&(support_id, entry_id)],
+            ProjectionIncidenceMetadata::Claimed(_),
+        ));
+        let legacy_clause = bucket.reconstructed_clause(support_id, entry_id);
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .decisive_claimed_projection_proof(record, legacy_clause)
+                .expect("legacy decisive source oracle"),
+            Some(proof),
+        );
         assert_eq!(
             evaluator
                 .eval_record_with_evidence(record)
@@ -10463,6 +10742,40 @@ mod tests {
             1,
             "the compact decisive-clause marker is computed once with the memoized boolean result",
         );
+    }
+
+    #[test]
+    fn pclf_d1_packed_evidence_memo_round_trips_all_states_and_rejects_reserved_ids() {
+        assert_eq!(std::mem::size_of::<ProofEvalEvidenceMemo>(), 8);
+        assert_eq!(std::mem::size_of::<ProofEvalState>(), 12);
+        assert_eq!(
+            ProofEvalEvidenceMemo::none().decode(),
+            DecodedProofEvalEvidenceMemo::None,
+        );
+        assert_eq!(
+            ProofEvalEvidenceMemo::exact_without_claimed_arm().decode(),
+            DecodedProofEvalEvidenceMemo::ExactWithoutClaimedArm,
+        );
+        assert_eq!(
+            ProofEvalEvidenceMemo::fail_open_incomplete().decode(),
+            DecodedProofEvalEvidenceMemo::FailOpenIncomplete,
+        );
+        let support_id = ProjectionSupportGroupId(17);
+        let entry_id = ProjectionFormulaEntryId(23);
+        assert_eq!(
+            ProofEvalEvidenceMemo::decisive_claimed_incidence(support_id, entry_id).decode(),
+            DecodedProofEvalEvidenceMemo::DecisiveClaimedIncidence {
+                support_id,
+                entry_id,
+            },
+        );
+        assert!(std::panic::catch_unwind(|| {
+            ProofEvalEvidenceMemo::decisive_claimed_incidence(
+                ProjectionSupportGroupId(u32::MAX),
+                entry_id,
+            )
+        })
+        .is_err());
     }
 
     #[test]

@@ -509,6 +509,8 @@ fn capture_projection(
                 .collect::<Vec<_>>();
             supports.sort();
             supports.dedup();
+            // PCLF-D1 reads the logical snapshot from the factored canonical-run cursor. The
+            // legacy formula remains dual-written only as a parity oracle until PCLF-E.
             let formula = machine.proof_store.projection_formula_for_record(lower);
             let mut clauses = formula
                 .iter()
