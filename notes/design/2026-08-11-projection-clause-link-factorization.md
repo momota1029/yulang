@@ -40,6 +40,12 @@ arena-indexed entry access、cache localityの寄与を相互に分離できな�
 主要因である」を**作業仮説**とし、metadata accessだけの局所最適化を棄却してcanonical sequenceを
 「非empty runだけを連続走査する」物理表現へ改訂する。仮説の確定はPCLF-D1の同条件wall/profile gateに委ねる。
 
+PCLF-D0実装中、flat run bufferへの1,800回のdescending singleton admissionが
+`N(N-1)/2 = 1,619,100` comparisonsを生むことをfixtureが実証した。`std::text::parse`では同じcostは
+低かったが、ユーザ判断により実workloadだけを根拠にquadratic worst caseを受容しない。本書のD0 contractは、
+run payloadを最大128件のsorted chunkへ分割し、prepare済みowned AVL + 明示的in-order cursorで一eventの既存payload workを
+fixed-capacity + logarithmic lookup boundへ閉じる形へ具体化する。この変更はPCLF-C authority、`exact_links`、D1 evaluator semanticsを変えない。
+
 ## 0. 決定要約
 
 `ProofOccurrenceStore` の projection formula は、意味上は次の二部関係である。
@@ -470,11 +476,24 @@ enum CanonicalProjectionCategory {
 struct CanonicalProjectionRun {
     category: CanonicalProjectionCategory,
     support_id: ProjectionSupportGroupId,
+    // 全nodeはprepare中にfallible allocation済み。全chunkは非emptyかつ最大128 entries。
+    chunk_root: Option<Box<ProjectionRunChunk>>,
+    entry_len: usize,
+}
 
-    // 非empty。固定category/support内のProjectionClause::canonical_cmp suffix順。
+struct ProjectionRunChunk {
+    // 固定category/support内のProjectionClause::canonical_cmp suffix順。
     entries: Vec<ProjectionFormulaEntryId>,
+    left: Option<Box<ProjectionRunChunk>>,
+    right: Option<Box<ProjectionRunChunk>>,
+    height: u8,
 }
 ```
+
+current Rust toolchainではfallible `Box::try_new`を使えないため、実装上のowned nodeは
+`type ProjectionRunChunkBox = Box<[ProjectionRunChunk]>`（長さexactly one）とする。prepareで一要素`Vec`を
+`try_reserve_exact(1)`してからboxed sliceへ変換し、commit中のnode allocationを禁止する。この表現差は
+logical tree、canonical order、complexity contractを変えない。
 
 `entry_by_clause` は `projection_clause_keys` を置き換える。global `(record, clause)` key の record prefixを
 各 entryへ繰り返さず、bucket lookup 後は exact clause body だけで O(1) lookup する。
@@ -486,21 +505,28 @@ claimed incidence の value から削除しない。
 
 ここで「小さい」は full raw key / full clauseを含めないという設計上の比較であり、Rust layout、padding、hash table
 capacityを含む実byte数を無条件に小さいとみなす意味ではない。rev.2 metadata/index自体はPCLF-Bで測定済みであり、
-rev.3 canonical runを含む全capacity込みbytesは§9.4どおりPCLF-D0で **要検証** とする。
+owned fixed-capacity chunkを含む全capacity込みbytesは§9.4のPCLF-D0 censusでlegacy比`47.314120%`と確認した。
 
 lookup `(raw support, exact clause)` は `support_group_by_raw` と `entry_by_clause` から ID pair を作り、
 `exact_links.get(&(support_id, entry_id))` でその exact link 固有の metadata を得る。同じ entry に
 `ReplayConstraint { result }` と `ReplayEvidence` が別 support から到達しても、二つの pair は別 value を保持する。
 `entry_by_clause` は引き続き clause bodyだけを authority とするため、dependency edge exactly-onceを変えない。
 
-canonical runのentry列にはlogical link一件につきcompact `ProjectionFormulaEntryId` が一つ現れる。
+canonical runのchunk entry列にはlogical link一件につきcompact `ProjectionFormulaEntryId` が一つ現れる。
 support IDとcategoryは同じrun内の全entryで一回だけ保存する。従ってincidenceはmembership hashとordered run entryの
 二つのcompact projectionを持つが、full tuple、per-incidence support ID、per-incidence metadataをordered sideへ
-複製しない。`canonical_runs`は非empty runだけを持ち、empty `(category, support)` のheaderもiterationも作らない。
+複製しない。`canonical_runs`と各runのchunkは非emptyだけを持ち、empty `(category, support)` / empty chunkの
+headerもiterationも作らない。chunk容量上限は128とし、overflow時はほぼ等分にsplitする。従ってsingletonを
+同じrunへ反復admitしても、既存payloadの比較・走査・移動は一eventあたり128 entries以下に構造的に閉じる。
+
+AVLはowned chunk nodeを直接結ぶ。pivotはchunkの先頭entryである。非先頭chunkへrouteされるnew entryは
+そのpivot以上・次pivot未満なのでpivotを小さくしない。先頭chunkのpivotだけは小さくなりうるが、常にtree全体の
+minimumであるため順序不変である。splitで追加したchunk pivotだけをAVLへinsertし、rotationはowned nodeを移すだけで
+allocationしない。canonical iterationは固定長stackによるin-order traversalを使い、tree shapeを出力順へ露出しない。
 
 このshapeはrev.2の三category Vec bufferと同じentry-ID cardinalityを保ちながら、support groupごとの三`Vec` headerと
-`canonical_support_groups`を除く。代わりに非empty run一件につき、category、support ID、entry `Vec` headerを持つ。
-実capacity込みbytesはPCLF-D0で再測定する。§9.4のestimateは承認根拠ではなくmandatory stop gateである。
+`canonical_support_groups`を除く。代わりに非empty run一件のdescriptorと、最大128 entriesごとのowned chunk nodeを持つ。
+実capacity込みbytesは§9.4のPCLF-D0 censusで再測定し、50%未満gateを満たした。
 
 ### 3.5 Canonical formula iterator
 
@@ -509,20 +535,28 @@ support IDとcategoryは同じrun内の全entryで一回だけ保存する。従
 
 ```text
 run_index = 0
+chunk_stack = fixed [Option<&ProjectionRunChunk>; 64]
+active_chunk = none
 entry_index = 0
 while run_index < canonical_runs.len:
-    run = canonical_runs[run_index]       // 常にentries nonempty
-    while entry_index < run.entries.len:
-        entry_id = run.entries[entry_index]
+    if active_chunk has remaining entry:
+        entry_id = active_chunk.entries[entry_index]
         yield (run.category, run.support_id, entry_id)
         entry_index += 1
+        continue
+    if chunk_stack is nonempty:
+        active_chunk = pop stack
+        push active_chunk.right's left spine
+        entry_index = 0
+        continue
+    run = canonical_runs[run_index]       // 常にchunk/entries nonempty
     run_index += 1
-    entry_index = 0
+    push run.chunk_root's left spine
 ```
 
-`canonical_runs` は `(category rank, projection_support_cmp(raw_support))` 順に維持する。各runのentry Vecは、
+`canonical_runs` は `(category rank, projection_support_cmp(raw_support))` 順に維持する。各runのAVL in-order列と各chunkは、
 reconstructed `ProjectionClause` に対する `ProjectionClause::canonical_cmp` のcategory/supportより後ろのkeyで
-昇順に維持する。runはentry zeroにならず、同じ`(category, support_id)`のrunを二つ作らない。
+昇順に維持する。run/chunkはentry zeroにならず、同じ`(category, support_id)`のrunを二つ作らない。
 equalなreconstructed clauseが複数ある場合、出力valueがbyte-identicalであること、
 raw exact identity と per-incidence claimed source template が別 oracle で一致することを要求する。hash/arena ID順を
 tie-breakerとして diagnostics や decisive-arm semanticsへ露出しない。
@@ -535,13 +569,14 @@ reconstruct 時の attribution は entry-global stateから読まない。各 `(
 test-only oracle はiteratorを`Vec<ProjectionClause>`へ展開し、legacy `projection_formulas[record]` と
 sequence equalityで比較する。set equalityだけではGWCB decisive armを保護できない。
 
-iterator complexityは`O(nonempty_runs + |L(r)|)`である。全runは最低一incidenceを持つため
+iterator complexityは`O(nonempty_runs + nonempty_chunks + |L(r)|)`である。全run/chunkは最低一incidenceを持つため
 `nonempty_runs <= |L(r)|`であり、全体は`O(|L(r)|)`となる。rev.2の`O(3 * |S(r)| + |L(r)|)`に含まれた
-empty-combination walkを行わない。実装は`Map` / `Fuse` / `FlatMap`の合成ではなく、上の二index cursorまたは
-同等にcodegenを検証したnamed iteratorとする。PCLF-D0ではtargeted oracle/benchmarkのcursor operation countと
+empty-combination walkを行わない。実装は`Map` / `Fuse` / `FlatMap`の合成ではなく、上の固定stack付き
+run/chunk/entry cursorとする。u32で表すchunk数のAVL depthは64未満であり、stack overflowはfail-hardにする。
+PCLF-D0ではtargeted oracle/benchmarkのcursor operation countと
 codegen inspectionで、run flattenにgeneric nested adapterが再導入されていないことを確認する。D0はproduction evaluatorを
 legacyに保つため、std release evaluatorのsampling gateは置かない。そのhot-path samplingはPCLF-D1で初めて行う。
-entry IDは各run内でcontiguousであり、pointer chaseは非empty runへの切替時に一回だけ行う。
+entry IDは各chunk内でcontiguousであり、pointer chaseは最大128 entriesごとの非empty chunk切替時に一回だけ行う。
 record全体のsingle allocationではないため「mostly-flat」shapeだが、incidenceごとのhash/table pointer chaseや
 empty runへのpointer chaseは行わない。
 
@@ -675,7 +710,19 @@ struct PreparedProjectionFormulaAdmission {
 struct PreparedCanonicalRunDelta {
     category: CanonicalProjectionCategory,
     support_id: ProjectionSupportGroupId,
-    entries: Vec<ProjectionFormulaEntryId>,
+    existing_run_index: usize,
+    entry_count: usize,
+    // 同じ既存chunkへrouteされたevent-local deltaと、予約済みsplit output。
+    chunks: Vec<PreparedCanonicalChunkDelta>,
+}
+
+struct PreparedCanonicalChunkDelta {
+    // prepare時の既存chunk先頭entry。commit時のallocation-free lookup key。
+    target_pivot: ProjectionFormulaEntryId,
+    // 既存chunkを置換する1..=128件の予約済みbuffer。
+    replacement_entries: Vec<ProjectionFormulaEntryId>,
+    // splitで追加する予約・構築済みowned AVL nodes。
+    new_chunks: Vec<Box<ProjectionRunChunk>>,
 }
 ```
 
@@ -692,10 +739,14 @@ prepare は次の順序にする。
 4. exact duplicate の per-incidence source template/root が既存 value と一致することを fail-hard assertする。
 5. new clause、new support group、new exact incidence、summary deltaを計算する。
 6. accepted incidenceを`(category, support_id)`でgroup化し、各delta entry列だけをcanonical suffix順にsortする。
-   existing runはbinary searchで特定し、その全体やrecord全体をcloneしない。
+   existing runはbinary searchで特定し、run内ではAVL pivot lookupで各entryを既存chunkへrouteする。同じchunkへ
+   routeされたdeltaだけを、その最大128件の既存payloadとmergeする。run全体やrecord全体をclone/scanしない。
 7. accepted が空なら persistent storageを作らず `None` を返す。
 8. 全 fallible validation を終えた後、entry/support/incidence/canonical-run/summaryのcapacityをpreflightする。
-   existing runは`current_len + delta_len`、new runはexact delta len、run tableはnew run countをworst-caseにする。
+   existing runはreplacement bufferとsplitで増えるowned chunk nodeをprepare中にfallible exact allocationする。
+   new runはentry数から`ceil(delta_len / 128)`個のchunk buffer/nodeをprepareで構築し、run tableはnew run countをworst-caseにする。
+   一eventが複数existing runへ触れる場合、各runのnode allocation間へfailure injectionを置き、途中failureでも
+   legacy/factored logical stateが不変であることをfixtureで固定する。
 9. capacity preflightが全て成功した場合だけprepared planを返す。
 
 prepare 中に current bucket の logical len/contentを変更しない。capacity reserve が途中まで成功して後続 reserve が
@@ -714,25 +765,25 @@ commit は allocation/fallible validationを行わない。次の順でdeltaだ�
 
 canonical run deltaは次の規則でcommitする。
 
-- existing run: prepared deltaを既存entry列へ後方mergeする。deltaだけをsortし、reserve済みbuffer内で
-  `O(existing_run_len + delta_len)`、追加allocation zeroで適用する。一entryずつの反復insertで同じsuffixを
-  何度もshiftしない。
-- new run: delta entry列をそのまま所有させ、`canonical_runs`の
+- existing run: prepare済みreplacement bufferで既存chunkを置換する。overflowなら残りの予約・構築済みowned nodeを
+  AVLへinsert/rebalanceする。rotationはBox ownershipを移すだけで、commit時allocationはzero。
+  一eventのpayload mergeは`O(delta_len + affected_chunks * 128)`、chunk lookup/AVL更新は
+  `O(delta_len * log chunk_count)`であり、既存run全長のscan/moveを行わない。
+- new run: sorted delta entry列を最大128件の非empty chunkへ分け、balanced owned AVLをprepareで完成させ、`canonical_runs`の
   `(category, projection_support_cmp(raw_support))`位置へinsertする。moveするのはrun descriptorであり、
   record内のincidence payloadではない。
 - 一transactionで複数new runがある場合はrun deltaをcanonical順にsortし、run table descriptorを一回の
   後方mergeまたは同等のlinear mergeで更新する。既存runのentry bufferをcloneしない。
 
-このwriter costは、既存runへの追加ではaffected runの長さ、新run追加ではrecord-local nonempty run descriptor数に
-比例する。多runへ分散した通常caseではsingle flat incidence Vecより局所的になりうるが、これはrecord sizeから独立な
-asymptotic boundではない。一recordの大半または全incidenceが一runへ集中すれば
-`existing_run_len == |L(r)|`であり、小deltaの反復mergeは累積でquadraticへ近づきうる。「任意の一incidence追加で
-record全体をshiftしない」と無条件には主張しない。
+このwriter costは、既存runへの追加についてrun全長から独立したfixed-capacity payload boundを持つ。chunk探索と
+AVL rotationだけはchunk数に対して対数であり、payload比較/走査/移動は一affected chunkあたり128件以下である。
+従って一recordの全incidenceが一runへ集中しても、singleton反復admissionが既存run全体を再mergeすることはない。
+new run descriptor追加は従来どおりrecord-local nonempty run descriptor数に比例するが、incidence payloadをmoveしない。
 
-PCLF-D0で`run_delta_len`、existing run len、merge comparison count、scanned existing-entry count、moved entry count、
-new-run descriptor comparison/movement、merge self-timeを別々に測る。large single-runへ小deltaを反復admitするfixtureを含め、
-新dominant costまたはrecord-wide反復scanになればevaluator cutoverへ進まない。earlier censusのaccepted delta
-mean約57/callとrecord formula p95/maxは参考値であり、run別分布、位置cluster、single-run上限を与えないため **要検証** とする。
+PCLF-D0で`run_delta_len`、chunk lookup comparison、chunk-local merge comparison/scanned/moved entry、split count、
+new-run descriptor comparison/movement、merge self-timeを別々に測る。large single-runへ小deltaを反復admitするfixtureでは、
+累積payload workがevent数に対して線形のfixed-cap boundへ収まることをblocking gateとする。real workloadでも
+新dominant costまたはrecord-wide反復scanになればevaluator cutoverへ進まない。
 
 commit後、`accepted` の `clause_inserted` だけが既存 dependency edge registrationへ流れる。
 新 support incidenceは既存 clauseのdependency edgeを再登録しない。
@@ -980,13 +1031,15 @@ production normal loweringで全28.5M linkを `Vec` / `HashMap`へ再展開し�
 14. **Canonical order isolation**
     - HashMap/HashSet iteration、arena ID、allocation address、input permutationをformula orderへ漏らさない。
     - `canonical_runs` は非empty `(category, support group)` だけをcanonical順に持ち、同じpairを二runへ分割しない。
-    - evaluatorは明示的なrun/entry cursorで歩き、categoryごとの全support-group再走査やgenericな多層iteratorへ戻さない。
+    - run内chunkは全て1..=128 entries、AVL in-order列は全entryをexactly onceでcanonical順に結ぶ。tree shape/allocation addressは出力へ漏らさない。
+    - evaluatorは明示的なrun/chunk/entry cursorで歩き、categoryごとの全support-group再走査やgenericな多層iteratorへ戻さない。
 
 15. **Insertion-order equivalence**
     - 現行がcanonicalに同値とするadmission順序でformula、exact relation、GWCB evidence、scheme結果が一致する。
     - source-conflict linkはouter raw supportが異なる別incidenceとして両方を保持し、順序によるentry-global winnerを作らない。
     - 同じexact raw identityが異なるmetadataを再提示する入力は合法なpermutationではなく、全順序でfail-hardする。
-    - run partition、run order、run内entry orderはadmission permutationに依存せず、legacy canonical sequenceだけで決まる。
+    - run partition、run order、run内flatten entry orderはadmission permutationに依存せず、legacy canonical sequenceだけで決まる。
+      chunk境界/AVL shape/allocation addressはphysical detailであり、semantic/hash outputへ含めない。
 
 16. **Admission-time completeness**
     - accepted linkは同じevent内でentry、incidence、summary、dependency consumerへ到達する。
@@ -1008,8 +1061,9 @@ production normal loweringで全28.5M linkを `Vec` / `HashMap`へ再展開し�
 
 21. **No full-bucket rebuild**
     - admission deltaのためにrecordの全exact link formula/support setをclone/re-sortしない。
-    - existing runはそのrunとdeltaだけをmergeし、new run追加はrun descriptorだけをmoveする。record全incidenceを持つ
-      single flat bufferへの反復position insert、全record sort、全run rebuildを行わない。
+    - existing runはaffected fixed-capacity chunkとdeltaだけをmergeし、split nodeはprepareでfallible allocation済みにする。
+      new run追加はrun descriptorだけをmoveする。
+      existing run全payload、record全incidenceを持つsingle flat bufferへの反復position insert、全record sort、全run rebuildを行わない。
 
 22. **No production full expansion**
     - evaluator、admission、GWCB lookup、epoch publicationはexpanded exact link collectionを作らない。
@@ -1088,8 +1142,10 @@ std workloadで毎event full expansionは行わず、targeted fixtureとsampled 
 - 同じexisting runへ複数entryを一batchで加えるcaseと、一batchで複数new runを作るcase。
 - p95/max級またはそれ以上のincidenceを一つの`(category, support_id)` runへ集中させ、singletonまたは小deltaを
   反復admitするlarge single-run case。各eventのformula parityに加え、comparison、scanned-entry、moved-entryの
-  累積が記録され、quadratic傾向を隠さないこと。
+  累積とchunk lookup/split countを記録すること。1,800 descending singleton eventsでも既存run全長をscanせず、
+  payload scan/moveが`events * (chunk_capacity + delta)`の線形boundへ収まることをblocking gateとする。
 - canonical runの先頭・中間・末尾へnew descriptorを加えるcase。
+- 一eventで複数existing run/chunkを更新し、各run reservationの間へfailureを注入して両faceのlogical stateが不変なcase。
 - insertion-order permutation。
 - failed reservation before/after各reserve point。
 - exact no-op persistent allocation census。
@@ -1246,10 +1302,13 @@ ordered projection writeを、rev.2 category adjacencyから§3.4のcanonical ru
 
 - `ProjectionSupportGroup`の三category adjacencyと`canonical_support_groups`を、非empty `canonical_runs`へshadow migrationする。
 - prepareでaccepted incidenceをrun deltaへgroup化し、deltaだけをsuffix sortする。
-- commitでexisting runを後方mergeし、new run descriptorをcanonical位置へmergeする。
+- existing runを最大128 entriesの非empty owned chunkから成るpivot AVLで保持する。
+- prepareでdeltaをchunkへrouteし、replacement bufferとsplit nodeを全てfallible allocationする。commitではbuffer置換と
+  allocation-free AVL insert/rotationだけを行う。
+- new run descriptorは従来どおりcanonical位置へmergeする。
 - evaluator、GWCB、logical snapshotは引き続きPCLF-C/legacy read pathを使う。
 - rev.2 adjacencyを同時にtest-only dual-writeする短いoracle段階を置き、sequence/run partition parity後にrev.2 ordered projectionを撤去する。
-- run count/capacity、run entry buffer capacity、delta/run size、merge comparison/scanned-entry/moved-entry、
+- run/chunk count/capacity、chunk entry buffer capacity、delta/run/chunk size、lookup/merge comparison/scanned-entry/moved-entry、split、
   descriptor comparison/movement、writer self-timeを測る。
 
 Gate:
@@ -1258,16 +1317,17 @@ Gate:
 - runは全てnonempty、`(category, support_id)`一意、flatten cardinalityはlogical incidence countと一致。
 - exact membership、accepted classification、dependency edge、GWCB source reconstructionはPCLF-Cと不変。
 - admission failureの全reserve pointでlegacy/factored logical stateがpartial commitされない。
-- large single-run repeated-small-admission fixtureとstd censusの双方で、comparison/scanned-entry/moved-entryを測り、
-  record-wide反復mergeまたはquadratic傾向を隠していない。
-- writer comparison/scan/movementが新dominant self-timeを作らない。
+- large single-run repeated-small-admission fixtureとstd censusの双方で、chunk lookup/merge comparison/scanned-entry/moved-entryを測る。
+- 1,800 descending singleton fixtureのpayload comparison/scan/moveがfixed-capacity linear boundへ収まり、
+  `N(N-1)/2`へ戻らない。std workloadでもwriter workが新dominant self-timeを作らない。
 - §9.4のcapacity込み実bytesがlegacy比50%未満。estimateだけでgateを閉じない。
 
 Stop:
 
-- existing run mergeのcomparison/scan/movement、またはrun descriptor comparison/movementがprojection admissionの
+- chunk lookup/mergeのcomparison/scan/movement、またはrun descriptor comparison/movementがprojection admissionの
   新dominant costになる。
-- large single-runへの反復small deltaが、許容根拠を示せないrecord-wide scan/quadratic cumulative workになる。
+- existing runへの一eventが128超の既存payloadをscan/moveする、chunkがempty/over-capacityになる、または
+  AVL in-order列がlegacyと同じcanonical partitionを表さない。
 - run orderを保つためdelayed flush、event後sort、全record rebuildが必要になる。
 - run capacity込みbytesが50% gateを満たさない。
 
@@ -1425,9 +1485,17 @@ PCLF-Eで次を全て満たす。
   - unrelated hot path改善をPCLF成果へ含めない。
 - PCLF-D0:
   - writer/read authorityはPCLF-Cのまま、canonical run維持costとcapacity込みbytesを先に閉じる。
-  - std censusとlarge single-run repeated-small-admission fixtureで、merge comparison、scanned entry、moved entry、
-    descriptor comparison/movementを測る。record p95/maxをrun-size boundの代用にしない。
-  - comparison/scan/movementがnew dominant cost、quadratic傾向を示す、またはphysical bytesが50%以上ならD1へ進まない。
+  - std censusとlarge single-run repeated-small-admission fixtureで、chunk lookup/merge comparison、scanned entry、moved entry、
+    split、descriptor comparison/movementを測る。record p95/maxをrun-size boundの代用にしない。
+  - 1,800-event合成fixtureがfixed-capacity linear payload boundを超える場合、std workloadでnew dominant costになる場合、
+    またはphysical bytesが50%以上の場合にD1へ進まない。
+
+最終owned-AVL実装のD0測定では、1,800 descending singleton fixtureは旧flat runの
+`1,619,100 comparisons / 1,619,100 scans`から、`3,598 / 3,598`へ低下した。chunk lookupは`6,236`、
+bounded payload movementは`171,107`、splitは`27`であり、全run長を反復走査せずevent数に対する線形bound内に収まる。
+同じcold `std::text::parse` censusでは28,526,006 incidenceに対し、merge comparison/scanは各`55,712,666`、
+movementは`237,868,129`、max scan/eventは`51`、chunk lookupは`14,616,853`、splitは`0`だった。
+production sampleのsplit zeroだけを根拠にせず、上記合成fixtureをsplit pathのblocking oracleとして残す。
 - PCLF-D1:
   - PCLF-C比でparse/fullのunexplained regression zeroを要求する。三failed attemptより速いだけではgateを閉じない。
   - frame-pointer付きrelease samplingでevaluator self-time proxyをPCLF-C `3/15 = 20.0%`と比較する。
@@ -1460,23 +1528,29 @@ factored / legacy                = 47.9024%
 以前報告した`36.34%`は同じstateの別測定ではなく計算誤りであり、承認根拠として無効である。47.9024%を
 PCLF-B/Cの正しいbaselineとする。50%未満gateは自動的に緩和せず維持するが、marginは約2.1 percentage pointしかない。
 
-rev.3 run shapeの事前estimateは次の前提に限る。
+PCLF-D0 fixed-capacity chunk実装後、同一cold `std::text::parse` workload / 同一capacity込み算式で再測定した結果は次である。
 
-- incidence entry ID bufferはrev.2と同じ28,526,006件、同じ`u32` payloadであり増えない。
-- support group 1,716,175件から三`Vec` headerを除く。`Vec` headerを24 bytesとしたlen-only下限は
-  `1,716,175 * 72 = 123,564,600 bytes`削減。
-- `canonical_support_groups`のID payloadを除くlen-only下限は`1,716,175 * 4 = 6,864,700 bytes`削減。
-- `CanonicalProjectionRun`を32 bytesと仮置きする（**推定、Rust `size_of`要検証**）。nonempty run数は未測定で、
-  `[support groups, 3 * support groups] = [1,716,175, 5,148,525]`の範囲にある。
+```text
+legacy projection storage bytes = 3,773,001,092
+factored D0 shadow bytes         = 1,785,162,281
+factored / legacy                = 47.314120%
+50% gate margin                  =  101,338,265 bytes
 
-このlen-only算術ではrev.3 factored bytesは`1,731,845,041–1,841,680,241 bytes`、legacy比
-`45.9010%–48.8121%`と推定される。capacity slack、runごとのallocator overhead、実run count、実type layoutを含まないため、
-この範囲はgate確認ではない。特に上限側marginは約1.19 pointしかない。PCLF-D0で同一censusを実行し、
-run tableと全run entry bufferのcapacity込み実bytesが50%未満でなければ停止する。
+nonempty canonical runs         = 1,726,585  (capacity 1,989,010)
+nonempty run chunks             = 1,726,585  (capacity 1,726,585)
+chunk entry IDs                 = 28,526,006 (capacity 28,526,006)
+max entries/run in this workload = 58
+```
+
+各chunk entry bufferと長さ一のowned node allocationに`try_reserve_exact`を使うことはこのgateの一部である。
+先行したflat chunk-arena experimentでは通常`reserve`によりone-chunk runにもminimum capacity 4が付き、descriptor capacityが
+6,906,340へ膨らんで`2,111,052,229 bytes / 55.951540%`となった。さらにarena自体の成長はsplit eventで
+run-local descriptor全体を再配置しうるため棄却した。最終shapeはprepare済みowned AVL nodeを使い、その再配置costを持たない。
+上のproduction workloadではrun max 58 < chunk capacity 128のためsplit zeroだったが、1,800-event fixtureがsplit pathを別途検証する。
 
 Gate:
 
-- PCLF-D0でlegacy/factoredのmap/bucket/arena/run len/capacityと`size_of`を別々に測る。
+- PCLF-D0でlegacy/factoredのmap/bucket/arena/run/chunk len/capacityと`size_of`を別々に測る（上記実測で達成）。
 - PCLF-Eでprojection clause/link persistent bytesをlegacy実測比50%未満にする。
 - peak RSSはPCLF-C 11.21–11.23 GiBとfactorization開始前9.33 GiBの両方を併記し、少なくともPCLF-C比で増やさない。
 - project targetのpeak RSS 20%以上削減はfactorization開始前約7.46 GiB以下という**推定/stretch**であり、
@@ -1650,8 +1724,9 @@ membership hashとordered run entryはfull tupleの二重保存ではなく、�
 8. exact link O(1) membershipのためfull raw identityを28.5M件そのまま再保存する必要がある。
 9. incidence metadata index + canonical runがlegacy physical bytesの50%未満へ収まることを
    PCLF-D0のcapacity込み実測で示せない。
-10. existing-run mergeの累積comparison/scanned-entry/moved-entry、またはrun descriptor comparison/movementが
-    新しいdominant costになる。large single-run repeated-small-admissionでquadratic傾向を示す場合を含む。
+10. existing-run chunk mergeが一eventで128超の既存payloadをcomparison/scan/moveする、1,800-event
+    descending-singleton fixtureがfixed-capacity linear boundを外れる、またはchunk/descriptor workがreal workloadで
+    新しいdominant costになる。
 11. failed reservationでlegacy/factoredまたはbucket内facesがlogical partial commitされる。
 12. exact no-op/no-claimでpersistent capacity/lenが増える。
 13. accepted linkを同event内で全consumerへ反映するためdelayed flush/repair/fixpointが必要になる。
