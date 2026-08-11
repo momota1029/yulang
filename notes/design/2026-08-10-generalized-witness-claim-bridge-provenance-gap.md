@@ -1,10 +1,16 @@
 # generalized witness の claim bridge provenance 欠落修正設計（GWCB rev.2）
 
-日付: 2026-08-10（rev.1 ユーザ承認: 2026-08-10、rev.2 契約改訂: 2026-08-11、rev.2 ユーザ承認: 2026-08-11）
+日付: 2026-08-10（rev.1 ユーザ承認: 2026-08-10、rev.2 契約改訂: 2026-08-11、rev.2 ユーザ承認: 2026-08-11、closeout: 2026-08-11）
 
-状態: **rev.2 ユーザ承認済み**（single decisive arm 契約。9点の改訂項目を確認し、
-`ExactWithoutClaimedArm`/`FailOpenIncomplete`の3値化・Ω(A)撤回理由の明記・motivating testの実要求との整合を確認済み。
-本 revision が `CLAUDE.md` の設計優先順位における承認済み正本であり、GWCB-B 実装をこの契約で再開してよい）
+状態: **closed（全スライス着地・ユーザ承認済み）**。GWCB-0〜E 全スライス完了。
+motivating test 2件（general_subtype、pusp_a）とも green、SUBP-B も green。
+性能: cold reproduction の full command wall time は pre-GWCB baseline 圏内まで回復
+（`8d62afa6`時点で170.87〜176.19秒、baseline 176.341秒）、RSS は baseline比+6%（9.33 GiB vs 8.8 GiB）。
+残る std::text::parse の6〜9%差は、qualified-parent admission の呼び出し量・sort入力量を
+GWCB前後でbit-for-bit比較し、GWCB由来の追加コストがゼロであることを確認済み——
+既存（GWCB以前からある）hot path（qualified-parent full-bucket sort、cumulative 6億要素超）の
+実行ごとのばらつきであり、GWCB自体のcloseout条件は満たしている。
+このhot path自体の最適化は、GWCBとは別の独立したCPK性能プロジェクトとして継続する。
 
 基準 commit: `f91fa91d`（行番号はこの commit を基準とし、実装時には再確認する）
 
