@@ -1611,6 +1611,7 @@ thread_local! {
             clause_hash_lookups: 0,
             incidence_hash_lookups: 0,
         }) };
+    static PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES: Cell<usize> = const { Cell::new(0) };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3083,6 +3084,61 @@ impl ProofOccurrenceStore {
             operation: ProofOperation::UpdateClaimLifecycle,
         };
         let existing_supports = self.projection_supports.get(&lower_record);
+        let existing_claims = self.claimed_parents_by_lower_record.get(&lower_record);
+        // Replay events usually revisit metadata already attached to this record. Prove that
+        // immutable no-op before cloning either canonical bucket; changed transactions still use
+        // the admission-fixed snapshots below and preserve the existing atomic commit contract.
+        let metadata_would_change = claims_to_link.iter().any(|claim| {
+            let Some(root) = self.upper_claim(*claim).map(|claim| claim.coverage_root) else {
+                return false;
+            };
+            let claim_changes = existing_claims.is_none_or(|claims| {
+                match claims.binary_search_by_key(&root, |existing| {
+                    self.upper_claim(*existing)
+                        .expect("stored projection claims must be admitted")
+                        .coverage_root
+                }) {
+                    Ok(position) => claims[position] < *claim,
+                    Err(_) => true,
+                }
+            });
+            let incoming_key = canonical_projection_key::Key::Claimed(root);
+            let support_changes = existing_supports.is_none_or(|supports| {
+                match supports.binary_search_by(|support| {
+                    self.stored_projection_support_cmp(*support, &incoming_key)
+                }) {
+                    Ok(position) => matches!(supports[position],
+                        SchemeProjectionProofSupport::Claimed(existing) if existing < *claim),
+                    Err(_) => true,
+                }
+            });
+            claim_changes
+                || support_changes
+                || !self
+                    .projection_lower_record_memberships
+                    .contains(&(root, lower_record))
+        }) || independent_supports.iter().any(|carrier| {
+            let incoming_key = canonical_projection_key::Key::Independent(*carrier);
+            existing_supports.is_none_or(|supports| {
+                supports
+                    .binary_search_by(|support| {
+                        self.stored_projection_support_cmp(*support, &incoming_key)
+                    })
+                    .is_err()
+            })
+        });
+        if !metadata_would_change {
+            return Ok(None);
+        }
+
+        #[cfg(test)]
+        PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(|cell| {
+            cell.set(
+                cell.get()
+                    + existing_supports.map_or(0, Vec::len)
+                    + existing_claims.map_or(0, Vec::len),
+            );
+        });
         let mut current_supports = Vec::new();
         current_supports
             .try_reserve(
@@ -3092,7 +3148,6 @@ impl ProofOccurrenceStore {
             )
             .map_err(exhausted)?;
         current_supports.extend(existing_supports.into_iter().flatten().copied());
-        let existing_claims = self.claimed_parents_by_lower_record.get(&lower_record);
         let mut current_claims = Vec::new();
         current_claims
             .try_reserve(existing_claims.map_or(0, Vec::len) + claims_to_link.len())
@@ -3126,19 +3181,7 @@ impl ProofOccurrenceStore {
             }
             let incoming_key = canonical_projection_key::Key::Claimed(root);
             match current_supports.binary_search_by(|support| {
-                let key = match *support {
-                    SchemeProjectionProofSupport::Claimed(existing) => {
-                        canonical_projection_key::Key::Claimed(
-                            self.upper_claim(existing)
-                                .expect("stored projection supports must be admitted")
-                                .coverage_root,
-                        )
-                    }
-                    SchemeProjectionProofSupport::Independent(carrier) => {
-                        canonical_projection_key::Key::Independent(carrier)
-                    }
-                };
-                canonical_projection_key::cmp(&key, &incoming_key)
+                self.stored_projection_support_cmp(*support, &incoming_key)
             }) {
                 Ok(position)
                     if matches!(current_supports[position],
@@ -3171,19 +3214,7 @@ impl ProofOccurrenceStore {
             let incoming = SchemeProjectionProofSupport::Independent(*carrier);
             let incoming_key = canonical_projection_key::Key::Independent(*carrier);
             if let Err(position) = current_supports.binary_search_by(|support| {
-                let key = match *support {
-                    SchemeProjectionProofSupport::Claimed(existing) => {
-                        canonical_projection_key::Key::Claimed(
-                            self.upper_claim(existing)
-                                .expect("stored projection supports must be admitted")
-                                .coverage_root,
-                        )
-                    }
-                    SchemeProjectionProofSupport::Independent(carrier) => {
-                        canonical_projection_key::Key::Independent(carrier)
-                    }
-                };
-                canonical_projection_key::cmp(&key, &incoming_key)
+                self.stored_projection_support_cmp(*support, &incoming_key)
             }) {
                 #[cfg(test)]
                 record_canonical_projection_insertion_moves(current_supports.len() - position);
@@ -3273,6 +3304,26 @@ impl ProofOccurrenceStore {
         self.upper_claim_index
             .get(&claim)
             .map(|index| self.upper_claims[*index].coverage_root)
+    }
+
+    fn stored_projection_support_cmp(
+        &self,
+        support: SchemeProjectionProofSupport,
+        incoming: &canonical_projection_key::Key,
+    ) -> std::cmp::Ordering {
+        let key = match support {
+            SchemeProjectionProofSupport::Claimed(existing) => {
+                canonical_projection_key::Key::Claimed(
+                    self.upper_claim(existing)
+                        .expect("stored projection supports must be admitted")
+                        .coverage_root,
+                )
+            }
+            SchemeProjectionProofSupport::Independent(carrier) => {
+                canonical_projection_key::Key::Independent(carrier)
+            }
+        };
+        canonical_projection_key::cmp(&key, incoming)
     }
 
     fn projection_support_match_key(
@@ -12621,6 +12672,46 @@ mod tests {
                 SchemeProjectionProofSupport::Independent(admitted),
             ],
             "the CPK writer must consume the admission-fixed payload, not re-read the flat ledger",
+        );
+    }
+
+    #[test]
+    fn cpk_projection_support_duplicate_preflight_skips_bucket_snapshot_copy() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 104);
+        let carrier = ProjectionProofCarrier::Origin(OriginId(70_104));
+        cpk_4_add_independent_support(&mut machine, record, carrier);
+        PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(|cell| cell.set(0));
+
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(record, &[], &[carrier])
+            .expect("duplicate support preflight must remain infallible");
+        machine.apply_scheme_projection_mutation(mutation);
+
+        assert_eq!(
+            PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(Cell::get),
+            0,
+            "an immutable duplicate check must return before copying either support bucket",
+        );
+        assert_eq!(
+            machine.proof_store.projection_supports[&record],
+            vec![SchemeProjectionProofSupport::Independent(carrier)],
+        );
+
+        let (_, claim) = cpk_7_record_original_claim(&mut machine, 105);
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(record, &[claim], &[])
+            .expect("new claimed support preflight must have capacity");
+        machine.apply_scheme_projection_mutation(mutation);
+        PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(|cell| cell.set(0));
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(record, &[claim], &[])
+            .expect("duplicate claimed support preflight must remain infallible");
+        machine.apply_scheme_projection_mutation(mutation);
+        assert_eq!(
+            PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(Cell::get),
+            0,
+            "an unchanged claimed representative must also return before copying either bucket",
         );
     }
 
