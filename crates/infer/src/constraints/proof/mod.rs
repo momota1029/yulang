@@ -5982,8 +5982,7 @@ impl ProofOccurrenceStore {
             .qualified_parents_by_result
             .get_mut(&admission.result)
             .expect("qualified-parent result capacity was prepared before commit");
-        entries.extend(admission.canonical.iter().copied());
-        entries.sort_unstable_by(qualified_parent_entry_cmp);
+        merge_qualified_parent_entries(entries, &admission.canonical);
     }
 
     pub(super) fn qualified_parents_for_result(
@@ -6360,6 +6359,66 @@ fn qualified_parent_entry_cmp(
             qualified_parent_side_rank(left.parent).cmp(&qualified_parent_side_rank(right.parent))
         })
         .then_with(|| left.parent.parent_claim().cmp(&right.parent.parent_claim()))
+}
+
+fn merge_qualified_parent_entries(
+    entries: &mut Vec<ExactQualifiedParent>,
+    incoming: &[ExactQualifiedParent],
+) {
+    // Preparation reserves the incoming tail before any proof fact commits. Merge the two strict
+    // canonical runs backward so unread existing entries are never overwritten and commit needs
+    // neither another allocation nor a full-bucket re-sort.
+    debug_assert!(entries.capacity() - entries.len() >= incoming.len());
+    debug_assert!(entries
+        .windows(2)
+        .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
+    debug_assert!(incoming
+        .windows(2)
+        .all(|pair| qualified_parent_entry_cmp(&pair[0], &pair[1]).is_lt()));
+    if incoming.is_empty() {
+        return;
+    }
+
+    #[cfg(test)]
+    let expected = {
+        let mut expected = entries.clone();
+        expected.extend_from_slice(incoming);
+        expected.sort_unstable_by(qualified_parent_entry_cmp);
+        expected
+    };
+
+    let existing_len = entries.len();
+    entries.extend_from_slice(incoming);
+    let mut existing = existing_len;
+    let mut added = incoming.len();
+    let mut output = entries.len();
+    while existing > 0 && added > 0 {
+        let existing_entry = entries[existing - 1];
+        let added_entry = incoming[added - 1];
+        let ordering = qualified_parent_entry_cmp(&existing_entry, &added_entry);
+        debug_assert_ne!(
+            ordering,
+            std::cmp::Ordering::Equal,
+            "qualified-parent identity dedup must make canonical entries strictly ordered",
+        );
+        if ordering.is_gt() {
+            entries[output - 1] = existing_entry;
+            existing -= 1;
+        } else {
+            entries[output - 1] = added_entry;
+            added -= 1;
+        }
+        output -= 1;
+    }
+    if added > 0 {
+        entries[..added].copy_from_slice(&incoming[..added]);
+    }
+
+    #[cfg(test)]
+    debug_assert_eq!(
+        *entries, expected,
+        "incremental qualified-parent merge must equal a full canonical re-sort",
+    );
 }
 
 fn qualified_parent_projection_carrier(parent: ClaimQualifiedParent) -> ProjectionProofCarrier {
@@ -11249,7 +11308,10 @@ mod tests {
             cpk_before,
             "a failed CPK preflight commits no key, first-source, or result-local order state",
         );
-        machine.admit_claim_qualified_parents(result, &parents);
+        machine.admit_claim_qualified_parents(result, &parents[..2]);
+        // Exercise the non-empty incremental merge. In test builds the merge helper compares
+        // this result against a full re-sort of the same existing and newly accepted entries.
+        machine.admit_claim_qualified_parents(result, &parents[2..]);
         let canonical = machine.proof_store.qualified_parents_for_result(result);
         assert_eq!(canonical.len(), 4);
         assert!(canonical
