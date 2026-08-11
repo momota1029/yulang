@@ -59,24 +59,6 @@ fn replay_claim_parents(parents: &proof::PreparedReplayParentSet) -> ReplayClaim
         .collect()
 }
 
-fn replay_side_tagged_parents(parents: &[ClaimQualifiedParent]) -> ReplayClaimParents {
-    parents
-        .iter()
-        .filter_map(|parent| match *parent {
-            ClaimQualifiedParent::ReplayConstraint {
-                parent_claim,
-                parent_side,
-                ..
-            } => Some(SideTaggedReplayClaim {
-                claim: parent_claim,
-                parent_side,
-            }),
-            ClaimQualifiedParent::StructuralConstraint { .. }
-            | ClaimQualifiedParent::ReductionRouteConstraint { .. } => None,
-        })
-        .collect()
-}
-
 struct ClaimQualifiedParentAdmissionSnapshot {
     inclusion_before: FxHashMap<BoundRecordId, bool>,
 }
@@ -1558,6 +1540,34 @@ impl ConstraintMachine {
         )
     }
 
+    fn try_prepare_replay_qualified_parent_transaction(
+        &mut self,
+        result: ConstraintRecordId,
+        replay: BinaryReplayDerivation,
+        parents: &[ClaimQualifiedParent],
+    ) -> Result<proof::PreparedReplayQualifiedParentTransaction, proof::ProofFailure> {
+        self.proof_store
+            .try_prepare_replay_qualified_parent_transaction(result, replay, parents)
+    }
+
+    fn begin_replay_qualified_parent_transaction(
+        &mut self,
+        transaction: &mut proof::PreparedReplayQualifiedParentTransaction,
+    ) -> (
+        Vec<proof::ExactQualifiedParent>,
+        ClaimQualifiedParentAdmissionSnapshot,
+    ) {
+        let inclusion_before =
+            self.projection_inclusion_snapshot(ProofPremise::Constraint(transaction.result()));
+        let accepted = transaction.accepted().to_vec();
+        self.proof_store
+            .commit_replay_qualified_parent_transaction(transaction);
+        (
+            accepted,
+            ClaimQualifiedParentAdmissionSnapshot { inclusion_before },
+        )
+    }
+
     fn begin_non_replay_claim_parent_admission(
         &mut self,
         result: ConstraintRecordId,
@@ -2336,19 +2346,19 @@ impl ConstraintMachine {
                 replay,
             })
             .collect::<Vec<_>>();
-        let mut admission = match self
-            .try_prepare_qualified_parent_admission(result, &candidates)
-        {
-            Ok(prepared) => prepared,
-            Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::UpdateClaimLifecycle,
-                    failure,
-                );
-                return;
-            }
-        };
-        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
+        let mut admission =
+            match self.try_prepare_replay_qualified_parent_transaction(result, replay, &candidates)
+            {
+                Ok(prepared) => prepared,
+                Err(failure) => {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::UpdateClaimLifecycle,
+                        failure,
+                    );
+                    return;
+                }
+            };
+        let (accepted, snapshot) = self.begin_replay_qualified_parent_transaction(&mut admission);
         let mut inserted_parents = Vec::new();
         inserted_parents.reserve(accepted.len());
         for entry in accepted.iter().copied() {
@@ -2363,9 +2373,6 @@ impl ConstraintMachine {
                 self.publish_claim_qualified_parent_admission(snapshot);
             }
         }
-        let accepted = replay_side_tagged_parents(&inserted_parents);
-        self.proof_store
-            .record_cpk_replay_parent_snapshot(result, replay, &accepted);
         let bootstrap_clause_projection_parents = if phase_b_enabled
             && materialize_existing_target
             && let Some(lower_record) = self.lower_record_for_constraint(result)
@@ -3584,15 +3591,16 @@ impl ConstraintMachine {
             parent_side: ReplayClaimParentSide::Lower,
             replay: derivation,
         };
-        self.admit_claim_qualified_parent(result, parent);
-        self.proof_store.record_cpk_replay_parent_snapshot(
-            result,
-            derivation,
-            &[SideTaggedReplayClaim {
-                claim,
-                parent_side: ReplayClaimParentSide::Lower,
-            }],
-        );
+        let mut transaction = self
+            .try_prepare_replay_qualified_parent_transaction(result, derivation, &[parent])
+            .expect("QORF test replay parent transaction must prepare");
+        let (accepted, snapshot) = self.begin_replay_qualified_parent_transaction(&mut transaction);
+        for entry in accepted.iter().copied() {
+            self.commit_claim_qualified_parent_mutation(result, entry);
+        }
+        if !accepted.is_empty() {
+            self.publish_claim_qualified_parent_admission(snapshot);
+        }
     }
 
     pub(in crate::constraints) fn is_var_var_replay(&self, lower: PosId, upper: NegId) -> bool {
