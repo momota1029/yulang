@@ -367,18 +367,14 @@ impl ConstraintMachine {
         for occurrence in &self.proof_store.replay_finite_map {
             let carrier = canonical.replay(occurrence.carrier, None);
             let mut roots = Vec::new();
-            for (side, parents) in [
-                (
-                    ReplayClaimParentSide::Lower,
-                    occurrence.lower_parents.as_slice(),
-                ),
-                (
-                    ReplayClaimParentSide::Upper,
-                    occurrence.upper_parents.as_slice(),
-                ),
+            for side in [
+                ReplayClaimParentSide::Lower,
+                ReplayClaimParentSide::Upper,
             ] {
-                for entry in parents {
-                    debug_assert_eq!(entry.side, side);
+                for entry in self
+                    .proof_store
+                    .replay_parents_for_occurrence_side(occurrence, side)
+                {
                     roots.push(CanonicalParentRoot {
                         root: entry.coverage_root.0 as usize,
                         side: Some(canonical_side(side)),

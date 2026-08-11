@@ -602,10 +602,10 @@ pub(crate) struct ReplayProofParent {
 pub(crate) struct ReplayProofOccurrence {
     pub(crate) result: ConstraintRecordId,
     pub(crate) carrier: BinaryReplayDerivation,
-    pub(crate) lower_parents: Vec<ReplayProofParent>,
-    pub(crate) upper_parents: Vec<ReplayProofParent>,
+    lower_parents: Vec<ReplayProofParent>,
+    upper_parents: Vec<ReplayProofParent>,
     pub(crate) first_event: usize,
-    // QORF-B shadow authority. Production readers remain on the expanded Vecs until QORF-C.
+    // QORF-C read authority. Expanded Vecs remain dual-written as the rollback/test oracle.
     replay_parent_sides: [ReplayParentSideIndex; 2],
 }
 
@@ -613,6 +613,7 @@ pub(crate) struct ReplayProofOccurrence {
 // intentionally are not fields of `ProofOccurrenceStore`; QORF-B is the first slice allowed to
 // allocate or dual-write them in production.
 const QORF_REPLAY_PARENT_CHUNK_CAPACITY: usize = 128;
+const QORF_REPLAY_PARENT_CURSOR_STACK_CAPACITY: usize = 64;
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -787,6 +788,86 @@ impl ReplayParentChunkArena {
             .is_ok()
     }
 }
+
+struct ReplayParentSideCursor<'a> {
+    arena: &'a ReplayParentChunkArena,
+    side: ReplayClaimParentSide,
+    stack: [ReplayParentChunkId; QORF_REPLAY_PARENT_CURSOR_STACK_CAPACITY],
+    stack_len: usize,
+    current: Option<ReplayParentChunkId>,
+    entry_index: usize,
+    remaining: usize,
+}
+
+impl<'a> ReplayParentSideCursor<'a> {
+    fn new(
+        arena: &'a ReplayParentChunkArena,
+        side_index: ReplayParentSideIndex,
+        side: ReplayClaimParentSide,
+    ) -> Self {
+        let mut cursor = Self {
+            arena,
+            side,
+            stack: [ReplayParentChunkId(0); QORF_REPLAY_PARENT_CURSOR_STACK_CAPACITY],
+            stack_len: 0,
+            current: None,
+            entry_index: 0,
+            remaining: side_index.len as usize,
+        };
+        cursor.push_left(side_index.root);
+        cursor
+    }
+
+    fn push_left(&mut self, mut root: Option<ReplayParentChunkId>) {
+        while let Some(id) = root {
+            assert!(
+                self.stack_len < self.stack.len(),
+                "QORF side cursor stack must cover every valid u32-indexed AVL height"
+            );
+            self.stack[self.stack_len] = id;
+            self.stack_len += 1;
+            root = self.arena.node(id).left;
+        }
+    }
+}
+
+impl Iterator for ReplayParentSideCursor<'_> {
+    type Item = ReplayProofParent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(id) = self.current {
+                let node = self.arena.node(id);
+                if let Some(entry) = node.entries.get(self.entry_index).copied() {
+                    self.entry_index += 1;
+                    self.remaining -= 1;
+                    return Some(ReplayProofParent {
+                        side: self.side,
+                        coverage_root: entry.coverage_root,
+                        representative_claim: entry.representative_claim,
+                        lineage: entry.lineage,
+                    });
+                }
+                let right = node.right;
+                self.current = None;
+                self.entry_index = 0;
+                self.push_left(right);
+            }
+            if self.stack_len == 0 {
+                debug_assert_eq!(self.remaining, 0);
+                return None;
+            }
+            self.stack_len -= 1;
+            self.current = Some(self.stack[self.stack_len]);
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl ExactSizeIterator for ReplayParentSideCursor<'_> {}
 
 #[derive(Debug)]
 struct PreparedReplayParentSideShadowDelta {
@@ -8812,6 +8893,37 @@ impl<'a> CpkProjectionEvaluator<'a> {
 }
 
 impl ProofOccurrenceStore {
+    pub(crate) fn replay_parents_for_occurrence_side<'a>(
+        &'a self,
+        occurrence: &ReplayProofOccurrence,
+        side: ReplayClaimParentSide,
+    ) -> impl ExactSizeIterator<Item = ReplayProofParent> + 'a {
+        let side_index = match side {
+            ReplayClaimParentSide::Lower => occurrence.replay_parent_sides[0],
+            ReplayClaimParentSide::Upper => occurrence.replay_parent_sides[1],
+        };
+        ReplayParentSideCursor::new(&self.replay_parent_chunks, side_index, side)
+    }
+
+    fn exact_replay_qualified_parent_is_registered(
+        &self,
+        result: ConstraintRecordId,
+        carrier: BinaryReplayDerivation,
+        side: ReplayClaimParentSide,
+        root: UpperReplayClaimId,
+    ) -> bool {
+        let Some(index) = self.replay_finite_map_index.get(&(result, carrier)).copied() else {
+            return false;
+        };
+        let occurrence = &self.replay_finite_map[index];
+        debug_assert_eq!((occurrence.result, occurrence.carrier), (result, carrier));
+        let side_index = match side {
+            ReplayClaimParentSide::Lower => occurrence.replay_parent_sides[0],
+            ReplayClaimParentSide::Upper => occurrence.replay_parent_sides[1],
+        };
+        self.replay_parent_chunks.contains(side_index, root)
+    }
+
     pub(super) fn record_replay_admission(
         &mut self,
         result: Option<ConstraintRecordId>,
@@ -9104,35 +9216,18 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_b_side_shadow_matches_legacy(&self, index: usize) {
-        fn flatten(
-            arena: &ReplayParentChunkArena,
-            root: Option<ReplayParentChunkId>,
-            output: &mut Vec<QorfReplayParentEntry>,
-        ) {
-            let Some(root) = root else { return };
-            let node = arena.node(root);
-            flatten(arena, node.left, output);
-            output.extend_from_slice(&node.entries);
-            flatten(arena, node.right, output);
-        }
         let occurrence = &self.replay_finite_map[index];
-        for (side_index, legacy) in [
-            (occurrence.replay_parent_sides[0], &occurrence.lower_parents),
-            (occurrence.replay_parent_sides[1], &occurrence.upper_parents),
+        for (side, legacy) in [
+            (ReplayClaimParentSide::Lower, &occurrence.lower_parents),
+            (ReplayClaimParentSide::Upper, &occurrence.upper_parents),
         ] {
-            let mut shadow = Vec::new();
-            flatten(&self.replay_parent_chunks, side_index.root, &mut shadow);
-            let mut expected = legacy
-                .iter()
-                .map(|parent| QorfReplayParentEntry {
-                    coverage_root: parent.coverage_root,
-                    representative_claim: parent.representative_claim,
-                    lineage: parent.lineage,
-                })
+            let shadow = self
+                .replay_parents_for_occurrence_side(occurrence, side)
                 .collect::<Vec<_>>();
+            let mut expected = legacy.clone();
             expected.sort_unstable_by_key(|entry| entry.coverage_root);
             assert_eq!(shadow, expected);
-            assert_eq!(side_index.len as usize, expected.len());
+            assert_eq!(shadow.len(), expected.len());
             assert!(
                 shadow
                     .windows(2)
@@ -9593,7 +9688,31 @@ impl ProofOccurrenceStore {
                 coverage_root: claim.coverage_root,
                 identity,
             };
-            if self.qualified_parent_keys.contains(&key) || !pending_keys.insert(key) {
+            let registered = match identity {
+                QualifiedParentIdentity::Replay {
+                    parent_side,
+                    replay,
+                } => {
+                    let registered = self.exact_replay_qualified_parent_is_registered(
+                        result,
+                        replay,
+                        parent_side,
+                        claim.coverage_root,
+                    );
+                    #[cfg(test)]
+                    assert_eq!(
+                        registered,
+                        self.qualified_parent_keys.contains(&key),
+                        "QORF-C side authority must match the legacy replay membership oracle",
+                    );
+                    registered
+                }
+                QualifiedParentIdentity::Structural(_)
+                | QualifiedParentIdentity::ReductionRoute { .. } => {
+                    self.qualified_parent_keys.contains(&key)
+                }
+            };
+            if registered || !pending_keys.insert(key) {
                 continue;
             }
             accepted.push(ExactQualifiedParent {
@@ -16871,6 +16990,95 @@ mod tests {
                 "QORF inner reservation failure at {point:?} must commit no inner face",
             );
         }
+    }
+
+    #[test]
+    fn qorf_c_side_membership_and_cursor_match_the_legacy_oracle() {
+        let mut machine = cpk_machine();
+        let (lower, lower_claim) = cpk_7_record_original_claim(&mut machine, 109_900);
+        let (upper, upper_claim) = cpk_7_record_original_claim(&mut machine, 109_901);
+        let result = ConstraintRecordId(109_902);
+        let carrier = BinaryReplayDerivation {
+            pivot: TypeVar(109_903),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        for (claim, side) in [
+            (upper_claim, ReplayClaimParentSide::Upper),
+            (lower_claim, ReplayClaimParentSide::Lower),
+        ] {
+            let parent = ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: claim,
+                parent_side: side,
+                replay: carrier,
+            };
+            let mut transaction = machine
+                .proof_store
+                .try_prepare_replay_qualified_parent_transaction(result, carrier, &[parent])
+                .expect("QORF-C exact parent must prepare");
+            assert_eq!(transaction.accepted().len(), 1);
+            machine
+                .proof_store
+                .commit_replay_qualified_parent_transaction(&mut transaction);
+            machine.proof_store.record_replay_admission(
+                Some(result),
+                carrier,
+                ReplayAdmissionDisposition::ExactDuplicate,
+            );
+        }
+
+        let lower_root = machine.proof_store.claim_coverage_root(lower_claim).unwrap();
+        let upper_root = machine.proof_store.claim_coverage_root(upper_claim).unwrap();
+        assert!(machine.proof_store.exact_replay_qualified_parent_is_registered(
+            result,
+            carrier,
+            ReplayClaimParentSide::Lower,
+            lower_root,
+        ));
+        assert!(machine.proof_store.exact_replay_qualified_parent_is_registered(
+            result,
+            carrier,
+            ReplayClaimParentSide::Upper,
+            upper_root,
+        ));
+        assert!(!machine.proof_store.exact_replay_qualified_parent_is_registered(
+            result,
+            carrier,
+            ReplayClaimParentSide::Lower,
+            upper_root,
+        ));
+        assert!(!machine.proof_store.exact_replay_qualified_parent_is_registered(
+            result,
+            carrier,
+            ReplayClaimParentSide::Upper,
+            lower_root,
+        ));
+
+        let occurrence = &machine.proof_store.replay_finite_map[0];
+        for (side, legacy) in [
+            (ReplayClaimParentSide::Lower, &occurrence.lower_parents),
+            (ReplayClaimParentSide::Upper, &occurrence.upper_parents),
+        ] {
+            let actual = machine
+                .proof_store
+                .replay_parents_for_occurrence_side(occurrence, side)
+                .collect::<Vec<_>>();
+            let mut expected = legacy.clone();
+            expected.sort_unstable_by_key(|entry| entry.coverage_root);
+            assert_eq!(actual, expected);
+        }
+
+        let duplicate = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: lower_claim,
+            parent_side: ReplayClaimParentSide::Lower,
+            replay: carrier,
+        };
+        let duplicate_transaction = machine
+            .proof_store
+            .try_prepare_replay_qualified_parent_transaction(result, carrier, &[duplicate])
+            .expect("QORF-C persistent duplicate must prepare as a no-op");
+        assert!(duplicate_transaction.accepted().is_empty());
     }
 
     #[test]
