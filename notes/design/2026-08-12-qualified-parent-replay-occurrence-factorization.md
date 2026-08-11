@@ -1395,6 +1395,17 @@ Gate:
 - cold wall/RSSに説明不能な回帰zero。
 - portable/logical/diagnostic output zero-diff。
 
+Landing decision（2026-08-12、user reviewed）:
+
+- correctness gateはfull-std exhaustive parityで50,390,357件中mismatch zeroとして閉じた。
+- wall gateは閉じていない。`6042260e`との各3回cold比較で、parse medianは75.503s対73.112s
+  （D1 `+3.27%`）、full lowering medianは119.616s対116.352s（D1 `+2.81%`）だった。parse rangeは
+  D1 74.654–76.164s、baseline 71.764–73.506s、full rangeはD1 118.969–119.808s、baseline
+  116.090–116.773sで、いずれもnon-overlapである。
+- userはこの既知回帰を明示的にreviewし、D1をcorrectness-completeなread cutoverとしてlandingし、解消判断をQORF-Eの
+  legacy retirement後のfresh wall/profile gateへ繰り延べることを承認した。この例外はQORF-E/Fの性能gateを緩和せず、
+  D1単独のlanding判断に限定する。
+
 Rollback:
 
 - consumer adapterをlegacy qualified Vecへ戻せる。side/arm/root-winner shadowは維持できる。
@@ -1506,6 +1517,32 @@ summary、exact portable outputにはnecessary workがある。
 
 PCLFの三failed attemptと同様、correctness parityだけでwall gateを閉じない。authority cutoverごとにframe-pointer profileを取り、
 new tree comparator、arm/root-winner cursor、clause-association/exact compatibility iterator、allocatorが新dominantになっていないことを確認する。
+
+#### QORF-D1 landing measurement / accepted deferral（2026-08-12）
+
+QORF-D1はcorrectness gateを満たしたが、本節のwall gateを満たさずlandingした。full-std exhaustive harnessは
+50,390,357 replay entriesを二度照合し、いずれもmismatch zeroだった。一方、同一frame-pointer条件・独立cold cache・
+18 GiB RSS gateで各3回測定した結果は次の通りである。
+
+| metric | D1 + cursor fix min / median / max | `6042260e` min / median / max | median delta |
+|---|---:|---:|---:|
+| parse | 74.654 / 75.503 / 76.164s | 71.764 / 73.112 / 73.506s | `+3.27%` |
+| full lowering | 118.969 / 119.616 / 119.808s | 116.090 / 116.352 / 116.773s | `+2.81%` |
+
+二回のprofiling investigationで得た事実は次である。
+
+1. k-way clause-association cursor heapが回帰源という仮説はgdb 100-sample比較で反証された。association bootstrapの
+   self sampleはD1 `1/100`、baseline `4/100`で、D1側のdominant化は観測されなかった。
+2. 二つのfixed AVL cursor stackは、未使用slotも毎construction sentinel初期化していた。`MaybeUninit`へ変換し、観測workloadの
+   約2.2M cursor constructionsから約536 MiBのeager unused initializationを除いた。この修正は実在する不要writeを除くため
+   保持するが、wall回帰全体を解消しなかった。
+3. evaluator self-sample密度はD1 `16/100`、baseline `11/100`へ増えた一方、sampled hot functionのdisassemblyはbyte-identical
+   だった。chunked AVL / arena-indexed projectionのpointer chasingとcache locality低下が残差のleading hypothesisであるが、
+   **未検証仮説**でありconfirmed causeとして扱わない。
+
+userはこのtradeoffを明示的にreviewし、D1の既知回帰を受け入れた。解消はQORF-Eでlegacy full-key/full-entry dual-writeと
+rollback faceをretireした後、同じmulti-run wall/profile disciplineで再判定する。QORF-Eが自動的に改善を保証するとは仮定せず、
+median regressionが残る場合はその時点で再度stop/reviewする。
 
 ### 9.5 Operation/count target
 
@@ -1705,6 +1742,10 @@ evaluator限定ではarmを採用し、root winnerとexact associationを別lowe
 27. exact/association cursorがconstruction failureを`ProofFailure`で返せない、またはsuccessful `next()`中にallocationする。
 28. portable/logical/clause-link consumerがcursor construction failureを既存error channelへpropagateできず、empty result、panic、
     output変更のいずれかを必要とする。
+
+2026-08-12のQORF-D1 landingではitem 19が発火した。§9.4の実測と二回のprofilingをuserがreviewし、D1単独についてのみ
+既知回帰をacceptしてQORF-Eへresolutionを繰り延べた。この明示例外はitem 19を一般に削除せず、QORF-E/Fのfresh measurementで
+同じ回帰が残る場合は再びstop conditionとして扱う。
 
 ### 11.2 Rollback units
 
