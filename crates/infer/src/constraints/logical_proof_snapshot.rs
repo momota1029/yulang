@@ -511,17 +511,18 @@ fn capture_projection(
             supports.dedup();
             // PCLF-D1 reads the logical snapshot from the factored canonical-run cursor. The
             // legacy formula remains dual-written only as a parity oracle until PCLF-E.
-            let formula = machine.proof_store.projection_formula_for_record(lower);
-            let mut clauses = formula
-                .iter()
-                .map(|clause| canonical_clause(canonical, *clause))
+            let mut clauses = machine
+                .proof_store
+                .projection_formula_for_record(lower)
+                .map(|clause| canonical_clause(canonical, clause))
                 .collect::<Vec<_>>();
             clauses.sort();
             clauses.dedup();
-            let mut links = formula
-                .iter()
+            let mut links = machine
+                .proof_store
+                .projection_formula_for_record(lower)
                 .map(|entry| {
-                    let clause = canonical_clause(canonical, *entry);
+                    let clause = canonical_clause(canonical, entry);
                     let clause_index = clauses.binary_search(&clause).expect("canonical clause");
                     (canonical_support(canonical, entry.support()), clause_index)
                 })

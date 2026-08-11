@@ -1111,8 +1111,9 @@ type RawProjectionClauseLinkIdentity = (
     RecordProofClause,
 );
 
-// PCLF-C makes exact-link and distinct-clause membership authoritative here. Formula/evaluator
-// and GWCB reads remain on legacy storage until PCLF-D, while all legacy faces stay dual-written.
+// PCLF-C made exact-link and distinct-clause membership authoritative here; PCLF-D1 also reads
+// formulas, evaluator arms, and GWCB evidence from this store. Legacy faces remain dual-written
+// as parity oracles until PCLF-E.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ProjectionFormulaEntryId(u32);
 
@@ -1120,6 +1121,20 @@ struct ProjectionFormulaEntryId(u32);
 struct ProjectionSupportGroupId(u32);
 
 const PROJECTION_RUN_CHUNK_CAPACITY: usize = 128;
+
+fn try_projection_support_group_id(
+    index: usize,
+) -> Result<ProjectionSupportGroupId, ProofFailure> {
+    let raw = u32::try_from(index).map_err(|_| ProofFailure::ResourceExhausted {
+        operation: ProofOperation::UpdateClaimLifecycle,
+    })?;
+    if raw == ProofEvalEvidenceMemo::STATE_TAG {
+        return Err(ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        });
+    }
+    Ok(ProjectionSupportGroupId(raw))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProjectionFormulaEntry {
@@ -1732,6 +1747,21 @@ impl ProjectionClause {
     }
 }
 
+fn canonical_projection_incidence_cmp(
+    left_clause: ProjectionClause,
+    left_entry: ProjectionFormulaEntryId,
+    right_clause: ProjectionClause,
+    right_entry: ProjectionFormulaEntryId,
+) -> std::cmp::Ordering {
+    // Distinct Standalone bodies can reconstruct to byte-identical clauses under one outer
+    // support. Their stable entry IDs close the physical order for AVL pivots without changing
+    // the observable clause sequence; decisive source lookup separately follows legacy's raw
+    // embedded-outer identity rule.
+    left_clause
+        .canonical_cmp(right_clause)
+        .then_with(|| left_entry.0.cmp(&right_entry.0))
+}
+
 fn projection_support_cmp(
     left: SchemeProjectionProofSupport,
     right: SchemeProjectionProofSupport,
@@ -1899,8 +1929,12 @@ impl ProjectionFormulaBucket {
             self.canonical_runs[run_position].append_entries_in_order(&mut entries);
             entries.push(entry_id);
             entries.sort_unstable_by(|left, right| {
-                self.reconstructed_clause(support_id, *left)
-                    .canonical_cmp(self.reconstructed_clause(support_id, *right))
+                canonical_projection_incidence_cmp(
+                    self.reconstructed_clause(support_id, *left),
+                    *left,
+                    self.reconstructed_clause(support_id, *right),
+                    *right,
+                )
             });
             self.canonical_runs[run_position] = CanonicalProjectionRun::from_sorted_entries(
                 category,
@@ -1944,6 +1978,27 @@ impl ProjectionFormulaBucket {
         }
     }
 
+    fn legacy_decisive_entry_id(
+        &self,
+        support_id: ProjectionSupportGroupId,
+        selected_entry_id: ProjectionFormulaEntryId,
+    ) -> Option<ProjectionFormulaEntryId> {
+        let selected = self.entries.get(selected_entry_id.0 as usize)?;
+        if !matches!(selected.clause, RecordProofClause::Standalone { .. }) {
+            return Some(selected_entry_id);
+        }
+        let raw_support = self.support_groups.get(support_id.0 as usize)?.raw_support;
+        let legacy_entry_id = self
+            .entry_by_clause
+            .get(&RecordProofClause::Standalone {
+                support: raw_support,
+            })
+            .copied()?;
+        self.exact_links
+            .contains_key(&(support_id, legacy_entry_id))
+            .then_some(legacy_entry_id)
+    }
+
     fn canonical_run_partition_point(
         &self,
         category: CanonicalProjectionCategory,
@@ -1973,11 +2028,15 @@ impl ProjectionFormulaBucket {
 
     fn canonical_clauses(&self) -> Vec<ProjectionClause> {
         let mut clauses = Vec::with_capacity(self.exact_links.len());
-        let mut cursor = self.canonical_run_cursor();
-        while let Some((support_id, entry_id)) = cursor.next() {
-            clauses.push(self.reconstructed_clause(support_id, entry_id));
-        }
+        clauses.extend(self.canonical_clause_cursor());
         clauses
+    }
+
+    fn canonical_clause_cursor(&self) -> ProjectionFormulaRecordCursor<'_> {
+        ProjectionFormulaRecordCursor {
+            cursor: Some(self.canonical_run_cursor()),
+            empty: self.exact_links.is_empty(),
+        }
     }
 }
 
@@ -2084,6 +2143,27 @@ struct ProjectionCanonicalRunCursor<'a> {
     entry_index: usize,
 }
 
+pub(super) struct ProjectionFormulaRecordCursor<'a> {
+    cursor: Option<ProjectionCanonicalRunCursor<'a>>,
+    empty: bool,
+}
+
+impl ProjectionFormulaRecordCursor<'_> {
+    pub(super) fn is_empty(&self) -> bool {
+        self.empty
+    }
+}
+
+impl Iterator for ProjectionFormulaRecordCursor<'_> {
+    type Item = ProjectionClause;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let cursor = self.cursor.as_mut()?;
+        let (support_id, entry_id) = cursor.next()?;
+        Some(cursor.bucket.reconstructed_clause(support_id, entry_id))
+    }
+}
+
 impl Iterator for ProjectionCanonicalRunCursor<'_> {
     type Item = (ProjectionSupportGroupId, ProjectionFormulaEntryId);
 
@@ -2158,9 +2238,13 @@ fn try_prepare_projection_chunk_outputs(
     if !existing.is_empty() && !delta.is_empty() {
         comparisons += 1;
         scanned_existing += 1;
-        let ordering = bucket
-            .reconstructed_clause(support_id, existing[existing.len() - 1])
-            .canonical_cmp(delta[0].1);
+        let existing_entry = existing[existing.len() - 1];
+        let ordering = canonical_projection_incidence_cmp(
+            bucket.reconstructed_clause(support_id, existing_entry),
+            existing_entry,
+            delta[0].1,
+            delta[0].0,
+        );
         last_existing_vs_first_delta = Some(ordering);
         if ordering != std::cmp::Ordering::Greater {
             merged[..existing.len()].copy_from_slice(existing);
@@ -2171,9 +2255,13 @@ fn try_prepare_projection_chunk_outputs(
         } else {
             comparisons += 1;
             scanned_existing += 1;
-            let ordering = bucket
-                .reconstructed_clause(support_id, existing[0])
-                .canonical_cmp(delta[delta.len() - 1].1);
+            let existing_entry = existing[0];
+            let ordering = canonical_projection_incidence_cmp(
+                bucket.reconstructed_clause(support_id, existing_entry),
+                existing_entry,
+                delta[delta.len() - 1].1,
+                delta[delta.len() - 1].0,
+            );
             first_existing_vs_last_delta = Some(ordering);
             if ordering == std::cmp::Ordering::Greater {
                 for (output, item) in merged[..delta.len()].iter_mut().zip(delta) {
@@ -2197,9 +2285,13 @@ fn try_prepare_projection_chunk_outputs(
         } else {
             comparisons += 1;
             scanned_existing += 1;
-            bucket
-                .reconstructed_clause(support_id, existing[existing_cursor - 1])
-                .canonical_cmp(delta[delta_cursor - 1].1)
+            let existing_entry = existing[existing_cursor - 1];
+            canonical_projection_incidence_cmp(
+                bucket.reconstructed_clause(support_id, existing_entry),
+                existing_entry,
+                delta[delta_cursor - 1].1,
+                delta[delta_cursor - 1].0,
+            )
         };
         output_cursor -= 1;
         if ordering == std::cmp::Ordering::Greater {
@@ -3402,6 +3494,13 @@ impl ProofOccurrenceStore {
         };
         let Some(group) = bucket.support_groups.get(support_id.0 as usize) else {
             debug_assert!(false, "decisive PCLF incidence must retain its support group");
+            return Ok(None);
+        };
+        let Some(entry_id) = bucket.legacy_decisive_entry_id(support_id, entry_id) else {
+            debug_assert!(
+                false,
+                "decisive claimed standalone clause must retain the exact raw audit identity selected by legacy"
+            );
             return Ok(None);
         };
         let Some(entry) = bucket.entries.get(entry_id.0 as usize) else {
@@ -4640,6 +4739,29 @@ impl ProofOccurrenceStore {
         canonical_existing.sort_unstable_by(|left, right| left.canonical_cmp(*right));
         canonical_replacement.sort_unstable_by(|left, right| left.canonical_cmp(*right));
         assert_eq!(canonical_replacement, canonical_existing);
+        let bucket = self
+            .projection_formula_shadow
+            .by_record
+            .get_mut(&record)
+            .expect("the production writer must create the factored formula before corruption");
+        let mut available = std::mem::take(&mut bucket.canonical_runs);
+        let mut replacement_runs = Vec::new();
+        replacement_runs.reserve_exact(available.len());
+        for clause in &clauses {
+            let support_id = bucket.support_group_by_raw[&clause.support()];
+            let category = CanonicalProjectionCategory::from_clause(clause.record_clause());
+            let position = available
+                .iter()
+                .position(|run| run.category == category && run.support_id == support_id)
+                .expect("the replacement order must name every existing one-entry run");
+            assert_eq!(
+                available[position].entry_len, 1,
+                "this narrow corruption hook only reorders one-entry canonical runs",
+            );
+            replacement_runs.push(available.remove(position));
+        }
+        assert!(available.is_empty());
+        bucket.canonical_runs = replacement_runs;
         self.projection_formulas.insert(record, clauses);
     }
 
@@ -4835,22 +4957,23 @@ impl ProofOccurrenceStore {
                     None,
                 ),
             };
-            let support_id = existing
+            let support_id = if let Some(support_id) = existing
                 .and_then(|bucket| bucket.support_group_by_raw.get(&admission.support).copied())
                 .or_else(|| pending_supports.get(&admission.support).copied())
-                .unwrap_or_else(|| {
-                    let id = ProjectionSupportGroupId(
-                        u32::try_from(base_support_len + delta.new_support_groups.len())
-                            .expect("PCLF record-local support id must fit u32"),
-                    );
-                    delta.new_support_groups.push(ProjectionSupportGroup {
-                        raw_support: admission.support,
-                        match_key,
-                        coverage_root,
-                    });
-                    assert!(pending_supports.insert(admission.support, id).is_none());
-                    id
+            {
+                support_id
+            } else {
+                let id = try_projection_support_group_id(
+                    base_support_len + delta.new_support_groups.len(),
+                )?;
+                delta.new_support_groups.push(ProjectionSupportGroup {
+                    raw_support: admission.support,
+                    match_key,
+                    coverage_root,
                 });
+                assert!(pending_supports.insert(admission.support, id).is_none());
+                id
+            };
             let group = if (support_id.0 as usize) < base_support_len {
                 &existing
                     .expect("existing support has a bucket")
@@ -4915,7 +5038,9 @@ impl ProofOccurrenceStore {
             left.0
                 .cmp(&right.0)
                 .then_with(|| projection_support_cmp(left.1, right.1))
-                .then_with(|| left.4.canonical_cmp(right.4))
+                .then_with(|| {
+                    canonical_projection_incidence_cmp(left.4, left.3, right.4, right.3)
+                })
         });
         let mut cursor = 0;
         while cursor < pending_run_entries.len() {
@@ -4947,21 +5072,27 @@ impl ProofOccurrenceStore {
                 chunk_deltas.try_reserve(entries.len()).map_err(exhausted)?;
                 let mut entry_cursor = 0usize;
                 while entry_cursor < entries.len() {
-                    let target_clause = entries[entry_cursor].1;
+                    let (target_entry, target_clause) = entries[entry_cursor];
                     let (target_chunk, mut lookup_comparisons) = run.target_chunk_by(|pivot| {
-                        bucket
-                            .reconstructed_clause(support_id, pivot)
-                            .canonical_cmp(target_clause)
+                        canonical_projection_incidence_cmp(
+                            bucket.reconstructed_clause(support_id, pivot),
+                            pivot,
+                            target_clause,
+                            target_entry,
+                        )
                     });
                     let target_pivot = target_chunk.entries[0];
                     let start = entry_cursor;
                     entry_cursor += 1;
                     while entry_cursor < entries.len() {
-                        let clause = entries[entry_cursor].1;
+                        let (entry, clause) = entries[entry_cursor];
                         let (next_chunk, comparisons) = run.target_chunk_by(|pivot| {
-                            bucket
-                                .reconstructed_clause(support_id, pivot)
-                                .canonical_cmp(clause)
+                            canonical_projection_incidence_cmp(
+                                bucket.reconstructed_clause(support_id, pivot),
+                                pivot,
+                                clause,
+                                entry,
+                            )
                         });
                         lookup_comparisons += comparisons;
                         if next_chunk.entries[0] != target_pivot {
@@ -5170,20 +5301,24 @@ impl ProofOccurrenceStore {
                 let exact_links = &bucket.exact_links;
                 let run = &mut bucket.canonical_runs[run_index];
                 let compare = |left, right| {
-                    reconstructed_projection_clause(
-                        entries,
-                        support_groups,
-                        exact_links,
-                        support_id,
+                    canonical_projection_incidence_cmp(
+                        reconstructed_projection_clause(
+                            entries,
+                            support_groups,
+                            exact_links,
+                            support_id,
+                            left,
+                        ),
                         left,
-                    )
-                    .canonical_cmp(reconstructed_projection_clause(
-                        entries,
-                        support_groups,
-                        exact_links,
-                        support_id,
+                        reconstructed_projection_clause(
+                            entries,
+                            support_groups,
+                            exact_links,
+                            support_id,
+                            right,
+                        ),
                         right,
-                    ))
+                    )
                 };
                 run.chunk_mut_by_pivot(chunk_delta.target_pivot, &compare)
                     .entries = chunk_delta.replacement_entries;
@@ -6584,9 +6719,9 @@ impl ProofOccurrenceStore {
         }
 
         let supports = self.projection_supports.get(&record);
-        let formula = self.projection_formulas.get(&record);
+        let formula_bucket = self.projection_formula_shadow.by_record.get(&record);
         let has_supports = supports.is_some_and(|supports| !supports.is_empty());
-        let has_formula = formula.is_some_and(|formula| !formula.is_empty());
+        let has_formula = formula_bucket.is_some_and(|bucket| !bucket.exact_links.is_empty());
         match (has_supports, has_formula) {
             (false, false) => return Ok(ProjectionDecision::Unclaimed),
             (false, true) => {
@@ -6778,9 +6913,9 @@ impl<'a> ProjectionPreflight<'a> {
 
     fn validate_projection_record(&mut self, record: BoundRecordId) -> Result<(), ProofFailure> {
         let supports = self.store.projection_supports.get(&record);
-        let clauses = self.store.projection_formulas.get(&record);
+        let formula_bucket = self.store.projection_formula_shadow.by_record.get(&record);
         let has_supports = supports.is_some_and(|supports| !supports.is_empty());
-        let has_clauses = clauses.is_some_and(|clauses| !clauses.is_empty());
+        let has_clauses = formula_bucket.is_some_and(|bucket| !bucket.exact_links.is_empty());
         match (has_supports, has_clauses) {
             (false, false) => return Ok(()),
             (false, true) => {
@@ -6798,7 +6933,8 @@ impl<'a> ProjectionPreflight<'a> {
         }
 
         let supports = supports.expect("non-empty supports were classified above");
-        let clauses = clauses.expect("non-empty clauses were classified above");
+        let formula_bucket =
+            formula_bucket.expect("non-empty clauses were classified above");
         let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
         resolved.try_reserve_exact(supports.len()).map_err(|_| {
             ProofFailure::ResourceExhausted {
@@ -6829,13 +6965,6 @@ impl<'a> ProjectionPreflight<'a> {
             resolved.push(support);
         }
 
-        if clauses.windows(2).any(|pair| {
-            pair[0].canonical_cmp(pair[1]) == std::cmp::Ordering::Greater
-        })
-        {
-            return Err(ProofFailure::NonCanonicalProjectionOrder { record });
-        }
-
         let mut matched = Vec::new();
         matched
             .try_reserve_exact(resolved.len())
@@ -6843,7 +6972,16 @@ impl<'a> ProjectionPreflight<'a> {
                 operation: ProofOperation::ProjectLowerPreflight,
             })?;
         matched.resize(resolved.len(), false);
-        for clause in clauses.iter().copied() {
+        let mut previous_clause = None;
+        let mut cursor = formula_bucket.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = cursor.next() {
+            let clause = formula_bucket.reconstructed_clause(support_id, entry_id);
+            if previous_clause.is_some_and(|previous: ProjectionClause| {
+                previous.canonical_cmp(clause) == std::cmp::Ordering::Greater
+            }) {
+                return Err(ProofFailure::NonCanonicalProjectionOrder { record });
+            }
+            previous_clause = Some(clause);
             let clause_support = self.resolve_support(record, clause.support())?;
             let Ok(index) = resolved
                 .binary_search_by(|support| support.cmp(clause_support))
@@ -7644,7 +7782,10 @@ impl<'a> CpkProjectionEvaluator<'a> {
                 CpkProjectionEvaluationSummary::IncludedExact => {
                     if matches!(item.raw_support, SchemeProjectionProofSupport::Claimed(_)) {
                         if let Some(found) = decisive_claimed_incidence.as_deref_mut() {
-                            *found = Some((item.support_id, item.entry_id));
+                            let legacy_entry_id = formula_bucket
+                                .legacy_decisive_entry_id(item.support_id, item.entry_id)
+                                .unwrap_or(item.entry_id);
+                            *found = Some((item.support_id, legacy_entry_id));
                         }
                     }
                     return result;
@@ -8657,12 +8798,14 @@ impl ProofOccurrenceStore {
     pub(super) fn projection_formula_for_record(
         &self,
         record: BoundRecordId,
-    ) -> Vec<ProjectionClause> {
-        self.projection_formula_shadow
-            .by_record
-            .get(&record)
-            .map(ProjectionFormulaBucket::canonical_clauses)
-            .unwrap_or_default()
+    ) -> ProjectionFormulaRecordCursor<'_> {
+        self.projection_formula_shadow.by_record.get(&record).map_or(
+            ProjectionFormulaRecordCursor {
+                cursor: None,
+                empty: true,
+            },
+            ProjectionFormulaBucket::canonical_clause_cursor,
+        )
     }
 
     #[cfg(test)]
@@ -10745,6 +10888,121 @@ mod tests {
     }
 
     #[test]
+    fn pclf_d1_standalone_ties_preserve_legacy_decisive_claimed_source() {
+        let mut fixture = cpk_3_cpk_only_replay_admission_fixture();
+        let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_174);
+        let claim = fixture.coverage_root;
+        let outer_support = SchemeProjectionProofSupport::Claimed(claim);
+        let mutation = fixture
+            .machine
+            .try_prepare_scheme_projection_mutation(record, &[claim], &[])
+            .expect("standalone tie fixture support mutation");
+        fixture.machine.apply_scheme_projection_mutation(mutation);
+
+        let mismatched_clause = RecordProofClause::Standalone {
+            support: SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Incomplete,
+            ),
+        };
+        let legacy_matching_clause = RecordProofClause::Standalone {
+            support: outer_support,
+        };
+        for (clause, producer) in [
+            (mismatched_clause, ConstraintRecordId(97_175)),
+            (legacy_matching_clause, ConstraintRecordId(97_176)),
+        ] {
+            fixture.machine.proof_store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::claimed(
+                    claim,
+                    clause,
+                    ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: claim,
+                        producer,
+                    },
+                ),
+            );
+        }
+
+        let legacy_formula = &fixture.machine.proof_store.projection_formulas[&record];
+        assert_eq!(legacy_formula.len(), 2);
+        assert_eq!(legacy_formula[0], legacy_formula[1]);
+        let legacy_proof = fixture
+            .machine
+            .proof_store
+            .decisive_claimed_projection_proof(record, legacy_formula[0])
+            .expect("legacy decisive lookup")
+            .expect("the embedded-outer incidence is legacy's decisive source");
+        let mut evaluator =
+            CpkProjectionEvaluator::new(&fixture.machine, &fixture.machine.proof_store);
+        let CpkProjectionEvaluation::Included {
+            evidence: ProjectionEvidence::DecisiveClaimedArm(factored_proof),
+        } = evaluator
+            .eval_record_with_evidence(record)
+            .expect("factored decisive lookup")
+        else {
+            panic!("the tied standalone fixture must include through a claimed arm");
+        };
+        assert_eq!(factored_proof, legacy_proof);
+        let ProofEvalState::Done(memo) = evaluator.states[&ProofEvalNode::Record(record)] else {
+            panic!("the decisive record must be memoized");
+        };
+        let DecodedProofEvalEvidenceMemo::DecisiveClaimedIncidence {
+            support_id,
+            entry_id,
+        } = memo.evidence.decode()
+        else {
+            panic!("the packed memo must retain legacy's decisive incidence");
+        };
+        let bucket = &fixture.machine.proof_store.projection_formula_shadow.by_record[&record];
+        assert_eq!(
+            entry_id,
+            bucket.entry_by_clause[&legacy_matching_clause],
+            "legacy resolves the collapsed Standalone clause through the embedded-outer audit identity",
+        );
+        assert!(bucket.exact_links.contains_key(&(support_id, entry_id)));
+    }
+
+    #[test]
+    fn pclf_d1_standalone_ties_split_chunks_without_equal_pivots() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_177);
+        let outer_support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Incomplete,
+        );
+        let admission = |ordinal: u32| {
+            RecordProofClauseLinkAdmission::independent(
+                outer_support,
+                RecordProofClause::Standalone {
+                    support: SchemeProjectionProofSupport::Independent(
+                        ProjectionProofCarrier::Origin(OriginId(210_000 + ordinal)),
+                    ),
+                },
+            )
+        };
+        let initial = (0..PROJECTION_RUN_CHUNK_CAPACITY as u32)
+            .map(admission)
+            .collect::<Vec<_>>();
+        let mut prepared = store
+            .try_prepare_projection_clause_admission(record, &initial)
+            .expect("tied standalone initial reservation")
+            .expect("tied standalone initial admission");
+        store.commit_projection_clause_admission(&mut prepared);
+        store.record_projection_clause(
+            record,
+            admission(PROJECTION_RUN_CHUNK_CAPACITY as u32),
+        );
+
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.canonical_runs.len(), 1);
+        assert_eq!(bucket.canonical_runs[0].entry_len, 129);
+        assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
+        assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
+        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+    }
+
+    #[test]
     fn pclf_d1_packed_evidence_memo_round_trips_all_states_and_rejects_reserved_ids() {
         assert_eq!(std::mem::size_of::<ProofEvalEvidenceMemo>(), 8);
         assert_eq!(std::mem::size_of::<ProofEvalState>(), 12);
@@ -10776,6 +11034,16 @@ mod tests {
             )
         })
         .is_err());
+        assert_eq!(
+            try_projection_support_group_id(u32::MAX as usize - 1),
+            Ok(ProjectionSupportGroupId(u32::MAX - 1)),
+        );
+        assert!(matches!(
+            try_projection_support_group_id(u32::MAX as usize),
+            Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            }),
+        ));
     }
 
     #[test]
