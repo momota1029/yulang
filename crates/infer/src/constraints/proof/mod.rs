@@ -2528,6 +2528,8 @@ pub(super) struct PreparedQualifiedParentAdmission {
     new_result_entries: Option<Vec<ExactQualifiedParent>>,
     new_first_sources:
         Vec<((ConstraintRecordId, UpperReplayClaimId), FirstQualifiedParentSource)>,
+    #[cfg(test)]
+    pending_first_source_capacity: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8478,13 +8480,7 @@ impl ProofOccurrenceStore {
         let mut accepted = Vec::new();
         accepted.try_reserve(parents.len()).map_err(exhausted)?;
         let mut pending_first_source_keys = FxHashSet::default();
-        pending_first_source_keys
-            .try_reserve(parents.len())
-            .map_err(exhausted)?;
         let mut new_first_sources = Vec::new();
-        new_first_sources
-            .try_reserve(parents.len())
-            .map_err(exhausted)?;
         for &parent in parents {
             let parent_claim = parent.parent_claim();
             let claim = self
@@ -8526,8 +8522,18 @@ impl ProofOccurrenceStore {
             if !self
                 .first_qualified_parent_source_by_root
                 .contains_key(&source_key)
-                && pending_first_source_keys.insert(source_key)
+                && !pending_first_source_keys.contains(&source_key)
             {
+                // A parent batch is usually much wider than its new `(result, root)` frontier.
+                // Grow the plan-local first-source delta only when that frontier really advances.
+                // Both reservations remain fallible and precede even the temporary insertion, so
+                // a failure cannot escape preparation or partially commit persistent proof state.
+                pending_first_source_keys
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                new_first_sources.try_reserve(1).map_err(exhausted)?;
+                let inserted = pending_first_source_keys.insert(source_key);
+                debug_assert!(inserted);
                 let source = match parent {
                     ClaimQualifiedParent::ReplayConstraint { .. } => {
                         FirstQualifiedParentSource::Replay
@@ -8581,6 +8587,8 @@ impl ProofOccurrenceStore {
             canonical,
             new_result_entries,
             new_first_sources,
+            #[cfg(test)]
+            pending_first_source_capacity: pending_first_source_keys.capacity(),
         })
     }
 
@@ -15148,6 +15156,59 @@ mod tests {
                 .first_qualified_parent_source(result, first),
             Some(FirstQualifiedParentSource::Replay),
             "the event-local first accepted parent wins independently of canonical storage order",
+        );
+    }
+
+    #[test]
+    fn cpk_qualified_parent_first_source_capacity_tracks_the_source_delta() {
+        let mut machine = cpk_machine();
+        let (record, claim) = cpk_7_record_original_claim(&mut machine, 987);
+        let result = ConstraintRecordId(96_988);
+        let parents = (0..64)
+            .map(|index| ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: claim,
+                parent_side: ReplayClaimParentSide::Lower,
+                replay: BinaryReplayDerivation {
+                    pivot: TypeVar(97_000 + index),
+                    lower: record,
+                    upper: record,
+                    rule: ReplayRule::LowerBoundAdded,
+                },
+            })
+            .collect::<Vec<_>>();
+
+        let mut admission = machine
+            .proof_store
+            .try_prepare_qualified_parent_admission(result, &parents)
+            .expect("the representative first-source capacity fixture must prepare");
+        assert_eq!(admission.accepted.len(), parents.len());
+        assert_eq!(admission.new_first_sources.len(), 1);
+        assert!(
+            admission.pending_first_source_capacity <= 4,
+            "the pending set must grow with the one real source, not all input parents: {:?}",
+            admission.pending_first_source_capacity,
+        );
+        assert!(
+            admission.new_first_sources.capacity() <= 4,
+            "the source delta must grow with the one real source, not all input parents: {:?}",
+            admission.new_first_sources.capacity(),
+        );
+
+        machine
+            .proof_store
+            .commit_qualified_parent_admission(&mut admission);
+        assert_eq!(
+            machine
+                .proof_store
+                .first_qualified_parent_source(result, claim),
+            Some(FirstQualifiedParentSource::Replay),
+        );
+        assert_eq!(
+            machine
+                .proof_store
+                .qualified_parents_for_result(result)
+                .len(),
+            parents.len(),
         );
     }
 
