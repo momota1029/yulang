@@ -648,7 +648,7 @@ struct ReplayParentSideIndex {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReplayParentChunkNode {
-    entries: Box<[QorfReplayParentEntry]>,
+    entries: Vec<QorfReplayParentEntry>,
     left: Option<ReplayParentChunkId>,
     right: Option<ReplayParentChunkId>,
     height: u8,
@@ -791,18 +791,22 @@ impl ReplayParentChunkArena {
 #[derive(Debug)]
 struct PreparedReplayParentSideShadowDelta {
     side: ReplayClaimParentSide,
-    replacements: Vec<(ReplayParentChunkId, Box<[QorfReplayParentEntry]>)>,
+    replacements: Vec<(ReplayParentChunkId, Vec<QorfReplayParentEntry>)>,
     new_nodes: Vec<ReplayParentChunkNode>,
     new_root: Option<ReplayParentChunkId>,
     first_new_node_index: usize,
-    accepted_len: usize,
+    resulting_len: u32,
 }
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QorfReplayReservationFailurePoint {
+    AfterQualifiedSourceSummary,
     AfterQualified,
     AfterSideChunks,
+    AfterReplayFiniteMap,
+    AfterReplayFiniteMapIndex,
+    AfterReplayResultIndex,
     AfterOccurrence,
     AfterSummary,
     AfterProofOccurrence,
@@ -844,11 +848,22 @@ fn try_replay_parent_chunk_id(index: usize) -> Result<ReplayParentChunkId, Proof
 
 fn try_exact_qorf_entries(
     entries: &[QorfReplayParentEntry],
-) -> Result<Box<[QorfReplayParentEntry]>, std::collections::TryReserveError> {
+) -> Result<Vec<QorfReplayParentEntry>, std::collections::TryReserveError> {
     let mut output = Vec::new();
     output.try_reserve_exact(entries.len())?;
     output.extend_from_slice(entries);
-    Ok(output.into_boxed_slice())
+    Ok(output)
+}
+
+fn try_qorf_resulting_side_len(
+    existing: ReplayParentSideIndex,
+    accepted_len: usize,
+) -> Result<u32, ProofFailure> {
+    let exhausted = || ProofFailure::ResourceExhausted {
+        operation: ProofOperation::UpdateClaimLifecycle,
+    };
+    let accepted_len = u32::try_from(accepted_len).map_err(|_| exhausted())?;
+    existing.len.checked_add(accepted_len).ok_or_else(exhausted)
 }
 
 fn try_build_qorf_balanced_chunks(
@@ -868,7 +883,7 @@ fn try_build_qorf_balanced_chunks(
         chunks.push(try_exact_qorf_entries(chunk).map_err(exhausted)?);
     }
     fn build(
-        chunks: &mut [Option<Box<[QorfReplayParentEntry]>>],
+        chunks: &mut [Vec<QorfReplayParentEntry>],
         start: usize,
         end: usize,
         arena_base: usize,
@@ -885,16 +900,13 @@ fn try_build_qorf_balanced_chunks(
             .map_or(0, |id| output[id.0 as usize - arena_base].height)
             .max(right.map_or(0, |id| output[id.0 as usize - arena_base].height));
         output.push(ReplayParentChunkNode {
-            entries: chunks[middle]
-                .take()
-                .expect("QORF bulk chunk is consumed once"),
+            entries: std::mem::take(&mut chunks[middle]),
             left,
             right,
             height,
         });
         Ok(Some(id))
     }
-    let mut chunks = chunks.into_iter().map(Some).collect::<Vec<_>>();
     let mut nodes = Vec::new();
     nodes.try_reserve_exact(chunk_count).map_err(exhausted)?;
     let root = build(&mut chunks, 0, chunk_count, arena_base, &mut nodes)?;
@@ -925,6 +937,7 @@ fn try_prepare_qorf_side_delta(
     });
     if existing.root.is_none() {
         let accepted_len = accepted.len();
+        let resulting_len = try_qorf_resulting_side_len(existing, accepted_len)?;
         let (new_nodes, new_root) = try_build_qorf_balanced_chunks(&accepted, arena_base)?;
         #[cfg(test)]
         QORF_REPLAY_SIDE_OPERATION_CENSUS.with(|cell| {
@@ -938,7 +951,7 @@ fn try_prepare_qorf_side_delta(
             new_nodes,
             new_root,
             first_new_node_index: arena_base,
-            accepted_len,
+            resulting_len,
         }));
     }
 
@@ -966,6 +979,7 @@ fn try_prepare_qorf_side_delta(
         .try_reserve_exact(routed.len())
         .map_err(exhausted)?;
     let accepted_len = routed.len();
+    let resulting_len = try_qorf_resulting_side_len(existing, accepted_len)?;
     let mut cursor = 0;
     while cursor < routed.len() {
         let target = routed[cursor].0;
@@ -1027,7 +1041,7 @@ fn try_prepare_qorf_side_delta(
         new_nodes,
         new_root: None,
         first_new_node_index: arena_base,
-        accepted_len,
+        resulting_len,
     }))
 }
 
@@ -8932,9 +8946,23 @@ impl ProofOccurrenceStore {
                     .map_err(exhausted)?;
             } else {
                 self.replay_finite_map.try_reserve(1).map_err(exhausted)?;
+                #[cfg(test)]
+                if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterReplayFiniteMap) {
+                    return Err(ProofFailure::ResourceExhausted {
+                        operation: ProofOperation::UpdateClaimLifecycle,
+                    });
+                }
                 self.replay_finite_map_index
                     .try_reserve(1)
                     .map_err(exhausted)?;
+                #[cfg(test)]
+                if self
+                    .qorf_fail_after(QorfReplayReservationFailurePoint::AfterReplayFiniteMapIndex)
+                {
+                    return Err(ProofFailure::ResourceExhausted {
+                        operation: ProofOperation::UpdateClaimLifecycle,
+                    });
+                }
                 let mut lower_parents = Vec::new();
                 let mut upper_parents = Vec::new();
                 lower_parents
@@ -8958,6 +8986,13 @@ impl ProofOccurrenceStore {
                     let mut indices = Vec::new();
                     indices.try_reserve_exact(1).map_err(exhausted)?;
                     new_replay_result_indices = Some(indices);
+                }
+                #[cfg(test)]
+                if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterReplayResultIndex)
+                {
+                    return Err(ProofFailure::ResourceExhausted {
+                        operation: ProofOperation::UpdateClaimLifecycle,
+                    });
                 }
                 new_occurrence = Some(ReplayProofOccurrence {
                     result,
@@ -9064,10 +9099,7 @@ impl ProofOccurrenceStore {
             }
         }
         side_index.root = root;
-        side_index.len = side_index
-            .len
-            .checked_add(delta.accepted_len as u32)
-            .expect("QORF side length was validated during preparation");
+        side_index.len = delta.resulting_len;
     }
 
     #[cfg(test)]
@@ -9191,21 +9223,22 @@ impl ProofOccurrenceStore {
         }
         // Resolve the entire event before mutating the snapshot. Under CPK authority a missing
         // claim is a writer-order bug, never permission to fall back to the flat claim arena.
-        let parents = parents
-            .iter()
-            .map(|parent| {
-                let claim = self
-                    .upper_claim(parent.claim)
-                    .filter(|claim| claim.claim == parent.claim)
-                    .expect("a CPK replay parent must be admitted before its snapshot");
-                ReplayProofParent {
-                    side: parent.parent_side,
-                    coverage_root: claim.coverage_root,
-                    representative_claim: parent.claim,
-                    lineage: claim.lineage,
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut parents_resolved = Vec::new();
+        parents_resolved
+            .try_reserve_exact(parents.len())
+            .expect("QORF test snapshot parent staging must allocate");
+        for parent in parents {
+            let claim = self
+                .upper_claim(parent.claim)
+                .filter(|claim| claim.claim == parent.claim)
+                .expect("a CPK replay parent must be admitted before its snapshot");
+            parents_resolved.push(ReplayProofParent {
+                side: parent.parent_side,
+                coverage_root: claim.coverage_root,
+                representative_claim: parent.claim,
+                lineage: claim.lineage,
+            });
+        }
         let key = (result, carrier);
         let index = self
             .replay_finite_map_index
@@ -9229,20 +9262,91 @@ impl ProofOccurrenceStore {
                     .push(index);
                 index
             });
-        let mut inserted = false;
-        for parent in parents {
+        let mut accepted_parents = Vec::new();
+        accepted_parents
+            .try_reserve_exact(parents_resolved.len())
+            .expect("QORF test snapshot accepted-parent staging must allocate");
+        for parent in parents_resolved {
             let target = match parent.side {
-                ReplayClaimParentSide::Lower => &mut self.replay_finite_map[index].lower_parents,
-                ReplayClaimParentSide::Upper => &mut self.replay_finite_map[index].upper_parents,
+                ReplayClaimParentSide::Lower => &self.replay_finite_map[index].lower_parents,
+                ReplayClaimParentSide::Upper => &self.replay_finite_map[index].upper_parents,
             };
             if target
                 .iter()
                 .any(|entry| entry.coverage_root == parent.coverage_root)
+                || accepted_parents.iter().any(|entry: &ReplayProofParent| {
+                    entry.side == parent.side && entry.coverage_root == parent.coverage_root
+                })
             {
                 continue;
             }
-            target.push(parent);
-            inserted = true;
+            accepted_parents.push(parent);
+        }
+        if accepted_parents.is_empty() {
+            return;
+        }
+
+        let existing_sides = self.replay_finite_map[index].replay_parent_sides;
+        let mut lower_entries = Vec::new();
+        let mut upper_entries = Vec::new();
+        lower_entries
+            .try_reserve_exact(accepted_parents.len())
+            .expect("QORF test lower-side staging must allocate");
+        upper_entries
+            .try_reserve_exact(accepted_parents.len())
+            .expect("QORF test upper-side staging must allocate");
+        for parent in &accepted_parents {
+            let entry = QorfReplayParentEntry {
+                coverage_root: parent.coverage_root,
+                representative_claim: parent.representative_claim,
+                lineage: parent.lineage,
+            };
+            match parent.side {
+                ReplayClaimParentSide::Lower => lower_entries.push(entry),
+                ReplayClaimParentSide::Upper => upper_entries.push(entry),
+            }
+        }
+        let arena_base = self.replay_parent_chunks.nodes.len();
+        let lower_shadow = try_prepare_qorf_side_delta(
+            &self.replay_parent_chunks,
+            ReplayClaimParentSide::Lower,
+            existing_sides[0],
+            lower_entries,
+            arena_base,
+        )
+        .expect("QORF test lower-side shadow must prepare");
+        let upper_base = arena_base
+            + lower_shadow
+                .as_ref()
+                .map_or(0, |delta| delta.new_nodes.len());
+        let upper_shadow = try_prepare_qorf_side_delta(
+            &self.replay_parent_chunks,
+            ReplayClaimParentSide::Upper,
+            existing_sides[1],
+            upper_entries,
+            upper_base,
+        )
+        .expect("QORF test upper-side shadow must prepare");
+        let new_chunk_count = lower_shadow
+            .as_ref()
+            .map_or(0, |delta| delta.new_nodes.len())
+            + upper_shadow
+                .as_ref()
+                .map_or(0, |delta| delta.new_nodes.len());
+        self.replay_parent_chunks
+            .nodes
+            .try_reserve(new_chunk_count)
+            .expect("QORF test side arena must reserve before commit");
+
+        for parent in accepted_parents {
+            match parent.side {
+                ReplayClaimParentSide::Lower => {
+                    self.replay_finite_map[index].lower_parents.push(parent)
+                }
+                ReplayClaimParentSide::Upper => {
+                    self.replay_finite_map[index].upper_parents.push(parent)
+                }
+            }
             self.first_replay_witnesses
                 .entry((result, parent.coverage_root))
                 .or_insert(ReplayFirstWitness {
@@ -9251,9 +9355,21 @@ impl ProofOccurrenceStore {
                     representative_claim: parent.representative_claim,
                 });
         }
-        if !inserted {
-            return;
+        if let Some(delta) = lower_shadow {
+            Self::commit_replay_parent_side_shadow_delta(
+                &mut self.replay_parent_chunks,
+                &mut self.replay_finite_map[index].replay_parent_sides[0],
+                delta,
+            );
         }
+        if let Some(delta) = upper_shadow {
+            Self::commit_replay_parent_side_shadow_delta(
+                &mut self.replay_parent_chunks,
+                &mut self.replay_finite_map[index].replay_parent_sides[1],
+                delta,
+            );
+        }
+        self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::Replay(carrier),
@@ -9527,6 +9643,12 @@ impl ProofOccurrenceStore {
         self.first_qualified_parent_source_by_root
             .try_reserve(new_first_sources.len())
             .map_err(exhausted)?;
+        #[cfg(test)]
+        if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterQualifiedSourceSummary) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
         let new_result_entries =
             if let Some(entries) = self.qualified_parents_by_result.get_mut(&result) {
                 entries.try_reserve(accepted.len()).map_err(exhausted)?;
@@ -16681,8 +16803,12 @@ mod tests {
     #[test]
     fn qorf_b_every_inner_reservation_failure_keeps_only_the_outer_event() {
         for point in [
+            QorfReplayReservationFailurePoint::AfterQualifiedSourceSummary,
             QorfReplayReservationFailurePoint::AfterQualified,
             QorfReplayReservationFailurePoint::AfterSideChunks,
+            QorfReplayReservationFailurePoint::AfterReplayFiniteMap,
+            QorfReplayReservationFailurePoint::AfterReplayFiniteMapIndex,
+            QorfReplayReservationFailurePoint::AfterReplayResultIndex,
             QorfReplayReservationFailurePoint::AfterOccurrence,
             QorfReplayReservationFailurePoint::AfterSummary,
             QorfReplayReservationFailurePoint::AfterProofOccurrence,
@@ -16696,7 +16822,14 @@ mod tests {
                     .proof_store
                     .qualified_parents_by_result
                     .clone(),
+                fixture
+                    .machine
+                    .proof_store
+                    .first_qualified_parent_source_by_root
+                    .clone(),
                 fixture.machine.proof_store.replay_finite_map.clone(),
+                fixture.machine.proof_store.replay_finite_map_index.clone(),
+                fixture.machine.proof_store.replay_indices_by_result.clone(),
                 fixture.machine.proof_store.replay_parent_chunks.clone(),
                 fixture.machine.proof_store.first_replay_witnesses.clone(),
                 fixture.machine.proof_store.occurrences.clone(),
@@ -16722,7 +16855,14 @@ mod tests {
                         .proof_store
                         .qualified_parents_by_result
                         .clone(),
+                    fixture
+                        .machine
+                        .proof_store
+                        .first_qualified_parent_source_by_root
+                        .clone(),
                     fixture.machine.proof_store.replay_finite_map.clone(),
+                    fixture.machine.proof_store.replay_finite_map_index.clone(),
+                    fixture.machine.proof_store.replay_indices_by_result.clone(),
                     fixture.machine.proof_store.replay_parent_chunks.clone(),
                     fixture.machine.proof_store.first_replay_witnesses.clone(),
                     fixture.machine.proof_store.occurrences.clone(),
