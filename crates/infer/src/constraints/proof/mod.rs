@@ -782,6 +782,37 @@ pub(super) struct PreparedProjectionClauseAdmission {
     )>,
     new_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
     new_flat_retained_projection_attributions: Vec<(BoundRecordId, UpperReplayClaimId)>,
+    shadow: PreparedProjectionFormulaShadowAdmission,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PreparedProjectionFormulaShadowAdmission {
+    new_record_bucket: Option<ProjectionFormulaBucket>,
+    delta: ProjectionFormulaShadowDelta,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ProjectionFormulaShadowDelta {
+    new_entries: Vec<ProjectionFormulaEntry>,
+    new_support_groups: Vec<ProjectionSupportGroup>,
+    exact_links: Vec<(
+        ProjectionSupportGroupId,
+        ProjectionFormulaEntryId,
+        ProjectionIncidenceMetadata,
+    )>,
+    support_match_key_promotions: Vec<(ProjectionSupportGroupId, ProjectionSupportMatchKey)>,
+    normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
+    attributed_roots: Vec<UpperReplayClaimId>,
+    flat_retained_attributed_roots: Vec<UpperReplayClaimId>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionClauseReservationFailurePoint {
+    Initial,
+    AfterLegacyPreflight,
+    ShadowStructure,
+    ShadowNormalizedSupport,
 }
 
 impl PreparedProjectionClauseAdmission {
@@ -988,23 +1019,19 @@ type RawProjectionClauseLinkIdentity = (
     RecordProofClause,
 );
 
-// PCLF-A fixes the representation boundary and exercises it through test-only reconstruction.
-// PCLF-B, not this slice, will attach this store to production admission.
-#[cfg(test)]
+// PCLF-B maintains this factored representation as a write-only shadow. Legacy storage remains
+// the sole production read authority until the later cutover slices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ProjectionFormulaEntryId(u32);
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ProjectionSupportGroupId(u32);
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProjectionFormulaEntry {
     clause: RecordProofClause,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProjectionSupportGroup {
     raw_support: SchemeProjectionProofSupport,
@@ -1015,14 +1042,12 @@ struct ProjectionSupportGroup {
     replay_conjunction_entries: Vec<ProjectionFormulaEntryId>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProjectionIncidenceMetadata {
     Independent,
     Claimed(ClaimedProjectionSourceTemplate),
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClaimedProjectionSourceTemplate {
     Original { producer: ConstraintRecordId },
@@ -1031,7 +1056,6 @@ enum ClaimedProjectionSourceTemplate {
     ReplayEvidence,
 }
 
-#[cfg(test)]
 impl ClaimedProjectionSourceTemplate {
     fn from_source(source: ClaimedProjectionProofSource) -> (UpperReplayClaimId, Self) {
         match source {
@@ -1072,7 +1096,6 @@ impl ClaimedProjectionSourceTemplate {
     }
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ProjectionFormulaBucket {
     entries: Vec<ProjectionFormulaEntry>,
@@ -1090,10 +1113,22 @@ struct ProjectionFormulaBucket {
     flat_retained_attributed_roots: FxHashSet<UpperReplayClaimId>,
 }
 
-#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProjectionFormulaMovementCensus {
+    support_insertions: u64,
+    support_moved: u64,
+    support_max_moved: usize,
+    support_move_histogram: [u64; 16],
+    adjacency_insertions: u64,
+    adjacency_moved: u64,
+    adjacency_max_moved: usize,
+    adjacency_move_histogram: [u64; 16],
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ProjectionFormulaStore {
     by_record: FxHashMap<BoundRecordId, ProjectionFormulaBucket>,
+    movement: ProjectionFormulaMovementCensus,
 }
 
 #[cfg(test)]
@@ -1344,8 +1379,8 @@ fn projection_lineage_rank(lineage: Option<ProjectionLineage>) -> u8 {
     }
 }
 
-#[cfg(test)]
 impl ProjectionFormulaBucket {
+    #[cfg(test)]
     fn push_legacy_clause(
         &mut self,
         clause: ProjectionClause,
@@ -1768,6 +1803,8 @@ pub(crate) struct ProofOccurrenceStore {
     projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     projection_lower_record_memberships: FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
+    // PCLF-B write-only shadow. Production consumers remain on the legacy faces in this slice.
+    projection_formula_shadow: ProjectionFormulaStore,
     // Formula storage preserves full clauses; this narrow mirror serves semantic support
     // membership without rebuilding or scanning those formulas in the evaluator hot path.
     projection_formula_support_keys:
@@ -1796,10 +1833,9 @@ pub(crate) struct ProofOccurrenceStore {
     #[cfg(test)]
     fail_next_projection_support_reservation: bool,
     #[cfg(test)]
-    fail_next_projection_clause_reservation: bool,
+    projection_clause_reservation_failure_point: Option<ProjectionClauseReservationFailurePoint>,
 }
 
-#[cfg(test)]
 /// Persistent-store allocation census only.
 ///
 /// In particular, this does not observe the temporary `Vec` and `FxHashSet`
@@ -1808,6 +1844,7 @@ pub(crate) struct ProofOccurrenceStore {
 /// the whole admission path. The final GWCB audit ledger is a flat map, so its
 /// persistent footprint is represented directly by `(len, capacity)` rather
 /// than by a synthetic per-record bucket count.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct PerformanceIndexAllocationCensus {
     dependency_result_buckets: (usize, usize, usize, usize),
@@ -1816,6 +1853,26 @@ struct PerformanceIndexAllocationCensus {
     replay_result_buckets: (usize, usize, usize, usize),
     formula_support_buckets: (usize, usize, usize, usize),
     claimed_projection_audit: (usize, usize),
+    legacy_projection_formula: ProjectionFormulaAllocationCensus,
+    shadow_projection_formula: ProjectionFormulaAllocationCensus,
+    shadow_incidence_metadata: (usize, usize, usize),
+    shadow_movement: ProjectionFormulaMovementCensus,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProjectionFormulaAllocationCensus {
+    bucket_map: (usize, usize),
+    entry_arena: (usize, usize),
+    distinct_clause_index: (usize, usize),
+    support_group_arena: (usize, usize),
+    support_group_index: (usize, usize),
+    exact_incidence_index: (usize, usize),
+    category_adjacency: (usize, usize),
+    normalized_support_summary: (usize, usize),
+    attributed_summary: (usize, usize),
+    flat_attributed_summary: (usize, usize),
+    estimated_retained_bytes: usize,
 }
 
 impl Default for ProofOccurrenceStore {
@@ -1853,6 +1910,7 @@ impl Default for ProofOccurrenceStore {
             projection_lower_records_by_root: FxHashMap::default(),
             projection_lower_record_memberships: FxHashSet::default(),
             projection_formulas: FxHashMap::default(),
+            projection_formula_shadow: ProjectionFormulaStore::default(),
             projection_formula_support_keys: FxHashMap::default(),
             projection_clause_keys: FxHashSet::default(),
             independent_projection_clause_link_keys: FxHashSet::default(),
@@ -1874,7 +1932,7 @@ impl Default for ProofOccurrenceStore {
             #[cfg(test)]
             fail_next_projection_support_reservation: false,
             #[cfg(test)]
-            fail_next_projection_clause_reservation: false,
+            projection_clause_reservation_failure_point: None,
         }
     }
 }
@@ -1882,6 +1940,165 @@ impl Default for ProofOccurrenceStore {
 impl ProofOccurrenceStore {
     #[cfg(test)]
     fn performance_index_allocation_census(&self) -> PerformanceIndexAllocationCensus {
+        let hash_bytes = |capacity: usize, entry_size: usize| {
+            capacity.saturating_mul(entry_size.saturating_add(1))
+        };
+        let legacy_formula = (
+            self.projection_formulas
+                .values()
+                .map(Vec::len)
+                .sum::<usize>(),
+            self.projection_formulas
+                .values()
+                .map(Vec::capacity)
+                .sum::<usize>(),
+        );
+        let legacy_support = (
+            self.projection_formula_support_keys
+                .values()
+                .map(FxHashSet::len)
+                .sum::<usize>(),
+            self.projection_formula_support_keys
+                .values()
+                .map(FxHashSet::capacity)
+                .sum::<usize>(),
+        );
+        let legacy_bytes = hash_bytes(
+            self.projection_formulas.capacity(),
+            std::mem::size_of::<(BoundRecordId, Vec<ProjectionClause>)>(),
+        ) + legacy_formula.1 * std::mem::size_of::<ProjectionClause>()
+            + hash_bytes(
+                self.projection_clause_keys.capacity(),
+                std::mem::size_of::<(BoundRecordId, RecordProofClause)>(),
+            )
+            + hash_bytes(
+                self.independent_projection_clause_link_keys.capacity(),
+                std::mem::size_of::<RawProjectionClauseLinkIdentity>(),
+            )
+            + hash_bytes(
+                self.projection_claimed_link_audit.capacity(),
+                std::mem::size_of::<(
+                    RawProjectionClauseLinkIdentity,
+                    ClaimedProjectionProofSource,
+                )>(),
+            )
+            + hash_bytes(
+                self.projection_formula_support_keys.capacity(),
+                std::mem::size_of::<(BoundRecordId, FxHashSet<ProjectionSupportMatchKey>)>(),
+            )
+            + hash_bytes(
+                legacy_support.1,
+                std::mem::size_of::<ProjectionSupportMatchKey>(),
+            )
+            + hash_bytes(
+                self.projection_attributions.capacity(),
+                std::mem::size_of::<(BoundRecordId, UpperReplayClaimId)>(),
+            )
+            + hash_bytes(
+                self.flat_retained_projection_attributions.capacity(),
+                std::mem::size_of::<(BoundRecordId, UpperReplayClaimId)>(),
+            );
+        let shadow = &self.projection_formula_shadow;
+        macro_rules! bucket_sum {
+            ($field:ident, $method:ident) => {
+                shadow
+                    .by_record
+                    .values()
+                    .map(|bucket| bucket.$field.$method())
+                    .sum::<usize>()
+            };
+        }
+        let shadow_entries = (bucket_sum!(entries, len), bucket_sum!(entries, capacity));
+        let shadow_entry_index = (
+            bucket_sum!(entry_by_clause, len),
+            bucket_sum!(entry_by_clause, capacity),
+        );
+        let shadow_supports = (
+            bucket_sum!(support_groups, len),
+            bucket_sum!(support_groups, capacity),
+        );
+        let shadow_support_index = (
+            bucket_sum!(support_group_by_raw, len),
+            bucket_sum!(support_group_by_raw, capacity),
+        );
+        let shadow_exact = (
+            bucket_sum!(exact_links, len),
+            bucket_sum!(exact_links, capacity),
+        );
+        let shadow_normalized = (
+            bucket_sum!(normalized_support_keys, len),
+            bucket_sum!(normalized_support_keys, capacity),
+        );
+        let shadow_attributed = (
+            bucket_sum!(attributed_roots, len),
+            bucket_sum!(attributed_roots, capacity),
+        );
+        let shadow_flat = (
+            bucket_sum!(flat_retained_attributed_roots, len),
+            bucket_sum!(flat_retained_attributed_roots, capacity),
+        );
+        let shadow_adjacency = shadow
+            .by_record
+            .values()
+            .flat_map(|bucket| &bucket.support_groups)
+            .fold((0usize, 0usize), |(len, capacity), group| {
+                (
+                    len + group.standalone_entries.len()
+                        + group.derived_unary_entries.len()
+                        + group.replay_conjunction_entries.len(),
+                    capacity
+                        + group.standalone_entries.capacity()
+                        + group.derived_unary_entries.capacity()
+                        + group.replay_conjunction_entries.capacity(),
+                )
+            });
+        let canonical_support_capacity = shadow
+            .by_record
+            .values()
+            .map(|bucket| bucket.canonical_support_groups.capacity())
+            .sum::<usize>();
+        let shadow_bytes = hash_bytes(
+            shadow.by_record.capacity(),
+            std::mem::size_of::<(BoundRecordId, ProjectionFormulaBucket)>(),
+        ) + shadow_entries.1 * std::mem::size_of::<ProjectionFormulaEntry>()
+            + hash_bytes(
+                shadow_entry_index.1,
+                std::mem::size_of::<(RecordProofClause, ProjectionFormulaEntryId)>(),
+            )
+            + shadow_supports.1 * std::mem::size_of::<ProjectionSupportGroup>()
+            + hash_bytes(
+                shadow_support_index.1,
+                std::mem::size_of::<(SchemeProjectionProofSupport, ProjectionSupportGroupId)>(),
+            )
+            + hash_bytes(
+                shadow_exact.1,
+                std::mem::size_of::<(
+                    (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+                    ProjectionIncidenceMetadata,
+                )>(),
+            )
+            + shadow_adjacency.1 * std::mem::size_of::<ProjectionFormulaEntryId>()
+            + canonical_support_capacity * std::mem::size_of::<ProjectionSupportGroupId>()
+            + hash_bytes(
+                shadow_normalized.1,
+                std::mem::size_of::<ProjectionSupportMatchKey>(),
+            )
+            + hash_bytes(
+                shadow_attributed.1,
+                std::mem::size_of::<UpperReplayClaimId>(),
+            )
+            + hash_bytes(shadow_flat.1, std::mem::size_of::<UpperReplayClaimId>());
+        let metadata = shadow
+            .by_record
+            .values()
+            .flat_map(|bucket| bucket.exact_links.values())
+            .fold(
+                (0usize, 0usize),
+                |(independent, claimed), value| match value {
+                    ProjectionIncidenceMetadata::Independent => (independent + 1, claimed),
+                    ProjectionIncidenceMetadata::Claimed(_) => (independent, claimed + 1),
+                },
+            );
         PerformanceIndexAllocationCensus {
             dependency_result_buckets: (
                 self.dependency_occurrence_indices_by_result.len(),
@@ -1931,6 +2148,55 @@ impl ProofOccurrenceStore {
                 self.projection_claimed_link_audit.len(),
                 self.projection_claimed_link_audit.capacity(),
             ),
+            legacy_projection_formula: ProjectionFormulaAllocationCensus {
+                bucket_map: (
+                    self.projection_formulas.len(),
+                    self.projection_formulas.capacity(),
+                ),
+                entry_arena: legacy_formula,
+                distinct_clause_index: (
+                    self.projection_clause_keys.len(),
+                    self.projection_clause_keys.capacity(),
+                ),
+                support_group_arena: (0, 0),
+                support_group_index: (0, 0),
+                exact_incidence_index: (
+                    self.independent_projection_clause_link_keys.len()
+                        + self.projection_claimed_link_audit.len(),
+                    self.independent_projection_clause_link_keys.capacity()
+                        + self.projection_claimed_link_audit.capacity(),
+                ),
+                category_adjacency: legacy_formula,
+                normalized_support_summary: legacy_support,
+                attributed_summary: (
+                    self.projection_attributions.len(),
+                    self.projection_attributions.capacity(),
+                ),
+                flat_attributed_summary: (
+                    self.flat_retained_projection_attributions.len(),
+                    self.flat_retained_projection_attributions.capacity(),
+                ),
+                estimated_retained_bytes: legacy_bytes,
+            },
+            shadow_projection_formula: ProjectionFormulaAllocationCensus {
+                bucket_map: (shadow.by_record.len(), shadow.by_record.capacity()),
+                entry_arena: shadow_entries,
+                distinct_clause_index: shadow_entry_index,
+                support_group_arena: shadow_supports,
+                support_group_index: shadow_support_index,
+                exact_incidence_index: shadow_exact,
+                category_adjacency: shadow_adjacency,
+                normalized_support_summary: shadow_normalized,
+                attributed_summary: shadow_attributed,
+                flat_attributed_summary: shadow_flat,
+                estimated_retained_bytes: shadow_bytes,
+            },
+            shadow_incidence_metadata: (
+                metadata.0,
+                metadata.1,
+                std::mem::size_of::<ProjectionIncidenceMetadata>(),
+            ),
+            shadow_movement: shadow.movement,
         }
     }
 
@@ -2762,7 +3028,7 @@ impl ProofOccurrenceStore {
     #[cfg(test)]
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
         let legacy = self.legacy_projection_formula_read_model();
-        let factored = ProjectionFormulaStore::from_legacy(self).read_model();
+        let factored = self.projection_formula_shadow.read_model();
         debug_assert_eq!(factored, legacy);
     }
 
@@ -3496,6 +3762,446 @@ impl ProofOccurrenceStore {
             .insert(record, FxHashSet::default());
     }
 
+    fn try_prepare_projection_formula_shadow_admission(
+        &mut self,
+        lower_record: BoundRecordId,
+        accepted: &[AcceptedProjectionClauseAdmission],
+    ) -> Result<PreparedProjectionFormulaShadowAdmission, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        #[cfg(test)]
+        let fail_during_shadow_structure = self.take_projection_clause_reservation_failure(
+            ProjectionClauseReservationFailurePoint::ShadowStructure,
+        );
+        #[cfg(test)]
+        let fail_during_shadow_normalized_support = self
+            .take_projection_clause_reservation_failure(
+                ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
+            );
+        let existing = self.projection_formula_shadow.by_record.get(&lower_record);
+        let base_entry_len = existing.map_or(0, |bucket| bucket.entries.len());
+        let base_support_len = existing.map_or(0, |bucket| bucket.support_groups.len());
+        let mut delta = ProjectionFormulaShadowDelta::default();
+        delta
+            .new_entries
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .new_support_groups
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .exact_links
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .support_match_key_promotions
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .normalized_support_keys
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .attributed_roots
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .flat_retained_attributed_roots
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+
+        let mut pending_entries = FxHashMap::default();
+        let mut pending_supports = FxHashMap::default();
+        let mut pending_exact = FxHashSet::default();
+        let mut pending_normalized = FxHashSet::default();
+        let mut pending_match_key_promotions = FxHashMap::default();
+        let mut pending_attributed = FxHashSet::default();
+        let mut pending_flat = FxHashSet::default();
+        let mut adjacency_counts_by_support = FxHashMap::<
+            ProjectionSupportGroupId,
+            [usize; 3],
+        >::default();
+        pending_entries
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_supports
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_exact
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_normalized
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_match_key_promotions
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_attributed
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_flat
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        adjacency_counts_by_support
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+
+        for event in accepted {
+            let admission = event.admission;
+            let entry_id = existing
+                .and_then(|bucket| bucket.entry_by_clause.get(&admission.clause).copied())
+                .or_else(|| pending_entries.get(&admission.clause).copied())
+                .unwrap_or_else(|| {
+                    let id = ProjectionFormulaEntryId(
+                        u32::try_from(base_entry_len + delta.new_entries.len())
+                            .expect("PCLF record-local entry id must fit u32"),
+                    );
+                    delta.new_entries.push(ProjectionFormulaEntry {
+                        clause: admission.clause,
+                    });
+                    assert!(pending_entries.insert(admission.clause, id).is_none());
+                    id
+                });
+            let (metadata, match_key, coverage_root) = match admission.support {
+                SchemeProjectionProofSupport::Claimed(_) => {
+                    let source = admission
+                        .claimed_proof_source
+                        .expect("claimed admission metadata was constructor-validated");
+                    let (root, template) = ClaimedProjectionSourceTemplate::from_source(source);
+                    (
+                        ProjectionIncidenceMetadata::Claimed(template),
+                        None,
+                        Some(root),
+                    )
+                }
+                SchemeProjectionProofSupport::Independent(carrier) => (
+                    ProjectionIncidenceMetadata::Independent,
+                    Some(ProjectionSupportMatchKey::Independent(carrier)),
+                    None,
+                ),
+            };
+            let support_id = existing
+                .and_then(|bucket| bucket.support_group_by_raw.get(&admission.support).copied())
+                .or_else(|| pending_supports.get(&admission.support).copied())
+                .unwrap_or_else(|| {
+                    let id = ProjectionSupportGroupId(
+                        u32::try_from(base_support_len + delta.new_support_groups.len())
+                            .expect("PCLF record-local support id must fit u32"),
+                    );
+                    delta.new_support_groups.push(ProjectionSupportGroup {
+                        raw_support: admission.support,
+                        match_key,
+                        coverage_root,
+                        standalone_entries: Vec::new(),
+                        derived_unary_entries: Vec::new(),
+                        replay_conjunction_entries: Vec::new(),
+                    });
+                    assert!(pending_supports.insert(admission.support, id).is_none());
+                    id
+                });
+            let group = if (support_id.0 as usize) < base_support_len {
+                &existing
+                    .expect("existing support has a bucket")
+                    .support_groups[support_id.0 as usize]
+            } else {
+                &delta.new_support_groups[support_id.0 as usize - base_support_len]
+            };
+            assert_eq!(group.coverage_root, coverage_root);
+            let effective_match_key = pending_match_key_promotions
+                .get(&support_id)
+                .copied()
+                .or(group.match_key);
+            match (effective_match_key, match_key) {
+                (None, Some(key)) => {
+                    assert!(
+                        pending_match_key_promotions
+                            .insert(support_id, key)
+                            .is_none()
+                    );
+                    delta.support_match_key_promotions.push((support_id, key));
+                }
+                (Some(existing), Some(current)) => assert_eq!(existing, current),
+                (Some(_), None) | (None, None) => {}
+            }
+            let incidence = (support_id, entry_id);
+            assert!(existing.is_none_or(|bucket| !bucket.exact_links.contains_key(&incidence)));
+            assert!(pending_exact.insert(incidence));
+            delta.exact_links.push((support_id, entry_id, metadata));
+            adjacency_counts_by_support
+                .entry(support_id)
+                .or_insert([0; 3])[match admission.clause {
+                    RecordProofClause::Standalone { .. } => 0,
+                    RecordProofClause::DerivedUnary { .. } => 1,
+                    RecordProofClause::ReplayConjunction { .. } => 2,
+                }] += 1;
+            if let Some(match_key) = match_key
+                && existing
+                    .is_none_or(|bucket| !bucket.normalized_support_keys.contains(&match_key))
+                && pending_normalized.insert(match_key)
+            {
+                assert!(delta.normalized_support_keys.insert(match_key));
+            }
+            if let SchemeProjectionProofSupport::Claimed(claim) = admission.support {
+                if existing.is_none_or(|bucket| !bucket.attributed_roots.contains(&claim))
+                    && pending_attributed.insert(claim)
+                {
+                    delta.attributed_roots.push(claim);
+                }
+                if admission.claimed_attribution_source
+                    == Some(ClaimedAttributionSource::FlatRetained)
+                    && existing.is_none_or(|bucket| {
+                        !bucket.flat_retained_attributed_roots.contains(&claim)
+                    })
+                    && pending_flat.insert(claim)
+                {
+                    delta.flat_retained_attributed_roots.push(claim);
+                }
+            }
+        }
+
+        let mut new_record_bucket = (!self
+            .projection_formula_shadow
+            .by_record
+            .contains_key(&lower_record))
+        .then(ProjectionFormulaBucket::default);
+        if new_record_bucket.is_some() {
+            self.projection_formula_shadow
+                .by_record
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
+        let bucket = match new_record_bucket.as_mut() {
+            Some(bucket) => bucket,
+            None => self
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&lower_record)
+                .expect("existing PCLF bucket must remain present during preflight"),
+        };
+        bucket
+            .entries
+            .try_reserve(delta.new_entries.len())
+            .map_err(exhausted)?;
+        bucket
+            .entry_by_clause
+            .try_reserve(delta.new_entries.len())
+            .map_err(exhausted)?;
+        bucket
+            .support_groups
+            .try_reserve(delta.new_support_groups.len())
+            .map_err(exhausted)?;
+        bucket
+            .support_group_by_raw
+            .try_reserve(delta.new_support_groups.len())
+            .map_err(exhausted)?;
+        bucket
+            .canonical_support_groups
+            .try_reserve(delta.new_support_groups.len())
+            .map_err(exhausted)?;
+        bucket
+            .exact_links
+            .try_reserve(delta.exact_links.len())
+            .map_err(exhausted)?;
+        #[cfg(test)]
+        if fail_during_shadow_structure {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        #[cfg(test)]
+        if fail_during_shadow_normalized_support {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        // A claimed support can acquire its normalized coverage-root key after prepare but
+        // before commit. Reserve the strict per-admission upper bound now; reserving only the
+        // currently resolvable keys would permit commit-time promotion to allocate after the
+        // legacy representation had already begun mutating.
+        bucket
+            .normalized_support_keys
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        bucket
+            .attributed_roots
+            .try_reserve(delta.attributed_roots.len())
+            .map_err(exhausted)?;
+        bucket
+            .flat_retained_attributed_roots
+            .try_reserve(delta.flat_retained_attributed_roots.len())
+            .map_err(exhausted)?;
+        for (support_id, counts) in adjacency_counts_by_support {
+            let index = support_id.0 as usize;
+            let group = if index < base_support_len {
+                &mut bucket.support_groups[index]
+            } else {
+                &mut delta.new_support_groups[index - base_support_len]
+            };
+            group
+                .standalone_entries
+                .try_reserve(counts[0])
+                .map_err(exhausted)?;
+            group
+                .derived_unary_entries
+                .try_reserve(counts[1])
+                .map_err(exhausted)?;
+            group
+                .replay_conjunction_entries
+                .try_reserve(counts[2])
+                .map_err(exhausted)?;
+        }
+        Ok(PreparedProjectionFormulaShadowAdmission {
+            new_record_bucket,
+            delta,
+        })
+    }
+
+    fn projection_formula_movement_bucket(moved: usize) -> usize {
+        (if moved == 0 {
+            0
+        } else {
+            (usize::BITS - moved.leading_zeros()) as usize
+        })
+        .min(15)
+    }
+
+    fn commit_projection_formula_shadow_delta(
+        bucket: &mut ProjectionFormulaBucket,
+        delta: &mut ProjectionFormulaShadowDelta,
+        movement: &mut ProjectionFormulaMovementCensus,
+    ) {
+        for entry in delta.new_entries.drain(..) {
+            let id = ProjectionFormulaEntryId(
+                u32::try_from(bucket.entries.len()).expect("PCLF entry id"),
+            );
+            assert!(bucket.entry_by_clause.insert(entry.clause, id).is_none());
+            bucket.entries.push(entry);
+        }
+        for group in delta.new_support_groups.drain(..) {
+            let id = ProjectionSupportGroupId(
+                u32::try_from(bucket.support_groups.len()).expect("PCLF support id"),
+            );
+            let support = group.raw_support;
+            assert!(bucket.support_group_by_raw.insert(support, id).is_none());
+            bucket.support_groups.push(group);
+            let position = bucket.canonical_support_groups.partition_point(|existing| {
+                projection_support_cmp(
+                    bucket.support_groups[existing.0 as usize].raw_support,
+                    support,
+                ) != std::cmp::Ordering::Greater
+            });
+            let moved = bucket.canonical_support_groups.len() - position;
+            movement.support_insertions += 1;
+            movement.support_moved += moved as u64;
+            movement.support_max_moved = movement.support_max_moved.max(moved);
+            movement.support_move_histogram[Self::projection_formula_movement_bucket(moved)] += 1;
+            bucket.canonical_support_groups.insert(position, id);
+        }
+        for (support_id, entry_id, metadata) in delta.exact_links.drain(..) {
+            assert!(
+                bucket
+                    .exact_links
+                    .insert((support_id, entry_id), metadata)
+                    .is_none()
+            );
+            let clause = bucket.reconstructed_clause(support_id, entry_id);
+            let category = match clause {
+                ProjectionClause::Standalone { .. } => 0,
+                ProjectionClause::DerivedUnary { .. } => 1,
+                ProjectionClause::ReplayConjunction { .. } => 2,
+            };
+            let entries = match category {
+                0 => &bucket.support_groups[support_id.0 as usize].standalone_entries,
+                1 => &bucket.support_groups[support_id.0 as usize].derived_unary_entries,
+                _ => &bucket.support_groups[support_id.0 as usize].replay_conjunction_entries,
+            };
+            let position = entries.partition_point(|existing| {
+                bucket
+                    .reconstructed_clause(support_id, *existing)
+                    .canonical_cmp(clause)
+                    != std::cmp::Ordering::Greater
+            });
+            let moved = entries.len() - position;
+            movement.adjacency_insertions += 1;
+            movement.adjacency_moved += moved as u64;
+            movement.adjacency_max_moved = movement.adjacency_max_moved.max(moved);
+            movement.adjacency_move_histogram[Self::projection_formula_movement_bucket(moved)] += 1;
+            let entries = match category {
+                0 => &mut bucket.support_groups[support_id.0 as usize].standalone_entries,
+                1 => &mut bucket.support_groups[support_id.0 as usize].derived_unary_entries,
+                _ => &mut bucket.support_groups[support_id.0 as usize].replay_conjunction_entries,
+            };
+            entries.insert(position, entry_id);
+        }
+        for (support_id, match_key) in delta.support_match_key_promotions.drain(..) {
+            let group = &mut bucket.support_groups[support_id.0 as usize];
+            assert!(group.match_key.is_none());
+            group.match_key = Some(match_key);
+        }
+        for key in delta.normalized_support_keys.drain() {
+            assert!(bucket.normalized_support_keys.insert(key));
+        }
+        for root in delta.attributed_roots.drain(..) {
+            assert!(bucket.attributed_roots.insert(root));
+        }
+        for root in delta.flat_retained_attributed_roots.drain(..) {
+            assert!(bucket.flat_retained_attributed_roots.insert(root));
+        }
+    }
+
+    fn refresh_projection_formula_shadow_match_keys_at_commit(
+        &self,
+        lower_record: BoundRecordId,
+        accepted: &[AcceptedProjectionClauseAdmission],
+        shadow: &mut PreparedProjectionFormulaShadowAdmission,
+    ) {
+        // Legacy resolves normalized support at commit, and a prepared admission may straddle a
+        // claim registration/move. The shadow therefore freezes raw incidence metadata during
+        // prepare but derives this summary from the same commit-time snapshot as legacy.
+        shadow.delta.normalized_support_keys.clear();
+        shadow.delta.support_match_key_promotions.clear();
+        let existing = self.projection_formula_shadow.by_record.get(&lower_record);
+        for (event, &(support_id, _, _)) in accepted.iter().zip(&shadow.delta.exact_links) {
+            let support = event.admission.support;
+            let Some(match_key) = self.projection_support_match_key(support) else {
+                continue;
+            };
+            let existing_support_len = existing.map_or(0, |bucket| bucket.support_groups.len());
+            if (support_id.0 as usize) < existing_support_len {
+                let current = existing.unwrap().support_groups[support_id.0 as usize].match_key;
+                if let Some(current) = current {
+                    assert_eq!(current, match_key);
+                } else if !shadow
+                    .delta
+                    .support_match_key_promotions
+                    .iter()
+                    .any(|(pending, _)| *pending == support_id)
+                {
+                    shadow
+                        .delta
+                        .support_match_key_promotions
+                        .push((support_id, match_key));
+                }
+            } else {
+                let group = &mut shadow.delta.new_support_groups
+                    [support_id.0 as usize - existing_support_len];
+                assert_eq!(group.raw_support, support);
+                if let Some(current) = group.match_key {
+                    assert_eq!(current, match_key);
+                } else {
+                    group.match_key = Some(match_key);
+                }
+            }
+            if existing.is_none_or(|bucket| !bucket.normalized_support_keys.contains(&match_key))
+                && !shadow.delta.normalized_support_keys.contains(&match_key)
+            {
+                assert!(shadow.delta.normalized_support_keys.insert(match_key));
+            }
+        }
+    }
+
     pub(super) fn try_prepare_projection_clause_admission(
         &mut self,
         lower_record: BoundRecordId,
@@ -3505,7 +4211,9 @@ impl ProofOccurrenceStore {
             operation: ProofOperation::UpdateClaimLifecycle,
         };
         #[cfg(test)]
-        if std::mem::take(&mut self.fail_next_projection_clause_reservation) {
+        if self.take_projection_clause_reservation_failure(
+            ProjectionClauseReservationFailurePoint::Initial,
+        ) {
             return Err(ProofFailure::ResourceExhausted {
                 operation: ProofOperation::UpdateClaimLifecycle,
             });
@@ -3677,6 +4385,16 @@ impl ProofOccurrenceStore {
                 .try_reserve(1)
                 .map_err(exhausted)?;
         }
+        #[cfg(test)]
+        if self.take_projection_clause_reservation_failure(
+            ProjectionClauseReservationFailurePoint::AfterLegacyPreflight,
+        ) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        let shadow =
+            self.try_prepare_projection_formula_shadow_admission(lower_record, &accepted)?;
 
         Ok(Some(PreparedProjectionClauseAdmission {
             lower_record,
@@ -3688,6 +4406,7 @@ impl ProofOccurrenceStore {
             new_claimed_link_audit_entries,
             new_projection_attributions,
             new_flat_retained_projection_attributions,
+            shadow,
         }))
     }
 
@@ -3695,6 +4414,14 @@ impl ProofOccurrenceStore {
         &mut self,
         prepared: &mut PreparedProjectionClauseAdmission,
     ) {
+        // Finalize the commit-snapshot-dependent summary before either representation mutates.
+        // All vectors/sets touched here reserved `accepted.len()` during prepare, so this refresh
+        // is bounded and allocation-free even when a claimed support was promoted meanwhile.
+        self.refresh_projection_formula_shadow_match_keys_at_commit(
+            prepared.lower_record,
+            &prepared.accepted,
+            &mut prepared.shadow,
+        );
         for key in prepared.new_clause_keys.drain(..) {
             assert!(self.projection_clause_keys.insert(key));
         }
@@ -3727,6 +4454,30 @@ impl ProofOccurrenceStore {
             .insert(prepared.lower_record, canonical_formula);
         self.projection_formula_support_keys
             .insert(prepared.lower_record, formula_support_keys);
+        let mut new_bucket = prepared.shadow.new_record_bucket.take();
+        let bucket = match new_bucket.as_mut() {
+            Some(bucket) => bucket,
+            None => self
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&prepared.lower_record)
+                .expect("prepared PCLF shadow delta must retain its target bucket"),
+        };
+        Self::commit_projection_formula_shadow_delta(
+            bucket,
+            &mut prepared.shadow.delta,
+            &mut self.projection_formula_shadow.movement,
+        );
+        if let Some(bucket) = new_bucket {
+            assert!(
+                self.projection_formula_shadow
+                    .by_record
+                    .insert(prepared.lower_record, bucket)
+                    .is_none()
+            );
+        }
+        #[cfg(test)]
+        self.debug_assert_pclf_a_read_model_matches_legacy();
     }
 
     pub(super) fn record_projection_clause(
@@ -6752,7 +7503,33 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     pub(super) fn fail_next_projection_clause_reservation(&mut self) {
-        self.fail_next_projection_clause_reservation = true;
+        self.projection_clause_reservation_failure_point =
+            Some(ProjectionClauseReservationFailurePoint::Initial);
+    }
+
+    #[cfg(test)]
+    fn fail_projection_clause_reservation_at_for_test(
+        &mut self,
+        point: ProjectionClauseReservationFailurePoint,
+    ) {
+        assert!(
+            self.projection_clause_reservation_failure_point
+                .replace(point)
+                .is_none()
+        );
+    }
+
+    #[cfg(test)]
+    fn take_projection_clause_reservation_failure(
+        &mut self,
+        point: ProjectionClauseReservationFailurePoint,
+    ) -> bool {
+        if self.projection_clause_reservation_failure_point == Some(point) {
+            self.projection_clause_reservation_failure_point = None;
+            true
+        } else {
+            false
+        }
     }
 
     pub(super) fn record_reduction_route(
@@ -7692,6 +8469,208 @@ mod tests {
             factored.by_record[&record].canonical_clauses(),
             store.projection_formulas[&record],
         );
+    }
+
+    #[test]
+    fn pclf_b_shadow_admission_is_atomic_and_exact_duplicates_do_not_grow_it() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_147);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(97_148),
+        ));
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::Standalone { support },
+        );
+        let before = store.clone();
+        let prepared = store
+            .try_prepare_projection_clause_admission(record, &[admission])
+            .unwrap()
+            .unwrap();
+        drop(prepared);
+        assert_eq!(
+            store, before,
+            "prepare without commit must change neither logical face"
+        );
+        store.fail_next_projection_clause_reservation();
+        assert!(matches!(
+            store.try_prepare_projection_clause_admission(record, &[admission]),
+            Err(ProofFailure::ResourceExhausted { .. })
+        ));
+        assert_eq!(store, before);
+        store.record_projection_clause(record, admission);
+        let after = store.performance_index_allocation_census();
+        assert_eq!(after.shadow_projection_formula.bucket_map.0, 1);
+        assert_eq!(after.shadow_projection_formula.entry_arena.0, 1);
+        assert_eq!(after.shadow_projection_formula.support_group_arena.0, 1);
+        assert_eq!(after.shadow_projection_formula.exact_incidence_index.0, 1);
+        assert_eq!(after.shadow_projection_formula.category_adjacency.0, 1);
+        assert_eq!(after.shadow_incidence_metadata.0, 1);
+        store.record_projection_clause(record, admission);
+        assert_eq!(store.performance_index_allocation_census(), after);
+        store.debug_assert_pclf_a_read_model_matches_legacy();
+    }
+
+    #[test]
+    fn pclf_b_each_reservation_failure_keeps_legacy_and_shadow_logically_unchanged() {
+        let record = BoundRecordId(97_161);
+        let claim = UpperReplayClaimId(0);
+        let support = SchemeProjectionProofSupport::Claimed(claim);
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            claim,
+            RecordProofClause::Standalone { support },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: claim,
+                producer: ConstraintRecordId(97_162),
+            },
+        );
+
+        for point in [
+            ProjectionClauseReservationFailurePoint::Initial,
+            ProjectionClauseReservationFailurePoint::AfterLegacyPreflight,
+            ProjectionClauseReservationFailurePoint::ShadowStructure,
+            ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
+        ] {
+            let mut store = ProofOccurrenceStore::default();
+            let before = store.clone();
+            store.fail_projection_clause_reservation_at_for_test(point);
+            assert!(matches!(
+                store.try_prepare_projection_clause_admission(record, &[admission]),
+                Err(ProofFailure::ResourceExhausted { .. })
+            ));
+            assert_eq!(
+                store, before,
+                "reservation failure at {point:?} must not logically mutate either face",
+            );
+        }
+    }
+
+    #[test]
+    fn pclf_b_shadow_keeps_conflicting_claimed_sources_per_incidence() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_149);
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(97_150),
+            lower: BoundRecordId(97_151),
+            upper: BoundRecordId(97_152),
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        for admission in [
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(97_153),
+                clause,
+                ClaimedAttributionSource::CanonicalReplay,
+                ClaimedProjectionProofSource::ReplayConstraint {
+                    coverage_root: UpperReplayClaimId(97_153),
+                    result: ConstraintRecordId(97_154),
+                },
+            ),
+            RecordProofClauseLinkAdmission::claimed(
+                UpperReplayClaimId(97_155),
+                clause,
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::ReplayEvidence {
+                    coverage_root: UpperReplayClaimId(97_155),
+                },
+            ),
+        ] {
+            store.record_projection_clause(record, admission);
+        }
+        store.debug_assert_pclf_a_read_model_matches_legacy();
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(
+            (
+                bucket.entries.len(),
+                bucket.support_groups.len(),
+                bucket.exact_links.len()
+            ),
+            (1, 2, 2)
+        );
+        assert!(bucket.exact_links.values().any(|value| matches!(
+            value,
+            ProjectionIncidenceMetadata::Claimed(
+                ClaimedProjectionSourceTemplate::ReplayConstraint {
+                    result: ConstraintRecordId(97_154)
+                }
+            )
+        )));
+        assert!(bucket.exact_links.values().any(|value| matches!(
+            value,
+            ProjectionIncidenceMetadata::Claimed(ClaimedProjectionSourceTemplate::ReplayEvidence)
+        )));
+    }
+
+    #[test]
+    fn pclf_b_shadow_promotes_a_late_normalized_support_key() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_156);
+        let claim = UpperReplayClaimId(0);
+        let support = SchemeProjectionProofSupport::Claimed(claim);
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            claim,
+            RecordProofClause::Standalone { support },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: claim,
+                producer: ConstraintRecordId(97_157),
+            },
+        );
+        // This is the production ordering: the clause is prepared from the old claim snapshot,
+        // claim publication happens next, then that same prepared clause is committed.
+        let mut prepared = store
+            .try_prepare_projection_clause_admission(record, &[admission])
+            .expect("the clause transaction must reserve both representations")
+            .expect("the claimed exact link must be new");
+        let normalized_capacity_before_commit = prepared
+            .shadow
+            .new_record_bucket
+            .as_ref()
+            .unwrap()
+            .normalized_support_keys
+            .capacity();
+        assert!(normalized_capacity_before_commit >= 1);
+        assert!(
+            prepared.shadow.delta.new_support_groups[0]
+                .match_key
+                .is_none()
+        );
+        let mut claim_admission = store
+            .try_prepare_original_claim_admission(
+                BoundRecordId(97_158),
+                ConstraintRecordId(97_157),
+                UpperReplayClaimKind::Direct,
+            )
+            .unwrap();
+        assert_eq!(claim_admission.occurrence.claim, claim);
+        store.commit_original_claim_admission(&mut claim_admission);
+        store.commit_projection_clause_admission(&mut prepared);
+        assert_eq!(
+            store.projection_formula_shadow.by_record[&record].support_groups[0].match_key,
+            Some(ProjectionSupportMatchKey::Claimed(claim)),
+        );
+        assert!(
+            store.projection_formula_shadow.by_record[&record]
+                .normalized_support_keys
+                .contains(&ProjectionSupportMatchKey::Claimed(claim))
+        );
+        assert_eq!(
+            store.projection_formula_shadow.by_record[&record]
+                .normalized_support_keys
+                .capacity(),
+            normalized_capacity_before_commit,
+            "commit-time promotion must consume preflighted capacity without allocating",
+        );
+        assert!(
+            store.projection_formula_support_keys[&record]
+                .contains(&ProjectionSupportMatchKey::Claimed(claim))
+        );
+        store.debug_assert_pclf_a_read_model_matches_legacy();
     }
 
     #[test]
@@ -13394,6 +14373,14 @@ mod tests {
                 replay_result_buckets: (0, 0, 0, 0),
                 formula_support_buckets: (0, 0, 0, 0),
                 claimed_projection_audit: (0, 0),
+                legacy_projection_formula: ProjectionFormulaAllocationCensus::default(),
+                shadow_projection_formula: ProjectionFormulaAllocationCensus::default(),
+                shadow_incidence_metadata: (
+                    0,
+                    0,
+                    std::mem::size_of::<ProjectionIncidenceMetadata>(),
+                ),
+                shadow_movement: ProjectionFormulaMovementCensus::default(),
             },
         );
 
