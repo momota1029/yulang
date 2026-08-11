@@ -1,15 +1,16 @@
-# projection clause-link relation の factorization（PCLF rev.2）
+# projection clause-link relation の factorization（PCLF rev.3）
 
-日付: 2026-08-11（Claude 査読・確定: 2026-08-11、ユーザ承認: 2026-08-11）
+日付: 2026-08-11（rev.3 起案: 2026-08-11、Claude 査読・確定: 2026-08-11、ユーザ承認: 2026-08-11）
 
-状態: **ユーザ承認済み（正本）。PCLF-A 以降の実装に着手可**
+状態: **ユーザ承認済み（正本）。PCLF-D0 以降の実装に着手可**
 
-基準 commit: `0e208ab4`。行番号はこの commit 付近を指し、実装時には関数名と型名を正本として再確認する。
+基準 commit: `b0d2a1a2`（PCLF-A/B/C landed、PCLF-D experiment は全revert済み）。行番号は
+この commit 付近を指し、実装時には関数名と型名を正本として再確認する。
 
-本書は、Fable 5 が一時的に利用できない場合の代替起案手続きに基づく設計ドラフトである。
+本書は、Fable 5 が一時的に利用できない場合の代替起案手続きに基づく設計文書である。
 Codex `gpt-5.6-sol`（xhigh）が本文を起案し、Claude (Sonnet 5) がコード整合性と先行設計との
-非矛盾を査読・確定した後、ユーザ承認を受ける。現時点では設計優先順位上の正本ではなく、
-実装着手を許可する文書でもない。
+非矛盾を独立査読・確定した後、ユーザ承認を受けた。rev.2 はPCLF-A/B/Cの承認済み根拠として有効であり、
+rev.3 が変更するcanonical iteration contractとPCLF-D0以降も、本書をもって設計優先順位上の正本となる。
 
 略称として、本設計を **PCLF（Projection Clause-Link Factorization）** と呼ぶ。
 
@@ -19,6 +20,25 @@ rev.1 は claimed source template を clause entry ごとに一つと仮定し�
 同じ `(record, RecordProofClause)` へ合法に到達させうる。rev.2 は source metadata を clause entry ではなく
 exact incidence ごとに保持する。rev.1 の workload census 値は変更せず、その zero-conflict 観測を
 一般不変条件として扱わない。
+
+rev.3 は、rev.2 §3.5 のcanonical iteration topologyがPCLF-Dの性能gateを破った事実を反映する。
+rev.2 はcategoryごとに全canonical support groupを走査し、空の `(category, support group)` も訪れる
+`Map -> Fuse -> FlatMap` 多層iteratorを定めた。三つの実装attemptはいずれもcorrectness parityを満たしたが、
+PCLF-C比で次の回帰を示した。
+
+| attempt | parse | full | footprint / legacy |
+|---|---:|---:|---:|
+| full clause reconstruction | +14.4% | +14.0% | 47.9024% |
+| adjacency metadata duplication | +10.94% | +10.61% | 56.40% |
+| borrowed evaluator incidence view | +20.02% | +20.57% | 47.9024% |
+
+frame-pointer付きreleaseのgdb samplingでは、evaluator self-time proxyはPCLF-Cの`3/15 = 20.0%`から
+borrowed-viewの`6/18 = 33.3%`へ増えた。約13.3 percentage pointの増加は約14%のwall regressionと整合する。
+一方、decisive-armのper-item metadata lookupにはsampleがなく、観測された`exact_links` lookupは
+admission commitのadjacency comparatorだった。このsample数だけでは、empty-combination traversal、adapter depth、
+arena-indexed entry access、cache localityの寄与を相互に分離できない。rev.3は「nested canonical-iteration topologyが
+主要因である」を**作業仮説**とし、metadata accessだけの局所最適化を棄却してcanonical sequenceを
+「非empty runだけを連続走査する」物理表現へ改訂する。仮説の確定はPCLF-D1の同条件wall/profile gateに委ねる。
 
 ## 0. 決定要約
 
@@ -47,13 +67,16 @@ PCLF は意味上の exact link を削除・併合しない。物理表現だけ
    `RecordProofClause -> ProjectionFormulaEntryId` hash index に置き換える。
 6. exact link membership は compact incidence index で expected O(1) とする。
    raw-link `Vec` の binary search は採らない。
-7. canonical formula は hash iteration から作らず、category、raw support、clause suffix の
-   現行 `ProjectionClause::canonical_cmp` と同じ順序を返す typed iterator として提供する。
+7. canonical formula はhash iterationから作らず、full canonical orderに並んだ**非empty run table**から提供する。
+   一runは一つの`(category, raw support group)`と、そのcategory内suffix順のentry列を持つ。iteratorは
+   empty category/support combinationを訪れず、genericな多層`FlatMap`を使わない明示cursorとする。
 8. claimed link の event-local source metadata は、coverage root を support group 側に、source kind と
    producer/result を exact incidence 側の `ClaimedProjectionSourceTemplate` に保持する。同じ clause の
    異なる incidence が異なる template を持てることを必須とする。
 9. evaluator、GWCB decisive-arm capture、audit、portable/logical consumer は query API を介し、
    production hot pathで expanded 28.5M-link formulaを再構築しない。
+10. `exact_links` は引き続きexpected O(1) exact membership authorityとし、canonical runはordered read projectionに
+    限定する。両者を一つのunordered containerへ無理に統合しない。
 
 この形は、RCPF と同じく logical exact relation を保ったまま物理的な共通部分を factored representation
 へ移す設計である。CDM と同じく admission は full snapshot rebuild ではなく delta prepare/commit にする。
@@ -377,11 +400,6 @@ struct ProjectionSupportGroup {
 
     // raw_support が Claimed の場合だけ Some。admission-time に凍結する。
     coverage_root: Option<UpperReplayClaimId>,
-
-    // 各 Vec は現行 ProjectionClause::canonical_cmp の category 内 suffix 順。
-    standalone_entries: Vec<ProjectionFormulaEntryId>,
-    derived_unary_entries: Vec<ProjectionFormulaEntryId>,
-    replay_conjunction_entries: Vec<ProjectionFormulaEntryId>,
 }
 ```
 
@@ -392,8 +410,9 @@ raw support identity と normalized support identity を混同しない。
 - claimed certificate normalization は `coverage_root` を使う。
 - same-root representative replacement は raw occurrence を失わない一方、normalized summary/certificate key は一つへ畳める。
 
-category 別 Vec は canonical output の adjacency index であり、authority は §3.4 の exact incidence relation である。
-hash iteration orderを formula orderへ漏らさない。
+rev.3ではsupport group自身に三つのcategory `Vec`を埋め込まない。rev.2の三`Vec`は、全support groupを
+全categoryで訪れるiterator topologyと、empty `Vec` header三個/support groupの固定costを作った。
+ordered projectionは§3.4の非empty canonical run tableへ分離し、exact authorityは引き続き`exact_links`に置く。
 
 ### 3.4 Record-local bucket
 
@@ -414,8 +433,8 @@ struct ProjectionFormulaBucket {
             ProjectionIncidenceMetadata,
         >,
 
-    // canonical support iteration。projection_support_cmp 順。
-    canonical_support_groups: Vec<ProjectionSupportGroupId>,
+    // Full canonical orderの非empty (category, support) runだけを保持する。
+    canonical_runs: Vec<CanonicalProjectionRun>,
 
     // Hot summaries。現行 query semantics を維持する。
     normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
@@ -440,6 +459,21 @@ enum ClaimedProjectionSourceTemplate {
     ReplayConstraint { result: ConstraintRecordId },
     ReplayEvidence,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum CanonicalProjectionCategory {
+    Standalone,
+    DerivedUnary,
+    ReplayConjunction,
+}
+
+struct CanonicalProjectionRun {
+    category: CanonicalProjectionCategory,
+    support_id: ProjectionSupportGroupId,
+
+    // 非empty。固定category/support内のProjectionClause::canonical_cmp suffix順。
+    entries: Vec<ProjectionFormulaEntryId>,
+}
 ```
 
 `entry_by_clause` は `projection_clause_keys` を置き換える。global `(record, clause)` key の record prefixを
@@ -451,33 +485,45 @@ enum ClaimedProjectionSourceTemplate {
 claimed incidence の value から削除しない。
 
 ここで「小さい」は full raw key / full clauseを含めないという設計上の比較であり、Rust layout、padding、hash table
-capacityを含む実byte数を測定済みという意味ではない。`ProjectionIncidenceMetadata` の `size_of` と全capacity込みbytesは
-§9.4どおりPCLF-Bで **要検証** とする。
+capacityを含む実byte数を無条件に小さいとみなす意味ではない。rev.2 metadata/index自体はPCLF-Bで測定済みであり、
+rev.3 canonical runを含む全capacity込みbytesは§9.4どおりPCLF-D0で **要検証** とする。
 
 lookup `(raw support, exact clause)` は `support_group_by_raw` と `entry_by_clause` から ID pair を作り、
 `exact_links.get(&(support_id, entry_id))` でその exact link 固有の metadata を得る。同じ entry に
 `ReplayConstraint { result }` と `ReplayEvidence` が別 support から到達しても、二つの pair は別 value を保持する。
 `entry_by_clause` は引き続き clause bodyだけを authority とするため、dependency edge exactly-onceを変えない。
 
-canonical adjacency には logical link 一件につき compact `ProjectionFormulaEntryId` が一つ現れる。
-従って incidence は membership hash と canonical adjacency の二つの compact projectionを持つ。
-これは full tuple の二重保存ではないが、実 byte footprint は PCLF-B で計測する。
-backend がこの model より大きく、raw flat ledger と同程度の bytes を使う場合は authority cutover へ進まない。
+canonical runのentry列にはlogical link一件につきcompact `ProjectionFormulaEntryId` が一つ現れる。
+support IDとcategoryは同じrun内の全entryで一回だけ保存する。従ってincidenceはmembership hashとordered run entryの
+二つのcompact projectionを持つが、full tuple、per-incidence support ID、per-incidence metadataをordered sideへ
+複製しない。`canonical_runs`は非empty runだけを持ち、empty `(category, support)` のheaderもiterationも作らない。
+
+このshapeはrev.2の三category Vec bufferと同じentry-ID cardinalityを保ちながら、support groupごとの三`Vec` headerと
+`canonical_support_groups`を除く。代わりに非empty run一件につき、category、support ID、entry `Vec` headerを持つ。
+実capacity込みbytesはPCLF-D0で再測定する。§9.4のestimateは承認根拠ではなくmandatory stop gateである。
 
 ### 3.5 Canonical formula iterator
 
-`ProjectionFormulaBucket::canonical_clauses()` は次の順で `ProjectionClause` を値として遅延生成する。
+`ProjectionFormulaBucket::canonical_clauses()` は、full canonical orderへ維持された非empty run tableを
+明示cursorで一度だけ歩き、`ProjectionClause`を値として遅延生成する。
 
 ```text
-for category in [Standalone, DerivedUnary, ReplayConjunction]:
-    for support_group in canonical_support_groups:
-        for entry in support_group.entries_for(category):
-            yield reconstruct(entry, support_group)
+run_index = 0
+entry_index = 0
+while run_index < canonical_runs.len:
+    run = canonical_runs[run_index]       // 常にentries nonempty
+    while entry_index < run.entries.len:
+        entry_id = run.entries[entry_index]
+        yield (run.category, run.support_id, entry_id)
+        entry_index += 1
+    run_index += 1
+    entry_index = 0
 ```
 
-`canonical_support_groups` は `projection_support_cmp` 順に維持する。category 内 entry Vec は、
-reconstructed `ProjectionClause` に対する `ProjectionClause::canonical_cmp` の support より後ろの keyで
-昇順に維持する。equal な reconstructed clause が複数ある場合、出力 value が byte-identical であること、
+`canonical_runs` は `(category rank, projection_support_cmp(raw_support))` 順に維持する。各runのentry Vecは、
+reconstructed `ProjectionClause` に対する `ProjectionClause::canonical_cmp` のcategory/supportより後ろのkeyで
+昇順に維持する。runはentry zeroにならず、同じ`(category, support_id)`のrunを二つ作らない。
+equalなreconstructed clauseが複数ある場合、出力valueがbyte-identicalであること、
 raw exact identity と per-incidence claimed source template が別 oracle で一致することを要求する。hash/arena ID順を
 tie-breakerとして diagnostics や decisive-arm semanticsへ露出しない。
 
@@ -486,13 +532,23 @@ reconstruct 時の attribution は entry-global stateから読まない。各 `(
 `ProjectionLineage`へ写す。従って source kindが異なる同一clause bodyも現行 `canonical_cmp` のattribution rankで
 正しく並ぶ。
 
-test-only oracle は iterator を `Vec<ProjectionClause>` へ展開し、legacy `projection_formulas[record]` と
-sequence equalityで比較する。set equalityだけでは GWCB decisive armを保護できない。
+test-only oracle はiteratorを`Vec<ProjectionClause>`へ展開し、legacy `projection_formulas[record]` と
+sequence equalityで比較する。set equalityだけではGWCB decisive armを保護できない。
 
-新 support group の canonical support Vec への insertion は record-local support 数に、新 entry incidence の
-category Vec insertion はその support/category の distinct entry 数に比例する。どちらも record の全 raw link 数
-`|L(r)|` には比例させない。これらの分布は PCLF-B で追加 census し、累積 movement が新しい支配項になる場合は
-ordered backend を再レビューする。
+iterator complexityは`O(nonempty_runs + |L(r)|)`である。全runは最低一incidenceを持つため
+`nonempty_runs <= |L(r)|`であり、全体は`O(|L(r)|)`となる。rev.2の`O(3 * |S(r)| + |L(r)|)`に含まれた
+empty-combination walkを行わない。実装は`Map` / `Fuse` / `FlatMap`の合成ではなく、上の二index cursorまたは
+同等にcodegenを検証したnamed iteratorとする。PCLF-D0ではtargeted oracle/benchmarkのcursor operation countと
+codegen inspectionで、run flattenにgeneric nested adapterが再導入されていないことを確認する。D0はproduction evaluatorを
+legacyに保つため、std release evaluatorのsampling gateは置かない。そのhot-path samplingはPCLF-D1で初めて行う。
+entry IDは各run内でcontiguousであり、pointer chaseは非empty runへの切替時に一回だけ行う。
+record全体のsingle allocationではないため「mostly-flat」shapeだが、incidenceごとのhash/table pointer chaseや
+empty runへのpointer chaseは行わない。
+
+evaluator hot viewは`category`、support groupの`raw_support`、entryの`RecordProofClause`をborrowする。
+incidence metadataはnon-decisive itemで読まず、decisive claimed arm確定後に`exact_links`を一回だけ引く。
+logical snapshot/auditは同じrun orderからfull clause/sourceを遅延再構成する。hot evaluatorとfull reconstructionの
+APIは分けるが、canonical item identityと順序は一つのrun tableをauthorityにする。
 
 ### 3.6 Exact membership
 
@@ -538,8 +594,10 @@ ReplayEvidence + root
     -> ReplayEvidence { coverage_root: root }
 ```
 
-raw audit iterator は `canonical_support_groups` と category adjacency、または明示的な exact incidence iteratorから
-`(record, raw support, RecordProofClause) -> source` finite mapを遅延生成する。normal lowering で全 mapを作らない。
+raw audit iterator は `canonical_runs`、または明示的な exact incidence iteratorから
+`(record, raw support, RecordProofClause) -> source` finite mapを遅延生成する。run tableを使う場合も
+各runの`support_id`とentry列を明示cursorで歩き、empty category/support combinationを作らない。
+normal lowering で全 mapを作らない。
 
 independent link は source を持たず、同じ incidence relation から列挙する。claimed/independent を別の
 28.5M-entry storeへ戻さない。
@@ -568,7 +626,7 @@ hot summary として bucket に保持する。これらは evaluation result ca
 
 既存 `projection_formula_support_keys` / `projection_attributions` /
 `flat_retained_projection_attributions` を別 global setとして残すか、bucket summaryへauthority cutoverするかは
-PCLF-D の adapter境界で決める。完成形では同じ logical summaryを二重保持しない。
+PCLF-D1 の adapter境界で決める。完成形では同じ logical summaryを二重保持しない。
 
 ## 4. Admission transaction
 
@@ -606,9 +664,18 @@ struct PreparedProjectionFormulaAdmission {
             ProjectionIncidenceMetadata,
         )>,
 
+    // (category, support_id)ごとにcanonical suffix順へsort済み。
+    canonical_run_deltas: Vec<PreparedCanonicalRunDelta>,
+
     normalized_support_delta: Vec<ProjectionSupportMatchKey>,
     attribution_delta: Vec<UpperReplayClaimId>,
     flat_attribution_delta: Vec<UpperReplayClaimId>,
+}
+
+struct PreparedCanonicalRunDelta {
+    category: CanonicalProjectionCategory,
+    support_id: ProjectionSupportGroupId,
+    entries: Vec<ProjectionFormulaEntryId>,
 }
 ```
 
@@ -624,9 +691,12 @@ prepare は次の順序にする。
 3. batch-local `(raw support, exact clause)` duplicate を compact provisional ID で除く。
 4. exact duplicate の per-incidence source template/root が既存 value と一致することを fail-hard assertする。
 5. new clause、new support group、new exact incidence、summary deltaを計算する。
-6. accepted が空なら persistent storageを作らず `None` を返す。
-7. 全 fallible validation を終えた後、entry/support/incidence/adjacency/summaryの capacityを preflightする。
-8. capacity preflightが全て成功した場合だけ prepared planを返す。
+6. accepted incidenceを`(category, support_id)`でgroup化し、各delta entry列だけをcanonical suffix順にsortする。
+   existing runはbinary searchで特定し、その全体やrecord全体をcloneしない。
+7. accepted が空なら persistent storageを作らず `None` を返す。
+8. 全 fallible validation を終えた後、entry/support/incidence/canonical-run/summaryのcapacityをpreflightする。
+   existing runは`current_len + delta_len`、new runはexact delta len、run tableはnew run countをworst-caseにする。
+9. capacity preflightが全て成功した場合だけprepared planを返す。
 
 prepare 中に current bucket の logical len/contentを変更しない。capacity reserve が途中まで成功して後続 reserve が
 失敗した場合も、logical formula/link/summary は変わらない。allocation capacityまで完全 rollbackすることは
@@ -634,13 +704,35 @@ Rust container APIの契約ではないため、failed reservation testは logic
 
 ### 4.4 Commit order
 
-commit は allocation/fallible validationを行わない。次の順で deltaだけを適用する。
+commit は allocation/fallible validationを行わない。次の順でdeltaだけを適用する。
 
 1. new clause entries と `entry_by_clause`。
-2. new support groups と `support_group_by_raw` / canonical support order。
+2. new support groups と `support_group_by_raw`。
 3. compact exact incidence metadata。
-4. category adjacency。
+4. canonical run delta。
 5. normalized support / attribution summaries。
+
+canonical run deltaは次の規則でcommitする。
+
+- existing run: prepared deltaを既存entry列へ後方mergeする。deltaだけをsortし、reserve済みbuffer内で
+  `O(existing_run_len + delta_len)`、追加allocation zeroで適用する。一entryずつの反復insertで同じsuffixを
+  何度もshiftしない。
+- new run: delta entry列をそのまま所有させ、`canonical_runs`の
+  `(category, projection_support_cmp(raw_support))`位置へinsertする。moveするのはrun descriptorであり、
+  record内のincidence payloadではない。
+- 一transactionで複数new runがある場合はrun deltaをcanonical順にsortし、run table descriptorを一回の
+  後方mergeまたは同等のlinear mergeで更新する。既存runのentry bufferをcloneしない。
+
+このwriter costは、既存runへの追加ではaffected runの長さ、新run追加ではrecord-local nonempty run descriptor数に
+比例する。多runへ分散した通常caseではsingle flat incidence Vecより局所的になりうるが、これはrecord sizeから独立な
+asymptotic boundではない。一recordの大半または全incidenceが一runへ集中すれば
+`existing_run_len == |L(r)|`であり、小deltaの反復mergeは累積でquadraticへ近づきうる。「任意の一incidence追加で
+record全体をshiftしない」と無条件には主張しない。
+
+PCLF-D0で`run_delta_len`、existing run len、merge comparison count、scanned existing-entry count、moved entry count、
+new-run descriptor comparison/movement、merge self-timeを別々に測る。large single-runへ小deltaを反復admitするfixtureを含め、
+新dominant costまたはrecord-wide反復scanになればevaluator cutoverへ進まない。earlier censusのaccepted delta
+mean約57/callとrecord formula p95/maxは参考値であり、run別分布、位置cluster、single-run上限を与えないため **要検証** とする。
 
 commit後、`accepted` の `clause_inserted` だけが既存 dependency edge registrationへ流れる。
 新 support incidenceは既存 clauseのdependency edgeを再登録しない。
@@ -656,7 +748,7 @@ release の既存 terminal-failure contract を弱めない。
 - no-claim workload: claimed incidence metadata/attribution storageを作らない。
 - independent-only workload: `Claimed` incidence value/attribution storageを作らない。
 
-`PerformanceIndexAllocationCensus` は bucket map、entry/support arena、index、adjacency、summaryの len/capacity を測り、
+`PerformanceIndexAllocationCensus` は bucket map、entry/support arena、index、canonical run、summaryの len/capacity を測り、
 accepted zeroで persistent growthがゼロであることを固定する。
 
 temporary batch plan allocationは persistent census の対象外である。empty input と singleton exact duplicate の
@@ -681,6 +773,19 @@ fn projection_formula(
     &self,
     record: BoundRecordId,
 ) -> impl Iterator<Item = ProjectionClause>;
+
+fn projection_evaluation_items(
+    &self,
+    record: BoundRecordId,
+) -> impl Iterator<Item = ProjectionEvaluationItem<'_>>;
+
+struct ProjectionEvaluationItem<'a> {
+    category: CanonicalProjectionCategory,
+    support_id: ProjectionSupportGroupId,
+    entry_id: ProjectionFormulaEntryId,
+    raw_support: &'a SchemeProjectionProofSupport,
+    clause: &'a RecordProofClause,
+}
 
 fn projection_clause_link_is_registered(
     &self,
@@ -717,10 +822,16 @@ fn exact_projection_clause_links(
 `exact_projection_clause_links` は oracle、debug census、明示的 audit/exportだけに使う。normal evaluator、admission、
 GWCB decisive lookupから呼ばない。
 
+`projection_formula`はlogical snapshot/audit/parity向けのfull-value iterator、`projection_evaluation_items`は
+evaluator向けborrowed hot viewである。両者は同じ§3.5 run cursorを使い、別のorder authorityを持たない。
+hot viewはrunのcategory/support IDとarena entryをborrowするだけで、non-decisive incidence metadataを引かない。
+
 ### 5.1 Evaluator
 
-`CpkProjectionEvaluator::eval_record_uncached` は canonical iteratorを一度歩き、現行どおり最初の exact included armで
-短絡する。normalized support qualification は bucket summaryの O(1) membershipを使う。
+`CpkProjectionEvaluator::eval_record_uncached` は`projection_evaluation_items`の非empty run cursorを一度歩き、現行どおり最初の
+exact included armで短絡する。normalized support qualification は bucket summaryの O(1) membershipを使う。
+hot loopのiteration topology自体をcontractとし、categoryごとに全support groupを再走査する実装、empty
+category/support combinationを訪れる実装、`Map -> Fuse -> FlatMap`の多層adapterへ戻す実装を許さない。
 
 次を byte-for-byte 不変にする。
 
@@ -730,14 +841,53 @@ GWCB decisive lookupから呼ばない。
 - first `IncludedExact` clause。
 - round memo stateとcycle cut。
 
-factored storageを毎 queryでexpanded `Vec`へcollectしてはならない。
+canonical run itemのidentityは、評価中だけのlocalではなくround memoへ次のcompact形で保存する。
+
+```rust
+struct ProofEvalEvidenceMemo {
+    support_or_tag: u32,
+    entry_or_state: u32,
+}
+
+enum DecodedProofEvalEvidenceMemo {
+    None,
+    DecisiveClaimedIncidence {
+        support_id: ProjectionSupportGroupId,
+        entry_id: ProjectionFormulaEntryId,
+    },
+    ExactWithoutClaimedArm,
+    FailOpenIncomplete,
+}
+```
+
+`support_or_tag == u32::MAX`をstate encoding用のreserved tagとし、`entry_or_state`のprivate discriminantで
+`None` / `ExactWithoutClaimedArm` / `FailOpenIncomplete`を区別する。`support_or_tag != u32::MAX`なら二fieldを
+exact `(support_id, entry_id)`としてdecodeする。`decisive_claimed_incidence(support_id, entry_id)` constructorは、
+arena IDがreserved tagへ衝突しないことをassertする。numeric state discriminant自体はprivate implementation detailとし、
+typed constructor/`decode()`以外からfieldを組み立てない。
+
+このmarkerはboolean resultを最初にmemo populationした**同じ評価pass**で一度だけ決める。後続のmemo hitはID pairを
+直接decodeし、canonical cursorの再走査、flat clause indexによる再index、`ProjectionClause` valueからのidentity推測を
+行わない。legacy flat `u32` clause indexはproduction source authorityから退役する。dual-read parityで必要なら
+`#[cfg(test)]`の観測値として同じwalkから別に記録してよいが、source reconstructionには使わない。
+
+このpacked mechanismは、revert済みの三PCLF-D topology attemptすべてで既に実装され、memo-hitを含む
+evaluator/GWCB byte-parity testを通った。`size_of::<ProofEvalEvidenceMemo>() == 8`、
+`size_of::<ProofEvalState>() == 12`のassertも維持した。失敗原因はこのidentity transportではなくiteration topologyだったため、
+PCLF-D0はmemo layoutを変更せず、PCLF-D1で同じ8-byte encodingをcanonical run itemへそのまま接続する。
+
+factored storageを毎 queryでexpanded `Vec`へcollectしてはならない。release profileでは、PCLF-Cと同じworkload・
+sampling条件でevaluator self-time proxyとiterator frameを比較する。formula parityだけがgreenでも、nested traversalが
+再びhot sampleへ現れた場合はPCLF-D1 gateを閉じない。
 
 ### 5.2 GWCB decisive arm
 
-evaluatorが選んだ claimed clauseについて、同じ iterator itemが持つ raw support、entry ID、recordから sourceを引く。
-`support_group_by_raw` と `entry_by_clause` が作る exact ID pairで `exact_links` を一回引き、その incidence の
+evaluatorが選んだ claimed clauseについて、同じrun itemから`ProofEvalEvidenceMemo::decisive_claimed_incidence`へ
+保存したsupport ID、entry IDをmemo hit後も使う。その exact ID pairで `exact_links` を一回引き、その incidence の
 `Claimed(source_template)` と support group coverage rootから、現行 helperと同じ
 `ClaimedProjectionProofSource` / `ClaimedProjectionProof` を作る。entry-global source、formula scan、別 audit scanを使わない。
+memoが`ExactWithoutClaimedArm`または`FailOpenIncomplete`をdecodeした場合はGWCB rev.2の三state contractをそのまま返し、
+claimed incidenceをfabricateしない。`None`をexact-emptyやfail-openへ近似しない。
 
 required parity:
 
@@ -829,11 +979,14 @@ production normal loweringで全28.5M linkを `Vec` / `HashMap`へ再展開し�
 
 14. **Canonical order isolation**
     - HashMap/HashSet iteration、arena ID、allocation address、input permutationをformula orderへ漏らさない。
+    - `canonical_runs` は非empty `(category, support group)` だけをcanonical順に持ち、同じpairを二runへ分割しない。
+    - evaluatorは明示的なrun/entry cursorで歩き、categoryごとの全support-group再走査やgenericな多層iteratorへ戻さない。
 
 15. **Insertion-order equivalence**
     - 現行がcanonicalに同値とするadmission順序でformula、exact relation、GWCB evidence、scheme結果が一致する。
     - source-conflict linkはouter raw supportが異なる別incidenceとして両方を保持し、順序によるentry-global winnerを作らない。
     - 同じexact raw identityが異なるmetadataを再提示する入力は合法なpermutationではなく、全順序でfail-hardする。
+    - run partition、run order、run内entry orderはadmission permutationに依存せず、legacy canonical sequenceだけで決まる。
 
 16. **Admission-time completeness**
     - accepted linkは同じevent内でentry、incidence、summary、dependency consumerへ到達する。
@@ -855,9 +1008,12 @@ production normal loweringで全28.5M linkを `Vec` / `HashMap`へ再展開し�
 
 21. **No full-bucket rebuild**
     - admission deltaのためにrecordの全exact link formula/support setをclone/re-sortしない。
+    - existing runはそのrunとdeltaだけをmergeし、new run追加はrun descriptorだけをmoveする。record全incidenceを持つ
+      single flat bufferへの反復position insert、全record sort、全run rebuildを行わない。
 
 22. **No production full expansion**
     - evaluator、admission、GWCB lookup、epoch publicationはexpanded exact link collectionを作らない。
+    - canonical readはnonempty runとincidenceを各一回だけ訪れ、empty category/support combinationをwork itemにしない。
 
 23. **No permanent evaluation cache**
     - bucket/indexはappend-only proof inputの表現であり、include/projectability result cacheではない。
@@ -872,6 +1028,17 @@ production normal loweringで全28.5M linkを `Vec` / `HashMap`へ再展開し�
 26. **Logical vs physical census separation**
     - logical exact link数、distinct clause/support数、compact incidence/index bytesを別々に報告する。
     - compact physical reference数をlogical link削減と誤記しない。
+
+27. **Canonical traversal lower-bound discipline**
+    - canonical evaluator walkのworkは`O(nonempty_runs + |L(r)|) = O(|L(r)|)`とし、`|S(r)|`をcategory数倍で毎query再走査しない。
+    - parity oracleのためのfull reconstruction costをproduction evaluatorへ混ぜない。
+    - release profileでnested iterator adapterまたはempty-run traversalがdominantと判明した場合、metadata accessの局所最適化で
+      回避せずrepresentationへ戻る。
+
+28. **Decisive incidence memo identity**
+    - claimed decisive resultはflat positionやreconstructed valueではなく、exact `(support_id, entry_id)`をround memoへ保存する。
+    - memo hitからGWCB sourceを得るためcanonical cursorを再走査せず、identityをshape/sourceから推測しない。
+    - reserved state tagとreal support IDの非衝突、8-byte evidence memo、12-byte proof stateをlayout assertionで固定する。
 
 ## 7. Oracle と regression specification
 
@@ -889,6 +1056,7 @@ legacy storageをauthorityとして残すshadow期間中、event境界で次を�
 8. dependency edge set。
 9. evaluator include/exclude/fail-open とdecisive clause。
 10. `ClaimedProjectionProof` / `ProjectionEvidence`。
+11. canonical runが非emptyで一意な`(category, support_id)` partitionを作り、全runのflatten結果がlegacy sequenceと一致すること。
 
 fixture終了時のcount比較だけでなく、test/debug buildでは各natural admission event後に比較できるhelperを置く。
 std workloadで毎event full expansionは行わず、targeted fixtureとsampled censusを分ける。
@@ -916,10 +1084,19 @@ std workloadで毎event full expansionは行わず、targeted fixtureとsampled 
 - canonical duplicate / evidence-only / promotion。
 - one exact clauseへの多数support（census max 97を超える合成caseも含む）。
 -一supportへの複数category/clause。
+- support group数が多いが各supportは一categoryだけを持つsparse case（empty combinationを訪れないこと）。
+- 同じexisting runへ複数entryを一batchで加えるcaseと、一batchで複数new runを作るcase。
+- p95/max級またはそれ以上のincidenceを一つの`(category, support_id)` runへ集中させ、singletonまたは小deltaを
+  反復admitするlarge single-run case。各eventのformula parityに加え、comparison、scanned-entry、moved-entryの
+  累積が記録され、quadratic傾向を隠さないこと。
+- canonical runの先頭・中間・末尾へnew descriptorを加えるcase。
 - insertion-order permutation。
 - failed reservation before/after各reserve point。
 - exact no-op persistent allocation census。
 - no-claim / independent-only allocation census。
+- same roundで先行boolean queryがmemoをpopulateし、後続provenance queryが同じdecisive incidenceをcursor rescanなしで
+  復元するcase。claimed pair、`ExactWithoutClaimedArm`、`FailOpenIncomplete`、`None`の全decode stateとreserved-tag
+  collision assertionを含む。
 - GWCB decisive arm、mixed-bound、dual-reach、portable/logical parity controls。
 - DCP/MPC/DPN/URR/RCPF pinned controls。
 
@@ -933,8 +1110,9 @@ local edge setやunordered audit mapと違い、formulaはsequence contractで�
 - attribution rank。
 - byte-equal ProjectionClause multiplicity。
 
-を含むfixtureを作る。PCLF iteratorとlegacy Vecのfirst mismatchを、record、index、raw support、entry ID、
-reconstructed clauseまで表示する。
+を含むfixtureを作る。PCLF iteratorとlegacy Vecのfirst mismatchを、record、flat index、run index、run内index、
+category、raw support、entry ID、reconstructed clauseまで表示する。oracleはrunが非emptyであること、
+同じ`(category, support_id)`が一度だけ現れること、run flatten cardinalityがexact incidence cardinalityと一致することも確認する。
 
 ### 7.4 Allocation census
 
@@ -946,7 +1124,10 @@ reconstructed clauseまで表示する。
 - support-group arena/index len/capacity。
 - compact exact incidence index len/capacity。
 - compact exact incidence metadataのvariant別countとvalue `size_of`。
-- category adjacency total len/capacity。
+- canonical run table len/capacity、run別entry bufferのtotal len/capacity。
+- nonempty run count、record/run別size distribution、empty run count（常にzero）。
+- prepared run delta length、existing-run merge comparison/scanned-entry/moved-entry、new-run descriptor
+  comparison/movementの分布と累積値。
 - normalized support / attribution summary len/capacity。
 
 legacy dual-write期間はlegacy/factoredを別々に数える。authority cutover後は、raw flat storageがゼロであることを
@@ -983,6 +1164,8 @@ Gate:
 
 ### PCLF-A: test-only oracle と型境界
 
+状態: **landed（rev.2、PCLF-C基準commitに含まれる）**。rev.3で変更しない。
+
 変更:
 
 - §3 のID/entry/support/bucket型を追加するがproduction authorityにしない。
@@ -1008,12 +1191,15 @@ Stop:
 
 ### PCLF-B: shadow factored bucket
 
+状態: **landed（rev.2、PCLF-C基準commitに含まれる）**。現行shadowのcategory adjacencyは
+rev.3 PCLF-D0でcanonical runへ置換するまでlegacy/factored parity authorityとして残る。
+
 変更:
 
 - clause admission prepare/commitからshadow `ProjectionFormulaStore`へdual-writeする。
 - consumerはlegacyのみを読む。
 - event-boundary linear oracleとallocation censusを接続する。
-- support/category adjacencyとper-incidence metadataのsize/movement分布を測る。
+- support/category adjacencyとper-incidence metadataのsize/movement分布を測る（rev.2実施内容）。
 
 Gate:
 
@@ -1025,9 +1211,12 @@ Gate:
 
 Rollback:
 
-- shadow field/writerだけを削除。legacy behaviorへ影響なし。
+- PCLF-B単独時点ではshadow field/writerだけを削除できた。PCLF-C landed後のcurrent stateではmembership readが
+  shadow bucketをauthorityにするため、B全体のrollbackはC query adapterのrollbackと組にする。
 
 ### PCLF-C: membership / clause authority cutover
+
+状態: **landed（`b0d2a1a2`）**。`exact_links` / `entry_by_clause` membership authorityはrev.3でも変更しない。
 
 変更:
 
@@ -1048,29 +1237,75 @@ Rollback:
 
 - query adapterをlegacyへ戻せる。shadow bucketは残してよい。
 
-### PCLF-D: canonical formula / evaluator / GWCB cutover
+### PCLF-D0: nonempty canonical run shadow migration
+
+rev.3で追加する。PCLF-A/B/Cのmembership semanticsは変更しないが、PCLF-Bでlandedしたadmission commitの
+ordered projection writeを、rev.2 category adjacencyから§3.4のcanonical runへ置換する独立sliceである。
 
 変更:
 
-- evaluator formula sourceを`canonical_clauses()`へ切り替える。
+- `ProjectionSupportGroup`の三category adjacencyと`canonical_support_groups`を、非empty `canonical_runs`へshadow migrationする。
+- prepareでaccepted incidenceをrun deltaへgroup化し、deltaだけをsuffix sortする。
+- commitでexisting runを後方mergeし、new run descriptorをcanonical位置へmergeする。
+- evaluator、GWCB、logical snapshotは引き続きPCLF-C/legacy read pathを使う。
+- rev.2 adjacencyを同時にtest-only dual-writeする短いoracle段階を置き、sequence/run partition parity後にrev.2 ordered projectionを撤去する。
+- run count/capacity、run entry buffer capacity、delta/run size、merge comparison/scanned-entry/moved-entry、
+  descriptor comparison/movement、writer self-timeを測る。
+
+Gate:
+
+- run flatten sequenceがlegacy formulaと全fixture・sampled std recordでbyte-equal。
+- runは全てnonempty、`(category, support_id)`一意、flatten cardinalityはlogical incidence countと一致。
+- exact membership、accepted classification、dependency edge、GWCB source reconstructionはPCLF-Cと不変。
+- admission failureの全reserve pointでlegacy/factored logical stateがpartial commitされない。
+- large single-run repeated-small-admission fixtureとstd censusの双方で、comparison/scanned-entry/moved-entryを測り、
+  record-wide反復mergeまたはquadratic傾向を隠していない。
+- writer comparison/scan/movementが新dominant self-timeを作らない。
+- §9.4のcapacity込み実bytesがlegacy比50%未満。estimateだけでgateを閉じない。
+
+Stop:
+
+- existing run mergeのcomparison/scan/movement、またはrun descriptor comparison/movementがprojection admissionの
+  新dominant costになる。
+- large single-runへの反復small deltaが、許容根拠を示せないrecord-wide scan/quadratic cumulative workになる。
+- run orderを保つためdelayed flush、event後sort、全record rebuildが必要になる。
+- run capacity込みbytesが50% gateを満たさない。
+
+Rollback:
+
+- ordered shadow projectionだけをrev.2 adjacencyへ戻せる。PCLF-C membership authorityと`exact_links`は変更しない。
+
+### PCLF-D1: canonical formula / evaluator / GWCB cutover
+
+変更:
+
+- evaluator formula sourceを§3.5の明示run/entry cursorへ切り替える。
+- `ProofEvalEvidenceMemo`へ§5.1のpacked `(support_id, entry_id)` identityを同じevaluation passで保存し、
+  memo hit後のdecisive source lookupをcursor再走査なしで行う。
 - normalized support/attribution queryをbucket summaryへ切り替える。
 - GWCB decisive claimed source lookupをexact incidence metadata + support rootへ切り替える。
 - `logical_proof_snapshot.rs` の `projection_formula_for_record` readerを§5 iterator APIへ切り替え、
   canonical snapshot sequence/hash parityを確認する。
 - legacy formula/auditはoracleとして残す。
+- release binaryのgdb samplingで、rev.2のnested `Map -> Fuse -> FlatMap` frameとempty-combination traversalが
+  evaluator hot pathへ存在しないことを確認する。
 
 Gate:
 
 - formula sequence byte equality。
 - evaluator result、short-circuit index、cycle/fail-open parity。
 - `ProjectionEvidence` / `ClaimedProjectionProof` byte equality。
+- first evaluationとsame-round memo hitの双方でdecisive `(support_id, entry_id)`が一致し、cursor rescan count zero。
+- `ProofEvalEvidenceMemo == 8 bytes`、`ProofEvalState == 12 bytes`のlayout assertion。
 - GWCB motivating/control、MPC/DPN/RCPF tests green。
 - production queryからfull expansion zero。
 - cold std loweringでPCLF-C比のunexplained regressionなし。
+- 同条件samplingでevaluator self-time proxyがPCLF-Cの`3/15 = 20.0%`から有意に増えず、少なくとも
+  failed borrowed-view attemptの`6/18 = 33.3%`を再現しない。sampling比率だけで合否を決めずwall/RSSと併記する。
 
 Rollback:
 
-- evaluator/GWCB adapterをlegacyへ戻す。membership cutoverとは独立にrevert可能にする。
+- evaluator/GWCB adapterをlegacyへ戻す。PCLF-D0 ordered projectionとPCLF-C membership cutoverから独立にrevert可能にする。
 
 ### PCLF-E: expanded legacy storage retirement
 
@@ -1094,7 +1329,7 @@ Gate:
 
 Rollback:
 
-- PCLF-Dとは別commitにする。問題があればEだけを戻し、dual-write legacy authorityを復元できる形にする。
+- PCLF-D1とは別commitにする。問題があればEだけを戻し、dual-write legacy authorityを復元できる形にする。
 
 ### PCLF-F: integration / closeout
 
@@ -1117,7 +1352,7 @@ Gate:
 
 ### 9.1 Baseline discipline
 
-現在の参考値は `0e208ab4` の cold reproduction で次である。
+factorization開始前の参考値は `0e208ab4` の cold reproductionで次である。
 
 | 指標 | 参考値 |
 |---|---:|
@@ -1131,6 +1366,25 @@ PCLF-0 instrumentation runの `80.902s parse / 125.912s lower_loaded_files / 141
 PCLF-B着手前にclean current HEADでcold runを最低二回行い、同じcache/build/RSS monitor条件のmedianを
 正式baselineにする。上の単一run値から差がある場合、数値を都合よく選ばず両方を報告する。
 
+PCLF-Dの直接比較baselineはPCLF-C `b0d2a1a2` の同条件runである。
+
+| 指標 | PCLF-C baseline |
+|---|---:|
+| `std::text::parse` | 77.464s |
+| full command | 128.79s |
+| peak RSS | 11.21–11.23 GiB |
+
+rev.2 PCLF-Dの三attemptはいずれも全correctness parityを通したが、このbaseline比のwall gateを破った。
+
+| attempt | parse | full | PCLF-C比 |
+|---|---:|---:|---:|
+| full reconstruction | 88.581s | 146.87s | +14.4% / +14.0% |
+| adjacency metadata duplication | 85.936s | 142.45s | +10.94% / +10.61% |
+| borrowed evaluator view | 92.971s | 実測比+20.57% | +20.02% / +20.57% |
+
+PCLF-D0/D1はPCLF-Cと同じcold/cache/build/RSS条件で再測定し、これらfailed attemptを
+新baselineにしない。
+
 ### 9.2 Structural gate
 
 PCLF-Eで次を全て満たす。
@@ -1143,10 +1397,12 @@ PCLF-Eで次を全て満たす。
 5. distinct clause lookupは847,858-entry scaleに比例し、28.5M raw link scaleに比例しない。
 6. admissionごとのfull formula/support-set clone/re-sortを行わない。
 7. evaluator/GWCB/admissionのfull expansion countはzero。
-8. logical incidenceとcanonical adjacencyはcompact ID/referenceを一件ごとに保持し、incidence valueは
-   lossless source metadataの最小payloadに限定する。
+8. logical incidenceとcanonical run entryはcompact ID/referenceを一件ごとに保持し、incidence valueは
+   lossless source metadataの最小payloadに限定する。category/support IDを一incidenceごとにrun側へ複製しない。
 9. no-claim/exact-no-opのpersistent allocation growthはzero。
 10. per-incidence source-template/coverage-root reconstructionのglobal scanはzero。
+11. canonical evaluatorはnonempty runだけを明示cursorで歩き、empty category/support combinationと
+    genericなnested `Map` / `Fuse` / `FlatMap` traversalを持たない。
 
 ### 9.3 Wall time target
 
@@ -1164,9 +1420,18 @@ PCLF-Eで次を全て満たす。
 - PCLF-B shadow:
   - correctness測定用。wall time改善を要求しない。
   - baseline比15%超の回帰またはRSS 18 GiB接近時はfull workload dual-writeを止め、targeted fixtureへ戻る。
-- PCLF-C/D:
+- PCLF-C/D0/D1:
   - 各authority cutover後にfresh profileを取り、projection-clause clusterが減ることを確認する。
   - unrelated hot path改善をPCLF成果へ含めない。
+- PCLF-D0:
+  - writer/read authorityはPCLF-Cのまま、canonical run維持costとcapacity込みbytesを先に閉じる。
+  - std censusとlarge single-run repeated-small-admission fixtureで、merge comparison、scanned entry、moved entry、
+    descriptor comparison/movementを測る。record p95/maxをrun-size boundの代用にしない。
+  - comparison/scan/movementがnew dominant cost、quadratic傾向を示す、またはphysical bytesが50%以上ならD1へ進まない。
+- PCLF-D1:
+  - PCLF-C比でparse/fullのunexplained regression zeroを要求する。三failed attemptより速いだけではgateを閉じない。
+  - frame-pointer付きrelease samplingでevaluator self-time proxyをPCLF-C `3/15 = 20.0%`と比較する。
+    borrowed-view `6/18 = 33.3%`に見られた約13.3 point増加とnested iterator frameが消えることを確認する。
 - PCLF-E minimum success:
   - clean baseline median比でparse 10%以上改善。
   - full command 6%以上改善。
@@ -1183,23 +1448,45 @@ minimum gateを満たさなくてもstructural bytes/operationsが大幅に減�
 
 ### 9.4 Memory target
 
-PCLF-0は新backendの実byte数を測っていない。従って「何GiB削減」とは現時点で断定しない。
-rev.2 の per-incidence source valueと、未測定のdistinct support-group count / category `Vec` overheadを含む
-完成形bytesは **要検証** である。この確認はimplementation shapeを必要とするため、設計承認前の既確認事項ではなく
-PCLF-B shadow gateとする。
+PCLF-B/Cの同一methodology（persistent containerのlen/capacityとelement `size_of`をface別に合算）を再照合した結果は、
+次である。
+
+```text
+legacy projection storage bytes = 3,773,001,092
+factored rev.2 shadow bytes      = 1,807,356,741
+factored / legacy                = 47.9024%
+```
+
+以前報告した`36.34%`は同じstateの別測定ではなく計算誤りであり、承認根拠として無効である。47.9024%を
+PCLF-B/Cの正しいbaselineとする。50%未満gateは自動的に緩和せず維持するが、marginは約2.1 percentage pointしかない。
+
+rev.3 run shapeの事前estimateは次の前提に限る。
+
+- incidence entry ID bufferはrev.2と同じ28,526,006件、同じ`u32` payloadであり増えない。
+- support group 1,716,175件から三`Vec` headerを除く。`Vec` headerを24 bytesとしたlen-only下限は
+  `1,716,175 * 72 = 123,564,600 bytes`削減。
+- `canonical_support_groups`のID payloadを除くlen-only下限は`1,716,175 * 4 = 6,864,700 bytes`削減。
+- `CanonicalProjectionRun`を32 bytesと仮置きする（**推定、Rust `size_of`要検証**）。nonempty run数は未測定で、
+  `[support groups, 3 * support groups] = [1,716,175, 5,148,525]`の範囲にある。
+
+このlen-only算術ではrev.3 factored bytesは`1,731,845,041–1,841,680,241 bytes`、legacy比
+`45.9010%–48.8121%`と推定される。capacity slack、runごとのallocator overhead、実run count、実type layoutを含まないため、
+この範囲はgate確認ではない。特に上限側marginは約1.19 pointしかない。PCLF-D0で同一censusを実行し、
+run tableと全run entry bufferのcapacity込み実bytesが50%未満でなければ停止する。
 
 Gate:
 
-- PCLF-Bでlegacy/factoredのmap/bucket/arena len/capacityと`size_of`を別々に測る。
-- PCLF-Eでprojection clause/link persistent bytesをlegacy推定比50%未満にすることをproject targetとする（推定、要検証）。
-- peak RSSは最低でも9.33 GiB baselineを超えない。
-- project targetはpeak RSS 20%以上削減（約7.46 GiB以下、推定）。
+- PCLF-D0でlegacy/factoredのmap/bucket/arena/run len/capacityと`size_of`を別々に測る。
+- PCLF-Eでprojection clause/link persistent bytesをlegacy実測比50%未満にする。
+- peak RSSはPCLF-C 11.21–11.23 GiBとfactorization開始前9.33 GiBの両方を併記し、少なくともPCLF-C比で増やさない。
+- project targetのpeak RSS 20%以上削減はfactorization開始前約7.46 GiB以下という**推定/stretch**であり、
+  run shape承認の事前事実として扱わない。
 - dual-write oracleをproduction peak RSS測定へ混ぜない。
 - swapを増やさない。
 - temporary full reconstructionはtest/debug/measurement後に破棄する。
 
-50% physical-byte targetがtype layout/capacity overheadで不可能と判明した場合、数値だけを緩和せず、
-incidence/index/adjacencyの二重compact projectionが妥当か設計レビューへ戻る。
+50% physical-byte targetがcapacity overheadで不可能と判明した場合、数値だけを緩和せず、
+exact incidence index + ordered run projectionの二重compact representationを再度設計レビューする。
 
 ### 9.5 Operation/count target
 
@@ -1217,7 +1504,8 @@ full clause entries:        O(847,858)
 raw support groups:         O(distinct record-local supports)  -- PCLF-Bで実測
 compact incidence keys:     O(28,526,006)
 compact source values:      O(claimed exact incidences)
-compact canonical refs:     O(28,526,006)
+compact canonical run refs: O(28,526,006)
+nonempty run descriptors:   O(nonempty category/support pairs) -- PCLF-D0で実測
 ```
 
 full raw-link hash keyとfull ProjectionClause entryはproductionでzeroにする。claimed sourceの意味payload自体は
@@ -1304,6 +1592,46 @@ PCLF-Cのauthority整理として除去する余地はあるが、factorization�
 - GWCB lookupは速いが、storage amplificationの半分を温存する。
 - exact sourceはcompact incidence template + support rootからlosslessに再構成できるrev.2 modelを使わない。
 
+### 10.10 Nested category×support traversal内のper-item metadata最適化
+
+棄却する。per-item metadata accessがdominantであるという仮説はrev.3のprofilingで反証された。
+
+- full reconstruction attemptはPCLF-C比`+14.4% parse / +14.0% full`だった。
+- metadataをcategory adjacencyへ複製したattemptは`+10.94% / +10.61%`までしか戻らず、physical bytesも
+  `56.40% of legacy`へ増えて50% gateを破った。
+- non-decisive itemのmetadata lookupとfull clause reconstructionを避けたborrowed-view attemptは、理論上最軽量のはずが
+  `+20.02% / +20.57%`で三案中最悪だった。
+- gdb samplingはevaluator self-time proxyがPCLF-C `3/15 = 20.0%`からborrowed-view `6/18 = 33.3%`へ増えたことを示し、
+  `exact_links` decisive metadata lookupをhot sampleで捉えなかった。この証拠はper-item metadata仮説を弱め、
+  nested `Map -> Fuse -> FlatMap`とempty category/support traversalを含むcanonical iteration topologyを
+  第一の作業仮説にするが、adapter depth、empty walk、arena access、cache localityの個別寄与までは分離しない。
+
+従ってmetadata layout、borrowed item、lookup回数だけを変え、nested topologyを残す案へ戻らない。
+非empty runが原因を解消するという仮説はPCLF-D1のwall/profile比較で検証し、改善を先取りして確定事実としない。
+
+### 10.11 Recordごとのsingle flat canonical incidence Vec
+
+rev.3の第一選択にはしない。
+
+- readerは最も単純で、完全な一buffer順次走査になる利点がある。
+- しかしrecord formula sizeはmean 263.54、p50 30、p95 1,759、max 4,700であり、arbitrary canonical-position admissionは
+  record残余全体をshiftしうる。accepted delta mean約57/callは既測定だが、位置clusterとrecord-local delta分布は未測定である。
+- append-unsorted + periodic re-sortはsame-event admission completenessとcanonical-first GWCB decisionを壊す。
+- eventごとのfull Vec merge/rebuildはinvariant 21を破り、過去のfull-bucket rebuild問題を再導入する。
+
+非empty run案がwriter movement/profile gateを通らない場合の再検討候補ではある。その場合はposition distributionを測り、
+単一Vecのshift bytesが許容可能だと実証してから別revisionで選ぶ。
+
+### 10.12 Hash container一つでmembershipとcanonical iterationを兼用する
+
+棄却する。
+
+- `exact_links`のhash iteration順はcanonical semanticsに使えない。
+- ordered hash/B-treeへauthorityを移すと、PCLF-Cで確立したexpected O(1) exact membershipを別complexityへ変更する。
+- per-support local hashだけではcategory/supportのglobal canonical順を与えず、結局別ordered projectionまたはquery-time sortが要る。
+
+membership hashとordered run entryはfull tupleの二重保存ではなく、異なるquery lower boundを満たす二つのcompact projectionとして残す。
+
 ## 11. Stop / rollback conditions
 
 ### 11.1 Stop conditions
@@ -1317,11 +1645,13 @@ PCLF-Cのauthority整理として除去する余地はあるが、factorization�
 4. expanded exact raw finite mapがlegacyと一致しない。
 5. canonical formula sequenceがlegacy Vecと一致しない。
 6. GWCB decisive `ProjectionClause` / `ClaimedProjectionProof` / `ProjectionEvidence`が一致しない。
-7. canonical orderのためhash iteration、arena ID、allocation address、global sort/full reconstructionが必要になる。
+7. canonical orderのためhash iteration、arena ID、allocation address、global sort/full reconstruction、
+   categoryごとの全support-group再走査が必要になる。
 8. exact link O(1) membershipのためfull raw identityを28.5M件そのまま再保存する必要がある。
-9. incidence metadata index + canonical adjacencyがlegacy physical bytesの50%未満へ収まる見込みを
-   PCLF-Bで示せない。
-10. compact adjacency insertionの累積movementが新しいdominant O(record links) costになる。
+9. incidence metadata index + canonical runがlegacy physical bytesの50%未満へ収まることを
+   PCLF-D0のcapacity込み実測で示せない。
+10. existing-run mergeの累積comparison/scanned-entry/moved-entry、またはrun descriptor comparison/movementが
+    新しいdominant costになる。large single-run repeated-small-admissionでquadratic傾向を示す場合を含む。
 11. failed reservationでlegacy/factoredまたはbucket内facesがlogical partial commitされる。
 12. exact no-op/no-claimでpersistent capacity/lenが増える。
 13. accepted linkを同event内で全consumerへ反映するためdelayed flush/repair/fixpointが必要になる。
@@ -1332,13 +1662,21 @@ PCLF-Cのauthority整理として除去する余地はあるが、factorization�
 18. production normal loweringでexact full expansionが必要になる。
 19. PCLF-E後のwall/RSSが§9 minimum gateを外れ、残差を具体的costへ帰属できない。
 20. 各authority cutover/legacy retirementを独立rollbackできない。
+21. canonical runにempty entry列、重複`(category, support_id)`、欠落incidenceが生じ、event-local deltaだけで修復できない。
+22. PCLF-D1 release profileでnested iterator adapterまたはempty category/support traversalがhot pathへ残る。
+23. PCLF-D1のcold wall/RSSがPCLF-C比で説明不能な回帰を示す。三failed attemptからの相対改善だけでは進めない。
+24. run shapeを維持するためdelayed flush、periodic sort、stale canonical viewが必要になる。
+25. decisive exact incidenceをmemo hit後まで保持するためcursor rescan、flat index再index、projected valueからの
+    identity推測、8-byte markerを超えるhot memo inflationのいずれかが必要になる。
 
 ### 11.2 Rollback units
 
 - PCLF-Aのoracle/fixtureは、正しい観測である限り後続sliceを戻しても保持する。
-- PCLF-B shadow storeは一sliceで削除可能にする。legacy authorityへ影響させない。
+- PCLF-B shadow storeはPCLF-Cより前なら一sliceで削除可能だった。current landed stateでB全体を戻す場合は、
+  C membership adapterを先にlegacyへ戻す。
 - PCLF-C membership cutoverとcaller/writer recheck整理を別commitにする。
-- PCLF-D evaluator/GWCB cutoverはmembership cutoverから独立してlegacy adapterへ戻せるようにする。
+- PCLF-D0 canonical run shadow migrationはPCLF-C membership authorityを変えず、rev.2 ordered projectionへ独立rollbackできるようにする。
+- PCLF-D1 evaluator/GWCB cutoverはD0とmembership cutoverから独立してlegacy adapterへ戻せるようにする。
 - PCLF-E legacy retirementはD以前と別commitにし、performance/correctness問題時にexpanded authorityを復元できるようにする。
 - rollbackでexact key、canonical order、GWCB decisive contractを旧buggy/coarser semanticsへ戻さない。
 
@@ -1348,13 +1686,15 @@ Claude (Sonnet 5) は本書を確定する前に、少なくとも次をcurrent 
 
 1. §1.1のsix-face writer/remover censusが全production pathを覆い、二つのtest-only bypass writerが
    PCLF-A migration対象になっているか。
-2. `ProjectionClause::canonical_cmp` を§3.5のcategory/support/entry traversalでsequence-equivalentに再現できるか。
+2. `ProjectionClause::canonical_cmp` を§3.5のnonempty run orderとrun-local suffix orderでsequence-equivalentに再現でき、
+   attribution/source-conflict tieを落としていないか。
 3. `RecordProofClause::Standalone` embedded supportとouter supportの関係に、entry factorizationを破る合法caseがないか。
 4. 全writer constructorのsource kind/producer/resultがper-incidence metadataへtotalに写り、同じ clause の
    source-conflict fixtureでもraw audit finite mapをlosslessに再構成できるか。
 5. support groupのadmission-time coverage rootがclaim movement/livenessと独立なimmutable factか。
-6. **PCLF-B gate（設計承認前の既確認事項ではない）**: per-incidence source value、support-group count、
-   `Vec`/hash capacityを含むcompact index + canonical adjacencyの実bytesがlegacyより十分小さいか。
+6. **PCLF-D0 gate（rev.3設計承認前の既確認事項ではない）**: corrected PCLF-B/C baseline
+   `1,807,356,741 / 3,773,001,092 = 47.9024%`と同じcapacity methodologyで、per-incidence source value、
+   support-group、canonical run table/entry bufferを含む実bytesが50%未満か。
 7. GWCB decisive source reconstructionがexact incidence metadataを選び、現行raw audit lookupと
    O(1)/byte-equivalentか。
 8. attribution summariesをbucketへ移したとき、direct consumer/reverse queryを見落としていないか。
@@ -1363,15 +1703,32 @@ Claude (Sonnet 5) は本書を確定する前に、少なくとも次をcurrent 
     §5/test fixture APIへ移っているか。
 11. §9のnumeric targetがfresh clean baselineに対して現実的か。
 12. safety-scoped suiteと18 GiB RSS hard kill protocolがcloseout planに明記されているか。
+13. `canonical_runs`が全eventでnonempty・`(category, support_id)`一意・完全partitionとなり、hash/arena/input orderを
+    canonical sequenceへ漏らさないか。
+14. existing-run backward mergeとnew-run descriptor mergeが全reserveをprepareで済ませ、commit-time allocation、
+    full-record rebuild、partial mutationを起こさないか。single-run worst caseをrecord-wide boundから独立に扱っているか。
+15. actual nonempty run count、run `size_of`/capacity、run/delta size、comparison/scanned-entry/moved-entry分布が
+    §9.4 estimateとD0 writer-cost gateの仮定を満たすか。
+16. §3.5の明示cursor APIがnested topologyを構造上再導入しない仕様になっているか。PCLF-D1実装後はrelease
+    codegen/profileでnested `Map` / `Fuse` / `FlatMap` frame、empty category/support traversal、
+    per-query full reconstructionを持たないことを実測したか。
+17. PCLF-C `3/15 = 20.0%`とPCLF-D1 evaluator sampling、cold wall/RSSを同条件で比較し、
+    三failed attemptの回帰をmetadata layoutの再調整だけで隠していないか。
+18. `ProofEvalEvidenceMemo`のreserved-tag encodingが全real support IDと非衝突で、同じevaluation passからexact
+    `(support_id, entry_id)`を保存し、memo hit後のGWCB source lookupにrescan/reindex/inferenceを要求しないか。
 
-項目1〜5、7〜9は設計確定前にcurrent codeへ照合する。項目6はshadow representationなしには実測できないため、
-未測定であることを明示したうえでPCLF-Bのmandatory stop gateとする。項目10〜12は後続slice/closeout planの
-完全性を査読し、該当gateを満たす前にlegacy retirementやcloseoutへ進まない。一つでもこの分類どおりに
-確認・割当できなければ「査読・確定」とせず、該当sliceまたはrepresentationを改訂する。
+項目1〜5、7〜9、13〜14、18はrev.3設計確定前にcurrent code、revert済みattemptのtest evidence、representationへ
+照合する。項目6と15は
+canonical run shadowなしにはcapacity込み実測できないため、未測定であることを明示したうえでPCLF-D0のmandatory
+stop gateとする。項目16は設計確定前にAPI/topology contractを査読し、actual codegen/profileはPCLF-D1のmandatory
+gateにする。項目10〜12、17は後続slice/closeout planの完全性を査読し、該当gateを満たす前に
+legacy retirementやcloseoutへ進まない。一つでもこの分類どおりに確認・割当できなければrev.3を「査読・確定」とせず、
+該当sliceまたはrepresentationを改訂する。
 
 ---
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）がrev.3を起案、Claude (Sonnet 5) が独立査読・確定
 
-承認状態: **ユーザ承認済み**。本書は `CLAUDE.md` の設計優先順位における正本である。
-PCLF-A 以降の実装は、本書の invariant・stop condition・スライス順序に従って着手できる。
+承認状態: **ユーザ承認済み**。rev.3が変更するcanonical iteration contractとPCLF-D0以降は、
+本書をもって`CLAUDE.md`の設計優先順位における正本である。PCLF-A/B/Cのlanded correctness contractは
+rev.2承認に基づき引き続き有効である。
