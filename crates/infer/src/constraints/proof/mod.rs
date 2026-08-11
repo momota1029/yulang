@@ -615,22 +615,18 @@ pub(crate) struct ReplayProofOccurrence {
 const QORF_REPLAY_PARENT_CHUNK_CAPACITY: usize = 128;
 const QORF_REPLAY_PARENT_CURSOR_STACK_CAPACITY: usize = 64;
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReplayFiniteMapEntryId(u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReplayParentChunkId(u32);
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReplayQualifiedArmChunkId(u32);
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct CanonicalQualifiedParentRootChunkId(u32);
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct NonReplayQualifiedParentId(u32);
 
@@ -788,7 +784,6 @@ impl ReplayParentChunkArena {
             .is_ok()
     }
 
-    #[cfg(test)]
     fn qorf_entry(
         &self,
         side: ReplayParentSideIndex,
@@ -904,6 +899,8 @@ enum QorfReplayReservationFailurePoint {
     AfterReplayFiniteMapIndex,
     AfterReplayResultIndex,
     AfterOccurrence,
+    AfterArm,
+    AfterRootWinner,
     AfterSummary,
     AfterProofOccurrence,
 }
@@ -1149,30 +1146,26 @@ fn try_prepare_qorf_side_delta(
     }))
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct ReplayQualifiedArmTree {
     root: Option<ReplayQualifiedArmChunkId>,
     len: u32,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReplayQualifiedArmChunkNode {
-    entries: Box<[ReplayFiniteMapEntryId]>,
+    entries: Vec<ReplayFiniteMapEntryId>,
     left: Option<ReplayQualifiedArmChunkId>,
     right: Option<ReplayQualifiedArmChunkId>,
     height: u8,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ReplayQualifiedArmIndex {
     by_result: FxHashMap<ConstraintRecordId, ReplayQualifiedArmTree>,
     chunks: Vec<ReplayQualifiedArmChunkNode>,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CanonicalQualifiedParentRef {
     Replay {
@@ -1184,34 +1177,147 @@ enum CanonicalQualifiedParentRef {
     },
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct CanonicalQualifiedParentRootEntry {
     coverage_root: UpperReplayClaimId,
     winner: CanonicalQualifiedParentRef,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct CanonicalQualifiedParentRootTree {
     root: Option<CanonicalQualifiedParentRootChunkId>,
     len: u32,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CanonicalQualifiedParentRootChunkNode {
-    entries: Box<[CanonicalQualifiedParentRootEntry]>,
+    entries: Vec<CanonicalQualifiedParentRootEntry>,
     left: Option<CanonicalQualifiedParentRootChunkId>,
     right: Option<CanonicalQualifiedParentRootChunkId>,
     height: u8,
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct CanonicalQualifiedParentRootIndex {
     by_result: FxHashMap<ConstraintRecordId, CanonicalQualifiedParentRootTree>,
     chunks: Vec<CanonicalQualifiedParentRootChunkNode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct NonReplayQualifiedParentStore {
+    entries: Vec<ExactQualifiedParent>,
+    by_result: FxHashMap<ConstraintRecordId, Vec<NonReplayQualifiedParentId>>,
+}
+
+enum QorfExactQualifiedParentSource<'a> {
+    Replay {
+        carrier: BinaryReplayDerivation,
+        cursor: ReplayParentSideCursor<'a>,
+    },
+    NonReplay {
+        entries: &'a [ExactQualifiedParent],
+        ids: &'a [NonReplayQualifiedParentId],
+        position: usize,
+    },
+}
+
+impl QorfExactQualifiedParentSource<'_> {
+    fn next_parent(&mut self) -> Option<ExactQualifiedParent> {
+        match self {
+            Self::Replay { carrier, cursor } => cursor.next().map(|entry| ExactQualifiedParent {
+                coverage_root: entry.coverage_root,
+                parent: ClaimQualifiedParent::ReplayConstraint {
+                    parent_claim: entry.representative_claim,
+                    parent_side: entry.side,
+                    replay: *carrier,
+                },
+            }),
+            Self::NonReplay {
+                entries,
+                ids,
+                position,
+            } => {
+                let id = *ids.get(*position)?;
+                *position += 1;
+                Some(entries[id.0 as usize])
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct QorfExactQualifiedParentHeapEntry {
+    parent: ExactQualifiedParent,
+    source: usize,
+}
+
+impl PartialEq for QorfExactQualifiedParentHeapEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && qualified_parent_entry_cmp(&self.parent, &other.parent).is_eq()
+    }
+}
+
+impl Eq for QorfExactQualifiedParentHeapEntry {}
+
+impl PartialOrd for QorfExactQualifiedParentHeapEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for QorfExactQualifiedParentHeapEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // BinaryHeap is a max-heap; reverse the canonical comparison so pop yields the minimum.
+        qualified_parent_entry_cmp(&other.parent, &self.parent)
+            .then_with(|| other.source.cmp(&self.source))
+    }
+}
+
+struct QorfExactQualifiedParentCursor<'a> {
+    sources: Vec<QorfExactQualifiedParentSource<'a>>,
+    frontier: std::collections::BinaryHeap<QorfExactQualifiedParentHeapEntry>,
+}
+
+impl Iterator for QorfExactQualifiedParentCursor<'_> {
+    type Item = ExactQualifiedParent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let head = self.frontier.pop()?;
+        if let Some(parent) = self.sources[head.source].next_parent() {
+            // Construction reserves one slot per source. Every pop frees the slot reused here,
+            // so iteration cannot allocate after the fallible constructor succeeds.
+            self.frontier.push(QorfExactQualifiedParentHeapEntry {
+                parent,
+                source: head.source,
+            });
+        }
+        Some(head.parent)
+    }
+}
+
+struct QorfClauseLinkAssociationCursor<'a> {
+    exact: QorfExactQualifiedParentCursor<'a>,
+    previous: Option<(UpperReplayClaimId, ProjectionProofCarrier)>,
+}
+
+impl Iterator for QorfClauseLinkAssociationCursor<'_> {
+    type Item = ExactQualifiedParent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let parent = self.exact.next()?;
+            let key = (
+                parent.coverage_root,
+                qualified_parent_projection_carrier(parent.parent),
+            );
+            if self.previous == Some(key) {
+                continue;
+            }
+            self.previous = Some(key);
+            return Some(parent);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1222,20 +1328,483 @@ struct QorfPreparedReplayParentSideDelta {
     replacement_chunks: Vec<ReplayParentChunkNode>,
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct QorfPreparedReplayQualifiedArmEdit {
-    old_key: Option<ExactQualifiedParent>,
-    new_key: Option<ExactQualifiedParent>,
-    replacement_chunks: Vec<ReplayQualifiedArmChunkNode>,
+#[derive(Debug)]
+struct QorfPreparedChunkBuffers<T> {
+    merged: Vec<T>,
+    right: Vec<T>,
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
+struct QorfPreparedReplayQualifiedArmEdit {
+    result: ConstraintRecordId,
+    occurrence: ReplayFiniteMapEntryId,
+    rekey: bool,
+    buffers: QorfPreparedChunkBuffers<ReplayFiniteMapEntryId>,
+}
+
+#[derive(Debug)]
 struct QorfPreparedCanonicalRootWinnerUpdate {
     result: ConstraintRecordId,
     entry: CanonicalQualifiedParentRootEntry,
-    previous: Option<CanonicalQualifiedParentRef>,
+    buffers: QorfPreparedChunkBuffers<CanonicalQualifiedParentRootEntry>,
+}
+
+impl<T> QorfPreparedChunkBuffers<T> {
+    fn try_new() -> Result<Self, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        let mut merged = Vec::new();
+        let mut right = Vec::new();
+        merged
+            .try_reserve_exact(QORF_REPLAY_PARENT_CHUNK_CAPACITY + 1)
+            .map_err(exhausted)?;
+        right
+            .try_reserve_exact(QORF_REPLAY_PARENT_CHUNK_CAPACITY / 2 + 1)
+            .map_err(exhausted)?;
+        Ok(Self { merged, right })
+    }
+}
+
+impl ReplayQualifiedArmIndex {
+    fn height(&self, id: Option<ReplayQualifiedArmChunkId>) -> u8 {
+        id.map_or(0, |id| self.chunks[id.0 as usize].height)
+    }
+
+    fn update_height(&mut self, id: ReplayQualifiedArmChunkId) {
+        let node = &self.chunks[id.0 as usize];
+        self.chunks[id.0 as usize].height = 1 + self.height(node.left).max(self.height(node.right));
+    }
+
+    fn rotate_left(&mut self, root: ReplayQualifiedArmChunkId) -> ReplayQualifiedArmChunkId {
+        let pivot = self.chunks[root.0 as usize]
+            .right
+            .expect("QORF arm left rotation requires a right child");
+        let middle = self.chunks[pivot.0 as usize].left;
+        self.chunks[root.0 as usize].right = middle;
+        self.update_height(root);
+        self.chunks[pivot.0 as usize].left = Some(root);
+        self.update_height(pivot);
+        pivot
+    }
+
+    fn rotate_right(&mut self, root: ReplayQualifiedArmChunkId) -> ReplayQualifiedArmChunkId {
+        let pivot = self.chunks[root.0 as usize]
+            .left
+            .expect("QORF arm right rotation requires a left child");
+        let middle = self.chunks[pivot.0 as usize].right;
+        self.chunks[root.0 as usize].left = middle;
+        self.update_height(root);
+        self.chunks[pivot.0 as usize].right = Some(root);
+        self.update_height(pivot);
+        pivot
+    }
+
+    fn rebalance(&mut self, root: ReplayQualifiedArmChunkId) -> ReplayQualifiedArmChunkId {
+        self.update_height(root);
+        let node = &self.chunks[root.0 as usize];
+        let balance = i16::from(self.height(node.left)) - i16::from(self.height(node.right));
+        if balance > 1 {
+            let left = node.left.expect("left-heavy QORF arm node has a child");
+            if self.height(self.chunks[left.0 as usize].right)
+                > self.height(self.chunks[left.0 as usize].left)
+            {
+                let rotated = self.rotate_left(left);
+                self.chunks[root.0 as usize].left = Some(rotated);
+            }
+            return self.rotate_right(root);
+        }
+        if balance < -1 {
+            let right = node.right.expect("right-heavy QORF arm node has a child");
+            if self.height(self.chunks[right.0 as usize].left)
+                > self.height(self.chunks[right.0 as usize].right)
+            {
+                let rotated = self.rotate_right(right);
+                self.chunks[root.0 as usize].right = Some(rotated);
+            }
+            return self.rotate_left(root);
+        }
+        root
+    }
+
+    fn insert_node(
+        &mut self,
+        root: Option<ReplayQualifiedArmChunkId>,
+        inserted: ReplayQualifiedArmChunkId,
+        cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
+    ) -> ReplayQualifiedArmChunkId {
+        let Some(root) = root else { return inserted };
+        let inserted_first = self.chunks[inserted.0 as usize].entries[0];
+        let root_first = self.chunks[root.0 as usize].entries[0];
+        if cmp(inserted_first, root_first).is_lt() {
+            let child = self.insert_node(self.chunks[root.0 as usize].left, inserted, cmp);
+            self.chunks[root.0 as usize].left = Some(child);
+        } else {
+            assert!(cmp(inserted_first, root_first).is_gt());
+            let child = self.insert_node(self.chunks[root.0 as usize].right, inserted, cmp);
+            self.chunks[root.0 as usize].right = Some(child);
+        }
+        self.rebalance(root)
+    }
+
+    fn detach_min(
+        &mut self,
+        root: ReplayQualifiedArmChunkId,
+    ) -> (ReplayQualifiedArmChunkId, Option<ReplayQualifiedArmChunkId>) {
+        let Some(left) = self.chunks[root.0 as usize].left else {
+            return (root, self.chunks[root.0 as usize].right);
+        };
+        let (minimum, new_left) = self.detach_min(left);
+        self.chunks[root.0 as usize].left = new_left;
+        (minimum, Some(self.rebalance(root)))
+    }
+
+    fn unlink_node(
+        &mut self,
+        root: Option<ReplayQualifiedArmChunkId>,
+        removed: ReplayQualifiedArmChunkId,
+        cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
+    ) -> Option<ReplayQualifiedArmChunkId> {
+        let root = root.expect("QORF arm removal target must exist");
+        if root != removed {
+            let removed_first = self.chunks[removed.0 as usize].entries[0];
+            let root_first = self.chunks[root.0 as usize].entries[0];
+            if cmp(removed_first, root_first).is_lt() {
+                self.chunks[root.0 as usize].left =
+                    self.unlink_node(self.chunks[root.0 as usize].left, removed, cmp);
+            } else {
+                self.chunks[root.0 as usize].right =
+                    self.unlink_node(self.chunks[root.0 as usize].right, removed, cmp);
+            }
+            return Some(self.rebalance(root));
+        }
+        let (left, right) = {
+            let node = &self.chunks[root.0 as usize];
+            (node.left, node.right)
+        };
+        match (left, right) {
+            (None, right) => right,
+            (left, None) => left,
+            (Some(left), Some(right)) => {
+                let (successor, new_right) = self.detach_min(right);
+                self.chunks[successor.0 as usize].left = Some(left);
+                self.chunks[successor.0 as usize].right = new_right;
+                Some(self.rebalance(successor))
+            }
+        }
+    }
+
+    fn target_chunk(
+        &self,
+        mut root: ReplayQualifiedArmChunkId,
+        entry: ReplayFiniteMapEntryId,
+        cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
+    ) -> ReplayQualifiedArmChunkId {
+        loop {
+            let node = &self.chunks[root.0 as usize];
+            if cmp(entry, node.entries[0]).is_lt() {
+                if let Some(left) = node.left {
+                    root = left;
+                    continue;
+                }
+            } else if cmp(entry, *node.entries.last().unwrap()).is_gt() {
+                if let Some(right) = node.right {
+                    root = right;
+                    continue;
+                }
+            }
+            return root;
+        }
+    }
+
+    fn remove(
+        &mut self,
+        result: ConstraintRecordId,
+        entry: ReplayFiniteMapEntryId,
+        cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
+    ) {
+        let tree = self.by_result[&result];
+        let target = self.target_chunk(tree.root.unwrap(), entry, cmp);
+        let position = self.chunks[target.0 as usize]
+            .entries
+            .iter()
+            .position(|candidate| *candidate == entry)
+            .expect("QORF arm rekey must remove its existing occurrence");
+        let new_root = if self.chunks[target.0 as usize].entries.len() == 1 {
+            self.unlink_node(tree.root, target, cmp)
+        } else {
+            self.chunks[target.0 as usize].entries.remove(position);
+            tree.root
+        };
+        let tree = self.by_result.get_mut(&result).unwrap();
+        tree.root = new_root;
+        tree.len -= 1;
+    }
+
+    fn insert(
+        &mut self,
+        result: ConstraintRecordId,
+        entry: ReplayFiniteMapEntryId,
+        mut buffers: QorfPreparedChunkBuffers<ReplayFiniteMapEntryId>,
+        cmp: &impl Fn(ReplayFiniteMapEntryId, ReplayFiniteMapEntryId) -> std::cmp::Ordering,
+    ) {
+        let tree = self.by_result.get(&result).copied().unwrap_or_default();
+        let Some(root) = tree.root else {
+            buffers.merged.push(entry);
+            let id = ReplayQualifiedArmChunkId(self.chunks.len() as u32);
+            self.chunks.push(ReplayQualifiedArmChunkNode {
+                entries: buffers.merged,
+                left: None,
+                right: None,
+                height: 1,
+            });
+            self.by_result.insert(
+                result,
+                ReplayQualifiedArmTree {
+                    root: Some(id),
+                    len: 1,
+                },
+            );
+            return;
+        };
+        let target = self.target_chunk(root, entry, cmp);
+        buffers
+            .merged
+            .extend_from_slice(&self.chunks[target.0 as usize].entries);
+        let position = buffers
+            .merged
+            .binary_search_by(|candidate| cmp(*candidate, entry))
+            .expect_err("QORF arm occurrence must be unique");
+        buffers.merged.insert(position, entry);
+        if buffers.merged.len() <= QORF_REPLAY_PARENT_CHUNK_CAPACITY {
+            self.chunks[target.0 as usize].entries = buffers.merged;
+        } else {
+            let middle = buffers.merged.len() / 2;
+            buffers.right.extend(buffers.merged.drain(middle..));
+            self.chunks[target.0 as usize].entries = buffers.merged;
+            let inserted = ReplayQualifiedArmChunkId(self.chunks.len() as u32);
+            self.chunks.push(ReplayQualifiedArmChunkNode {
+                entries: buffers.right,
+                left: None,
+                right: None,
+                height: 1,
+            });
+            let root = self.insert_node(Some(root), inserted, cmp);
+            self.by_result.get_mut(&result).unwrap().root = Some(root);
+        }
+        self.by_result.get_mut(&result).unwrap().len += 1;
+    }
+
+    #[cfg(test)]
+    fn flatten(&self, result: ConstraintRecordId) -> Vec<ReplayFiniteMapEntryId> {
+        fn append(
+            index: &ReplayQualifiedArmIndex,
+            node: Option<ReplayQualifiedArmChunkId>,
+            output: &mut Vec<ReplayFiniteMapEntryId>,
+        ) {
+            let Some(node) = node else { return };
+            let chunk = &index.chunks[node.0 as usize];
+            append(index, chunk.left, output);
+            output.extend_from_slice(&chunk.entries);
+            append(index, chunk.right, output);
+        }
+        let mut output = Vec::new();
+        let tree = self.by_result.get(&result).copied().unwrap_or_default();
+        output.reserve(tree.len as usize);
+        append(self, tree.root, &mut output);
+        output
+    }
+}
+
+impl CanonicalQualifiedParentRootIndex {
+    fn height(&self, id: Option<CanonicalQualifiedParentRootChunkId>) -> u8 {
+        id.map_or(0, |id| self.chunks[id.0 as usize].height)
+    }
+
+    fn update_height(&mut self, id: CanonicalQualifiedParentRootChunkId) {
+        let node = &self.chunks[id.0 as usize];
+        self.chunks[id.0 as usize].height = 1 + self.height(node.left).max(self.height(node.right));
+    }
+
+    fn rotate_left(
+        &mut self,
+        root: CanonicalQualifiedParentRootChunkId,
+    ) -> CanonicalQualifiedParentRootChunkId {
+        let pivot = self.chunks[root.0 as usize].right.unwrap();
+        self.chunks[root.0 as usize].right = self.chunks[pivot.0 as usize].left;
+        self.update_height(root);
+        self.chunks[pivot.0 as usize].left = Some(root);
+        self.update_height(pivot);
+        pivot
+    }
+
+    fn rotate_right(
+        &mut self,
+        root: CanonicalQualifiedParentRootChunkId,
+    ) -> CanonicalQualifiedParentRootChunkId {
+        let pivot = self.chunks[root.0 as usize].left.unwrap();
+        self.chunks[root.0 as usize].left = self.chunks[pivot.0 as usize].right;
+        self.update_height(root);
+        self.chunks[pivot.0 as usize].right = Some(root);
+        self.update_height(pivot);
+        pivot
+    }
+
+    fn rebalance(
+        &mut self,
+        root: CanonicalQualifiedParentRootChunkId,
+    ) -> CanonicalQualifiedParentRootChunkId {
+        self.update_height(root);
+        let node = &self.chunks[root.0 as usize];
+        let balance = i16::from(self.height(node.left)) - i16::from(self.height(node.right));
+        if balance > 1 {
+            let left = node.left.unwrap();
+            if self.height(self.chunks[left.0 as usize].right)
+                > self.height(self.chunks[left.0 as usize].left)
+            {
+                let rotated = self.rotate_left(left);
+                self.chunks[root.0 as usize].left = Some(rotated);
+            }
+            return self.rotate_right(root);
+        }
+        if balance < -1 {
+            let right = node.right.unwrap();
+            if self.height(self.chunks[right.0 as usize].left)
+                > self.height(self.chunks[right.0 as usize].right)
+            {
+                let rotated = self.rotate_right(right);
+                self.chunks[root.0 as usize].right = Some(rotated);
+            }
+            return self.rotate_left(root);
+        }
+        root
+    }
+
+    fn insert_node(
+        &mut self,
+        root: Option<CanonicalQualifiedParentRootChunkId>,
+        inserted: CanonicalQualifiedParentRootChunkId,
+    ) -> CanonicalQualifiedParentRootChunkId {
+        let Some(root) = root else { return inserted };
+        let incoming = self.chunks[inserted.0 as usize].entries[0].coverage_root;
+        let current = self.chunks[root.0 as usize].entries[0].coverage_root;
+        if incoming < current {
+            let child = self.insert_node(self.chunks[root.0 as usize].left, inserted);
+            self.chunks[root.0 as usize].left = Some(child);
+        } else {
+            assert!(incoming > current);
+            let child = self.insert_node(self.chunks[root.0 as usize].right, inserted);
+            self.chunks[root.0 as usize].right = Some(child);
+        }
+        self.rebalance(root)
+    }
+
+    fn target_chunk(
+        &self,
+        mut root: CanonicalQualifiedParentRootChunkId,
+        key: UpperReplayClaimId,
+    ) -> CanonicalQualifiedParentRootChunkId {
+        loop {
+            let node = &self.chunks[root.0 as usize];
+            if key < node.entries[0].coverage_root {
+                if let Some(left) = node.left {
+                    root = left;
+                    continue;
+                }
+            } else if key > node.entries.last().unwrap().coverage_root {
+                if let Some(right) = node.right {
+                    root = right;
+                    continue;
+                }
+            }
+            return root;
+        }
+    }
+
+    fn get(
+        &self,
+        result: ConstraintRecordId,
+        key: UpperReplayClaimId,
+    ) -> Option<CanonicalQualifiedParentRootEntry> {
+        let root = self.by_result.get(&result)?.root?;
+        let target = self.target_chunk(root, key);
+        let entries = &self.chunks[target.0 as usize].entries;
+        entries
+            .binary_search_by_key(&key, |entry| entry.coverage_root)
+            .ok()
+            .map(|index| entries[index])
+    }
+
+    fn apply(&mut self, update: QorfPreparedCanonicalRootWinnerUpdate) {
+        let result = update.result;
+        let entry = update.entry;
+        let mut buffers = update.buffers;
+        let tree = self.by_result.get(&result).copied().unwrap_or_default();
+        let Some(root) = tree.root else {
+            buffers.merged.push(entry);
+            let id = CanonicalQualifiedParentRootChunkId(self.chunks.len() as u32);
+            self.chunks.push(CanonicalQualifiedParentRootChunkNode {
+                entries: buffers.merged,
+                left: None,
+                right: None,
+                height: 1,
+            });
+            self.by_result.insert(
+                result,
+                CanonicalQualifiedParentRootTree {
+                    root: Some(id),
+                    len: 1,
+                },
+            );
+            return;
+        };
+        let target = self.target_chunk(root, entry.coverage_root);
+        let existing = &self.chunks[target.0 as usize].entries;
+        match existing.binary_search_by_key(&entry.coverage_root, |entry| entry.coverage_root) {
+            Ok(position) => self.chunks[target.0 as usize].entries[position] = entry,
+            Err(position) => {
+                buffers.merged.extend_from_slice(existing);
+                buffers.merged.insert(position, entry);
+                if buffers.merged.len() <= QORF_REPLAY_PARENT_CHUNK_CAPACITY {
+                    self.chunks[target.0 as usize].entries = buffers.merged;
+                } else {
+                    let middle = buffers.merged.len() / 2;
+                    buffers.right.extend(buffers.merged.drain(middle..));
+                    self.chunks[target.0 as usize].entries = buffers.merged;
+                    let inserted = CanonicalQualifiedParentRootChunkId(self.chunks.len() as u32);
+                    self.chunks.push(CanonicalQualifiedParentRootChunkNode {
+                        entries: buffers.right,
+                        left: None,
+                        right: None,
+                        height: 1,
+                    });
+                    let root = self.insert_node(Some(root), inserted);
+                    self.by_result.get_mut(&result).unwrap().root = Some(root);
+                }
+                self.by_result.get_mut(&result).unwrap().len += 1;
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn flatten(&self, result: ConstraintRecordId) -> Vec<CanonicalQualifiedParentRootEntry> {
+        fn append(
+            index: &CanonicalQualifiedParentRootIndex,
+            node: Option<CanonicalQualifiedParentRootChunkId>,
+            output: &mut Vec<CanonicalQualifiedParentRootEntry>,
+        ) {
+            let Some(node) = node else { return };
+            let chunk = &index.chunks[node.0 as usize];
+            append(index, chunk.left, output);
+            output.extend_from_slice(&chunk.entries);
+            append(index, chunk.right, output);
+        }
+        let mut output = Vec::new();
+        let tree = self.by_result.get(&result).copied().unwrap_or_default();
+        output.reserve(tree.len as usize);
+        append(self, tree.root, &mut output);
+        output
+    }
 }
 
 /// QORF-A's non-authoritative constructor boundary: all frontier allocation is fallible before an
@@ -3182,6 +3751,24 @@ struct QorfCFullStdParityReport {
     side_entries: usize,
     qualified_replay_entries: usize,
     qualified_replay_keys: usize,
+    replay_arms: usize,
+    root_winners: usize,
+    d0_projection_census: QorfD0ProjectionAllocationCensus,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct QorfD0ProjectionAllocationCensus {
+    arm_result_buckets: (usize, usize),
+    arm_chunks: (usize, usize),
+    arm_entries: (usize, usize),
+    root_result_buckets: (usize, usize),
+    root_chunks: (usize, usize),
+    root_entries: (usize, usize),
+    non_replay_entries: (usize, usize),
+    non_replay_result_buckets: (usize, usize),
+    non_replay_result_ids: (usize, usize),
+    capacity_inclusive_payload_bytes: usize,
 }
 
 #[cfg(test)]
@@ -3216,6 +3803,9 @@ pub(super) struct PreparedQualifiedParentAdmission {
         (ConstraintRecordId, UpperReplayClaimId),
         FirstQualifiedParentSource,
     )>,
+    new_non_replay_parents: Vec<ExactQualifiedParent>,
+    new_non_replay_result_entries: Option<Vec<NonReplayQualifiedParentId>>,
+    root_winner_updates: Vec<QorfPreparedCanonicalRootWinnerUpdate>,
     #[cfg(test)]
     pending_first_source_capacity: usize,
 }
@@ -3230,6 +3820,7 @@ pub(super) struct PreparedReplayQualifiedParentTransaction {
     accepted_parents: Vec<ReplayProofParent>,
     lower_shadow: Option<PreparedReplayParentSideShadowDelta>,
     upper_shadow: Option<PreparedReplayParentSideShadowDelta>,
+    arm_edit: Option<QorfPreparedReplayQualifiedArmEdit>,
     new_first_witnesses: Vec<((ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness)>,
     proof_occurrence: Option<ProofOccurrence>,
 }
@@ -3285,6 +3876,11 @@ pub(crate) struct ProofOccurrenceStore {
     replay_finite_map_index: FxHashMap<(ConstraintRecordId, BinaryReplayDerivation), usize>,
     replay_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
     replay_parent_chunks: ReplayParentChunkArena,
+    // QORF-D0 shadow projections. Production readers remain on the QORF-C/legacy authorities
+    // until D1; these are maintained only for parity and rollback-safe cutover preparation.
+    replay_qualified_arms: ReplayQualifiedArmIndex,
+    canonical_qualified_parent_by_root: CanonicalQualifiedParentRootIndex,
+    non_replay_qualified_parents: NonReplayQualifiedParentStore,
     pub(crate) replay_admissions: Vec<ReplayAdmissionEvent>,
     pub(crate) first_replay_witnesses:
         FxHashMap<(ConstraintRecordId, UpperReplayClaimId), ReplayFirstWitness>,
@@ -3416,6 +4012,9 @@ impl Default for ProofOccurrenceStore {
             replay_finite_map_index: FxHashMap::default(),
             replay_indices_by_result: FxHashMap::default(),
             replay_parent_chunks: ReplayParentChunkArena::default(),
+            replay_qualified_arms: ReplayQualifiedArmIndex::default(),
+            canonical_qualified_parent_by_root: CanonicalQualifiedParentRootIndex::default(),
+            non_replay_qualified_parents: NonReplayQualifiedParentStore::default(),
             replay_admissions: Vec::new(),
             first_replay_witnesses: FxHashMap::default(),
             upper_claims: Vec::new(),
@@ -8960,6 +9559,149 @@ impl ProofOccurrenceStore {
         self.replay_parent_chunks.contains(side_index, root)
     }
 
+    fn qorf_occurrence_first_exact_parent(
+        &self,
+        occurrence: ReplayFiniteMapEntryId,
+    ) -> ExactQualifiedParent {
+        qorf_occurrence_first_exact_parent(
+            &self.replay_finite_map,
+            &self.replay_parent_chunks,
+            occurrence,
+        )
+    }
+
+    fn qorf_exact_parent_for_root_ref(
+        &self,
+        result: ConstraintRecordId,
+        root: UpperReplayClaimId,
+        reference: CanonicalQualifiedParentRef,
+    ) -> ExactQualifiedParent {
+        match reference {
+            CanonicalQualifiedParentRef::Replay {
+                finite_map_id,
+                side,
+            } => {
+                let occurrence = &self.replay_finite_map[finite_map_id.0 as usize];
+                debug_assert_eq!(occurrence.result, result);
+                let side_index = match side {
+                    ReplayClaimParentSide::Lower => occurrence.replay_parent_sides[0],
+                    ReplayClaimParentSide::Upper => occurrence.replay_parent_sides[1],
+                };
+                let entry = self
+                    .replay_parent_chunks
+                    .qorf_entry(side_index, root)
+                    .expect("QORF root winner replay ref must resolve exactly");
+                ExactQualifiedParent {
+                    coverage_root: root,
+                    parent: ClaimQualifiedParent::ReplayConstraint {
+                        parent_claim: entry.representative_claim,
+                        parent_side: side,
+                        replay: occurrence.carrier,
+                    },
+                }
+            }
+            CanonicalQualifiedParentRef::NonReplay { parent_id } => {
+                let parent = self.non_replay_qualified_parents.entries[parent_id.0 as usize];
+                debug_assert_eq!(parent.coverage_root, root);
+                parent
+            }
+        }
+    }
+
+    fn try_prepare_qorf_root_winner_updates(
+        &mut self,
+        result: ConstraintRecordId,
+        mut candidates: Vec<(ExactQualifiedParent, CanonicalQualifiedParentRef)>,
+    ) -> Result<Vec<QorfPreparedCanonicalRootWinnerUpdate>, ProofFailure> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        candidates.sort_unstable_by(|left, right| {
+            left.0
+                .coverage_root
+                .cmp(&right.0.coverage_root)
+                .then_with(|| qualified_parent_entry_cmp(&left.0, &right.0))
+        });
+        candidates.dedup_by(|left, right| left.0.coverage_root == right.0.coverage_root);
+        let mut updates = Vec::new();
+        updates
+            .try_reserve_exact(candidates.len())
+            .map_err(exhausted)?;
+        let mut inserted = 0usize;
+        for (candidate, reference) in candidates {
+            let existing = self
+                .canonical_qualified_parent_by_root
+                .get(result, candidate.coverage_root);
+            if let Some(existing) = existing {
+                let current = self.qorf_exact_parent_for_root_ref(
+                    result,
+                    candidate.coverage_root,
+                    existing.winner,
+                );
+                if !qualified_parent_entry_cmp(&candidate, &current).is_lt() {
+                    continue;
+                }
+            } else {
+                inserted += 1;
+            }
+            updates.push(QorfPreparedCanonicalRootWinnerUpdate {
+                result,
+                entry: CanonicalQualifiedParentRootEntry {
+                    coverage_root: candidate.coverage_root,
+                    winner: reference,
+                },
+                buffers: QorfPreparedChunkBuffers::try_new()?,
+            });
+        }
+        if updates.is_empty() {
+            return Ok(updates);
+        }
+        if !self
+            .canonical_qualified_parent_by_root
+            .by_result
+            .contains_key(&result)
+        {
+            self.canonical_qualified_parent_by_root
+                .by_result
+                .try_reserve(1)
+                .map_err(exhausted)?;
+        }
+        let current_len = self
+            .canonical_qualified_parent_by_root
+            .by_result
+            .get(&result)
+            .map_or(0, |tree| tree.len);
+        let inserted_u32 =
+            u32::try_from(inserted).map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        current_len
+            .checked_add(inserted_u32)
+            .ok_or(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        self.canonical_qualified_parent_by_root
+            .chunks
+            .try_reserve(inserted)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        if inserted != 0 {
+            let last_new_chunk = self
+                .canonical_qualified_parent_by_root
+                .chunks
+                .len()
+                .checked_add(inserted - 1)
+                .ok_or(ProofFailure::ResourceExhausted {
+                    operation: ProofOperation::UpdateClaimLifecycle,
+                })?;
+            u32::try_from(last_new_chunk).map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        }
+        Ok(updates)
+    }
+
     pub(super) fn record_replay_admission(
         &mut self,
         result: Option<ConstraintRecordId>,
@@ -8982,7 +9724,7 @@ impl ProofOccurrenceStore {
         let exhausted = |_| ProofFailure::ResourceExhausted {
             operation: ProofOperation::UpdateClaimLifecycle,
         };
-        let qualified = self.try_prepare_qualified_parent_admission(result, parents)?;
+        let mut qualified = self.try_prepare_qualified_parent_admission(result, parents)?;
         #[cfg(test)]
         if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterQualified) {
             return Err(ProofFailure::ResourceExhausted {
@@ -9159,6 +9901,97 @@ impl ProofOccurrenceStore {
             });
         }
 
+        let occurrence_id = occurrence_index
+            .map(|index| u32::try_from(index).map(ReplayFiniteMapEntryId))
+            .unwrap_or_else(|| {
+                u32::try_from(self.replay_finite_map.len()).map(ReplayFiniteMapEntryId)
+            })
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        let accepted_first = qualified
+            .accepted
+            .iter()
+            .copied()
+            .min_by(qualified_parent_entry_cmp);
+        let arm_edit = if let Some(accepted_first) = accepted_first {
+            let old_first =
+                occurrence_index.map(|_| self.qorf_occurrence_first_exact_parent(occurrence_id));
+            if old_first.is_none()
+                || old_first
+                    .is_some_and(|old| qualified_parent_entry_cmp(&accepted_first, &old).is_lt())
+            {
+                if !self.replay_qualified_arms.by_result.contains_key(&result) {
+                    self.replay_qualified_arms
+                        .by_result
+                        .try_reserve(1)
+                        .map_err(exhausted)?;
+                }
+                let current_len = self
+                    .replay_qualified_arms
+                    .by_result
+                    .get(&result)
+                    .map_or(0, |tree| tree.len);
+                if old_first.is_none() {
+                    current_len
+                        .checked_add(1)
+                        .ok_or(ProofFailure::ResourceExhausted {
+                            operation: ProofOperation::UpdateClaimLifecycle,
+                        })?;
+                }
+                self.replay_qualified_arms
+                    .chunks
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+                u32::try_from(self.replay_qualified_arms.chunks.len()).map_err(|_| {
+                    ProofFailure::ResourceExhausted {
+                        operation: ProofOperation::UpdateClaimLifecycle,
+                    }
+                })?;
+                Some(QorfPreparedReplayQualifiedArmEdit {
+                    result,
+                    occurrence: occurrence_id,
+                    rekey: old_first.is_some(),
+                    buffers: QorfPreparedChunkBuffers::try_new()?,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        #[cfg(test)]
+        if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterArm) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+        let mut replay_root_candidates = Vec::new();
+        replay_root_candidates
+            .try_reserve_exact(qualified.accepted.len())
+            .map_err(exhausted)?;
+        for &entry in &qualified.accepted {
+            let ClaimQualifiedParent::ReplayConstraint { parent_side, .. } = entry.parent else {
+                unreachable!("replay transaction accepted only replay parents")
+            };
+            replay_root_candidates.push((
+                entry,
+                CanonicalQualifiedParentRef::Replay {
+                    finite_map_id: occurrence_id,
+                    side: parent_side,
+                },
+            ));
+        }
+        qualified
+            .root_winner_updates
+            .extend(self.try_prepare_qorf_root_winner_updates(result, replay_root_candidates)?);
+        #[cfg(test)]
+        if self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterRootWinner) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
+
         let mut new_first_witnesses = Vec::new();
         let mut pending_witnesses = FxHashSet::default();
         new_first_witnesses
@@ -9223,6 +10056,7 @@ impl ProofOccurrenceStore {
             accepted_parents,
             lower_shadow,
             upper_shadow,
+            arm_edit,
             new_first_witnesses,
             proof_occurrence,
         })
@@ -9283,6 +10117,20 @@ impl ProofOccurrenceStore {
             self.commit_qualified_parent_admission(&mut transaction.qualified);
             return;
         }
+        let arm_edit = transaction.arm_edit.take();
+        if arm_edit.as_ref().is_some_and(|edit| edit.rekey) {
+            let edit = arm_edit.as_ref().unwrap();
+            let occurrences = &self.replay_finite_map;
+            let chunks = &self.replay_parent_chunks;
+            let cmp = |left, right| {
+                qualified_parent_entry_cmp(
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, left),
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
+                )
+            };
+            self.replay_qualified_arms
+                .remove(edit.result, edit.occurrence, &cmp);
+        }
         let is_new_occurrence = transaction.new_occurrence.is_some();
         let index = if let Some(occurrence) = transaction.new_occurrence.take() {
             let index = self.replay_finite_map.len();
@@ -9333,6 +10181,18 @@ impl ProofOccurrenceStore {
                 delta,
             );
         }
+        if let Some(edit) = arm_edit {
+            let occurrences = &self.replay_finite_map;
+            let chunks = &self.replay_parent_chunks;
+            let cmp = |left, right| {
+                qualified_parent_entry_cmp(
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, left),
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
+                )
+            };
+            self.replay_qualified_arms
+                .insert(edit.result, edit.occurrence, edit.buffers, &cmp);
+        }
         for (key, witness) in transaction.new_first_witnesses.drain(..) {
             self.first_replay_witnesses.entry(key).or_insert(witness);
         }
@@ -9342,7 +10202,10 @@ impl ProofOccurrenceStore {
             self.occurrences.push(occurrence);
         }
         #[cfg(test)]
-        self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
+        {
+            self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
+            self.debug_assert_qorf_d0_projections_match_legacy(transaction.qualified.result);
+        }
     }
 
     #[cfg(test)]
@@ -9503,6 +10366,7 @@ impl ProofOccurrenceStore {
                 delta,
             );
         }
+        self.rebuild_qorf_d0_projections_for_test(result);
         self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
@@ -9513,6 +10377,79 @@ impl ProofOccurrenceStore {
             ],
             ProvenanceCompleteness::Complete,
         );
+    }
+
+    #[cfg(test)]
+    fn rebuild_qorf_d0_projections_for_test(&mut self, result: ConstraintRecordId) {
+        // This helper exists only for old fixtures that deliberately split qualified admission
+        // from their test snapshot writer. Production uses the unified prepared transaction.
+        self.replay_qualified_arms.by_result.remove(&result);
+        let mut seen = FxHashSet::default();
+        let legacy = self
+            .qualified_parents_by_result
+            .get(&result)
+            .cloned()
+            .unwrap_or_default();
+        for entry in &legacy {
+            let ClaimQualifiedParent::ReplayConstraint { replay, .. } = entry.parent else {
+                continue;
+            };
+            let occurrence = self.replay_finite_map_index[&(result, replay)];
+            if !seen.insert(occurrence) {
+                continue;
+            }
+            self.replay_qualified_arms.by_result.reserve(1);
+            self.replay_qualified_arms.chunks.reserve(1);
+            let occurrences = &self.replay_finite_map;
+            let chunks = &self.replay_parent_chunks;
+            let cmp = |left, right| {
+                qualified_parent_entry_cmp(
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, left),
+                    &qorf_occurrence_first_exact_parent(occurrences, chunks, right),
+                )
+            };
+            self.replay_qualified_arms.insert(
+                result,
+                ReplayFiniteMapEntryId(occurrence as u32),
+                QorfPreparedChunkBuffers::try_new().expect("test arm buffers"),
+                &cmp,
+            );
+        }
+
+        self.canonical_qualified_parent_by_root
+            .by_result
+            .remove(&result);
+        let mut previous_root = None;
+        for entry in legacy {
+            if previous_root == Some(entry.coverage_root) {
+                continue;
+            }
+            previous_root = Some(entry.coverage_root);
+            let winner = match entry.parent {
+                ClaimQualifiedParent::ReplayConstraint {
+                    parent_side,
+                    replay,
+                    ..
+                } => CanonicalQualifiedParentRef::Replay {
+                    finite_map_id: ReplayFiniteMapEntryId(
+                        self.replay_finite_map_index[&(result, replay)] as u32,
+                    ),
+                    side: parent_side,
+                },
+                _ => continue,
+            };
+            self.canonical_qualified_parent_by_root.by_result.reserve(1);
+            self.canonical_qualified_parent_by_root.chunks.reserve(1);
+            self.canonical_qualified_parent_by_root
+                .apply(QorfPreparedCanonicalRootWinnerUpdate {
+                    result,
+                    entry: CanonicalQualifiedParentRootEntry {
+                        coverage_root: entry.coverage_root,
+                        winner,
+                    },
+                    buffers: QorfPreparedChunkBuffers::try_new().expect("test root buffers"),
+                });
+        }
     }
 
     pub(super) fn record_replay_evidence(
@@ -9827,12 +10764,100 @@ impl ProofOccurrenceStore {
             .map_err(exhausted)?;
         canonical.extend_from_slice(&accepted);
         canonical.sort_unstable_by(qualified_parent_entry_cmp);
+        let mut new_non_replay_parents = Vec::new();
+        new_non_replay_parents
+            .try_reserve_exact(accepted.len())
+            .map_err(exhausted)?;
+        let mut root_candidates = Vec::new();
+        root_candidates
+            .try_reserve_exact(accepted.len())
+            .map_err(exhausted)?;
+        for &entry in &accepted {
+            if matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. }) {
+                continue;
+            }
+            let id = u32::try_from(
+                self.non_replay_qualified_parents.entries.len() + new_non_replay_parents.len(),
+            )
+            .map(NonReplayQualifiedParentId)
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+            new_non_replay_parents.push(entry);
+            root_candidates.push((
+                entry,
+                CanonicalQualifiedParentRef::NonReplay { parent_id: id },
+            ));
+        }
+        self.non_replay_qualified_parents
+            .entries
+            .try_reserve(new_non_replay_parents.len())
+            .map_err(exhausted)?;
+        let new_non_replay_result_entries = if new_non_replay_parents.is_empty() {
+            None
+        } else {
+            let existing = self
+                .non_replay_qualified_parents
+                .by_result
+                .get(&result)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let mut entries = Vec::new();
+            entries
+                .try_reserve_exact(existing.len() + new_non_replay_parents.len())
+                .map_err(exhausted)?;
+            entries.extend_from_slice(existing);
+            let first_new = self.non_replay_qualified_parents.entries.len();
+            for offset in 0..new_non_replay_parents.len() {
+                let id = u32::try_from(first_new + offset)
+                    .map(NonReplayQualifiedParentId)
+                    .map_err(|_| ProofFailure::ResourceExhausted {
+                        operation: ProofOperation::UpdateClaimLifecycle,
+                    })?;
+                entries.push(id);
+            }
+            entries.sort_unstable_by(|left, right| {
+                let resolve = |id: NonReplayQualifiedParentId| {
+                    let index = id.0 as usize;
+                    if index < first_new {
+                        self.non_replay_qualified_parents.entries[index]
+                    } else {
+                        new_non_replay_parents[index - first_new]
+                    }
+                };
+                qualified_parent_entry_cmp(&resolve(*left), &resolve(*right))
+            });
+            if !self
+                .non_replay_qualified_parents
+                .by_result
+                .contains_key(&result)
+            {
+                self.non_replay_qualified_parents
+                    .by_result
+                    .try_reserve(1)
+                    .map_err(exhausted)?;
+            }
+            Some(entries)
+        };
+        let root_winner_updates =
+            self.try_prepare_qorf_root_winner_updates(result, root_candidates)?;
+        #[cfg(test)]
+        if !root_winner_updates.is_empty()
+            && self.qorf_fail_after(QorfReplayReservationFailurePoint::AfterRootWinner)
+        {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
         Ok(PreparedQualifiedParentAdmission {
             result,
             accepted,
             canonical,
             new_result_entries,
             new_first_sources,
+            new_non_replay_parents,
+            new_non_replay_result_entries,
+            root_winner_updates,
             #[cfg(test)]
             pending_first_source_capacity: pending_first_source_keys.capacity(),
         })
@@ -9884,11 +10909,30 @@ impl ProofOccurrenceStore {
                 .insert(key, source)
                 .is_none());
         }
+        self.non_replay_qualified_parents
+            .entries
+            .extend(admission.new_non_replay_parents.drain(..));
+        if let Some(entries) = admission.new_non_replay_result_entries.take() {
+            self.non_replay_qualified_parents
+                .by_result
+                .insert(admission.result, entries);
+        }
+        for update in admission.root_winner_updates.drain(..) {
+            self.canonical_qualified_parent_by_root.apply(update);
+        }
         let entries = self
             .qualified_parents_by_result
             .get_mut(&admission.result)
             .expect("qualified-parent result capacity was prepared before commit");
         merge_qualified_parent_entries(entries, &admission.canonical);
+        #[cfg(test)]
+        if admission
+            .accepted
+            .iter()
+            .all(|entry| !matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. }))
+        {
+            self.debug_assert_qorf_d0_projections_match_legacy(admission.result);
+        }
     }
 
     pub(super) fn qualified_parents_for_result(
@@ -9912,6 +10956,93 @@ impl ProofOccurrenceStore {
 
     pub(super) fn qualified_parent_count(&self, result: ConstraintRecordId) -> usize {
         self.qualified_parents_for_result(result).len()
+    }
+
+    fn try_exact_qualified_parents(
+        &self,
+        result: ConstraintRecordId,
+    ) -> ProofKernelResult<QorfExactQualifiedParentCursor<'_>> {
+        let exhausted = |_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        };
+        let replay_indices = self
+            .replay_indices_by_result
+            .get(&result)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let non_replay_ids = self
+            .non_replay_qualified_parents
+            .by_result
+            .get(&result)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let replay_source_count = replay_indices
+            .iter()
+            .map(|&index| {
+                self.replay_finite_map[index]
+                    .replay_parent_sides
+                    .iter()
+                    .filter(|side| side.len != 0)
+                    .count()
+            })
+            .sum::<usize>();
+        let source_count = replay_source_count + usize::from(!non_replay_ids.is_empty());
+        let mut sources = Vec::new();
+        sources.try_reserve_exact(source_count).map_err(exhausted)?;
+        for &index in replay_indices {
+            let occurrence = &self.replay_finite_map[index];
+            for (side, side_index) in [
+                (
+                    ReplayClaimParentSide::Lower,
+                    occurrence.replay_parent_sides[0],
+                ),
+                (
+                    ReplayClaimParentSide::Upper,
+                    occurrence.replay_parent_sides[1],
+                ),
+            ] {
+                if side_index.len == 0 {
+                    continue;
+                }
+                sources.push(QorfExactQualifiedParentSource::Replay {
+                    carrier: occurrence.carrier,
+                    cursor: ReplayParentSideCursor::new(
+                        &self.replay_parent_chunks,
+                        side_index,
+                        side,
+                    ),
+                });
+            }
+        }
+        if !non_replay_ids.is_empty() {
+            sources.push(QorfExactQualifiedParentSource::NonReplay {
+                entries: &self.non_replay_qualified_parents.entries,
+                ids: non_replay_ids,
+                position: 0,
+            });
+        }
+        debug_assert_eq!(sources.len(), source_count);
+        let mut frontier = std::collections::BinaryHeap::new();
+        frontier
+            .try_reserve_exact(source_count)
+            .map_err(exhausted)?;
+        for (source, cursor) in sources.iter_mut().enumerate() {
+            let parent = cursor
+                .next_parent()
+                .expect("QORF exact cursor sources must be nonempty");
+            frontier.push(QorfExactQualifiedParentHeapEntry { parent, source });
+        }
+        Ok(QorfExactQualifiedParentCursor { sources, frontier })
+    }
+
+    fn try_replay_clause_link_associations(
+        &self,
+        result: ConstraintRecordId,
+    ) -> ProofKernelResult<QorfClauseLinkAssociationCursor<'_>> {
+        Ok(QorfClauseLinkAssociationCursor {
+            exact: self.try_exact_qualified_parents(result)?,
+            previous: None,
+        })
     }
 
     /// Retained QORF-A oracle. Both faces are expanded independently into the exact identity/value
@@ -9980,6 +11111,104 @@ impl ProofOccurrenceStore {
         self.qorf_a_replay_relation_snapshot().assert_exact_parity();
     }
 
+    #[cfg(test)]
+    fn debug_assert_qorf_d0_projections_match_legacy(&self, result: ConstraintRecordId) {
+        if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
+            return;
+        }
+        let Some(legacy) = self.qualified_parents_by_result.get(&result) else {
+            return;
+        };
+        if legacy.iter().any(|entry| {
+            let ClaimQualifiedParent::ReplayConstraint { replay, .. } = entry.parent else {
+                return false;
+            };
+            !self.replay_finite_map_index.contains_key(&(result, replay))
+        }) {
+            // A few old unit-test bypasses admit the qualified face before their test-only
+            // snapshot writer creates an occurrence. Production never exposes this midpoint.
+            return;
+        }
+
+        let mut expected_arms = Vec::new();
+        let mut seen = FxHashSet::default();
+        for entry in legacy {
+            let ClaimQualifiedParent::ReplayConstraint { replay, .. } = entry.parent else {
+                continue;
+            };
+            let occurrence = self.replay_finite_map_index[&(result, replay)];
+            if seen.insert(occurrence) {
+                expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+            }
+        }
+        assert_eq!(self.replay_qualified_arms.flatten(result), expected_arms);
+
+        let mut expected_winners = Vec::new();
+        let mut previous_root = None;
+        for &entry in legacy {
+            if previous_root == Some(entry.coverage_root) {
+                continue;
+            }
+            previous_root = Some(entry.coverage_root);
+            expected_winners.push(entry);
+        }
+        let actual_winners = self
+            .canonical_qualified_parent_by_root
+            .flatten(result)
+            .into_iter()
+            .map(|entry| {
+                self.qorf_exact_parent_for_root_ref(result, entry.coverage_root, entry.winner)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual_winners, expected_winners);
+
+        let expected_non_replay = legacy
+            .iter()
+            .copied()
+            .filter(|entry| !matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. }))
+            .collect::<Vec<_>>();
+        let actual_non_replay = self
+            .non_replay_qualified_parents
+            .by_result
+            .get(&result)
+            .into_iter()
+            .flatten()
+            .map(|id| self.non_replay_qualified_parents.entries[id.0 as usize])
+            .collect::<Vec<_>>();
+        assert_eq!(actual_non_replay, expected_non_replay);
+
+        let actual_exact = self
+            .try_exact_qualified_parents(result)
+            .expect("QORF fixture exact cursor construction")
+            .collect::<Vec<_>>();
+        assert_eq!(actual_exact.as_slice(), legacy.as_slice());
+
+        let mut expected_associations = Vec::new();
+        for &entry in legacy {
+            let key = (
+                entry.coverage_root,
+                qualified_parent_projection_carrier(entry.parent),
+            );
+            if expected_associations
+                .last()
+                .is_some_and(|previous: &ExactQualifiedParent| {
+                    (
+                        previous.coverage_root,
+                        qualified_parent_projection_carrier(previous.parent),
+                    ) == key
+                })
+            {
+                continue;
+            }
+            expected_associations.push(entry);
+        }
+        let actual_associations = self
+            .try_replay_clause_link_associations(result)
+            .expect("QORF fixture association cursor construction")
+            .collect::<Vec<_>>();
+        assert_eq!(actual_associations, expected_associations);
+    }
+
     /// Exhaustive, allocation-bounded QORF-C authority gate for the repository-std workload.
     ///
     /// This streams the 50M-scale relation instead of constructing the retained QORF-A pair of
@@ -9994,6 +11223,9 @@ impl ProofOccurrenceStore {
             side_entries: 0,
             qualified_replay_entries: 0,
             qualified_replay_keys: 0,
+            replay_arms: 0,
+            root_winners: 0,
+            d0_projection_census: QorfD0ProjectionAllocationCensus::default(),
         };
         let mut expected_side = Vec::new();
 
@@ -10025,6 +11257,30 @@ impl ProofOccurrenceStore {
         }
 
         for (&result, parents) in &self.qualified_parents_by_result {
+            assert!(
+                self.try_exact_qualified_parents(result)
+                    .expect("QORF-D0 full-std exact cursor construction")
+                    .eq(parents.iter().copied()),
+                "QORF-D0 exact compatibility cursor diverged for {result:?}",
+            );
+            let mut previous_association = None;
+            let expected_associations = parents.iter().copied().filter(|parent| {
+                let key = (
+                    parent.coverage_root,
+                    qualified_parent_projection_carrier(parent.parent),
+                );
+                if previous_association == Some(key) {
+                    return false;
+                }
+                previous_association = Some(key);
+                true
+            });
+            assert!(
+                self.try_replay_clause_link_associations(result)
+                    .expect("QORF-D0 full-std association cursor construction")
+                    .eq(expected_associations),
+                "QORF-D0 clause-link association cursor diverged for {result:?}",
+            );
             for parent in parents {
                 let ClaimQualifiedParent::ReplayConstraint {
                     parent_claim,
@@ -10064,6 +11320,36 @@ impl ProofOccurrenceStore {
                     "QORF-C full-std side value diverged for ({result:?}, {replay:?}, {parent_side:?})",
                 );
             }
+            let mut expected_arms = Vec::new();
+            let mut seen_occurrences = FxHashSet::default();
+            let mut expected_winners = Vec::new();
+            let mut previous_root = None;
+            for &parent in parents {
+                if previous_root != Some(parent.coverage_root) {
+                    previous_root = Some(parent.coverage_root);
+                    expected_winners.push(parent);
+                }
+                let ClaimQualifiedParent::ReplayConstraint { replay, .. } = parent.parent else {
+                    continue;
+                };
+                let occurrence = self.replay_finite_map_index[&(result, replay)];
+                if seen_occurrences.insert(occurrence) {
+                    expected_arms.push(ReplayFiniteMapEntryId(occurrence as u32));
+                }
+            }
+            let actual_arms = self.replay_qualified_arms.flatten(result);
+            assert_eq!(actual_arms, expected_arms);
+            report.replay_arms += actual_arms.len();
+            let actual_winners = self
+                .canonical_qualified_parent_by_root
+                .flatten(result)
+                .into_iter()
+                .map(|entry| {
+                    self.qorf_exact_parent_for_root_ref(result, entry.coverage_root, entry.winner)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual_winners, expected_winners);
+            report.root_winners += actual_winners.len();
         }
 
         for key in &self.qualified_parent_keys {
@@ -10088,7 +11374,81 @@ impl ProofOccurrenceStore {
 
         assert_eq!(report.side_entries, report.qualified_replay_entries);
         assert_eq!(report.side_entries, report.qualified_replay_keys);
+        report.d0_projection_census = self.qorf_d0_projection_allocation_census();
         report
+    }
+
+    #[cfg(test)]
+    fn qorf_d0_projection_allocation_census(&self) -> QorfD0ProjectionAllocationCensus {
+        let arm_entries = self
+            .replay_qualified_arms
+            .chunks
+            .iter()
+            .map(|chunk| (chunk.entries.len(), chunk.entries.capacity()))
+            .fold((0, 0), |total, next| (total.0 + next.0, total.1 + next.1));
+        let root_entries = self
+            .canonical_qualified_parent_by_root
+            .chunks
+            .iter()
+            .map(|chunk| (chunk.entries.len(), chunk.entries.capacity()))
+            .fold((0, 0), |total, next| (total.0 + next.0, total.1 + next.1));
+        let non_replay_result_ids = self
+            .non_replay_qualified_parents
+            .by_result
+            .values()
+            .map(|ids| (ids.len(), ids.capacity()))
+            .fold((0, 0), |total, next| (total.0 + next.0, total.1 + next.1));
+        let arm_result_buckets = (
+            self.replay_qualified_arms.by_result.len(),
+            self.replay_qualified_arms.by_result.capacity(),
+        );
+        let arm_chunks = (
+            self.replay_qualified_arms.chunks.len(),
+            self.replay_qualified_arms.chunks.capacity(),
+        );
+        let root_result_buckets = (
+            self.canonical_qualified_parent_by_root.by_result.len(),
+            self.canonical_qualified_parent_by_root.by_result.capacity(),
+        );
+        let root_chunks = (
+            self.canonical_qualified_parent_by_root.chunks.len(),
+            self.canonical_qualified_parent_by_root.chunks.capacity(),
+        );
+        let non_replay_entries = (
+            self.non_replay_qualified_parents.entries.len(),
+            self.non_replay_qualified_parents.entries.capacity(),
+        );
+        let non_replay_result_buckets = (
+            self.non_replay_qualified_parents.by_result.len(),
+            self.non_replay_qualified_parents.by_result.capacity(),
+        );
+        let capacity_inclusive_payload_bytes = arm_result_buckets.1
+            * (std::mem::size_of::<ConstraintRecordId>()
+                + std::mem::size_of::<ReplayQualifiedArmTree>())
+            + arm_chunks.1 * std::mem::size_of::<ReplayQualifiedArmChunkNode>()
+            + arm_entries.1 * std::mem::size_of::<ReplayFiniteMapEntryId>()
+            + root_result_buckets.1
+                * (std::mem::size_of::<ConstraintRecordId>()
+                    + std::mem::size_of::<CanonicalQualifiedParentRootTree>())
+            + root_chunks.1 * std::mem::size_of::<CanonicalQualifiedParentRootChunkNode>()
+            + root_entries.1 * std::mem::size_of::<CanonicalQualifiedParentRootEntry>()
+            + non_replay_entries.1 * std::mem::size_of::<ExactQualifiedParent>()
+            + non_replay_result_buckets.1
+                * (std::mem::size_of::<ConstraintRecordId>()
+                    + std::mem::size_of::<Vec<NonReplayQualifiedParentId>>())
+            + non_replay_result_ids.1 * std::mem::size_of::<NonReplayQualifiedParentId>();
+        QorfD0ProjectionAllocationCensus {
+            arm_result_buckets,
+            arm_chunks,
+            arm_entries,
+            root_result_buckets,
+            root_chunks,
+            root_entries,
+            non_replay_entries,
+            non_replay_result_buckets,
+            non_replay_result_ids,
+            capacity_inclusive_payload_bytes,
+        }
     }
 
     pub(super) fn contains_qualified_parent_carrier(
@@ -10504,6 +11864,43 @@ impl ProofOccurrenceStore {
             ProvenanceCompleteness::Complete,
         );
     }
+}
+
+fn qorf_occurrence_first_exact_parent(
+    occurrences: &[ReplayProofOccurrence],
+    chunks: &ReplayParentChunkArena,
+    occurrence: ReplayFiniteMapEntryId,
+) -> ExactQualifiedParent {
+    let occurrence = &occurrences[occurrence.0 as usize];
+    [
+        (
+            ReplayClaimParentSide::Lower,
+            occurrence.replay_parent_sides[0],
+        ),
+        (
+            ReplayClaimParentSide::Upper,
+            occurrence.replay_parent_sides[1],
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(side, index)| {
+        let root = index.root?;
+        let mut node = root;
+        while let Some(left) = chunks.node(node).left {
+            node = left;
+        }
+        let entry = chunks.node(node).entries[0];
+        Some(ExactQualifiedParent {
+            coverage_root: entry.coverage_root,
+            parent: ClaimQualifiedParent::ReplayConstraint {
+                parent_claim: entry.representative_claim,
+                parent_side: side,
+                replay: occurrence.carrier,
+            },
+        })
+    })
+    .min_by(qualified_parent_entry_cmp)
+    .expect("QORF arm occurrence must have a nonempty side")
 }
 
 fn qualified_parent_entry_cmp(
@@ -17079,6 +18476,8 @@ mod tests {
             QorfReplayReservationFailurePoint::AfterReplayFiniteMapIndex,
             QorfReplayReservationFailurePoint::AfterReplayResultIndex,
             QorfReplayReservationFailurePoint::AfterOccurrence,
+            QorfReplayReservationFailurePoint::AfterArm,
+            QorfReplayReservationFailurePoint::AfterRootWinner,
             QorfReplayReservationFailurePoint::AfterSummary,
             QorfReplayReservationFailurePoint::AfterProofOccurrence,
         ] {
@@ -17100,6 +18499,17 @@ mod tests {
                 fixture.machine.proof_store.replay_finite_map_index.clone(),
                 fixture.machine.proof_store.replay_indices_by_result.clone(),
                 fixture.machine.proof_store.replay_parent_chunks.clone(),
+                fixture.machine.proof_store.replay_qualified_arms.clone(),
+                fixture
+                    .machine
+                    .proof_store
+                    .canonical_qualified_parent_by_root
+                    .clone(),
+                fixture
+                    .machine
+                    .proof_store
+                    .non_replay_qualified_parents
+                    .clone(),
                 fixture.machine.proof_store.first_replay_witnesses.clone(),
                 fixture.machine.proof_store.occurrences.clone(),
             );
@@ -17133,6 +18543,17 @@ mod tests {
                     fixture.machine.proof_store.replay_finite_map_index.clone(),
                     fixture.machine.proof_store.replay_indices_by_result.clone(),
                     fixture.machine.proof_store.replay_parent_chunks.clone(),
+                    fixture.machine.proof_store.replay_qualified_arms.clone(),
+                    fixture
+                        .machine
+                        .proof_store
+                        .canonical_qualified_parent_by_root
+                        .clone(),
+                    fixture
+                        .machine
+                        .proof_store
+                        .non_replay_qualified_parents
+                        .clone(),
                     fixture.machine.proof_store.first_replay_witnesses.clone(),
                     fixture.machine.proof_store.occurrences.clone(),
                 ),
@@ -17231,6 +18652,150 @@ mod tests {
         assert!(duplicate_transaction.accepted().is_empty());
     }
 
+    #[test]
+    fn qorf_d0_rekeys_one_arm_and_replaces_replay_root_winner_with_structural() {
+        let mut machine = cpk_machine();
+        let (lower, lower_claim) = cpk_7_record_original_claim(&mut machine, 120_900);
+        let (upper, upper_claim) = cpk_7_record_original_claim(&mut machine, 120_901);
+        let result = ConstraintRecordId(120_902);
+        let carrier = BinaryReplayDerivation {
+            pivot: TypeVar(120_903),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        for (claim, side) in [
+            (upper_claim, ReplayClaimParentSide::Upper),
+            (lower_claim, ReplayClaimParentSide::Lower),
+        ] {
+            let mut transaction = machine
+                .proof_store
+                .try_prepare_replay_qualified_parent_transaction(
+                    result,
+                    carrier,
+                    &[ClaimQualifiedParent::ReplayConstraint {
+                        parent_claim: claim,
+                        parent_side: side,
+                        replay: carrier,
+                    }],
+                )
+                .expect("QORF-D0 replay arm admission");
+            machine
+                .proof_store
+                .commit_replay_qualified_parent_transaction(&mut transaction);
+        }
+        assert_eq!(
+            machine.proof_store.replay_qualified_arms.flatten(result),
+            vec![ReplayFiniteMapEntryId(0)],
+            "late smaller-side extension rekeys rather than duplicating the occurrence arm",
+        );
+        assert_eq!(
+            machine
+                .proof_store
+                .canonical_qualified_parent_by_root
+                .flatten(result)
+                .len(),
+            2,
+        );
+
+        let lower_root = machine
+            .proof_store
+            .claim_coverage_root(lower_claim)
+            .unwrap();
+        assert_eq!(
+            machine
+                .proof_store
+                .first_qualified_parent_source(result, lower_root),
+            Some(FirstQualifiedParentSource::Replay),
+        );
+        let structural = ClaimQualifiedParent::StructuralConstraint {
+            parent_claim: lower_claim,
+            derivation: StructuralDerivation {
+                parent: ConstraintRecordId(120_904),
+                rule: StructuralDerivationRule::FunctionReturn,
+            },
+        };
+        let mut admission = machine
+            .proof_store
+            .try_prepare_qualified_parent_admission(result, &[structural])
+            .expect("QORF-D0 structural root winner replacement");
+        machine
+            .proof_store
+            .commit_qualified_parent_admission(&mut admission);
+        let winner = machine
+            .proof_store
+            .canonical_qualified_parent_by_root
+            .get(result, lower_root)
+            .expect("root winner remains present");
+        assert!(matches!(
+            winner.winner,
+            CanonicalQualifiedParentRef::NonReplay { .. }
+        ));
+        assert_eq!(
+            machine
+                .proof_store
+                .first_qualified_parent_source(result, lower_root),
+            Some(FirstQualifiedParentSource::Replay),
+            "canonical winner replacement must not rewrite historical first-source state",
+        );
+        machine
+            .proof_store
+            .debug_assert_qorf_d0_projections_match_legacy(result);
+    }
+
+    #[test]
+    fn qorf_d0_non_replay_root_reservation_failure_commits_no_inner_state_or_event() {
+        let mut machine = cpk_machine();
+        let (_, parent_claim) = cpk_7_record_original_claim(&mut machine, 120_950);
+        let result = ConstraintRecordId(120_951);
+        let parent = ClaimQualifiedParent::StructuralConstraint {
+            parent_claim,
+            derivation: StructuralDerivation {
+                parent: ConstraintRecordId(120_952),
+                rule: StructuralDerivationRule::FunctionReturn,
+            },
+        };
+        let before = (
+            machine.proof_store.qualified_parent_keys.clone(),
+            machine.proof_store.qualified_parents_by_result.clone(),
+            machine
+                .proof_store
+                .first_qualified_parent_source_by_root
+                .clone(),
+            machine
+                .proof_store
+                .canonical_qualified_parent_by_root
+                .clone(),
+            machine.proof_store.non_replay_qualified_parents.clone(),
+            machine.proof_store.replay_admissions.clone(),
+        );
+        machine
+            .proof_store
+            .fail_qorf_replay_reservation_after(QorfReplayReservationFailurePoint::AfterRootWinner);
+        let failure = machine
+            .proof_store
+            .try_prepare_qualified_parent_admission(result, &[parent])
+            .expect_err("injected non-replay root reservation failure");
+        assert!(matches!(failure, ProofFailure::ResourceExhausted { .. }));
+        assert_eq!(
+            (
+                machine.proof_store.qualified_parent_keys.clone(),
+                machine.proof_store.qualified_parents_by_result.clone(),
+                machine
+                    .proof_store
+                    .first_qualified_parent_source_by_root
+                    .clone(),
+                machine
+                    .proof_store
+                    .canonical_qualified_parent_by_root
+                    .clone(),
+                machine.proof_store.non_replay_qualified_parents.clone(),
+                machine.proof_store.replay_admissions.clone(),
+            ),
+            before,
+        );
+    }
+
     /// Reproducible QORF-C cutover gate from design §8. This is intentionally excluded from the
     /// fast suite: it lowers the complete repository std graph and then streams every legacy
     /// qualified replay key/value and every occurrence side through the authoritative side AVL.
@@ -17269,13 +18834,29 @@ mod tests {
             .qorf_c_full_std_parity_report();
         assert!(report.occurrences > 0);
         assert!(report.side_entries > 0);
+        assert_eq!(
+            report.d0_projection_census.arm_entries.0,
+            report.occurrences
+        );
+        assert_eq!(
+            report.d0_projection_census.root_entries.0,
+            report.root_winners,
+        );
+        assert!(
+            report.d0_projection_census.arm_entries.0 < report.side_entries
+                && report.d0_projection_census.root_entries.0 < report.side_entries,
+            "QORF-D0 compact projections must not reproduce exact-parent cardinality",
+        );
         eprintln!(
-            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} mismatches=0",
+            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} replay_arms={} root_winners={} d0_census={:?} mismatches=0",
             report.occurrences,
             report.nonempty_sides,
             report.side_entries,
             report.qualified_replay_entries,
             report.qualified_replay_keys,
+            report.replay_arms,
+            report.root_winners,
+            report.d0_projection_census,
         );
     }
 
