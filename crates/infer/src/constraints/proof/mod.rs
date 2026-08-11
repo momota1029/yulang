@@ -1019,8 +1019,8 @@ type RawProjectionClauseLinkIdentity = (
     RecordProofClause,
 );
 
-// PCLF-B maintains this factored representation as a write-only shadow. Legacy storage remains
-// the sole production read authority until the later cutover slices.
+// PCLF-C makes exact-link and distinct-clause membership authoritative here. Formula/evaluator
+// and GWCB reads remain on legacy storage until PCLF-D, while all legacy faces stay dual-written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ProjectionFormulaEntryId(u32);
 
@@ -1046,6 +1046,8 @@ struct ProjectionSupportGroup {
 enum ProjectionIncidenceMetadata {
     Independent,
     Claimed(ClaimedProjectionSourceTemplate),
+    #[cfg(test)]
+    IndependentWithForcedLineage(ProjectionLineage),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1129,6 +1131,34 @@ struct ProjectionFormulaMovementCensus {
 struct ProjectionFormulaStore {
     by_record: FxHashMap<BoundRecordId, ProjectionFormulaBucket>,
     movement: ProjectionFormulaMovementCensus,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProjectionClauseMembershipCensus {
+    membership_queries: usize,
+    record_bucket_hash_lookups: usize,
+    support_hash_lookups: usize,
+    clause_hash_lookups: usize,
+    incidence_hash_lookups: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static PROJECTION_CLAUSE_MEMBERSHIP_CENSUS: Cell<ProjectionClauseMembershipCensus> =
+        const { Cell::new(ProjectionClauseMembershipCensus {
+            membership_queries: 0,
+            record_bucket_hash_lookups: 0,
+            support_hash_lookups: 0,
+            clause_hash_lookups: 0,
+            incidence_hash_lookups: 0,
+        }) };
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProjectionClauseMembership {
+    exact_link_registered: bool,
+    clause_registered: bool,
 }
 
 #[cfg(test)]
@@ -1447,6 +1477,11 @@ impl ProjectionFormulaBucket {
         let metadata = self.exact_links[&(support_id, entry_id)];
         let attribution = match (metadata, entry.clause) {
             (ProjectionIncidenceMetadata::Independent, _) => None,
+            #[cfg(test)]
+            (
+                ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage),
+                RecordProofClause::Standalone { .. },
+            ) => Some(lineage),
             (
                 ProjectionIncidenceMetadata::Claimed(
                     ClaimedProjectionSourceTemplate::Original { .. },
@@ -1622,6 +1657,10 @@ impl ProjectionFormulaStore {
                 model.distinct_clauses.insert((record, clause));
                 match metadata {
                     ProjectionIncidenceMetadata::Independent => {
+                        model.independent_links.insert(identity);
+                    }
+                    #[cfg(test)]
+                    ProjectionIncidenceMetadata::IndependentWithForcedLineage(_) => {
                         model.independent_links.insert(identity);
                     }
                     ProjectionIncidenceMetadata::Claimed(template) => {
@@ -1803,12 +1842,14 @@ pub(crate) struct ProofOccurrenceStore {
     projection_lower_records_by_root: FxHashMap<UpperReplayClaimId, Vec<BoundRecordId>>,
     projection_lower_record_memberships: FxHashSet<(UpperReplayClaimId, BoundRecordId)>,
     projection_formulas: FxHashMap<BoundRecordId, Vec<ProjectionClause>>,
-    // PCLF-B write-only shadow. Production consumers remain on the legacy faces in this slice.
+    // PCLF-C reads exact-link/distinct-clause membership here; later consumers remain legacy.
     projection_formula_shadow: ProjectionFormulaStore,
     // Formula storage preserves full clauses; this narrow mirror serves semantic support
     // membership without rebuilding or scanning those formulas in the evaluator hot path.
     projection_formula_support_keys:
         FxHashMap<BoundRecordId, FxHashSet<ProjectionSupportMatchKey>>,
+    // PCLF-C retains this legacy face only for dual-write parity/allocation oracles.
+    // Production distinct-clause membership reads `projection_formula_shadow.entry_by_clause`.
     projection_clause_keys: FxHashSet<(BoundRecordId, RecordProofClause)>,
     // Claimed raw links live in `projection_claimed_link_audit`; retaining them here as well
     // would duplicate the full raw identity for every GWCB certificate.  The two stores are a
@@ -2096,6 +2137,10 @@ impl ProofOccurrenceStore {
                 (0usize, 0usize),
                 |(independent, claimed), value| match value {
                     ProjectionIncidenceMetadata::Independent => (independent + 1, claimed),
+                    #[cfg(test)]
+                    ProjectionIncidenceMetadata::IndependentWithForcedLineage(_) => {
+                        (independent + 1, claimed)
+                    }
                     ProjectionIncidenceMetadata::Claimed(_) => (independent, claimed + 1),
                 },
             );
@@ -3661,6 +3706,64 @@ impl ProofOccurrenceStore {
         support: SchemeProjectionProofSupport,
         clause: RecordProofClause,
     ) -> bool {
+        self.projection_clause_membership(lower_record, support, clause)
+            .exact_link_registered
+    }
+
+    fn projection_clause_membership(
+        &self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> ProjectionClauseMembership {
+        let bucket = self.projection_formula_shadow.by_record.get(&lower_record);
+        let support_id = bucket
+            .and_then(|bucket| bucket.support_group_by_raw.get(&support).copied());
+        let entry_id = bucket.and_then(|bucket| bucket.entry_by_clause.get(&clause).copied());
+        let exact_link_registered = match (bucket, support_id, entry_id) {
+            (Some(bucket), Some(support_id), Some(entry_id)) => {
+                bucket.exact_links.contains_key(&(support_id, entry_id))
+            }
+            _ => false,
+        };
+        #[cfg(test)]
+        {
+            PROJECTION_CLAUSE_MEMBERSHIP_CENSUS.with(|cell| {
+                let mut census = cell.get();
+                census.membership_queries += 1;
+                census.record_bucket_hash_lookups += 1;
+                census.support_hash_lookups += usize::from(bucket.is_some());
+                census.clause_hash_lookups += usize::from(bucket.is_some());
+                census.incidence_hash_lookups +=
+                    usize::from(bucket.is_some() && support_id.is_some() && entry_id.is_some());
+                cell.set(census);
+            });
+        }
+        ProjectionClauseMembership {
+            exact_link_registered,
+            clause_registered: entry_id.is_some(),
+        }
+    }
+
+    #[cfg(test)]
+    fn projection_clause_is_registered(
+        &self,
+        lower_record: BoundRecordId,
+        clause: RecordProofClause,
+    ) -> bool {
+        self.projection_formula_shadow
+            .by_record
+            .get(&lower_record)
+            .is_some_and(|bucket| bucket.entry_by_clause.contains_key(&clause))
+    }
+
+    #[cfg(test)]
+    fn legacy_projection_clause_link_is_registered_for_test(
+        &self,
+        lower_record: BoundRecordId,
+        support: SchemeProjectionProofSupport,
+        clause: RecordProofClause,
+    ) -> bool {
         let identity = (lower_record, support, clause);
         match support {
             SchemeProjectionProofSupport::Claimed(_) => {
@@ -3670,6 +3773,28 @@ impl ProofOccurrenceStore {
                 .independent_projection_clause_link_keys
                 .contains(&identity),
         }
+    }
+
+    #[cfg(test)]
+    fn legacy_projection_clause_is_registered_for_test(
+        &self,
+        lower_record: BoundRecordId,
+        clause: RecordProofClause,
+    ) -> bool {
+        self.projection_clause_keys
+            .contains(&(lower_record, clause))
+    }
+
+    #[cfg(test)]
+    fn reset_projection_clause_membership_census_for_test(&self) {
+        PROJECTION_CLAUSE_MEMBERSHIP_CENSUS.with(|cell| cell.set(Default::default()));
+    }
+
+    #[cfg(test)]
+    fn projection_clause_membership_census_for_test(
+        &self,
+    ) -> ProjectionClauseMembershipCensus {
+        PROJECTION_CLAUSE_MEMBERSHIP_CENSUS.with(Cell::get)
     }
 
     #[cfg(test)]
@@ -3743,13 +3868,37 @@ impl ProofOccurrenceStore {
         record: BoundRecordId,
         lineage: ProjectionLineage,
     ) {
+        let [ProjectionClause::Standalone { support, .. }] = self
+            .projection_formulas
+            .get(&record)
+            .expect("the production writer must create the formula before lineage corruption")
+            .as_slice()
+        else {
+            panic!("lineage corruption fixture must stay standalone");
+        };
+        let support = *support;
+        let clause = RecordProofClause::Standalone { support };
+        let bucket = self
+            .projection_formula_shadow
+            .by_record
+            .get_mut(&record)
+            .expect("the production writer must create the shadow bucket before corruption");
+        let support_id = bucket.support_group_by_raw[&support];
+        let entry_id = bucket.entry_by_clause[&clause];
+        let metadata = bucket
+            .exact_links
+            .get_mut(&(support_id, entry_id))
+            .expect("the production writer must create the exact shadow incidence");
+        assert_eq!(*metadata, ProjectionIncidenceMetadata::Independent);
+        *metadata = ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage);
+
         let [ProjectionClause::Standalone { attribution, .. }] = self
             .projection_formulas
             .get_mut(&record)
             .expect("the production writer must create the formula before lineage corruption")
             .as_mut_slice()
         else {
-            panic!("lineage corruption fixture must stay standalone");
+            unreachable!("lineage corruption fixture shape was validated before mutation");
         };
         *attribution = Some(lineage);
     }
@@ -4260,11 +4409,12 @@ impl ProofOccurrenceStore {
         for &admission in admissions {
             let clause_key = (lower_record, admission.clause);
             let link_key = (lower_record, admission.support, admission.clause);
-            if self.projection_clause_link_is_registered(
+            let membership = self.projection_clause_membership(
                 lower_record,
                 admission.support,
                 admission.clause,
-            ) {
+            );
+            if membership.exact_link_registered {
                 assert_eq!(
                     self.projection_claimed_link_audit.get(&link_key).copied(),
                     admission.claimed_proof_source,
@@ -4282,8 +4432,8 @@ impl ProofOccurrenceStore {
                 );
                 continue;
             }
-            let clause_inserted = !self.projection_clause_keys.contains(&clause_key)
-                && pending_clause_keys.insert(clause_key);
+            let clause_inserted =
+                !membership.clause_registered && pending_clause_keys.insert(clause_key);
             if clause_inserted {
                 new_clause_keys.push(clause_key);
             }
@@ -8307,6 +8457,28 @@ mod tests {
             for index in order {
                 store.record_projection_clause(record, admissions[index]);
             }
+            for admission in admissions {
+                assert_eq!(
+                    store.projection_clause_link_is_registered(
+                        record,
+                        admission.support,
+                        admission.clause,
+                    ),
+                    store.legacy_projection_clause_link_is_registered_for_test(
+                        record,
+                        admission.support,
+                        admission.clause,
+                    ),
+                    "factored membership must preserve every rev.2 source-conflict incidence",
+                );
+                assert_eq!(
+                    store.projection_clause_is_registered(record, admission.clause),
+                    store.legacy_projection_clause_is_registered_for_test(
+                        record,
+                        admission.clause,
+                    ),
+                );
+            }
             store.debug_assert_pclf_a_read_model_matches_legacy();
             let factored = ProjectionFormulaStore::from_legacy(&store);
             let bucket = &factored.by_record[&record];
@@ -8407,14 +8579,82 @@ mod tests {
             prepared
                 .accepted()
                 .iter()
+                .map(|event| event.admission)
+                .collect::<Vec<_>>(),
+            vec![batch[1], batch[2], batch[3]],
+            "existing and batch-local duplicates must retain their legacy classifications",
+        );
+        assert_eq!(
+            prepared
+                .accepted()
+                .iter()
                 .map(|event| event.clause_inserted)
                 .collect::<Vec<_>>(),
             vec![false, true, true],
         );
         store.commit_projection_clause_admission(&mut prepared);
         store.debug_assert_pclf_a_read_model_matches_legacy();
+        for admission in [first, batch[1], batch[2], batch[3]] {
+            assert_eq!(
+                store.projection_clause_link_is_registered(
+                    record,
+                    admission.support,
+                    admission.clause,
+                ),
+                store.legacy_projection_clause_link_is_registered_for_test(
+                    record,
+                    admission.support,
+                    admission.clause,
+                ),
+            );
+            assert_eq!(
+                store.projection_clause_is_registered(record, admission.clause),
+                store.legacy_projection_clause_is_registered_for_test(
+                    record,
+                    admission.clause,
+                ),
+            );
+        }
         assert_eq!(store.projection_formulas[&record].len(), 4);
         assert_eq!(store.projection_clause_keys.len(), 3);
+    }
+
+    #[test]
+    fn pclf_c_one_membership_probe_answers_exact_and_distinct_queries() {
+        const QUERIES: usize = 256;
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_163);
+        let target_support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Origin(OriginId(97_164)),
+        );
+        let clause = RecordProofClause::Standalone {
+            support: target_support,
+        };
+        store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(target_support, clause),
+        );
+        store.debug_assert_pclf_a_read_model_matches_legacy();
+
+        store.reset_projection_clause_membership_census_for_test();
+        for _ in 0..QUERIES {
+            let membership = std::hint::black_box(
+                store.projection_clause_membership(record, target_support, clause),
+            );
+            assert!(membership.exact_link_registered);
+            assert!(membership.clause_registered);
+        }
+        assert_eq!(
+            store.projection_clause_membership_census_for_test(),
+            ProjectionClauseMembershipCensus {
+                membership_queries: QUERIES,
+                record_bucket_hash_lookups: QUERIES,
+                support_hash_lookups: QUERIES,
+                clause_hash_lookups: QUERIES,
+                incidence_hash_lookups: QUERIES,
+            },
+            "one fixed probe sequence must answer both exact-link and distinct-clause membership",
+        );
     }
 
     #[test]
