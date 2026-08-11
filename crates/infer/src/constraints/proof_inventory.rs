@@ -634,13 +634,15 @@ const CPK8G6G2_REMOVED_REPLAY_AUTHORITY_SURFACES: &[&str] = &[
 // CPK-8E's projection-reader closure. These tests no longer derive expected values from
 // legacy_scheme_projectable_lowers_for_test: they freeze project_lower decisions and then exercise
 // the production CPK compact, alias, generalized-witness, and routing consumers directly.
+// GWCB-B rev.2 replaced the former parentless included-empty contract with the decisive claimed
+// parent contract; the renamed fixture remains the same CPK-only generalized-witness consumer.
 const CPK8E_SCHEME_PROJECTION_READER_MIGRATIONS: &[&str] = &[
     "cpk_original_standalone_writer_publishes_mixed_projection_contract",
     "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly",
     "cpk_gap_1_replay_conjunction_matches_all_four_cpk_consumers",
     "cpk_gap_1_unclaimed_standalone_derived_and_incomplete_match_cpk_consumers",
     "cpk_gap_1_five_lineages_project_through_the_real_formula_graph",
-    "cpk_gap_1_included_empty_keeps_generalized_witness_parentless",
+    "cpk_gap_1_included_empty_keeps_its_decisive_claimed_parent",
     "cpk_gap_1_same_root_representative_replacement_matches_all_consumers",
     "cpk_gap_1_same_root_permutations_preserve_canonical_payload_shape",
 ];
@@ -956,8 +958,10 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     ("dependent_records_by_premise", 12),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read. CPK-8G-12 part 2 removes
-    // the seven references belonging solely to the obsolete legacy payload facade.
-    ("origins", 121),
+    // the seven references belonging solely to the obsolete legacy payload facade. PCLF-D1's
+    // order-before-validation regression fixture adds three test-only local `origins` references;
+    // they construct independent supports and do not add a production proof-state authority.
+    ("origins", 124),
     ("source_boundaries", 7),
     // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers and two
     // direct row-attachment writes in favor of the reviewed mirrored admission API. The CPK-7
