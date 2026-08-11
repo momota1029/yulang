@@ -800,10 +800,32 @@ struct ProjectionFormulaShadowDelta {
         ProjectionFormulaEntryId,
         ProjectionIncidenceMetadata,
     )>,
+    canonical_run_deltas: Vec<PreparedCanonicalProjectionRunDelta>,
+    new_canonical_runs: Vec<CanonicalProjectionRun>,
     support_match_key_promotions: Vec<(ProjectionSupportGroupId, ProjectionSupportMatchKey)>,
     normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
     attributed_roots: Vec<UpperReplayClaimId>,
     flat_retained_attributed_roots: Vec<UpperReplayClaimId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PreparedCanonicalProjectionRunDelta {
+    category: CanonicalProjectionCategory,
+    support_id: ProjectionSupportGroupId,
+    existing_run_index: usize,
+    entry_count: usize,
+    chunks: Vec<PreparedCanonicalProjectionChunkDelta>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PreparedCanonicalProjectionChunkDelta {
+    target_pivot: ProjectionFormulaEntryId,
+    replacement_entries: Vec<ProjectionFormulaEntryId>,
+    new_chunks: Vec<ProjectionRunChunkBox>,
+    lookup_comparisons: usize,
+    merge_comparisons: usize,
+    scanned_existing: usize,
+    moved_entries: usize,
 }
 
 #[cfg(test)]
@@ -812,6 +834,7 @@ enum ProjectionClauseReservationFailurePoint {
     Initial,
     AfterLegacyPreflight,
     ShadowStructure,
+    ShadowCanonicalRuns,
     ShadowNormalizedSupport,
 }
 
@@ -1027,6 +1050,8 @@ struct ProjectionFormulaEntryId(u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ProjectionSupportGroupId(u32);
 
+const PROJECTION_RUN_CHUNK_CAPACITY: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProjectionFormulaEntry {
     clause: RecordProofClause,
@@ -1037,9 +1062,342 @@ struct ProjectionSupportGroup {
     raw_support: SchemeProjectionProofSupport,
     match_key: Option<ProjectionSupportMatchKey>,
     coverage_root: Option<UpperReplayClaimId>,
-    standalone_entries: Vec<ProjectionFormulaEntryId>,
-    derived_unary_entries: Vec<ProjectionFormulaEntryId>,
-    replay_conjunction_entries: Vec<ProjectionFormulaEntryId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum CanonicalProjectionCategory {
+    Standalone,
+    DerivedUnary,
+    ReplayConjunction,
+}
+
+impl CanonicalProjectionCategory {
+    fn from_clause(clause: RecordProofClause) -> Self {
+        match clause {
+            RecordProofClause::Standalone { .. } => Self::Standalone,
+            RecordProofClause::DerivedUnary { .. } => Self::DerivedUnary,
+            RecordProofClause::ReplayConjunction { .. } => Self::ReplayConjunction,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CanonicalProjectionRun {
+    category: CanonicalProjectionCategory,
+    support_id: ProjectionSupportGroupId,
+    chunk_root: Option<ProjectionRunChunkBox>,
+    entry_len: usize,
+}
+
+type ProjectionRunChunkBox = Box<[ProjectionRunChunk]>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProjectionRunChunk {
+    entries: Vec<ProjectionFormulaEntryId>,
+    left: Option<ProjectionRunChunkBox>,
+    right: Option<ProjectionRunChunkBox>,
+    height: u8,
+}
+
+impl CanonicalProjectionRun {
+    fn merge_placeholder() -> Self {
+        Self {
+            category: CanonicalProjectionCategory::Standalone,
+            support_id: ProjectionSupportGroupId(u32::MAX),
+            chunk_root: None,
+            entry_len: 0,
+        }
+    }
+
+    fn try_box_chunk(
+        entries: Vec<ProjectionFormulaEntryId>,
+    ) -> Result<ProjectionRunChunkBox, std::collections::TryReserveError> {
+        assert!(!entries.is_empty());
+        assert!(entries.len() <= PROJECTION_RUN_CHUNK_CAPACITY);
+        let mut allocation = Vec::new();
+        allocation.try_reserve_exact(1)?;
+        allocation.push(ProjectionRunChunk {
+            entries,
+            left: None,
+            right: None,
+            height: 1,
+        });
+        Ok(allocation.into_boxed_slice())
+    }
+
+    fn chunk(node: &ProjectionRunChunkBox) -> &ProjectionRunChunk {
+        node.first().expect("PCLF chunk box must contain exactly one node")
+    }
+
+    fn chunk_mut(node: &mut ProjectionRunChunkBox) -> &mut ProjectionRunChunk {
+        node.first_mut()
+            .expect("PCLF chunk box must contain exactly one node")
+    }
+
+    fn from_sorted_entries(
+        category: CanonicalProjectionCategory,
+        support_id: ProjectionSupportGroupId,
+        entries: Vec<ProjectionFormulaEntryId>,
+    ) -> Result<Self, std::collections::TryReserveError> {
+        assert!(!entries.is_empty());
+        let chunk_count = entries.len().div_ceil(PROJECTION_RUN_CHUNK_CAPACITY);
+        let base_len = entries.len() / chunk_count;
+        let longer_chunks = entries.len() % chunk_count;
+        fn chunk_start(index: usize, base_len: usize, longer_chunks: usize) -> usize {
+            index * base_len + index.min(longer_chunks)
+        }
+        fn build(
+            entries: &[ProjectionFormulaEntryId],
+            start_chunk: usize,
+            end_chunk: usize,
+            base_len: usize,
+            longer_chunks: usize,
+        ) -> Result<Option<ProjectionRunChunkBox>, std::collections::TryReserveError> {
+            if start_chunk == end_chunk {
+                return Ok(None);
+            }
+            let middle = start_chunk + (end_chunk - start_chunk) / 2;
+            let start = chunk_start(middle, base_len, longer_chunks);
+            let end = chunk_start(middle + 1, base_len, longer_chunks);
+            let mut chunk_entries = Vec::new();
+            chunk_entries.try_reserve_exact(end - start)?;
+            chunk_entries.extend_from_slice(&entries[start..end]);
+            let mut node = CanonicalProjectionRun::try_box_chunk(chunk_entries)?;
+            CanonicalProjectionRun::chunk_mut(&mut node).left = build(
+                entries,
+                start_chunk,
+                middle,
+                base_len,
+                longer_chunks,
+            )?;
+            CanonicalProjectionRun::chunk_mut(&mut node).right = build(
+                entries,
+                middle + 1,
+                end_chunk,
+                base_len,
+                longer_chunks,
+            )?;
+            CanonicalProjectionRun::update_chunk_height(&mut node);
+            Ok(Some(node))
+        }
+        let root = build(&entries, 0, chunk_count, base_len, longer_chunks)?;
+        Ok(Self {
+            category,
+            support_id,
+            chunk_root: root,
+            entry_len: entries.len(),
+        })
+    }
+
+    fn chunk_height(node: &Option<ProjectionRunChunkBox>) -> u8 {
+        node.as_ref().map_or(0, |node| Self::chunk(node).height)
+    }
+
+    fn update_chunk_height(node: &mut ProjectionRunChunkBox) {
+        let chunk = Self::chunk(node);
+        let height = 1 + Self::chunk_height(&chunk.left).max(Self::chunk_height(&chunk.right));
+        Self::chunk_mut(node).height = height;
+    }
+
+    fn rotate_chunk_left(mut root: ProjectionRunChunkBox) -> ProjectionRunChunkBox {
+        let mut right = Self::chunk_mut(&mut root)
+            .right
+            .take()
+            .expect("AVL left rotation requires a right child");
+        let middle = Self::chunk_mut(&mut right).left.take();
+        Self::chunk_mut(&mut root).right = middle;
+        Self::update_chunk_height(&mut root);
+        Self::chunk_mut(&mut right).left = Some(root);
+        Self::update_chunk_height(&mut right);
+        right
+    }
+
+    fn rotate_chunk_right(mut root: ProjectionRunChunkBox) -> ProjectionRunChunkBox {
+        let mut left = Self::chunk_mut(&mut root)
+            .left
+            .take()
+            .expect("AVL right rotation requires a left child");
+        let middle = Self::chunk_mut(&mut left).right.take();
+        Self::chunk_mut(&mut root).left = middle;
+        Self::update_chunk_height(&mut root);
+        Self::chunk_mut(&mut left).right = Some(root);
+        Self::update_chunk_height(&mut left);
+        left
+    }
+
+    fn rebalance_chunk(mut root: ProjectionRunChunkBox) -> ProjectionRunChunkBox {
+        Self::update_chunk_height(&mut root);
+        let chunk = Self::chunk(&root);
+        let balance = i16::from(Self::chunk_height(&chunk.left))
+            - i16::from(Self::chunk_height(&chunk.right));
+        if balance > 1 {
+            let left = Self::chunk(&root)
+                .left
+                .as_ref()
+                .expect("left-heavy AVL node must have a left child");
+            if Self::chunk_height(&Self::chunk(left).left)
+                < Self::chunk_height(&Self::chunk(left).right)
+            {
+                let left = Self::chunk_mut(&mut root).left.take().unwrap();
+                Self::chunk_mut(&mut root).left = Some(Self::rotate_chunk_left(left));
+            }
+            return Self::rotate_chunk_right(root);
+        }
+        if balance < -1 {
+            let right = Self::chunk(&root)
+                .right
+                .as_ref()
+                .expect("right-heavy AVL node must have a right child");
+            if Self::chunk_height(&Self::chunk(right).right)
+                < Self::chunk_height(&Self::chunk(right).left)
+            {
+                let right = Self::chunk_mut(&mut root).right.take().unwrap();
+                Self::chunk_mut(&mut root).right = Some(Self::rotate_chunk_right(right));
+            }
+            return Self::rotate_chunk_left(root);
+        }
+        root
+    }
+
+    fn insert_chunk_by<F>(
+        root: Option<ProjectionRunChunkBox>,
+        new_node: ProjectionRunChunkBox,
+        compare: &F,
+    ) -> ProjectionRunChunkBox
+    where
+        F: Fn(ProjectionFormulaEntryId, ProjectionFormulaEntryId) -> std::cmp::Ordering,
+    {
+        let Some(mut root) = root else {
+            return new_node;
+        };
+        let new_pivot = Self::chunk(&new_node).entries[0];
+        let root_pivot = Self::chunk(&root).entries[0];
+        match compare(new_pivot, root_pivot) {
+            std::cmp::Ordering::Less => {
+                let left = Self::chunk_mut(&mut root).left.take();
+                Self::chunk_mut(&mut root).left =
+                    Some(Self::insert_chunk_by(left, new_node, compare));
+            }
+            std::cmp::Ordering::Greater => {
+                let right = Self::chunk_mut(&mut root).right.take();
+                Self::chunk_mut(&mut root).right =
+                    Some(Self::insert_chunk_by(right, new_node, compare));
+            }
+            std::cmp::Ordering::Equal => panic!("PCLF chunk pivots must stay unique"),
+        }
+        Self::rebalance_chunk(root)
+    }
+
+    fn target_chunk_by<F>(&self, mut compare_pivot: F) -> (&ProjectionRunChunk, usize)
+    where
+        F: FnMut(ProjectionFormulaEntryId) -> std::cmp::Ordering,
+    {
+        let mut cursor = self.chunk_root.as_ref();
+        let mut predecessor = None;
+        let mut comparisons = 0usize;
+        while let Some(node) = cursor {
+            comparisons += 1;
+            let chunk = Self::chunk(node);
+            match compare_pivot(chunk.entries[0]) {
+                std::cmp::Ordering::Greater => cursor = chunk.left.as_ref(),
+                std::cmp::Ordering::Less | std::cmp::Ordering::Equal => {
+                    predecessor = Some(chunk);
+                    cursor = chunk.right.as_ref();
+                }
+            }
+        }
+        let first = || {
+            let mut node = self
+                .chunk_root
+                .as_ref()
+                .expect("nonempty canonical run must have a chunk root");
+            while let Some(left) = Self::chunk(node).left.as_ref() {
+                node = left;
+            }
+            Self::chunk(node)
+        };
+        (predecessor.unwrap_or_else(first), comparisons)
+    }
+
+    fn chunk_mut_by_pivot<F>(
+        &mut self,
+        pivot: ProjectionFormulaEntryId,
+        compare: &F,
+    ) -> &mut ProjectionRunChunk
+    where
+        F: Fn(ProjectionFormulaEntryId, ProjectionFormulaEntryId) -> std::cmp::Ordering,
+    {
+        let mut cursor = self
+            .chunk_root
+            .as_mut()
+            .expect("nonempty canonical run must have a chunk root");
+        loop {
+            let ordering = compare(pivot, Self::chunk(cursor).entries[0]);
+            if ordering == std::cmp::Ordering::Equal {
+                return Self::chunk_mut(cursor);
+            }
+            cursor = if ordering == std::cmp::Ordering::Less {
+                Self::chunk_mut(cursor).left.as_mut()
+            } else {
+                Self::chunk_mut(cursor).right.as_mut()
+            }
+            .expect("prepared PCLF chunk pivot must remain in the AVL");
+        }
+    }
+
+    #[cfg(test)]
+    fn chunk_count(&self) -> usize {
+        fn count(node: Option<&ProjectionRunChunkBox>) -> usize {
+            node.map_or(0, |node| {
+                let chunk = CanonicalProjectionRun::chunk(node);
+                1 + count(chunk.left.as_ref()) + count(chunk.right.as_ref())
+            })
+        }
+        count(self.chunk_root.as_ref())
+    }
+
+    #[cfg(test)]
+    fn append_entries_in_order(&self, entries: &mut Vec<ProjectionFormulaEntryId>) {
+        fn append(node: Option<&ProjectionRunChunkBox>, entries: &mut Vec<ProjectionFormulaEntryId>) {
+            let Some(node) = node else {
+                return;
+            };
+            let chunk = CanonicalProjectionRun::chunk(node);
+            append(chunk.left.as_ref(), entries);
+            entries.extend_from_slice(&chunk.entries);
+            append(chunk.right.as_ref(), entries);
+        }
+        append(self.chunk_root.as_ref(), entries);
+    }
+
+    #[cfg(test)]
+    fn chunks_are_nonempty_and_bounded(&self) -> bool {
+        fn check(node: Option<&ProjectionRunChunkBox>) -> bool {
+            node.is_none_or(|node| {
+                let chunk = CanonicalProjectionRun::chunk(node);
+                !chunk.entries.is_empty()
+                    && chunk.entries.len() <= PROJECTION_RUN_CHUNK_CAPACITY
+                    && check(chunk.left.as_ref())
+                    && check(chunk.right.as_ref())
+            })
+        }
+        check(self.chunk_root.as_ref())
+    }
+
+    #[cfg(test)]
+    fn chunk_tree_is_balanced(&self) -> bool {
+        fn check(node: Option<&ProjectionRunChunkBox>) -> Option<u8> {
+            let Some(node) = node else {
+                return Some(0);
+            };
+            let chunk = CanonicalProjectionRun::chunk(node);
+            let left = check(chunk.left.as_ref())?;
+            let right = check(chunk.right.as_ref())?;
+            let height = 1 + left.max(right);
+            (left.abs_diff(right) <= 1 && chunk.height == height).then_some(height)
+        }
+        check(self.chunk_root.as_ref()).is_some()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1109,7 +1467,7 @@ struct ProjectionFormulaBucket {
         (ProjectionSupportGroupId, ProjectionFormulaEntryId),
         ProjectionIncidenceMetadata,
     >,
-    canonical_support_groups: Vec<ProjectionSupportGroupId>,
+    canonical_runs: Vec<CanonicalProjectionRun>,
     normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
     attributed_roots: FxHashSet<UpperReplayClaimId>,
     flat_retained_attributed_roots: FxHashSet<UpperReplayClaimId>,
@@ -1117,14 +1475,23 @@ struct ProjectionFormulaBucket {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct ProjectionFormulaMovementCensus {
-    support_insertions: u64,
-    support_moved: u64,
-    support_max_moved: usize,
-    support_move_histogram: [u64; 16],
-    adjacency_insertions: u64,
-    adjacency_moved: u64,
-    adjacency_max_moved: usize,
-    adjacency_move_histogram: [u64; 16],
+    run_delta_count: u64,
+    run_delta_entries: u64,
+    run_delta_max_entries: usize,
+    run_delta_size_histogram: [u64; 16],
+    merge_calls: u64,
+    merge_comparisons: u64,
+    merge_scanned_entries: u64,
+    merge_moved_entries: u64,
+    merge_max_scanned_entries: usize,
+    merge_scan_histogram: [u64; 16],
+    chunk_lookup_comparisons: u64,
+    chunk_splits: u64,
+    new_run_insertions: u64,
+    descriptor_comparisons: u64,
+    descriptor_moved: u64,
+    descriptor_max_moved: usize,
+    descriptor_move_histogram: [u64; 16],
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -1446,9 +1813,6 @@ impl ProjectionFormulaBucket {
                 raw_support: support,
                 match_key,
                 coverage_root,
-                standalone_entries: Vec::new(),
-                derived_unary_entries: Vec::new(),
-                replay_conjunction_entries: Vec::new(),
             });
             assert!(self.support_group_by_raw.insert(support, id).is_none());
             id
@@ -1457,13 +1821,30 @@ impl ProjectionFormulaBucket {
             .exact_links
             .insert((support_id, entry_id), metadata)
             .is_none());
-        let group = &mut self.support_groups[support_id.0 as usize];
-        match clause {
-            ProjectionClause::Standalone { .. } => group.standalone_entries.push(entry_id),
-            ProjectionClause::DerivedUnary { .. } => group.derived_unary_entries.push(entry_id),
-            ProjectionClause::ReplayConjunction { .. } => {
-                group.replay_conjunction_entries.push(entry_id)
-            }
+        let category = CanonicalProjectionCategory::from_clause(record_clause);
+        let run_position = self.canonical_run_partition_point(category, support);
+        if self.canonical_runs.get(run_position).is_some_and(|run| {
+            run.category == category && run.support_id == support_id
+        }) {
+            let mut entries = Vec::new();
+            self.canonical_runs[run_position].append_entries_in_order(&mut entries);
+            entries.push(entry_id);
+            entries.sort_unstable_by(|left, right| {
+                self.reconstructed_clause(support_id, *left)
+                    .canonical_cmp(self.reconstructed_clause(support_id, *right))
+            });
+            self.canonical_runs[run_position] = CanonicalProjectionRun::from_sorted_entries(
+                category,
+                support_id,
+                entries,
+            )
+            .expect("test canonical run allocation");
+        } else {
+            self.canonical_runs.insert(
+                run_position,
+                CanonicalProjectionRun::from_sorted_entries(category, support_id, vec![entry_id])
+                    .expect("test canonical run allocation"),
+            );
         }
     }
 
@@ -1472,9 +1853,65 @@ impl ProjectionFormulaBucket {
         support_id: ProjectionSupportGroupId,
         entry_id: ProjectionFormulaEntryId,
     ) -> ProjectionClause {
-        let group = &self.support_groups[support_id.0 as usize];
-        let entry = &self.entries[entry_id.0 as usize];
-        let metadata = self.exact_links[&(support_id, entry_id)];
+        reconstructed_projection_clause(
+            &self.entries,
+            &self.support_groups,
+            &self.exact_links,
+            support_id,
+            entry_id,
+        )
+    }
+
+    fn canonical_run_partition_point(
+        &self,
+        category: CanonicalProjectionCategory,
+        support: SchemeProjectionProofSupport,
+    ) -> usize {
+        self.canonical_runs.partition_point(|run| {
+            run.category < category
+                || (run.category == category
+                    && projection_support_cmp(
+                        self.support_groups[run.support_id.0 as usize].raw_support,
+                        support,
+                    ) == std::cmp::Ordering::Less)
+        })
+    }
+
+    fn canonical_run_cursor(&self) -> ProjectionCanonicalRunCursor<'_> {
+        ProjectionCanonicalRunCursor {
+            bucket: self,
+            run_index: 0,
+            chunk_stack: [None; 64],
+            chunk_stack_len: 0,
+            active_chunk: None,
+            active_support_id: ProjectionSupportGroupId(u32::MAX),
+            entry_index: 0,
+        }
+    }
+
+    fn canonical_clauses(&self) -> Vec<ProjectionClause> {
+        let mut clauses = Vec::with_capacity(self.exact_links.len());
+        let mut cursor = self.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = cursor.next() {
+            clauses.push(self.reconstructed_clause(support_id, entry_id));
+        }
+        clauses
+    }
+}
+
+fn reconstructed_projection_clause(
+    entries: &[ProjectionFormulaEntry],
+    support_groups: &[ProjectionSupportGroup],
+    exact_links: &FxHashMap<
+        (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+        ProjectionIncidenceMetadata,
+    >,
+    support_id: ProjectionSupportGroupId,
+    entry_id: ProjectionFormulaEntryId,
+) -> ProjectionClause {
+        let group = &support_groups[support_id.0 as usize];
+        let entry = &entries[entry_id.0 as usize];
+        let metadata = exact_links[&(support_id, entry_id)];
         let attribution = match (metadata, entry.clause) {
             (ProjectionIncidenceMetadata::Independent, _) => None,
             #[cfg(test)]
@@ -1545,27 +1982,171 @@ impl ProjectionFormulaBucket {
                 attribution,
             },
         }
-    }
+}
 
-    fn canonical_clauses(&self) -> Vec<ProjectionClause> {
-        let mut clauses = Vec::with_capacity(self.exact_links.len());
-        for category in 0..3 {
-            for &support_id in &self.canonical_support_groups {
-                let group = &self.support_groups[support_id.0 as usize];
-                let entries = match category {
-                    0 => &group.standalone_entries,
-                    1 => &group.derived_unary_entries,
-                    _ => &group.replay_conjunction_entries,
-                };
-                clauses.extend(
-                    entries
-                        .iter()
-                        .map(|entry| self.reconstructed_clause(support_id, *entry)),
+struct ProjectionCanonicalRunCursor<'a> {
+    bucket: &'a ProjectionFormulaBucket,
+    run_index: usize,
+    chunk_stack: [Option<&'a ProjectionRunChunk>; 64],
+    chunk_stack_len: usize,
+    active_chunk: Option<&'a ProjectionRunChunk>,
+    active_support_id: ProjectionSupportGroupId,
+    entry_index: usize,
+}
+
+impl Iterator for ProjectionCanonicalRunCursor<'_> {
+    type Item = (ProjectionSupportGroupId, ProjectionFormulaEntryId);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(chunk) = self.active_chunk
+                && let Some(&entry_id) = chunk.entries.get(self.entry_index)
+            {
+                self.entry_index += 1;
+                return Some((self.active_support_id, entry_id));
+            }
+
+            if self.chunk_stack_len > 0 {
+                self.chunk_stack_len -= 1;
+                let chunk = self.chunk_stack[self.chunk_stack_len]
+                    .take()
+                    .expect("PCLF cursor stack slot below its length must be occupied");
+                let mut right = chunk.right.as_ref();
+                while let Some(node) = right {
+                    let node = CanonicalProjectionRun::chunk(node);
+                    assert!(
+                        self.chunk_stack_len < self.chunk_stack.len(),
+                        "PCLF AVL depth must fit the fixed canonical cursor stack"
+                    );
+                    self.chunk_stack[self.chunk_stack_len] = Some(node);
+                    self.chunk_stack_len += 1;
+                    right = node.left.as_ref();
+                }
+                self.active_chunk = Some(chunk);
+                self.entry_index = 0;
+                continue;
+            }
+
+            let run = self.bucket.canonical_runs.get(self.run_index)?;
+            self.run_index += 1;
+            self.active_support_id = run.support_id;
+            let mut node = run.chunk_root.as_ref();
+            while let Some(chunk) = node {
+                let chunk = CanonicalProjectionRun::chunk(chunk);
+                assert!(
+                    self.chunk_stack_len < self.chunk_stack.len(),
+                    "PCLF AVL depth must fit the fixed canonical cursor stack"
                 );
+                self.chunk_stack[self.chunk_stack_len] = Some(chunk);
+                self.chunk_stack_len += 1;
+                node = chunk.left.as_ref();
+            }
+            self.active_chunk = None;
+            self.entry_index = 0;
+        }
+    }
+}
+
+fn try_prepare_projection_chunk_outputs(
+    bucket: &ProjectionFormulaBucket,
+    support_id: ProjectionSupportGroupId,
+    existing: &[ProjectionFormulaEntryId],
+    delta: &[(ProjectionFormulaEntryId, ProjectionClause)],
+) -> Result<
+    (Vec<Vec<ProjectionFormulaEntryId>>, usize, usize),
+    std::collections::TryReserveError,
+> {
+    let total_len = existing.len() + delta.len();
+    let mut merged = Vec::new();
+    merged.try_reserve_exact(total_len)?;
+    merged.resize(total_len, ProjectionFormulaEntryId(0));
+    let mut comparisons = 0usize;
+    let mut scanned_existing = 0usize;
+    let mut disjoint = false;
+    let mut last_existing_vs_first_delta = None;
+    let mut first_existing_vs_last_delta = None;
+    if !existing.is_empty() && !delta.is_empty() {
+        comparisons += 1;
+        scanned_existing += 1;
+        let ordering = bucket
+            .reconstructed_clause(support_id, existing[existing.len() - 1])
+            .canonical_cmp(delta[0].1);
+        last_existing_vs_first_delta = Some(ordering);
+        if ordering != std::cmp::Ordering::Greater {
+            merged[..existing.len()].copy_from_slice(existing);
+            for (output, item) in merged[existing.len()..].iter_mut().zip(delta) {
+                *output = item.0;
+            }
+            disjoint = true;
+        } else {
+            comparisons += 1;
+            scanned_existing += 1;
+            let ordering = bucket
+                .reconstructed_clause(support_id, existing[0])
+                .canonical_cmp(delta[delta.len() - 1].1);
+            first_existing_vs_last_delta = Some(ordering);
+            if ordering == std::cmp::Ordering::Greater {
+                for (output, item) in merged[..delta.len()].iter_mut().zip(delta) {
+                    *output = item.0;
+                }
+                merged[delta.len()..].copy_from_slice(existing);
+                disjoint = true;
             }
         }
-        clauses
     }
+    let mut existing_cursor = existing.len();
+    let mut delta_cursor = delta.len();
+    let mut output_cursor = total_len;
+    while !disjoint && existing_cursor > 0 && delta_cursor > 0 {
+        let ordering = if existing_cursor == existing.len() && delta_cursor == 1 {
+            last_existing_vs_first_delta
+                .expect("overlap merge must retain its last/first endpoint comparison")
+        } else if existing_cursor == 1 && delta_cursor == delta.len() {
+            first_existing_vs_last_delta
+                .expect("overlap merge must retain its first/last endpoint comparison")
+        } else {
+            comparisons += 1;
+            scanned_existing += 1;
+            bucket
+                .reconstructed_clause(support_id, existing[existing_cursor - 1])
+                .canonical_cmp(delta[delta_cursor - 1].1)
+        };
+        output_cursor -= 1;
+        if ordering == std::cmp::Ordering::Greater {
+            existing_cursor -= 1;
+            merged[output_cursor] = existing[existing_cursor];
+        } else {
+            delta_cursor -= 1;
+            merged[output_cursor] = delta[delta_cursor].0;
+        }
+    }
+    while !disjoint && delta_cursor > 0 {
+        delta_cursor -= 1;
+        output_cursor -= 1;
+        merged[output_cursor] = delta[delta_cursor].0;
+    }
+    while !disjoint && existing_cursor > 0 {
+        existing_cursor -= 1;
+        output_cursor -= 1;
+        merged[output_cursor] = existing[existing_cursor];
+    }
+    debug_assert!(disjoint || output_cursor == 0);
+
+    let chunk_count = total_len.div_ceil(PROJECTION_RUN_CHUNK_CAPACITY);
+    let base_len = total_len / chunk_count;
+    let longer_chunks = total_len % chunk_count;
+    let mut outputs = Vec::new();
+    outputs.try_reserve(chunk_count)?;
+    let mut cursor = 0usize;
+    for chunk_index in 0..chunk_count {
+        let chunk_len = base_len + usize::from(chunk_index < longer_chunks);
+        let mut entries = Vec::new();
+        entries.try_reserve_exact(chunk_len)?;
+        entries.extend_from_slice(&merged[cursor..cursor + chunk_len]);
+        cursor += chunk_len;
+        outputs.push(entries);
+    }
+    Ok((outputs, comparisons, scanned_existing))
 }
 
 #[cfg(test)]
@@ -1617,15 +2198,6 @@ impl ProjectionFormulaStore {
                 };
                 bucket.push_legacy_clause(clause, metadata, match_key, coverage_root);
             }
-            bucket.canonical_support_groups = (0..bucket.support_groups.len())
-                .map(|index| ProjectionSupportGroupId(index as u32))
-                .collect();
-            bucket.canonical_support_groups.sort_unstable_by(|left, right| {
-                projection_support_cmp(
-                    bucket.support_groups[left.0 as usize].raw_support,
-                    bucket.support_groups[right.0 as usize].raw_support,
-                )
-            });
             assert!(factored.by_record.insert(record, bucket).is_none());
         }
         factored
@@ -1875,6 +2447,8 @@ pub(crate) struct ProofOccurrenceStore {
     fail_next_projection_support_reservation: bool,
     #[cfg(test)]
     projection_clause_reservation_failure_point: Option<ProjectionClauseReservationFailurePoint>,
+    #[cfg(test)]
+    projection_clause_canonical_run_reservation_failure_after: Option<usize>,
 }
 
 /// Persistent-store allocation census only.
@@ -1909,7 +2483,13 @@ struct ProjectionFormulaAllocationCensus {
     support_group_arena: (usize, usize),
     support_group_index: (usize, usize),
     exact_incidence_index: (usize, usize),
-    category_adjacency: (usize, usize),
+    canonical_run_table: (usize, usize),
+    canonical_run_chunks: (usize, usize),
+    canonical_run_entries: (usize, usize),
+    nonempty_canonical_runs: usize,
+    empty_canonical_runs: usize,
+    canonical_run_max_entries: usize,
+    canonical_run_size_histogram: [usize; 16],
     normalized_support_summary: (usize, usize),
     attributed_summary: (usize, usize),
     flat_attributed_summary: (usize, usize),
@@ -1974,6 +2554,8 @@ impl Default for ProofOccurrenceStore {
             fail_next_projection_support_reservation: false,
             #[cfg(test)]
             projection_clause_reservation_failure_point: None,
+            #[cfg(test)]
+            projection_clause_canonical_run_reservation_failure_after: None,
         }
     }
 }
@@ -2078,26 +2660,56 @@ impl ProofOccurrenceStore {
             bucket_sum!(flat_retained_attributed_roots, len),
             bucket_sum!(flat_retained_attributed_roots, capacity),
         );
-        let shadow_adjacency = shadow
+        let shadow_runs = (
+            shadow
+                .by_record
+                .values()
+                .map(|bucket| bucket.canonical_runs.len())
+                .sum::<usize>(),
+            shadow
+                .by_record
+                .values()
+                .map(|bucket| bucket.canonical_runs.capacity())
+                .sum::<usize>(),
+        );
+        fn chunk_allocation_census(
+            node: Option<&ProjectionRunChunkBox>,
+        ) -> (usize, usize, usize) {
+            let Some(node) = node else {
+                return (0, 0, 0);
+            };
+            let chunk = CanonicalProjectionRun::chunk(node);
+            let left = chunk_allocation_census(chunk.left.as_ref());
+            let right = chunk_allocation_census(chunk.right.as_ref());
+            (
+                1 + left.0 + right.0,
+                chunk.entries.len() + left.1 + right.1,
+                chunk.entries.capacity() + left.2 + right.2,
+            )
+        }
+        let (chunk_count, run_entry_len, run_entry_capacity) = shadow
             .by_record
             .values()
-            .flat_map(|bucket| &bucket.support_groups)
-            .fold((0usize, 0usize), |(len, capacity), group| {
-                (
-                    len + group.standalone_entries.len()
-                        + group.derived_unary_entries.len()
-                        + group.replay_conjunction_entries.len(),
-                    capacity
-                        + group.standalone_entries.capacity()
-                        + group.derived_unary_entries.capacity()
-                        + group.replay_conjunction_entries.capacity(),
-                )
+            .flat_map(|bucket| &bucket.canonical_runs)
+            .map(|run| chunk_allocation_census(run.chunk_root.as_ref()))
+            .fold((0, 0, 0), |left, right| {
+                (left.0 + right.0, left.1 + right.1, left.2 + right.2)
             });
-        let canonical_support_capacity = shadow
+        let shadow_run_chunks = (chunk_count, chunk_count);
+        let shadow_run_entries = (run_entry_len, run_entry_capacity);
+        let mut shadow_run_histogram = [0usize; 16];
+        let mut shadow_run_max_entries = 0usize;
+        let mut empty_canonical_runs = 0usize;
+        for run in shadow
             .by_record
             .values()
-            .map(|bucket| bucket.canonical_support_groups.capacity())
-            .sum::<usize>();
+            .flat_map(|bucket| &bucket.canonical_runs)
+        {
+            empty_canonical_runs += usize::from(run.entry_len == 0);
+            shadow_run_max_entries = shadow_run_max_entries.max(run.entry_len);
+            shadow_run_histogram
+                [Self::projection_formula_movement_bucket(run.entry_len)] += 1;
+        }
         let shadow_bytes = hash_bytes(
             shadow.by_record.capacity(),
             std::mem::size_of::<(BoundRecordId, ProjectionFormulaBucket)>(),
@@ -2118,8 +2730,9 @@ impl ProofOccurrenceStore {
                     ProjectionIncidenceMetadata,
                 )>(),
             )
-            + shadow_adjacency.1 * std::mem::size_of::<ProjectionFormulaEntryId>()
-            + canonical_support_capacity * std::mem::size_of::<ProjectionSupportGroupId>()
+            + shadow_runs.1 * std::mem::size_of::<CanonicalProjectionRun>()
+            + shadow_run_chunks.1 * std::mem::size_of::<ProjectionRunChunk>()
+            + shadow_run_entries.1 * std::mem::size_of::<ProjectionFormulaEntryId>()
             + hash_bytes(
                 shadow_normalized.1,
                 std::mem::size_of::<ProjectionSupportMatchKey>(),
@@ -2211,7 +2824,13 @@ impl ProofOccurrenceStore {
                     self.independent_projection_clause_link_keys.capacity()
                         + self.projection_claimed_link_audit.capacity(),
                 ),
-                category_adjacency: legacy_formula,
+                canonical_run_table: (0, 0),
+                canonical_run_chunks: (0, 0),
+                canonical_run_entries: (0, 0),
+                nonempty_canonical_runs: 0,
+                empty_canonical_runs: 0,
+                canonical_run_max_entries: 0,
+                canonical_run_size_histogram: [0; 16],
                 normalized_support_summary: legacy_support,
                 attributed_summary: (
                     self.projection_attributions.len(),
@@ -2230,7 +2849,13 @@ impl ProofOccurrenceStore {
                 support_group_arena: shadow_supports,
                 support_group_index: shadow_support_index,
                 exact_incidence_index: shadow_exact,
-                category_adjacency: shadow_adjacency,
+                canonical_run_table: shadow_runs,
+                canonical_run_chunks: shadow_run_chunks,
+                canonical_run_entries: shadow_run_entries,
+                nonempty_canonical_runs: shadow_runs.0 - empty_canonical_runs,
+                empty_canonical_runs,
+                canonical_run_max_entries: shadow_run_max_entries,
+                canonical_run_size_histogram: shadow_run_histogram,
                 normalized_support_summary: shadow_normalized,
                 attributed_summary: shadow_attributed,
                 flat_attributed_summary: shadow_flat,
@@ -3924,6 +4549,14 @@ impl ProofOccurrenceStore {
             ProjectionClauseReservationFailurePoint::ShadowStructure,
         );
         #[cfg(test)]
+        let fail_during_shadow_canonical_runs = self.take_projection_clause_reservation_failure(
+            ProjectionClauseReservationFailurePoint::ShadowCanonicalRuns,
+        );
+        #[cfg(test)]
+        let mut fail_after_canonical_run_reservations = self
+            .projection_clause_canonical_run_reservation_failure_after
+            .take();
+        #[cfg(test)]
         let fail_during_shadow_normalized_support = self
             .take_projection_clause_reservation_failure(
                 ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
@@ -3942,6 +4575,14 @@ impl ProofOccurrenceStore {
             .map_err(exhausted)?;
         delta
             .exact_links
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .canonical_run_deltas
+            .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        delta
+            .new_canonical_runs
             .try_reserve(accepted.len())
             .map_err(exhausted)?;
         delta
@@ -3968,10 +4609,13 @@ impl ProofOccurrenceStore {
         let mut pending_match_key_promotions = FxHashMap::default();
         let mut pending_attributed = FxHashSet::default();
         let mut pending_flat = FxHashSet::default();
-        let mut adjacency_counts_by_support = FxHashMap::<
+        let mut pending_run_entries = Vec::<(
+            CanonicalProjectionCategory,
+            SchemeProjectionProofSupport,
             ProjectionSupportGroupId,
-            [usize; 3],
-        >::default();
+            ProjectionFormulaEntryId,
+            ProjectionClause,
+        )>::new();
         pending_entries
             .try_reserve(accepted.len())
             .map_err(exhausted)?;
@@ -3993,7 +4637,7 @@ impl ProofOccurrenceStore {
         pending_flat
             .try_reserve(accepted.len())
             .map_err(exhausted)?;
-        adjacency_counts_by_support
+        pending_run_entries
             .try_reserve(accepted.len())
             .map_err(exhausted)?;
 
@@ -4043,9 +4687,6 @@ impl ProofOccurrenceStore {
                         raw_support: admission.support,
                         match_key,
                         coverage_root,
-                        standalone_entries: Vec::new(),
-                        derived_unary_entries: Vec::new(),
-                        replay_conjunction_entries: Vec::new(),
                     });
                     assert!(pending_supports.insert(admission.support, id).is_none());
                     id
@@ -4078,13 +4719,13 @@ impl ProofOccurrenceStore {
             assert!(existing.is_none_or(|bucket| !bucket.exact_links.contains_key(&incidence)));
             assert!(pending_exact.insert(incidence));
             delta.exact_links.push((support_id, entry_id, metadata));
-            adjacency_counts_by_support
-                .entry(support_id)
-                .or_insert([0; 3])[match admission.clause {
-                    RecordProofClause::Standalone { .. } => 0,
-                    RecordProofClause::DerivedUnary { .. } => 1,
-                    RecordProofClause::ReplayConjunction { .. } => 2,
-                }] += 1;
+            pending_run_entries.push((
+                CanonicalProjectionCategory::from_clause(admission.clause),
+                admission.support,
+                support_id,
+                entry_id,
+                Self::projection_clause(admission),
+            ));
             if let Some(match_key) = match_key
                 && existing
                     .is_none_or(|bucket| !bucket.normalized_support_keys.contains(&match_key))
@@ -4108,6 +4749,129 @@ impl ProofOccurrenceStore {
                     delta.flat_retained_attributed_roots.push(claim);
                 }
             }
+        }
+
+        pending_run_entries.sort_unstable_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| projection_support_cmp(left.1, right.1))
+                .then_with(|| left.4.canonical_cmp(right.4))
+        });
+        let mut cursor = 0;
+        while cursor < pending_run_entries.len() {
+            let category = pending_run_entries[cursor].0;
+            let support = pending_run_entries[cursor].1;
+            let support_id = pending_run_entries[cursor].2;
+            let mut end = cursor + 1;
+            while end < pending_run_entries.len()
+                && pending_run_entries[end].0 == category
+                && pending_run_entries[end].2 == support_id
+            {
+                end += 1;
+            }
+            let existing_run_index = existing.and_then(|bucket| {
+                let position = bucket.canonical_run_partition_point(category, support);
+                bucket.canonical_runs.get(position).and_then(|run| {
+                    (run.category == category && run.support_id == support_id).then_some(position)
+                })
+            });
+            let mut entries = Vec::new();
+            entries.try_reserve(end - cursor).map_err(exhausted)?;
+            for item in &pending_run_entries[cursor..end] {
+                entries.push((item.3, item.4));
+            }
+            if let Some(existing_run_index) = existing_run_index {
+                let bucket = existing.expect("existing run has an existing bucket");
+                let run = &bucket.canonical_runs[existing_run_index];
+                let mut chunk_deltas = Vec::new();
+                chunk_deltas.try_reserve(entries.len()).map_err(exhausted)?;
+                let mut entry_cursor = 0usize;
+                while entry_cursor < entries.len() {
+                    let target_clause = entries[entry_cursor].1;
+                    let (target_chunk, mut lookup_comparisons) = run.target_chunk_by(|pivot| {
+                        bucket
+                            .reconstructed_clause(support_id, pivot)
+                            .canonical_cmp(target_clause)
+                    });
+                    let target_pivot = target_chunk.entries[0];
+                    let start = entry_cursor;
+                    entry_cursor += 1;
+                    while entry_cursor < entries.len() {
+                        let clause = entries[entry_cursor].1;
+                        let (next_chunk, comparisons) = run.target_chunk_by(|pivot| {
+                            bucket
+                                .reconstructed_clause(support_id, pivot)
+                                .canonical_cmp(clause)
+                        });
+                        lookup_comparisons += comparisons;
+                        if next_chunk.entries[0] != target_pivot {
+                            break;
+                        }
+                        entry_cursor += 1;
+                    }
+                    let existing_entries = &target_chunk.entries;
+                    let (mut output_chunks, merge_comparisons, scanned_existing) =
+                        try_prepare_projection_chunk_outputs(
+                            bucket,
+                            support_id,
+                            existing_entries,
+                            &entries[start..entry_cursor],
+                        )
+                        .map_err(exhausted)?;
+                    let moved_entries = existing_entries.len() + entry_cursor - start;
+                    let replacement_entries = output_chunks.remove(0);
+                    let mut new_chunks = Vec::new();
+                    new_chunks
+                        .try_reserve_exact(output_chunks.len())
+                        .map_err(exhausted)?;
+                    for output in output_chunks {
+                        new_chunks.push(
+                            CanonicalProjectionRun::try_box_chunk(output).map_err(exhausted)?,
+                        );
+                    }
+                    chunk_deltas.push(PreparedCanonicalProjectionChunkDelta {
+                        target_pivot,
+                        replacement_entries,
+                        new_chunks,
+                        lookup_comparisons,
+                        merge_comparisons,
+                        scanned_existing,
+                        moved_entries,
+                    });
+                }
+                delta
+                    .canonical_run_deltas
+                    .push(PreparedCanonicalProjectionRunDelta {
+                        category,
+                        support_id,
+                        existing_run_index,
+                        entry_count: entries.len(),
+                        chunks: chunk_deltas,
+                    });
+                #[cfg(test)]
+                if let Some(remaining) = fail_after_canonical_run_reservations.as_mut() {
+                    assert!(*remaining > 0);
+                    *remaining -= 1;
+                    if *remaining == 0 {
+                        return Err(ProofFailure::ResourceExhausted {
+                            operation: ProofOperation::UpdateClaimLifecycle,
+                        });
+                    }
+                }
+            } else {
+                let mut entry_ids = Vec::new();
+                entry_ids.try_reserve(entries.len()).map_err(exhausted)?;
+                entry_ids.extend(entries.into_iter().map(|item| item.0));
+                delta.new_canonical_runs.push(
+                    CanonicalProjectionRun::from_sorted_entries(
+                        category,
+                        support_id,
+                        entry_ids,
+                    )
+                    .map_err(exhausted)?,
+                );
+            }
+            cursor = end;
         }
 
         let mut new_record_bucket = (!self
@@ -4146,10 +4910,6 @@ impl ProofOccurrenceStore {
             .try_reserve(delta.new_support_groups.len())
             .map_err(exhausted)?;
         bucket
-            .canonical_support_groups
-            .try_reserve(delta.new_support_groups.len())
-            .map_err(exhausted)?;
-        bucket
             .exact_links
             .try_reserve(delta.exact_links.len())
             .map_err(exhausted)?;
@@ -4181,25 +4941,15 @@ impl ProofOccurrenceStore {
             .flat_retained_attributed_roots
             .try_reserve(delta.flat_retained_attributed_roots.len())
             .map_err(exhausted)?;
-        for (support_id, counts) in adjacency_counts_by_support {
-            let index = support_id.0 as usize;
-            let group = if index < base_support_len {
-                &mut bucket.support_groups[index]
-            } else {
-                &mut delta.new_support_groups[index - base_support_len]
-            };
-            group
-                .standalone_entries
-                .try_reserve(counts[0])
-                .map_err(exhausted)?;
-            group
-                .derived_unary_entries
-                .try_reserve(counts[1])
-                .map_err(exhausted)?;
-            group
-                .replay_conjunction_entries
-                .try_reserve(counts[2])
-                .map_err(exhausted)?;
+        bucket
+            .canonical_runs
+            .try_reserve(delta.new_canonical_runs.len())
+            .map_err(exhausted)?;
+        #[cfg(test)]
+        if fail_during_shadow_canonical_runs {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
         }
         Ok(PreparedProjectionFormulaShadowAdmission {
             new_record_bucket,
@@ -4235,18 +4985,6 @@ impl ProofOccurrenceStore {
             let support = group.raw_support;
             assert!(bucket.support_group_by_raw.insert(support, id).is_none());
             bucket.support_groups.push(group);
-            let position = bucket.canonical_support_groups.partition_point(|existing| {
-                projection_support_cmp(
-                    bucket.support_groups[existing.0 as usize].raw_support,
-                    support,
-                ) != std::cmp::Ordering::Greater
-            });
-            let moved = bucket.canonical_support_groups.len() - position;
-            movement.support_insertions += 1;
-            movement.support_moved += moved as u64;
-            movement.support_max_moved = movement.support_max_moved.max(moved);
-            movement.support_move_histogram[Self::projection_formula_movement_bucket(moved)] += 1;
-            bucket.canonical_support_groups.insert(position, id);
         }
         for (support_id, entry_id, metadata) in delta.exact_links.drain(..) {
             assert!(
@@ -4255,34 +4993,138 @@ impl ProofOccurrenceStore {
                     .insert((support_id, entry_id), metadata)
                     .is_none()
             );
-            let clause = bucket.reconstructed_clause(support_id, entry_id);
-            let category = match clause {
-                ProjectionClause::Standalone { .. } => 0,
-                ProjectionClause::DerivedUnary { .. } => 1,
-                ProjectionClause::ReplayConjunction { .. } => 2,
-            };
-            let entries = match category {
-                0 => &bucket.support_groups[support_id.0 as usize].standalone_entries,
-                1 => &bucket.support_groups[support_id.0 as usize].derived_unary_entries,
-                _ => &bucket.support_groups[support_id.0 as usize].replay_conjunction_entries,
-            };
-            let position = entries.partition_point(|existing| {
+        }
+        for run_delta in delta.canonical_run_deltas.drain(..) {
+            let delta_len = run_delta.entry_count;
+            movement.run_delta_count += 1;
+            movement.run_delta_entries += delta_len as u64;
+            movement.run_delta_max_entries = movement.run_delta_max_entries.max(delta_len);
+            movement.run_delta_size_histogram
+                [Self::projection_formula_movement_bucket(delta_len)] += 1;
+            let run_index = run_delta.existing_run_index;
+            let support_id = run_delta.support_id;
+            for chunk_delta in run_delta.chunks {
+                let output_count = 1 + chunk_delta.new_chunks.len();
+                let entries = &bucket.entries;
+                let support_groups = &bucket.support_groups;
+                let exact_links = &bucket.exact_links;
+                let run = &mut bucket.canonical_runs[run_index];
+                let compare = |left, right| {
+                    reconstructed_projection_clause(
+                        entries,
+                        support_groups,
+                        exact_links,
+                        support_id,
+                        left,
+                    )
+                    .canonical_cmp(reconstructed_projection_clause(
+                        entries,
+                        support_groups,
+                        exact_links,
+                        support_id,
+                        right,
+                    ))
+                };
+                run.chunk_mut_by_pivot(chunk_delta.target_pivot, &compare)
+                    .entries = chunk_delta.replacement_entries;
+                for new_chunk in chunk_delta.new_chunks {
+                    let root = run.chunk_root.take();
+                    run.chunk_root = Some(CanonicalProjectionRun::insert_chunk_by(
+                        root,
+                        new_chunk,
+                        &compare,
+                    ));
+                }
+                movement.merge_calls += 1;
+                movement.chunk_lookup_comparisons += chunk_delta.lookup_comparisons as u64;
+                movement.merge_comparisons += chunk_delta.merge_comparisons as u64;
+                movement.merge_scanned_entries += chunk_delta.scanned_existing as u64;
+                movement.merge_moved_entries += chunk_delta.moved_entries as u64;
+                movement.merge_max_scanned_entries = movement
+                    .merge_max_scanned_entries
+                    .max(chunk_delta.scanned_existing);
+                movement.merge_scan_histogram[Self::projection_formula_movement_bucket(
+                    chunk_delta.scanned_existing,
+                )] += 1;
+                movement.chunk_splits += output_count.saturating_sub(1) as u64;
+            }
+            bucket.canonical_runs[run_index].entry_len += delta_len;
+        }
+        if !delta.new_canonical_runs.is_empty() {
+            for run in &delta.new_canonical_runs {
+                movement.run_delta_count += 1;
+                movement.run_delta_entries += run.entry_len as u64;
+                movement.run_delta_max_entries =
+                    movement.run_delta_max_entries.max(run.entry_len);
+                movement.run_delta_size_histogram
+                    [Self::projection_formula_movement_bucket(run.entry_len)] += 1;
+            }
+            let old_len = bucket.canonical_runs.len();
+            let new_run_count = delta.new_canonical_runs.len();
+            for _ in 0..new_run_count {
                 bucket
-                    .reconstructed_clause(support_id, *existing)
-                    .canonical_cmp(clause)
-                    != std::cmp::Ordering::Greater
-            });
-            let moved = entries.len() - position;
-            movement.adjacency_insertions += 1;
-            movement.adjacency_moved += moved as u64;
-            movement.adjacency_max_moved = movement.adjacency_max_moved.max(moved);
-            movement.adjacency_move_histogram[Self::projection_formula_movement_bucket(moved)] += 1;
-            let entries = match category {
-                0 => &mut bucket.support_groups[support_id.0 as usize].standalone_entries,
-                1 => &mut bucket.support_groups[support_id.0 as usize].derived_unary_entries,
-                _ => &mut bucket.support_groups[support_id.0 as usize].replay_conjunction_entries,
-            };
-            entries.insert(position, entry_id);
+                    .canonical_runs
+                    .push(CanonicalProjectionRun::merge_placeholder());
+            }
+            let mut old_cursor = old_len;
+            let mut new_cursor = new_run_count;
+            let mut output_cursor = old_len + new_run_count;
+            let mut comparisons = 0usize;
+            let mut moved = 0usize;
+            while old_cursor > 0 && new_cursor > 0 {
+                let old_run = &bucket.canonical_runs[old_cursor - 1];
+                let new_run = &delta.new_canonical_runs[new_cursor - 1];
+                let old_support =
+                    bucket.support_groups[old_run.support_id.0 as usize].raw_support;
+                let new_support =
+                    bucket.support_groups[new_run.support_id.0 as usize].raw_support;
+                comparisons += 1;
+                let ordering = old_run
+                    .category
+                    .cmp(&new_run.category)
+                    .then_with(|| projection_support_cmp(old_support, new_support));
+                assert_ne!(
+                    ordering,
+                    std::cmp::Ordering::Equal,
+                    "PCLF canonical run key must stay unique",
+                );
+                output_cursor -= 1;
+                if ordering == std::cmp::Ordering::Greater {
+                    old_cursor -= 1;
+                    let source = old_cursor;
+                    let existing = std::mem::replace(
+                        &mut bucket.canonical_runs[source],
+                        CanonicalProjectionRun::merge_placeholder(),
+                    );
+                    moved += usize::from(source != output_cursor);
+                    bucket.canonical_runs[output_cursor] = existing;
+                } else {
+                    new_cursor -= 1;
+                    moved += 1;
+                    bucket.canonical_runs[output_cursor] =
+                        std::mem::replace(
+                            &mut delta.new_canonical_runs[new_cursor],
+                            CanonicalProjectionRun::merge_placeholder(),
+                        );
+                }
+            }
+            while new_cursor > 0 {
+                new_cursor -= 1;
+                output_cursor -= 1;
+                moved += 1;
+                bucket.canonical_runs[output_cursor] = std::mem::replace(
+                    &mut delta.new_canonical_runs[new_cursor],
+                    CanonicalProjectionRun::merge_placeholder(),
+                );
+            }
+            debug_assert_eq!(output_cursor, old_cursor);
+            movement.new_run_insertions += new_run_count as u64;
+            movement.descriptor_comparisons += comparisons as u64;
+            movement.descriptor_moved += moved as u64;
+            movement.descriptor_max_moved = movement.descriptor_max_moved.max(moved);
+            movement.descriptor_move_histogram
+                [Self::projection_formula_movement_bucket(moved)] += 1;
+            delta.new_canonical_runs.clear();
         }
         for (support_id, match_key) in delta.support_match_key_promotions.drain(..) {
             let group = &mut bucket.support_groups[support_id.0 as usize];
@@ -7670,6 +8512,18 @@ impl ProofOccurrenceStore {
     }
 
     #[cfg(test)]
+    fn fail_projection_clause_canonical_run_reservation_after_for_test(
+        &mut self,
+        completed_run_reservations: usize,
+    ) {
+        assert!(
+            self.projection_clause_canonical_run_reservation_failure_after
+                .replace(completed_run_reservations)
+                .is_none()
+        );
+    }
+
+    #[cfg(test)]
     fn take_projection_clause_reservation_failure(
         &mut self,
         point: ProjectionClauseReservationFailurePoint,
@@ -8709,6 +9563,123 @@ mod tests {
             factored.by_record[&record].canonical_clauses(),
             store.projection_formulas[&record],
         );
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert!(bucket.canonical_runs.iter().all(|run| {
+            run.entry_len > 0
+                && run.chunks_are_nonempty_and_bounded()
+                && run.chunk_tree_is_balanced()
+        }));
+        let run_keys = bucket
+            .canonical_runs
+            .iter()
+            .map(|run| (run.category, run.support_id))
+            .collect::<FxHashSet<_>>();
+        assert_eq!(run_keys.len(), bucket.canonical_runs.len());
+        assert_eq!(
+            bucket
+                .canonical_runs
+                .iter()
+                .map(|run| run.entry_len)
+                .sum::<usize>(),
+            bucket.exact_links.len(),
+        );
+        assert_eq!(bucket.canonical_runs.len(), 3);
+    }
+
+    #[test]
+    fn pclf_d0_large_single_run_repeated_small_admissions_bounds_writer_cost() {
+        const LINKS: u32 = 1_800;
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_170);
+        let support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Origin(OriginId(97_171)),
+        );
+        for ordinal in (0..LINKS).rev() {
+            let parent = ConstraintRecordId(100_000 + ordinal);
+            store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent,
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        }),
+                        premise: ProofPremise::Constraint(parent),
+                    },
+                ),
+            );
+        }
+        store.debug_assert_pclf_a_read_model_matches_legacy();
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.canonical_runs.len(), 1);
+        assert_eq!(bucket.canonical_runs[0].entry_len, LINKS as usize);
+        assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
+        assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
+        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+        let movement = store.projection_formula_shadow.movement;
+        assert_eq!(movement.merge_calls, u64::from(LINKS - 1));
+        assert_eq!(movement.merge_comparisons, 2 * u64::from(LINKS - 1));
+        assert_eq!(movement.merge_scanned_entries, 2 * u64::from(LINKS - 1));
+        assert!(movement.merge_max_scanned_entries <= PROJECTION_RUN_CHUNK_CAPACITY);
+        assert!(
+            movement.merge_moved_entries
+                <= u64::from(LINKS - 1) * (PROJECTION_RUN_CHUNK_CAPACITY as u64 + 1)
+        );
+        assert!(movement.chunk_lookup_comparisons < u64::from(LINKS) * 16);
+        assert!(movement.chunk_splits > 0);
+    }
+
+    #[test]
+    fn pclf_d0_full_chunk_middle_singleton_reuses_endpoint_scans() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_172);
+        let support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Origin(OriginId(97_173)),
+        );
+        let admission = |parent: ConstraintRecordId| {
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(parent),
+                },
+            )
+        };
+        let initial = (0..PROJECTION_RUN_CHUNK_CAPACITY as u32)
+            .map(|ordinal| admission(ConstraintRecordId(200_000 + ordinal * 2)))
+            .collect::<Vec<_>>();
+        let mut prepared = store
+            .try_prepare_projection_clause_admission(record, &initial)
+            .expect("full-chunk fixture reservation")
+            .expect("full-chunk fixture must admit its initial batch");
+        store.commit_projection_clause_admission(&mut prepared);
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.canonical_runs.len(), 1);
+        assert_eq!(bucket.canonical_runs[0].chunk_count(), 1);
+        assert_eq!(bucket.canonical_runs[0].entry_len, PROJECTION_RUN_CHUNK_CAPACITY);
+
+        let before = store.projection_formula_shadow.movement;
+        store.record_projection_clause(record, admission(ConstraintRecordId(200_001)));
+        let after = store.projection_formula_shadow.movement;
+        assert_eq!(after.merge_calls - before.merge_calls, 1);
+        assert_eq!(
+            after.merge_scanned_entries - before.merge_scanned_entries,
+            PROJECTION_RUN_CHUNK_CAPACITY as u64,
+            "the two endpoint probes must be reused by the overlapping fallback merge",
+        );
+        assert_eq!(
+            after.merge_comparisons - before.merge_comparisons,
+            PROJECTION_RUN_CHUNK_CAPACITY as u64,
+        );
+        assert_eq!(after.chunk_splits - before.chunk_splits, 1);
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.canonical_clauses(), store.projection_formulas[&record]);
+        assert!(bucket.canonical_runs[0].chunks_are_nonempty_and_bounded());
+        assert!(bucket.canonical_runs[0].chunk_tree_is_balanced());
     }
 
     #[test]
@@ -8744,7 +9715,10 @@ mod tests {
         assert_eq!(after.shadow_projection_formula.entry_arena.0, 1);
         assert_eq!(after.shadow_projection_formula.support_group_arena.0, 1);
         assert_eq!(after.shadow_projection_formula.exact_incidence_index.0, 1);
-        assert_eq!(after.shadow_projection_formula.category_adjacency.0, 1);
+        assert_eq!(after.shadow_projection_formula.canonical_run_table.0, 1);
+        assert_eq!(after.shadow_projection_formula.canonical_run_entries.0, 1);
+        assert_eq!(after.shadow_projection_formula.nonempty_canonical_runs, 1);
+        assert_eq!(after.shadow_projection_formula.empty_canonical_runs, 0);
         assert_eq!(after.shadow_incidence_metadata.0, 1);
         store.record_projection_clause(record, admission);
         assert_eq!(store.performance_index_allocation_census(), after);
@@ -8770,6 +9744,7 @@ mod tests {
             ProjectionClauseReservationFailurePoint::Initial,
             ProjectionClauseReservationFailurePoint::AfterLegacyPreflight,
             ProjectionClauseReservationFailurePoint::ShadowStructure,
+            ProjectionClauseReservationFailurePoint::ShadowCanonicalRuns,
             ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
         ] {
             let mut store = ProofOccurrenceStore::default();
@@ -8784,6 +9759,66 @@ mod tests {
                 "reservation failure at {point:?} must not logically mutate either face",
             );
         }
+    }
+
+    #[test]
+    fn pclf_d0_failure_between_existing_run_reservations_keeps_both_faces_unchanged() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_163);
+        let left_support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Origin(OriginId(97_164)),
+        );
+        let right_support = SchemeProjectionProofSupport::Independent(
+            ProjectionProofCarrier::Origin(OriginId(97_165)),
+        );
+        for (support, producer) in [
+            (left_support, ConstraintRecordId(97_166)),
+            (right_support, ConstraintRecordId(97_167)),
+        ] {
+            store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::DerivedUnary {
+                        carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                            parent: producer,
+                            rule: StructuralDerivationRule::FunctionArgument,
+                        }),
+                        premise: ProofPremise::Constraint(producer),
+                    },
+                ),
+            );
+        }
+        let admissions = [
+            RecordProofClauseLinkAdmission::independent(
+                left_support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: ConstraintRecordId(97_168),
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(ConstraintRecordId(97_168)),
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                right_support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: ConstraintRecordId(97_169),
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(ConstraintRecordId(97_169)),
+                },
+            ),
+        ];
+        let before = store.clone();
+        store.fail_projection_clause_canonical_run_reservation_after_for_test(1);
+        assert!(matches!(
+            store.try_prepare_projection_clause_admission(record, &admissions),
+            Err(ProofFailure::ResourceExhausted { .. })
+        ));
+        assert_eq!(store, before);
+        store.debug_assert_pclf_a_read_model_matches_legacy();
     }
 
     #[test]
