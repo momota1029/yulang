@@ -2,7 +2,10 @@
 
 日付: 2026-08-11（rev.3 起案: 2026-08-11、Claude 査読・確定: 2026-08-11、ユーザ承認: 2026-08-11）
 
-状態: **ユーザ承認済み（正本）。PCLF-D0 以降の実装に着手可**
+状態: **ユーザ承認済み（正本）。PCLF-A〜E landed、PCLF-F closeout測定済み**
+
+PCLF-Fの32分 safety-scoped suiteは時間上限で未完了だったため、full-suite完走gateだけは未閉鎖である。
+完了した測定と未完範囲は§8 PCLF-Fに記録する。
 
 基準 commit: `b0d2a1a2`（PCLF-A/B/C landed、PCLF-D experiment は全revert済み）。行番号は
 この commit 付近を指し、実装時には関数名と型名を正本として再確認する。
@@ -1393,6 +1396,8 @@ Rollback:
 
 ### PCLF-F: integration / closeout
 
+状態（2026-08-11）: **closeout測定・cleanup完了、full safety-scoped suite完走のみ未達**。
+
 変更:
 
 - targeted CPK/RCPF/MPC/DPN/GWCB suite。
@@ -1407,6 +1412,26 @@ Gate:
 - §9 gateを満たすか、残差を新profileの具体的functionへ帰属できる。
 - source diffがPCLF cause boundaryだけに限定される。
 - working tree/temporary artifact clean。
+
+Closeout実測:
+
+- safety-scoped infer suiteはdocumented 9-pattern skip、4 threads、18 GiB hard killで32分実行した。
+  `1241` tests中、cap到達時点で`750 passed / 2 failed / 489 unfinished`、最大summed RSS
+  `1,610,952 KiB`、安全閾値非到達だった。redは既知の
+  `urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise`と、PCLF外の既存
+  `rmw_x3_global_alpha_consequence_census_and_exported_scheme_parity`。PCLF motivating 3件
+  (`general_subtype...` / `subp_b...` / `pusp_a...`)とproof inventory 2件はgreen。
+- clean release cold reproductionは`std::text::parse 68.571s / full 121.96s /
+  peak RSS 7,812,204 KiB`。同一cacheのwarm hitは`full 0.04s / peak RSS 11,700 KiB`で、
+  loweringを再実行しないためwarm parse値は存在しない。
+- final censusは`28,526,006` exact incidences、`847,858` distinct clauses、`1,716,175`
+  support groups、`1,726,585` runs/chunks、capacity込み`1,785,162,281 bytes`。
+- `cpk_no_claim_path_allocates_no_claim_storage_or_index_work`と
+  `gwcb_a_certificate_allocation_is_zero_for_independent_and_exact_duplicate_links`はgreen。
+  persistent growth zeroを確認したが、既存注記どおりprepareのtemporary allocationはこのcensus対象外。
+- proof-write self timeはcloseout runで独立分離していないため数値を主張しない。
+- `YULANG_PCLF_*` trace/debug printは残っていない。temporary release censusは測定後に除去した。
+  PCLF全source diffは`proof/mod.rs`、`logical_proof_snapshot.rs`、`proof_inventory.rs`、本書に限定される。
 
 ## 9. 性能・メモリ gate
 
