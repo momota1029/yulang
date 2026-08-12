@@ -610,9 +610,8 @@ pub(crate) struct ReplayProofOccurrence {
     replay_parent_sides: [ReplayParentSideIndex; 2],
 }
 
-// QORF-A fixes the representation boundary before any production authority moves. These types
-// intentionally are not fields of `ProofOccurrenceStore`; QORF-B is the first slice allowed to
-// allocate or dual-write them in production.
+// Final QORF side-local representation. The fixed chunk bound keeps insertion and cursor work
+// independent of the total replay-parent relation size.
 const QORF_REPLAY_PARENT_CHUNK_CAPACITY: usize = 128;
 const QORF_REPLAY_PARENT_CURSOR_STACK_CAPACITY: usize = 64;
 
@@ -4054,6 +4053,16 @@ struct QorfD0ProjectionAllocationCensus {
 }
 
 #[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct QorfReplaySideAllocationCensus {
+    sides: usize,
+    nonempty_sides: usize,
+    nodes: (usize, usize),
+    entries: (usize, usize),
+    capacity_inclusive_payload_bytes: usize,
+}
+
+#[cfg(test)]
 impl QorfReplayRelationSnapshot {
     fn assert_exact_parity(&self) {
         assert_eq!(self.qualified_duplicate_keys, 0);
@@ -4161,8 +4170,8 @@ pub(crate) struct ProofOccurrenceStore {
     replay_finite_map_index: FxHashMap<(ConstraintRecordId, BinaryReplayDerivation), usize>,
     replay_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
     replay_parent_chunks: ReplayParentChunkArena,
-    // QORF-D0 shadow projections. Production readers remain on the QORF-C/legacy authorities
-    // until D1; these are maintained only for parity and rollback-safe cutover preparation.
+    // QORF-D1/E production authorities: one replay arm per occurrence and one canonical winner
+    // per `(result, root)`. Test-only expanded faces remain only as independent parity oracles.
     replay_qualified_arms: ReplayQualifiedArmIndex,
     canonical_qualified_parent_by_root: CanonicalQualifiedParentRootIndex,
     non_replay_qualified_parents: NonReplayQualifiedParentStore,
@@ -12033,7 +12042,7 @@ impl ProofOccurrenceStore {
     }
 
     #[cfg(test)]
-    fn qorf_replay_side_allocation_census(&self) -> (usize, usize, usize, usize, usize) {
+    fn qorf_replay_side_allocation_census(&self) -> QorfReplaySideAllocationCensus {
         let side_count = self.replay_finite_map.len() * 2;
         let nonempty_sides = self
             .replay_finite_map
@@ -12041,19 +12050,27 @@ impl ProofOccurrenceStore {
             .flat_map(|occurrence| occurrence.replay_parent_sides)
             .filter(|side| side.root.is_some())
             .count();
-        let entry_count = self
+        let entries = self
             .replay_parent_chunks
             .nodes
             .iter()
-            .map(|node| node.entries.len())
-            .sum();
-        (
-            side_count,
-            nonempty_sides,
+            .map(|node| (node.entries.len(), node.entries.capacity()))
+            .fold((0, 0), |total, next| (total.0 + next.0, total.1 + next.1));
+        let nodes = (
             self.replay_parent_chunks.nodes.len(),
             self.replay_parent_chunks.nodes.capacity(),
-            entry_count,
-        )
+        );
+        let capacity_inclusive_payload_bytes = nodes.1
+            * std::mem::size_of::<ReplayParentChunkNode>()
+            + entries.1 * std::mem::size_of::<QorfReplayParentEntry>()
+            + self.replay_finite_map.capacity() * 2 * std::mem::size_of::<ReplayParentSideIndex>();
+        QorfReplaySideAllocationCensus {
+            sides: side_count,
+            nonempty_sides,
+            nodes,
+            entries,
+            capacity_inclusive_payload_bytes,
+        }
     }
 
     pub(super) fn try_prepare_projection_index_admission(
@@ -19686,8 +19703,14 @@ mod tests {
                 && report.d0_projection_census.root_entries.0 < report.side_entries,
             "QORF-D0 compact projections must not reproduce exact-parent cardinality",
         );
+        let side_census = output
+            .session
+            .infer
+            .constraints()
+            .proof_store
+            .qorf_replay_side_allocation_census();
         eprintln!(
-            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} non_replay_entries={} replay_arms={} root_winners={} evaluation_items={} d1_reads={:?} d0_census={:?} mismatches=0",
+            "QORF_C_FULL_STD_PARITY occurrences={} nonempty_sides={} side_entries={} qualified_replay_entries={} qualified_replay_keys={} non_replay_entries={} replay_arms={} root_winners={} evaluation_items={} d1_reads={:?} side_census={:?} d0_census={:?} mismatches=0",
             report.occurrences,
             report.nonempty_sides,
             report.side_entries,
@@ -19698,6 +19721,7 @@ mod tests {
             report.root_winners,
             report.evaluation_items,
             read_census,
+            side_census,
             report.d0_projection_census,
         );
     }
@@ -19801,10 +19825,9 @@ mod tests {
         assert!(census.max_scanned_existing <= QORF_REPLAY_PARENT_CHUNK_CAPACITY);
         assert!(census.scanned_existing < 1_800 * 1_799 / 2);
         assert_eq!(census.snapshot_duplicate_comparisons, 0);
-        let (_, nonempty_sides, _, _, entries) =
-            machine.proof_store.qorf_replay_side_allocation_census();
-        assert_eq!(nonempty_sides, 1);
-        assert_eq!(entries, 1_800);
+        let allocation = machine.proof_store.qorf_replay_side_allocation_census();
+        assert_eq!(allocation.nonempty_sides, 1);
+        assert_eq!(allocation.entries.0, 1_800);
         assert_eq!(
             machine.proof_store.replay_qualified_arms.flatten(result),
             vec![ReplayFiniteMapEntryId(0)],
