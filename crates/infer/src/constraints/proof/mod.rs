@@ -938,6 +938,10 @@ thread_local! {
     // per-event fixture oracle while it runs: retaining both would turn the gate itself into a
     // repeated side-prefix scan and make its cost unrelated to the production read topology.
     static QORF_C_FULL_STD_PARITY_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    // CPK-SV-A performs one final exhaustive certificate check after full-std lowering. Avoid
+    // turning that gate into a quadratic per-admission oracle while preserving the fixture-time
+    // shadow check everywhere else.
+    static CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -2376,6 +2380,8 @@ pub(super) struct PreparedProjectionClauseAdmission {
 struct PreparedProjectionFormulaShadowAdmission {
     new_record_bucket: Option<ProjectionFormulaBucket>,
     delta: ProjectionFormulaShadowDelta,
+    next_formula_revision: FormulaStructuralRevision,
+    next_structural_certificate: Option<ProjectionStructuralCertificate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -2423,6 +2429,7 @@ enum ProjectionClauseReservationFailurePoint {
     ShadowStructure,
     ShadowCanonicalRuns,
     ShadowNormalizedSupport,
+    ShadowStructuralCertificate,
 }
 
 impl PreparedProjectionClauseAdmission {
@@ -3047,6 +3054,35 @@ impl ClaimedProjectionSourceTemplate {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct FormulaStructuralRevision(u64);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProjectionStructuralCertificate {
+    formula_revision: FormulaStructuralRevision,
+    canonical_order_valid: bool,
+    exact_membership_valid: bool,
+    support_relation_valid: bool,
+}
+
+impl ProjectionStructuralCertificate {
+    fn valid(formula_revision: FormulaStructuralRevision) -> Self {
+        Self {
+            formula_revision,
+            canonical_order_valid: true,
+            exact_membership_valid: true,
+            support_relation_valid: true,
+        }
+    }
+
+    fn proves_structure_at(self, formula_revision: FormulaStructuralRevision) -> bool {
+        self.formula_revision == formula_revision
+            && self.canonical_order_valid
+            && self.exact_membership_valid
+            && self.support_relation_valid
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ProjectionFormulaBucket {
     entries: Vec<ProjectionFormulaEntry>,
@@ -3061,6 +3097,8 @@ struct ProjectionFormulaBucket {
     normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
     attributed_roots: FxHashSet<UpperReplayClaimId>,
     flat_retained_attributed_roots: FxHashSet<UpperReplayClaimId>,
+    formula_revision: FormulaStructuralRevision,
+    structural_certificate: Option<ProjectionStructuralCertificate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -3538,6 +3576,122 @@ impl ProjectionFormulaBucket {
         ProjectionFormulaRecordCursor {
             cursor: Some(self.canonical_run_cursor()),
             empty: self.exact_links.is_empty(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProjectionStructuralOracleResult {
+    canonical_order_valid: bool,
+    first_offending_pair: Option<(
+        (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+        (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+    )>,
+    exact_membership_valid: bool,
+    support_relation_valid: bool,
+}
+
+#[cfg(test)]
+impl ProjectionFormulaBucket {
+    /// Independent linear oracle for the CPK-SV-A shadow certificate. This deliberately derives
+    /// its answer from the committed bucket, not from the prepared proof used to issue the
+    /// certificate.
+    fn structural_oracle_result(&self) -> ProjectionStructuralOracleResult {
+        let mut canonical_order_valid = true;
+        let mut first_offending_pair = None;
+        let mut previous = None;
+        let mut cursor_membership_valid = true;
+        let mut cursor_entries = 0usize;
+        let mut seen_entries = vec![false; self.entries.len()];
+        let mut seen_supports = vec![false; self.support_groups.len()];
+        let mut cursor = self.canonical_run_cursor();
+        while let Some(current @ (support_id, entry_id)) = cursor.next() {
+            cursor_entries += 1;
+            if support_id.0 as usize >= self.support_groups.len()
+                || entry_id.0 as usize >= self.entries.len()
+            {
+                return ProjectionStructuralOracleResult {
+                    canonical_order_valid: false,
+                    first_offending_pair: previous.map(|previous| (previous, current)),
+                    exact_membership_valid: false,
+                    support_relation_valid: false,
+                };
+            }
+            seen_entries[entry_id.0 as usize] = true;
+            seen_supports[support_id.0 as usize] = true;
+            if let Some(previous_pair @ (previous_support, previous_entry)) = previous {
+                let previous_clause = self.reconstructed_clause(previous_support, previous_entry);
+                let current_clause = self.reconstructed_clause(support_id, entry_id);
+                if previous_clause.canonical_cmp(current_clause) == std::cmp::Ordering::Greater {
+                    canonical_order_valid = false;
+                    first_offending_pair = Some((previous_pair, current));
+                    break;
+                }
+                if previous_pair == current {
+                    cursor_membership_valid = false;
+                }
+            }
+            cursor_membership_valid &= self.exact_links.contains_key(&current);
+            previous = Some(current);
+        }
+
+        let entry_index_valid = self.entry_by_clause.len() == self.entries.len()
+            && self.entries.iter().enumerate().all(|(index, entry)| {
+                self.entry_by_clause.get(&entry.clause).copied()
+                    == Some(ProjectionFormulaEntryId(index as u32))
+            });
+        let support_index_valid = self.support_group_by_raw.len() == self.support_groups.len()
+            && self
+                .support_groups
+                .iter()
+                .enumerate()
+                .all(|(index, group)| {
+                    self.support_group_by_raw.get(&group.raw_support).copied()
+                        == Some(ProjectionSupportGroupId(index as u32))
+                });
+        let exact_membership_valid = entry_index_valid
+            && support_index_valid
+            && cursor_membership_valid
+            && cursor_entries == self.exact_links.len()
+            && seen_entries.into_iter().all(|seen| seen)
+            && seen_supports.into_iter().all(|seen| seen);
+
+        let expected_match_keys = self
+            .support_groups
+            .iter()
+            .filter_map(|group| group.match_key)
+            .collect::<FxHashSet<_>>();
+        let support_relation_valid = expected_match_keys == self.normalized_support_keys
+            && self
+                .support_groups
+                .iter()
+                .all(|group| match group.raw_support {
+                    SchemeProjectionProofSupport::Claimed(_) => group.coverage_root.is_some(),
+                    SchemeProjectionProofSupport::Independent(_) => group.coverage_root.is_none(),
+                })
+            && self.exact_links.iter().all(|(&(support_id, _), metadata)| {
+                let group = &self.support_groups[support_id.0 as usize];
+                matches!(
+                    (group.raw_support, metadata),
+                    (
+                        SchemeProjectionProofSupport::Claimed(_),
+                        ProjectionIncidenceMetadata::Claimed(_)
+                    ) | (
+                        SchemeProjectionProofSupport::Independent(_),
+                        ProjectionIncidenceMetadata::Independent
+                    ) | (
+                        SchemeProjectionProofSupport::Independent(_),
+                        ProjectionIncidenceMetadata::IndependentWithForcedLineage(_)
+                    )
+                )
+            });
+
+        ProjectionStructuralOracleResult {
+            canonical_order_valid,
+            first_offending_pair,
+            exact_membership_valid,
+            support_relation_valid,
         }
     }
 }
@@ -5644,12 +5798,61 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
-        if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
+        if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get)
+            || CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(Cell::get)
+        {
             return;
         }
         let legacy = self.legacy_projection_formula_read_model();
         let factored = self.projection_formula_shadow.read_model();
         debug_assert_eq!(factored, legacy);
+    }
+
+    #[cfg(test)]
+    fn debug_assert_projection_structural_certificate(&self, record: BoundRecordId) {
+        if CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(Cell::get) {
+            return;
+        }
+        let bucket = &self.projection_formula_shadow.by_record[&record];
+        let oracle = bucket.structural_oracle_result();
+        let certificate = bucket
+            .structural_certificate
+            .expect("production admission must publish a CPK-SV-A certificate");
+        debug_assert!(certificate.proves_structure_at(bucket.formula_revision));
+        debug_assert_eq!(
+            (
+                certificate.canonical_order_valid,
+                certificate.exact_membership_valid,
+                certificate.support_relation_valid,
+            ),
+            (
+                oracle.canonical_order_valid,
+                oracle.exact_membership_valid,
+                oracle.support_relation_valid,
+            ),
+            "CPK-SV-A certificate diverged for {record:?}; first offending pair: {:?}",
+            oracle.first_offending_pair,
+        );
+    }
+
+    #[cfg(test)]
+    fn projection_structural_certificate_full_report(&self) -> (usize, usize, usize) {
+        let mut buckets = 0usize;
+        let mut incidences = 0usize;
+        let mut mismatches = 0usize;
+        for bucket in self.projection_formula_shadow.by_record.values() {
+            buckets += 1;
+            incidences += bucket.exact_links.len();
+            let oracle = bucket.structural_oracle_result();
+            let certificate_matches = bucket.structural_certificate.is_some_and(|certificate| {
+                certificate.proves_structure_at(bucket.formula_revision)
+                    && certificate.canonical_order_valid == oracle.canonical_order_valid
+                    && certificate.exact_membership_valid == oracle.exact_membership_valid
+                    && certificate.support_relation_valid == oracle.support_relation_valid
+            });
+            mismatches += usize::from(!certificate_matches);
+        }
+        (buckets, incidences, mismatches)
     }
 
     #[cfg(test)]
@@ -6502,6 +6705,7 @@ impl ProofOccurrenceStore {
         }
         assert!(available.is_empty());
         bucket.canonical_runs = replacement_runs;
+        bucket.structural_certificate = None;
         self.projection_formulas.insert(record, clauses);
     }
 
@@ -6534,6 +6738,7 @@ impl ProofOccurrenceStore {
             .expect("the production writer must create the exact shadow incidence");
         assert_eq!(*metadata, ProjectionIncidenceMetadata::Independent);
         *metadata = ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage);
+        bucket.structural_certificate = None;
 
         let [ProjectionClause::Standalone { attribution, .. }] = self
             .projection_formulas
@@ -6904,6 +7109,25 @@ impl ProofOccurrenceStore {
             cursor = end;
         }
 
+        // The canonical-run builder above proves the delta-local order boundaries while the
+        // exact-link/support builders prove identity and support consistency. Carry that proof
+        // forward only when the pre-existing prefix was itself certified. No whole-record
+        // clone/resort is needed, and saturation deliberately makes the certificate dirty.
+        let previous_revision = existing.map_or(FormulaStructuralRevision::default(), |bucket| {
+            bucket.formula_revision
+        });
+        let previous_structure_is_certified = existing.is_none_or(|bucket| {
+            bucket
+                .structural_certificate
+                .is_some_and(|certificate| certificate.proves_structure_at(bucket.formula_revision))
+        });
+        let next_revision_value = previous_revision.0.checked_add(1);
+        let next_formula_revision =
+            FormulaStructuralRevision(next_revision_value.unwrap_or(previous_revision.0));
+        let next_structural_certificate = next_revision_value
+            .filter(|_| previous_structure_is_certified)
+            .map(|_| ProjectionStructuralCertificate::valid(next_formula_revision));
+
         let mut new_record_bucket = (!self
             .projection_formula_shadow
             .by_record
@@ -6981,9 +7205,19 @@ impl ProofOccurrenceStore {
                 operation: ProofOperation::UpdateClaimLifecycle,
             });
         }
+        #[cfg(test)]
+        if self.take_projection_clause_reservation_failure(
+            ProjectionClauseReservationFailurePoint::ShadowStructuralCertificate,
+        ) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
         Ok(PreparedProjectionFormulaShadowAdmission {
             new_record_bucket,
             delta,
+            next_formula_revision,
+            next_structural_certificate,
         })
     }
 
@@ -7527,6 +7761,11 @@ impl ProofOccurrenceStore {
             &mut prepared.shadow.delta,
             &mut self.projection_formula_shadow.movement,
         );
+        // Publish the revision/certificate only after every structural mutation is complete.
+        // For a new bucket this remains invisible until the following map insertion; for an
+        // existing bucket commit is allocation-free because all capacity was reserved in prepare.
+        bucket.formula_revision = prepared.shadow.next_formula_revision;
+        bucket.structural_certificate = prepared.shadow.next_structural_certificate;
         if let Some(bucket) = new_bucket {
             assert!(
                 self.projection_formula_shadow
@@ -7536,7 +7775,10 @@ impl ProofOccurrenceStore {
             );
         }
         #[cfg(test)]
-        self.debug_assert_pclf_a_read_model_matches_legacy();
+        {
+            self.debug_assert_pclf_a_read_model_matches_legacy();
+            self.debug_assert_projection_structural_certificate(prepared.lower_record);
+        }
     }
 
     pub(super) fn record_projection_clause(
@@ -13957,6 +14199,69 @@ mod tests {
     }
 
     #[test]
+    fn cpk_sv_a_certificate_revision_is_atomic_and_exact_noop_stable() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_146);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(97_147),
+        ));
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::Standalone { support },
+        );
+
+        store.record_projection_clause(record, admission);
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.formula_revision, FormulaStructuralRevision(1));
+        assert!(
+            bucket
+                .structural_certificate
+                .is_some_and(|certificate| certificate.proves_structure_at(bucket.formula_revision))
+        );
+        assert_eq!(
+            bucket.structural_oracle_result(),
+            ProjectionStructuralOracleResult {
+                canonical_order_valid: true,
+                first_offending_pair: None,
+                exact_membership_valid: true,
+                support_relation_valid: true,
+            }
+        );
+
+        let before = store.clone();
+        assert!(
+            store
+                .try_prepare_projection_clause_admission(record, &[admission])
+                .expect("exact no-op classification")
+                .is_none()
+        );
+        assert_eq!(
+            store, before,
+            "exact no-op must not bump the formula revision"
+        );
+
+        let second = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(97_148)),
+                premise: ProofPremise::Record(BoundRecordId(97_149)),
+            },
+        );
+        let before = store.clone();
+        store.fail_projection_clause_reservation_at_for_test(
+            ProjectionClauseReservationFailurePoint::ShadowStructuralCertificate,
+        );
+        assert!(matches!(
+            store.try_prepare_projection_clause_admission(record, &[second]),
+            Err(ProofFailure::ResourceExhausted { .. })
+        ));
+        assert_eq!(
+            store, before,
+            "certificate prepare failure must publish nothing"
+        );
+    }
+
+    #[test]
     fn pclf_b_each_reservation_failure_keeps_legacy_and_shadow_logically_unchanged() {
         let record = BoundRecordId(97_161);
         let claim = UpperReplayClaimId(0);
@@ -13977,6 +14282,7 @@ mod tests {
             ProjectionClauseReservationFailurePoint::ShadowStructure,
             ProjectionClauseReservationFailurePoint::ShadowCanonicalRuns,
             ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
+            ProjectionClauseReservationFailurePoint::ShadowStructuralCertificate,
         ] {
             let mut store = ProofOccurrenceStore::default();
             let before = store.clone();
@@ -16784,6 +17090,14 @@ mod tests {
                 record,
                 vec![clauses[0], clauses[2], clauses[1]],
             );
+        let corrupted_bucket = &machine.proof_store.projection_formula_shadow.by_record[&record];
+        assert!(
+            corrupted_bucket.structural_certificate.is_none(),
+            "a direct test corruption must dirty, never silently preserve, the certificate",
+        );
+        let corrupted_oracle = corrupted_bucket.structural_oracle_result();
+        assert!(!corrupted_oracle.canonical_order_valid);
+        assert!(corrupted_oracle.first_offending_pair.is_some());
 
         let (actual, _) = project_lower_for_test(&machine, record);
         assert_eq!(
@@ -19724,6 +20038,57 @@ mod tests {
             side_census,
             report.d0_projection_census,
         );
+    }
+
+    /// CPK-SV-A's reproducible exhaustive shadow-certificate gate. Per-admission linear oracles
+    /// are suppressed during lowering; the final committed store is then checked bucket-by-bucket
+    /// against an independent canonical-order/membership/support reconstruction.
+    ///
+    /// Run with:
+    /// `YULANG_CPK_SV_A_FULL_STD_CERTIFICATE=1 cargo test -p infer --release \
+    ///   constraints::proof::tests::cpk_sv_a_full_std_structural_certificate_parity \
+    ///   -- --ignored --exact --nocapture`
+    #[test]
+    #[ignore = "full repository-std CPK-SV-A structural-certificate gate"]
+    fn cpk_sv_a_full_std_structural_certificate_parity() {
+        assert_eq!(
+            std::env::var("YULANG_CPK_SV_A_FULL_STD_CERTIFICATE").as_deref(),
+            Ok("1"),
+            "set YULANG_CPK_SV_A_FULL_STD_CERTIFICATE=1 to acknowledge the heavy full-std gate",
+        );
+        struct ActiveGuard;
+        impl Drop for ActiveGuard {
+            fn drop(&mut self) {
+                CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(|active| active.set(false));
+                QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| active.set(false));
+            }
+        }
+        CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(|active| {
+            assert!(!active.replace(true), "CPK-SV-A full-std gate cannot nest");
+        });
+        QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| {
+            assert!(
+                !active.replace(true),
+                "CPK-SV-A full-std gate cannot overlap another exhaustive gate",
+            );
+        });
+        let _active = ActiveGuard;
+
+        let loaded = qorf_c_repository_std_loaded("use std::prelude::*\nmod std;\n");
+        let output = crate::lowering::lower_loaded_files(&loaded)
+            .expect("lower complete repository std for CPK-SV-A parity");
+        let (buckets, incidences, mismatches) = output
+            .session
+            .infer
+            .constraints()
+            .proof_store
+            .projection_structural_certificate_full_report();
+        eprintln!(
+            "CPK_SV_A_FULL_STD_CERTIFICATE buckets={buckets} incidences={incidences} mismatches={mismatches}"
+        );
+        assert!(buckets > 0);
+        assert!(incidences > 0);
+        assert_eq!(mismatches, 0);
     }
 
     fn qorf_c_repository_std_loaded(root_source: &str) -> Vec<sources::LoadedFile> {
