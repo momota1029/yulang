@@ -950,11 +950,15 @@ thread_local! {
         const { Cell::new(CpkSvBOrderCensus {
             certified_paths: 0,
             fallback_paths: 0,
+            certified_order_cursor_calls: 0,
+            fallback_order_cursor_calls: 0,
+            shadow_order_cursor_calls: 0,
             certified_order_cursor_yields: 0,
             fallback_order_cursor_yields: 0,
             shadow_order_cursor_yields: 0,
             shadow_mismatches: 0,
         }) };
+    static CPK_SV_B_FAIL_PREFLIGHT_ALLOCATION: Cell<bool> = const { Cell::new(false) };
 }
 
 #[cfg(test)]
@@ -962,10 +966,21 @@ thread_local! {
 struct CpkSvBOrderCensus {
     certified_paths: usize,
     fallback_paths: usize,
+    certified_order_cursor_calls: usize,
+    fallback_order_cursor_calls: usize,
+    shadow_order_cursor_calls: usize,
     certified_order_cursor_yields: usize,
     fallback_order_cursor_yields: usize,
     shadow_order_cursor_yields: usize,
     shadow_mismatches: usize,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionOrderPassKind {
+    Certified,
+    Fallback,
+    Shadow,
 }
 
 #[cfg(test)]
@@ -2404,8 +2419,27 @@ pub(super) struct PreparedProjectionClauseAdmission {
 struct PreparedProjectionFormulaShadowAdmission {
     new_record_bucket: Option<ProjectionFormulaBucket>,
     delta: ProjectionFormulaShadowDelta,
+    observed_base: ProjectionStructuralBaseSnapshot,
     next_formula_revision: FormulaStructuralRevision,
     next_structural_certificate: Option<ProjectionStructuralCertificate>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionStructuralBaseSnapshot {
+    Missing,
+    Present {
+        formula_revision: FormulaStructuralRevision,
+        structural_certificate: Option<ProjectionStructuralCertificate>,
+    },
+}
+
+impl ProjectionStructuralBaseSnapshot {
+    fn from_bucket(bucket: Option<&ProjectionFormulaBucket>) -> Self {
+        bucket.map_or(Self::Missing, |bucket| Self::Present {
+            formula_revision: bucket.formula_revision,
+            structural_certificate: bucket.structural_certificate,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -3592,28 +3626,44 @@ impl ProjectionFormulaBucket {
 
     fn first_noncanonical_incidence(
         &self,
-    ) -> (
-        Option<(
-            (ProjectionSupportGroupId, ProjectionFormulaEntryId),
-            (ProjectionSupportGroupId, ProjectionFormulaEntryId),
-        )>,
-        usize,
-    ) {
+        _pass_kind: ProjectionOrderPassKind,
+    ) -> Option<(
+        (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+        (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+    )> {
+        #[cfg(test)]
+        CPK_SV_B_ORDER_CENSUS.with(|slot| {
+            let mut census = slot.get();
+            match _pass_kind {
+                ProjectionOrderPassKind::Certified => census.certified_order_cursor_calls += 1,
+                ProjectionOrderPassKind::Fallback => census.fallback_order_cursor_calls += 1,
+                ProjectionOrderPassKind::Shadow => census.shadow_order_cursor_calls += 1,
+            }
+            slot.set(census);
+        });
         let mut previous = None;
-        let mut yields = 0usize;
         let mut cursor = self.canonical_run_cursor();
         while let Some(current @ (support_id, entry_id)) = cursor.next() {
-            yields += 1;
+            #[cfg(test)]
+            CPK_SV_B_ORDER_CENSUS.with(|slot| {
+                let mut census = slot.get();
+                match _pass_kind {
+                    ProjectionOrderPassKind::Certified => census.certified_order_cursor_yields += 1,
+                    ProjectionOrderPassKind::Fallback => census.fallback_order_cursor_yields += 1,
+                    ProjectionOrderPassKind::Shadow => census.shadow_order_cursor_yields += 1,
+                }
+                slot.set(census);
+            });
             if let Some(previous_pair @ (previous_support, previous_entry)) = previous {
                 let previous_clause = self.reconstructed_clause(previous_support, previous_entry);
                 let current_clause = self.reconstructed_clause(support_id, entry_id);
                 if previous_clause.canonical_cmp(current_clause) == std::cmp::Ordering::Greater {
-                    return (Some((previous_pair, current)), yields);
+                    return Some((previous_pair, current));
                 }
             }
             previous = Some(current);
         }
-        (None, yields)
+        None
     }
 
     fn canonical_clauses(&self) -> Vec<ProjectionClause> {
@@ -7271,6 +7321,7 @@ impl ProofOccurrenceStore {
         // exact-link/support builders prove identity and support consistency. Carry that proof
         // forward only when the pre-existing prefix was itself certified. No whole-record
         // clone/resort is needed, and saturation deliberately makes the certificate dirty.
+        let observed_base = ProjectionStructuralBaseSnapshot::from_bucket(existing);
         let previous_revision = existing.map_or(FormulaStructuralRevision::default(), |bucket| {
             bucket.formula_revision
         });
@@ -7374,6 +7425,7 @@ impl ProofOccurrenceStore {
         Ok(PreparedProjectionFormulaShadowAdmission {
             new_record_bucket,
             delta,
+            observed_base,
             next_formula_revision,
             next_structural_certificate,
         })
@@ -7880,6 +7932,27 @@ impl ProofOccurrenceStore {
         &mut self,
         prepared: &mut PreparedProjectionClauseAdmission,
     ) {
+        let current_base = ProjectionStructuralBaseSnapshot::from_bucket(
+            self.projection_formula_shadow
+                .by_record
+                .get(&prepared.lower_record),
+        );
+        if current_base != prepared.shadow.observed_base {
+            // A prepared delta is indexed against exactly the bucket revision/certificate state
+            // it observed. Non-standard callers may interleave corruption or another commit;
+            // applying that stale delta could both reuse a revision identity and falsely
+            // re-certify structure it did not prove. Reject it before any legacy or factored
+            // mutation and leave the actual current bucket explicitly dirty.
+            if let Some(bucket) = self
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&prepared.lower_record)
+            {
+                bucket.structural_certificate = None;
+            }
+            prepared.shadow.next_structural_certificate = None;
+            return;
+        }
         // Finalize the commit-snapshot-dependent summary before the authoritative bucket mutates.
         // All sets touched here reserved `accepted.len()` during prepare, so this refresh is
         // bounded and allocation-free even when a claimed support was promoted meanwhile.
@@ -9133,15 +9206,13 @@ impl<'a> ProjectionPreflight<'a> {
                 CPK_SV_B_ORDER_CENSUS.with(|slot| {
                     let mut census = slot.get();
                     census.certified_paths += 1;
-                    // Production performs no order-only cursor construction or yield here.
-                    census.certified_order_cursor_yields += 0;
                     slot.set(census);
                 });
                 if CPK_SV_B_SHADOW_ORDER_ACTIVE.with(Cell::get) {
-                    let (violation, yields) = formula_bucket.first_noncanonical_incidence();
+                    let violation = formula_bucket
+                        .first_noncanonical_incidence(ProjectionOrderPassKind::Shadow);
                     CPK_SV_B_ORDER_CENSUS.with(|slot| {
                         let mut census = slot.get();
-                        census.shadow_order_cursor_yields += yields;
                         census.shadow_mismatches += usize::from(violation.is_some());
                         slot.set(census);
                     });
@@ -9152,12 +9223,12 @@ impl<'a> ProjectionPreflight<'a> {
                 }
             }
         } else {
-            let (violation, _order_yields) = formula_bucket.first_noncanonical_incidence();
+            let violation =
+                formula_bucket.first_noncanonical_incidence(ProjectionOrderPassKind::Fallback);
             #[cfg(test)]
             CPK_SV_B_ORDER_CENSUS.with(|slot| {
                 let mut census = slot.get();
                 census.fallback_paths += 1;
-                census.fallback_order_cursor_yields += _order_yields;
                 slot.set(census);
             });
             if violation.is_some() {
@@ -9165,6 +9236,12 @@ impl<'a> ProjectionPreflight<'a> {
             }
         }
 
+        #[cfg(test)]
+        if CPK_SV_B_FAIL_PREFLIGHT_ALLOCATION.with(|fail| fail.replace(false)) {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            });
+        }
         let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
         resolved.try_reserve_exact(supports.len()).map_err(|_| {
             ProofFailure::ResourceExhausted {
@@ -14768,7 +14845,9 @@ mod tests {
         let certified = CPK_SV_B_ORDER_CENSUS.with(Cell::get);
         assert!(certified.certified_paths > 0);
         assert_eq!(certified.fallback_paths, 0);
+        assert_eq!(certified.certified_order_cursor_calls, 0);
         assert_eq!(certified.certified_order_cursor_yields, 0);
+        assert!(certified.shadow_order_cursor_calls > 0);
         assert!(certified.shadow_order_cursor_yields > 0);
         assert_eq!(certified.shadow_mismatches, 0);
 
@@ -14797,9 +14876,253 @@ mod tests {
             let fallback = CPK_SV_B_ORDER_CENSUS.with(Cell::get);
             assert_eq!(fallback.certified_paths, 0);
             assert!(fallback.fallback_paths > 0);
+            assert!(fallback.fallback_order_cursor_calls > 0);
             assert!(fallback.fallback_order_cursor_yields > 0);
             assert_eq!(fallback.shadow_order_cursor_yields, 0);
         }
+    }
+
+    #[test]
+    fn cpk_sv_b_stale_prepared_admission_cannot_recertify_or_reuse_revision() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_162);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            ),
+        );
+        let admission = |ordinal| {
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(ordinal)),
+                    premise: ProofPremise::Record(BoundRecordId(ordinal + 1)),
+                },
+            )
+        };
+
+        let mut stale_after_dirty = store
+            .try_prepare_projection_clause_admission(record, &[admission(97_163)])
+            .expect("prepare against certified base")
+            .expect("new admission");
+        store
+            .projection_formula_shadow
+            .by_record
+            .get_mut(&record)
+            .expect("fixture bucket")
+            .structural_certificate = None;
+        let dirty_base = store.clone();
+        store.commit_projection_clause_admission(&mut stale_after_dirty);
+        assert_eq!(
+            store, dirty_base,
+            "stale commit must publish no partial face"
+        );
+        assert!(
+            store.projection_formula_shadow.by_record[&record]
+                .structural_certificate
+                .is_none(),
+            "stale prepare must not re-certify a dirty current bucket",
+        );
+
+        // Restore a current certificate only to exercise two deltas prepared from one revision.
+        let bucket = store
+            .projection_formula_shadow
+            .by_record
+            .get_mut(&record)
+            .expect("fixture bucket");
+        bucket.structural_certificate = Some(ProjectionStructuralCertificate::valid(
+            bucket.formula_revision,
+        ));
+        let mut first = store
+            .try_prepare_projection_clause_admission(record, &[admission(97_165)])
+            .expect("first concurrent-style prepare")
+            .expect("first new admission");
+        let mut second = store
+            .try_prepare_projection_clause_admission(record, &[admission(97_167)])
+            .expect("second concurrent-style prepare")
+            .expect("second new admission");
+        store.commit_projection_clause_admission(&mut first);
+        let revision_after_first =
+            store.projection_formula_shadow.by_record[&record].formula_revision;
+        let exact_links_after_first = store.projection_formula_shadow.by_record[&record]
+            .exact_links
+            .len();
+        store.commit_projection_clause_admission(&mut second);
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.formula_revision, revision_after_first);
+        assert_eq!(bucket.exact_links.len(), exact_links_after_first);
+        assert!(bucket.structural_certificate.is_none());
+    }
+
+    #[test]
+    fn cpk_sv_b_certified_and_fallback_paths_preserve_failure_priority_and_owner() {
+        fn assert_parity(
+            machine: &mut ConstraintMachine,
+            record: BoundRecordId,
+            inject_allocation_failure: bool,
+        ) -> ProofFailure {
+            let certificate = machine.proof_store.projection_formula_shadow.by_record[&record]
+                .structural_certificate
+                .expect("fixture starts certified");
+            if inject_allocation_failure {
+                CPK_SV_B_FAIL_PREFLIGHT_ALLOCATION.with(|fail| fail.set(true));
+            }
+            let certified = project_lower_for_test(machine, record)
+                .0
+                .expect_err("fixture must fail on certified path");
+            machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&record)
+                .expect("fixture bucket")
+                .structural_certificate = None;
+            if inject_allocation_failure {
+                CPK_SV_B_FAIL_PREFLIGHT_ALLOCATION.with(|fail| fail.set(true));
+            }
+            let fallback = project_lower_for_test(machine, record)
+                .0
+                .expect_err("fixture must fail on fallback path");
+            assert_eq!(certified, fallback, "certificate authority changed failure");
+            machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&record)
+                .expect("fixture bucket")
+                .structural_certificate = Some(certificate);
+            certified
+        }
+
+        // Dangling dependency, including exact owner attribution.
+        let mut dangling = cpk_machine();
+        let dangling_record = cpk_gap_1_projection_record(&mut dangling, 207);
+        let incomplete =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let dangling_constraint = ConstraintRecordId(230_000);
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut dangling,
+            dangling_record,
+            vec![incomplete],
+            vec![ProjectionClause::DerivedUnary {
+                support: incomplete,
+                carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                    parent: dangling_constraint,
+                    rule: StructuralDerivationRule::FunctionReturn,
+                }),
+                premise: ProofPremise::Constraint(dangling_constraint),
+                attribution: None,
+            }],
+        );
+        assert!(matches!(
+            assert_parity(&mut dangling, dangling_record, false),
+            ProofFailure::DanglingProofReference { .. } | ProofFailure::MissingSemanticFact { .. }
+        ));
+
+        // The formula's support has no counterpart in the externally supplied support set.
+        let mut mismatch = cpk_machine();
+        let mismatch_record = cpk_gap_1_projection_record(&mut mismatch, 208);
+        let origins = [OriginId(98_100), OriginId(98_101)];
+        for origin in origins {
+            mismatch.proof_store.record_occurrence(
+                ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(origin.0))),
+                ProofCause::Root(origin),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            );
+        }
+        let formula_support =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(origins[0]));
+        let other_support =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(origins[1]));
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut mismatch,
+            mismatch_record,
+            vec![formula_support],
+            vec![ProjectionClause::Standalone {
+                support: formula_support,
+                attribution: None,
+            }],
+        );
+        mismatch
+            .proof_store
+            .projection_supports
+            .insert(mismatch_record, vec![other_support]);
+        assert_eq!(
+            assert_parity(&mut mismatch, mismatch_record, false),
+            ProofFailure::ProjectionInvariantViolation {
+                record: mismatch_record,
+                kind: ProjectionInvariantViolation::OrphanFormula,
+            },
+        );
+
+        // Fallible matched/support allocation happens only after the fallback order pass.
+        let mut allocation = cpk_machine();
+        let allocation_record = cpk_gap_1_projection_record(&mut allocation, 209);
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut allocation,
+            allocation_record,
+            vec![incomplete],
+            vec![ProjectionClause::Standalone {
+                support: incomplete,
+                attribution: None,
+            }],
+        );
+        assert_eq!(
+            assert_parity(&mut allocation, allocation_record, true),
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            },
+        );
+
+        // Noncanonical support order and dangling clauses coexist. Formula certification does
+        // not cover the external support sequence, so both authority paths must return order
+        // failure before touching the dangling dependency.
+        let mut multiple = cpk_machine();
+        let multiple_record = cpk_gap_1_projection_record(&mut multiple, 210);
+        let ordered_origins = [OriginId(98_103), OriginId(98_102)];
+        for origin in ordered_origins {
+            multiple.proof_store.record_occurrence(
+                ProofResult::Semantic(SemanticFactRef::Constraint(ConstraintRecordId(origin.0))),
+                ProofCause::Root(origin),
+                vec![ProofParent::Origin(origin)],
+                ProvenanceCompleteness::Complete,
+            );
+        }
+        let supports = ordered_origins.map(|origin| {
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(origin))
+        });
+        let clauses = supports
+            .into_iter()
+            .enumerate()
+            .map(|(index, support)| {
+                let premise = ConstraintRecordId(230_010 + index as u32);
+                ProjectionClause::DerivedUnary {
+                    support,
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: premise,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(premise),
+                    attribution: None,
+                }
+            })
+            .collect();
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut multiple,
+            multiple_record,
+            supports.to_vec(),
+            clauses,
+        );
+        assert_eq!(
+            assert_parity(&mut multiple, multiple_record, false),
+            ProofFailure::NonCanonicalProjectionOrder {
+                record: multiple_record,
+            },
+        );
     }
 
     #[test]
@@ -20416,6 +20739,7 @@ mod tests {
         assert!(incidences > 0);
         assert_eq!(mismatches, 0);
         assert!(order_census.certified_paths > 0);
+        assert_eq!(order_census.certified_order_cursor_calls, 0);
         assert_eq!(order_census.certified_order_cursor_yields, 0);
         assert_eq!(order_census.shadow_mismatches, 0);
         assert!(order_census.shadow_order_cursor_yields > 0);
