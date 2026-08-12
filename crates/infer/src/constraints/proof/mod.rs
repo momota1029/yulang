@@ -3603,8 +3603,80 @@ impl ProjectionFormulaBucket {
         let mut previous = None;
         let mut cursor_membership_valid = true;
         let mut cursor_entries = 0usize;
-        let mut seen_entries = vec![false; self.entries.len()];
-        let mut seen_supports = vec![false; self.support_groups.len()];
+        let mut seen_entries = Vec::new();
+        seen_entries
+            .try_reserve_exact(self.entries.len())
+            .expect("CPK-SV-A entry census allocation");
+        seen_entries.resize(self.entries.len(), false);
+        let mut seen_supports = Vec::new();
+        seen_supports
+            .try_reserve_exact(self.support_groups.len())
+            .expect("CPK-SV-A support census allocation");
+        seen_supports.resize(self.support_groups.len(), false);
+        let mut seen_incidences = FxHashSet::default();
+        seen_incidences
+            .try_reserve(self.exact_links.len())
+            .expect("CPK-SV-A incidence census allocation");
+        let mut seen_run_keys = FxHashSet::default();
+        seen_run_keys
+            .try_reserve(self.canonical_runs.len())
+            .expect("CPK-SV-A run census allocation");
+        let mut run_structure_valid = true;
+        let mut previous_run_key = None;
+        for run in &self.canonical_runs {
+            let Some(group) = self.support_groups.get(run.support_id.0 as usize) else {
+                run_structure_valid = false;
+                continue;
+            };
+            let run_key = (run.category, run.support_id);
+            run_structure_valid &= seen_run_keys.insert(run_key);
+            let canonical_key = (run.category, group.raw_support);
+            if let Some((previous_category, previous_support)) = previous_run_key {
+                run_structure_valid &= previous_category < run.category
+                    || (previous_category == run.category
+                        && projection_support_cmp(previous_support, group.raw_support)
+                            == std::cmp::Ordering::Less);
+            }
+            previous_run_key = Some(canonical_key);
+            run_structure_valid &= run.entry_len > 0
+                && run.chunk_root.is_some()
+                && run.chunks_are_nonempty_and_bounded()
+                && run.chunk_tree_is_balanced();
+
+            let mut run_entries = Vec::new();
+            run_entries
+                .try_reserve_exact(run.entry_len)
+                .expect("CPK-SV-A run-entry census allocation");
+            run.append_entries_in_order(&mut run_entries);
+            run_structure_valid &= run_entries.len() == run.entry_len;
+            let mut chunk_pivots = FxHashSet::default();
+            chunk_pivots
+                .try_reserve(run.chunk_count())
+                .expect("CPK-SV-A pivot census allocation");
+            fn check_chunks(
+                node: Option<&ProjectionRunChunkBox>,
+                pivots: &mut FxHashSet<ProjectionFormulaEntryId>,
+            ) -> bool {
+                let Some(node) = node else {
+                    return true;
+                };
+                let chunk = CanonicalProjectionRun::chunk(node);
+                !chunk.entries.is_empty()
+                    && pivots.insert(chunk.entries[0])
+                    && check_chunks(chunk.left.as_ref(), pivots)
+                    && check_chunks(chunk.right.as_ref(), pivots)
+            }
+            run_structure_valid &= check_chunks(run.chunk_root.as_ref(), &mut chunk_pivots)
+                && chunk_pivots.len() == run.chunk_count();
+            for entry_id in run_entries {
+                let Some(entry) = self.entries.get(entry_id.0 as usize) else {
+                    run_structure_valid = false;
+                    continue;
+                };
+                run_structure_valid &=
+                    CanonicalProjectionCategory::from_clause(entry.clause) == run.category;
+            }
+        }
         let mut cursor = self.canonical_run_cursor();
         while let Some(current @ (support_id, entry_id)) = cursor.next() {
             cursor_entries += 1;
@@ -3620,6 +3692,7 @@ impl ProjectionFormulaBucket {
             }
             seen_entries[entry_id.0 as usize] = true;
             seen_supports[support_id.0 as usize] = true;
+            cursor_membership_valid &= seen_incidences.insert(current);
             if let Some(previous_pair @ (previous_support, previous_entry)) = previous {
                 let previous_clause = self.reconstructed_clause(previous_support, previous_entry);
                 let current_clause = self.reconstructed_clause(support_id, entry_id);
@@ -3627,9 +3700,6 @@ impl ProjectionFormulaBucket {
                     canonical_order_valid = false;
                     first_offending_pair = Some((previous_pair, current));
                     break;
-                }
-                if previous_pair == current {
-                    cursor_membership_valid = false;
                 }
             }
             cursor_membership_valid &= self.exact_links.contains_key(&current);
@@ -3652,8 +3722,14 @@ impl ProjectionFormulaBucket {
                 });
         let exact_membership_valid = entry_index_valid
             && support_index_valid
+            && run_structure_valid
             && cursor_membership_valid
             && cursor_entries == self.exact_links.len()
+            && seen_incidences.len() == self.exact_links.len()
+            && self
+                .exact_links
+                .keys()
+                .all(|incidence| seen_incidences.contains(incidence))
             && seen_entries.into_iter().all(|seen| seen)
             && seen_supports.into_iter().all(|seen| seen);
 
@@ -3663,15 +3739,22 @@ impl ProjectionFormulaBucket {
             .filter_map(|group| group.match_key)
             .collect::<FxHashSet<_>>();
         let support_relation_valid = expected_match_keys == self.normalized_support_keys
-            && self
-                .support_groups
-                .iter()
-                .all(|group| match group.raw_support {
-                    SchemeProjectionProofSupport::Claimed(_) => group.coverage_root.is_some(),
-                    SchemeProjectionProofSupport::Independent(_) => group.coverage_root.is_none(),
-                })
+            && self.support_groups.iter().all(|group| {
+                match (group.raw_support, group.match_key, group.coverage_root) {
+                    (
+                        SchemeProjectionProofSupport::Claimed(_),
+                        Some(ProjectionSupportMatchKey::Claimed(match_root)),
+                        Some(coverage_root),
+                    ) => match_root == coverage_root,
+                    (SchemeProjectionProofSupport::Claimed(_), None, Some(_)) => true,
+                    (SchemeProjectionProofSupport::Independent(_), _, None) => true,
+                    _ => false,
+                }
+            })
             && self.exact_links.iter().all(|(&(support_id, _), metadata)| {
-                let group = &self.support_groups[support_id.0 as usize];
+                let Some(group) = self.support_groups.get(support_id.0 as usize) else {
+                    return false;
+                };
                 matches!(
                     (group.raw_support, metadata),
                     (
@@ -5814,25 +5897,43 @@ impl ProofOccurrenceStore {
             return;
         }
         let bucket = &self.projection_formula_shadow.by_record[&record];
+        let certificate = bucket.structural_certificate;
+        let incidence_count = bucket.exact_links.len();
+        if certificate.is_some() && incidence_count > 16 && !incidence_count.is_power_of_two() {
+            // Full reconstruction on every singleton commit is quadratic test-only work. Small
+            // prefixes and every power-of-two boundary retain continuous coverage; fixtures and
+            // the env-gated full workload oracle verify every final bucket.
+            debug_assert!(certificate.is_some_and(|certificate| {
+                certificate.proves_structure_at(bucket.formula_revision)
+            }));
+            return;
+        }
         let oracle = bucket.structural_oracle_result();
-        let certificate = bucket
-            .structural_certificate
-            .expect("production admission must publish a CPK-SV-A certificate");
-        debug_assert!(certificate.proves_structure_at(bucket.formula_revision));
-        debug_assert_eq!(
-            (
-                certificate.canonical_order_valid,
-                certificate.exact_membership_valid,
-                certificate.support_relation_valid,
+        match certificate {
+            Some(certificate) => {
+                debug_assert!(certificate.proves_structure_at(bucket.formula_revision));
+                debug_assert_eq!(
+                    (
+                        certificate.canonical_order_valid,
+                        certificate.exact_membership_valid,
+                        certificate.support_relation_valid,
+                    ),
+                    (
+                        oracle.canonical_order_valid,
+                        oracle.exact_membership_valid,
+                        oracle.support_relation_valid,
+                    ),
+                    "CPK-SV-A certificate diverged for {record:?}; first offending pair: {:?}",
+                    oracle.first_offending_pair,
+                );
+            }
+            None => debug_assert!(
+                !oracle.canonical_order_valid
+                    || !oracle.exact_membership_valid
+                    || !oracle.support_relation_valid,
+                "a dirty CPK-SV-A certificate needs a structural reason for {record:?}",
             ),
-            (
-                oracle.canonical_order_valid,
-                oracle.exact_membership_valid,
-                oracle.support_relation_valid,
-            ),
-            "CPK-SV-A certificate diverged for {record:?}; first offending pair: {:?}",
-            oracle.first_offending_pair,
-        );
+        }
     }
 
     #[cfg(test)]
@@ -5844,12 +5945,19 @@ impl ProofOccurrenceStore {
             buckets += 1;
             incidences += bucket.exact_links.len();
             let oracle = bucket.structural_oracle_result();
-            let certificate_matches = bucket.structural_certificate.is_some_and(|certificate| {
-                certificate.proves_structure_at(bucket.formula_revision)
-                    && certificate.canonical_order_valid == oracle.canonical_order_valid
-                    && certificate.exact_membership_valid == oracle.exact_membership_valid
-                    && certificate.support_relation_valid == oracle.support_relation_valid
-            });
+            let certificate_matches = match bucket.structural_certificate {
+                Some(certificate) => {
+                    certificate.proves_structure_at(bucket.formula_revision)
+                        && certificate.canonical_order_valid == oracle.canonical_order_valid
+                        && certificate.exact_membership_valid == oracle.exact_membership_valid
+                        && certificate.support_relation_valid == oracle.support_relation_valid
+                }
+                None => {
+                    !oracle.canonical_order_valid
+                        || !oracle.exact_membership_valid
+                        || !oracle.support_relation_valid
+                }
+            };
             mismatches += usize::from(!certificate_matches);
         }
         (buckets, incidences, mismatches)
@@ -7421,10 +7529,29 @@ impl ProofOccurrenceStore {
                 continue;
             };
             let existing_support_len = existing.map_or(0, |bucket| bucket.support_groups.len());
+            let frozen_coverage_root = if (support_id.0 as usize) < existing_support_len {
+                existing.unwrap().support_groups[support_id.0 as usize].coverage_root
+            } else {
+                shadow.delta.new_support_groups[support_id.0 as usize - existing_support_len]
+                    .coverage_root
+            };
+            let promotion_is_consistent = match (match_key, frozen_coverage_root) {
+                (ProjectionSupportMatchKey::Claimed(current), Some(frozen)) => current == frozen,
+                (ProjectionSupportMatchKey::Independent(_), None) => true,
+                _ => false,
+            };
+            if !promotion_is_consistent {
+                // The exact incidence/source was frozen during prepare. A claim move between
+                // prepare and commit must not retroactively rewrite that identity, nor may it
+                // publish a certificate for the contradictory match-key relation.
+                shadow.next_structural_certificate = None;
+            }
             if (support_id.0 as usize) < existing_support_len {
                 let current = existing.unwrap().support_groups[support_id.0 as usize].match_key;
                 if let Some(current) = current {
-                    assert_eq!(current, match_key);
+                    if current != match_key {
+                        shadow.next_structural_certificate = None;
+                    }
                 } else if !shadow
                     .delta
                     .support_match_key_promotions
@@ -14483,6 +14610,48 @@ mod tests {
                 .contains(&ProjectionSupportMatchKey::Claimed(claim))
         );
         store.debug_assert_pclf_a_read_model_matches_legacy();
+    }
+
+    #[test]
+    fn cpk_sv_a_commit_time_claim_root_change_dirties_certificate() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(97_159);
+        let claim = UpperReplayClaimId(0);
+        let frozen_root = claim;
+        let moved_root = UpperReplayClaimId(1);
+        let support = SchemeProjectionProofSupport::Claimed(claim);
+        let admission = RecordProofClauseLinkAdmission::claimed(
+            claim,
+            RecordProofClause::Standalone { support },
+            ClaimedAttributionSource::FlatRetained,
+            ClaimedProjectionProofSource::Original {
+                coverage_root: frozen_root,
+                producer: ConstraintRecordId(97_160),
+            },
+        );
+        let mut prepared = store
+            .try_prepare_projection_clause_admission(record, &[admission])
+            .expect("claimed admission prepare")
+            .expect("claimed incidence is new");
+        let mut claim_admission = store
+            .try_prepare_original_claim_admission(
+                BoundRecordId(97_161),
+                ConstraintRecordId(97_160),
+                UpperReplayClaimKind::Direct,
+            )
+            .expect("claim admission prepare");
+        store.commit_original_claim_admission(&mut claim_admission);
+        store.upper_claims[claim.0 as usize].coverage_root = moved_root;
+
+        store.commit_projection_clause_admission(&mut prepared);
+        let bucket = &store.projection_formula_shadow.by_record[&record];
+        assert_eq!(bucket.support_groups[0].coverage_root, Some(frozen_root));
+        assert_eq!(
+            bucket.support_groups[0].match_key,
+            Some(ProjectionSupportMatchKey::Claimed(moved_root)),
+        );
+        assert!(bucket.structural_certificate.is_none());
+        assert!(!bucket.structural_oracle_result().support_relation_valid);
     }
 
     #[test]
