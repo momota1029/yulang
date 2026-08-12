@@ -942,6 +942,30 @@ thread_local! {
     // turning that gate into a quadratic per-admission oracle while preserving the fixture-time
     // shadow check everywhere else.
     static CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    // CPK-SV-B keeps the legacy order-only walk as an opt-in shadow oracle after the
+    // certificate becomes production authority. The full-workload gate enables this flag and
+    // records shadow yields separately from production fallback yields.
+    static CPK_SV_B_SHADOW_ORDER_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static CPK_SV_B_ORDER_CENSUS: Cell<CpkSvBOrderCensus> =
+        const { Cell::new(CpkSvBOrderCensus {
+            certified_paths: 0,
+            fallback_paths: 0,
+            certified_order_cursor_yields: 0,
+            fallback_order_cursor_yields: 0,
+            shadow_order_cursor_yields: 0,
+            shadow_mismatches: 0,
+        }) };
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct CpkSvBOrderCensus {
+    certified_paths: usize,
+    fallback_paths: usize,
+    certified_order_cursor_yields: usize,
+    fallback_order_cursor_yields: usize,
+    shadow_order_cursor_yields: usize,
+    shadow_mismatches: usize,
 }
 
 #[cfg(test)]
@@ -3564,6 +3588,32 @@ impl ProjectionFormulaBucket {
             active_support_id: ProjectionSupportGroupId(u32::MAX),
             entry_index: 0,
         }
+    }
+
+    fn first_noncanonical_incidence(
+        &self,
+    ) -> (
+        Option<(
+            (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+            (ProjectionSupportGroupId, ProjectionFormulaEntryId),
+        )>,
+        usize,
+    ) {
+        let mut previous = None;
+        let mut yields = 0usize;
+        let mut cursor = self.canonical_run_cursor();
+        while let Some(current @ (support_id, entry_id)) = cursor.next() {
+            yields += 1;
+            if let Some(previous_pair @ (previous_support, previous_entry)) = previous {
+                let previous_clause = self.reconstructed_clause(previous_support, previous_entry);
+                let current_clause = self.reconstructed_clause(support_id, entry_id);
+                if previous_clause.canonical_cmp(current_clause) == std::cmp::Ordering::Greater {
+                    return (Some((previous_pair, current)), yields);
+                }
+            }
+            previous = Some(current);
+        }
+        (None, yields)
     }
 
     fn canonical_clauses(&self) -> Vec<ProjectionClause> {
@@ -9071,6 +9121,50 @@ impl<'a> ProjectionPreflight<'a> {
 
         let supports = supports.expect("non-empty supports were classified above");
         let formula_bucket = formula_bucket.expect("non-empty clauses were classified above");
+        let certificate_is_current =
+            formula_bucket
+                .structural_certificate
+                .is_some_and(|certificate| {
+                    certificate.proves_structure_at(formula_bucket.formula_revision)
+                });
+        if certificate_is_current {
+            #[cfg(test)]
+            {
+                CPK_SV_B_ORDER_CENSUS.with(|slot| {
+                    let mut census = slot.get();
+                    census.certified_paths += 1;
+                    // Production performs no order-only cursor construction or yield here.
+                    census.certified_order_cursor_yields += 0;
+                    slot.set(census);
+                });
+                if CPK_SV_B_SHADOW_ORDER_ACTIVE.with(Cell::get) {
+                    let (violation, yields) = formula_bucket.first_noncanonical_incidence();
+                    CPK_SV_B_ORDER_CENSUS.with(|slot| {
+                        let mut census = slot.get();
+                        census.shadow_order_cursor_yields += yields;
+                        census.shadow_mismatches += usize::from(violation.is_some());
+                        slot.set(census);
+                    });
+                    debug_assert!(
+                        violation.is_none(),
+                        "a current CPK-SV-B certificate disagreed with the legacy order oracle: {violation:?}",
+                    );
+                }
+            }
+        } else {
+            let (violation, _order_yields) = formula_bucket.first_noncanonical_incidence();
+            #[cfg(test)]
+            CPK_SV_B_ORDER_CENSUS.with(|slot| {
+                let mut census = slot.get();
+                census.fallback_paths += 1;
+                census.fallback_order_cursor_yields += _order_yields;
+                slot.set(census);
+            });
+            if violation.is_some() {
+                return Err(ProofFailure::NonCanonicalProjectionOrder { record });
+            }
+        }
+
         let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
         resolved.try_reserve_exact(supports.len()).map_err(|_| {
             ProofFailure::ResourceExhausted {
@@ -9099,18 +9193,6 @@ impl<'a> ProjectionPreflight<'a> {
                 }
             }
             resolved.push(support);
-        }
-
-        let mut previous_clause = None;
-        let mut order_cursor = formula_bucket.canonical_run_cursor();
-        while let Some((support_id, entry_id)) = order_cursor.next() {
-            let clause = formula_bucket.reconstructed_clause(support_id, entry_id);
-            if previous_clause.is_some_and(|previous: ProjectionClause| {
-                previous.canonical_cmp(clause) == std::cmp::Ordering::Greater
-            }) {
-                return Err(ProofFailure::NonCanonicalProjectionOrder { record });
-            }
-            previous_clause = Some(clause);
         }
 
         let mut matched = Vec::new();
@@ -14652,6 +14734,72 @@ mod tests {
         );
         assert!(bucket.structural_certificate.is_none());
         assert!(!bucket.structural_oracle_result().support_relation_valid);
+    }
+
+    #[test]
+    fn cpk_sv_b_current_certificate_skips_order_walk_and_dirty_states_fallback() {
+        struct ShadowOrderGuard;
+        impl Drop for ShadowOrderGuard {
+            fn drop(&mut self) {
+                CPK_SV_B_SHADOW_ORDER_ACTIVE.with(|active| active.set(false));
+            }
+        }
+
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 206);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut machine,
+            record,
+            vec![support],
+            vec![ProjectionClause::Standalone {
+                support,
+                attribution: None,
+            }],
+        );
+        let original_certificate = machine.proof_store.projection_formula_shadow.by_record[&record]
+            .structural_certificate
+            .expect("production admission publishes a certificate");
+
+        assert!(!CPK_SV_B_SHADOW_ORDER_ACTIVE.with(|active| active.replace(true)));
+        let _guard = ShadowOrderGuard;
+        CPK_SV_B_ORDER_CENSUS.with(|census| census.set(CpkSvBOrderCensus::default()));
+        assert!(project_lower_for_test(&machine, record).0.is_ok());
+        let certified = CPK_SV_B_ORDER_CENSUS.with(Cell::get);
+        assert!(certified.certified_paths > 0);
+        assert_eq!(certified.fallback_paths, 0);
+        assert_eq!(certified.certified_order_cursor_yields, 0);
+        assert!(certified.shadow_order_cursor_yields > 0);
+        assert_eq!(certified.shadow_mismatches, 0);
+
+        for certificate in [
+            None,
+            Some(ProjectionStructuralCertificate {
+                canonical_order_valid: false,
+                ..original_certificate
+            }),
+            Some(ProjectionStructuralCertificate {
+                formula_revision: FormulaStructuralRevision(
+                    original_certificate.formula_revision.0 - 1,
+                ),
+                ..original_certificate
+            }),
+        ] {
+            machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .get_mut(&record)
+                .expect("fixture bucket")
+                .structural_certificate = certificate;
+            CPK_SV_B_ORDER_CENSUS.with(|census| census.set(CpkSvBOrderCensus::default()));
+            assert!(project_lower_for_test(&machine, record).0.is_ok());
+            let fallback = CPK_SV_B_ORDER_CENSUS.with(Cell::get);
+            assert_eq!(fallback.certified_paths, 0);
+            assert!(fallback.fallback_paths > 0);
+            assert!(fallback.fallback_order_cursor_yields > 0);
+            assert_eq!(fallback.shadow_order_cursor_yields, 0);
+        }
     }
 
     #[test]
@@ -20229,12 +20377,20 @@ mod tests {
         impl Drop for ActiveGuard {
             fn drop(&mut self) {
                 CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(|active| active.set(false));
+                CPK_SV_B_SHADOW_ORDER_ACTIVE.with(|active| active.set(false));
                 QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| active.set(false));
             }
         }
         CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(|active| {
             assert!(!active.replace(true), "CPK-SV-A full-std gate cannot nest");
         });
+        CPK_SV_B_SHADOW_ORDER_ACTIVE.with(|active| {
+            assert!(
+                !active.replace(true),
+                "CPK-SV-B full-std order oracle cannot nest",
+            );
+        });
+        CPK_SV_B_ORDER_CENSUS.with(|census| census.set(CpkSvBOrderCensus::default()));
         QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| {
             assert!(
                 !active.replace(true),
@@ -20252,12 +20408,17 @@ mod tests {
             .constraints()
             .proof_store
             .projection_structural_certificate_full_report();
+        let order_census = CPK_SV_B_ORDER_CENSUS.with(Cell::get);
         eprintln!(
-            "CPK_SV_A_FULL_STD_CERTIFICATE buckets={buckets} incidences={incidences} mismatches={mismatches}"
+            "CPK_SV_A_FULL_STD_CERTIFICATE buckets={buckets} incidences={incidences} mismatches={mismatches} order_census={order_census:?}"
         );
         assert!(buckets > 0);
         assert!(incidences > 0);
         assert_eq!(mismatches, 0);
+        assert!(order_census.certified_paths > 0);
+        assert_eq!(order_census.certified_order_cursor_yields, 0);
+        assert_eq!(order_census.shadow_mismatches, 0);
+        assert!(order_census.shadow_order_cursor_yields > 0);
     }
 
     fn qorf_c_repository_std_loaded(root_source: &str) -> Vec<sources::LoadedFile> {
