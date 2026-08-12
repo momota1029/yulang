@@ -942,6 +942,9 @@ thread_local! {
     // turning that gate into a quadratic per-admission oracle while preserving the fixture-time
     // shadow check everywhere else.
     static CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    // CPK-SV-C checks one exhaustive adjacency reconstruction after full-std lowering. Suppress
+    // sampled per-commit reconstruction while that gate runs.
+    static CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE: Cell<bool> = const { Cell::new(false) };
     // CPK-SV-B keeps the legacy order-only walk as an opt-in shadow oracle after the
     // certificate becomes production authority. The full-workload gate enables this flag and
     // records shadow yields separately from production fallback yields.
@@ -2457,6 +2460,9 @@ struct ProjectionFormulaShadowDelta {
     normalized_support_keys: FxHashSet<ProjectionSupportMatchKey>,
     attributed_roots: Vec<UpperReplayClaimId>,
     flat_retained_attributed_roots: Vec<UpperReplayClaimId>,
+    new_validation_actions: Vec<ProjectionValidationAction>,
+    #[cfg(test)]
+    validation_action_membership_probes: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2488,6 +2494,7 @@ enum ProjectionClauseReservationFailurePoint {
     ShadowCanonicalRuns,
     ShadowNormalizedSupport,
     ShadowStructuralCertificate,
+    ShadowDependencyAdjacency,
 }
 
 impl PreparedProjectionClauseAdmission {
@@ -3056,7 +3063,7 @@ impl CanonicalProjectionRun {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum ProjectionIncidenceMetadata {
     Independent,
     Claimed(ClaimedProjectionSourceTemplate),
@@ -3064,7 +3071,7 @@ enum ProjectionIncidenceMetadata {
     IndependentWithForcedLineage(ProjectionLineage),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum ClaimedProjectionSourceTemplate {
     Original { producer: ConstraintRecordId },
     DerivedUnary { result: ConstraintRecordId },
@@ -3141,6 +3148,322 @@ impl ProjectionStructuralCertificate {
     }
 }
 
+/// One exact proof-structure dependency needed to validate a projection-formula incidence.
+///
+/// CPK-SV-C deliberately keeps identities at their validation-rule boundary. In particular,
+/// carrier, derivation, representative-claim, and premise identities are never collapsed to a
+/// coverage root merely because they may currently resolve to the same fact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ProjectionValidationAction {
+    ResolveSupport(SchemeProjectionProofSupport),
+    ValidateBound(BoundRecordId),
+    ValidateRecord(BoundRecordId),
+    ValidateConstraint(ConstraintRecordId),
+    ValidateRoot(UpperReplayClaimId),
+    ValidateReplayCarrier(BinaryReplayDerivation),
+    ValidateStructuralCarrier(StructuralDerivation),
+    ValidateRowDerivation(RowDerivationId),
+    ValidateRowReduction(UnweightedRowReductionRecordId),
+    ValidateOrigin(OriginId),
+    ValidateGeneralizedWitness(GeneralizedSchemeWitnessId),
+    ValidateCarrierOccurrence(ProjectionProofCarrier),
+    ValidateClaimedSource {
+        representative: UpperReplayClaimId,
+        coverage_root: UpperReplayClaimId,
+        source: ClaimedProjectionSourceTemplate,
+    },
+    #[cfg(test)]
+    ValidateForcedLineage(ProjectionLineage),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct ProjectionValidationActionId(u32);
+
+/// Record-local, append-only derived index over real validation actions.
+///
+/// Actions have no canonical output order, so append-only flat storage gives a stronger writer
+/// bound than a sorted tree: a new action performs one exact-membership probe and never shifts an
+/// existing action. The explicit cursor visits only the initialized, nonempty action prefix.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+struct ProjectionDependencyAdjacency {
+    actions: Vec<ProjectionValidationAction>,
+    exact_membership: FxHashMap<ProjectionValidationAction, ProjectionValidationActionId>,
+}
+
+impl ProjectionDependencyAdjacency {
+    fn cursor(&self) -> ProjectionValidationActionCursor<'_> {
+        ProjectionValidationActionCursor {
+            actions: &self.actions,
+            index: 0,
+        }
+    }
+}
+
+struct ProjectionValidationActionCursor<'a> {
+    actions: &'a [ProjectionValidationAction],
+    index: usize,
+}
+
+impl Iterator for ProjectionValidationActionCursor<'_> {
+    type Item = ProjectionValidationAction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let action = self.actions.get(self.index).copied()?;
+        self.index += 1;
+        Some(action)
+    }
+}
+
+const PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND: usize = 12;
+
+fn for_each_projection_validation_action(
+    support: SchemeProjectionProofSupport,
+    coverage_root: Option<UpperReplayClaimId>,
+    metadata: ProjectionIncidenceMetadata,
+    clause: RecordProofClause,
+    mut visit: impl FnMut(ProjectionValidationAction),
+) {
+    use ProjectionValidationAction as Action;
+
+    visit(Action::ResolveSupport(support));
+    match support {
+        SchemeProjectionProofSupport::Claimed(representative) => {
+            visit(Action::ValidateRoot(representative));
+            if let Some(root) = coverage_root
+                && root != representative
+            {
+                visit(Action::ValidateRoot(root));
+            }
+            let (Some(coverage_root), ProjectionIncidenceMetadata::Claimed(source)) =
+                (coverage_root, metadata)
+            else {
+                debug_assert!(false, "claimed support needs exact claimed-source metadata");
+                return;
+            };
+            visit(Action::ValidateClaimedSource {
+                representative,
+                coverage_root,
+                source,
+            });
+        }
+        SchemeProjectionProofSupport::Independent(carrier) => {
+            #[cfg(test)]
+            if let ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage) = metadata {
+                visit(Action::ValidateForcedLineage(lineage));
+            }
+            debug_assert!(matches!(
+                metadata,
+                ProjectionIncidenceMetadata::Independent
+                    | ProjectionIncidenceMetadata::IndependentWithForcedLineage(_)
+            ));
+            match carrier {
+                ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => {
+                    visit(Action::ValidateConstraint(constraint));
+                    visit(Action::ValidateOrigin(origin));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
+                    visit(Action::ValidateConstraint(result));
+                    visit(Action::ValidateStructuralCarrier(derivation));
+                    visit(Action::ValidateConstraint(derivation.parent));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::ReplayConstraint { result, derivation } => {
+                    visit(Action::ValidateConstraint(result));
+                    visit(Action::ValidateReplayCarrier(derivation));
+                    visit(Action::ValidateBound(derivation.lower));
+                    visit(Action::ValidateBound(derivation.upper));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::RowConstraint { result, derivation } => {
+                    visit(Action::ValidateConstraint(result));
+                    visit(Action::ValidateRowDerivation(derivation));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::SchemeInstantiationConstraint {
+                    result,
+                    source_witness,
+                } => {
+                    visit(Action::ValidateConstraint(result));
+                    visit(Action::ValidateGeneralizedWitness(source_witness));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::Origin(origin) => visit(Action::ValidateOrigin(origin)),
+                ProjectionProofCarrier::ReplayEvidence(derivation) => {
+                    visit(Action::ValidateReplayCarrier(derivation));
+                    visit(Action::ValidateBound(derivation.lower));
+                    visit(Action::ValidateBound(derivation.upper));
+                    visit(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::Row(derivation) => {
+                    visit(Action::ValidateRowDerivation(derivation));
+                }
+                ProjectionProofCarrier::SchemeInstantiation(witness) => {
+                    visit(Action::ValidateGeneralizedWitness(witness));
+                }
+                ProjectionProofCarrier::Incomplete => {}
+            }
+        }
+    }
+
+    match clause {
+        RecordProofClause::Standalone { .. } => {}
+        RecordProofClause::DerivedUnary { carrier, premise } => {
+            match carrier {
+                DerivedUnaryCarrier::Structural(derivation) => {
+                    visit(Action::ValidateStructuralCarrier(derivation));
+                    visit(Action::ValidateConstraint(derivation.parent));
+                }
+                DerivedUnaryCarrier::ReductionRoute(derivation) => {
+                    visit(Action::ValidateRowDerivation(derivation));
+                }
+            }
+            match premise {
+                ProofPremise::Record(record) => visit(Action::ValidateRecord(record)),
+                ProofPremise::Constraint(constraint) => {
+                    visit(Action::ValidateConstraint(constraint));
+                }
+                ProofPremise::RootCoverage(root) => visit(Action::ValidateRoot(root)),
+            }
+        }
+        RecordProofClause::ReplayConjunction {
+            carrier,
+            lower_premise,
+            upper_premise,
+        } => {
+            visit(Action::ValidateReplayCarrier(carrier));
+            visit(Action::ValidateBound(carrier.lower));
+            visit(Action::ValidateBound(carrier.upper));
+            visit(Action::ValidateRecord(lower_premise));
+            visit(Action::ValidateRecord(upper_premise));
+        }
+    }
+}
+
+#[cfg(test)]
+fn reconstruct_legacy_projection_validation_actions(
+    support: SchemeProjectionProofSupport,
+    coverage_root: Option<UpperReplayClaimId>,
+    metadata: ProjectionIncidenceMetadata,
+    clause: RecordProofClause,
+    actions: &mut FxHashSet<ProjectionValidationAction>,
+) {
+    use ProjectionValidationAction as Action;
+
+    actions.insert(Action::ResolveSupport(support));
+    match support {
+        SchemeProjectionProofSupport::Claimed(representative) => {
+            actions.insert(Action::ValidateRoot(representative));
+            if let Some(root) = coverage_root
+                && root != representative
+            {
+                actions.insert(Action::ValidateRoot(root));
+            }
+            match (coverage_root, metadata) {
+                (Some(coverage_root), ProjectionIncidenceMetadata::Claimed(source)) => {
+                    actions.insert(Action::ValidateClaimedSource {
+                        representative,
+                        coverage_root,
+                        source,
+                    });
+                }
+                _ => return,
+            }
+        }
+        SchemeProjectionProofSupport::Independent(carrier) => {
+            if let ProjectionIncidenceMetadata::IndependentWithForcedLineage(lineage) = metadata {
+                actions.insert(Action::ValidateForcedLineage(lineage));
+            }
+            match carrier {
+                ProjectionProofCarrier::ConstraintOrigin { constraint, origin } => {
+                    actions.insert(Action::ValidateConstraint(constraint));
+                    actions.insert(Action::ValidateOrigin(origin));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::StructuralConstraint { result, derivation } => {
+                    actions.insert(Action::ValidateConstraint(result));
+                    actions.insert(Action::ValidateStructuralCarrier(derivation));
+                    actions.insert(Action::ValidateConstraint(derivation.parent));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::ReplayConstraint { result, derivation } => {
+                    actions.insert(Action::ValidateConstraint(result));
+                    actions.insert(Action::ValidateReplayCarrier(derivation));
+                    actions.insert(Action::ValidateBound(derivation.lower));
+                    actions.insert(Action::ValidateBound(derivation.upper));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::RowConstraint { result, derivation } => {
+                    actions.insert(Action::ValidateConstraint(result));
+                    actions.insert(Action::ValidateRowDerivation(derivation));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::SchemeInstantiationConstraint {
+                    result,
+                    source_witness,
+                } => {
+                    actions.insert(Action::ValidateConstraint(result));
+                    actions.insert(Action::ValidateGeneralizedWitness(source_witness));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::Origin(origin) => {
+                    actions.insert(Action::ValidateOrigin(origin));
+                }
+                ProjectionProofCarrier::ReplayEvidence(derivation) => {
+                    actions.insert(Action::ValidateReplayCarrier(derivation));
+                    actions.insert(Action::ValidateBound(derivation.lower));
+                    actions.insert(Action::ValidateBound(derivation.upper));
+                    actions.insert(Action::ValidateCarrierOccurrence(carrier));
+                }
+                ProjectionProofCarrier::Row(derivation) => {
+                    actions.insert(Action::ValidateRowDerivation(derivation));
+                }
+                ProjectionProofCarrier::SchemeInstantiation(witness) => {
+                    actions.insert(Action::ValidateGeneralizedWitness(witness));
+                }
+                ProjectionProofCarrier::Incomplete => {}
+            }
+        }
+    }
+
+    match clause {
+        RecordProofClause::Standalone { .. } => {}
+        RecordProofClause::DerivedUnary { carrier, premise } => {
+            match carrier {
+                DerivedUnaryCarrier::Structural(derivation) => {
+                    actions.insert(Action::ValidateStructuralCarrier(derivation));
+                    actions.insert(Action::ValidateConstraint(derivation.parent));
+                }
+                DerivedUnaryCarrier::ReductionRoute(derivation) => {
+                    actions.insert(Action::ValidateRowDerivation(derivation));
+                }
+            }
+            match premise {
+                ProofPremise::Record(record) => {
+                    actions.insert(Action::ValidateRecord(record));
+                }
+                ProofPremise::Constraint(constraint) => {
+                    actions.insert(Action::ValidateConstraint(constraint));
+                }
+                ProofPremise::RootCoverage(root) => {
+                    actions.insert(Action::ValidateRoot(root));
+                }
+            }
+        }
+        RecordProofClause::ReplayConjunction {
+            carrier,
+            lower_premise,
+            upper_premise,
+        } => {
+            actions.insert(Action::ValidateReplayCarrier(carrier));
+            actions.insert(Action::ValidateBound(carrier.lower));
+            actions.insert(Action::ValidateBound(carrier.upper));
+            actions.insert(Action::ValidateRecord(lower_premise));
+            actions.insert(Action::ValidateRecord(upper_premise));
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 struct ProjectionFormulaBucket {
     entries: Vec<ProjectionFormulaEntry>,
@@ -3157,6 +3480,7 @@ struct ProjectionFormulaBucket {
     flat_retained_attributed_roots: FxHashSet<UpperReplayClaimId>,
     formula_revision: FormulaStructuralRevision,
     structural_certificate: Option<ProjectionStructuralCertificate>,
+    dependency_adjacency: ProjectionDependencyAdjacency,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -3693,6 +4017,29 @@ struct ProjectionStructuralOracleResult {
 }
 
 #[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProjectionDependencyAdjacencyOracleResult {
+    expected_actions: usize,
+    actual_actions: usize,
+    membership_mismatches: usize,
+    structure_mismatches: usize,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ProjectionDependencyAdjacencyFullReport {
+    buckets: usize,
+    incidences: usize,
+    actions: usize,
+    membership_mismatches: usize,
+    structure_mismatches: usize,
+    action_count_p50: usize,
+    action_count_p95: usize,
+    action_count_max: usize,
+    capacity_inclusive_bytes: usize,
+}
+
+#[cfg(test)]
 impl ProjectionFormulaBucket {
     /// Independent linear oracle for the CPK-SV-A shadow certificate. This deliberately derives
     /// its answer from the committed bucket, not from the prepared proof used to issue the
@@ -3875,6 +4222,76 @@ impl ProjectionFormulaBucket {
             first_offending_pair,
             exact_membership_valid,
             support_relation_valid,
+        }
+    }
+
+    /// CPK-SV-C's independent linear reconstruction. The expected set comes only from canonical
+    /// exact incidences; it does not consult the prepared admission delta or the adjacency map.
+    fn dependency_adjacency_oracle_result(&self) -> ProjectionDependencyAdjacencyOracleResult {
+        let mut expected = FxHashSet::default();
+        expected
+            .try_reserve(
+                self.exact_links
+                    .len()
+                    .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
+            )
+            .expect("CPK-SV-C expected-action census allocation");
+        let mut malformed_incidence_count = 0usize;
+        let mut canonical_incidence_count = 0usize;
+        let mut canonical_cursor = self.canonical_run_cursor();
+        while let Some((support_id, entry_id)) = canonical_cursor.next() {
+            canonical_incidence_count += 1;
+            let Some(group) = self.support_groups.get(support_id.0 as usize) else {
+                malformed_incidence_count += 1;
+                continue;
+            };
+            let Some(entry) = self.entries.get(entry_id.0 as usize) else {
+                malformed_incidence_count += 1;
+                continue;
+            };
+            reconstruct_legacy_projection_validation_actions(
+                group.raw_support,
+                group.coverage_root,
+                self.exact_links[&(support_id, entry_id)],
+                entry.clause,
+                &mut expected,
+            );
+        }
+
+        let adjacency = &self.dependency_adjacency;
+        let mut actual = FxHashSet::default();
+        actual
+            .try_reserve(adjacency.actions.len())
+            .expect("CPK-SV-C actual-action census allocation");
+        let mut structure_mismatches = malformed_incidence_count
+            + usize::from(canonical_incidence_count != self.exact_links.len());
+        let mut cursor = adjacency.cursor();
+        let mut cursor_index = 0usize;
+        while let Some(action) = cursor.next() {
+            if !actual.insert(action) {
+                structure_mismatches += 1;
+            }
+            let expected_id = u32::try_from(cursor_index)
+                .ok()
+                .map(ProjectionValidationActionId);
+            if adjacency.exact_membership.get(&action).copied() != expected_id {
+                structure_mismatches += 1;
+            }
+            cursor_index += 1;
+        }
+        structure_mismatches += usize::from(cursor_index != adjacency.actions.len());
+        structure_mismatches +=
+            usize::from(adjacency.exact_membership.len() != adjacency.actions.len());
+        structure_mismatches +=
+            usize::from(self.exact_links.is_empty() != adjacency.actions.is_empty());
+
+        let membership_mismatches =
+            expected.difference(&actual).count() + actual.difference(&expected).count();
+        ProjectionDependencyAdjacencyOracleResult {
+            expected_actions: expected.len(),
+            actual_actions: actual.len(),
+            membership_mismatches,
+            structure_mismatches,
         }
     }
 }
@@ -5983,6 +6400,7 @@ impl ProofOccurrenceStore {
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get)
             || CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(Cell::get)
+            || CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(Cell::get)
         {
             return;
         }
@@ -6037,6 +6455,24 @@ impl ProofOccurrenceStore {
     }
 
     #[cfg(test)]
+    fn debug_assert_projection_dependency_adjacency(&self, record: BoundRecordId) {
+        if CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(Cell::get) {
+            return;
+        }
+        let bucket = &self.projection_formula_shadow.by_record[&record];
+        let incidence_count = bucket.exact_links.len();
+        if incidence_count > 16 && !incidence_count.is_power_of_two() {
+            return;
+        }
+        let oracle = bucket.dependency_adjacency_oracle_result();
+        debug_assert_eq!(
+            (oracle.membership_mismatches, oracle.structure_mismatches),
+            (0, 0),
+            "CPK-SV-C adjacency diverged for {record:?}: {oracle:?}",
+        );
+    }
+
+    #[cfg(test)]
     fn projection_structural_certificate_full_report(&self) -> (usize, usize, usize) {
         let mut buckets = 0usize;
         let mut incidences = 0usize;
@@ -6061,6 +6497,46 @@ impl ProofOccurrenceStore {
             mismatches += usize::from(!certificate_matches);
         }
         (buckets, incidences, mismatches)
+    }
+
+    #[cfg(test)]
+    fn projection_dependency_adjacency_full_report(
+        &self,
+    ) -> ProjectionDependencyAdjacencyFullReport {
+        let mut report = ProjectionDependencyAdjacencyFullReport::default();
+        let mut action_counts = Vec::new();
+        action_counts
+            .try_reserve_exact(self.projection_formula_shadow.by_record.len())
+            .expect("CPK-SV-C distribution census allocation");
+        for bucket in self.projection_formula_shadow.by_record.values() {
+            report.buckets += 1;
+            report.incidences += bucket.exact_links.len();
+            let oracle = bucket.dependency_adjacency_oracle_result();
+            report.actions += oracle.actual_actions;
+            report.membership_mismatches += oracle.membership_mismatches;
+            report.structure_mismatches += oracle.structure_mismatches;
+            action_counts.push(oracle.actual_actions);
+            report.capacity_inclusive_bytes += bucket
+                .dependency_adjacency
+                .actions
+                .capacity()
+                .saturating_mul(std::mem::size_of::<ProjectionValidationAction>());
+            report.capacity_inclusive_bytes += bucket
+                .dependency_adjacency
+                .exact_membership
+                .capacity()
+                .saturating_mul(
+                    std::mem::size_of::<ProjectionValidationAction>()
+                        + std::mem::size_of::<ProjectionValidationActionId>(),
+                );
+        }
+        action_counts.sort_unstable();
+        if !action_counts.is_empty() {
+            report.action_count_p50 = action_counts[(action_counts.len() - 1) / 2];
+            report.action_count_p95 = action_counts[((action_counts.len() - 1) * 95) / 100];
+            report.action_count_max = *action_counts.last().unwrap();
+        }
+        report
     }
 
     #[cfg(test)]
@@ -7001,6 +7477,11 @@ impl ProofOccurrenceStore {
             .take_projection_clause_reservation_failure(
                 ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
             );
+        #[cfg(test)]
+        let fail_during_shadow_dependency_adjacency = self
+            .take_projection_clause_reservation_failure(
+                ProjectionClauseReservationFailurePoint::ShadowDependencyAdjacency,
+            );
         let existing = self.projection_formula_shadow.by_record.get(&lower_record);
         let base_entry_len = existing.map_or(0, |bucket| bucket.entries.len());
         let base_support_len = existing.map_or(0, |bucket| bucket.support_groups.len());
@@ -7041,6 +7522,16 @@ impl ProofOccurrenceStore {
             .flat_retained_attributed_roots
             .try_reserve(accepted.len())
             .map_err(exhausted)?;
+        let validation_action_bound = accepted
+            .len()
+            .checked_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND)
+            .ok_or(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        delta
+            .new_validation_actions
+            .try_reserve(validation_action_bound)
+            .map_err(exhausted)?;
 
         let mut pending_entries = FxHashMap::default();
         let mut pending_supports = FxHashMap::default();
@@ -7049,6 +7540,7 @@ impl ProofOccurrenceStore {
         let mut pending_match_key_promotions = FxHashMap::default();
         let mut pending_attributed = FxHashSet::default();
         let mut pending_flat = FxHashSet::default();
+        let mut pending_validation_actions = FxHashSet::default();
         let mut pending_run_entries = Vec::<(
             CanonicalProjectionCategory,
             SchemeProjectionProofSupport,
@@ -7076,6 +7568,9 @@ impl ProofOccurrenceStore {
             .map_err(exhausted)?;
         pending_flat
             .try_reserve(accepted.len())
+            .map_err(exhausted)?;
+        pending_validation_actions
+            .try_reserve(validation_action_bound)
             .map_err(exhausted)?;
         pending_run_entries
             .try_reserve(accepted.len())
@@ -7140,6 +7635,27 @@ impl ProofOccurrenceStore {
                 &delta.new_support_groups[support_id.0 as usize - base_support_len]
             };
             assert_eq!(group.coverage_root, coverage_root);
+            for_each_projection_validation_action(
+                admission.support,
+                group.coverage_root,
+                metadata,
+                admission.clause,
+                |action| {
+                    #[cfg(test)]
+                    {
+                        delta.validation_action_membership_probes += 1;
+                    }
+                    if existing.is_none_or(|bucket| {
+                        !bucket
+                            .dependency_adjacency
+                            .exact_membership
+                            .contains_key(&action)
+                    }) && pending_validation_actions.insert(action)
+                    {
+                        delta.new_validation_actions.push(action);
+                    }
+                },
+            );
             let effective_match_key = pending_match_key_promotions
                 .get(&support_id)
                 .copied()
@@ -7408,6 +7924,33 @@ impl ProofOccurrenceStore {
             .canonical_runs
             .try_reserve(delta.new_canonical_runs.len())
             .map_err(exhausted)?;
+        let final_action_len = bucket
+            .dependency_adjacency
+            .actions
+            .len()
+            .checked_add(delta.new_validation_actions.len())
+            .ok_or(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            })?;
+        u32::try_from(final_action_len).map_err(|_| ProofFailure::ResourceExhausted {
+            operation: ProofOperation::UpdateClaimLifecycle,
+        })?;
+        bucket
+            .dependency_adjacency
+            .actions
+            .try_reserve(delta.new_validation_actions.len())
+            .map_err(exhausted)?;
+        bucket
+            .dependency_adjacency
+            .exact_membership
+            .try_reserve(delta.new_validation_actions.len())
+            .map_err(exhausted)?;
+        #[cfg(test)]
+        if fail_during_shadow_dependency_adjacency {
+            return Err(ProofFailure::ResourceExhausted {
+                operation: ProofOperation::UpdateClaimLifecycle,
+            });
+        }
         #[cfg(test)]
         if fail_during_shadow_canonical_runs {
             return Err(ProofFailure::ResourceExhausted {
@@ -7467,6 +8010,21 @@ impl ProofOccurrenceStore {
                     .insert((support_id, entry_id), metadata)
                     .is_none()
             );
+        }
+        for action in delta.new_validation_actions.drain(..) {
+            let id = ProjectionValidationActionId(
+                u32::try_from(bucket.dependency_adjacency.actions.len())
+                    .expect("CPK-SV-C validation action id was bounded during prepare"),
+            );
+            assert!(
+                bucket
+                    .dependency_adjacency
+                    .exact_membership
+                    .insert(action, id)
+                    .is_none(),
+                "CPK-SV-C prepared delta must contain only new exact actions",
+            );
+            bucket.dependency_adjacency.actions.push(action);
         }
         for run_delta in delta.canonical_run_deltas.drain(..) {
             let delta_len = run_delta.entry_count;
@@ -8028,6 +8586,7 @@ impl ProofOccurrenceStore {
         {
             self.debug_assert_pclf_a_read_model_matches_legacy();
             self.debug_assert_projection_structural_certificate(prepared.lower_record);
+            self.debug_assert_projection_dependency_adjacency(prepared.lower_record);
         }
     }
 
@@ -14569,6 +15128,7 @@ mod tests {
             ProjectionClauseReservationFailurePoint::ShadowCanonicalRuns,
             ProjectionClauseReservationFailurePoint::ShadowNormalizedSupport,
             ProjectionClauseReservationFailurePoint::ShadowStructuralCertificate,
+            ProjectionClauseReservationFailurePoint::ShadowDependencyAdjacency,
         ] {
             let mut store = ProofOccurrenceStore::default();
             let before = store.clone();
@@ -15123,6 +15683,244 @@ mod tests {
                 record: multiple_record,
             },
         );
+    }
+
+    fn assert_cpk_sv_c_adjacency_matches_formula(
+        store: &ProofOccurrenceStore,
+        record: BoundRecordId,
+    ) -> ProjectionDependencyAdjacencyOracleResult {
+        let result =
+            store.projection_formula_shadow.by_record[&record].dependency_adjacency_oracle_result();
+        assert_eq!(
+            (result.membership_mismatches, result.structure_mismatches),
+            (0, 0),
+            "CPK-SV-C adjacency mismatch: {result:?}",
+        );
+        result
+    }
+
+    #[test]
+    fn cpk_sv_c_shadow_adjacency_matches_late_mixed_and_exact_identity_admissions() {
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(98_200);
+        let shared_premise = BoundRecordId(98_201);
+        let support_a = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(98_202),
+        ));
+        let support_b = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId(98_203),
+        ));
+        let embedded_support =
+            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let shared_clause = RecordProofClause::Standalone {
+            support: embedded_support,
+        };
+
+        // New occurrence followed by the same clause under a distinct exact support.
+        store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(support_a, shared_clause),
+        );
+        let initial = assert_cpk_sv_c_adjacency_matches_formula(&store, record);
+        store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::independent(support_b, shared_clause),
+        );
+        let extended = assert_cpk_sv_c_adjacency_matches_formula(&store, record);
+        assert!(extended.actual_actions > initial.actual_actions);
+
+        let structural_left = StructuralDerivation {
+            parent: ConstraintRecordId(98_204),
+            rule: StructuralDerivationRule::FunctionArgument,
+        };
+        let structural_right = StructuralDerivation {
+            parent: ConstraintRecordId(98_205),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        let replay = BinaryReplayDerivation {
+            pivot: TypeVar(98_206),
+            lower: BoundRecordId(98_207),
+            upper: BoundRecordId(98_208),
+            rule: ReplayRule::UpperBoundAdded,
+        };
+        // Two structurally distinct carriers share one premise; reduction and replay arrive in
+        // an interleaved, non-canonical order. Exact action identity must retain every carrier.
+        for admission in [
+            RecordProofClauseLinkAdmission::independent(
+                support_a,
+                RecordProofClause::ReplayConjunction {
+                    carrier: replay,
+                    lower_premise: replay.lower,
+                    upper_premise: replay.upper,
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                support_a,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(structural_right),
+                    premise: ProofPremise::Record(shared_premise),
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                support_a,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(98_209)),
+                    premise: ProofPremise::RootCoverage(UpperReplayClaimId(98_210)),
+                },
+            ),
+            RecordProofClauseLinkAdmission::independent(
+                support_a,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(structural_left),
+                    premise: ProofPremise::Record(shared_premise),
+                },
+            ),
+        ] {
+            store.record_projection_clause(record, admission);
+            assert_cpk_sv_c_adjacency_matches_formula(&store, record);
+        }
+        let adjacency = &store.projection_formula_shadow.by_record[&record].dependency_adjacency;
+        assert!(adjacency.exact_membership.contains_key(
+            &ProjectionValidationAction::ValidateStructuralCarrier(structural_left)
+        ));
+        assert!(adjacency.exact_membership.contains_key(
+            &ProjectionValidationAction::ValidateStructuralCarrier(structural_right)
+        ));
+        assert!(
+            adjacency
+                .exact_membership
+                .contains_key(&ProjectionValidationAction::ValidateReplayCarrier(replay))
+        );
+    }
+
+    #[test]
+    fn cpk_sv_c_representative_move_preserves_exact_shadow_actions() {
+        let mut machine = cpk_machine();
+        let (_, claim) = cpk_7_record_original_claim(&mut machine, 2_820);
+        let occurrence = machine.proof_store.upper_claim(claim).unwrap().clone();
+        let record = BoundRecordId(98_220);
+        let support = SchemeProjectionProofSupport::Claimed(claim);
+        machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                claim,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: occurrence.coverage_root,
+                    producer: occurrence.producer,
+                },
+            ),
+        );
+        let before = machine.proof_store.projection_formula_shadow.by_record[&record]
+            .dependency_adjacency
+            .clone();
+        assert_cpk_sv_c_adjacency_matches_formula(&machine.proof_store, record);
+
+        let endpoint = machine.alloc_neg(Neg::Var(TypeVar(98_221)));
+        let destination = machine
+            .bounds
+            .add_upper(
+                TypeVar(98_222),
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        machine.move_upper_replay_claim(claim, destination);
+        assert_eq!(
+            machine.proof_store.projection_formula_shadow.by_record[&record].dependency_adjacency,
+            before,
+            "claim location moves do not change exact formula-validation identities",
+        );
+        assert_cpk_sv_c_adjacency_matches_formula(&machine.proof_store, record);
+    }
+
+    #[test]
+    fn cpk_sv_c_descending_singletons_have_linear_append_only_writer_work() {
+        const ADMISSIONS: u32 = 1_800;
+        let mut store = ProofOccurrenceStore::default();
+        let record = BoundRecordId(98_230);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let mut membership_probes = 0usize;
+        let mut new_actions = 0usize;
+        let mut existing_actions_copied_by_growth = 0usize;
+        let mut existing_membership_entries_rehashed = 0usize;
+        for ordinal in (0..ADMISSIONS).rev() {
+            let before_len = store
+                .projection_formula_shadow
+                .by_record
+                .get(&record)
+                .map_or(0, |bucket| bucket.dependency_adjacency.actions.len());
+            let before_capacity = store
+                .projection_formula_shadow
+                .by_record
+                .get(&record)
+                .map_or(0, |bucket| bucket.dependency_adjacency.actions.capacity());
+            let before_membership_capacity = store
+                .projection_formula_shadow
+                .by_record
+                .get(&record)
+                .map_or(0, |bucket| {
+                    bucket.dependency_adjacency.exact_membership.capacity()
+                });
+            let admission = RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(
+                        300_000 + ordinal,
+                    )),
+                    premise: ProofPremise::Record(BoundRecordId(400_000 + ordinal)),
+                },
+            );
+            let mut prepared = store
+                .try_prepare_projection_clause_admission(record, &[admission])
+                .expect("descending singleton reserve")
+                .expect("descending singleton is exact-new");
+            membership_probes += prepared.shadow.delta.validation_action_membership_probes;
+            new_actions += prepared.shadow.delta.new_validation_actions.len();
+            let after_capacity = prepared
+                .shadow
+                .new_record_bucket
+                .as_ref()
+                .or_else(|| store.projection_formula_shadow.by_record.get(&record))
+                .map_or(0, |bucket| bucket.dependency_adjacency.actions.capacity());
+            if after_capacity != before_capacity {
+                existing_actions_copied_by_growth += before_len;
+            }
+            let after_membership_capacity = prepared
+                .shadow
+                .new_record_bucket
+                .as_ref()
+                .or_else(|| store.projection_formula_shadow.by_record.get(&record))
+                .map_or(0, |bucket| {
+                    bucket.dependency_adjacency.exact_membership.capacity()
+                });
+            if after_membership_capacity != before_membership_capacity {
+                existing_membership_entries_rehashed += before_len;
+            }
+            assert!(
+                prepared.shadow.delta.validation_action_membership_probes
+                    <= PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND,
+            );
+            store.commit_projection_clause_admission(&mut prepared);
+        }
+        let oracle = assert_cpk_sv_c_adjacency_matches_formula(&store, record);
+        assert_eq!(oracle.actual_actions, 1 + 2 * ADMISSIONS as usize);
+        assert_eq!(new_actions, oracle.actual_actions);
+        assert_eq!(membership_probes, 3 * ADMISSIONS as usize);
+        assert!(
+            existing_actions_copied_by_growth < 2 * oracle.actual_actions,
+            "geometric append growth must keep cumulative copied prefixes linear: copied={existing_actions_copied_by_growth}, actions={}",
+            oracle.actual_actions,
+        );
+        assert!(
+            existing_membership_entries_rehashed < 2 * oracle.actual_actions,
+            "geometric exact-map growth must keep cumulative rehashed prefixes linear: rehashed={existing_membership_entries_rehashed}, actions={}",
+            oracle.actual_actions,
+        );
+        let adjacency = &store.projection_formula_shadow.by_record[&record].dependency_adjacency;
+        assert!(adjacency.actions.capacity() < 2 * adjacency.actions.len());
     }
 
     #[test]
@@ -20743,6 +21541,57 @@ mod tests {
         assert_eq!(order_census.certified_order_cursor_yields, 0);
         assert_eq!(order_census.shadow_mismatches, 0);
         assert!(order_census.shadow_order_cursor_yields > 0);
+    }
+
+    /// CPK-SV-C's reproducible full-workload adjacency gate. The test rebuilds the exact action
+    /// set independently from every canonical incidence after lowering and also reports the
+    /// capacity-inclusive shadow footprint and record-local distribution.
+    ///
+    /// Run with:
+    /// `YULANG_CPK_SV_C_FULL_STD_ADJACENCY=1 cargo test -p infer --release \
+    ///   constraints::proof::tests::cpk_sv_c_full_std_dependency_adjacency_parity \
+    ///   -- --ignored --exact --nocapture`
+    #[test]
+    #[ignore = "full repository-std CPK-SV-C dependency-adjacency gate"]
+    fn cpk_sv_c_full_std_dependency_adjacency_parity() {
+        assert_eq!(
+            std::env::var("YULANG_CPK_SV_C_FULL_STD_ADJACENCY").as_deref(),
+            Ok("1"),
+            "set YULANG_CPK_SV_C_FULL_STD_ADJACENCY=1 to acknowledge the heavy full-std gate",
+        );
+        struct ActiveGuard;
+        impl Drop for ActiveGuard {
+            fn drop(&mut self) {
+                CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(|active| active.set(false));
+                QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| active.set(false));
+            }
+        }
+        CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(|active| {
+            assert!(!active.replace(true), "CPK-SV-C full-std gate cannot nest");
+        });
+        QORF_C_FULL_STD_PARITY_ACTIVE.with(|active| {
+            assert!(
+                !active.replace(true),
+                "CPK-SV-C full-std gate cannot overlap another exhaustive gate",
+            );
+        });
+        let _active = ActiveGuard;
+
+        let loaded = qorf_c_repository_std_loaded("use std::prelude::*\nmod std;\n");
+        let output = crate::lowering::lower_loaded_files(&loaded)
+            .expect("lower complete repository std for CPK-SV-C parity");
+        let report = output
+            .session
+            .infer
+            .constraints()
+            .proof_store
+            .projection_dependency_adjacency_full_report();
+        eprintln!("CPK_SV_C_FULL_STD_ADJACENCY {report:?}");
+        assert!(report.buckets > 0);
+        assert!(report.incidences > 0);
+        assert!(report.actions > 0);
+        assert_eq!(report.membership_mismatches, 0);
+        assert_eq!(report.structure_mismatches, 0);
     }
 
     fn qorf_c_repository_std_loaded(root_source: &str) -> Vec<sources::LoadedFile> {
