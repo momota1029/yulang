@@ -4162,7 +4162,7 @@ mod mutation_tests {
         assert!(machine.proof_store.upper_claims_for_test().is_empty());
         assert_eq!(
             machine.proof_store.qualified_parent_storage_census(),
-            (0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0),
             "an ordinary no-claim bound must not allocate the CPK exact-parent indexes"
         );
     }
