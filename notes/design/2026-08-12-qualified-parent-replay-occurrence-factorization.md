@@ -2,7 +2,7 @@
 
 日付: 2026-08-12（Claude 査読・確定: 2026-08-12、ユーザ承認: 2026-08-12）
 
-状態: **ユーザ承認済み（正本）。QORF-A以降の実装に着手可**
+状態: **ユーザ承認済み（正本）。QORF-A〜F完了、closeout実測記録済み**
 
 基準 commit: `acdd4246`。行番号は固定せず、実装時には型名・関数名を正本として再確認する。
 
@@ -1447,6 +1447,51 @@ Gate:
 - exact/portable/logical/diagnostic zero-diff。
 - §9のminimum structural/numeric gate。
 - working tree/temporary artifact clean。
+
+#### Closeout実測（2026-08-12）
+
+- documented 9-pattern skip、`--test-threads=4`、18 GiB hard killでsafety-scoped infer suiteを
+  14分28秒実行した。`1261` tests中、closeoutの40分cap内でfull-std censusを優先して停止した時点は
+  `768 passed / 1 failed / 2 ignored / 490 unfinished`、最大observed summed RSSは`1,420,180 KiB`だった。
+  redは既知の`urr_v3_co_owned_survivor_direct_root_does_not_reopen_replay_premise`だけで、旧known-red候補の
+  `general_subtype_failures_have_infer_analogs_but_carry_no_record_identity`、
+  `subp_b_portable_exports_match_local_explanation_topology`、
+  `pusp_a_characterizes_parameter_and_scheme_provenance_gaps`はいずれもgreenだった。従ってfull suite完走は
+  documented-partialだが、到達範囲にQORF由来のnew redはない。
+- source cleanup後のtargeted rerunはproof module `127 passed / 1 ignored`、GWCB `14/14`、MPC `7/7`、
+  DPN `15/15`、RCPF `19/19`、DCP `9/9`、motivating 3件`3/3`でgreenだった。proof inventoryも
+  `22/22` greenで、manifest更新は不要だった。
+- final full-std exhaustive gateはrelease build、900秒wall timeout、18 GiB hard killで完走した。
+  test本体`423.44s`、build込み`504s`、peak RSS `13,149,644 KiB`で、replay relation
+  `50,390,357`件のmismatchはzeroだった。logical shapeは`865,571` occurrences、`1,717,007`
+  nonempty sides、`865,571` arms、`1,792,654` root winners、non-replay `30,256`件である。
+  normal loweringのfull exact compatibility cursorは`0 calls / 0 yields`、evaluatorは
+  `1,938,074 calls / 1,942,592 yields`、root-winnerは`258,042 / 2,859,199`、necessary association
+  cursorは`212,680 / 27,036,222`だった。
+- final capacity-inclusive payload proxyは、既存finite-map payloadを置換するside indexが
+  `730,513,404 bytes`（nodes `1,717,007/2,097,152`、entries
+  `50,390,357/50,390,357`）、QORF追加projection/non-replay/count summaryが`247,350,596 bytes`だった。
+  後者はretirable `3,507,222,516 bytes`の`7.0526%`で、§9.3の25%未満gateを満たす。
+- QORF-Eの3 cold runsはparse `55.073 / 56.787 / 57.438s`、full lowering
+  `89.153 / 90.857 / 91.699s`、peak RSS `4,295,608–4,295,972 KiB`だった。pre-QORFの
+  PCLF-F closeout値`68.571s / 121.96s / 7,812,204 KiB`に対し、medianでparse `-17.185%`、
+  full `-25.503%`、RSS `-45.010%`（`-3.353 GiB`）で、§9 minimumとparse realistic targetを満たす。
+  QORF-D1のaccepted regression基準`75.503s / 119.616s`に対してはparse `-24.788%`、full
+  `-24.043%`となり、Eへ繰り延べた回帰は完全に閉じた。
+- QORF-F同一cache pairはcold parse `54.113s` / lowering `87.529s` / process wall `93.38s` /
+  RSS `4,295,960 KiB`、warm hitはprocess wall `0.04s` / RSS `12,252 KiB`だった。代表corpus
+  `examples/showcase.yu`はfresh cacheでparse `56.425s` / lowering `90.557s` / process wall
+  `96.56s` / RSS `4,338,456 KiB`、exit zeroだった。
+- exact duplicate replay prepareはaccepted delta zero、no-claim proof index persistent growth zero、
+  1,800-event real writer fixtureのsnapshot duplicate comparisons zeroをretained testsで確認した。
+  writer self-timeはcloseout runで独立分離していないため新しい秒数を主張しない。QORF-Bで除去した
+  1.364B duplicate comparisonsと旧`6.318–6.599s` inclusive baselineを、秒数の代用にはしない。
+- production `YULANG_QORF_*` trace/debug printはzeroである。full-std harness、allocation/operation/read
+  censusは§7.4/§9の再現可能なtest-only regression gateなので保持し、移行期のstale authority commentだけを
+  final shapeへ更新した。temporary artifactは残していない。
+
+以上よりQORFのstructural/numeric/output gateは完了した。closeoutの既知gapはsafety-scoped suiteの
+`490`件がwall budget内でunfinishedな点と、writer self-timeを独立分離していない点であり、いずれも上記へ明記する。
 
 ## 9. 性能・memory gate
 
