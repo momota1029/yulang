@@ -114,6 +114,48 @@ impl BoundReplayApplyStats {
 }
 
 impl ConstraintMachine {
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_cpk_sv_d0_bound_promotion_writer_for_test(&mut self) {
+        let target = TypeVar(91_101);
+        self.register_type_var(target, TypeLevel::root());
+        let lower = self.alloc_pos(Pos::Var(TypeVar(91_100)));
+        let derivation = BoundDerivation::IncompleteReplay;
+        let evidence = self.bounds.add_evidence_lower(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            derivation.clone(),
+        );
+        self.record_bound_provenance(evidence, BoundDirection::Lower, true);
+        let promotion =
+            self.bounds
+                .add_lower(target, lower, ConstraintWeights::empty(), derivation);
+        assert!(promotion.semantic_changed && !promotion.provenance_changed);
+        self.record_bound_provenance(promotion, BoundDirection::Lower, false);
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_cpk_sv_d0_bound_tombstone_writer_for_test(&mut self) {
+        let source = TypeVar(91_110);
+        let tail_var = TypeVar(91_111);
+        self.register_type_var(source, TypeLevel::root());
+        self.register_type_var(tail_var, TypeLevel::root());
+        let item = self.alloc_neg(Neg::Con(vec!["cpk-sv-d0-effect".into()], Vec::new()));
+        let tail = self.alloc_neg(Neg::Var(tail_var));
+        let row = self.alloc_neg(Neg::Row(vec![item], tail));
+        self.add_upper_bound(
+            source,
+            row,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+        assert_eq!(
+            self.prune_upper_rows_subsumed_by_reduced_upper(source, tail)
+                .len(),
+            1,
+        );
+    }
+
     pub(in crate::constraints) fn record_bound_disposition(
         &mut self,
         direction: BoundDirection,
@@ -792,8 +834,10 @@ impl ConstraintMachine {
             // New provenance is published through `record_bound`, which owns the same completed
             // mutation's snapshot bump. A pure evidence->ordinary promotion has no occurrence
             // write, so publish its semantic bound-state change here.
-            self.proof_store
-                .publish_structural_mutation(proof::ProofStructuralMutationClass::Bound);
+            self.proof_store.publish_structural_mutation_at(
+                proof::ProofStructuralMutationClass::Bound,
+                proof::ProofStructuralMutationSite::BoundPromotion,
+            );
         }
         self.timing.record_bound_record(
             direction,
@@ -3879,8 +3923,10 @@ impl ConstraintMachine {
             self.unrecord_neg_bound_var_neighbors(source, *upper);
         }
         if bounds_changed {
-            self.proof_store
-                .publish_structural_mutation(proof::ProofStructuralMutationClass::Bound);
+            self.proof_store.publish_structural_mutation_at(
+                proof::ProofStructuralMutationClass::Bound,
+                proof::ProofStructuralMutationSite::BoundTombstone,
+            );
             self.bump_role_solve_supplemental_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations
