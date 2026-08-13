@@ -76,6 +76,12 @@ struct ClaimParentClauseLinkPreflight {
     links: Vec<RecordProofClauseLinkAdmission>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionClauseCommitPolicy {
+    FormulaOnlyRetryable,
+    SiblingMutationAlreadyCommitted,
+}
+
 #[derive(Default)]
 struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
@@ -974,7 +980,11 @@ impl ConstraintMachine {
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
         let preflight =
             self.preflight_claim_parent_clause_links(result, lower_record, parents.iter().copied());
-        self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links)
+        self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            preflight.links,
+            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
+        )
     }
 
     fn try_commit_all_claim_parent_clause_links_mutation(
@@ -990,7 +1000,11 @@ impl ConstraintMachine {
             lower_record,
             associations.map(|entry| entry.parent),
         );
-        Ok(self.commit_record_proof_clause_link_batch_mutation(lower_record, preflight.links))
+        Ok(self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            preflight.links,
+            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
+        ))
     }
 
     fn preflight_claim_parent_clause_links(
@@ -1111,7 +1125,7 @@ impl ConstraintMachine {
         let Some(root) = self.proof_store.claim_coverage_root(parent_claim) else {
             return;
         };
-        self.register_record_proof_clause_link(
+        self.register_record_proof_clause_link_with_policy(
             lower_record,
             RecordProofClauseLinkAdmission::claimed(
                 root,
@@ -1125,6 +1139,7 @@ impl ConstraintMachine {
                     coverage_root: root,
                 },
             ),
+            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
         );
     }
 
@@ -1132,6 +1147,19 @@ impl ConstraintMachine {
         &mut self,
         lower_record: BoundRecordId,
         admission: RecordProofClauseLinkAdmission,
+    ) {
+        self.register_record_proof_clause_link_with_policy(
+            lower_record,
+            admission,
+            ProjectionClauseCommitPolicy::FormulaOnlyRetryable,
+        );
+    }
+
+    fn register_record_proof_clause_link_with_policy(
+        &mut self,
+        lower_record: BoundRecordId,
+        admission: RecordProofClauseLinkAdmission,
+        policy: ProjectionClauseCommitPolicy,
     ) {
         let support = admission.support;
         let clause = admission.clause;
@@ -1141,7 +1169,12 @@ impl ConstraintMachine {
         {
             return;
         }
-        self.commit_record_proof_clause_link_batch(lower_record, [admission]);
+        self.commit_record_proof_clause_link_batch_with_fence(
+            lower_record,
+            [admission],
+            None,
+            policy,
+        );
     }
 
     #[cfg(test)]
@@ -1195,22 +1228,15 @@ impl ConstraintMachine {
             .expect("production replay-evidence admission materializes the derived claim")
     }
 
-    fn commit_record_proof_clause_link_batch(
-        &mut self,
-        lower_record: BoundRecordId,
-        links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
-    ) {
-        self.commit_record_proof_clause_link_batch_with_fence(lower_record, links, None);
-    }
-
     fn commit_record_proof_clause_link_batch_with_fence(
         &mut self,
         lower_record: BoundRecordId,
         links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
         publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
+        policy: ProjectionClauseCommitPolicy,
     ) {
         let Some(snapshot) =
-            self.commit_record_proof_clause_link_batch_mutation(lower_record, links)
+            self.commit_record_proof_clause_link_batch_mutation(lower_record, links, policy)
         else {
             return;
         };
@@ -1246,16 +1272,33 @@ impl ConstraintMachine {
         &mut self,
         lower_record: BoundRecordId,
         links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
+        policy: ProjectionClauseCommitPolicy,
     ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
         let links = links.into_iter().collect::<Vec<_>>();
         if links.is_empty() {
             return None;
         }
         let was_included = self.scheme_projection_record_is_included(lower_record);
-        let committed = match self
-            .proof_store
-            .try_commit_formula_only_projection_clause_admission(lower_record, &links)
-        {
+        let commit_result = match policy {
+            ProjectionClauseCommitPolicy::FormulaOnlyRetryable => self
+                .proof_store
+                .try_commit_formula_only_projection_clause_admission(lower_record, &links),
+            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted => {
+                match self
+                    .proof_store
+                    .try_prepare_projection_clause_admission(lower_record, &links)
+                {
+                    Ok(Some(prepared)) => self
+                        .proof_store
+                        .commit_projection_clause_admission(prepared)
+                        .map(Some)
+                        .map_err(|conflict| conflict.into_proof_failure(lower_record)),
+                    Ok(None) => Ok(None),
+                    Err(failure) => Err(failure),
+                }
+            }
+        };
+        let committed = match commit_result {
             Ok(Some(committed)) => committed,
             Ok(None) => return None,
             Err(failure) => {
@@ -1310,8 +1353,12 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         links: &[RecordProofClauseLinkAdmission],
     ) -> bool {
-        self.commit_record_proof_clause_link_batch_mutation(lower_record, links.iter().copied())
-            .is_some()
+        self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            links.iter().copied(),
+            ProjectionClauseCommitPolicy::FormulaOnlyRetryable,
+        )
+        .is_some()
     }
 
     fn publish_record_proof_clause_link_batch(
@@ -1699,7 +1746,7 @@ impl ConstraintMachine {
         let (mut publication_fence, admitted_parents) =
             self.begin_non_replay_claim_parent_admission(result, parents);
         if self.proof_terminal_failure().is_some() {
-            return !admitted_parents.is_empty();
+            return false;
         }
         if derivation_inserted {
             self.register_constraint_projection_carrier_delta_with_precommitted_clause_links(
@@ -2063,7 +2110,36 @@ impl ConstraintMachine {
             lower_record,
             pending_links,
             publication_fence,
+            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
         );
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn cpk_sv_c_r0_register_origin_projection_delta_for_test(
+        &mut self,
+        lower_record: BoundRecordId,
+        origin: OriginId,
+        fenced: bool,
+    ) {
+        if fenced {
+            let mut fence = ReplayAdmissionPublicationFence::default();
+            self.register_lower_projection_delta(
+                lower_record,
+                &[],
+                LowerProjectionDelta::Bound(BoundDerivation::Origin(origin)),
+                Some(&mut fence),
+            );
+            if self.proof_terminal_failure().is_none() {
+                self.publish_replay_admission_publication_fence(fence);
+            }
+        } else {
+            self.register_lower_projection_delta(
+                lower_record,
+                &[],
+                LowerProjectionDelta::Bound(BoundDerivation::Origin(origin)),
+                None,
+            );
+        }
     }
 
     fn bootstrap_independent_projection_supports(
@@ -2573,7 +2649,7 @@ impl ConstraintMachine {
         let carrier = ProjectionProofCarrier::RowConstraint { result, derivation };
         let (mut publication_fence, admitted_parents) =
             self.begin_non_replay_claim_parent_admission(result, &[parent]);
-        if admitted_parents.is_empty() {
+        if admitted_parents.is_empty() || self.proof_terminal_failure().is_some() {
             return;
         }
         self.proof_store

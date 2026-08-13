@@ -3306,11 +3306,12 @@ impl ProjectionClaimDependencySnapshot {
             && live_states_match
             && match self.dependency.role {
                 ProjectionClaimDependencyRole::Representative => true,
-                // Support-relation divergence is independently handled by the SV-A certificate
-                // refresh. The historical corruption fixture deliberately publishes a claim
-                // with a different root after formula prepare and must still commit a dirty
-                // bucket so the canonical fallback reports that semantic failure.
-                ProjectionClaimDependencyRole::CoverageRoot => true,
+                // Normal original-claim publication binds its frozen root ID to itself. If that
+                // binding diverged, the current root may expose an arbitrarily larger live-state
+                // set than prepare reserved. Reject before the allocation-free commit instead of
+                // refreshing from a capacity base that was proved for a different root.
+                ProjectionClaimDependencyRole::CoverageRoot => current_occurrence
+                    .is_some_and(|(_, current_root)| current_root == self.dependency.claim),
             };
         if initial_publication {
             ProjectionDynamicBaseDisposition::InitialClaimPublication
@@ -16210,12 +16211,28 @@ mod tests {
     }
 
     #[test]
-    fn cpk_sv_a_commit_time_claim_root_change_dirties_certificate() {
+    fn cpk_sv_c_r0_root_divergence_with_live_states_requires_reprepare() {
+        const LIVE_STATES: u32 = 1_800;
         let mut store = ProofOccurrenceStore::default();
         let record = BoundRecordId(97_159);
-        let claim = UpperReplayClaimId(0);
+        let mut moved_root_admission = store
+            .try_prepare_original_claim_admission(
+                BoundRecordId(97_160),
+                ConstraintRecordId(97_161),
+                UpperReplayClaimKind::Direct,
+            )
+            .expect("moved-root admission prepare");
+        let moved_root = moved_root_admission.occurrence.claim;
+        store.commit_original_claim_admission(&mut moved_root_admission);
+        for ordinal in 0..LIVE_STATES {
+            store.record_live_coverage(
+                moved_root,
+                UnweightedRowReductionRecordId(98_000 + ordinal),
+                true,
+            );
+        }
+        let claim = UpperReplayClaimId(1);
         let frozen_root = claim;
-        let moved_root = UpperReplayClaimId(1);
         let support = SchemeProjectionProofSupport::Claimed(claim);
         let admission = RecordProofClauseLinkAdmission::claimed(
             claim,
@@ -16223,34 +16240,48 @@ mod tests {
             ClaimedAttributionSource::FlatRetained,
             ClaimedProjectionProofSource::Original {
                 coverage_root: frozen_root,
-                producer: ConstraintRecordId(97_160),
+                producer: ConstraintRecordId(97_162),
             },
         );
         let prepared = store
             .try_prepare_projection_clause_admission(record, &[admission])
             .expect("claimed admission prepare")
             .expect("claimed incidence is new");
+        assert!(
+            prepared.shadow.delta.new_validation_actions.capacity() < LIVE_STATES as usize,
+            "prepare deliberately has no capacity for the unrelated current root's live set",
+        );
         let mut claim_admission = store
             .try_prepare_original_claim_admission(
-                BoundRecordId(97_161),
-                ConstraintRecordId(97_160),
+                BoundRecordId(97_163),
+                ConstraintRecordId(97_162),
                 UpperReplayClaimKind::Direct,
             )
             .expect("claim admission prepare");
+        assert_eq!(claim_admission.occurrence.claim, claim);
         store.commit_original_claim_admission(&mut claim_admission);
         store.upper_claims[claim.0 as usize].coverage_root = moved_root;
 
-        store
-            .commit_projection_clause_admission(prepared)
-            .expect("support-divergence fixture commit");
-        let bucket = &store.projection_formula_shadow.by_record[&record];
-        assert_eq!(bucket.support_groups[0].coverage_root, Some(frozen_root));
+        let before = store.clone();
         assert_eq!(
-            bucket.support_groups[0].match_key,
-            Some(ProjectionSupportMatchKey::Claimed(moved_root)),
+            store.commit_projection_clause_admission(prepared),
+            Err(ProjectionClauseCommitConflict::DynamicDependencyBaseChanged),
+            "a different current root must re-prepare against its actual live-state capacity",
         );
-        assert!(bucket.structural_certificate.is_none());
-        assert!(!bucket.structural_oracle_result().support_relation_valid);
+        assert_eq!(
+            store, before,
+            "conflict must publish no partial formula face"
+        );
+        assert_eq!(
+            store.live_states_by_coverage_root[&moved_root].len(),
+            LIVE_STATES as usize,
+        );
+        assert!(
+            !store
+                .projection_formula_shadow
+                .by_record
+                .contains_key(&record)
+        );
     }
 
     #[test]
@@ -16533,6 +16564,104 @@ mod tests {
             1,
             "the sibling claim was already committed, so the whole attempt is terminal",
         );
+        assert!(
+            !machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .contains_key(&lower_record),
+        );
+    }
+
+    #[test]
+    fn cpk_sv_c_r0_support_mutation_then_formula_conflict_never_retries() {
+        for (ordinal, fenced) in [(97_180, false), (97_181, true)] {
+            let mut machine = cpk_machine();
+            let lower_record = cpk_gap_1_projection_record(&mut machine, ordinal);
+            let origin = OriginId::unknown_internal();
+            machine
+                .proof_store
+                .record_projection_supports(lower_record, &[]);
+
+            CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(2));
+            machine.cpk_sv_c_r0_register_origin_projection_delta_for_test(
+                lower_record,
+                origin,
+                fenced,
+            );
+
+            assert_eq!(
+                CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(Cell::get),
+                1,
+                "support mutation already committed: the first formula conflict is terminal",
+            );
+            CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(0));
+            assert!(matches!(
+                machine.proof_terminal_failure(),
+                Some(ProofFailure::ProjectionInvariantViolation {
+                    record,
+                    kind: ProjectionInvariantViolation::PreparedFormulaBaseChanged,
+                }) if record == lower_record
+            ));
+            assert_eq!(
+                machine.proof_store.projection_supports[&lower_record],
+                vec![SchemeProjectionProofSupport::Independent(
+                    ProjectionProofCarrier::Origin(origin),
+                )],
+                "the sibling support-ledger mutation is already committed",
+            );
+            assert!(
+                !machine
+                    .proof_store
+                    .projection_formula_shadow
+                    .by_record
+                    .contains_key(&lower_record),
+                "the failed formula commit publishes no formula output",
+            );
+        }
+    }
+
+    #[test]
+    fn cpk_sv_c_r0_qualified_parent_then_formula_conflict_never_retries() {
+        let mut machine = cpk_machine();
+        let (_, parent_claim) = cpk_7_record_original_claim(&mut machine, 97_182);
+        let lower_record = cpk_gap_1_projection_record(&mut machine, 97_183);
+        let result = ConstraintRecordId(97_184);
+        machine
+            .admit_projection_target_for_test(ProjectionTarget::Constraint(result), lower_record);
+        let derivation = StructuralDerivation {
+            parent: ConstraintRecordId(97_185),
+            rule: StructuralDerivationRule::FunctionReturn,
+        };
+        let parent = ClaimQualifiedParent::StructuralConstraint {
+            parent_claim,
+            derivation,
+        };
+
+        CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(2));
+        assert!(
+            !machine.register_structural_claim_parent_admission(
+                result,
+                &[parent],
+                derivation,
+                true,
+            ),
+            "terminal attempt must not return its accepted sibling as partial output",
+        );
+        assert_eq!(
+            CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(Cell::get),
+            1,
+            "qualified-parent mutation already committed: formula conflict is not retried",
+        );
+        CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(0));
+        assert!(matches!(
+            machine.proof_terminal_failure(),
+            Some(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::PreparedFormulaBaseChanged,
+            }) if record == lower_record
+        ));
+        assert_eq!(machine.proof_store.qualified_parent_count(result), 1);
         assert!(
             !machine
                 .proof_store
