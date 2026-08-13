@@ -98,7 +98,6 @@ pub(crate) enum ProjectionInvariantViolation {
     FormulaCategoryOrder,
     VisitingStateEscaped,
     PreparedFormulaBaseChanged,
-    PreparedDynamicDependencyBaseChanged,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2399,16 +2398,12 @@ pub(super) struct AcceptedProjectionClauseAdmission {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ProjectionClauseCommitConflict {
     FormulaBaseChanged,
-    DynamicDependencyBaseChanged,
 }
 
 impl ProjectionClauseCommitConflict {
     pub(super) fn into_proof_failure(self, record: BoundRecordId) -> ProofFailure {
         let kind = match self {
             Self::FormulaBaseChanged => ProjectionInvariantViolation::PreparedFormulaBaseChanged,
-            Self::DynamicDependencyBaseChanged => {
-                ProjectionInvariantViolation::PreparedDynamicDependencyBaseChanged
-            }
         };
         ProofFailure::ProjectionInvariantViolation { record, kind }
     }
@@ -3251,6 +3246,8 @@ struct ProjectionValidationActionId(u32);
 struct ProjectionDependencyAdjacency {
     actions: Vec<ProjectionValidationAction>,
     exact_membership: FxHashMap<ProjectionValidationAction, ProjectionValidationActionId>,
+    #[cfg(test)]
+    writer_dependent_visits: Cell<usize>,
 }
 
 impl ProjectionDependencyAdjacency {
@@ -3261,16 +3258,29 @@ impl ProjectionDependencyAdjacency {
         }
     }
 
-    fn insert_reserved(&mut self, action: ProjectionValidationAction) {
-        if self.exact_membership.contains_key(&action) {
-            return;
-        }
+    fn insert_reserved(&mut self, action: ProjectionValidationAction) -> bool {
+        #[cfg(test)]
+        self.writer_dependent_visits
+            .set(self.writer_dependent_visits.get() + 1);
         let id = ProjectionValidationActionId(
             u32::try_from(self.actions.len())
                 .expect("projection validation action capacity was bounded during prepare"),
         );
-        assert!(self.exact_membership.insert(action, id).is_none());
-        self.actions.push(action);
+        let inserted = self.exact_membership.insert(action, id).is_none();
+        if inserted {
+            self.actions.push(action);
+        }
+        inserted
+    }
+
+    #[cfg(test)]
+    fn reset_writer_dependent_visits(&self) {
+        self.writer_dependent_visits.set(0);
+    }
+
+    #[cfg(test)]
+    fn writer_dependent_visits(&self) -> usize {
+        self.writer_dependent_visits.get()
     }
 }
 
@@ -4085,6 +4095,9 @@ struct ProjectionDependencyAdjacencyFullReport {
 struct CpkSvCR2WriterCensus {
     claim_move_commits: usize,
     live_transition_commits: usize,
+    // Materialized on read from the per-adjacency writer probes below. Formula admission proves
+    // the probes can become nonzero; R2 lifecycle fixtures reset them before exercising the real
+    // production entry points.
     validation_adjacency_dependent_visits: usize,
     semantic_publication_dependent_visits: usize,
 }
@@ -8131,19 +8144,10 @@ impl ProofOccurrenceStore {
             );
         }
         for action in delta.new_validation_actions.drain(..) {
-            let id = ProjectionValidationActionId(
-                u32::try_from(bucket.dependency_adjacency.actions.len())
-                    .expect("CPK-SV-C validation action id was bounded during prepare"),
-            );
             assert!(
-                bucket
-                    .dependency_adjacency
-                    .exact_membership
-                    .insert(action, id)
-                    .is_none(),
+                bucket.dependency_adjacency.insert_reserved(action),
                 "CPK-SV-C prepared delta must contain only new exact actions",
             );
-            bucket.dependency_adjacency.actions.push(action);
         }
         delta.new_validation_action_membership.clear();
         for run_delta in delta.canonical_run_deltas.drain(..) {
@@ -14061,11 +14065,21 @@ impl ProofOccurrenceStore {
     fn reset_cpk_sv_c_r2_writer_census(&self) {
         self.cpk_sv_c_r2_writer_census
             .set(CpkSvCR2WriterCensus::default());
+        for bucket in self.projection_formula_shadow.by_record.values() {
+            bucket.dependency_adjacency.reset_writer_dependent_visits();
+        }
     }
 
     #[cfg(test)]
     fn cpk_sv_c_r2_writer_census(&self) -> CpkSvCR2WriterCensus {
-        self.cpk_sv_c_r2_writer_census.get()
+        let mut census = self.cpk_sv_c_r2_writer_census.get();
+        census.validation_adjacency_dependent_visits = self
+            .projection_formula_shadow
+            .by_record
+            .values()
+            .map(|bucket| bucket.dependency_adjacency.writer_dependent_visits())
+            .sum();
+        census
     }
 
     pub(super) fn projection_owners(&self, view: &impl SemanticFactView) -> FxHashSet<TypeVar> {
@@ -17578,15 +17592,146 @@ mod tests {
         )
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct CpkSvCR2CapacityCensus {
+        formula_store_bytes: usize,
+        validation_adjacency_bytes: usize,
+        semantic_publication_bytes: usize,
+        claim_authority_bytes: usize,
+        live_authority_bytes: usize,
+    }
+
+    fn cpk_sv_c_r2_store_capacity_census(store: &ProofOccurrenceStore) -> CpkSvCR2CapacityCensus {
+        let formula_store_bytes = store
+            .performance_index_allocation_census()
+            .shadow_projection_formula
+            .estimated_retained_bytes;
+        let validation_adjacency_bytes = cpk_sv_c_r2_adjacency_capacity_census(store).3;
+        let semantic_publication_bytes = store
+            .projection_lower_records_by_root
+            .capacity()
+            .saturating_mul(std::mem::size_of::<(UpperReplayClaimId, Vec<BoundRecordId>)>())
+            .saturating_add(hash_table_control_bytes(
+                store.projection_lower_records_by_root.capacity(),
+            ))
+            .saturating_add(
+                store
+                    .projection_lower_records_by_root
+                    .values()
+                    .map(Vec::capacity)
+                    .sum::<usize>()
+                    .saturating_mul(std::mem::size_of::<BoundRecordId>()),
+            )
+            .saturating_add(
+                store
+                    .projection_lower_record_memberships
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<(UpperReplayClaimId, BoundRecordId)>()),
+            )
+            .saturating_add(hash_table_control_bytes(
+                store.projection_lower_record_memberships.capacity(),
+            ));
+        let claim_authority_bytes =
+            store
+                .upper_claims
+                .capacity()
+                .saturating_mul(std::mem::size_of::<UpperClaimOccurrence>())
+                .saturating_add(
+                    store
+                        .upper_claim_index
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<(UpperReplayClaimId, usize)>()),
+                )
+                .saturating_add(hash_table_control_bytes(store.upper_claim_index.capacity()))
+                .saturating_add(
+                    store
+                        .original_claim_by_record_and_producer
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<(
+                            (BoundRecordId, ConstraintRecordId),
+                            UpperReplayClaimId,
+                        )>()),
+                )
+                .saturating_add(hash_table_control_bytes(
+                    store.original_claim_by_record_and_producer.capacity(),
+                ))
+                .saturating_add(
+                    store
+                        .derived_claim_by_record_and_root
+                        .capacity()
+                        .saturating_mul(std::mem::size_of::<(
+                            (BoundRecordId, UpperReplayClaimId),
+                            UpperReplayClaimId,
+                        )>()),
+                )
+                .saturating_add(hash_table_control_bytes(
+                    store.derived_claim_by_record_and_root.capacity(),
+                ))
+                .saturating_add(store.claims_by_upper_record.capacity().saturating_mul(
+                    std::mem::size_of::<(BoundRecordId, Vec<UpperReplayClaimId>)>(),
+                ))
+                .saturating_add(hash_table_control_bytes(
+                    store.claims_by_upper_record.capacity(),
+                ))
+                .saturating_add(
+                    store
+                        .claims_by_upper_record
+                        .values()
+                        .map(Vec::capacity)
+                        .sum::<usize>()
+                        .saturating_mul(std::mem::size_of::<UpperReplayClaimId>()),
+                );
+        let live_authority_bytes = store
+            .live_coverage
+            .capacity()
+            .saturating_mul(std::mem::size_of::<(
+                UpperReplayClaimId,
+                UnweightedRowReductionRecordId,
+            )>())
+            .saturating_add(hash_table_control_bytes(store.live_coverage.capacity()))
+            .saturating_add(
+                store
+                    .live_states_by_coverage_root
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<(
+                        UpperReplayClaimId,
+                        FxHashSet<UnweightedRowReductionRecordId>,
+                    )>()),
+            )
+            .saturating_add(hash_table_control_bytes(
+                store.live_states_by_coverage_root.capacity(),
+            ))
+            .saturating_add(
+                store
+                    .live_states_by_coverage_root
+                    .values()
+                    .map(|states| {
+                        states
+                            .capacity()
+                            .saturating_mul(std::mem::size_of::<UnweightedRowReductionRecordId>())
+                            .saturating_add(hash_table_control_bytes(states.capacity()))
+                    })
+                    .sum::<usize>(),
+            );
+        CpkSvCR2CapacityCensus {
+            formula_store_bytes,
+            validation_adjacency_bytes,
+            semantic_publication_bytes,
+            claim_authority_bytes,
+            live_authority_bytes,
+        }
+    }
+
     #[test]
     fn cpk_sv_c_r2_many_formulas_repeated_moves_have_zero_adjacency_fanout() {
         const FORMULAS: usize = 1_800;
         const MOVES: usize = 1_800;
-        let mut store = ProofOccurrenceStore::default();
+        let mut machine = ConstraintMachine::new();
         let original_record = BoundRecordId(98_280);
         let alternate_record = BoundRecordId(98_281);
         let producer = ConstraintRecordId(98_282);
-        let mut claim_admission = store
+        let mut claim_admission = machine
+            .proof_store
             .try_prepare_original_claim_admission(
                 original_record,
                 producer,
@@ -17594,10 +17739,12 @@ mod tests {
             )
             .expect("R2 move stress claim prepare");
         let claim = claim_admission.occurrence.claim;
-        store.commit_original_claim_admission(&mut claim_admission);
+        machine
+            .proof_store
+            .commit_original_claim_admission(&mut claim_admission);
         let support = SchemeProjectionProofSupport::Claimed(claim);
         for ordinal in 0..FORMULAS {
-            store.record_projection_clause(
+            machine.proof_store.record_projection_clause(
                 BoundRecordId(130_000 + ordinal as u32),
                 RecordProofClauseLinkAdmission::claimed(
                     claim,
@@ -17610,127 +17757,150 @@ mod tests {
                 ),
             );
         }
-        let adjacency_before = cpk_sv_c_r2_adjacency_capacity_census(&store);
-        store.reset_cpk_sv_c_r2_writer_census();
-        store.replay_index_record_comparisons.set(0);
+        assert!(
+            machine
+                .proof_store
+                .cpk_sv_c_r2_writer_census()
+                .validation_adjacency_dependent_visits
+                > 0,
+            "the visit counter must observe real formula-adjacency writer calls before reset",
+        );
+        machine
+            .try_move_upper_replay_claim(claim, alternate_record)
+            .expect("R2 move stress warm-up to alternate record");
+        machine
+            .try_move_upper_replay_claim(claim, original_record)
+            .expect("R2 move stress warm-up back to original record");
+        machine.proof_store.reset_cpk_sv_c_r2_writer_census();
+        machine.proof_store.replay_index_record_comparisons.set(0);
+        let capacity_before = cpk_sv_c_r2_store_capacity_census(&machine.proof_store);
         for ordinal in 0..MOVES {
             let destination = if ordinal % 2 == 0 {
                 alternate_record
             } else {
                 original_record
             };
-            let mut mutation = store
-                .try_prepare_upper_claim_move(claim, destination)
-                .expect("R2 move stress prepare");
-            store.commit_upper_claim_move(&mut mutation);
+            machine
+                .try_move_upper_replay_claim(claim, destination)
+                .expect("R2 production claim-move stress");
         }
-        let census = store.cpk_sv_c_r2_writer_census();
+        let census = machine.proof_store.cpk_sv_c_r2_writer_census();
         assert_eq!(census.claim_move_commits, MOVES);
         assert_eq!(census.live_transition_commits, 0);
         assert_eq!(census.validation_adjacency_dependent_visits, 0);
         assert_eq!(census.semantic_publication_dependent_visits, 0);
+        let capacity_after = cpk_sv_c_r2_store_capacity_census(&machine.proof_store);
         assert_eq!(
-            cpk_sv_c_r2_adjacency_capacity_census(&store),
-            adjacency_before
+            capacity_after.formula_store_bytes,
+            capacity_before.formula_store_bytes
+        );
+        assert_eq!(
+            capacity_after.validation_adjacency_bytes,
+            capacity_before.validation_adjacency_bytes,
+        );
+        assert_eq!(
+            capacity_after.semantic_publication_bytes,
+            capacity_before.semantic_publication_bytes,
+        );
+        assert_eq!(
+            capacity_after.claim_authority_bytes,
+            capacity_before.claim_authority_bytes
         );
         assert!(
-            store.replay_index_record_comparisons.get() <= MOVES * 2,
+            machine.proof_store.replay_index_record_comparisons.get() <= MOVES * 2,
             "claim-authority index work stays independent of {FORMULAS} formula dependents",
         );
-
-        let retired_cross_index_payload_lower_bound =
-            FORMULAS * std::mem::size_of::<(UpperReplayClaimId, u8, BoundRecordId)>();
-        let post_r2_cross_index_bytes = 0usize;
-        assert!(post_r2_cross_index_bytes <= retired_cross_index_payload_lower_bound);
+        eprintln!(
+            "CPK_SV_C_R2_MOVE_CENSUS formulas={FORMULAS} moves={MOVES} adjacency_visits={} comparisons={} capacity_before={capacity_before:?} capacity_after={capacity_after:?}",
+            census.validation_adjacency_dependent_visits,
+            machine.proof_store.replay_index_record_comparisons.get(),
+        );
     }
 
     #[test]
     fn cpk_sv_c_r2_many_live_transitions_preserve_semantic_fanout_without_adjacency_work() {
-        const FORMULAS: usize = 512;
         const LIVE_STATES: usize = 1_800;
-        let mut store = ProofOccurrenceStore::default();
-        let original_record = BoundRecordId(98_290);
-        let producer = ConstraintRecordId(98_291);
-        let mut claim_admission = store
-            .try_prepare_original_claim_admission(
-                original_record,
-                producer,
-                UpperReplayClaimKind::Direct,
-            )
-            .expect("R2 live stress claim prepare");
-        let root = claim_admission.occurrence.claim;
-        store.commit_original_claim_admission(&mut claim_admission);
-        let support = SchemeProjectionProofSupport::Claimed(root);
-        let mut semantic_records = Vec::new();
-        semantic_records.try_reserve_exact(FORMULAS).unwrap();
-        for ordinal in 0..FORMULAS {
-            let record = BoundRecordId(140_000 + ordinal as u32);
-            semantic_records.push(record);
-            store.record_projection_supports(
-                record,
-                &[SchemeProjectionProof {
-                    lower_record: record,
-                    support,
-                }],
-            );
-            store.record_projection_clause(
-                record,
-                RecordProofClauseLinkAdmission::claimed(
-                    root,
-                    RecordProofClause::Standalone { support },
-                    ClaimedAttributionSource::FlatRetained,
-                    ClaimedProjectionProofSource::Original {
-                        coverage_root: root,
-                        producer,
-                    },
-                ),
-            );
-        }
-        let semantic_memberships_before = store.projection_lower_record_memberships.clone();
-        let adjacency_before = cpk_sv_c_r2_adjacency_capacity_census(&store);
-        store.reset_cpk_sv_c_r2_writer_census();
+        let mut machine = cpk_3_replay_fixture();
+        let (root, original_state) = *machine
+            .proof_store
+            .live_coverage
+            .iter()
+            .next()
+            .expect("production live fixture has one active state");
+        assert!(
+            machine
+                .proof_store
+                .cpk_sv_c_r2_writer_census()
+                .validation_adjacency_dependent_visits
+                > 0,
+            "the visit counter must observe the fixture's real formula-adjacency writes",
+        );
+        assert!(machine.remove_scheme_projection_live_coverage_state(root, original_state));
+        let expected_semantic_fanout = machine
+            .proof_store
+            .projection_lower_records_by_root
+            .get(&root)
+            .map_or(0, Vec::len);
+        let semantic_memberships_before = machine
+            .proof_store
+            .projection_lower_record_memberships
+            .clone();
+        machine.proof_store.reset_cpk_sv_c_r2_writer_census();
+        let capacity_before = cpk_sv_c_r2_store_capacity_census(&machine.proof_store);
         for ordinal in 0..LIVE_STATES {
-            assert!(matches!(
-                store.record_live_coverage(
+            assert!(
+                machine.insert_scheme_projection_live_coverage_state(
                     root,
                     UnweightedRowReductionRecordId(150_000 + ordinal as u32),
-                    true,
                 ),
-                PreparedLiveCoverageTransition::Changed { .. }
-            ));
+                "production live insertion {ordinal} must change authority state",
+            );
         }
         for ordinal in 0..LIVE_STATES {
-            assert!(matches!(
-                store.record_live_coverage(
+            assert!(
+                machine.remove_scheme_projection_live_coverage_state(
                     root,
                     UnweightedRowReductionRecordId(150_000 + ordinal as u32),
-                    false,
                 ),
-                PreparedLiveCoverageTransition::Changed { .. }
-            ));
+                "production live removal {ordinal} must change authority state",
+            );
         }
-        let authority_census = store.cpk_sv_c_r2_writer_census();
+        let authority_census = machine.proof_store.cpk_sv_c_r2_writer_census();
         assert_eq!(authority_census.live_transition_commits, LIVE_STATES * 2);
         assert_eq!(authority_census.claim_move_commits, 0);
         assert_eq!(authority_census.validation_adjacency_dependent_visits, 0);
-        assert_eq!(authority_census.semantic_publication_dependent_visits, 0);
         assert_eq!(
-            cpk_sv_c_r2_adjacency_capacity_census(&store),
-            adjacency_before
+            authority_census.semantic_publication_dependent_visits,
+            expected_semantic_fanout * 2,
+            "only the empty-to-nonempty and nonempty-to-empty production transitions fan out",
+        );
+        let capacity_after = cpk_sv_c_r2_store_capacity_census(&machine.proof_store);
+        assert_eq!(
+            capacity_after.formula_store_bytes,
+            capacity_before.formula_store_bytes
         );
         assert_eq!(
-            store.projection_lower_record_memberships,
+            capacity_after.validation_adjacency_bytes,
+            capacity_before.validation_adjacency_bytes,
+        );
+        assert_eq!(
+            capacity_after.semantic_publication_bytes,
+            capacity_before.semantic_publication_bytes,
+        );
+        assert_eq!(
+            machine.proof_store.projection_lower_record_memberships,
             semantic_memberships_before,
         );
-
-        let semantic_fanout = store.projection_lower_records_for_root(root);
-        assert_eq!(semantic_fanout, semantic_records);
-        let separated_census = store.cpk_sv_c_r2_writer_census();
-        assert_eq!(
-            separated_census.semantic_publication_dependent_visits, FORMULAS,
-            "the preserved semantic publication map retains its real fanout",
+        assert!(
+            capacity_after.live_authority_bytes >= capacity_before.live_authority_bytes,
+            "only the authoritative live-state tables may retain capacity from the stress",
         );
-        assert_eq!(separated_census.validation_adjacency_dependent_visits, 0);
+        eprintln!(
+            "CPK_SV_C_R2_LIVE_CENSUS states={LIVE_STATES} transitions={} adjacency_visits={} semantic_visits={} expected_semantic_fanout={expected_semantic_fanout} capacity_before={capacity_before:?} capacity_after={capacity_after:?}",
+            authority_census.live_transition_commits,
+            authority_census.validation_adjacency_dependent_visits,
+            authority_census.semantic_publication_dependent_visits,
+        );
     }
 
     #[test]
