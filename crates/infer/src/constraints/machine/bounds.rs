@@ -1252,11 +1252,11 @@ impl ConstraintMachine {
             return None;
         }
         let was_included = self.scheme_projection_record_is_included(lower_record);
-        let mut prepared = match self
+        let committed = match self
             .proof_store
-            .try_prepare_projection_clause_admission(lower_record, &links)
+            .try_commit_formula_only_projection_clause_admission(lower_record, &links)
         {
-            Ok(Some(prepared)) => prepared,
+            Ok(Some(committed)) => committed,
             Ok(None) => return None,
             Err(failure) => {
                 self.mark_proof_terminal_failure(
@@ -1266,10 +1266,8 @@ impl ConstraintMachine {
                 return None;
             }
         };
-        self.proof_store
-            .commit_projection_clause_admission(&mut prepared);
         let mut inserted_clauses = Vec::new();
-        for event in prepared.accepted().iter().copied() {
+        for event in committed.into_accepted() {
             if event.clause_inserted {
                 inserted_clauses.push(event.admission.clause);
             }
@@ -1304,6 +1302,16 @@ impl ConstraintMachine {
             lower_record,
             was_included,
         })
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn commit_record_proof_clause_link_batch_for_test(
+        &mut self,
+        lower_record: BoundRecordId,
+        links: &[RecordProofClauseLinkAdmission],
+    ) -> bool {
+        self.commit_record_proof_clause_link_batch_mutation(lower_record, links.iter().copied())
+            .is_some()
     }
 
     fn publish_record_proof_clause_link_batch(

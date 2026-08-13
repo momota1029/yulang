@@ -1498,30 +1498,39 @@ impl ConstraintMachine {
                 .map_err(exhausted)?;
         }
         if let Some(claim) = self.proof_store.original_claim(record, producer) {
+            let sibling_reduction_committed = reduction_state.is_some();
             if let Some(state) = reduction_state {
                 self.proof_store.commit_reduction_claim_index(state, claim);
             }
             let lower_record = self.lower_record_for_constraint(producer);
-            let mut clause_admission = match lower_record {
-                Some(lower_record) => self.proof_store.try_prepare_projection_clause_admission(
-                    lower_record,
-                    &[RecordProofClauseLinkAdmission::claimed(
-                        claim,
-                        RecordProofClause::Standalone {
-                            support: SchemeProjectionProofSupport::Claimed(claim),
-                        },
-                        ClaimedAttributionSource::FlatRetained,
-                        ClaimedProjectionProofSource::Original {
-                            coverage_root: claim,
-                            producer,
-                        },
-                    )],
-                )?,
-                None => None,
-            };
-            if let Some(prepared) = clause_admission.as_mut() {
-                self.proof_store
-                    .commit_projection_clause_admission(prepared);
+            if let Some(lower_record) = lower_record {
+                let clause = RecordProofClauseLinkAdmission::claimed(
+                    claim,
+                    RecordProofClause::Standalone {
+                        support: SchemeProjectionProofSupport::Claimed(claim),
+                    },
+                    ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: claim,
+                        producer,
+                    },
+                );
+                if sibling_reduction_committed {
+                    if let Some(prepared) = self
+                        .proof_store
+                        .try_prepare_projection_clause_admission(lower_record, &[clause])?
+                    {
+                        self.proof_store
+                            .commit_projection_clause_admission(prepared)
+                            .map_err(|conflict| conflict.into_proof_failure(lower_record))?;
+                    }
+                } else {
+                    self.proof_store
+                        .try_commit_formula_only_projection_clause_admission(
+                            lower_record,
+                            &[clause],
+                        )?;
+                }
             }
             let mut registration = UpperReplayClaimRegistration::new(claim);
             if let Some(lower_record) = lower_record {
@@ -1535,7 +1544,7 @@ impl ConstraintMachine {
             .try_prepare_original_claim_admission(record, producer, kind)?;
         let issued = admission.occurrence.claim;
         let lower_record = self.lower_record_for_constraint(producer);
-        let mut clause_admission = match lower_record {
+        let clause_admission = match lower_record {
             Some(lower_record) => self.proof_store.try_prepare_projection_clause_admission(
                 lower_record,
                 &[RecordProofClauseLinkAdmission::claimed(
@@ -1556,9 +1565,10 @@ impl ConstraintMachine {
         self.record_cpk_upper_claim_insertion_census(record, issued);
         self.proof_store
             .commit_original_claim_admission(&mut admission);
-        if let Some(prepared) = clause_admission.as_mut() {
+        if let (Some(lower_record), Some(prepared)) = (lower_record, clause_admission) {
             self.proof_store
-                .commit_projection_clause_admission(prepared);
+                .commit_projection_clause_admission(prepared)
+                .map_err(|conflict| conflict.into_proof_failure(lower_record))?;
         }
         let mut registration = UpperReplayClaimRegistration::new(issued);
         if let Some(lower_record) = lower_record {

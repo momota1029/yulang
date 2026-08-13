@@ -97,6 +97,8 @@ pub(crate) enum ProjectionInvariantViolation {
     FormulaSupportMismatch,
     FormulaCategoryOrder,
     VisitingStateEscaped,
+    PreparedFormulaBaseChanged,
+    PreparedDynamicDependencyBaseChanged,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -962,6 +964,10 @@ thread_local! {
             shadow_mismatches: 0,
         }) };
     static CPK_SV_B_FAIL_PREFLIGHT_ALLOCATION: Cell<bool> = const { Cell::new(false) };
+    // R0-only deterministic conflict injection. It lives outside the proof store so an injected
+    // failed commit leaves every production and test-oracle face of the store byte-for-byte
+    // unchanged, exactly like a real stale-base rejection.
+    static CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS: Cell<usize> = const { Cell::new(0) };
 }
 
 #[cfg(test)]
@@ -2392,6 +2398,47 @@ pub(super) struct AcceptedProjectionClauseAdmission {
     pub(super) clause_inserted: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ProjectionClauseCommitConflict {
+    FormulaBaseChanged,
+    DynamicDependencyBaseChanged,
+}
+
+impl ProjectionClauseCommitConflict {
+    pub(super) fn into_proof_failure(self, record: BoundRecordId) -> ProofFailure {
+        let kind = match self {
+            Self::FormulaBaseChanged => ProjectionInvariantViolation::PreparedFormulaBaseChanged,
+            Self::DynamicDependencyBaseChanged => {
+                ProjectionInvariantViolation::PreparedDynamicDependencyBaseChanged
+            }
+        };
+        ProofFailure::ProjectionInvariantViolation { record, kind }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct CommittedProjectionClauseBatch {
+    accepted: Vec<AcceptedProjectionClauseAdmission>,
+    #[cfg(test)]
+    retry_count: usize,
+}
+
+impl CommittedProjectionClauseBatch {
+    pub(super) fn into_accepted(self) -> Vec<AcceptedProjectionClauseAdmission> {
+        self.accepted
+    }
+
+    #[cfg(test)]
+    fn accepted(&self) -> &[AcceptedProjectionClauseAdmission] {
+        &self.accepted
+    }
+
+    #[cfg(test)]
+    fn retry_count(&self) -> usize {
+        self.retry_count
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PreparedProjectionClauseAdmission {
     lower_record: BoundRecordId,
@@ -2504,12 +2551,6 @@ enum ProjectionClauseReservationFailurePoint {
     ShadowNormalizedSupport,
     ShadowStructuralCertificate,
     ShadowDependencyAdjacency,
-}
-
-impl PreparedProjectionClauseAdmission {
-    pub(super) fn accepted(&self) -> &[AcceptedProjectionClauseAdmission] {
-        &self.accepted
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8926,8 +8967,20 @@ impl ProofOccurrenceStore {
 
     pub(super) fn commit_projection_clause_admission(
         &mut self,
-        prepared: &mut PreparedProjectionClauseAdmission,
-    ) {
+        mut prepared: PreparedProjectionClauseAdmission,
+    ) -> Result<CommittedProjectionClauseBatch, ProjectionClauseCommitConflict> {
+        #[cfg(test)]
+        if CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| {
+            let count = remaining.get();
+            if count == 0 {
+                false
+            } else {
+                remaining.set(count - 1);
+                true
+            }
+        }) {
+            return Err(ProjectionClauseCommitConflict::FormulaBaseChanged);
+        }
         let current_base = ProjectionStructuralBaseSnapshot::from_bucket(
             self.projection_formula_shadow
                 .by_record
@@ -8938,16 +8991,9 @@ impl ProofOccurrenceStore {
             // it observed. Non-standard callers may interleave corruption or another commit;
             // applying that stale delta could both reuse a revision identity and falsely
             // re-certify structure it did not prove. Reject it before any legacy or factored
-            // mutation and leave the actual current bucket explicitly dirty.
-            if let Some(bucket) = self
-                .projection_formula_shadow
-                .by_record
-                .get_mut(&prepared.lower_record)
-            {
-                bucket.structural_certificate = None;
-            }
-            prepared.shadow.next_structural_certificate = None;
-            return;
+            // mutation. A rejected prepared intent may not dirty the current certificate: the
+            // current bucket is committed state, while this transaction proved nothing about it.
+            return Err(ProjectionClauseCommitConflict::FormulaBaseChanged);
         }
         for snapshot in &prepared.shadow.delta.new_claim_dependency_snapshots {
             match snapshot.current_disposition(self) {
@@ -8959,15 +9005,7 @@ impl ProofOccurrenceStore {
                     // re-prepare the whole transaction; publishing either the frozen or current
                     // action subset would make the derived index incomplete. Reject before any
                     // formula or oracle mutation, matching the structural-base stale guard.
-                    if let Some(bucket) = self
-                        .projection_formula_shadow
-                        .by_record
-                        .get_mut(&prepared.lower_record)
-                    {
-                        bucket.structural_certificate = None;
-                    }
-                    prepared.shadow.next_structural_certificate = None;
-                    return;
+                    return Err(ProjectionClauseCommitConflict::DynamicDependencyBaseChanged);
                 }
             }
         }
@@ -9103,6 +9141,49 @@ impl ProofOccurrenceStore {
             self.debug_assert_pclf_a_read_model_matches_legacy();
             self.debug_assert_projection_structural_certificate(prepared.lower_record);
         }
+        Ok(CommittedProjectionClauseBatch {
+            accepted: prepared.accepted,
+            #[cfg(test)]
+            retry_count: 0,
+        })
+    }
+
+    /// Commit a formula-only batch with one bounded clean re-prepare on a stale base.
+    ///
+    /// Callers must not use this after publishing a sibling semantic mutation: a conflict in
+    /// that phase is a whole-attempt invariant failure, not a locally retryable formula race.
+    pub(super) fn try_commit_formula_only_projection_clause_admission(
+        &mut self,
+        lower_record: BoundRecordId,
+        admissions: &[RecordProofClauseLinkAdmission],
+    ) -> ProofKernelResult<Option<CommittedProjectionClauseBatch>> {
+        const MAX_RETRIES: usize = 1;
+        let mut retry_count = 0;
+        loop {
+            let Some(prepared) =
+                self.try_prepare_projection_clause_admission(lower_record, admissions)?
+            else {
+                return Ok(None);
+            };
+            match self.commit_projection_clause_admission(prepared) {
+                Ok(committed) => {
+                    #[cfg(test)]
+                    let committed = {
+                        let mut committed = committed;
+                        committed.retry_count = retry_count;
+                        committed
+                    };
+                    return Ok(Some(committed));
+                }
+                Err(conflict) if retry_count < MAX_RETRIES => {
+                    retry_count += 1;
+                    let _ = conflict;
+                }
+                Err(conflict) => {
+                    return Err(conflict.into_proof_failure(lower_record));
+                }
+            }
+        }
     }
 
     pub(super) fn record_projection_clause(
@@ -9110,12 +9191,8 @@ impl ProofOccurrenceStore {
         lower_record: BoundRecordId,
         admission: RecordProofClauseLinkAdmission,
     ) {
-        if let Some(mut prepared) = self
-            .try_prepare_projection_clause_admission(lower_record, &[admission])
-            .expect("infallible projection-clause admission")
-        {
-            self.commit_projection_clause_admission(&mut prepared);
-        }
+        self.try_commit_formula_only_projection_clause_admission(lower_record, &[admission])
+            .expect("infallible projection-clause admission");
     }
 
     fn projection_clause(admission: RecordProofClauseLinkAdmission) -> ProjectionClause {
@@ -15460,13 +15537,16 @@ mod tests {
             RecordProofClauseLinkAdmission::independent(support(97_102), clause(97_130)),
             RecordProofClauseLinkAdmission::independent(support(97_102), clause(97_130)),
         ];
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(record, &batch)
             .expect("PCLF-A delta matrix must reserve")
             .expect("three exact links are new");
-        assert_eq!(prepared.accepted().len(), 3);
+        let committed = store
+            .commit_projection_clause_admission(prepared)
+            .expect("fresh PCLF-A delta must commit");
+        assert_eq!(committed.accepted().len(), 3);
         assert_eq!(
-            prepared
+            committed
                 .accepted()
                 .iter()
                 .map(|event| event.admission)
@@ -15475,14 +15555,13 @@ mod tests {
             "existing and batch-local duplicates must retain their legacy classifications",
         );
         assert_eq!(
-            prepared
+            committed
                 .accepted()
                 .iter()
                 .map(|event| event.clause_inserted)
                 .collect::<Vec<_>>(),
             vec![false, true, true],
         );
-        store.commit_projection_clause_admission(&mut prepared);
         store.debug_assert_pclf_a_read_model_matches_legacy();
         for admission in [first, batch[1], batch[2], batch[3]] {
             assert_eq!(
@@ -15759,11 +15838,13 @@ mod tests {
         let initial = (0..PROJECTION_RUN_CHUNK_CAPACITY as u32)
             .map(|ordinal| admission(ConstraintRecordId(200_000 + ordinal * 2)))
             .collect::<Vec<_>>();
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(record, &initial)
             .expect("full-chunk fixture reservation")
             .expect("full-chunk fixture must admit its initial batch");
-        store.commit_projection_clause_admission(&mut prepared);
+        store
+            .commit_projection_clause_admission(prepared)
+            .expect("full-chunk fixture commit");
         let bucket = &store.projection_formula_shadow.by_record[&record];
         assert_eq!(bucket.canonical_runs.len(), 1);
         assert_eq!(bucket.canonical_runs[0].chunk_count(), 1);
@@ -16076,7 +16157,7 @@ mod tests {
         );
         // This is the production ordering: the clause is prepared from the old claim snapshot,
         // claim publication happens next, then that same prepared clause is committed.
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(record, &[admission])
             .expect("the clause transaction must reserve both representations")
             .expect("the claimed exact link must be new");
@@ -16102,7 +16183,9 @@ mod tests {
             .unwrap();
         assert_eq!(claim_admission.occurrence.claim, claim);
         store.commit_original_claim_admission(&mut claim_admission);
-        store.commit_projection_clause_admission(&mut prepared);
+        store
+            .commit_projection_clause_admission(prepared)
+            .expect("initial-claim fixture commit");
         assert_eq!(
             store.projection_formula_shadow.by_record[&record].support_groups[0].match_key,
             Some(ProjectionSupportMatchKey::Claimed(claim)),
@@ -16143,7 +16226,7 @@ mod tests {
                 producer: ConstraintRecordId(97_160),
             },
         );
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(record, &[admission])
             .expect("claimed admission prepare")
             .expect("claimed incidence is new");
@@ -16157,7 +16240,9 @@ mod tests {
         store.commit_original_claim_admission(&mut claim_admission);
         store.upper_claims[claim.0 as usize].coverage_root = moved_root;
 
-        store.commit_projection_clause_admission(&mut prepared);
+        store
+            .commit_projection_clause_admission(prepared)
+            .expect("support-divergence fixture commit");
         let bucket = &store.projection_formula_shadow.by_record[&record];
         assert_eq!(bucket.support_groups[0].coverage_root, Some(frozen_root));
         assert_eq!(
@@ -16259,7 +16344,7 @@ mod tests {
             )
         };
 
-        let mut stale_after_dirty = store
+        let stale_after_dirty = store
             .try_prepare_projection_clause_admission(record, &[admission(97_163)])
             .expect("prepare against certified base")
             .expect("new admission");
@@ -16270,7 +16355,10 @@ mod tests {
             .expect("fixture bucket")
             .structural_certificate = None;
         let dirty_base = store.clone();
-        store.commit_projection_clause_admission(&mut stale_after_dirty);
+        assert_eq!(
+            store.commit_projection_clause_admission(stale_after_dirty),
+            Err(ProjectionClauseCommitConflict::FormulaBaseChanged),
+        );
         assert_eq!(
             store, dirty_base,
             "stale commit must publish no partial face"
@@ -16291,25 +16379,167 @@ mod tests {
         bucket.structural_certificate = Some(ProjectionStructuralCertificate::valid(
             bucket.formula_revision,
         ));
-        let mut first = store
+        let first = store
             .try_prepare_projection_clause_admission(record, &[admission(97_165)])
             .expect("first concurrent-style prepare")
             .expect("first new admission");
-        let mut second = store
+        let second = store
             .try_prepare_projection_clause_admission(record, &[admission(97_167)])
             .expect("second concurrent-style prepare")
             .expect("second new admission");
-        store.commit_projection_clause_admission(&mut first);
+        let first_receipt = store
+            .commit_projection_clause_admission(first)
+            .expect("first prepared transaction owns the observed base");
+        assert_eq!(first_receipt.retry_count(), 0);
         let revision_after_first =
             store.projection_formula_shadow.by_record[&record].formula_revision;
         let exact_links_after_first = store.projection_formula_shadow.by_record[&record]
             .exact_links
             .len();
-        store.commit_projection_clause_admission(&mut second);
+        let committed_base = store.clone();
+        let stale_result = store.commit_projection_clause_admission(second);
+        assert_eq!(
+            stale_result,
+            Err(ProjectionClauseCommitConflict::FormulaBaseChanged),
+        );
+        let secondary_publication_count = stale_result
+            .map(CommittedProjectionClauseBatch::into_accepted)
+            .map_or(0, |accepted| accepted.len());
+        assert_eq!(
+            secondary_publication_count, 0,
+            "a stale prepared intent yields no receipt from which secondary facts can publish",
+        );
+        assert_eq!(store, committed_base);
         let bucket = &store.projection_formula_shadow.by_record[&record];
         assert_eq!(bucket.formula_revision, revision_after_first);
         assert_eq!(bucket.exact_links.len(), exact_links_after_first);
-        assert!(bucket.structural_certificate.is_none());
+        assert!(bucket.structural_certificate.is_some());
+    }
+
+    #[test]
+    fn cpk_sv_c_r0_commit_receipt_blocks_secondary_publication_after_conflict() {
+        let mut machine = cpk_machine();
+        let lower_record = cpk_gap_1_projection_record(&mut machine, 97_170);
+        let premise_record = cpk_gap_1_projection_record(&mut machine, 97_171);
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(97_172)),
+                premise: ProofPremise::Record(premise_record),
+            },
+        );
+
+        // The formula-only caller is allowed exactly one clean retry. Reject both attempts so
+        // its only legal outcome is terminal failure without a committed receipt.
+        CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(2));
+        assert!(
+            !machine.commit_record_proof_clause_link_batch_for_test(lower_record, &[admission],)
+        );
+        assert_eq!(
+            CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(Cell::get),
+            0,
+            "the bounded caller must make the initial attempt plus one retry",
+        );
+        assert!(matches!(
+            machine.proof_terminal_failure(),
+            Some(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::PreparedFormulaBaseChanged,
+            }) if record == lower_record
+        ));
+        assert!(
+            !machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .contains_key(&lower_record),
+            "failed commit must publish zero formula mutation",
+        );
+        assert!(
+            !machine
+                .proof_store
+                .projection_formulas
+                .contains_key(&lower_record),
+            "failed commit must publish zero legacy-oracle formula mutation",
+        );
+        assert!(
+            !machine
+                .proof_store
+                .dependent_records_by_premise
+                .get(&ProofPremise::Record(premise_record))
+                .is_some_and(|records| records.contains(&lower_record)),
+            "secondary premise publication requires a committed receipt",
+        );
+
+        let mut store = ProofOccurrenceStore::default();
+        let normal = store
+            .try_commit_formula_only_projection_clause_admission(
+                BoundRecordId(97_173),
+                &[RecordProofClauseLinkAdmission::independent(
+                    support,
+                    RecordProofClause::Standalone { support },
+                )],
+            )
+            .expect("normal formula-only admission")
+            .expect("normal formula-only admission commits a receipt");
+        assert_eq!(
+            normal.retry_count(),
+            0,
+            "the synchronous production ordering must not consume its retry budget",
+        );
+    }
+
+    #[test]
+    fn cpk_sv_c_r0_conflict_after_claim_commit_is_terminal_not_retried() {
+        let mut machine = cpk_machine();
+        let origin = OriginId::unknown_internal();
+        let lower_record = cpk_gap_1_projection_record(&mut machine, 97_174);
+        let upper = machine.alloc_neg(Neg::Var(TypeVar(97_175)));
+        let upper_record = machine
+            .bounds
+            .add_upper(
+                TypeVar(97_176),
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let producer = ConstraintRecordId(97_177);
+        machine
+            .admit_projection_target_for_test(ProjectionTarget::Constraint(producer), lower_record);
+
+        CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(|remaining| remaining.set(1));
+        assert!(
+            machine
+                .admit_original_upper_replay_claim(
+                    upper_record,
+                    producer,
+                    UpperReplayClaimKind::Direct,
+                )
+                .is_none(),
+            "a sibling claim commit followed by formula conflict returns no partial output",
+        );
+        assert_eq!(CPK_SV_C_R0_FORCED_COMMIT_CONFLICTS.with(Cell::get), 0);
+        assert!(matches!(
+            machine.proof_terminal_failure(),
+            Some(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::PreparedFormulaBaseChanged,
+            }) if record == lower_record
+        ));
+        assert_eq!(
+            machine.proof_store.upper_claims.len(),
+            1,
+            "the sibling claim was already committed, so the whole attempt is terminal",
+        );
+        assert!(
+            !machine
+                .proof_store
+                .projection_formula_shadow
+                .by_record
+                .contains_key(&lower_record),
+        );
     }
 
     #[test]
@@ -16878,7 +17108,7 @@ mod tests {
         );
 
         let moved_record = BoundRecordId(98_225);
-        let mut moved_prepare = machine
+        let moved_prepare = machine
             .proof_store
             .try_prepare_projection_clause_admission(moved_record, &[admission])
             .expect("move-stale formula prepare")
@@ -16894,9 +17124,12 @@ mod tests {
             )
             .id;
         machine.move_upper_replay_claim(claim, destination);
-        machine
-            .proof_store
-            .commit_projection_clause_admission(&mut moved_prepare);
+        assert_eq!(
+            machine
+                .proof_store
+                .commit_projection_clause_admission(moved_prepare),
+            Err(ProjectionClauseCommitConflict::DynamicDependencyBaseChanged),
+        );
         assert!(
             !machine
                 .proof_store
@@ -16914,7 +17147,7 @@ mod tests {
         let state = UnweightedRowReductionRecordId(98_228);
         machine.proof_store.record_live_coverage(claim, state, true);
         let row_record = BoundRecordId(98_229);
-        let mut row_prepare = machine
+        let row_prepare = machine
             .proof_store
             .try_prepare_projection_clause_admission(row_record, &[admission])
             .expect("row-stale formula prepare")
@@ -16922,9 +17155,12 @@ mod tests {
         machine
             .proof_store
             .record_live_coverage(claim, state, false);
-        machine
-            .proof_store
-            .commit_projection_clause_admission(&mut row_prepare);
+        assert_eq!(
+            machine
+                .proof_store
+                .commit_projection_clause_admission(row_prepare),
+            Err(ProjectionClauseCommitConflict::DynamicDependencyBaseChanged),
+        );
         assert!(
             !machine
                 .proof_store
@@ -16970,7 +17206,7 @@ mod tests {
                 producer: ConstraintRecordId(98_251),
             },
         );
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(BoundRecordId(98_252), &[admission])
             .expect("claimed-row stress formula prepare")
             .expect("claimed-row stress incidence is new");
@@ -16984,7 +17220,9 @@ mod tests {
             probes <= LIVE_STATES + PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND,
             "each live row must perform one finite-map probe, not scan the growing action Vec: probes={probes}, states={LIVE_STATES}",
         );
-        store.commit_projection_clause_admission(&mut prepared);
+        store
+            .commit_projection_clause_admission(prepared)
+            .expect("live-row fixture commit");
         let adjacency =
             &store.projection_formula_shadow.by_record[&BoundRecordId(98_252)].dependency_adjacency;
         assert_eq!(
@@ -17273,7 +17511,7 @@ mod tests {
                     premise: ProofPremise::Record(BoundRecordId(400_000 + ordinal)),
                 },
             );
-            let mut prepared = store
+            let prepared = store
                 .try_prepare_projection_clause_admission(record, &[admission])
                 .expect("descending singleton reserve")
                 .expect("descending singleton is exact-new");
@@ -17303,7 +17541,9 @@ mod tests {
                 prepared.shadow.delta.validation_action_membership_probes
                     <= PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND,
             );
-            store.commit_projection_clause_admission(&mut prepared);
+            store
+                .commit_projection_clause_admission(prepared)
+                .expect("rekey stress admission commit");
         }
         let actual_actions = store.projection_formula_shadow.by_record[&record]
             .dependency_adjacency
@@ -17658,7 +17898,7 @@ mod tests {
                 producer: ConstraintRecordId(10_001),
             },
         );
-        let mut prepared = fixture
+        let prepared = fixture
             .machine
             .proof_store
             .try_prepare_projection_clause_admission(record, &[second_admission])
@@ -17700,7 +17940,8 @@ mod tests {
         fixture
             .machine
             .proof_store
-            .commit_projection_clause_admission(&mut prepared);
+            .commit_projection_clause_admission(prepared)
+            .expect("mixed projection fixture commit");
         fixture
             .machine
             .proof_store
@@ -17967,11 +18208,13 @@ mod tests {
         let initial = (0..PROJECTION_RUN_CHUNK_CAPACITY as u32)
             .map(admission)
             .collect::<Vec<_>>();
-        let mut prepared = store
+        let prepared = store
             .try_prepare_projection_clause_admission(record, &initial)
             .expect("tied standalone initial reservation")
             .expect("tied standalone initial admission");
-        store.commit_projection_clause_admission(&mut prepared);
+        store
+            .commit_projection_clause_admission(prepared)
+            .expect("tied standalone fixture commit");
         store.record_projection_clause(record, admission(PROJECTION_RUN_CHUNK_CAPACITY as u32));
 
         let bucket = &store.projection_formula_shadow.by_record[&record];
@@ -19644,14 +19887,15 @@ mod tests {
                 .is_empty()
         );
 
-        let mut prepared = machine
+        let prepared = machine
             .proof_store
             .try_prepare_projection_clause_admission(record, &[admission])
             .expect("the next transaction must reuse the unchanged state")
             .expect("the clause must still be new");
         machine
             .proof_store
-            .commit_projection_clause_admission(&mut prepared);
+            .commit_projection_clause_admission(prepared)
+            .expect("atomicity fixture recovery commit");
         assert!(machine.proof_store.projection_clause_link_is_registered(
             record,
             support,
