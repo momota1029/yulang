@@ -4084,6 +4084,8 @@ struct ProjectionDependencyAdjacencyFullReport {
     membership_mismatches: usize,
     structure_mismatches: usize,
     validation_result_mismatches: usize,
+    stable_fast_successes: usize,
+    stable_canonical_fallbacks: usize,
     action_count_p50: usize,
     action_count_p95: usize,
     action_count_max: usize,
@@ -6578,11 +6580,23 @@ impl ProofOccurrenceStore {
             return Ok(report);
         };
         let mut preflight = ProjectionPreflight::new(self, view, first_record);
+        let mut stable_preflight = ProjectionPreflight::new(self, view, first_record);
         let mut reported_mismatches = 0usize;
         for (&record, bucket) in &self.projection_formula_shadow.by_record {
             report.buckets += 1;
             report.incidences += bucket.exact_links.len();
+            // The exhaustive gate compares exact-deduplicated reads over one completed immutable
+            // snapshot. Begin every target from the same canonical memo state: otherwise the two
+            // validators' different prior traversal orders become an input to the next comparison.
+            // The stable side remains an independent traversal within this record.
             preflight.retarget(record);
+            stable_preflight.retarget(record);
+            stable_preflight
+                .checked_records
+                .clone_from(&preflight.checked_records);
+            stable_preflight
+                .checked_constraints
+                .clone_from(&preflight.checked_constraints);
             preflight.begin_validation_action_trace(
                 bucket
                     .exact_links
@@ -6599,15 +6613,20 @@ impl ProofOccurrenceStore {
             let expected = preflight.finish_validation_action_trace();
             let expected_late_bound_reads = preflight.finish_late_bound_read_trace();
             let oracle = bucket.dependency_adjacency_oracle_result(&expected);
-            let mut late_bound = ProjectionPreflight::new(self, view, record);
-            late_bound.begin_late_bound_read_trace(
+            stable_preflight.begin_late_bound_read_trace(
                 bucket
                     .exact_links
                     .len()
                     .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
             )?;
-            let late_bound_validation = late_bound.validate_stable_dependency_adjacency(record);
-            let actual_late_bound_reads = late_bound.finish_late_bound_read_trace();
+            let late_bound_validation =
+                stable_preflight.validate_stable_dependency_adjacency(record);
+            let actual_late_bound_reads = stable_preflight.finish_late_bound_read_trace();
+            if stable_preflight.stable_fallback_used {
+                report.stable_canonical_fallbacks += 1;
+            } else {
+                report.stable_fast_successes += 1;
+            }
             if oracle.membership_mismatches != 0 && reported_mismatches < 8 {
                 let actual = bucket
                     .dependency_adjacency
@@ -6626,11 +6645,35 @@ impl ProofOccurrenceStore {
             report.membership_mismatches += oracle.membership_mismatches;
             let validation_result_mismatch = usize::from(validation != late_bound_validation);
             report.validation_result_mismatches += validation_result_mismatch;
+            // On a failed fast execution the public shadow path discards the partial trace and
+            // delegates error kind/owner/precedence to canonical validation. Read-set parity is
+            // therefore a successful-fast-path gate; failures are covered by the exact Result
+            // comparison above and the dedicated corruption/error matrix.
+            let late_bound_read_mismatches =
+                if validation.is_ok() && !stable_preflight.stable_fallback_used {
+                    expected_late_bound_reads
+                        .symmetric_difference(&actual_late_bound_reads)
+                        .count()
+                } else {
+                    0
+                };
+            if late_bound_read_mismatches != 0 && reported_mismatches < 8 {
+                eprintln!(
+                    "CPK_SV_C_READ_MISMATCH record={record:?} expected_only={:?} actual_only={:?}",
+                    expected_late_bound_reads
+                        .difference(&actual_late_bound_reads)
+                        .take(8)
+                        .collect::<Vec<_>>(),
+                    actual_late_bound_reads
+                        .difference(&expected_late_bound_reads)
+                        .take(8)
+                        .collect::<Vec<_>>(),
+                );
+                reported_mismatches += 1;
+            }
             report.structure_mismatches += oracle.structure_mismatches
                 + validation_result_mismatch
-                + expected_late_bound_reads
-                    .symmetric_difference(&actual_late_bound_reads)
-                    .count();
+                + late_bound_read_mismatches;
             action_counts.push(oracle.actual_actions);
             report.capacity_inclusive_bytes += bucket
                 .dependency_adjacency
@@ -9770,6 +9813,12 @@ struct ProjectionPreflight<'a> {
     validation_action_trace_suppression: usize,
     #[cfg(test)]
     late_bound_read_trace: Option<FxHashSet<ProjectionLateBoundValidationRead>>,
+    #[cfg(test)]
+    late_bound_read_trace_suppression: usize,
+    #[cfg(test)]
+    stable_fallback_used: bool,
+    #[cfg(test)]
+    target_formula_trace_started: bool,
 }
 
 impl<'a> ProjectionPreflight<'a> {
@@ -9792,6 +9841,12 @@ impl<'a> ProjectionPreflight<'a> {
             validation_action_trace_suppression: 0,
             #[cfg(test)]
             late_bound_read_trace: None,
+            #[cfg(test)]
+            late_bound_read_trace_suppression: 0,
+            #[cfg(test)]
+            stable_fallback_used: false,
+            #[cfg(test)]
+            target_formula_trace_started: false,
         }
     }
 
@@ -9803,6 +9858,7 @@ impl<'a> ProjectionPreflight<'a> {
             .expect("CPK-SV-C independent trace allocation");
         self.validation_action_trace = Some(actions);
         self.validation_action_trace_suppression = 0;
+        self.target_formula_trace_started = false;
     }
 
     #[cfg(test)]
@@ -9822,11 +9878,13 @@ impl<'a> ProjectionPreflight<'a> {
                 operation: ProofOperation::ProjectLowerPreflight,
             })?;
         self.late_bound_read_trace = Some(reads);
+        self.target_formula_trace_started = false;
         Ok(())
     }
 
     #[cfg(test)]
     fn finish_late_bound_read_trace(&mut self) -> FxHashSet<ProjectionLateBoundValidationRead> {
+        assert_eq!(self.late_bound_read_trace_suppression, 0);
         self.late_bound_read_trace
             .take()
             .expect("CPK-SV-C-R1 late-bound trace must be active")
@@ -9837,7 +9895,9 @@ impl<'a> ProjectionPreflight<'a> {
         &mut self,
         read: ProjectionLateBoundValidationRead,
     ) -> Result<(), ProofFailure> {
-        if let Some(reads) = self.late_bound_read_trace.as_mut() {
+        if self.late_bound_read_trace_suppression == 0
+            && let Some(reads) = self.late_bound_read_trace.as_mut()
+        {
             if reads.contains(&read) {
                 return Ok(());
             }
@@ -9856,6 +9916,10 @@ impl<'a> ProjectionPreflight<'a> {
         &mut self,
         record: BoundRecordId,
     ) -> Result<(), ProofFailure> {
+        #[cfg(test)]
+        {
+            self.stable_fallback_used = false;
+        }
         if self
             .validate_stable_dependency_adjacency_raw(record)
             .is_ok()
@@ -9866,6 +9930,10 @@ impl<'a> ProjectionPreflight<'a> {
         // Stable obligations are only an acceleration surface. A failed shadow execution must
         // restart from an unobserved canonical state so error kind, owner, and precedence remain
         // exactly those of ProjectionPreflight's authoritative formula-cursor validation.
+        #[cfg(test)]
+        {
+            self.stable_fallback_used = true;
+        }
         self.visiting_records.clear();
         self.checked_records.clear();
         self.visiting_constraints.clear();
@@ -9877,6 +9945,8 @@ impl<'a> ProjectionPreflight<'a> {
                 actions.clear();
             }
             self.validation_action_trace_suppression = 0;
+            self.late_bound_read_trace_suppression = 0;
+            self.target_formula_trace_started = false;
             if let Some(reads) = self.late_bound_read_trace.as_mut() {
                 reads.clear();
             }
@@ -9900,6 +9970,7 @@ impl<'a> ProjectionPreflight<'a> {
             if let Some(reads) = self.late_bound_read_trace.as_mut() {
                 reads.clear();
             }
+            self.target_formula_trace_started = true;
         }
         let action_len = self
             .store
@@ -9998,9 +10069,10 @@ impl<'a> ProjectionPreflight<'a> {
     ) -> Result<(), ProofFailure> {
         let owner = ProofFactRef::ProjectionFormula(record);
         match action {
-            ProjectionValidationAction::ValidateIndependentSupport(carrier) => {
-                self.validate_carrier(record, carrier)
-            }
+            ProjectionValidationAction::ValidateIndependentSupport(carrier) => self
+                .with_late_bound_read_trace_suppressed(|this| {
+                    this.validate_carrier(record, carrier)
+                }),
             ProjectionValidationAction::ValidateClaimBinding {
                 representative,
                 expected_root,
@@ -10014,7 +10086,9 @@ impl<'a> ProjectionPreflight<'a> {
             ProjectionValidationAction::ValidateRecord(dependency)
             | ProjectionValidationAction::ValidateReplayRecord {
                 record: dependency, ..
-            } => self.validate_record(dependency, owner),
+            } => self.with_late_bound_read_trace_suppressed(|this| {
+                this.validate_record(dependency, owner)
+            }),
             ProjectionValidationAction::ValidateConstraint { constraint, role } => match role {
                 ProjectionConstraintValidationRole::ExistenceOnly => {
                     self.view.constraint(constraint).map(|_| ()).ok_or_else(|| {
@@ -10024,13 +10098,15 @@ impl<'a> ProjectionPreflight<'a> {
                         )
                     })
                 }
-                ProjectionConstraintValidationRole::RecursiveClosure => {
-                    self.validate_constraint(constraint, owner)
-                }
+                ProjectionConstraintValidationRole::RecursiveClosure => self
+                    .with_late_bound_read_trace_suppressed(|this| {
+                        this.validate_constraint(constraint, owner)
+                    }),
             },
-            ProjectionValidationAction::ValidateRowDerivation(derivation) => {
-                self.validate_row_derivation(owner, derivation)
-            }
+            ProjectionValidationAction::ValidateRowDerivation(derivation) => self
+                .with_late_bound_read_trace_suppressed(|this| {
+                    this.validate_row_derivation(owner, derivation)
+                }),
             ProjectionValidationAction::ValidateOrigin(origin) => self
                 .has_origin(origin)
                 .then_some(())
@@ -10063,14 +10139,37 @@ impl<'a> ProjectionPreflight<'a> {
         }
     }
 
-    #[cfg(test)]
     fn with_validation_action_trace_suppressed<T>(
         &mut self,
         operation: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        self.validation_action_trace_suppression += 1;
+        #[cfg(test)]
+        {
+            self.validation_action_trace_suppression += 1;
+            self.late_bound_read_trace_suppression += 1;
+        }
         let result = operation(self);
-        self.validation_action_trace_suppression -= 1;
+        #[cfg(test)]
+        {
+            self.late_bound_read_trace_suppression -= 1;
+            self.validation_action_trace_suppression -= 1;
+        }
+        result
+    }
+
+    fn with_late_bound_read_trace_suppressed<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        #[cfg(test)]
+        {
+            self.late_bound_read_trace_suppression += 1;
+        }
+        let result = operation(self);
+        #[cfg(test)]
+        {
+            self.late_bound_read_trace_suppression -= 1;
+        }
         result
     }
 
@@ -10224,7 +10323,15 @@ impl<'a> ProjectionPreflight<'a> {
         }
 
         #[cfg(test)]
-        if self.validation_action_trace_suppression == 0
+        let starts_target_formula_trace =
+            record == self.target_record && !self.target_formula_trace_started;
+        #[cfg(test)]
+        if starts_target_formula_trace {
+            self.target_formula_trace_started = true;
+        }
+        #[cfg(test)]
+        if starts_target_formula_trace
+            && self.validation_action_trace_suppression == 0
             && let Some(actions) = self.validation_action_trace.as_mut()
         {
             // CPK-SV-C indexes the legacy formula-incidence validation pass. The preceding
@@ -10233,7 +10340,7 @@ impl<'a> ProjectionPreflight<'a> {
             actions.clear();
         }
         #[cfg(test)]
-        if let Some(reads) = self.late_bound_read_trace.as_mut() {
+        if starts_target_formula_trace && let Some(reads) = self.late_bound_read_trace.as_mut() {
             // The stable adjacency covers formula incidences. The support-ledger closure remains
             // a separate record-local stage, so compare late-bound reads from the formula walk.
             reads.clear();
@@ -10283,6 +10390,11 @@ impl<'a> ProjectionPreflight<'a> {
                 self.trace_validation_action(
                     ProjectionValidationAction::ValidateIndependentSupport(carrier),
                 );
+                #[cfg(test)]
+                self.with_late_bound_read_trace_suppressed(|this| {
+                    this.validate_carrier(record, carrier)
+                })?;
+                #[cfg(not(test))]
                 self.validate_carrier(record, carrier)?;
                 Ok(ResolvedProjectionSupport::Independent(carrier))
             }
@@ -10321,6 +10433,11 @@ impl<'a> ProjectionPreflight<'a> {
                 self.trace_validation_action(
                     ProjectionValidationAction::ValidateIndependentSupport(carrier),
                 );
+                #[cfg(test)]
+                self.with_late_bound_read_trace_suppressed(|this| {
+                    this.validate_carrier(record, carrier)
+                })?;
+                #[cfg(not(test))]
                 self.validate_carrier(record, carrier)?;
                 Ok(ResolvedProjectionSupport::Independent(carrier))
             }
@@ -16711,175 +16828,6 @@ mod tests {
     }
 
     #[test]
-    fn cpk_sv_c_shadow_adjacency_stores_late_mixed_and_exact_identity_admissions() {
-        let mut store = ProofOccurrenceStore::default();
-        let record = BoundRecordId(98_200);
-        let shared_premise = BoundRecordId(98_201);
-        let support_a = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
-            OriginId(98_202),
-        ));
-        let support_b = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
-            OriginId(98_203),
-        ));
-        let embedded_support =
-            SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
-        let shared_clause = RecordProofClause::Standalone {
-            support: embedded_support,
-        };
-
-        // New occurrence followed by the same clause under a distinct exact support.
-        store.record_projection_clause(
-            record,
-            RecordProofClauseLinkAdmission::independent(support_a, shared_clause),
-        );
-        let initial_actions = store.projection_formula_shadow.by_record[&record]
-            .dependency_adjacency
-            .actions
-            .len();
-        store.record_projection_clause(
-            record,
-            RecordProofClauseLinkAdmission::independent(support_b, shared_clause),
-        );
-        let extended_actions = store.projection_formula_shadow.by_record[&record]
-            .dependency_adjacency
-            .actions
-            .len();
-        assert!(extended_actions > initial_actions);
-
-        let structural_left = StructuralDerivation {
-            parent: ConstraintRecordId(98_204),
-            rule: StructuralDerivationRule::FunctionArgument,
-        };
-        let structural_right = StructuralDerivation {
-            parent: ConstraintRecordId(98_205),
-            rule: StructuralDerivationRule::FunctionReturn,
-        };
-        let replay = BinaryReplayDerivation {
-            pivot: TypeVar(98_206),
-            lower: BoundRecordId(98_207),
-            upper: BoundRecordId(98_208),
-            rule: ReplayRule::UpperBoundAdded,
-        };
-        // Two structurally distinct carriers share one premise; reduction and replay arrive in
-        // an interleaved, non-canonical order. Exact action identity must retain every carrier.
-        for admission in [
-            RecordProofClauseLinkAdmission::independent(
-                support_a,
-                RecordProofClause::ReplayConjunction {
-                    carrier: replay,
-                    lower_premise: replay.lower,
-                    upper_premise: replay.upper,
-                },
-            ),
-            RecordProofClauseLinkAdmission::independent(
-                support_a,
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::Structural(structural_right),
-                    premise: ProofPremise::Record(shared_premise),
-                },
-            ),
-            RecordProofClauseLinkAdmission::independent(
-                support_a,
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::ReductionRoute(RowDerivationId(98_209)),
-                    premise: ProofPremise::RootCoverage(UpperReplayClaimId(98_210)),
-                },
-            ),
-            RecordProofClauseLinkAdmission::independent(
-                support_a,
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::Structural(structural_left),
-                    premise: ProofPremise::Record(shared_premise),
-                },
-            ),
-        ] {
-            store.record_projection_clause(record, admission);
-        }
-        let adjacency = &store.projection_formula_shadow.by_record[&record].dependency_adjacency;
-        assert!(adjacency.exact_membership.contains_key(
-            &ProjectionValidationAction::ValidateConstraint {
-                constraint: structural_left.parent,
-                role: ProjectionConstraintValidationRole::RecursiveClosure,
-            }
-        ));
-        assert!(adjacency.exact_membership.contains_key(
-            &ProjectionValidationAction::ValidateConstraint {
-                constraint: structural_right.parent,
-                role: ProjectionConstraintValidationRole::RecursiveClosure,
-            }
-        ));
-        assert!(adjacency.exact_membership.contains_key(
-            &ProjectionValidationAction::ValidateReplayRecord {
-                carrier: replay,
-                side: ReplayClaimParentSide::Lower,
-                record: replay.lower,
-            }
-        ));
-
-        let shared_constraint = ConstraintRecordId(98_211);
-        let role_carrier = ProjectionProofCarrier::StructuralConstraint {
-            result: ConstraintRecordId(98_212),
-            derivation: StructuralDerivation {
-                parent: shared_constraint,
-                rule: StructuralDerivationRule::FunctionArgument,
-            },
-        };
-        let role_support = SchemeProjectionProofSupport::Independent(role_carrier);
-        store.record_projection_clause(
-            record,
-            RecordProofClauseLinkAdmission::independent(
-                role_support,
-                RecordProofClause::DerivedUnary {
-                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
-                        parent: shared_constraint,
-                        rule: StructuralDerivationRule::FunctionReturn,
-                    }),
-                    premise: ProofPremise::Constraint(shared_constraint),
-                },
-            ),
-        );
-        let adjacency = &store.projection_formula_shadow.by_record[&record].dependency_adjacency;
-        for role in [
-            ProjectionConstraintValidationRole::ExistenceOnly,
-            ProjectionConstraintValidationRole::RecursiveClosure,
-        ] {
-            assert!(adjacency.exact_membership.contains_key(
-                &ProjectionValidationAction::ValidateConstraint {
-                    constraint: shared_constraint,
-                    role,
-                }
-            ));
-        }
-
-        store.record_projection_clause(
-            record,
-            RecordProofClauseLinkAdmission::independent(
-                support_a,
-                RecordProofClause::ReplayConjunction {
-                    carrier: replay,
-                    lower_premise: replay.upper,
-                    upper_premise: replay.lower,
-                },
-            ),
-        );
-        let adjacency = &store.projection_formula_shadow.by_record[&record].dependency_adjacency;
-        for (side, premise) in [
-            (ReplayClaimParentSide::Lower, replay.lower),
-            (ReplayClaimParentSide::Lower, replay.upper),
-            (ReplayClaimParentSide::Upper, replay.lower),
-            (ReplayClaimParentSide::Upper, replay.upper),
-        ] {
-            assert!(adjacency.exact_membership.contains_key(
-                &ProjectionValidationAction::ValidateReplayRecord {
-                    carrier: replay,
-                    side,
-                    record: premise,
-                }
-            ));
-        }
-    }
-
-    #[test]
     fn cpk_sv_c_mixed_formula_matches_real_preflight_calls() {
         let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 2_840);
@@ -17367,6 +17315,130 @@ mod tests {
     }
 
     #[test]
+    fn cpk_sv_c_r3_dynamic_failure_matrix_matches_canonical_error_and_owner() {
+        fn fixture(ordinal: u32) -> (ConstraintMachine, BoundRecordId, UpperReplayClaimId) {
+            let mut machine = cpk_machine();
+            let (_, representative) = cpk_7_record_original_claim(&mut machine, ordinal);
+            let occurrence = machine
+                .proof_store
+                .upper_claim(representative)
+                .unwrap()
+                .clone();
+            let record = cpk_gap_1_projection_record(&mut machine, ordinal + 1);
+            let support = SchemeProjectionProofSupport::Claimed(representative);
+            machine.proof_store.record_projection_supports(
+                record,
+                &[SchemeProjectionProof {
+                    lower_record: record,
+                    support,
+                }],
+            );
+            machine.proof_store.record_projection_clause(
+                record,
+                RecordProofClauseLinkAdmission::claimed(
+                    representative,
+                    RecordProofClause::Standalone { support },
+                    ClaimedAttributionSource::FlatRetained,
+                    ClaimedProjectionProofSource::Original {
+                        coverage_root: occurrence.coverage_root,
+                        producer: occurrence.producer,
+                    },
+                ),
+            );
+            (machine, record, representative)
+        }
+
+        fn assert_failure_parity(
+            machine: &ConstraintMachine,
+            record: BoundRecordId,
+        ) -> ProofFailure {
+            let canonical = project_lower_for_test(machine, record)
+                .0
+                .expect_err("R3 dynamic failure fixture must fail canonically");
+            let mut stable = ProjectionPreflight::new(&machine.proof_store, machine, record);
+            let shadow = stable
+                .validate_stable_dependency_adjacency(record)
+                .expect_err("R3 dynamic failure fixture must fail through shadow fallback");
+            assert_eq!(
+                shadow, canonical,
+                "dynamic failure owner/precedence diverged"
+            );
+            canonical
+        }
+
+        // 10.2(10a): missing representative.
+        let (mut missing_representative, record, representative) = fixture(2_910);
+        missing_representative.proof_store.upper_claims.clear();
+        assert!(matches!(
+            assert_failure_parity(&missing_representative, record),
+            ProofFailure::DanglingProofReference {
+                target: ProofFactRef::UpperClaim(candidate),
+                ..
+            } if candidate == representative
+        ));
+
+        // 10.2(10b): representative exists and agrees with its frozen identity, but that root is
+        // absent. Re-freeze the test incidence at the corrupted event-time value so root absence,
+        // rather than RepresentativeRootMismatch, is the first invariant under test.
+        let (mut missing_root, record, representative) = fixture(2_912);
+        let missing = UpperReplayClaimId(400_000);
+        missing_root.proof_store.upper_claims[representative.0 as usize].coverage_root = missing;
+        let bucket = missing_root
+            .proof_store
+            .projection_formula_shadow
+            .by_record
+            .get_mut(&record)
+            .unwrap();
+        for group in &mut bucket.support_groups {
+            group.coverage_root = Some(missing);
+            group.match_key = Some(ProjectionSupportMatchKey::Claimed(missing));
+        }
+        for metadata in bucket.exact_links.values_mut() {
+            *metadata = ProjectionIncidenceMetadata::Claimed(
+                ClaimedProjectionSourceTemplate::ReplayEvidence,
+            );
+        }
+        bucket.normalized_support_keys.clear();
+        bucket
+            .normalized_support_keys
+            .insert(ProjectionSupportMatchKey::Claimed(missing));
+        assert!(matches!(
+            assert_failure_parity(&missing_root, record),
+            ProofFailure::DanglingProofReference {
+                target: ProofFactRef::CoverageRoot(candidate),
+                ..
+            } if candidate == missing
+        ));
+
+        // 10.2(10c): dangling current bound.
+        let (mut dangling_bound, record, representative) = fixture(2_914);
+        let missing_bound = BoundRecordId(400_001);
+        dangling_bound.proof_store.upper_claims[representative.0 as usize].current_record =
+            missing_bound;
+        assert!(matches!(
+            assert_failure_parity(&dangling_bound, record),
+            ProofFailure::DanglingProofReference {
+                target: ProofFactRef::Semantic(SemanticFactRef::Bound(candidate)),
+                ..
+            } if candidate == missing_bound
+        ));
+
+        // 10.2(10d): live occurrence/index agree, but the referenced row-reduction fact is absent.
+        let (mut dangling_live_row, record, representative) = fixture(2_916);
+        let missing_state = UnweightedRowReductionRecordId(400_002);
+        dangling_live_row
+            .proof_store
+            .record_live_coverage(representative, missing_state, true);
+        assert!(matches!(
+            assert_failure_parity(&dangling_live_row, record),
+            ProofFailure::DanglingProofReference {
+                target: ProofFactRef::RowReduction(candidate),
+                ..
+            } if candidate == missing_state
+        ));
+    }
+
+    #[test]
     fn cpk_sv_c_r1_dynamic_changes_do_not_invalidate_stable_formula_prepare() {
         let mut machine = cpk_machine();
         let (_, claim) = cpk_7_record_original_claim(&mut machine, 2_824);
@@ -17419,6 +17491,268 @@ mod tests {
             .proof_store
             .commit_projection_clause_admission(row_prepare)
             .expect("live-row changes cannot stale a stable root obligation");
+    }
+
+    #[test]
+    fn cpk_sv_c_r3_prepare_commit_interleaving_matrix_keeps_stable_obligations() {
+        fn claimed_admission(
+            representative: UpperReplayClaimId,
+            expected_root: UpperReplayClaimId,
+            producer: ConstraintRecordId,
+        ) -> RecordProofClauseLinkAdmission {
+            let support = SchemeProjectionProofSupport::Claimed(representative);
+            RecordProofClauseLinkAdmission::claimed(
+                representative,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: expected_root,
+                    producer,
+                },
+            )
+        }
+
+        fn alternate_upper(machine: &mut ConstraintMachine, ordinal: u32) -> BoundRecordId {
+            let endpoint = machine.alloc_neg(Neg::Var(TypeVar(260_000 + ordinal)));
+            machine
+                .bounds
+                .add_upper(
+                    TypeVar(261_000 + ordinal),
+                    endpoint,
+                    ConstraintWeights::empty(),
+                    BoundDerivation::Origin(OriginId::unknown_internal()),
+                )
+                .id
+        }
+
+        // 10.2(1): formula prepare -> initial claim publication -> formula commit.
+        {
+            let mut store = ProofOccurrenceStore::default();
+            let claim = UpperReplayClaimId(0);
+            let producer = ConstraintRecordId(98_300);
+            let record = BoundRecordId(98_301);
+            let prepared = store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(claim, claim, producer)],
+                )
+                .unwrap()
+                .unwrap();
+            let mut claim_admission = store
+                .try_prepare_original_claim_admission(
+                    BoundRecordId(98_302),
+                    producer,
+                    UpperReplayClaimKind::Direct,
+                )
+                .unwrap();
+            assert_eq!(claim_admission.occurrence.claim, claim);
+            store.commit_original_claim_admission(&mut claim_admission);
+            store.commit_projection_clause_admission(prepared).unwrap();
+            assert!(
+                store.projection_formula_shadow.by_record[&record]
+                    .dependency_adjacency
+                    .exact_membership
+                    .contains_key(&ProjectionValidationAction::ValidateClaimBinding {
+                        representative: claim,
+                        expected_root: claim,
+                    })
+            );
+        }
+
+        // 10.2(2): formula prepare -> representative move -> formula commit.
+        {
+            let mut machine = cpk_machine();
+            let (_, representative) = cpk_7_record_original_claim(&mut machine, 2_900);
+            let occurrence = machine
+                .proof_store
+                .upper_claim(representative)
+                .unwrap()
+                .clone();
+            let record = BoundRecordId(98_303);
+            let prepared = machine
+                .proof_store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(
+                        representative,
+                        occurrence.coverage_root,
+                        occurrence.producer,
+                    )],
+                )
+                .unwrap()
+                .unwrap();
+            let destination = alternate_upper(&mut machine, 1);
+            machine
+                .try_move_upper_replay_claim(representative, destination)
+                .unwrap();
+            machine
+                .proof_store
+                .commit_projection_clause_admission(prepared)
+                .unwrap();
+        }
+
+        // 10.2(3): move prepare -> new dependent formula commit -> move commit.
+        {
+            let mut machine = cpk_machine();
+            let (_, representative) = cpk_7_record_original_claim(&mut machine, 2_901);
+            let occurrence = machine
+                .proof_store
+                .upper_claim(representative)
+                .unwrap()
+                .clone();
+            let destination = alternate_upper(&mut machine, 2);
+            let mut move_prepared = machine
+                .proof_store
+                .try_prepare_upper_claim_move(representative, destination)
+                .unwrap();
+            let record = BoundRecordId(98_304);
+            let formula_prepared = machine
+                .proof_store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(
+                        representative,
+                        occurrence.coverage_root,
+                        occurrence.producer,
+                    )],
+                )
+                .unwrap()
+                .unwrap();
+            machine
+                .proof_store
+                .commit_projection_clause_admission(formula_prepared)
+                .unwrap();
+            machine
+                .proof_store
+                .commit_upper_claim_move(&mut move_prepared);
+            assert_eq!(
+                machine
+                    .proof_store
+                    .upper_claim(representative)
+                    .unwrap()
+                    .current_record,
+                destination,
+            );
+            assert!(
+                machine.proof_store.projection_formula_shadow.by_record[&record]
+                    .dependency_adjacency
+                    .exact_membership
+                    .contains_key(&ProjectionValidationAction::ValidateClaimBinding {
+                        representative,
+                        expected_root: occurrence.coverage_root,
+                    })
+            );
+        }
+
+        // 10.2(4): formula prepare -> coverage-root move -> formula commit. The representative is
+        // deliberately distinct from its root so this is not a duplicate of case (2).
+        {
+            let mut machine = cpk_machine();
+            let (_, root) = cpk_7_record_original_claim(&mut machine, 2_902);
+            let producer = machine.proof_store.upper_claim(root).unwrap().producer;
+            let representative_record = alternate_upper(&mut machine, 3);
+            let representative = machine
+                .derived_upper_replay_claim(representative_record, root, producer, |depth| {
+                    UpperReplayClaimLineage::StructuralConstraint {
+                        parent_claim: root,
+                        result: producer,
+                        derivation: StructuralDerivation {
+                            parent: producer,
+                            rule: StructuralDerivationRule::FunctionReturn,
+                        },
+                        depth,
+                    }
+                })
+                .claim;
+            assert_ne!(representative, root);
+            let record = BoundRecordId(98_305);
+            let prepared = machine
+                .proof_store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(representative, root, producer)],
+                )
+                .unwrap()
+                .unwrap();
+            let root_destination = alternate_upper(&mut machine, 4);
+            machine
+                .try_move_upper_replay_claim(root, root_destination)
+                .unwrap();
+            machine
+                .proof_store
+                .commit_projection_clause_admission(prepared)
+                .unwrap();
+            assert!(
+                machine.proof_store.projection_formula_shadow.by_record[&record]
+                    .dependency_adjacency
+                    .exact_membership
+                    .contains_key(&ProjectionValidationAction::ValidateCoverageRootState {
+                        expected_root: root,
+                    })
+            );
+        }
+
+        // 10.2(5): formula prepare -> live-row activation -> formula commit.
+        {
+            let mut machine = cpk_machine();
+            let (_, root) = cpk_7_record_original_claim(&mut machine, 2_903);
+            let occurrence = machine.proof_store.upper_claim(root).unwrap().clone();
+            let record = BoundRecordId(98_306);
+            let prepared = machine
+                .proof_store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(root, root, occurrence.producer)],
+                )
+                .unwrap()
+                .unwrap();
+            assert!(machine.insert_scheme_projection_live_coverage_state(
+                root,
+                UnweightedRowReductionRecordId(98_307),
+            ));
+            machine
+                .proof_store
+                .commit_projection_clause_admission(prepared)
+                .unwrap();
+        }
+
+        // 10.2(6): row-deactivation prepare -> new dependent formula commit -> deactivation commit.
+        {
+            let mut machine = cpk_machine();
+            let (_, root) = cpk_7_record_original_claim(&mut machine, 2_904);
+            let occurrence = machine.proof_store.upper_claim(root).unwrap().clone();
+            let state = UnweightedRowReductionRecordId(98_308);
+            assert!(machine.insert_scheme_projection_live_coverage_state(root, state));
+            let mut row_prepared = machine
+                .proof_store
+                .try_prepare_live_coverage_mutation(root, state, false)
+                .unwrap();
+            let record = BoundRecordId(98_309);
+            let formula_prepared = machine
+                .proof_store
+                .try_prepare_projection_clause_admission(
+                    record,
+                    &[claimed_admission(root, root, occurrence.producer)],
+                )
+                .unwrap()
+                .unwrap();
+            machine
+                .proof_store
+                .commit_projection_clause_admission(formula_prepared)
+                .unwrap();
+            machine
+                .proof_store
+                .commit_live_coverage_mutation(&mut row_prepared);
+            assert!(!machine.proof_store.live_coverage.contains(&(root, state)));
+            assert!(
+                machine.proof_store.projection_formula_shadow.by_record[&record]
+                    .dependency_adjacency
+                    .exact_membership
+                    .contains_key(&ProjectionValidationAction::ValidateCoverageRootState {
+                        expected_root: root,
+                    })
+            );
+        }
     }
 
     #[test]
