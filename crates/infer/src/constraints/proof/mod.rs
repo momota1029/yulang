@@ -3990,7 +3990,9 @@ fn projection_lineage_rank(lineage: Option<ProjectionLineage>) -> u8 {
 
 impl ProjectionFormulaBucket {
     fn support_ledger_closure_matches(&self, resolved: &[ResolvedProjectionSupport]) -> bool {
-        if resolved.len() != self.normalized_support_keys.len() {
+        if resolved.len() != self.normalized_support_keys.len()
+            || resolved.windows(2).any(|pair| pair[0] == pair[1])
+        {
             return false;
         }
         resolved.iter().all(|support| {
@@ -4241,6 +4243,7 @@ struct ProjectionDependencyAdjacencyFullReport {
     actions: usize,
     membership_mismatches: usize,
     structure_mismatches: usize,
+    validation_result_mismatches: usize,
     action_count_p50: usize,
     action_count_p95: usize,
     action_count_max: usize,
@@ -6725,7 +6728,7 @@ impl ProofOccurrenceStore {
     fn projection_dependency_adjacency_full_report(
         &self,
         view: &dyn SemanticFactView,
-    ) -> ProjectionDependencyAdjacencyFullReport {
+    ) -> Result<ProjectionDependencyAdjacencyFullReport, ProofFailure> {
         let mut report = ProjectionDependencyAdjacencyFullReport::default();
         let mut action_counts = Vec::new();
         action_counts
@@ -6738,7 +6741,7 @@ impl ProofOccurrenceStore {
             .next()
             .copied()
         else {
-            return report;
+            return Ok(report);
         };
         let mut preflight = ProjectionPreflight::new(self, view, first_record);
         let mut reported_mismatches = 0usize;
@@ -6757,7 +6760,7 @@ impl ProofOccurrenceStore {
                     .exact_links
                     .len()
                     .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
-            );
+            )?;
             let validation = preflight.validate_projection_record(record);
             let expected = preflight.finish_validation_action_trace();
             let expected_late_bound_reads = preflight.finish_late_bound_read_trace();
@@ -6768,7 +6771,7 @@ impl ProofOccurrenceStore {
                     .exact_links
                     .len()
                     .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
-            );
+            )?;
             let late_bound_validation = late_bound.validate_stable_dependency_adjacency(record);
             let actual_late_bound_reads = late_bound.finish_late_bound_read_trace();
             if oracle.membership_mismatches != 0 && reported_mismatches < 8 {
@@ -6787,9 +6790,10 @@ impl ProofOccurrenceStore {
             }
             report.actions += oracle.actual_actions;
             report.membership_mismatches += oracle.membership_mismatches;
+            let validation_result_mismatch = usize::from(validation != late_bound_validation);
+            report.validation_result_mismatches += validation_result_mismatch;
             report.structure_mismatches += oracle.structure_mismatches
-                + usize::from(validation.is_err())
-                + usize::from(late_bound_validation.is_err())
+                + validation_result_mismatch
                 + expected_late_bound_reads
                     .symmetric_difference(&actual_late_bound_reads)
                     .count();
@@ -6839,7 +6843,7 @@ impl ProofOccurrenceStore {
             report.action_count_p95 = action_counts[((action_counts.len() - 1) * 95) / 100];
             report.action_count_max = *action_counts.last().unwrap();
         }
-        report
+        Ok(report)
     }
 
     #[cfg(test)]
@@ -10119,12 +10123,15 @@ impl<'a> ProjectionPreflight<'a> {
     }
 
     #[cfg(test)]
-    fn begin_late_bound_read_trace(&mut self, capacity: usize) {
+    fn begin_late_bound_read_trace(&mut self, capacity: usize) -> Result<(), ProofFailure> {
         let mut reads = FxHashSet::default();
         reads
             .try_reserve(capacity)
-            .expect("CPK-SV-C-R1 late-bound trace allocation");
+            .map_err(|_| ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            })?;
         self.late_bound_read_trace = Some(reads);
+        Ok(())
     }
 
     #[cfg(test)]
@@ -10135,10 +10142,22 @@ impl<'a> ProjectionPreflight<'a> {
     }
 
     #[cfg(test)]
-    fn trace_late_bound_read(&mut self, read: ProjectionLateBoundValidationRead) {
+    fn trace_late_bound_read(
+        &mut self,
+        read: ProjectionLateBoundValidationRead,
+    ) -> Result<(), ProofFailure> {
         if let Some(reads) = self.late_bound_read_trace.as_mut() {
+            if reads.contains(&read) {
+                return Ok(());
+            }
+            reads
+                .try_reserve(1)
+                .map_err(|_| ProofFailure::ResourceExhausted {
+                    operation: ProofOperation::ProjectLowerPreflight,
+                })?;
             reads.insert(read);
         }
+        Ok(())
     }
 
     #[allow(dead_code)] // R1 shadow executor; SV-D is the authority cutover.
@@ -10146,6 +10165,51 @@ impl<'a> ProjectionPreflight<'a> {
         &mut self,
         record: BoundRecordId,
     ) -> Result<(), ProofFailure> {
+        if self
+            .validate_stable_dependency_adjacency_raw(record)
+            .is_ok()
+        {
+            return Ok(());
+        }
+
+        // Stable obligations are only an acceleration surface. A failed shadow execution must
+        // restart from an unobserved canonical state so error kind, owner, and precedence remain
+        // exactly those of ProjectionPreflight's authoritative formula-cursor validation.
+        self.visiting_records.clear();
+        self.checked_records.clear();
+        self.visiting_constraints.clear();
+        self.checked_constraints.clear();
+        self.target_record = record;
+        #[cfg(test)]
+        {
+            if let Some(actions) = self.validation_action_trace.as_mut() {
+                actions.clear();
+            }
+            self.validation_action_trace_suppression = 0;
+            if let Some(reads) = self.late_bound_read_trace.as_mut() {
+                reads.clear();
+            }
+        }
+        self.validate_projection_record(record)
+    }
+
+    #[allow(dead_code)] // Raw R1 shadow execution; all callers use canonical fallback above.
+    fn validate_stable_dependency_adjacency_raw(
+        &mut self,
+        record: BoundRecordId,
+    ) -> Result<(), ProofFailure> {
+        self.validate_stable_support_ledger_closure(record)?;
+        #[cfg(test)]
+        {
+            // The closure stage is mandatory but remains outside adjacency action/read parity.
+            // Canonical validation clears the same support-ledger reads before its formula walk.
+            if let Some(actions) = self.validation_action_trace.as_mut() {
+                actions.clear();
+            }
+            if let Some(reads) = self.late_bound_read_trace.as_mut() {
+                reads.clear();
+            }
+        }
         let action_len = self
             .store
             .projection_formula_shadow
@@ -10159,6 +10223,80 @@ impl<'a> ProjectionPreflight<'a> {
             self.validate_stable_action(record, action)?;
         }
         Ok(())
+    }
+
+    #[allow(dead_code)] // Record-local R1 closure stage, shadow-only until the authority cutover.
+    fn validate_stable_support_ledger_closure(
+        &mut self,
+        record: BoundRecordId,
+    ) -> Result<(), ProofFailure> {
+        let supports = self.store.projection_supports.get(&record);
+        let formula_bucket = self.store.projection_formula_shadow.by_record.get(&record);
+        let has_supports = supports.is_some_and(|supports| !supports.is_empty());
+        let has_clauses = formula_bucket.is_some_and(|bucket| !bucket.exact_links.is_empty());
+        match (has_supports, has_clauses) {
+            (false, false) => return Ok(()),
+            (false, true) => {
+                return Err(ProofFailure::ProjectionInvariantViolation {
+                    record,
+                    kind: ProjectionInvariantViolation::OrphanFormula,
+                });
+            }
+            (true, false) => {
+                return Err(ProofFailure::MissingProofFact {
+                    fact: ProofFactRef::ProjectionFormula(record),
+                });
+            }
+            (true, true) => {}
+        }
+
+        let supports = supports.expect("non-empty supports were classified above");
+        let mut resolved: Vec<ResolvedProjectionSupport> = Vec::new();
+        resolved.try_reserve_exact(supports.len()).map_err(|_| {
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerPreflight,
+            }
+        })?;
+        for support in supports {
+            let support = self.resolve_support(record, *support)?;
+            if let Some(previous) = resolved.last().copied() {
+                match previous.cmp(support) {
+                    std::cmp::Ordering::Less => {}
+                    std::cmp::Ordering::Equal => {
+                        let kind = match support {
+                            ResolvedProjectionSupport::Claimed(_) => {
+                                ProjectionInvariantViolation::DuplicateClaimedRoot
+                            }
+                            ResolvedProjectionSupport::Independent(_) => {
+                                ProjectionInvariantViolation::DuplicateIndependentCarrier
+                            }
+                        };
+                        return Err(ProofFailure::ProjectionInvariantViolation { record, kind });
+                    }
+                    std::cmp::Ordering::Greater => {
+                        return Err(ProofFailure::NonCanonicalProjectionOrder { record });
+                    }
+                }
+            }
+            resolved.push(support);
+        }
+        let formula_bucket = self
+            .store
+            .projection_formula_shadow
+            .by_record
+            .get(&record)
+            .expect("non-empty clauses were classified above");
+        if formula_bucket.support_ledger_closure_matches(&resolved) {
+            Ok(())
+        } else {
+            // This is only the raw fast-path failure marker. The public shadow executor always
+            // reruns canonical validation, which selects OrphanFormula versus MissingProofFact
+            // and preserves all earlier error precedence.
+            Err(ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::OrphanFormula,
+            })
+        }
     }
 
     #[allow(dead_code)] // Called by the R1 shadow oracle until SV-D consumes it in production.
@@ -10554,7 +10692,7 @@ impl<'a> ProjectionPreflight<'a> {
             expected_root,
             current_root,
             current_record,
-        });
+        })?;
         if current_root != expected_root {
             return Err(ProofFailure::ProjectionInvariantViolation {
                 record,
@@ -10580,7 +10718,7 @@ impl<'a> ProjectionPreflight<'a> {
         self.trace_late_bound_read(ProjectionLateBoundValidationRead::CoverageRoot {
             expected_root,
             current_record: root_record,
-        });
+        })?;
         if root_coverage != root {
             return Err(ProofFailure::ProjectionInvariantViolation {
                 record,
@@ -10591,12 +10729,10 @@ impl<'a> ProjectionPreflight<'a> {
         let live_states = self.store.live_states_by_coverage_root.get(&root);
         for state in live_states.into_iter().flatten() {
             #[cfg(test)]
-            if let Some(reads) = self.late_bound_read_trace.as_mut() {
-                reads.insert(ProjectionLateBoundValidationRead::LiveRow {
-                    expected_root,
-                    state: *state,
-                });
-            }
+            self.trace_late_bound_read(ProjectionLateBoundValidationRead::LiveRow {
+                expected_root,
+                state: *state,
+            })?;
             if !self.store.live_coverage.contains(&(root, *state)) {
                 return Err(ProofFailure::IncompleteMandatoryData {
                     owner: ProofFactRef::LiveCoverage(root),
@@ -16830,23 +16966,27 @@ mod tests {
             "CPK-SV-C adjacency diverged from actual legacy calls: {result:?}",
         );
         let mut late_bound = ProjectionPreflight::new(store, machine, record);
-        late_bound.begin_late_bound_read_trace(
-            bucket
-                .exact_links
-                .len()
-                .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
-        );
+        late_bound
+            .begin_late_bound_read_trace(
+                bucket
+                    .exact_links
+                    .len()
+                    .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
+            )
+            .expect("stable late-bound trace allocation");
         late_bound
             .validate_stable_dependency_adjacency(record)
             .expect("stable obligations must validate the same completed fixture snapshot");
         let actual_reads = late_bound.finish_late_bound_read_trace();
         let mut canonical = ProjectionPreflight::new(store, machine, record);
-        canonical.begin_late_bound_read_trace(
-            bucket
-                .exact_links
-                .len()
-                .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
-        );
+        canonical
+            .begin_late_bound_read_trace(
+                bucket
+                    .exact_links
+                    .len()
+                    .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
+            )
+            .expect("canonical late-bound trace allocation");
         canonical
             .validate_projection_record(record)
             .expect("refined canonical validation must accept the completed fixture snapshot");
@@ -17262,6 +17402,14 @@ mod tests {
             ))),
         ]));
         assert!(project_lower_for_test(&success, success_record).0.is_ok());
+        let mut success_shadow =
+            ProjectionPreflight::new(&success.proof_store, &success, success_record);
+        assert_eq!(
+            success_shadow.validate_stable_dependency_adjacency(success_record),
+            project_lower_for_test(&success, success_record)
+                .0
+                .map(|_| ()),
+        );
 
         let (orphan, orphan_record) = fixture(vec![support_b]);
         assert!(
@@ -17276,6 +17424,13 @@ mod tests {
                 record: orphan_record,
                 kind: ProjectionInvariantViolation::OrphanFormula,
             }),
+        );
+        let mut orphan_shadow =
+            ProjectionPreflight::new(&orphan.proof_store, &orphan, orphan_record);
+        assert_eq!(
+            orphan_shadow.validate_stable_dependency_adjacency(orphan_record),
+            project_lower_for_test(&orphan, orphan_record).0.map(|_| ()),
+            "the shadow executor itself must detect formula-only support closure",
         );
 
         let (ledger_only, ledger_only_record) = fixture(vec![support_a, support_b]);
@@ -17296,6 +17451,104 @@ mod tests {
                 fact: ProofFactRef::ProjectionFormula(ledger_only_record),
             }),
         );
+        let mut ledger_only_shadow =
+            ProjectionPreflight::new(&ledger_only.proof_store, &ledger_only, ledger_only_record);
+        assert_eq!(
+            ledger_only_shadow.validate_stable_dependency_adjacency(ledger_only_record),
+            project_lower_for_test(&ledger_only, ledger_only_record)
+                .0
+                .map(|_| ()),
+            "the shadow executor itself must detect ledger-only support closure",
+        );
+    }
+
+    #[test]
+    fn cpk_sv_c_r1_shadow_failure_returns_canonical_error_owner() {
+        let mut machine = cpk_machine();
+        let (_, representative) = cpk_7_record_original_claim(&mut machine, 2_875);
+        let occurrence = machine
+            .proof_store
+            .upper_claim(representative)
+            .expect("fixture representative")
+            .clone();
+        let record = cpk_gap_1_projection_record(&mut machine, 2_876);
+        let support = SchemeProjectionProofSupport::Claimed(representative);
+        machine.proof_store.record_projection_supports(
+            record,
+            &[SchemeProjectionProof {
+                lower_record: record,
+                support,
+            }],
+        );
+        machine.proof_store.record_projection_clause(
+            record,
+            RecordProofClauseLinkAdmission::claimed(
+                representative,
+                RecordProofClause::Standalone { support },
+                ClaimedAttributionSource::FlatRetained,
+                ClaimedProjectionProofSource::Original {
+                    coverage_root: representative,
+                    producer: occurrence.producer,
+                },
+            ),
+        );
+        machine.proof_store.upper_claims.clear();
+
+        let claim_action = machine.proof_store.projection_formula_shadow.by_record[&record]
+            .dependency_adjacency
+            .actions
+            .iter()
+            .copied()
+            .find(|action| {
+                matches!(
+                    action,
+                    ProjectionValidationAction::ValidateClaimBinding { .. }
+                )
+            })
+            .expect("claimed formula has one representative-binding action");
+        let mut direct = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        assert_eq!(
+            direct.validate_stable_action(record, claim_action),
+            Err(ProofFailure::DanglingProofReference {
+                owner: ProofFactRef::ProjectionFormula(record),
+                target: ProofFactRef::UpperClaim(representative),
+            }),
+            "an action-local failure has the fast path's formula owner",
+        );
+
+        let canonical = project_lower_for_test(&machine, record).0.map(|_| ());
+        assert_eq!(
+            canonical,
+            Err(ProofFailure::DanglingProofReference {
+                owner: ProofFactRef::ProjectionSupports(record),
+                target: ProofFactRef::UpperClaim(representative),
+            }),
+        );
+        let mut shadow = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        assert_eq!(
+            shadow.validate_stable_dependency_adjacency(record),
+            canonical,
+            "the public shadow executor must discard its own error and return canonical's exact owner",
+        );
+    }
+
+    #[test]
+    fn cpk_sv_c_r1_late_bound_trace_grows_fallibly_past_initial_capacity() {
+        let machine = cpk_machine();
+        let record = BoundRecordId(98_277);
+        let mut preflight = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        preflight
+            .begin_late_bound_read_trace(0)
+            .expect("empty late-bound trace allocation");
+        for index in 0..128 {
+            preflight
+                .trace_late_bound_read(ProjectionLateBoundValidationRead::LiveRow {
+                    expected_root: UpperReplayClaimId(98_278),
+                    state: UnweightedRowReductionRecordId(index),
+                })
+                .expect("late-bound trace growth is fallible");
+        }
+        assert_eq!(preflight.finish_late_bound_read_trace().len(), 128);
     }
 
     #[test]
@@ -23488,13 +23741,15 @@ mod tests {
         let machine = output.session.infer.constraints();
         let report = machine
             .proof_store
-            .projection_dependency_adjacency_full_report(machine);
+            .projection_dependency_adjacency_full_report(machine)
+            .expect("CPK-SV-C full report allocation remains fallible");
         eprintln!("CPK_SV_C_FULL_STD_ADJACENCY {report:?}");
         assert!(report.buckets > 0);
         assert!(report.incidences > 0);
         assert!(report.actions > 0);
         assert_eq!(report.membership_mismatches, 0);
         assert_eq!(report.structure_mismatches, 0);
+        assert_eq!(report.validation_result_mismatches, 0);
         assert!(
             report.capacity_inclusive_bytes < 18 * 1024 * 1024 * 1024,
             "CPK-SV-C adjacency allocation must stay below the standing 18 GiB threshold",
