@@ -4973,8 +4973,65 @@ pub(crate) enum ProofParent {
     GeneralizedWitness(GeneralizedSchemeWitnessId),
 }
 
+/// Attempt-local identity of the completed structural proof view.
+///
+/// This is deliberately owned by `ProofOccurrenceStore`, the one proof store in a
+/// `ConstraintMachine`.  It is not an evaluation-round or constraint epoch.  Once the
+/// identity saturates it never becomes reusable again, so a future cache cannot mistake an
+/// ancient entry for the current view after wraparound.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ProofStructuralSnapshotId(u64);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum ProofStructuralMutationClass {
+    Bound = 0,
+    Constraint = 1,
+    ProjectionFormula = 2,
+    UpperClaim = 3,
+    LiveCoverage = 4,
+    ProofDependency = 5,
+    RowState = 6,
+    ProofIdentity = 7,
+    OtherMandatoryInput = 8,
+}
+
+impl ProofStructuralMutationClass {
+    #[cfg(test)]
+    const COUNT: usize = 9;
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct ProofStructuralSnapshotState {
+    completed: ProofStructuralSnapshotId,
+    reuse_disabled: bool,
+    #[cfg(test)]
+    bumps_by_class: [u64; ProofStructuralMutationClass::COUNT],
+}
+
+impl ProofStructuralSnapshotState {
+    fn publish_mutation(&mut self, _class: ProofStructuralMutationClass) {
+        #[cfg(test)]
+        {
+            self.bumps_by_class[_class as usize] =
+                self.bumps_by_class[_class as usize].saturating_add(1);
+        }
+        if self.reuse_disabled {
+            return;
+        }
+        match self.completed.0.checked_add(1) {
+            Some(next) if next != u64::MAX => self.completed = ProofStructuralSnapshotId(next),
+            _ => {
+                self.completed = ProofStructuralSnapshotId(u64::MAX);
+                self.reuse_disabled = true;
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProofOccurrenceStore {
+    structural_snapshot: ProofStructuralSnapshotState,
     pub(crate) occurrences: Vec<ProofOccurrence>,
     dependency_occurrence_indices_by_result: FxHashMap<ConstraintRecordId, Vec<usize>>,
     projection_carrier_occurrence_index: FxHashMap<ProjectionProofCarrier, usize>,
@@ -5114,6 +5171,7 @@ struct ProjectionFormulaAllocationCensus {
 impl Default for ProofOccurrenceStore {
     fn default() -> Self {
         Self {
+            structural_snapshot: ProofStructuralSnapshotState::default(),
             occurrences: Vec::new(),
             dependency_occurrence_indices_by_result: FxHashMap::default(),
             projection_carrier_occurrence_index: FxHashMap::default(),
@@ -5193,6 +5251,29 @@ impl Default for ProofOccurrenceStore {
 }
 
 impl ProofOccurrenceStore {
+    /// Publishes one completed, cache-relevant atomic mutation.
+    ///
+    /// Callers invoke this only after all authoritative fields for their transaction are
+    /// committed. Failed prepares and exact no-ops never reach this boundary.
+    pub(crate) fn publish_structural_mutation(&mut self, class: ProofStructuralMutationClass) {
+        self.structural_snapshot.publish_mutation(class);
+    }
+
+    #[cfg(test)]
+    fn structural_snapshot_census(
+        &self,
+    ) -> (
+        ProofStructuralSnapshotId,
+        bool,
+        [u64; ProofStructuralMutationClass::COUNT],
+    ) {
+        (
+            self.structural_snapshot.completed,
+            self.structural_snapshot.reuse_disabled,
+            self.structural_snapshot.bumps_by_class,
+        )
+    }
+
     #[cfg(test)]
     fn qorf_fail_after(&mut self, point: QorfReplayReservationFailurePoint) -> bool {
         if self.qorf_replay_reservation_failure_point == Some(point) {
@@ -5754,6 +5835,7 @@ impl ProofOccurrenceStore {
             mutation.lower_record,
             std::mem::take(&mut mutation.current_supports),
         );
+        self.publish_structural_mutation(ProofStructuralMutationClass::ProjectionFormula);
     }
 
     pub(super) fn claim_coverage_root(
@@ -6145,6 +6227,28 @@ impl ProofOccurrenceStore {
         parents: Vec<ProofParent>,
         completeness: ProvenanceCompleteness,
     ) {
+        let mutation_class = match &cause {
+            ProofCause::Bound(_) | ProofCause::BoundDisposition(_) => {
+                ProofStructuralMutationClass::Bound
+            }
+            ProofCause::RowDefinition(_) | ProofCause::RowReduction { .. } => {
+                ProofStructuralMutationClass::RowState
+            }
+            ProofCause::Root(_)
+            | ProofCause::Subtract(_)
+            | ProofCause::SchemeInstantiationRecord(_)
+            | ProofCause::SchemeInstantiationDerivation(_)
+            | ProofCause::SchemeInstantiationRoute(_) => {
+                ProofStructuralMutationClass::ProofIdentity
+            }
+            ProofCause::Structural(_)
+            | ProofCause::RowConstraint(_)
+            | ProofCause::ConstraintDisposition(_)
+            | ProofCause::Replay(_)
+            | ProofCause::ReplayEvidence(_)
+            | ProofCause::ReplayDrop(_)
+            | ProofCause::ReductionRoute { .. } => ProofStructuralMutationClass::ProofDependency,
+        };
         let dependency_result = match (&result, &cause) {
             (
                 ProofResult::Semantic(SemanticFactRef::Constraint(result)),
@@ -6235,6 +6339,7 @@ impl ProofOccurrenceStore {
                 .entry(derivation)
                 .or_insert(event);
         }
+        self.publish_structural_mutation(mutation_class);
     }
 
     fn projection_carrier_occurrence(
@@ -6891,6 +6996,7 @@ impl ProofOccurrenceStore {
         claim: UpperReplayClaimId,
     ) {
         assert!(self.reduction_claim_by_state.insert(state, claim).is_none());
+        self.publish_structural_mutation(ProofStructuralMutationClass::UpperClaim);
     }
 
     pub(super) fn reduction_claim(
@@ -6977,6 +7083,7 @@ impl ProofOccurrenceStore {
             );
         }
         self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
+        self.publish_structural_mutation(ProofStructuralMutationClass::UpperClaim);
     }
 
     #[cfg(test)]
@@ -7092,6 +7199,7 @@ impl ProofOccurrenceStore {
                     );
                 }
                 self.insert_claim_into_upper_record_index(claim.current_record, claim.claim);
+                self.publish_structural_mutation(ProofStructuralMutationClass::UpperClaim);
             }
         }
     }
@@ -7226,6 +7334,7 @@ impl ProofOccurrenceStore {
             );
         }
         self.insert_claim_into_upper_record_index(mutation.current_record, mutation.claim);
+        self.publish_structural_mutation(ProofStructuralMutationClass::UpperClaim);
     }
 
     fn insert_claim_into_upper_record_index(
@@ -8702,6 +8811,7 @@ impl ProofOccurrenceStore {
             self.debug_assert_pclf_a_read_model_matches_legacy();
             self.debug_assert_projection_structural_certificate(prepared.lower_record);
         }
+        self.publish_structural_mutation(ProofStructuralMutationClass::ProjectionFormula);
         Ok(CommittedProjectionClauseBatch {
             accepted: prepared.accepted,
             #[cfg(test)]
@@ -12333,7 +12443,7 @@ impl ProofOccurrenceStore {
         for (key, witness) in transaction.new_first_witnesses.drain(..) {
             self.first_replay_witnesses.entry(key).or_insert(witness);
         }
-        self.commit_qualified_parent_admission(&mut transaction.qualified);
+        self.commit_qualified_parent_admission_inner(&mut transaction.qualified);
         if let Some(occurrence) = transaction.proof_occurrence.take() {
             debug_assert_eq!(occurrence.event, self.occurrences.len());
             self.occurrences.push(occurrence);
@@ -12343,6 +12453,7 @@ impl ProofOccurrenceStore {
             self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
             self.debug_assert_qorf_d0_projections_match_legacy(transaction.qualified.result);
         }
+        self.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
     }
 
     #[cfg(test)]
@@ -12760,6 +12871,7 @@ impl ProofOccurrenceStore {
                 .or_default()
                 .insert(state);
             debug_assert!(occurrence_inserted && index_inserted);
+            self.publish_structural_mutation(ProofStructuralMutationClass::LiveCoverage);
             return;
         }
         let occurrence_removed = self.live_coverage.remove(&(root, state));
@@ -12775,6 +12887,7 @@ impl ProofOccurrenceStore {
         if remove_root_entry {
             self.live_states_by_coverage_root.remove(&root);
         }
+        self.publish_structural_mutation(ProofStructuralMutationClass::LiveCoverage);
     }
 
     pub(super) fn record_live_coverage(
@@ -13079,6 +13192,17 @@ impl ProofOccurrenceStore {
     }
 
     pub(super) fn commit_qualified_parent_admission(
+        &mut self,
+        admission: &mut PreparedQualifiedParentAdmission,
+    ) {
+        if admission.accepted.is_empty() {
+            return;
+        }
+        self.commit_qualified_parent_admission_inner(admission);
+        self.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
+    }
+
+    fn commit_qualified_parent_admission_inner(
         &mut self,
         admission: &mut PreparedQualifiedParentAdmission,
     ) {
@@ -14066,6 +14190,7 @@ impl ProofOccurrenceStore {
         &mut self,
         admission: &mut PreparedProjectionIndexAdmission,
     ) {
+        let changed = admission.target.is_some() || !admission.accepted_edges.is_empty();
         if let Some((target, record)) = admission.target {
             let previous = match target {
                 ProjectionTarget::Constraint(constraint) => self
@@ -14091,6 +14216,9 @@ impl ProofOccurrenceStore {
                     .expect("dependency index capacity was prepared before commit")
                     .insert(dependent)
             );
+        }
+        if changed {
+            self.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
         }
     }
 
@@ -14538,6 +14666,9 @@ impl ProofOccurrenceStore {
             derivation,
             BoundDerivation::ReplayEvidence(_) | BoundDerivation::IncompleteReplay
         ) {
+            // These derivations intentionally have no proof occurrence, but a newly admitted or
+            // promoted semantic bound is still a mandatory preflight input.
+            self.publish_structural_mutation(ProofStructuralMutationClass::Bound);
             return;
         }
         let parents = bound_derivation_parents(&derivation);
@@ -14656,6 +14787,174 @@ mod tests {
         ProofSoakEventOrigin, capture_proof_soak_test_events,
         with_intentional_proof_soak_test_injection,
     };
+
+    #[test]
+    fn cpk_sv_d0_snapshot_saturates_and_exact_live_noops_do_not_publish() {
+        let mut store = ProofOccurrenceStore::default();
+        let root = UpperReplayClaimId(1);
+        let state = UnweightedRowReductionRecordId(2);
+
+        let mut claim = store
+            .try_prepare_original_claim_admission(
+                BoundRecordId(3),
+                ConstraintRecordId(4),
+                UpperReplayClaimKind::Direct,
+            )
+            .unwrap();
+        store.commit_original_claim_admission(&mut claim);
+        let after_claim = store.structural_snapshot_census().0;
+        let mut unchanged_move = store
+            .try_prepare_upper_claim_move(claim.occurrence.claim, BoundRecordId(3))
+            .unwrap();
+        store.commit_upper_claim_move(&mut unchanged_move);
+        assert_eq!(store.structural_snapshot_census().0, after_claim);
+
+        let mut unchanged = store
+            .try_prepare_live_coverage_mutation(root, state, false)
+            .unwrap();
+        store.commit_live_coverage_mutation(&mut unchanged);
+        assert_eq!(store.structural_snapshot_census().0, after_claim);
+
+        let mut inserted = store
+            .try_prepare_live_coverage_mutation(root, state, true)
+            .unwrap();
+        store.commit_live_coverage_mutation(&mut inserted);
+        assert_eq!(
+            store.structural_snapshot_census().0,
+            ProofStructuralSnapshotId(after_claim.0 + 1)
+        );
+
+        let mut duplicate = store
+            .try_prepare_live_coverage_mutation(root, state, true)
+            .unwrap();
+        store.commit_live_coverage_mutation(&mut duplicate);
+        assert_eq!(
+            store.structural_snapshot_census().0,
+            ProofStructuralSnapshotId(after_claim.0 + 1)
+        );
+
+        store.structural_snapshot.completed = ProofStructuralSnapshotId(u64::MAX - 1);
+        store.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
+        let saturated = store.structural_snapshot_census();
+        assert_eq!(saturated.0, ProofStructuralSnapshotId(u64::MAX));
+        assert!(saturated.1);
+        store.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
+        assert_eq!(
+            store.structural_snapshot_census().0,
+            ProofStructuralSnapshotId(u64::MAX)
+        );
+    }
+
+    #[test]
+    fn cpk_sv_d0_reviewed_mutation_writer_census_retains_every_bump_boundary() {
+        struct Writer<'a> {
+            source: &'a str,
+            function: &'a str,
+            bump: &'a str,
+        }
+        let proof = include_str!("mod.rs");
+        let bounds = include_str!("../machine/bounds.rs");
+        let entry = include_str!("../machine/entry.rs");
+        let row_effect = include_str!("../row_effect.rs");
+        let writers = [
+            Writer {
+                source: proof,
+                function: "fn record_occurrence(",
+                bump: "publish_structural_mutation(mutation_class)",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_projection_support_mutation(",
+                bump: "ProofStructuralMutationClass::ProjectionFormula",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_reduction_claim_index(",
+                bump: "ProofStructuralMutationClass::UpperClaim",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_original_claim_admission(",
+                bump: "ProofStructuralMutationClass::UpperClaim",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_derived_claim_decision(",
+                bump: "ProofStructuralMutationClass::UpperClaim",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_upper_claim_move(",
+                bump: "ProofStructuralMutationClass::UpperClaim",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_projection_clause_admission(",
+                bump: "ProofStructuralMutationClass::ProjectionFormula",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_replay_qualified_parent_transaction(",
+                bump: "ProofStructuralMutationClass::ProofDependency",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_qualified_parent_admission(",
+                bump: "ProofStructuralMutationClass::ProofDependency",
+            },
+            Writer {
+                source: proof,
+                function: "fn record_prepared_live_coverage(",
+                bump: "ProofStructuralMutationClass::LiveCoverage",
+            },
+            Writer {
+                source: proof,
+                function: "fn commit_projection_index_admission(",
+                bump: "ProofStructuralMutationClass::ProofDependency",
+            },
+            Writer {
+                source: bounds,
+                function: "fn record_bound_provenance(",
+                bump: "ProofStructuralMutationClass::Bound",
+            },
+            Writer {
+                source: bounds,
+                function: "fn prune_upper_rows_subsumed_by_reduced_upper(",
+                bump: "ProofStructuralMutationClass::Bound",
+            },
+            Writer {
+                source: entry,
+                function: "fn enqueue_replay_subtype(",
+                bump: "ProofStructuralMutationClass::Constraint",
+            },
+            Writer {
+                source: entry,
+                function: "fn enqueue_canonical_subtype_with_origin(",
+                bump: "ProofStructuralMutationClass::Constraint",
+            },
+            Writer {
+                source: row_effect,
+                function: "fn unweighted_row_reduction_routes_for_new_lower(",
+                bump: "ProofStructuralMutationClass::RowState",
+            },
+        ];
+        for writer in writers {
+            let start = writer.source.find(writer.function).unwrap_or_else(|| {
+                panic!("missing reviewed structural writer {}", writer.function)
+            });
+            let tail = &writer.source[start..];
+            let end = tail[writer.function.len()..]
+                .find("\n    fn ")
+                .or_else(|| tail[writer.function.len()..].find("\n    pub"))
+                .map_or(tail.len(), |offset| writer.function.len() + offset);
+            assert!(
+                tail[..end].contains(writer.bump),
+                "reviewed structural writer {} lost its completed-commit bump {}",
+                writer.function,
+                writer.bump,
+            );
+        }
+    }
 
     fn cpk_machine() -> ConstraintMachine {
         ConstraintMachine::new()

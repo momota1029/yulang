@@ -1230,6 +1230,8 @@ impl ConstraintMachine {
                 ProvenanceCompleteness::Incomplete
             },
         });
+        self.proof_store
+            .publish_structural_mutation(proof::ProofStructuralMutationClass::Constraint);
         self.bump_provenance_epoch();
         let work = ConstraintWork::Subtype(record_id);
         #[cfg(test)]
@@ -1396,6 +1398,9 @@ impl ConstraintMachine {
         });
         if let Some(origin) = origin {
             self.proof_store.record_constraint_root(record_id, origin);
+        } else {
+            self.proof_store
+                .publish_structural_mutation(proof::ProofStructuralMutationClass::Constraint);
         }
         if origin.is_some() {
             self.bump_provenance_epoch();

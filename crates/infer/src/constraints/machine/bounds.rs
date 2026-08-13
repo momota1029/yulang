@@ -788,6 +788,12 @@ impl ConstraintMachine {
     ) {
         if insertion.provenance_changed {
             self.bump_provenance_epoch();
+        } else if insertion.semantic_changed {
+            // New provenance is published through `record_bound`, which owns the same completed
+            // mutation's snapshot bump. A pure evidence->ordinary promotion has no occurrence
+            // write, so publish its semantic bound-state change here.
+            self.proof_store
+                .publish_structural_mutation(proof::ProofStructuralMutationClass::Bound);
         }
         self.timing.record_bound_record(
             direction,
@@ -3865,6 +3871,8 @@ impl ConstraintMachine {
             self.unrecord_neg_bound_var_neighbors(source, *upper);
         }
         if bounds_changed {
+            self.proof_store
+                .publish_structural_mutation(proof::ProofStructuralMutationClass::Bound);
             self.bump_role_solve_supplemental_epoch();
             if self.method_role_mutations.is_active() {
                 self.method_role_mutations
