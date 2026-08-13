@@ -5001,12 +5001,35 @@ impl ProofStructuralMutationClass {
     const COUNT: usize = 9;
 }
 
+/// Reviewed mutation boundaries which require branch-local runtime coverage before SV-D reads
+/// may trust the structural snapshot.  The broad class census above covers the remaining common
+/// writers; these sites are separate because sharing one class counter would mask a missing arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum ProofStructuralMutationSite {
+    BoundWithoutOccurrence = 0,
+    LiveCoverageActivation = 1,
+    LiveCoverageDeactivation = 2,
+    RowStateUnmatched = 3,
+    RowStateMatched = 4,
+    FormulaOrderCorruption = 5,
+    FormulaLineageCorruption = 6,
+    FormulaPresenceCorruption = 7,
+}
+
+impl ProofStructuralMutationSite {
+    #[cfg(test)]
+    const COUNT: usize = 8;
+}
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct ProofStructuralSnapshotState {
     completed: ProofStructuralSnapshotId,
     reuse_disabled: bool,
     #[cfg(test)]
     bumps_by_class: [u64; ProofStructuralMutationClass::COUNT],
+    #[cfg(test)]
+    bumps_by_site: [u64; ProofStructuralMutationSite::COUNT],
 }
 
 impl ProofStructuralSnapshotState {
@@ -5026,6 +5049,19 @@ impl ProofStructuralSnapshotState {
                 self.reuse_disabled = true;
             }
         }
+    }
+
+    fn publish_mutation_at(
+        &mut self,
+        class: ProofStructuralMutationClass,
+        _site: ProofStructuralMutationSite,
+    ) {
+        #[cfg(test)]
+        {
+            self.bumps_by_site[_site as usize] =
+                self.bumps_by_site[_site as usize].saturating_add(1);
+        }
+        self.publish_mutation(class);
     }
 }
 
@@ -5259,6 +5295,14 @@ impl ProofOccurrenceStore {
         self.structural_snapshot.publish_mutation(class);
     }
 
+    pub(crate) fn publish_structural_mutation_at(
+        &mut self,
+        class: ProofStructuralMutationClass,
+        site: ProofStructuralMutationSite,
+    ) {
+        self.structural_snapshot.publish_mutation_at(class, site);
+    }
+
     #[cfg(test)]
     fn structural_snapshot_census(
         &self,
@@ -5266,11 +5310,13 @@ impl ProofOccurrenceStore {
         ProofStructuralSnapshotId,
         bool,
         [u64; ProofStructuralMutationClass::COUNT],
+        [u64; ProofStructuralMutationSite::COUNT],
     ) {
         (
             self.structural_snapshot.completed,
             self.structural_snapshot.reuse_disabled,
             self.structural_snapshot.bumps_by_class,
+            self.structural_snapshot.bumps_by_site,
         )
     }
 
@@ -6228,18 +6274,19 @@ impl ProofOccurrenceStore {
         completeness: ProvenanceCompleteness,
     ) {
         let mutation_class = match &cause {
-            ProofCause::Bound(_) | ProofCause::BoundDisposition(_) => {
-                ProofStructuralMutationClass::Bound
-            }
+            ProofCause::Bound(_) => Some(ProofStructuralMutationClass::Bound),
+            // Dispositions are retained for diagnostics, but projection preflight never reads
+            // them. Duplicate/subsumed admissions therefore remain exact structural no-ops.
+            ProofCause::BoundDisposition(_) => None,
             ProofCause::RowDefinition(_) | ProofCause::RowReduction { .. } => {
-                ProofStructuralMutationClass::RowState
+                Some(ProofStructuralMutationClass::RowState)
             }
             ProofCause::Root(_)
             | ProofCause::Subtract(_)
             | ProofCause::SchemeInstantiationRecord(_)
             | ProofCause::SchemeInstantiationDerivation(_)
             | ProofCause::SchemeInstantiationRoute(_) => {
-                ProofStructuralMutationClass::ProofIdentity
+                Some(ProofStructuralMutationClass::ProofIdentity)
             }
             ProofCause::Structural(_)
             | ProofCause::RowConstraint(_)
@@ -6247,7 +6294,9 @@ impl ProofOccurrenceStore {
             | ProofCause::Replay(_)
             | ProofCause::ReplayEvidence(_)
             | ProofCause::ReplayDrop(_)
-            | ProofCause::ReductionRoute { .. } => ProofStructuralMutationClass::ProofDependency,
+            | ProofCause::ReductionRoute { .. } => {
+                Some(ProofStructuralMutationClass::ProofDependency)
+            }
         };
         let dependency_result = match (&result, &cause) {
             (
@@ -6339,7 +6388,9 @@ impl ProofOccurrenceStore {
                 .entry(derivation)
                 .or_insert(event);
         }
-        self.publish_structural_mutation(mutation_class);
+        if let Some(mutation_class) = mutation_class {
+            self.publish_structural_mutation(mutation_class);
+        }
     }
 
     fn projection_carrier_occurrence(
@@ -7675,6 +7726,10 @@ impl ProofOccurrenceStore {
         bucket.canonical_runs = replacement_runs;
         bucket.structural_certificate = None;
         self.projection_formulas.insert(record, clauses);
+        self.publish_structural_mutation_at(
+            ProofStructuralMutationClass::ProjectionFormula,
+            ProofStructuralMutationSite::FormulaOrderCorruption,
+        );
     }
 
     #[cfg(test)]
@@ -7717,6 +7772,10 @@ impl ProofOccurrenceStore {
             unreachable!("lineage corruption fixture shape was validated before mutation");
         };
         *attribution = Some(lineage);
+        self.publish_structural_mutation_at(
+            ProofStructuralMutationClass::ProjectionFormula,
+            ProofStructuralMutationSite::FormulaLineageCorruption,
+        );
     }
 
     #[cfg(test)]
@@ -7734,6 +7793,10 @@ impl ProofOccurrenceStore {
         self.projection_formula_shadow
             .by_record
             .insert(record, ProjectionFormulaBucket::default());
+        self.publish_structural_mutation_at(
+            ProofStructuralMutationClass::ProjectionFormula,
+            ProofStructuralMutationSite::FormulaPresenceCorruption,
+        );
     }
 
     fn try_prepare_projection_formula_shadow_admission(
@@ -12871,7 +12934,10 @@ impl ProofOccurrenceStore {
                 .or_default()
                 .insert(state);
             debug_assert!(occurrence_inserted && index_inserted);
-            self.publish_structural_mutation(ProofStructuralMutationClass::LiveCoverage);
+            self.publish_structural_mutation_at(
+                ProofStructuralMutationClass::LiveCoverage,
+                ProofStructuralMutationSite::LiveCoverageActivation,
+            );
             return;
         }
         let occurrence_removed = self.live_coverage.remove(&(root, state));
@@ -12887,7 +12953,10 @@ impl ProofOccurrenceStore {
         if remove_root_entry {
             self.live_states_by_coverage_root.remove(&root);
         }
-        self.publish_structural_mutation(ProofStructuralMutationClass::LiveCoverage);
+        self.publish_structural_mutation_at(
+            ProofStructuralMutationClass::LiveCoverage,
+            ProofStructuralMutationSite::LiveCoverageDeactivation,
+        );
     }
 
     pub(super) fn record_live_coverage(
@@ -14668,7 +14737,10 @@ impl ProofOccurrenceStore {
         ) {
             // These derivations intentionally have no proof occurrence, but a newly admitted or
             // promoted semantic bound is still a mandatory preflight input.
-            self.publish_structural_mutation(ProofStructuralMutationClass::Bound);
+            self.publish_structural_mutation_at(
+                ProofStructuralMutationClass::Bound,
+                ProofStructuralMutationSite::BoundWithoutOccurrence,
+            );
             return;
         }
         let parents = bound_derivation_parents(&derivation);
@@ -14833,6 +14905,46 @@ mod tests {
             ProofStructuralSnapshotId(after_claim.0 + 1)
         );
 
+        let before_bound = store.structural_snapshot_census().0;
+        store.record_bound(BoundRecordId(9), BoundDerivation::IncompleteReplay);
+        let after_bound = store.structural_snapshot_census();
+        assert_eq!(after_bound.0, ProofStructuralSnapshotId(before_bound.0 + 1));
+        assert_eq!(
+            after_bound.3[ProofStructuralMutationSite::BoundWithoutOccurrence as usize],
+            1,
+        );
+        store.record_bound_disposition(
+            BoundDispositionRecordId(10),
+            Some(BoundRecordId(9)),
+            BoundDispositionRecord {
+                direction: BoundDirection::Lower,
+                owner: TypeVar(10),
+                endpoint: BoundEndpoint::Lower(PosId(10)),
+                weights: ConstraintWeights::empty(),
+                derivation: Some(BoundDerivation::IncompleteReplay),
+                disposition: BoundDisposition::EquivalentTo(BoundRecordId(9)),
+            },
+        );
+        assert_eq!(
+            store.structural_snapshot_census().0,
+            after_bound.0,
+            "diagnostic-only bound dispositions must not invalidate structural reuse",
+        );
+
+        let mut removed = store
+            .try_prepare_live_coverage_mutation(root, state, false)
+            .unwrap();
+        store.commit_live_coverage_mutation(&mut removed);
+        let exercised = store.structural_snapshot_census();
+        assert_eq!(
+            exercised.3[ProofStructuralMutationSite::LiveCoverageActivation as usize],
+            1,
+        );
+        assert_eq!(
+            exercised.3[ProofStructuralMutationSite::LiveCoverageDeactivation as usize],
+            1,
+        );
+
         store.structural_snapshot.completed = ProofStructuralSnapshotId(u64::MAX - 1);
         store.publish_structural_mutation(ProofStructuralMutationClass::ProofDependency);
         let saturated = store.structural_snapshot_census();
@@ -14846,114 +14958,55 @@ mod tests {
     }
 
     #[test]
-    fn cpk_sv_d0_reviewed_mutation_writer_census_retains_every_bump_boundary() {
-        struct Writer<'a> {
-            source: &'a str,
-            function: &'a str,
-            bump: &'a str,
-        }
-        let proof = include_str!("mod.rs");
-        let bounds = include_str!("../machine/bounds.rs");
-        let entry = include_str!("../machine/entry.rs");
-        let row_effect = include_str!("../row_effect.rs");
-        let writers = [
-            Writer {
-                source: proof,
-                function: "fn record_occurrence(",
-                bump: "publish_structural_mutation(mutation_class)",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_projection_support_mutation(",
-                bump: "ProofStructuralMutationClass::ProjectionFormula",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_reduction_claim_index(",
-                bump: "ProofStructuralMutationClass::UpperClaim",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_original_claim_admission(",
-                bump: "ProofStructuralMutationClass::UpperClaim",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_derived_claim_decision(",
-                bump: "ProofStructuralMutationClass::UpperClaim",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_upper_claim_move(",
-                bump: "ProofStructuralMutationClass::UpperClaim",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_projection_clause_admission(",
-                bump: "ProofStructuralMutationClass::ProjectionFormula",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_replay_qualified_parent_transaction(",
-                bump: "ProofStructuralMutationClass::ProofDependency",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_qualified_parent_admission(",
-                bump: "ProofStructuralMutationClass::ProofDependency",
-            },
-            Writer {
-                source: proof,
-                function: "fn record_prepared_live_coverage(",
-                bump: "ProofStructuralMutationClass::LiveCoverage",
-            },
-            Writer {
-                source: proof,
-                function: "fn commit_projection_index_admission(",
-                bump: "ProofStructuralMutationClass::ProofDependency",
-            },
-            Writer {
-                source: bounds,
-                function: "fn record_bound_provenance(",
-                bump: "ProofStructuralMutationClass::Bound",
-            },
-            Writer {
-                source: bounds,
-                function: "fn prune_upper_rows_subsumed_by_reduced_upper(",
-                bump: "ProofStructuralMutationClass::Bound",
-            },
-            Writer {
-                source: entry,
-                function: "fn enqueue_replay_subtype(",
-                bump: "ProofStructuralMutationClass::Constraint",
-            },
-            Writer {
-                source: entry,
-                function: "fn enqueue_canonical_subtype_with_origin(",
-                bump: "ProofStructuralMutationClass::Constraint",
-            },
-            Writer {
-                source: row_effect,
-                function: "fn unweighted_row_reduction_routes_for_new_lower(",
-                bump: "ProofStructuralMutationClass::RowState",
-            },
-        ];
-        for writer in writers {
-            let start = writer.source.find(writer.function).unwrap_or_else(|| {
-                panic!("missing reviewed structural writer {}", writer.function)
-            });
-            let tail = &writer.source[start..];
-            let end = tail[writer.function.len()..]
-                .find("\n    fn ")
-                .or_else(|| tail[writer.function.len()..].find("\n    pub"))
-                .map_or(tail.len(), |offset| writer.function.len() + offset);
+    fn cpk_sv_d0_runtime_writer_inventory_exercises_every_active_class() {
+        let machine = cpk_3_replay_fixture();
+        let (_, _, classes, sites) = machine.proof_store.structural_snapshot_census();
+        for class in [
+            ProofStructuralMutationClass::Bound,
+            ProofStructuralMutationClass::Constraint,
+            ProofStructuralMutationClass::ProjectionFormula,
+            ProofStructuralMutationClass::UpperClaim,
+            ProofStructuralMutationClass::LiveCoverage,
+            ProofStructuralMutationClass::ProofDependency,
+            ProofStructuralMutationClass::RowState,
+            ProofStructuralMutationClass::ProofIdentity,
+        ] {
             assert!(
-                tail[..end].contains(writer.bump),
-                "reviewed structural writer {} lost its completed-commit bump {}",
-                writer.function,
-                writer.bump,
+                classes[class as usize] > 0,
+                "real CPK replay/row workload did not exercise reviewed class {class:?}: {classes:?}",
             );
         }
+        assert!(
+            sites[ProofStructuralMutationSite::LiveCoverageActivation as usize] > 0,
+            "the real reduction-claim workload must exercise live activation separately",
+        );
+    }
+
+    #[test]
+    fn cpk_sv_d0_budget_exhausted_fresh_evidence_bounds_publish() {
+        let mut machine = ConstraintMachine::new();
+        machine.set_replay_derivation_budget_for_test(0, usize::MAX);
+        let constraint = SubtypeConstraintKey {
+            lower: machine.alloc_pos(Pos::Var(TypeVar(43_101))),
+            upper: machine.alloc_neg(Neg::Var(TypeVar(43_102))),
+            weights: ConstraintWeights::empty(),
+        };
+        machine.apply_cpk_evidence_only_replay_for_test(
+            constraint,
+            BinaryReplayDerivation {
+                pivot: TypeVar(43_103),
+                lower: BoundRecordId(43_104),
+                upper: BoundRecordId(43_105),
+                rule: ReplayRule::LowerBoundAdded,
+            },
+        );
+        let (_, _, classes, sites) = machine.proof_store.structural_snapshot_census();
+        assert_eq!(
+            sites[ProofStructuralMutationSite::BoundWithoutOccurrence as usize],
+            2,
+            "both fresh incomplete evidence bounds must publish without proof occurrences",
+        );
+        assert!(classes[ProofStructuralMutationClass::Bound as usize] >= 2);
     }
 
     fn cpk_machine() -> ConstraintMachine {
@@ -21569,9 +21622,16 @@ mod tests {
             supports,
             clauses.clone(),
         );
+        let before_corruption = machine.proof_store.structural_snapshot_census();
         machine
             .proof_store
             .force_noncanonical_projection_formula_order_for_test(record, clauses);
+        let after_corruption = machine.proof_store.structural_snapshot_census();
+        assert_eq!(after_corruption.0.0, before_corruption.0.0 + 1);
+        assert_eq!(
+            after_corruption.3[ProofStructuralMutationSite::FormulaOrderCorruption as usize],
+            before_corruption.3[ProofStructuralMutationSite::FormulaOrderCorruption as usize] + 1,
+        );
         let (actual, _) = project_lower_for_test(&machine, record);
         assert_eq!(
             actual,
@@ -22264,9 +22324,17 @@ mod tests {
             .proof_store
             .projection_supports
             .insert(no_ledger_record, Vec::new());
+        let before_corruption = no_ledger.proof_store.structural_snapshot_census();
         no_ledger
             .proof_store
             .force_present_empty_projection_formula_for_test(no_ledger_record);
+        let after_corruption = no_ledger.proof_store.structural_snapshot_census();
+        assert_eq!(after_corruption.0.0, before_corruption.0.0 + 1);
+        assert_eq!(
+            after_corruption.3[ProofStructuralMutationSite::FormulaPresenceCorruption as usize],
+            before_corruption.3[ProofStructuralMutationSite::FormulaPresenceCorruption as usize]
+                + 1,
+        );
         assert_single_lower_matches_all_four_cpk_consumers(
             &no_ledger,
             no_ledger_owner,
@@ -22586,9 +22654,17 @@ mod tests {
                     RecordProofClause::Standalone { support },
                 ),
             );
+            let before_corruption = machine.proof_store.structural_snapshot_census();
             machine
                 .proof_store
                 .force_projection_clause_lineage_for_test(record, lineage);
+            let after_corruption = machine.proof_store.structural_snapshot_census();
+            assert_eq!(after_corruption.0.0, before_corruption.0.0 + 1);
+            assert_eq!(
+                after_corruption.3[ProofStructuralMutationSite::FormulaLineageCorruption as usize],
+                before_corruption.3[ProofStructuralMutationSite::FormulaLineageCorruption as usize]
+                    + 1,
+            );
             let owner = machine.bounds.record(record).unwrap().owner();
             assert_single_lower_matches_all_four_cpk_consumers(
                 &machine,
@@ -25615,6 +25691,12 @@ mod tests {
                 .representative_claim,
             route.claim.expect("the real route remains claim-qualified"),
         );
+        assert!(
+            machine.proof_store.structural_snapshot_census().3
+                [ProofStructuralMutationSite::RowStateUnmatched as usize]
+                > 0,
+            "the realistic unmatched row route must exercise its own snapshot boundary",
+        );
     }
 
     #[test]
@@ -25711,6 +25793,12 @@ mod tests {
                         .then_some(BoundRecordId(index as u32))
                 })
                 .expect("the direct incremental route must retain its lower record");
+            assert!(
+                machine.proof_store.structural_snapshot_census().3
+                    [ProofStructuralMutationSite::RowStateMatched as usize]
+                    > 0,
+                "the realistic matched row route must exercise its own snapshot boundary",
+            );
             let routes = order.map(|index| IncrementalRouteKey {
                 upper: route_uppers[index],
                 upper_record,

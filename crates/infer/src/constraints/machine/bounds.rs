@@ -3480,6 +3480,10 @@ impl ConstraintMachine {
                 lower_derivation,
             );
             let lower_record = insertion.id;
+            if !evidence_complete && insertion.provenance_changed {
+                self.proof_store
+                    .record_bound(lower_record, BoundDerivation::IncompleteReplay);
+            }
             if let Some(replay) = projection_replay
                 && !self.admit_projection_index(
                     Some((proof::ProjectionTarget::Replay(replay), lower_record)),
@@ -3501,6 +3505,10 @@ impl ConstraintMachine {
                 upper_derivation,
             );
             let upper_record = insertion.id;
+            if !evidence_complete && insertion.provenance_changed {
+                self.proof_store
+                    .record_bound(upper_record, BoundDerivation::IncompleteReplay);
+            }
             let upper_edge_inserted = insertion.provenance_changed;
             self.record_bound_provenance(insertion, BoundDirection::Upper, true);
             if insertion.semantic_changed {

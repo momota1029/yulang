@@ -383,8 +383,9 @@ impl ConstraintMachine {
                 self.unweighted_row_reduction_records[state_index]
                     .processed_lower_records
                     .insert(lower_record);
-                self.proof_store.publish_structural_mutation(
+                self.proof_store.publish_structural_mutation_at(
                     crate::constraints::proof::ProofStructuralMutationClass::RowState,
+                    crate::constraints::proof::ProofStructuralMutationSite::RowStateUnmatched,
                 );
                 routes.push(UnweightedRowReductionReplayRoute {
                     upper: snapshot.current_reduced_upper.endpoint,
@@ -456,8 +457,9 @@ impl ConstraintMachine {
                 state.processed_lower_records.insert(lower_record);
                 state.provenance_head = successor;
             }
-            self.proof_store.publish_structural_mutation(
+            self.proof_store.publish_structural_mutation_at(
                 crate::constraints::proof::ProofStructuralMutationClass::RowState,
+                crate::constraints::proof::ProofStructuralMutationSite::RowStateMatched,
             );
             if let Some(claim) = self.proof_store.reduction_claim(state_id) {
                 if let Err(failure) =
