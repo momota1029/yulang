@@ -17685,6 +17685,10 @@ mod tests {
             stable
                 .validate_stable_dependency_adjacency(record)
                 .expect("post-move stable obligations resolve against the moved record");
+            assert!(
+                !stable.stable_fallback_used,
+                "post-move state must be resolved by the stable fast path",
+            );
             let reads = stable.finish_late_bound_read_trace();
             assert!(
                 reads.contains(&ProjectionLateBoundValidationRead::ClaimBinding {
@@ -17844,6 +17848,10 @@ mod tests {
             stable
                 .validate_stable_dependency_adjacency(record)
                 .expect("post-activation stable obligations validate the live row fact");
+            assert!(
+                !stable.stable_fallback_used,
+                "post-activation state must be resolved by the stable fast path",
+            );
             let reads = stable.finish_late_bound_read_trace();
             assert!(reads.contains(&ProjectionLateBoundValidationRead::LiveRow {
                 expected_root: root,
