@@ -3308,6 +3308,14 @@ enum ProjectionLateBoundValidationRead {
     },
 }
 
+#[cfg(test)]
+fn projection_late_bound_read_mismatch_count(
+    expected: &FxHashSet<ProjectionLateBoundValidationRead>,
+    actual: &FxHashSet<ProjectionLateBoundValidationRead>,
+) -> usize {
+    expected.symmetric_difference(actual).count()
+}
+
 impl Iterator for ProjectionValidationActionCursor<'_> {
     type Item = ProjectionValidationAction;
 
@@ -6651,9 +6659,10 @@ impl ProofOccurrenceStore {
             // comparison above and the dedicated corruption/error matrix.
             let late_bound_read_mismatches =
                 if validation.is_ok() && !stable_preflight.stable_fallback_used {
-                    expected_late_bound_reads
-                        .symmetric_difference(&actual_late_bound_reads)
-                        .count()
+                    projection_late_bound_read_mismatch_count(
+                        &expected_late_bound_reads,
+                        &actual_late_bound_reads,
+                    )
                 } else {
                     0
                 };
@@ -9814,11 +9823,12 @@ struct ProjectionPreflight<'a> {
     #[cfg(test)]
     late_bound_read_trace: Option<FxHashSet<ProjectionLateBoundValidationRead>>,
     #[cfg(test)]
-    late_bound_read_trace_suppression: usize,
-    #[cfg(test)]
     stable_fallback_used: bool,
     #[cfg(test)]
     target_formula_trace_started: bool,
+    // Negative-control switch used only to prove the recursive read-set oracle is non-vacuous.
+    #[cfg(test)]
+    omit_recursive_late_bound_reads_for_test: bool,
 }
 
 impl<'a> ProjectionPreflight<'a> {
@@ -9842,11 +9852,11 @@ impl<'a> ProjectionPreflight<'a> {
             #[cfg(test)]
             late_bound_read_trace: None,
             #[cfg(test)]
-            late_bound_read_trace_suppression: 0,
-            #[cfg(test)]
             stable_fallback_used: false,
             #[cfg(test)]
             target_formula_trace_started: false,
+            #[cfg(test)]
+            omit_recursive_late_bound_reads_for_test: false,
         }
     }
 
@@ -9884,7 +9894,6 @@ impl<'a> ProjectionPreflight<'a> {
 
     #[cfg(test)]
     fn finish_late_bound_read_trace(&mut self) -> FxHashSet<ProjectionLateBoundValidationRead> {
-        assert_eq!(self.late_bound_read_trace_suppression, 0);
         self.late_bound_read_trace
             .take()
             .expect("CPK-SV-C-R1 late-bound trace must be active")
@@ -9895,9 +9904,7 @@ impl<'a> ProjectionPreflight<'a> {
         &mut self,
         read: ProjectionLateBoundValidationRead,
     ) -> Result<(), ProofFailure> {
-        if self.late_bound_read_trace_suppression == 0
-            && let Some(reads) = self.late_bound_read_trace.as_mut()
-        {
+        if let Some(reads) = self.late_bound_read_trace.as_mut() {
             if reads.contains(&read) {
                 return Ok(());
             }
@@ -9945,7 +9952,6 @@ impl<'a> ProjectionPreflight<'a> {
                 actions.clear();
             }
             self.validation_action_trace_suppression = 0;
-            self.late_bound_read_trace_suppression = 0;
             self.target_formula_trace_started = false;
             if let Some(reads) = self.late_bound_read_trace.as_mut() {
                 reads.clear();
@@ -10069,10 +10075,9 @@ impl<'a> ProjectionPreflight<'a> {
     ) -> Result<(), ProofFailure> {
         let owner = ProofFactRef::ProjectionFormula(record);
         match action {
-            ProjectionValidationAction::ValidateIndependentSupport(carrier) => self
-                .with_late_bound_read_trace_suppressed(|this| {
-                    this.validate_carrier(record, carrier)
-                }),
+            ProjectionValidationAction::ValidateIndependentSupport(carrier) => {
+                self.validate_carrier(record, carrier)
+            }
             ProjectionValidationAction::ValidateClaimBinding {
                 representative,
                 expected_root,
@@ -10086,9 +10091,16 @@ impl<'a> ProjectionPreflight<'a> {
             ProjectionValidationAction::ValidateRecord(dependency)
             | ProjectionValidationAction::ValidateReplayRecord {
                 record: dependency, ..
-            } => self.with_late_bound_read_trace_suppressed(|this| {
-                this.validate_record(dependency, owner)
-            }),
+            } => {
+                #[cfg(test)]
+                if self.omit_recursive_late_bound_reads_for_test {
+                    let trace = self.late_bound_read_trace.take();
+                    let result = self.validate_record(dependency, owner);
+                    self.late_bound_read_trace = trace;
+                    return result;
+                }
+                self.validate_record(dependency, owner)
+            }
             ProjectionValidationAction::ValidateConstraint { constraint, role } => match role {
                 ProjectionConstraintValidationRole::ExistenceOnly => {
                     self.view.constraint(constraint).map(|_| ()).ok_or_else(|| {
@@ -10098,15 +10110,20 @@ impl<'a> ProjectionPreflight<'a> {
                         )
                     })
                 }
-                ProjectionConstraintValidationRole::RecursiveClosure => self
-                    .with_late_bound_read_trace_suppressed(|this| {
-                        this.validate_constraint(constraint, owner)
-                    }),
+                ProjectionConstraintValidationRole::RecursiveClosure => {
+                    #[cfg(test)]
+                    if self.omit_recursive_late_bound_reads_for_test {
+                        let trace = self.late_bound_read_trace.take();
+                        let result = self.validate_constraint(constraint, owner);
+                        self.late_bound_read_trace = trace;
+                        return result;
+                    }
+                    self.validate_constraint(constraint, owner)
+                }
             },
-            ProjectionValidationAction::ValidateRowDerivation(derivation) => self
-                .with_late_bound_read_trace_suppressed(|this| {
-                    this.validate_row_derivation(owner, derivation)
-                }),
+            ProjectionValidationAction::ValidateRowDerivation(derivation) => {
+                self.validate_row_derivation(owner, derivation)
+            }
             ProjectionValidationAction::ValidateOrigin(origin) => self
                 .has_origin(origin)
                 .then_some(())
@@ -10146,29 +10163,11 @@ impl<'a> ProjectionPreflight<'a> {
         #[cfg(test)]
         {
             self.validation_action_trace_suppression += 1;
-            self.late_bound_read_trace_suppression += 1;
         }
         let result = operation(self);
         #[cfg(test)]
         {
-            self.late_bound_read_trace_suppression -= 1;
             self.validation_action_trace_suppression -= 1;
-        }
-        result
-    }
-
-    fn with_late_bound_read_trace_suppressed<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        #[cfg(test)]
-        {
-            self.late_bound_read_trace_suppression += 1;
-        }
-        let result = operation(self);
-        #[cfg(test)]
-        {
-            self.late_bound_read_trace_suppression -= 1;
         }
         result
     }
@@ -10391,9 +10390,7 @@ impl<'a> ProjectionPreflight<'a> {
                     ProjectionValidationAction::ValidateIndependentSupport(carrier),
                 );
                 #[cfg(test)]
-                self.with_late_bound_read_trace_suppressed(|this| {
-                    this.validate_carrier(record, carrier)
-                })?;
+                self.validate_carrier(record, carrier)?;
                 #[cfg(not(test))]
                 self.validate_carrier(record, carrier)?;
                 Ok(ResolvedProjectionSupport::Independent(carrier))
@@ -10434,9 +10431,7 @@ impl<'a> ProjectionPreflight<'a> {
                     ProjectionValidationAction::ValidateIndependentSupport(carrier),
                 );
                 #[cfg(test)]
-                self.with_late_bound_read_trace_suppressed(|this| {
-                    this.validate_carrier(record, carrier)
-                })?;
+                self.validate_carrier(record, carrier)?;
                 #[cfg(not(test))]
                 self.validate_carrier(record, carrier)?;
                 Ok(ResolvedProjectionSupport::Independent(carrier))
@@ -17212,6 +17207,85 @@ mod tests {
     }
 
     #[test]
+    fn cpk_sv_c_r3_recursive_late_bound_read_divergence_is_reported() {
+        let mut machine = cpk_machine();
+        let record = cpk_gap_1_projection_record(&mut machine, 2_878);
+        let (dependency, representative) = cpk_7_record_original_claim(&mut machine, 2_879);
+        let parent = cpk_7_admit_inert_constraint(&mut machine, 2_880, "sv-c-recursive-read");
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete);
+        cpk_gap_1_set_supports_and_admit_independent_formula(
+            &mut machine,
+            record,
+            vec![support],
+            vec![ProjectionClause::DerivedUnary {
+                support,
+                carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                    parent,
+                    rule: StructuralDerivationRule::FunctionReturn,
+                }),
+                premise: ProofPremise::Record(dependency),
+                attribution: None,
+            }],
+        );
+        let trace_capacity = machine.proof_store.projection_formula_shadow.by_record[&record]
+            .exact_links
+            .len()
+            .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND);
+
+        let mut canonical = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        canonical
+            .begin_late_bound_read_trace(trace_capacity)
+            .expect("canonical recursive-read trace allocation");
+        canonical
+            .validate_projection_record(record)
+            .expect("recursive-read fixture validates canonically");
+        let expected = canonical.finish_late_bound_read_trace();
+        assert!(expected.iter().any(|read| matches!(
+            read,
+            ProjectionLateBoundValidationRead::ClaimBinding {
+                representative: candidate,
+                ..
+            } if *candidate == representative
+        )));
+        assert!(expected.iter().any(|read| matches!(
+            read,
+            ProjectionLateBoundValidationRead::CoverageRoot {
+                expected_root,
+                ..
+            } if *expected_root == representative
+        )));
+
+        let mut stable = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        stable
+            .begin_late_bound_read_trace(trace_capacity)
+            .expect("stable recursive-read trace allocation");
+        stable
+            .validate_stable_dependency_adjacency(record)
+            .expect("stable recursive-read fixture validates");
+        let actual = stable.finish_late_bound_read_trace();
+        assert_eq!(
+            projection_late_bound_read_mismatch_count(&expected, &actual),
+            0,
+            "normal stable execution must trace recursive claim/root reads",
+        );
+
+        let mut injected = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+        injected.omit_recursive_late_bound_reads_for_test = true;
+        injected
+            .begin_late_bound_read_trace(trace_capacity)
+            .expect("injected recursive-read trace allocation");
+        injected
+            .validate_stable_dependency_adjacency(record)
+            .expect("the injected divergence changes only the trace");
+        let omitted = injected.finish_late_bound_read_trace();
+        assert!(!injected.stable_fallback_used);
+        assert!(
+            projection_late_bound_read_mismatch_count(&expected, &omitted) >= 2,
+            "the oracle must expose deliberately omitted recursive claim/root reads",
+        );
+    }
+
+    #[test]
     fn cpk_sv_c_r1_canonical_rejects_frozen_representative_root_substitution() {
         let mut machine = cpk_machine();
         let (_, representative) = cpk_7_record_original_claim(&mut machine, 2_880);
@@ -17568,7 +17642,15 @@ mod tests {
                 .upper_claim(representative)
                 .unwrap()
                 .clone();
-            let record = BoundRecordId(98_303);
+            let record = cpk_gap_1_projection_record(&mut machine, 2_905);
+            let support = SchemeProjectionProofSupport::Claimed(representative);
+            machine.proof_store.record_projection_supports(
+                record,
+                &[SchemeProjectionProof {
+                    lower_record: record,
+                    support,
+                }],
+            );
             let prepared = machine
                 .proof_store
                 .try_prepare_projection_clause_admission(
@@ -17589,6 +17671,29 @@ mod tests {
                 .proof_store
                 .commit_projection_clause_admission(prepared)
                 .unwrap();
+            assert!(project_lower_for_test(&machine, record).0.is_ok());
+            let bucket = &machine.proof_store.projection_formula_shadow.by_record[&record];
+            let mut stable = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+            stable
+                .begin_late_bound_read_trace(
+                    bucket
+                        .exact_links
+                        .len()
+                        .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
+                )
+                .unwrap();
+            stable
+                .validate_stable_dependency_adjacency(record)
+                .expect("post-move stable obligations resolve against the moved record");
+            let reads = stable.finish_late_bound_read_trace();
+            assert!(
+                reads.contains(&ProjectionLateBoundValidationRead::ClaimBinding {
+                    representative,
+                    expected_root: occurrence.coverage_root,
+                    current_root: occurrence.coverage_root,
+                    current_record: destination,
+                })
+            );
         }
 
         // 10.2(3): move prepare -> new dependent formula commit -> move commit.
@@ -17694,10 +17799,24 @@ mod tests {
 
         // 10.2(5): formula prepare -> live-row activation -> formula commit.
         {
-            let mut machine = cpk_machine();
-            let (_, root) = cpk_7_record_original_claim(&mut machine, 2_903);
+            let mut machine = cpk_3_replay_fixture();
+            let (root, state) = *machine
+                .proof_store
+                .live_coverage
+                .iter()
+                .next()
+                .expect("activation fixture starts with a real row-reduction state");
+            assert!(machine.remove_scheme_projection_live_coverage_state(root, state));
             let occurrence = machine.proof_store.upper_claim(root).unwrap().clone();
-            let record = BoundRecordId(98_306);
+            let record = cpk_gap_1_projection_record(&mut machine, 2_906);
+            let support = SchemeProjectionProofSupport::Claimed(root);
+            machine.proof_store.record_projection_supports(
+                record,
+                &[SchemeProjectionProof {
+                    lower_record: record,
+                    support,
+                }],
+            );
             let prepared = machine
                 .proof_store
                 .try_prepare_projection_clause_admission(
@@ -17706,14 +17825,30 @@ mod tests {
                 )
                 .unwrap()
                 .unwrap();
-            assert!(machine.insert_scheme_projection_live_coverage_state(
-                root,
-                UnweightedRowReductionRecordId(98_307),
-            ));
+            assert!(machine.insert_scheme_projection_live_coverage_state(root, state));
             machine
                 .proof_store
                 .commit_projection_clause_admission(prepared)
                 .unwrap();
+            assert!(project_lower_for_test(&machine, record).0.is_ok());
+            let bucket = &machine.proof_store.projection_formula_shadow.by_record[&record];
+            let mut stable = ProjectionPreflight::new(&machine.proof_store, &machine, record);
+            stable
+                .begin_late_bound_read_trace(
+                    bucket
+                        .exact_links
+                        .len()
+                        .saturating_mul(PROJECTION_VALIDATION_ACTIONS_PER_INCIDENCE_BOUND),
+                )
+                .unwrap();
+            stable
+                .validate_stable_dependency_adjacency(record)
+                .expect("post-activation stable obligations validate the live row fact");
+            let reads = stable.finish_late_bound_read_trace();
+            assert!(reads.contains(&ProjectionLateBoundValidationRead::LiveRow {
+                expected_root: root,
+                state,
+            }));
         }
 
         // 10.2(6): row-deactivation prepare -> new dependent formula commit -> deactivation commit.
@@ -24245,6 +24380,14 @@ mod tests {
         assert_eq!(report.membership_mismatches, 0);
         assert_eq!(report.structure_mismatches, 0);
         assert_eq!(report.validation_result_mismatches, 0);
+        assert_eq!(
+            report.stable_canonical_fallbacks, 0,
+            "the exhaustive success-path gate must validate the stable executor itself",
+        );
+        assert_eq!(
+            report.stable_fast_successes, report.buckets,
+            "every full-workload bucket must complete on the stable fast path",
+        );
         assert!(
             report.capacity_inclusive_bytes < 18 * 1024 * 1024 * 1024,
             "CPK-SV-C adjacency allocation must stay below the standing 18 GiB threshold",
