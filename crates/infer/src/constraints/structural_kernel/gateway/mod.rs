@@ -9,8 +9,16 @@ use super::access::{ActiveProofAttempt, ProofAccessError};
 use super::commands::{CommittedStructuralMutation, StructuralMutationIntent};
 use super::families;
 use reservation::{
-    ReservationClaim, ReservationTicketId, ReservedOperation, StructuralReservationLedger,
-    StructuralReservationTicket, StructuralResourceDomainKey, VerifiedReservedOperation,
+    BoundRecordsDomain, ConstraintRecordsDomain, DependentRecordsByPremiseDomain,
+    LiveCoverageFlatDomain, LowerFilterRecordsDomain, OriginIdentityRecordsDomain,
+    ProjectionFormulaByRecordDomain, ProjectionLowerByConstraintDomain,
+    ProjectionSupportsByRecordDomain, ProofOccurrencesDomain, ReductionClaimIndexDomain,
+    ReplayDropRecordsDomain, ReplayFiniteMapArenaDomain, ReplayQualifiedArmResultDomain,
+    ReservationClaim, ReservationTicketId, ReservedOperation, ResourceDomainMarker,
+    RowDerivationArenaDomain, RowReductionOwnerDomain, RowReductionRecordsDomain,
+    RowResidualRecordsDomain, SchemeInstantiationIdentityRecordsDomain,
+    StructuralReservationLedger, StructuralReservationTicket, StructuralResourceDomainKey,
+    UpperClaimArenaDomain, VerifiedReservedOperation,
 };
 use unchanged::ExplicitNoOpProof;
 
@@ -450,24 +458,39 @@ fn try_prove_unchanged(payload: &PreparedPayload) -> Option<ExplicitNoOpProof> {
     }
 }
 
-type ShadowPublisher =
-    fn(&mut StructuralData, VerifiedReservedOperation, StructuralResourceDomainKey);
-
-struct VerifiedPublication {
-    domain: StructuralResourceDomainKey,
-    reserved: VerifiedReservedOperation,
-    publisher: ShadowPublisher,
-}
-
 enum VerifiedPublicationPlan {
-    Single {
-        receipt: CommittedStructuralMutation,
-        publication: VerifiedPublication,
+    AppendProofOccurrence(VerifiedReservedOperation<ProofOccurrencesDomain>),
+    AdmitProjectionSupport(VerifiedReservedOperation<ProjectionSupportsByRecordDomain>),
+    AdmitProjectionFormulaClause {
+        formula: VerifiedReservedOperation<ProjectionFormulaByRecordDomain>,
+        lower_index: VerifiedReservedOperation<ProjectionLowerByConstraintDomain>,
     },
-    ProjectionFormula {
-        formula: VerifiedPublication,
-        lower_index: VerifiedPublication,
-    },
+    AdmitProjectionIndex(VerifiedReservedOperation<DependentRecordsByPremiseDomain>),
+    AdmitOriginalClaim(VerifiedReservedOperation<UpperClaimArenaDomain>),
+    DecideDerivedClaim(VerifiedReservedOperation<UpperClaimArenaDomain>),
+    MoveUpperClaim(VerifiedReservedOperation<UpperClaimArenaDomain>),
+    BindReductionClaim(VerifiedReservedOperation<ReductionClaimIndexDomain>),
+    TransitionLiveCoverage(VerifiedReservedOperation<LiveCoverageFlatDomain>),
+    AdmitReplayRelation(VerifiedReservedOperation<ReplayFiniteMapArenaDomain>),
+    AdmitReplayQualifiedParents(VerifiedReservedOperation<ReplayQualifiedArmResultDomain>),
+    AdmitQualifiedParents(VerifiedReservedOperation<ReplayQualifiedArmResultDomain>),
+    AdmitBound(VerifiedReservedOperation<BoundRecordsDomain>),
+    PromoteBound(VerifiedReservedOperation<BoundRecordsDomain>),
+    TombstoneBound(VerifiedReservedOperation<BoundRecordsDomain>),
+    ExtendBoundDerivation(VerifiedReservedOperation<BoundRecordsDomain>),
+    AdmitConstraint(VerifiedReservedOperation<ConstraintRecordsDomain>),
+    ExtendConstraintProof(VerifiedReservedOperation<ConstraintRecordsDomain>),
+    UpdateReplayCompleteness(VerifiedReservedOperation<ConstraintRecordsDomain>),
+    AdmitReplayDrop(VerifiedReservedOperation<ReplayDropRecordsDomain>),
+    AdmitRowResidual(VerifiedReservedOperation<RowResidualRecordsDomain>),
+    AdmitRowDerivation(VerifiedReservedOperation<RowDerivationArenaDomain>),
+    AdmitRowReduction(VerifiedReservedOperation<RowReductionRecordsDomain>),
+    AdvanceRowReductionMatched(VerifiedReservedOperation<RowReductionRecordsDomain>),
+    AdvanceRowReductionUnmatched(VerifiedReservedOperation<RowReductionRecordsDomain>),
+    UpdateRowReductionOwner(VerifiedReservedOperation<RowReductionOwnerDomain>),
+    AdmitLowerFilter(VerifiedReservedOperation<LowerFilterRecordsDomain>),
+    AdmitStructuralIdentity(VerifiedReservedOperation<OriginIdentityRecordsDomain>),
+    AdmitSchemeInstantiation(VerifiedReservedOperation<SchemeInstantiationIdentityRecordsDomain>),
 }
 
 fn verify_changed_publication(
@@ -475,189 +498,110 @@ fn verify_changed_publication(
     ticket: ReservationTicketId,
     operations: &mut Vec<ReservedOperation>,
 ) -> Result<VerifiedPublicationPlan, ProofAccessError> {
-    macro_rules! publish {
-        ($family:path, $port:ident, $receipt:ident) => {{
-            let domain = primary_domain(payload);
-            let reserved = take_verified_operation(operations, ticket, domain)?;
-            VerifiedPublicationPlan::Single {
-                receipt: CommittedStructuralMutation::$receipt,
-                publication: VerifiedPublication {
-                    domain,
-                    reserved,
-                    publisher: |data, reserved, expected| {
-                        $family($port::new(data, reserved, expected));
-                    },
-                },
-            }
-        }};
+    macro_rules! verified {
+        ($domain:ty) => {
+            take_verified_operation::<$domain>(operations, ticket, ())?
+        };
     }
     let plan = match payload {
-        PreparedPayload::AppendProofOccurrence => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AppendProofOccurrence
-        ),
-        PreparedPayload::AdmitProjectionSupport => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitProjectionSupport
+        PreparedPayload::AppendProofOccurrence => {
+            VerifiedPublicationPlan::AppendProofOccurrence(verified!(ProofOccurrencesDomain))
+        }
+        PreparedPayload::AdmitProjectionSupport => VerifiedPublicationPlan::AdmitProjectionSupport(
+            verified!(ProjectionSupportsByRecordDomain),
         ),
         PreparedPayload::AdmitProjectionFormulaClause => {
-            let formula_domain = StructuralResourceDomainKey::ProjectionFormulaByRecordMap;
-            let lower_domain = StructuralResourceDomainKey::ProjectionLowerByConstraint;
-            let formula = take_verified_operation(operations, ticket, formula_domain)?;
-            let lower_index = take_verified_operation(operations, ticket, lower_domain)?;
-            VerifiedPublicationPlan::ProjectionFormula {
-                formula: VerifiedPublication {
-                    domain: formula_domain,
-                    reserved: formula,
-                    publisher: |data, reserved, expected| {
-                        families::proof::publish_shadow(ProofPublishPort::new(
-                            data, reserved, expected,
-                        ));
-                    },
-                },
-                lower_index: VerifiedPublication {
-                    domain: lower_domain,
-                    reserved: lower_index,
-                    publisher: |data, reserved, expected| {
-                        families::proof::publish_shadow(ProofPublishPort::new(
-                            data, reserved, expected,
-                        ));
-                    },
-                },
+            VerifiedPublicationPlan::AdmitProjectionFormulaClause {
+                formula: verified!(ProjectionFormulaByRecordDomain),
+                lower_index: verified!(ProjectionLowerByConstraintDomain),
             }
         }
-        PreparedPayload::AdmitProjectionIndex => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitProjectionIndex
+        PreparedPayload::AdmitProjectionIndex => VerifiedPublicationPlan::AdmitProjectionIndex(
+            verified!(DependentRecordsByPremiseDomain),
         ),
-        PreparedPayload::AdmitOriginalClaim => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitOriginalClaim
+        PreparedPayload::AdmitOriginalClaim => {
+            VerifiedPublicationPlan::AdmitOriginalClaim(verified!(UpperClaimArenaDomain))
+        }
+        PreparedPayload::DecideDerivedClaim => {
+            VerifiedPublicationPlan::DecideDerivedClaim(verified!(UpperClaimArenaDomain))
+        }
+        PreparedPayload::MoveUpperClaim => {
+            VerifiedPublicationPlan::MoveUpperClaim(verified!(UpperClaimArenaDomain))
+        }
+        PreparedPayload::BindReductionClaim => {
+            VerifiedPublicationPlan::BindReductionClaim(verified!(ReductionClaimIndexDomain))
+        }
+        PreparedPayload::TransitionLiveCoverage => {
+            VerifiedPublicationPlan::TransitionLiveCoverage(verified!(LiveCoverageFlatDomain))
+        }
+        PreparedPayload::AdmitReplayRelation => {
+            VerifiedPublicationPlan::AdmitReplayRelation(verified!(ReplayFiniteMapArenaDomain))
+        }
+        PreparedPayload::AdmitReplayQualifiedParents => {
+            VerifiedPublicationPlan::AdmitReplayQualifiedParents(verified!(
+                ReplayQualifiedArmResultDomain
+            ))
+        }
+        PreparedPayload::AdmitQualifiedParents => VerifiedPublicationPlan::AdmitQualifiedParents(
+            verified!(ReplayQualifiedArmResultDomain),
         ),
-        PreparedPayload::DecideDerivedClaim => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            DecideDerivedClaim
-        ),
-        PreparedPayload::MoveUpperClaim => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            MoveUpperClaim
-        ),
-        PreparedPayload::BindReductionClaim => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            BindReductionClaim
-        ),
-        PreparedPayload::TransitionLiveCoverage => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            TransitionLiveCoverage
-        ),
-        PreparedPayload::AdmitReplayRelation => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitReplayRelation
-        ),
-        PreparedPayload::AdmitReplayQualifiedParents => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitReplayQualifiedParents
-        ),
-        PreparedPayload::AdmitQualifiedParents => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitQualifiedParents
-        ),
-        PreparedPayload::AdmitBound => publish!(
-            families::bounds::publish_shadow,
-            BoundsPublishPort,
-            AdmitBound
-        ),
-        PreparedPayload::PromoteBound => publish!(
-            families::bounds::publish_shadow,
-            BoundsPublishPort,
-            PromoteBound
-        ),
-        PreparedPayload::TombstoneBound => publish!(
-            families::bounds::publish_shadow,
-            BoundsPublishPort,
-            TombstoneBound
-        ),
-        PreparedPayload::ExtendBoundDerivation => publish!(
-            families::bounds::publish_shadow,
-            BoundsPublishPort,
-            ExtendBoundDerivation
-        ),
-        PreparedPayload::AdmitConstraint => publish!(
-            families::constraints::publish_shadow,
-            ConstraintsPublishPort,
-            AdmitConstraint
-        ),
-        PreparedPayload::ExtendConstraintProof => publish!(
-            families::constraints::publish_shadow,
-            ConstraintsPublishPort,
-            ExtendConstraintProof
-        ),
-        PreparedPayload::UpdateReplayCompleteness => publish!(
-            families::constraints::publish_shadow,
-            ConstraintsPublishPort,
-            UpdateReplayCompleteness
-        ),
-        PreparedPayload::AdmitReplayDrop => publish!(
-            families::constraints::publish_shadow,
-            ConstraintsPublishPort,
-            AdmitReplayDrop
-        ),
-        PreparedPayload::AdmitRowResidual => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdmitRowResidual
-        ),
-        PreparedPayload::AdmitRowDerivation => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdmitRowDerivation
-        ),
-        PreparedPayload::AdmitRowReduction => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdmitRowReduction
-        ),
-        PreparedPayload::AdvanceRowReductionMatched => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdvanceRowReductionMatched
-        ),
-        PreparedPayload::AdvanceRowReductionUnmatched => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdvanceRowReductionUnmatched
-        ),
-        PreparedPayload::UpdateRowReductionOwner => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            UpdateRowReductionOwner
-        ),
-        PreparedPayload::AdmitLowerFilter => publish!(
-            families::rows::publish_shadow,
-            RowsPublishPort,
-            AdmitLowerFilter
-        ),
-        PreparedPayload::AdmitStructuralIdentity => publish!(
-            families::identities::publish_shadow,
-            IdentitiesPublishPort,
-            AdmitStructuralIdentity
-        ),
-        PreparedPayload::AdmitSchemeInstantiation => publish!(
-            families::identities::publish_shadow,
-            IdentitiesPublishPort,
-            AdmitSchemeInstantiation
-        ),
+        PreparedPayload::AdmitBound => {
+            VerifiedPublicationPlan::AdmitBound(verified!(BoundRecordsDomain))
+        }
+        PreparedPayload::PromoteBound => {
+            VerifiedPublicationPlan::PromoteBound(verified!(BoundRecordsDomain))
+        }
+        PreparedPayload::TombstoneBound => {
+            VerifiedPublicationPlan::TombstoneBound(verified!(BoundRecordsDomain))
+        }
+        PreparedPayload::ExtendBoundDerivation => {
+            VerifiedPublicationPlan::ExtendBoundDerivation(verified!(BoundRecordsDomain))
+        }
+        PreparedPayload::AdmitConstraint => {
+            VerifiedPublicationPlan::AdmitConstraint(verified!(ConstraintRecordsDomain))
+        }
+        PreparedPayload::ExtendConstraintProof => {
+            VerifiedPublicationPlan::ExtendConstraintProof(verified!(ConstraintRecordsDomain))
+        }
+        PreparedPayload::UpdateReplayCompleteness => {
+            VerifiedPublicationPlan::UpdateReplayCompleteness(verified!(ConstraintRecordsDomain))
+        }
+        PreparedPayload::AdmitReplayDrop => {
+            VerifiedPublicationPlan::AdmitReplayDrop(verified!(ReplayDropRecordsDomain))
+        }
+        PreparedPayload::AdmitRowResidual => {
+            VerifiedPublicationPlan::AdmitRowResidual(verified!(RowResidualRecordsDomain))
+        }
+        PreparedPayload::AdmitRowDerivation => {
+            VerifiedPublicationPlan::AdmitRowDerivation(verified!(RowDerivationArenaDomain))
+        }
+        PreparedPayload::AdmitRowReduction => {
+            VerifiedPublicationPlan::AdmitRowReduction(verified!(RowReductionRecordsDomain))
+        }
+        PreparedPayload::AdvanceRowReductionMatched => {
+            VerifiedPublicationPlan::AdvanceRowReductionMatched(verified!(
+                RowReductionRecordsDomain
+            ))
+        }
+        PreparedPayload::AdvanceRowReductionUnmatched => {
+            VerifiedPublicationPlan::AdvanceRowReductionUnmatched(verified!(
+                RowReductionRecordsDomain
+            ))
+        }
+        PreparedPayload::UpdateRowReductionOwner => {
+            VerifiedPublicationPlan::UpdateRowReductionOwner(verified!(RowReductionOwnerDomain))
+        }
+        PreparedPayload::AdmitLowerFilter => {
+            VerifiedPublicationPlan::AdmitLowerFilter(verified!(LowerFilterRecordsDomain))
+        }
+        PreparedPayload::AdmitStructuralIdentity => {
+            VerifiedPublicationPlan::AdmitStructuralIdentity(verified!(OriginIdentityRecordsDomain))
+        }
+        PreparedPayload::AdmitSchemeInstantiation => {
+            VerifiedPublicationPlan::AdmitSchemeInstantiation(verified!(
+                SchemeInstantiationIdentityRecordsDomain
+            ))
+        }
     };
     if !operations.is_empty() {
         return Err(ProofAccessError::InvalidReservedOperation);
@@ -665,47 +609,157 @@ fn verify_changed_publication(
     Ok(plan)
 }
 
-fn publish_verified(publication: VerifiedPublication, data: &mut StructuralData) {
-    (publication.publisher)(data, publication.reserved, publication.domain);
-}
-
 fn publish_verified_plan(
     plan: VerifiedPublicationPlan,
     data: &mut StructuralData,
 ) -> CommittedStructuralMutation {
     match plan {
-        VerifiedPublicationPlan::Single {
-            receipt,
-            publication,
-        } => {
-            publish_verified(publication, data);
-            receipt
+        VerifiedPublicationPlan::AppendProofOccurrence(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::proof_occurrences(data, reserved));
+            CommittedStructuralMutation::AppendProofOccurrence
         }
-        VerifiedPublicationPlan::ProjectionFormula {
+        VerifiedPublicationPlan::AdmitProjectionSupport(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::projection_support(data, reserved));
+            CommittedStructuralMutation::AdmitProjectionSupport
+        }
+        VerifiedPublicationPlan::AdmitProjectionFormulaClause {
             formula,
             lower_index,
         } => {
-            // Both exact domains and absence of residual operations were proved before this first
-            // write. Publication contains no fallible reservation checks.
-            publish_verified(formula, data);
-            publish_verified(lower_index, data);
+            families::proof::publish_shadow(ProofPublishPort::projection_formula(data, formula));
+            families::proof::publish_shadow(ProofPublishPort::projection_lower(data, lower_index));
             CommittedStructuralMutation::AdmitProjectionFormulaClause
+        }
+        VerifiedPublicationPlan::AdmitProjectionIndex(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::dependent_records(data, reserved));
+            CommittedStructuralMutation::AdmitProjectionIndex
+        }
+        VerifiedPublicationPlan::AdmitOriginalClaim(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::upper_claim(data, reserved));
+            CommittedStructuralMutation::AdmitOriginalClaim
+        }
+        VerifiedPublicationPlan::DecideDerivedClaim(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::upper_claim(data, reserved));
+            CommittedStructuralMutation::DecideDerivedClaim
+        }
+        VerifiedPublicationPlan::MoveUpperClaim(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::upper_claim(data, reserved));
+            CommittedStructuralMutation::MoveUpperClaim
+        }
+        VerifiedPublicationPlan::BindReductionClaim(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::reduction_claim(data, reserved));
+            CommittedStructuralMutation::BindReductionClaim
+        }
+        VerifiedPublicationPlan::TransitionLiveCoverage(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::live_coverage(data, reserved));
+            CommittedStructuralMutation::TransitionLiveCoverage
+        }
+        VerifiedPublicationPlan::AdmitReplayRelation(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::replay_finite_map(data, reserved));
+            CommittedStructuralMutation::AdmitReplayRelation
+        }
+        VerifiedPublicationPlan::AdmitReplayQualifiedParents(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::replay_qualified(data, reserved));
+            CommittedStructuralMutation::AdmitReplayQualifiedParents
+        }
+        VerifiedPublicationPlan::AdmitQualifiedParents(reserved) => {
+            families::proof::publish_shadow(ProofPublishPort::replay_qualified(data, reserved));
+            CommittedStructuralMutation::AdmitQualifiedParents
+        }
+        VerifiedPublicationPlan::AdmitBound(reserved) => {
+            families::bounds::publish_shadow(BoundsPublishPort::bound_records(data, reserved));
+            CommittedStructuralMutation::AdmitBound
+        }
+        VerifiedPublicationPlan::PromoteBound(reserved) => {
+            families::bounds::publish_shadow(BoundsPublishPort::bound_records(data, reserved));
+            CommittedStructuralMutation::PromoteBound
+        }
+        VerifiedPublicationPlan::TombstoneBound(reserved) => {
+            families::bounds::publish_shadow(BoundsPublishPort::bound_records(data, reserved));
+            CommittedStructuralMutation::TombstoneBound
+        }
+        VerifiedPublicationPlan::ExtendBoundDerivation(reserved) => {
+            families::bounds::publish_shadow(BoundsPublishPort::bound_records(data, reserved));
+            CommittedStructuralMutation::ExtendBoundDerivation
+        }
+        VerifiedPublicationPlan::AdmitConstraint(reserved) => {
+            families::constraints::publish_shadow(ConstraintsPublishPort::constraint_records(
+                data, reserved,
+            ));
+            CommittedStructuralMutation::AdmitConstraint
+        }
+        VerifiedPublicationPlan::ExtendConstraintProof(reserved) => {
+            families::constraints::publish_shadow(ConstraintsPublishPort::constraint_records(
+                data, reserved,
+            ));
+            CommittedStructuralMutation::ExtendConstraintProof
+        }
+        VerifiedPublicationPlan::UpdateReplayCompleteness(reserved) => {
+            families::constraints::publish_shadow(ConstraintsPublishPort::constraint_records(
+                data, reserved,
+            ));
+            CommittedStructuralMutation::UpdateReplayCompleteness
+        }
+        VerifiedPublicationPlan::AdmitReplayDrop(reserved) => {
+            families::constraints::publish_shadow(ConstraintsPublishPort::replay_drop(
+                data, reserved,
+            ));
+            CommittedStructuralMutation::AdmitReplayDrop
+        }
+        VerifiedPublicationPlan::AdmitRowResidual(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_residual(data, reserved));
+            CommittedStructuralMutation::AdmitRowResidual
+        }
+        VerifiedPublicationPlan::AdmitRowDerivation(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_derivation(data, reserved));
+            CommittedStructuralMutation::AdmitRowDerivation
+        }
+        VerifiedPublicationPlan::AdmitRowReduction(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_reduction(data, reserved));
+            CommittedStructuralMutation::AdmitRowReduction
+        }
+        VerifiedPublicationPlan::AdvanceRowReductionMatched(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_reduction(data, reserved));
+            CommittedStructuralMutation::AdvanceRowReductionMatched
+        }
+        VerifiedPublicationPlan::AdvanceRowReductionUnmatched(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_reduction(data, reserved));
+            CommittedStructuralMutation::AdvanceRowReductionUnmatched
+        }
+        VerifiedPublicationPlan::UpdateRowReductionOwner(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::row_owner(data, reserved));
+            CommittedStructuralMutation::UpdateRowReductionOwner
+        }
+        VerifiedPublicationPlan::AdmitLowerFilter(reserved) => {
+            families::rows::publish_shadow(RowsPublishPort::lower_filter(data, reserved));
+            CommittedStructuralMutation::AdmitLowerFilter
+        }
+        VerifiedPublicationPlan::AdmitStructuralIdentity(reserved) => {
+            families::identities::publish_shadow(IdentitiesPublishPort::origin(data, reserved));
+            CommittedStructuralMutation::AdmitStructuralIdentity
+        }
+        VerifiedPublicationPlan::AdmitSchemeInstantiation(reserved) => {
+            families::identities::publish_shadow(IdentitiesPublishPort::scheme_instantiation(
+                data, reserved,
+            ));
+            CommittedStructuralMutation::AdmitSchemeInstantiation
         }
     }
 }
 
-fn take_verified_operation(
+fn take_verified_operation<D: ResourceDomainMarker>(
     operations: &mut Vec<ReservedOperation>,
     ticket: ReservationTicketId,
-    expected: StructuralResourceDomainKey,
-) -> Result<VerifiedReservedOperation, ProofAccessError> {
+    target: D::Target,
+) -> Result<VerifiedReservedOperation<D>, ProofAccessError> {
+    let expected = D::key(target);
     let position = operations
         .iter()
         .position(|operation| operation.domain() == expected)
         .ok_or(ProofAccessError::InvalidReservedOperation)?;
     operations
         .swap_remove(position)
-        .verify(ticket, expected)
+        .verify::<D>(ticket, target)
         .map_err(|_| ProofAccessError::InvalidReservedOperation)
 }
 

@@ -66,7 +66,11 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
         ),
         (
             "cpk_sv_d_ss1_ui_write_port",
-            "associated function `new` is private",
+            "no function or associated item named `new`",
+        ),
+        (
+            "cpk_sv_d_ss1_ui_domain_port_mismatch",
+            "expected `ProofOccurrencesDomain`, found `ProjectionFormulaByRecordDomain`",
         ),
     ];
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());

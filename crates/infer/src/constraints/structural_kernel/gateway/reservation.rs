@@ -1,6 +1,7 @@
 //! Attempt-local shadow capacity ledger.
 
 use std::collections::TryReserveError;
+use std::marker::PhantomData;
 use std::num::NonZeroU64;
 
 use rustc_hash::FxHashMap;
@@ -125,6 +126,63 @@ pub(in crate::constraints::structural_kernel) enum StructuralResourceDomainKey {
     IdentityRecords(IdentityFamily),
 }
 
+mod domain_sealed {
+    pub trait Sealed {}
+}
+
+/// A typed view of one runtime reservation-domain kind.
+///
+/// SS1 declares only the kinds used by its 29-command shadow vocabulary. SS2+ adds markers as
+/// additional parameterized storage domains move behind the gateway; their runtime key remains in
+/// `StructuralResourceDomainKey`, while `Target` carries values such as a record/root ID.
+pub(super) trait ResourceDomainMarker: domain_sealed::Sealed {
+    type Target: Copy;
+
+    fn key(target: Self::Target) -> StructuralResourceDomainKey;
+}
+
+macro_rules! unit_domain_markers {
+    ($($marker:ident => $key:expr),+ $(,)?) => {
+        $(
+            #[derive(Debug)]
+            pub(super) struct $marker;
+
+            impl domain_sealed::Sealed for $marker {}
+
+            impl ResourceDomainMarker for $marker {
+                type Target = ();
+
+                fn key((): Self::Target) -> StructuralResourceDomainKey {
+                    $key
+                }
+            }
+        )+
+    };
+}
+
+unit_domain_markers! {
+    ProofOccurrencesDomain => StructuralResourceDomainKey::ProofOccurrences,
+    ProjectionSupportsByRecordDomain => StructuralResourceDomainKey::ProjectionSupportsByRecord,
+    ProjectionFormulaByRecordDomain => StructuralResourceDomainKey::ProjectionFormulaByRecordMap,
+    ProjectionLowerByConstraintDomain => StructuralResourceDomainKey::ProjectionLowerByConstraint,
+    DependentRecordsByPremiseDomain => StructuralResourceDomainKey::DependentRecordsByPremiseMap,
+    UpperClaimArenaDomain => StructuralResourceDomainKey::UpperClaimArena,
+    ReductionClaimIndexDomain => StructuralResourceDomainKey::ReductionClaimIndex,
+    LiveCoverageFlatDomain => StructuralResourceDomainKey::LiveCoverageFlat,
+    ReplayFiniteMapArenaDomain => StructuralResourceDomainKey::ReplayFiniteMapArena,
+    ReplayQualifiedArmResultDomain => StructuralResourceDomainKey::ReplayQualifiedArmResultMap,
+    BoundRecordsDomain => StructuralResourceDomainKey::BoundRecords,
+    ConstraintRecordsDomain => StructuralResourceDomainKey::ConstraintRecords,
+    ReplayDropRecordsDomain => StructuralResourceDomainKey::ReplayDropRecords,
+    RowResidualRecordsDomain => StructuralResourceDomainKey::RowResidualRecords,
+    RowDerivationArenaDomain => StructuralResourceDomainKey::RowDerivationArena,
+    RowReductionRecordsDomain => StructuralResourceDomainKey::RowReductionRecords,
+    RowReductionOwnerDomain => StructuralResourceDomainKey::RowReductionOwnerMap,
+    LowerFilterRecordsDomain => StructuralResourceDomainKey::LowerFilterRecords,
+    OriginIdentityRecordsDomain => StructuralResourceDomainKey::IdentityRecords(IdentityFamily::Origin),
+    SchemeInstantiationIdentityRecordsDomain => StructuralResourceDomainKey::IdentityRecords(IdentityFamily::SchemeInstantiation),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub(super) struct ReservationTicketId(NonZeroU64);
@@ -159,10 +217,11 @@ pub(super) struct ReservedOperation {
     domain: StructuralResourceDomainKey,
 }
 
-/// A one-shot operation whose ticket and exact target domain were checked by the ledger layer.
+/// A one-shot operation whose ticket and exact target domain were checked before publication.
 #[derive(Debug)]
-pub(super) struct VerifiedReservedOperation {
-    domain: StructuralResourceDomainKey,
+pub(super) struct VerifiedReservedOperation<D: ResourceDomainMarker> {
+    target: D::Target,
+    _domain: PhantomData<fn() -> D>,
 }
 
 #[derive(Debug)]
@@ -302,16 +361,18 @@ impl ReservedOperation {
         self.domain
     }
 
-    pub(super) fn verify(
+    pub(super) fn verify<D: ResourceDomainMarker>(
         self,
         ticket: ReservationTicketId,
-        expected: StructuralResourceDomainKey,
-    ) -> Result<VerifiedReservedOperation, ReservationError> {
+        target: D::Target,
+    ) -> Result<VerifiedReservedOperation<D>, ReservationError> {
+        let expected = D::key(target);
         if self.ticket != ticket || self.domain != expected {
             return Err(ReservationError::DomainMismatch);
         }
         Ok(VerifiedReservedOperation {
-            domain: self.domain,
+            target,
+            _domain: PhantomData,
         })
     }
 
@@ -321,13 +382,10 @@ impl ReservedOperation {
     }
 }
 
-impl VerifiedReservedOperation {
-    /// Rechecks the exact dynamic target at the write-port boundary.
-    pub(super) fn assert_domain(&self, expected: StructuralResourceDomainKey) {
-        assert_eq!(
-            self.domain, expected,
-            "verified reservation reached wrong port"
-        );
+impl<D: ResourceDomainMarker> VerifiedReservedOperation<D> {
+    #[allow(dead_code)]
+    pub(super) fn target(&self) -> D::Target {
+        self.target
     }
 }
 
@@ -389,12 +447,11 @@ mod tests {
     #[test]
     fn cpk_sv_d_ss1_reserved_operation_rejects_a_different_domain() {
         let reserved = StructuralResourceDomainKey::ProofOccurrences;
-        let wrong = StructuralResourceDomainKey::BoundRecords;
         let mut ledger = StructuralReservationLedger::default();
         let (ticket, mut operations) = ledger.reserve(&[claim(reserved, 1)]).unwrap();
         let operation = operations.pop().unwrap();
         assert!(matches!(
-            operation.verify(ticket.id, wrong),
+            operation.verify::<BoundRecordsDomain>(ticket.id, ()),
             Err(ReservationError::DomainMismatch)
         ));
         ledger.release(ticket);

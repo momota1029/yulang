@@ -1,75 +1,122 @@
-//! Gateway-constructed, family-specific shadow publication ports.
+//! Gateway-constructed, domain-typed shadow publication ports.
 
-use super::reservation::{StructuralResourceDomainKey, VerifiedReservedOperation};
+#![allow(unexpected_cfgs)]
+
+use super::reservation::{
+    BoundRecordsDomain, ConstraintRecordsDomain, DependentRecordsByPremiseDomain,
+    LiveCoverageFlatDomain, LowerFilterRecordsDomain, OriginIdentityRecordsDomain,
+    ProjectionFormulaByRecordDomain, ProjectionLowerByConstraintDomain,
+    ProjectionSupportsByRecordDomain, ProofOccurrencesDomain, ReductionClaimIndexDomain,
+    ReplayDropRecordsDomain, ReplayFiniteMapArenaDomain, ReplayQualifiedArmResultDomain,
+    RowDerivationArenaDomain, RowReductionOwnerDomain, RowReductionRecordsDomain,
+    RowResidualRecordsDomain, SchemeInstantiationIdentityRecordsDomain, UpperClaimArenaDomain,
+    VerifiedReservedOperation,
+};
 use super::storage::StructuralData;
 
 macro_rules! shadow_port {
-    ($name:ident, $method:ident) => {
-        pub(in crate::constraints::structural_kernel) struct $name<'write> {
-            data: &'write mut StructuralData,
-            reserved: VerifiedReservedOperation,
+    (
+        $port:ident,
+        $authority:ident,
+        $publish:ident,
+        { $( $constructor:ident => $variant:ident($domain:ty) ),+ $(,)? }
+    ) => {
+        enum $authority {
+            $( $variant(VerifiedReservedOperation<$domain>), )+
         }
 
-        impl<'write> $name<'write> {
-            pub(super) fn new(
-                data: &'write mut StructuralData,
-                reserved: VerifiedReservedOperation,
-                expected_domain: StructuralResourceDomainKey,
-            ) -> Self {
-                reserved.assert_domain(expected_domain);
-                Self { data, reserved }
-            }
+        pub(in crate::constraints::structural_kernel) struct $port<'write> {
+            data: &'write mut StructuralData,
+            reserved: $authority,
+        }
+
+        impl<'write> $port<'write> {
+            $(
+                pub(super) fn $constructor(
+                    data: &'write mut StructuralData,
+                    reserved: VerifiedReservedOperation<$domain>,
+                ) -> Self {
+                    Self {
+                        data,
+                        reserved: $authority::$variant(reserved),
+                    }
+                }
+            )+
 
             pub(in crate::constraints::structural_kernel) fn publish_shadow(self) {
-                let _consumed_one_shot_authority = self.reserved;
-                self.data.$method();
+                match self.reserved {
+                    $( $authority::$variant(_reserved) => {}, )+
+                }
+                self.data.$publish();
             }
         }
     };
 }
 
-shadow_port!(ProofPublishPort, record_proof_shadow);
-shadow_port!(BoundsPublishPort, record_bounds_shadow);
-shadow_port!(ConstraintsPublishPort, record_constraints_shadow);
-shadow_port!(RowsPublishPort, record_rows_shadow);
-shadow_port!(IdentitiesPublishPort, record_identities_shadow);
-
-#[cfg(test)]
-mod tests {
-    use std::panic::{AssertUnwindSafe, catch_unwind};
-
-    use super::super::reservation::{
-        ReservationClaim, StructuralReservationLedger, StructuralResourceDomainKey,
-    };
-    use super::*;
-
-    #[test]
-    fn cpk_sv_d_ss1_write_port_rechecks_the_exact_reserved_domain() {
-        let reserved_domain = StructuralResourceDomainKey::BoundRecords;
-        let mut ledger = StructuralReservationLedger::default();
-        let (ticket, mut operations) = ledger
-            .reserve(&[ReservationClaim {
-                domain: reserved_domain,
-                units: 1,
-            }])
-            .unwrap();
-        let verified = operations
-            .pop()
-            .unwrap()
-            .verify(ticket.id, reserved_domain)
-            .unwrap();
-        let mut data = StructuralData::default();
-
-        let mismatch = catch_unwind(AssertUnwindSafe(|| {
-            let _ = ProofPublishPort::new(
-                &mut data,
-                verified,
-                StructuralResourceDomainKey::ProofOccurrences,
-            );
-        }));
-        assert!(mismatch.is_err());
-        assert_eq!(data.shadow_publication_counts(), [0; 5]);
-        ledger.release(ticket);
-        assert_eq!(ledger.counts(), (0, 0, 0));
+shadow_port!(
+    ProofPublishPort,
+    ProofReservedOperation,
+    record_proof_shadow,
+    {
+        proof_occurrences => ProofOccurrences(ProofOccurrencesDomain),
+        projection_support => ProjectionSupport(ProjectionSupportsByRecordDomain),
+        projection_formula => ProjectionFormula(ProjectionFormulaByRecordDomain),
+        projection_lower => ProjectionLower(ProjectionLowerByConstraintDomain),
+        dependent_records => DependentRecords(DependentRecordsByPremiseDomain),
+        upper_claim => UpperClaim(UpperClaimArenaDomain),
+        reduction_claim => ReductionClaim(ReductionClaimIndexDomain),
+        live_coverage => LiveCoverage(LiveCoverageFlatDomain),
+        replay_finite_map => ReplayFiniteMap(ReplayFiniteMapArenaDomain),
+        replay_qualified => ReplayQualified(ReplayQualifiedArmResultDomain),
     }
+);
+
+shadow_port!(
+    BoundsPublishPort,
+    BoundsReservedOperation,
+    record_bounds_shadow,
+    { bound_records => BoundRecords(BoundRecordsDomain) }
+);
+
+shadow_port!(
+    ConstraintsPublishPort,
+    ConstraintsReservedOperation,
+    record_constraints_shadow,
+    {
+        constraint_records => ConstraintRecords(ConstraintRecordsDomain),
+        replay_drop => ReplayDrop(ReplayDropRecordsDomain),
+    }
+);
+
+shadow_port!(
+    RowsPublishPort,
+    RowsReservedOperation,
+    record_rows_shadow,
+    {
+        row_residual => RowResidual(RowResidualRecordsDomain),
+        row_derivation => RowDerivation(RowDerivationArenaDomain),
+        row_reduction => RowReduction(RowReductionRecordsDomain),
+        row_owner => RowOwner(RowReductionOwnerDomain),
+        lower_filter => LowerFilter(LowerFilterRecordsDomain),
+    }
+);
+
+shadow_port!(
+    IdentitiesPublishPort,
+    IdentitiesReservedOperation,
+    record_identities_shadow,
+    {
+        origin => Origin(OriginIdentityRecordsDomain),
+        scheme_instantiation => SchemeInstantiation(SchemeInstantiationIdentityRecordsDomain),
+    }
+);
+
+// Compiled by the SS1 UI gate. The typed authority for the formula map cannot enter the
+// proof-occurrence port; this is a type error before any publication code exists.
+#[cfg(cpk_sv_d_ss1_ui_domain_port_mismatch)]
+fn ui_domain_port_mismatch_is_rejected(
+    data: &mut StructuralData,
+    reserved: VerifiedReservedOperation<ProjectionFormulaByRecordDomain>,
+) {
+    let _ = ProofPublishPort::proof_occurrences(data, reserved);
 }
