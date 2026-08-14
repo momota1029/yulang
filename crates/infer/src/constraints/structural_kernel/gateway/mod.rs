@@ -263,19 +263,26 @@ impl<'state> InFlightCommitGuard<'state> {
         if panic_mid_commit {
             panic!("CPK-SV-D-SS1 deliberate mid-commit panic");
         }
-        let prepared = self.prepared.as_ref().expect("in-flight command");
-        let _all_tokens_belong_to_ticket = prepared
+        let prepared = self.prepared.as_mut().expect("in-flight command");
+        let all_tokens_belong_to_ticket = prepared
             .command
             .reserved_operations
             .iter()
             .all(|operation| operation.audit(prepared.command.ticket.id));
+        debug_assert!(all_tokens_belong_to_ticket);
         let disposition = try_prove_unchanged(&prepared.command.payload).map_or(
             StructuralMutationDisposition::Changed,
             StructuralMutationDisposition::Unchanged,
         );
         let receipt = match disposition {
             StructuralMutationDisposition::Changed => {
-                dispatch_changed(&prepared.command.payload, &mut self.state.data)
+                let reserved = prepared
+                    .command
+                    .reserved_operations
+                    .pop()
+                    .expect("every SS1 shadow command reserves one publish operation");
+                debug_assert!(prepared.command.reserved_operations.is_empty());
+                dispatch_changed(&prepared.command.payload, &mut self.state.data, reserved)
             }
             StructuralMutationDisposition::Unchanged(proof) => match proof {},
         };
@@ -393,10 +400,11 @@ fn try_prove_unchanged(payload: &PreparedPayload) -> Option<ExplicitNoOpProof> {
 fn dispatch_changed(
     payload: &PreparedPayload,
     data: &mut StructuralData,
+    reserved: ReservedOperation,
 ) -> CommittedStructuralMutation {
     macro_rules! publish {
         ($family:path, $port:ident, $receipt:ident) => {{
-            $family($port::new(data));
+            $family($port::new(data, reserved));
             CommittedStructuralMutation::$receipt
         }};
     }
