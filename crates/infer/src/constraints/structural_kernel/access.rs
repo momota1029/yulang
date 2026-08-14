@@ -141,10 +141,7 @@ impl ProofAttemptKernel {
         self.query_trace
             .active_checks
             .set(self.query_trace.active_checks.get() + 1);
-        let terminal = self
-            .terminal_failure
-            .try_borrow()
-            .map_err(|_| ProofFailure::TerminalLatchBusy)?;
+        let terminal = self.terminal_failure.borrow();
         match terminal.as_ref() {
             Some(failure) => Err(failure.clone()),
             None => Ok(()),
@@ -1281,9 +1278,8 @@ impl ProofAttemptKernel {
         self.query_trace.post_scope_checks.set(0);
     }
 
-    pub(super) fn query_latch_busy_failure_for_test(&self) -> ProofFailure {
+    pub(super) fn trigger_query_latch_conflict_for_test(&self) {
         let _held = self.terminal_failure.borrow_mut();
-        self.ensure_query_kernel_active()
-            .expect_err("held query terminal latch must reject access")
+        let _ = self.ensure_query_kernel_active();
     }
 }

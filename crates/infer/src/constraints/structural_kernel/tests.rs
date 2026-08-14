@@ -586,12 +586,12 @@ fn cpk_sv_d_ss1_rf_access_denials_are_returned_without_poisoning_the_attempt() {
 }
 
 #[test]
-fn cpk_sv_d_ss1_rf_busy_terminal_latch_uses_exact_proof_failure_surface() {
+#[should_panic(expected = "already mutably borrowed")]
+fn cpk_sv_d_ss1_rf_genuine_terminal_latch_conflict_panics() {
     let machine = ConstraintMachine::new();
-    assert_eq!(
-        machine.proof_attempt.query_latch_busy_failure_for_test(),
-        ProofFailure::TerminalLatchBusy
-    );
+    machine
+        .proof_attempt
+        .trigger_query_latch_conflict_for_test();
 }
 
 #[test]
