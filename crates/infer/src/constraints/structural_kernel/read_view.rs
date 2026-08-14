@@ -1,7 +1,7 @@
 //! Scope-bound immutable view shell. Production proof reads cut over in SS2; the remaining
 //! structural families follow in SS3--SS5.
 
-use poly::types::{Pos, PosId, TypeArena};
+use poly::types::{Neg, NegId, Pos, PosId, TypeArena, TypeVar};
 
 use super::gateway::StructuralData;
 
@@ -19,6 +19,13 @@ impl ImmutableTypeShapeView<'_> {
 
     pub(in crate::constraints) fn is_var_pos(self, id: PosId) -> bool {
         matches!(self.types.pos(id), Pos::Var(_))
+    }
+
+    pub(in crate::constraints::structural_kernel) fn neg_var(self, id: NegId) -> Option<TypeVar> {
+        match self.types.neg(id) {
+            Neg::Var(var) => Some(*var),
+            _ => None,
+        }
     }
 }
 

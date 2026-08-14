@@ -4,9 +4,13 @@ use poly::types::{Subtractability, TypeVar};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::super::read_view::ImmutableTypeShapeView;
-use crate::constraints::proof::ProofOccurrenceStore;
+use crate::constraints::proof::{
+    ProjectionDecision, ProjectionEvaluationRound, ProofFailure, ProofOccurrenceStore,
+    SemanticBoundRecordRef, SemanticConstraintRecordRef, SemanticFactView,
+    SemanticRowReductionRecordRef,
+};
 use crate::constraints::{
-    BoundRecordId, ConstraintRecord, ConstraintRecordId, GeneralizedSchemeRecord,
+    BoundRecordId, BoundSemanticKey, ConstraintRecord, ConstraintRecordId, GeneralizedSchemeRecord,
     GeneralizedSchemeWitness, LowerFilterRecord, LowerFilterRecordId, OriginRecord,
     ReplayDerivationBudget, ReplayDerivationStorage, ReplayDropRecord, ReplayDropRecordId,
     RowDerivation, RowDerivationId, RowResidualKey, RowResidualRecord, RowResidualRecordId,
@@ -194,6 +198,25 @@ impl<'query> LegacyOnlyQueryView<'query> {
         }
     }
 
+    pub(super) fn projection_lower_records(
+        &self,
+        var: TypeVar,
+    ) -> impl Iterator<Item = (BoundRecordId, &crate::constraints::WeightedLowerBound)> {
+        self.sources
+            .bounds
+            .of(var)
+            .into_iter()
+            .flat_map(crate::constraints::VarBounds::projection_lower_records)
+    }
+
+    pub(super) fn project_lower<'a>(
+        &'a self,
+        record: BoundRecordId,
+        round: &mut ProjectionEvaluationRound<'a>,
+    ) -> Result<ProjectionDecision, ProofFailure> {
+        self.sources.proof.project_lower(self, record, round)
+    }
+
     #[cfg(test)]
     pub(super) fn storage_census(&self) -> LegacyStorageCensus {
         let _ = self.type_shapes;
@@ -218,6 +241,65 @@ impl<'query> LegacyOnlyQueryView<'query> {
             scheme_instantiations: self.sources.identities.scheme_instantiations.len(),
             scheme_instantiation_index: self.sources.identities.scheme_instantiation_index.len(),
         }
+    }
+}
+
+impl SemanticFactView for LegacyOnlyQueryView<'_> {
+    fn constraint(&self, id: ConstraintRecordId) -> Option<SemanticConstraintRecordRef<'_>> {
+        self.sources
+            .constraints_replay
+            .constraint_records
+            .get(id.0 as usize)
+            .map(ConstraintRecord::semantic_ref)
+    }
+
+    fn bound(&self, id: BoundRecordId) -> Option<SemanticBoundRecordRef<'_>> {
+        self.sources
+            .bounds
+            .records
+            .get(id.0 as usize)
+            .map(crate::constraints::BoundRecord::semantic_ref)
+    }
+
+    fn row_reduction(
+        &self,
+        id: UnweightedRowReductionRecordId,
+    ) -> Option<SemanticRowReductionRecordRef<'_>> {
+        self.sources
+            .rows
+            .unweighted_row_reduction_records
+            .get(id.0 as usize)
+            .map(crate::constraints::UnweightedRowReductionRecord::semantic_ref)
+    }
+
+    fn lower_record_for_constraint(&self, id: ConstraintRecordId) -> Option<BoundRecordId> {
+        if let Some(record) = self
+            .sources
+            .proof
+            .projection_lower_record_for_constraint(id)
+        {
+            return Some(record);
+        }
+        let constraint = &self
+            .sources
+            .constraints_replay
+            .constraint_records
+            .get(id.0 as usize)?
+            .key;
+        let target = self.type_shapes.neg_var(constraint.upper)?;
+        self.sources
+            .bounds
+            .canonical
+            .get(&BoundSemanticKey::Lower {
+                owner: target,
+                endpoint: constraint.lower,
+                weights: constraint.weights.clone(),
+            })
+            .copied()
+    }
+
+    fn is_var_pos(&self, id: poly::types::PosId) -> bool {
+        self.type_shapes.is_var_pos(id)
     }
 }
 

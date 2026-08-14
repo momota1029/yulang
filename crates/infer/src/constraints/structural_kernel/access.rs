@@ -13,9 +13,12 @@ use super::commands::{CommittedStructuralMutation, StructuralMutationIntent};
 use super::gateway::{PreparationScopeNonce, PreparedMutationSlotId, ProofStructuralState};
 use super::read_view::ScopedQueryView;
 pub(in crate::constraints) use crate::constraints::proof::ProofAttemptNonce;
-use crate::constraints::proof::{ProofFailure, ProofOperation, mint_proof_attempt_nonce};
-use crate::constraints::{ConstraintMachine, record_proof_terminal_failure};
-use poly::types::TypeArena;
+use crate::constraints::proof::{self, ProofFailure, ProofOperation, mint_proof_attempt_nonce};
+use crate::constraints::{
+    ConstraintMachine, SchemeProjectableLower, SchemeProjectableLowerReason,
+    record_proof_terminal_failure,
+};
+use poly::types::{TypeArena, TypeVar};
 
 use sealing::RoundReuseSlot;
 
@@ -823,6 +826,42 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
             value,
             candidates: self.candidates,
         }
+    }
+
+    pub(in crate::constraints) fn scheme_projectable_lowers_in_scope<'scope>(
+        &'scope self,
+        var: TypeVar,
+        round: &mut proof::ProjectionEvaluationRound<'scope>,
+    ) -> Result<Vec<SchemeProjectableLower<'scope>>, ProofFailure> {
+        let records = self.view.projection_lower_records(var);
+        let mut lowers = Vec::new();
+        for (record, bound) in records {
+            let decision = self.view.project_lower(record, round)?;
+            let (reason, projection_evidence) = match decision {
+                proof::ProjectionDecision::Excluded => continue,
+                proof::ProjectionDecision::Unclaimed => {
+                    (SchemeProjectableLowerReason::Unclaimed, None)
+                }
+                proof::ProjectionDecision::Included { supports, evidence } => (
+                    SchemeProjectableLowerReason::Qualified {
+                        uncovered_claims: supports
+                            .uncovered_claims
+                            .into_iter()
+                            .map(|support| support.representative_claim)
+                            .collect(),
+                        independent_supports: supports.independent_supports,
+                    },
+                    Some(evidence),
+                ),
+            };
+            lowers.push(SchemeProjectableLower {
+                record,
+                bound,
+                reason,
+                projection_evidence,
+            });
+        }
+        Ok(lowers)
     }
 
     #[cfg(test)]

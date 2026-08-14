@@ -212,6 +212,54 @@ fn cpk_sv_d_ss2_p0_legacy_scopes_read_real_machine_fields_without_machine_reborr
 }
 
 #[test]
+fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
+    let mut machine = ConstraintMachine::new();
+    let owner = TypeVar(73);
+    let endpoint = machine.alloc_pos(Pos::Con(vec!["ss2_p0_projectable".into()], Vec::new()));
+    machine.bounds.add_lower(
+        owner,
+        endpoint,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+
+    let expected = machine
+        .scheme_projectable_lowers(owner)
+        .map(|entry| {
+            (
+                entry.record,
+                entry.bound.clone(),
+                entry.reason,
+                entry.projection_evidence,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let mut round = machine.new_projection_evaluation_round();
+    let actual = machine
+        .with_legacy_projection_query(&mut round, |query| {
+            let mut evaluation = crate::constraints::proof::ProjectionEvaluationRound::new();
+            let lowers = query.scheme_projectable_lowers_in_scope(owner, &mut evaluation)?;
+            let owned = lowers
+                .into_iter()
+                .map(|entry| {
+                    (
+                        entry.record,
+                        entry.bound.clone(),
+                        entry.reason,
+                        entry.projection_evidence,
+                    )
+                })
+                .collect::<Vec<_>>();
+            drop(evaluation);
+            Ok(query.complete(owned))
+        })
+        .expect("scope-local projectable lowers remain available");
+
+    assert_eq!(actual, expected);
+}
+
+#[test]
 fn cpk_sv_d_ss2_p0_legacy_delegates_reject_foreign_rounds_before_scope_entry() {
     let first = ConstraintMachine::new();
     let mut foreign_projection = first.new_projection_evaluation_round();

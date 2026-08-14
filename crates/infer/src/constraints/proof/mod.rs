@@ -545,13 +545,13 @@ impl SemanticFactView for ConstraintMachine {
 }
 
 impl ConstraintRecord {
-    fn semantic_ref(&self) -> SemanticConstraintRecordRef<'_> {
+    pub(in crate::constraints) fn semantic_ref(&self) -> SemanticConstraintRecordRef<'_> {
         SemanticConstraintRecordRef { key: &self.key }
     }
 }
 
 impl BoundRecord {
-    fn semantic_ref(&self) -> SemanticBoundRecordRef<'_> {
+    pub(in crate::constraints) fn semantic_ref(&self) -> SemanticBoundRecordRef<'_> {
         SemanticBoundRecordRef {
             direction: self.direction,
             owner: self.owner,
@@ -563,7 +563,7 @@ impl BoundRecord {
 }
 
 impl UnweightedRowReductionRecord {
-    fn semantic_ref(&self) -> SemanticRowReductionRecordRef<'_> {
+    pub(in crate::constraints) fn semantic_ref(&self) -> SemanticRowReductionRecordRef<'_> {
         SemanticRowReductionRecordRef {
             source: self.source,
             producer_constraint: self.producer_constraint,
