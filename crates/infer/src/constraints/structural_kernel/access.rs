@@ -176,6 +176,10 @@ impl ProofAttemptKernel {
         }
     }
 
+    #[allow(
+        dead_code,
+        reason = "SS2 final cutover connects the sealed projection query wrapper"
+    )]
     fn with_projection_query<R>(
         &mut self,
         type_shapes: &TypeArena,
@@ -676,6 +680,10 @@ pub(crate) struct QueryCompletion<R> {
     candidates: SuccessfulValidationCandidates,
 }
 
+#[allow(
+    dead_code,
+    reason = "SS2 final cutover consumes the sealed projection query facade"
+)]
 pub(crate) struct ScopedProjectionQuery<'query> {
     view: ScopedQueryView<'query>,
     candidates: SuccessfulValidationCandidates,
@@ -703,7 +711,8 @@ pub(in crate::constraints) struct ScopedLegacyPublicationQuery<'query> {
 }
 
 macro_rules! query_shell {
-    ($name:ident, $complete_visibility:vis) => {
+    ($(#[$implementation_attribute:meta])* $name:ident, $complete_visibility:vis) => {
+        $(#[$implementation_attribute])*
         impl $name<'_> {
             pub(in crate::constraints) fn view(&self) -> &ScopedQueryView<'_> {
                 &self.view
@@ -719,13 +728,24 @@ macro_rules! query_shell {
     };
 }
 
-query_shell!(ScopedProjectionQuery, pub(crate));
+query_shell!(
+    #[allow(
+        dead_code,
+        reason = "SS2 final cutover consumes the sealed projection query accessors"
+    )]
+    ScopedProjectionQuery,
+    pub(crate)
+);
 query_shell!(
     ScopedPublicationProjectionQuery,
     pub(in crate::constraints)
 );
 
 impl<'query> ScopedProjectionQuery<'query> {
+    #[allow(
+        dead_code,
+        reason = "SS2 final cutover constructs the sealed projection query facade"
+    )]
     fn try_new(
         data: &'query super::gateway::StructuralData,
         type_shapes: super::read_view::ImmutableTypeShapeView<'query>,
@@ -737,6 +757,10 @@ impl<'query> ScopedProjectionQuery<'query> {
         })
     }
 
+    #[allow(
+        dead_code,
+        reason = "SS2 final cutover resolves projection variables through the sealed facade"
+    )]
     pub(crate) fn pos_var_in_scope(&self, pos: PosId) -> Option<TypeVar> {
         self.view.type_shapes().pos_var(pos)
     }
@@ -1103,6 +1127,10 @@ impl ConstraintMachine {
     }
 
     #[deny(private_bounds, private_interfaces)]
+    #[allow(
+        dead_code,
+        reason = "SS2 final cutover connects production callers to the sealed projection facade"
+    )]
     pub(crate) fn with_projection_query<R>(
         &mut self,
         round: &mut ProjectionEvaluationRoundState,
