@@ -476,12 +476,13 @@ impl AnalysisSession {
         }
 
         let phase = Instant::now();
+        let (infer, role_input_variances) = (&mut self.infer, &self.role_input_variances);
         let prepared = prepare_alias_expanded_compact_root_with_role_variances(
-            self.infer.constraints(),
+            infer.constraints_mut(),
             simplification_boundary,
             compact,
             role_predicates,
-            &self.role_input_variances,
+            role_input_variances,
             &FxHashSet::default(),
         );
         // Alias expansion is one transitive traversal over the retained component. It can widen an

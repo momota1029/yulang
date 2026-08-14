@@ -1,6 +1,6 @@
 //! Scope-private read routing over the pre-sealing production owners.
 
-use poly::types::{Subtractability, TypeVar};
+use poly::types::{PosId, Subtractability, TypeVar};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::super::read_view::ImmutableTypeShapeView;
@@ -215,6 +215,10 @@ impl<'query> LegacyOnlyQueryView<'query> {
         round: &mut ProjectionEvaluationRound<'a>,
     ) -> Result<ProjectionDecision, ProofFailure> {
         self.sources.proof.project_lower(self, record, round)
+    }
+
+    pub(super) fn pos_var(&self, id: PosId) -> Option<TypeVar> {
+        self.type_shapes.pos_var(id)
     }
 
     #[cfg(test)]

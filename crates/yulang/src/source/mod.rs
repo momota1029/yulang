@@ -1680,12 +1680,9 @@ impl SourceTextAnalysis {
         }
     }
 
-    pub(crate) fn hover(&self, byte_offset: usize) -> Option<SourceHover> {
-        source_hover_from_check(
-            &self.check,
-            self.loaded_byte_offset(byte_offset),
-            &self.focus_module,
-        )
+    pub(crate) fn hover(&mut self, byte_offset: usize) -> Option<SourceHover> {
+        let byte_offset = self.loaded_byte_offset(byte_offset);
+        source_hover_from_check(&mut self.check, byte_offset, &self.focus_module)
     }
 
     pub(crate) fn definition(&self, byte_offset: usize) -> Option<SourceDefinition> {
@@ -2944,8 +2941,8 @@ fn hover_from_loaded_files(
     byte_offset: usize,
     file: &Path,
 ) -> Result<Option<SourceHover>, RouteError> {
-    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    Ok(source_hover_from_check(&check, byte_offset, file))
+    let mut check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_hover_from_check(&mut check, byte_offset, file))
 }
 
 struct MemberCompletionProbe {
@@ -3019,8 +3016,8 @@ fn completion_from_loaded_files(
     byte_offset: usize,
     file: &Path,
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
-    let check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    Ok(source_completion_from_check(&check, byte_offset, file))
+    let mut check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
+    Ok(source_completion_from_check(&mut check, byte_offset, file))
 }
 
 fn member_completion_from_sources(
@@ -3028,10 +3025,10 @@ fn member_completion_from_sources(
     identifier_range: SourceRange,
     file: &Path,
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
-    let check = infer::check::check_loaded_files(&load_collected_sources(files))
+    let mut check = infer::check::check_loaded_files(&load_collected_sources(files))
         .map_err(RouteError::Lower)?;
     Ok(source_member_completion_from_check(
-        &check,
+        &mut check,
         identifier_range,
         file,
     ))
@@ -3150,56 +3147,72 @@ fn rename_from_loaded_files(
 }
 
 fn source_hover_from_check(
-    check: &infer::check::PolyCheckOutput,
+    check: &mut infer::check::PolyCheckOutput,
     byte_offset: usize,
     file: &Path,
 ) -> Option<SourceHover> {
     let mut best = None;
-    let format_context = HoverFormatContext::new(check, file);
-    for (def, span) in check.lowering.modules.def_source_spans() {
+    let format_context = HoverFormatContext::new(&check.lowering.modules, file);
+    let labels = &check.lowering.labels;
+    let session = &mut check.lowering.session;
+    for (def, span) in format_context.modules.def_source_spans() {
         if &span.file != file || !source_range_contains(span.range, byte_offset) {
             continue;
         }
         push_best_hover(
             &mut best,
-            hover_for_def(check, &format_context, def, span.range),
+            hover_for_def(session, labels, &format_context, def, span.range),
             span.range,
         );
     }
-    for (def, span) in check.lowering.session.local_defs.source_spans() {
+    let local_spans = session
+        .local_defs
+        .source_spans()
+        .map(|(def, span)| (def, span.clone()))
+        .collect::<Vec<_>>();
+    for (def, span) in local_spans {
         if &span.file != file || !source_range_contains(span.range, byte_offset) {
             continue;
         }
         push_best_hover(
             &mut best,
-            hover_for_def(check, &format_context, def, span.range),
+            hover_for_def(session, labels, &format_context, def, span.range),
             span.range,
         );
     }
-    for (reference, use_site) in check.lowering.session.refs.iter() {
-        let Some(span) = &use_site.source_span else {
-            continue;
-        };
-        if &span.file != file || !source_range_contains(span.range, byte_offset) {
-            continue;
-        }
-        let Some(target) = check.lowering.session.poly.ref_target(reference) else {
-            continue;
-        };
-        let range = effect_operation_reference_range(check, reference, target, span.range);
+    let reference_targets = session
+        .refs
+        .iter()
+        .filter_map(|(reference, use_site)| {
+            let span = use_site.source_span.as_ref()?;
+            if &span.file != file || !source_range_contains(span.range, byte_offset) {
+                return None;
+            }
+            let target = session.poly.ref_target(reference)?;
+            let range =
+                effect_operation_reference_range(session, labels, reference, target, span.range);
+            Some((target, range))
+        })
+        .collect::<Vec<_>>();
+    for (target, range) in reference_targets {
         push_best_hover(
             &mut best,
-            hover_for_def(check, &format_context, target, range),
+            hover_for_def(session, labels, &format_context, target, range),
             range,
         );
     }
-    for (select, span) in check.lowering.session.selections.source_spans() {
+    let selection_spans = session
+        .selections
+        .source_spans()
+        .map(|(select, span)| (select, span.clone()))
+        .collect::<Vec<_>>();
+    for (select, span) in selection_spans {
         if &span.file != file || !source_range_contains(span.range, byte_offset) {
             continue;
         }
         push_best_hover(
             &mut best,
-            hover_for_select(check, &format_context, select, span.range),
+            hover_for_select(session, labels, &format_context, select, span.range),
             span.range,
         );
     }
@@ -3207,11 +3220,11 @@ fn source_hover_from_check(
 }
 
 fn source_completion_from_check(
-    check: &infer::check::PolyCheckOutput,
+    check: &mut infer::check::PolyCheckOutput,
     byte_offset: usize,
     file: &Path,
 ) -> Vec<SourceCompletionItem> {
-    let format_context = HoverFormatContext::new(check, file);
+    let format_context = HoverFormatContext::new(&check.lowering.modules, file);
     let module = check
         .lowering
         .modules
@@ -3251,7 +3264,7 @@ fn source_completion_from_check(
                 Some(poly::expr::Def::Let {
                     scheme: Some(scheme),
                     ..
-                }) => Some(format_context.format_scheme(scheme)),
+                }) => Some(format_context.format_scheme(&check.lowering.session.poly.typ, scheme)),
                 Some(poly::expr::Def::Mod { .. })
                 | Some(poly::expr::Def::Let { scheme: None, .. })
                 | Some(poly::expr::Def::Arg)
@@ -3265,20 +3278,36 @@ fn source_completion_from_check(
         })
         .collect::<Vec<_>>();
 
+    let completion_locals = check
+        .lowering
+        .session
+        .local_defs
+        .completion_scopes()
+        .filter_map(|(_, local)| {
+            Some((
+                local.name.clone()?,
+                local.scope_span.clone()?,
+                local.role,
+                local.value,
+                local.scope_depth,
+            ))
+        })
+        .collect::<Vec<_>>();
     let mut locals = HashMap::<String, (usize, SourceCompletionItem)>::new();
-    for (_, local) in check.lowering.session.local_defs.completion_scopes() {
-        let (Some(name), Some(scope_span)) = (&local.name, &local.scope_span) else {
-            continue;
-        };
+    for (name, scope_span, role, value, scope_depth) in completion_locals {
         if &scope_span.file != file
             || byte_offset < scope_span.range.start
             || byte_offset > scope_span.range.end
         {
             continue;
         }
-        let detail = Some(match local.role {
-            infer::uses::LocalDefRole::Input => format_context.format_input_type(local.value),
-            infer::uses::LocalDefRole::Value => format_context.format_value_type(local.value),
+        let detail = Some(match role {
+            infer::uses::LocalDefRole::Input => {
+                format_context.format_input_type(&check.lowering.session, value)
+            }
+            infer::uses::LocalDefRole::Value => {
+                format_context.format_value_type(&mut check.lowering.session, value)
+            }
         });
         let item = SourceCompletionItem {
             label: name.0.clone(),
@@ -3287,12 +3316,12 @@ fn source_completion_from_check(
         };
         match locals.entry(name.0.clone()) {
             std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert((local.scope_depth, item));
+                entry.insert((scope_depth, item));
             }
             std::collections::hash_map::Entry::Occupied(mut entry)
-                if local.scope_depth > entry.get().0 =>
+                if scope_depth > entry.get().0 =>
             {
-                entry.insert((local.scope_depth, item));
+                entry.insert((scope_depth, item));
             }
             std::collections::hash_map::Entry::Occupied(_) => {}
         }
@@ -3308,7 +3337,7 @@ fn source_completion_from_check(
 }
 
 fn source_member_completion_from_check(
-    check: &infer::check::PolyCheckOutput,
+    check: &mut infer::check::PolyCheckOutput,
     identifier_range: SourceRange,
     file: &Path,
 ) -> Vec<SourceCompletionItem> {
@@ -3355,9 +3384,10 @@ fn source_member_completion_from_check(
         return Vec::new();
     };
 
-    let format_context = HoverFormatContext::new(check, file);
+    let format_context = HoverFormatContext::new(&check.lowering.modules, file);
     let Some(receiver) = infer::check::inferred_member_receiver_public_with_path_rewriter(
-        &check.lowering,
+        &check.lowering.session.poly.typ,
+        &mut check.lowering.session.infer,
         receiver_value,
         &|path| format_context.rewrite_type_path(path),
     ) else {
@@ -3373,6 +3403,7 @@ fn source_member_completion_from_check(
             kind: SourceCompletionItemKind::Field,
         })
         .collect::<Vec<_>>();
+    let mut pending = Vec::<(String, poly::expr::DefId, SourceCompletionItemKind)>::new();
 
     if let Some(receiver_path) = receiver.nominal_path {
         let path = receiver_path.iter().cloned().map(Name).collect::<Vec<_>>();
@@ -3386,7 +3417,7 @@ fn source_member_completion_from_check(
             )
             .found()
         {
-            items.extend(
+            pending.extend(
                 check
                     .lowering
                     .modules
@@ -3396,57 +3427,58 @@ fn source_member_completion_from_check(
                         field.vis != poly::expr::Vis::My
                             || check.lowering.modules.type_companion(owner.id) == local_method_scope
                     })
-                    .map(|field| SourceCompletionItem {
-                        label: field.name.0.clone(),
-                        detail: completion_detail_for_def(check, &format_context, field.def),
-                        kind: SourceCompletionItemKind::Field,
+                    .map(|field| {
+                        (
+                            field.name.0.clone(),
+                            field.def,
+                            SourceCompletionItemKind::Field,
+                        )
                     }),
             );
         }
 
-        items.extend(
+        pending.extend(
             infer::check::inferred_value_method_candidates(
                 &check.lowering,
                 &receiver_path,
                 local_method_scope,
             )
             .into_iter()
-            .map(|method| SourceCompletionItem {
-                label: method.name,
-                detail: completion_detail_for_def(check, &format_context, method.def),
-                kind: SourceCompletionItemKind::Method,
-            }),
+            .map(|method| (method.name, method.def, SourceCompletionItemKind::Method)),
         );
     }
 
     if let Some(receiver_path) = receiver.ref_payload_path {
-        items.extend(
+        pending.extend(
             infer::check::inferred_ref_method_candidates(
                 &check.lowering,
                 &receiver_path,
                 local_method_scope,
             )
             .into_iter()
-            .map(|method| SourceCompletionItem {
-                label: method.name,
-                detail: completion_detail_for_def(check, &format_context, method.def),
-                kind: SourceCompletionItemKind::Method,
-            }),
+            .map(|method| (method.name, method.def, SourceCompletionItemKind::Method)),
         );
     }
 
-    items.extend(
+    pending.extend(
         infer::check::inferred_effect_method_candidates(
             &check.lowering,
             receiver_effect,
             local_method_scope,
         )
         .into_iter()
-        .map(|method| SourceCompletionItem {
-            label: method.name,
-            detail: completion_detail_for_def(check, &format_context, method.def),
-            kind: SourceCompletionItemKind::Method,
-        }),
+        .map(|method| (method.name, method.def, SourceCompletionItemKind::Method)),
+    );
+    let typing = &check.lowering.typing;
+    let session = &mut check.lowering.session;
+    items.extend(
+        pending
+            .into_iter()
+            .map(|(label, def, kind)| SourceCompletionItem {
+                label,
+                detail: completion_detail_for_def(typing, session, &format_context, def),
+                kind,
+            }),
     );
 
     items.sort_by(|left, right| {
@@ -3459,21 +3491,22 @@ fn source_member_completion_from_check(
 }
 
 fn completion_detail_for_def(
-    check: &infer::check::PolyCheckOutput,
+    typing: &infer::typing::Typing,
+    session: &mut infer::analysis::AnalysisSession,
     format_context: &HoverFormatContext<'_>,
     def: poly::expr::DefId,
 ) -> Option<String> {
-    if let Some(value) = check.lowering.typing.def(def) {
-        return Some(format_context.format_value_type(value));
+    if let Some(value) = typing.def(def) {
+        return Some(format_context.format_value_type(session, value));
     }
     let Some(poly::expr::Def::Let {
         scheme: Some(scheme),
         ..
-    }) = check.lowering.session.poly.defs.get(def)
+    }) = session.poly.defs.get(def)
     else {
         return None;
     };
-    Some(format_context.format_scheme(scheme))
+    Some(format_context.format_scheme(&session.poly.typ, scheme))
 }
 
 fn completion_item_kind_order(kind: SourceCompletionItemKind) -> u8 {
@@ -3877,79 +3910,74 @@ fn push_best_hover(
 }
 
 fn hover_for_def(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     format_context: &HoverFormatContext<'_>,
     def: poly::expr::DefId,
     range: SourceRange,
 ) -> Option<SourceHover> {
-    if let Some(hover) = hover_for_effect_operation(check, format_context, def, range) {
+    if let Some(hover) = hover_for_effect_operation(session, labels, format_context, def, range) {
         return Some(hover);
     }
     let Some(poly::expr::Def::Let {
         scheme: Some(scheme),
         ..
-    }) = check.lowering.session.poly.defs.get(def)
+    }) = session.poly.defs.get(def)
     else {
-        return hover_for_local_def(check, format_context, def, range);
+        return hover_for_local_def(session, labels, format_context, def, range);
     };
-    let label = check.lowering.labels.def_label(def)?;
+    let label = labels.def_label(def)?;
     if hover_label_is_hidden(label) {
         return None;
     }
     let label = format_context.format_value_label(label, def);
-    let ty = format_context.format_scheme(scheme);
+    let ty = format_context.format_scheme(&session.poly.typ, scheme);
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
-        documentation: doc_comment_hover_draft(check, def),
+        documentation: format_context.doc_comment_hover_draft(def),
     })
 }
 
 fn hover_for_effect_operation(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     format_context: &HoverFormatContext<'_>,
     def: poly::expr::DefId,
     range: SourceRange,
 ) -> Option<SourceHover> {
-    let operation = check.lowering.session.poly.effect_operations.get(&def)?;
-    let raw_label = check.lowering.labels.def_label(def)?;
+    let operation = session.poly.effect_operations.get(&def)?;
+    let raw_label = labels.def_label(def)?;
     if hover_label_is_hidden(raw_label) {
         return None;
     }
     let poly::expr::Def::Let {
         scheme: Some(scheme),
         ..
-    } = check.lowering.session.poly.defs.get(def)?
+    } = session.poly.defs.get(def)?
     else {
         return None;
     };
     let label = operation.path.last()?;
-    let ty = format_context.format_scheme(scheme);
+    let ty = format_context.format_scheme(&session.poly.typ, scheme);
     Some(SourceHover {
         range,
         contents: format!("{label}: {ty}"),
-        documentation: doc_comment_hover_draft(check, def),
+        documentation: format_context.doc_comment_hover_draft(def),
     })
 }
 
 fn effect_operation_reference_range(
-    check: &infer::check::PolyCheckOutput,
+    session: &infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     reference: poly::expr::RefId,
     target: poly::expr::DefId,
     range: SourceRange,
 ) -> SourceRange {
-    if !check
-        .lowering
-        .session
-        .poly
-        .effect_operations
-        .contains_key(&target)
-    {
+    if !session.poly.effect_operations.contains_key(&target) {
         return range;
     }
-    let Some(reference_label) = check
-        .lowering
-        .labels
+    let Some(reference_label) = labels
         .ref_labels()
         .find_map(|(id, label)| (id == reference).then_some(label))
     else {
@@ -3972,23 +4000,26 @@ fn effect_operation_reference_range(
 }
 
 fn hover_for_local_def(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     format_context: &HoverFormatContext<'_>,
     def: poly::expr::DefId,
     range: SourceRange,
 ) -> Option<SourceHover> {
-    let poly::expr::Def::Arg = check.lowering.session.poly.defs.get(def)? else {
+    let poly::expr::Def::Arg = session.poly.defs.get(def)? else {
         return None;
     };
-    let label = check.lowering.labels.def_label(def)?;
+    let label = labels.def_label(def)?;
     if hover_label_is_hidden(label) {
         return None;
     }
-    let local = check.lowering.session.local_defs.get(def)?;
+    let local = session.local_defs.get(def)?;
+    let role = local.role;
+    let value = local.value;
     let label = format_context.format_value_label(label, def);
-    let ty = match local.role {
-        infer::uses::LocalDefRole::Input => format_context.format_input_type(local.value),
-        infer::uses::LocalDefRole::Value => format_context.format_value_type(local.value),
+    let ty = match role {
+        infer::uses::LocalDefRole::Input => format_context.format_input_type(session, value),
+        infer::uses::LocalDefRole::Value => format_context.format_value_type(session, value),
     };
     Some(SourceHover {
         range,
@@ -3998,44 +4029,48 @@ fn hover_for_local_def(
 }
 
 fn hover_for_select(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     format_context: &HoverFormatContext<'_>,
     select: poly::expr::SelectId,
     range: SourceRange,
 ) -> Option<SourceHover> {
-    match check.lowering.session.poly.select(select).resolution? {
+    match session.poly.select(select).resolution? {
         poly::expr::SelectResolution::Method { def } => {
-            hover_for_selected_method(check, format_context, select, def, range)
+            hover_for_selected_method(session, labels, format_context, select, def, range)
         }
         poly::expr::SelectResolution::TypeclassMethod { member } => {
-            hover_for_selected_method(check, format_context, select, member, range)
+            hover_for_selected_method(session, labels, format_context, select, member, range)
         }
         poly::expr::SelectResolution::RecordField => {
-            hover_for_resolved_selection_value(check, format_context, select, range)
+            hover_for_resolved_selection_value(session, format_context, select, range)
         }
     }
 }
 
 fn hover_for_resolved_selection_value(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
     format_context: &HoverFormatContext<'_>,
     select: poly::expr::SelectId,
     range: SourceRange,
 ) -> Option<SourceHover> {
-    let use_site = check.lowering.session.selections.resolved(select)?;
+    let use_site = session.selections.resolved(select)?;
+    let selected_value = use_site.selected_value;
+    let name = session.poly.select(select).name.clone();
     Some(SourceHover {
         range,
         contents: format!(
             "{}: {}",
-            check.lowering.session.poly.select(select).name,
-            format_context.format_value_type(use_site.selected_value)
+            name,
+            format_context.format_value_type(session, selected_value)
         ),
         documentation: None,
     })
 }
 
 fn hover_for_selected_method(
-    check: &infer::check::PolyCheckOutput,
+    session: &mut infer::analysis::AnalysisSession,
+    labels: &poly::dump::DumpLabels,
     format_context: &HoverFormatContext<'_>,
     select: poly::expr::SelectId,
     def: poly::expr::DefId,
@@ -4044,23 +4079,28 @@ fn hover_for_selected_method(
     let Some(poly::expr::Def::Let {
         scheme: Some(scheme),
         ..
-    }) = check.lowering.session.poly.defs.get(def)
+    }) = session.poly.defs.get(def)
     else {
         return None;
     };
-    if let Some(hover) = hover_for_resolved_selection_value(check, format_context, select, range) {
+    let scheme = scheme.clone();
+    if let Some(hover) = hover_for_resolved_selection_value(session, format_context, select, range)
+    {
         return Some(hover);
     }
-    let raw_label = check.lowering.labels.def_label(def)?;
+    let raw_label = labels.def_label(def)?;
     let label = if hover_label_is_hidden(raw_label) {
-        check.lowering.session.poly.select(select).name.clone()
+        session.poly.select(select).name.clone()
     } else {
         format_context.format_value_label(raw_label, def)
     };
     Some(SourceHover {
         range,
-        contents: format!("{label}: {}", format_context.format_scheme(scheme)),
-        documentation: doc_comment_hover_draft(check, def),
+        contents: format!(
+            "{label}: {}",
+            format_context.format_scheme(&session.poly.typ, &scheme)
+        ),
+        documentation: format_context.doc_comment_hover_draft(def),
     })
 }
 
@@ -4073,10 +4113,10 @@ fn hover_label_is_hidden(label: &str) -> bool {
 }
 
 fn doc_comment_hover_draft(
-    check: &infer::check::PolyCheckOutput,
+    modules: &infer::ModuleTable,
     def: poly::expr::DefId,
 ) -> Option<SourceHoverDocumentationDraft> {
-    let doc = check.lowering.modules.def_doc_comment(def)?;
+    let doc = modules.def_doc_comment(def)?;
     let fallback_markdown = infer::doc_comment_render::render_doc_comment_markdown(doc);
     if fallback_markdown.is_empty() {
         return None;
@@ -4092,45 +4132,64 @@ fn doc_comment_hover_draft(
 }
 
 struct HoverFormatContext<'a> {
-    check: &'a infer::check::PolyCheckOutput,
+    modules: &'a infer::ModuleTable,
     module: infer::ModuleId,
     site: infer::ModuleOrder,
 }
 
 impl<'a> HoverFormatContext<'a> {
-    fn new(check: &'a infer::check::PolyCheckOutput, file: &Path) -> Self {
+    fn new(modules: &'a infer::ModuleTable, file: &Path) -> Self {
         Self {
-            check,
-            module: check
-                .lowering
-                .modules
+            modules,
+            module: modules
                 .module_by_path(file)
-                .unwrap_or_else(|| check.lowering.modules.root_id()),
+                .unwrap_or_else(|| modules.root_id()),
             site: infer::ModuleOrder::from_index(u32::MAX),
         }
     }
 
-    fn format_scheme(&self, scheme: &poly::types::Scheme) -> String {
-        poly::dump::format_scheme_public_with_path_rewriter(
-            &self.check.lowering.session.poly.typ,
-            scheme,
-            &|path| self.rewrite_type_path(path),
-        )
+    fn format_scheme(
+        &self,
+        types: &poly::types::TypeArena,
+        scheme: &poly::types::Scheme,
+    ) -> String {
+        poly::dump::format_scheme_public_with_path_rewriter(types, scheme, &|path| {
+            self.rewrite_type_path(path)
+        })
         .text
     }
 
-    fn format_value_type(&self, value: poly::types::TypeVar) -> String {
+    fn doc_comment_hover_draft(
+        &self,
+        def: poly::expr::DefId,
+    ) -> Option<SourceHoverDocumentationDraft> {
+        doc_comment_hover_draft(self.modules, def)
+    }
+
+    fn format_value_type(
+        &self,
+        session: &mut infer::analysis::AnalysisSession,
+        value: poly::types::TypeVar,
+    ) -> String {
+        let types = &session.poly.typ;
+        let arena = &mut session.infer;
         infer::check::format_inferred_value_type_public_with_path_rewriter(
-            &self.check.lowering,
+            types,
+            arena,
             value,
             &|path| self.rewrite_type_path(path),
         )
         .text
     }
 
-    fn format_input_type(&self, value: poly::types::TypeVar) -> String {
+    fn format_input_type(
+        &self,
+        session: &infer::analysis::AnalysisSession,
+        value: poly::types::TypeVar,
+    ) -> String {
         infer::check::format_inferred_input_type_public_with_path_rewriter(
-            &self.check.lowering,
+            &session.poly.typ,
+            &session.infer,
             value,
             &|path| self.rewrite_type_path(path),
         )
@@ -4145,8 +4204,6 @@ impl<'a> HoverFormatContext<'a> {
         for start in (0..names.len()).rev() {
             let suffix = &names[start..];
             let Some(found) = self
-                .check
-                .lowering
                 .modules
                 .type_path_at(self.module, suffix, self.site)
                 .found()
@@ -4161,7 +4218,7 @@ impl<'a> HoverFormatContext<'a> {
     }
 
     fn type_decl_matches_path(&self, decl: &infer::ModuleTypeDecl, path: &[String]) -> bool {
-        let full = self.check.lowering.modules.type_decl_path(decl);
+        let full = self.modules.type_decl_path(decl);
         full.segments.len() == path.len()
             && full
                 .segments
@@ -4182,8 +4239,6 @@ impl<'a> HoverFormatContext<'a> {
         for start in (0..names.len()).rev() {
             let suffix = &names[start..];
             if self
-                .check
-                .lowering
                 .modules
                 .value_path_at(self.module, suffix, self.site)
                 .is_some_and(|found| *found == def)

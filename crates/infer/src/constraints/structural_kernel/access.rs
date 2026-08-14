@@ -18,7 +18,7 @@ use crate::constraints::{
     ConstraintMachine, SchemeProjectableLower, SchemeProjectableLowerReason,
     record_proof_terminal_failure,
 };
-use poly::types::{TypeArena, TypeVar};
+use poly::types::{PosId, TypeArena, TypeVar};
 
 use sealing::RoundReuseSlot;
 
@@ -671,7 +671,7 @@ struct PublicationInvocationState {
     hits: usize,
 }
 
-pub(in crate::constraints) struct QueryCompletion<R> {
+pub(crate) struct QueryCompletion<R> {
     value: R,
     candidates: SuccessfulValidationCandidates,
 }
@@ -689,7 +689,7 @@ pub(in crate::constraints) struct ScopedPublicationProjectionQuery<'query> {
 }
 
 /// P0 projection facade backed exclusively by current production-owned legacy storage.
-pub(in crate::constraints) struct ScopedLegacyProjectionQuery<'query> {
+pub(crate) struct ScopedLegacyProjectionQuery<'query> {
     view: LegacyOnlyQueryView<'query>,
     candidates: SuccessfulValidationCandidates,
     invocation: ProjectionInvocationState,
@@ -821,14 +821,14 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         })
     }
 
-    pub(in crate::constraints) fn complete<R>(self, value: R) -> QueryCompletion<R> {
+    pub(crate) fn complete<R>(self, value: R) -> QueryCompletion<R> {
         QueryCompletion {
             value,
             candidates: self.candidates,
         }
     }
 
-    pub(in crate::constraints) fn scheme_projectable_lowers_in_scope<'scope>(
+    pub(crate) fn scheme_projectable_lowers_in_scope<'scope>(
         &'scope self,
         var: TypeVar,
         round: &mut proof::ProjectionEvaluationRound<'scope>,
@@ -862,6 +862,10 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
             });
         }
         Ok(lowers)
+    }
+
+    pub(crate) fn pos_var_in_scope(&self, pos: PosId) -> Option<TypeVar> {
+        self.view.pos_var(pos)
     }
 
     #[cfg(test)]
@@ -950,7 +954,7 @@ fn ui_legacy_view_cannot_be_stored_in_round<'machine>(
 }
 
 #[derive(Debug)]
-pub(in crate::constraints) struct ProjectionEvaluationRoundState {
+pub(crate) struct ProjectionEvaluationRoundState {
     attempt_nonce: Option<ProofAttemptNonce>,
     reuse_disabled: bool,
     terminal_failure: Option<ProofFailure>,
@@ -1081,9 +1085,7 @@ impl<'machine> LegacyQueryMachineFields<'machine> {
 }
 
 impl ConstraintMachine {
-    pub(in crate::constraints) fn new_projection_evaluation_round(
-        &self,
-    ) -> ProjectionEvaluationRoundState {
+    pub(crate) fn new_projection_evaluation_round(&self) -> ProjectionEvaluationRoundState {
         self.proof_attempt.new_projection_evaluation_round()
     }
 
@@ -1120,7 +1122,7 @@ impl ConstraintMachine {
     }
 
     #[deny(private_bounds, private_interfaces)]
-    pub(in crate::constraints) fn with_legacy_projection_query<R>(
+    pub(crate) fn with_legacy_projection_query<R>(
         &mut self,
         round: &mut ProjectionEvaluationRoundState,
         query: impl for<'query> FnOnce(

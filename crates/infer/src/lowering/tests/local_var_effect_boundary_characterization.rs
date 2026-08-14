@@ -1007,7 +1007,7 @@ fn negative_callback_boundary_witness(payload_bearing: bool) -> NegativeCallback
 
 #[test]
 fn negative_callback_boundary_materializes_payload_family_and_shared_residual() {
-    let witness = negative_callback_boundary_witness(true);
+    let mut witness = negative_callback_boundary_witness(true);
     let expected_family = Subtractability::Set(family_path(), witness.family_args.clone());
 
     let Neg::Stack { inner, weight } = witness.machine.types().neg(witness.callback_ret_eff) else {
@@ -1048,7 +1048,7 @@ fn negative_callback_boundary_materializes_payload_family_and_shared_residual() 
     );
 
     let generalized = generalize_compact_root(
-        &witness.machine,
+        &mut witness.machine,
         TypeLevel::root(),
         compact,
         &FxHashSet::default(),
@@ -1092,7 +1092,7 @@ fn negative_callback_boundary_materializes_payload_family_and_shared_residual() 
 
 #[test]
 fn negative_callback_boundary_materializes_argumentless_family_through_same_path() {
-    let witness = negative_callback_boundary_witness(false);
+    let mut witness = negative_callback_boundary_witness(false);
     let expected_family = Subtractability::Set(family_path(), Vec::new());
     let Neg::Stack { inner, weight } = witness.machine.types().neg(witness.callback_ret_eff) else {
         panic!("callback ret_eff should be a negative stack");
@@ -1131,7 +1131,7 @@ fn negative_callback_boundary_materializes_argumentless_family_through_same_path
     ));
 
     let generalized = generalize_compact_root(
-        &witness.machine,
+        &mut witness.machine,
         TypeLevel::root(),
         compact,
         &FxHashSet::default(),

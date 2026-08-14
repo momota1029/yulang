@@ -13,10 +13,12 @@ mod gateway;
 mod read_view;
 
 pub(in crate::constraints) use access::{
-    CpkPublicationEvaluationRoundState, PreparedStructuralMutationHandle,
-    ProjectionEvaluationRoundState, ProofAccessError, ProofAttemptKernel, ProofAttemptNonce,
-    QueryCompletion, ScopedLegacyProjectionQuery, ScopedLegacyPublicationQuery,
-    ScopedProjectionQuery, ScopedPublicationProjectionQuery, StructuralPreparationScope,
+    CpkPublicationEvaluationRoundState, PreparedStructuralMutationHandle, ProofAccessError,
+    ProofAttemptKernel, ProofAttemptNonce, ScopedLegacyPublicationQuery, ScopedProjectionQuery,
+    ScopedPublicationProjectionQuery, StructuralPreparationScope,
+};
+pub(crate) use access::{
+    ProjectionEvaluationRoundState, QueryCompletion, ScopedLegacyProjectionQuery,
 };
 pub(in crate::constraints) use commands::{CommittedStructuralMutation, StructuralMutationIntent};
 pub(in crate::constraints) use read_view::{ImmutableTypeShapeView, ScopedQueryView};

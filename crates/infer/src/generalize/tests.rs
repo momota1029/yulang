@@ -38,19 +38,26 @@ fn neg_contains_var(types: &TypeArena, id: NegId, var: TypeVar) -> bool {
 }
 
 fn positive_aliases_for(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     owner: TypeVar,
     allowed: impl IntoIterator<Item = TypeVar>,
 ) -> Vec<TypeVar> {
-    let mut projection_round = ProjectionEvaluationRound::new();
-    positive_aliases_within_scheme(
-        machine,
-        &allowed.into_iter().collect(),
-        &mut FxHashMap::default(),
-        &mut FxHashSet::default(),
-        &mut projection_round,
-        owner,
-    )
+    let allowed = allowed.into_iter().collect();
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let mut projection_round = ProjectionEvaluationRound::new();
+            let aliases = positive_aliases_within_scheme(
+                &query,
+                &allowed,
+                &mut FxHashMap::default(),
+                &mut FxHashSet::default(),
+                &mut projection_round,
+                owner,
+            )?;
+            Ok(query.complete(aliases))
+        })
+        .expect("test alias projection query")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,26 +88,26 @@ fn scheme_projection_consumers_share_liveness_snapshots() {
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
     let record = raw_var_lower_record(&machine, owner, endpoint);
 
-    projection_consumer_snapshot(&machine, owner, endpoint, record)
+    projection_consumer_snapshot(&mut machine, owner, endpoint, record)
         .assert_consistent_with(false, "live coverage");
 
     assert!(
         machine.remove_last_scheme_projection_coverage_for_compact_test(coverage_root),
         "the fixture removes the claim's last live coverage state"
     );
-    projection_consumer_snapshot(&machine, owner, endpoint, record)
+    projection_consumer_snapshot(&mut machine, owner, endpoint, record)
         .assert_consistent_with(true, "after last-live-state removal");
 
     assert!(
         machine.reinsert_scheme_projection_coverage_for_compact_test(coverage_root),
         "the fixture restores the claim's live coverage state"
     );
-    projection_consumer_snapshot(&machine, owner, endpoint, record)
+    projection_consumer_snapshot(&mut machine, owner, endpoint, record)
         .assert_consistent_with(false, "after live-state reinsertion");
 }
 
 fn projection_consumer_snapshot(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     owner: TypeVar,
     endpoint: TypeVar,
     record: BoundRecordId,
@@ -171,10 +178,10 @@ fn witness_references_record(draft: &GeneralizedWitnessDraft, record: BoundRecor
 
 #[test]
 fn positive_aliases_exclude_covered_only_lower() {
-    let (machine, covered, owner, _) =
+    let (mut machine, covered, owner, _) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
 
-    let aliases = positive_aliases_for(&machine, owner, [covered]);
+    let aliases = positive_aliases_for(&mut machine, owner, [covered]);
 
     assert!(
         aliases.is_empty(),
@@ -185,13 +192,13 @@ fn positive_aliases_exclude_covered_only_lower() {
 
 #[test]
 fn positive_aliases_keep_mixed_record_uncovered_relation_exactly_once() {
-    let (covered_machine, covered, covered_owner, _) =
+    let (mut covered_machine, covered, covered_owner, _) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
-    let (mixed_machine, mixed, mixed_owner, _) =
+    let (mut mixed_machine, mixed, mixed_owner, _) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
 
-    let covered_aliases = positive_aliases_for(&covered_machine, covered_owner, [covered]);
-    let mixed_aliases = positive_aliases_for(&mixed_machine, mixed_owner, [mixed]);
+    let covered_aliases = positive_aliases_for(&mut covered_machine, covered_owner, [covered]);
+    let mixed_aliases = positive_aliases_for(&mut mixed_machine, mixed_owner, [mixed]);
 
     assert_eq!(
         (covered_aliases, mixed_aliases),
@@ -205,12 +212,12 @@ fn positive_aliases_follow_last_live_coverage_transition() {
     let (mut machine, covered, owner, coverage_root) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
 
-    let aliases_before = positive_aliases_for(&machine, owner, [covered]);
+    let aliases_before = positive_aliases_for(&mut machine, owner, [covered]);
     assert!(
         machine.remove_last_scheme_projection_coverage_for_compact_test(coverage_root),
         "the fixture removes the root's last live coverage state"
     );
-    let aliases_after = positive_aliases_for(&machine, owner, [covered]);
+    let aliases_after = positive_aliases_for(&mut machine, owner, [covered]);
 
     assert_eq!(
         (aliases_before, aliases_after),
@@ -221,10 +228,10 @@ fn positive_aliases_follow_last_live_coverage_transition() {
 
 #[test]
 fn positive_aliases_preserve_no_claim_relations_byte_for_byte() {
-    let (machine, owner, direct, transitive) =
+    let (mut machine, owner, direct, transitive) =
         ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
 
-    let aliases = positive_aliases_for(&machine, owner, [direct, transitive]);
+    let aliases = positive_aliases_for(&mut machine, owner, [direct, transitive]);
 
     assert_eq!(
         aliases,
@@ -302,7 +309,7 @@ fn generalized_scheme_omits_stack_quantifier_without_live_stack_entry() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert!(generalized.quantifiers.is_empty());
     assert!(generalized.stack_quantifiers.is_empty());
@@ -334,7 +341,7 @@ fn finalized_scheme_keeps_live_stack_id_as_stack_quantifier() {
         rec_vars: Vec::new(),
     };
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
 
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
@@ -370,7 +377,7 @@ fn finalized_scheme_clones_stack_weight_payloads_into_poly_arena() {
         rec_vars: Vec::new(),
     };
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
 
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
@@ -402,7 +409,7 @@ fn subtract_is_pruned_when_every_covariant_position_is_non_subtract() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert_eq!(generalized.quantifiers, vec![effect]);
     assert!(generalized.stack_quantifiers.is_empty());
@@ -431,7 +438,7 @@ fn coalesced_covariant_position_prunes_subtract_after_weight_merge() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert!(generalized.stack_quantifiers.is_empty());
     assert!(
@@ -510,7 +517,7 @@ fn cleanup_removes_pop_only_weights_without_live_stack_entries() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
     assert!(generalized.stack_quantifiers.is_empty());
@@ -537,7 +544,7 @@ fn cleanup_removes_empty_floor_weights_without_live_stack_entries() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
     assert!(generalized.stack_quantifiers.is_empty());
@@ -563,7 +570,7 @@ fn cleanup_removes_bare_floor_weights_without_live_stack_entries() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     let weight = &generalized.compact.root.funs[0].ret_eff.vars[0].weight;
     assert!(generalized.stack_quantifiers.is_empty());
@@ -588,7 +595,7 @@ fn empty_stack_entry_with_plain_negative_var_is_internal() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
@@ -621,7 +628,7 @@ fn spent_residual_stack_entry_with_plain_negative_var_is_internal() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
@@ -654,7 +661,7 @@ fn instantiated_stack_entry_with_plain_negative_var_is_internal() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
 
@@ -685,7 +692,7 @@ fn low_level_stack_entry_is_not_stack_quantified() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert!(generalized.quantifiers.is_empty());
     assert!(generalized.stack_quantifiers.is_empty());
@@ -719,7 +726,7 @@ fn contravariant_unweighted_position_does_not_keep_subtract() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert!(generalized.stack_quantifiers.is_empty());
     assert!(
@@ -748,7 +755,7 @@ fn generalize_compact_root_after_simplification_keeps_low_level_vars() {
     simplify_compact_root(&machine, TypeLevel::root().child(), &mut root);
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert!(generalized.quantifiers.is_empty());
     assert!(compact_type_contains_var(&generalized.compact.root, outer));
@@ -762,7 +769,7 @@ fn generalize_type_var_runs_collect_simplify_finalize_pipeline() {
     machine.register_type_var(root, TypeLevel::root());
 
     let generalized = generalize_type_var_with_boundaries(
-        &machine,
+        &mut machine,
         root,
         TypeLevel::root(),
         TypeLevel::root().child(),
@@ -797,7 +804,7 @@ fn generalize_preserves_recursive_side_table() {
     };
 
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
 
     assert_eq!(generalized.quantifiers, vec![rec]);
     assert_eq!(generalized.compact.rec_vars.len(), 1);
@@ -813,7 +820,7 @@ fn finalized_generalized_naked_root_variable_becomes_never() {
         rec_vars: Vec::new(),
     };
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
 
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
@@ -843,7 +850,7 @@ fn finalized_generalized_root_moves_recursive_bounds_into_scheme() {
         }],
     };
     let generalized =
-        generalize_compact_root(&machine, TypeLevel::root(), root, &FxHashSet::default());
+        generalize_compact_root(&mut machine, TypeLevel::root(), root, &FxHashSet::default());
     let mut types = TypeArena::new();
 
     let finalized = finalize_generalized_compact_root(&mut types, &machine, &generalized);
@@ -876,7 +883,7 @@ fn finalizing_keeps_role_predicates_and_quantifies_their_vars() {
     }];
 
     let generalized = generalize_prepared_compact_root_with_roles(
-        &machine,
+        &mut machine,
         TypeLevel::root(),
         root,
         roles,
@@ -1001,7 +1008,7 @@ fn pre_simplifications_run_before_quantifier_selection() {
     };
 
     let generalized = generalize_prepared_compact_root_with_roles_and_simplifications(
-        &machine,
+        &mut machine,
         TypeLevel::root(),
         root,
         Vec::new(),

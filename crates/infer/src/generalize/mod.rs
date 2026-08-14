@@ -21,7 +21,9 @@ use crate::compact::{
     simplify_compact_root_with_roles_and_non_generic,
 };
 use crate::constraints::proof::ProjectionEvaluationRound;
-use crate::constraints::{ConstraintMachine, ConstraintWeights, TypeLevel};
+use crate::constraints::{
+    ConstraintMachine, ConstraintWeights, ProofFailure, ScopedLegacyProjectionQuery, TypeLevel,
+};
 use crate::roles::RoleInputVarianceTable;
 use crate::roles::{
     RoleAssociatedConstraint, RoleConstraint, RoleConstraintArg, RoleImplCandidate,
@@ -71,7 +73,7 @@ pub(crate) struct FinalizedGeneralizedCompactRoot {
 }
 
 pub(crate) fn generalize_type_var_with_boundaries(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     root: TypeVar,
     quantification_boundary: TypeLevel,
     simplification_boundary: TypeLevel,
@@ -89,7 +91,7 @@ pub(crate) fn generalize_type_var_with_boundaries(
 }
 
 pub(crate) fn generalize_prepared_compact_root_with_roles(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     boundary: TypeLevel,
     compact: CompactRoot,
     role_predicates: Vec<CompactRoleConstraint>,
@@ -106,7 +108,7 @@ pub(crate) fn generalize_prepared_compact_root_with_roles(
 }
 
 fn generalize_prepared_compact_root_with_roles_and_boundaries(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     quantification_boundary: TypeLevel,
     simplification_boundary: TypeLevel,
     mut compact: CompactRoot,
@@ -132,7 +134,7 @@ fn generalize_prepared_compact_root_with_roles_and_boundaries(
 }
 
 pub(crate) fn prepare_alias_expanded_compact_root_with_role_variances(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     simplification_boundary: TypeLevel,
     mut compact: CompactRoot,
     mut role_predicates: Vec<CompactRoleConstraint>,
@@ -279,60 +281,65 @@ pub(crate) fn prune_generalized_compact_root_for_cache(root: &mut GeneralizedCom
 }
 
 fn expand_positive_aliases_in_scheme_compact(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     compact: &mut CompactRoot,
     role_predicates: &mut [CompactRoleConstraint],
 ) {
     let allowed = compact_scheme_vars(compact, role_predicates);
-    let mut cache = FxHashMap::default();
-    let mut visiting = FxHashSet::default();
-    // This whole alias walk holds one immutable machine snapshot. Reuse its proof-validation
-    // state across variables, then drop it before the caller can apply any generated constraint.
-    let mut projection_round = ProjectionEvaluationRound::new();
-    expand_positive_aliases_in_type(
-        machine,
-        &allowed,
-        &mut cache,
-        &mut visiting,
-        &mut projection_round,
-        &mut compact.root,
-        AliasPolarity::Positive,
-    );
-    for rec in &mut compact.rec_vars {
-        expand_positive_aliases_in_bounds(
-            machine,
+    let mut round_state = machine.new_projection_evaluation_round();
+    // The entire root/recursive-variable/role walk shares one immutable legacy query scope. Its
+    // proof-validation, alias cache, and visiting state all disappear before simplification can
+    // resume through a shared machine reborrow.
+    let _ = machine.with_legacy_projection_query(&mut round_state, |query| {
+        let mut cache = FxHashMap::default();
+        let mut visiting = FxHashSet::default();
+        let mut projection_round = ProjectionEvaluationRound::new();
+        expand_positive_aliases_in_type(
+            &query,
             &allowed,
             &mut cache,
             &mut visiting,
             &mut projection_round,
-            &mut rec.bounds,
+            &mut compact.root,
             AliasPolarity::Positive,
-        );
-    }
-    for role in role_predicates {
-        for input in &mut role.inputs {
+        )?;
+        for rec in &mut compact.rec_vars {
             expand_positive_aliases_in_bounds(
-                machine,
+                &query,
                 &allowed,
                 &mut cache,
                 &mut visiting,
                 &mut projection_round,
-                &mut input.bounds,
+                &mut rec.bounds,
                 AliasPolarity::Positive,
-            );
+            )?;
         }
-        for associated in &mut role.associated {
-            expand_positive_aliases_in_bounds(
-                machine,
-                &allowed,
-                &mut cache,
-                &mut visiting,
-                &mut projection_round,
-                &mut associated.value.bounds,
-                AliasPolarity::Positive,
-            );
+        for role in role_predicates {
+            for input in &mut role.inputs {
+                expand_positive_aliases_in_bounds(
+                    &query,
+                    &allowed,
+                    &mut cache,
+                    &mut visiting,
+                    &mut projection_round,
+                    &mut input.bounds,
+                    AliasPolarity::Positive,
+                )?;
+            }
+            for associated in &mut role.associated {
+                expand_positive_aliases_in_bounds(
+                    &query,
+                    &allowed,
+                    &mut cache,
+                    &mut visiting,
+                    &mut projection_round,
+                    &mut associated.value.bounds,
+                    AliasPolarity::Positive,
+                )?;
+            }
         }
-    }
+        Ok(query.complete(()))
+    });
 }
 
 fn compact_scheme_vars(
@@ -366,26 +373,26 @@ impl AliasPolarity {
     }
 }
 
-fn expand_positive_aliases_in_type<'a>(
-    machine: &'a ConstraintMachine,
+fn expand_positive_aliases_in_type<'scope>(
+    query: &'scope ScopedLegacyProjectionQuery<'_>,
     allowed: &FxHashSet<TypeVar>,
     cache: &mut FxHashMap<TypeVar, Vec<TypeVar>>,
     visiting: &mut FxHashSet<TypeVar>,
-    projection_round: &mut ProjectionEvaluationRound<'a>,
+    projection_round: &mut ProjectionEvaluationRound<'scope>,
     ty: &mut CompactType,
     polarity: AliasPolarity,
-) {
+) -> Result<(), ProofFailure> {
     if polarity.is_positive() {
         let vars = ty.vars.clone();
         for var in vars {
             for alias in positive_aliases_within_scheme(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 var.var,
-            ) {
+            )? {
                 let alias_var = CompactVar::covariant(alias, var.weight.clone())
                     .with_origin(CompactVarOrigin::Secondary);
                 push_compact_var_alias(&mut ty.vars, alias_var);
@@ -396,184 +403,185 @@ fn expand_positive_aliases_in_type<'a>(
     for args in ty.cons.values_mut() {
         for arg in args {
             expand_positive_aliases_in_bounds(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 arg,
                 polarity,
-            );
+            )?;
         }
     }
     for fun in &mut ty.funs {
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut fun.arg,
             polarity.flipped(),
-        );
+        )?;
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut fun.arg_eff,
             polarity.flipped(),
-        );
+        )?;
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut fun.ret_eff,
             polarity,
-        );
+        )?;
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut fun.ret,
             polarity,
-        );
+        )?;
     }
     for record in &mut ty.records {
         for field in &mut record.fields {
             expand_positive_aliases_in_type(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 &mut field.value,
                 polarity,
-            );
+            )?;
         }
     }
     for spread in &mut ty.record_spreads {
         for field in &mut spread.fields {
             expand_positive_aliases_in_type(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 &mut field.value,
                 polarity,
-            );
+            )?;
         }
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut spread.tail,
             polarity,
-        );
+        )?;
     }
     for variant in &mut ty.poly_variants {
         for (_, payloads) in &mut variant.items {
             for payload in payloads {
                 expand_positive_aliases_in_type(
-                    machine,
+                    query,
                     allowed,
                     cache,
                     visiting,
                     projection_round,
                     payload,
                     polarity,
-                );
+                )?;
             }
         }
     }
     for tuple in &mut ty.tuples {
         for item in &mut tuple.items {
             expand_positive_aliases_in_type(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 item,
                 polarity,
-            );
+            )?;
         }
     }
     for row in &mut ty.rows {
         for args in row.items.values_mut() {
             for arg in args {
                 expand_positive_aliases_in_bounds(
-                    machine,
+                    query,
                     allowed,
                     cache,
                     visiting,
                     projection_round,
                     arg,
                     polarity,
-                );
+                )?;
             }
         }
         expand_positive_aliases_in_type(
-            machine,
+            query,
             allowed,
             cache,
             visiting,
             projection_round,
             &mut row.tail,
             polarity,
-        );
+        )?;
     }
+    Ok(())
 }
 
-fn expand_positive_aliases_in_bounds<'a>(
-    machine: &'a ConstraintMachine,
+fn expand_positive_aliases_in_bounds<'scope>(
+    query: &'scope ScopedLegacyProjectionQuery<'_>,
     allowed: &FxHashSet<TypeVar>,
     cache: &mut FxHashMap<TypeVar, Vec<TypeVar>>,
     visiting: &mut FxHashSet<TypeVar>,
-    projection_round: &mut ProjectionEvaluationRound<'a>,
+    projection_round: &mut ProjectionEvaluationRound<'scope>,
     bounds: &mut CompactBounds,
     polarity: AliasPolarity,
-) {
+) -> Result<(), ProofFailure> {
     match bounds {
         CompactBounds::Interval { lower, upper } => {
             expand_positive_aliases_in_type(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 lower,
                 polarity,
-            );
+            )?;
             expand_positive_aliases_in_type(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 upper,
                 polarity.flipped(),
-            );
+            )?;
         }
         CompactBounds::Con { args, .. } | CompactBounds::Tuple { items: args } => {
             for arg in args {
                 expand_positive_aliases_in_bounds(
-                    machine,
+                    query,
                     allowed,
                     cache,
                     visiting,
                     projection_round,
                     arg,
                     polarity,
-                );
+                )?;
             }
         }
         CompactBounds::Fun {
@@ -583,133 +591,136 @@ fn expand_positive_aliases_in_bounds<'a>(
             ret,
         } => {
             expand_positive_aliases_in_bounds(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 arg,
                 polarity.flipped(),
-            );
+            )?;
             expand_positive_aliases_in_bounds(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 arg_eff,
                 polarity.flipped(),
-            );
+            )?;
             expand_positive_aliases_in_bounds(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 ret_eff,
                 polarity,
-            );
+            )?;
             expand_positive_aliases_in_bounds(
-                machine,
+                query,
                 allowed,
                 cache,
                 visiting,
                 projection_round,
                 ret,
                 polarity,
-            );
+            )?;
         }
         CompactBounds::Record { fields } => {
             for field in fields {
                 expand_positive_aliases_in_bounds(
-                    machine,
+                    query,
                     allowed,
                     cache,
                     visiting,
                     projection_round,
                     &mut field.value,
                     polarity,
-                );
+                )?;
             }
         }
         CompactBounds::PolyVariant { items } => {
             for (_, payloads) in items {
                 for payload in payloads {
                     expand_positive_aliases_in_bounds(
-                        machine,
+                        query,
                         allowed,
                         cache,
                         visiting,
                         projection_round,
                         payload,
                         polarity,
-                    );
+                    )?;
                 }
             }
         }
     }
+    Ok(())
 }
 
-fn positive_aliases_within_scheme<'a>(
-    machine: &'a ConstraintMachine,
+fn positive_aliases_within_scheme<'scope>(
+    query: &'scope ScopedLegacyProjectionQuery<'_>,
     allowed: &FxHashSet<TypeVar>,
     cache: &mut FxHashMap<TypeVar, Vec<TypeVar>>,
     visiting: &mut FxHashSet<TypeVar>,
-    projection_round: &mut ProjectionEvaluationRound<'a>,
+    projection_round: &mut ProjectionEvaluationRound<'scope>,
     var: TypeVar,
-) -> Vec<TypeVar> {
+) -> Result<Vec<TypeVar>, ProofFailure> {
     if let Some(cached) = cache.get(&var) {
-        return cached.clone();
+        return Ok(cached.clone());
     }
     if !visiting.insert(var) {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     let mut out = Vec::new();
-    for entry in machine.scheme_projectable_lowers_in_round(var, projection_round) {
+    for entry in query.scheme_projectable_lowers_in_scope(var, projection_round)? {
         let bound = entry.bound;
         if !alias_neutral_constraint(&bound.weights) {
             continue;
         }
-        let Pos::Var(next) = machine.types().pos(bound.pos) else {
+        let Some(next) = query.pos_var_in_scope(bound.pos) else {
             continue;
         };
-        if !allowed.contains(next) {
+        if !allowed.contains(&next) {
             continue;
         }
-        push_unique_var(&mut out, *next);
-        for alias in positive_aliases_within_scheme(
-            machine,
-            allowed,
-            cache,
-            visiting,
-            projection_round,
-            *next,
-        ) {
+        push_unique_var(&mut out, next);
+        for alias in
+            positive_aliases_within_scheme(query, allowed, cache, visiting, projection_round, next)?
+        {
             push_unique_var(&mut out, alias);
         }
     }
 
     visiting.remove(&var);
     cache.insert(var, out.clone());
-    out
+    Ok(out)
 }
 
 #[cfg(test)]
 pub(crate) fn positive_aliases_within_scheme_for_cpk_test(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     allowed: impl IntoIterator<Item = TypeVar>,
     var: TypeVar,
 ) -> Vec<TypeVar> {
-    let mut projection_round = ProjectionEvaluationRound::new();
-    positive_aliases_within_scheme(
-        machine,
-        &allowed.into_iter().collect(),
-        &mut FxHashMap::default(),
-        &mut FxHashSet::default(),
-        &mut projection_round,
-        var,
-    )
+    let allowed = allowed.into_iter().collect();
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let mut projection_round = ProjectionEvaluationRound::new();
+            let aliases = positive_aliases_within_scheme(
+                &query,
+                &allowed,
+                &mut FxHashMap::default(),
+                &mut FxHashSet::default(),
+                &mut projection_round,
+                var,
+            )?;
+            Ok(query.complete(aliases))
+        })
+        .unwrap_or_default()
 }
 
 fn alias_neutral_constraint(weights: &ConstraintWeights) -> bool {
@@ -741,7 +752,7 @@ fn push_unique_var(vars: &mut Vec<TypeVar>, var: TypeVar) {
 
 #[cfg(test)]
 pub(crate) fn generalize_prepared_compact_root_with_roles_and_simplifications(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     boundary: TypeLevel,
     mut compact: CompactRoot,
     mut role_predicates: Vec<CompactRoleConstraint>,
@@ -764,7 +775,7 @@ pub(crate) fn generalize_prepared_compact_root_with_roles_and_simplifications(
 
 #[cfg(test)]
 pub(crate) fn generalize_compact_root(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     boundary: TypeLevel,
     root: CompactRoot,
     non_generic: &FxHashSet<TypeVar>,

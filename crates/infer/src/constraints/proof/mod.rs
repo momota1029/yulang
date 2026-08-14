@@ -22201,7 +22201,7 @@ mod tests {
             "every raw lower selected by CPK must produce the exact raw compact root"
         );
         let aliases = crate::generalize::positive_aliases_within_scheme_for_cpk_test(
-            &machine,
+            &mut machine,
             [endpoint],
             owner,
         );
@@ -22283,8 +22283,9 @@ mod tests {
                 },
             ),
         );
+        let included_evidence = projection_evidence_for_test(&included, included_record);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &included,
+            &mut included,
             included_owner,
             included_record,
             ProjectionDecision::Included {
@@ -22292,7 +22293,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
-                evidence: projection_evidence_for_test(&included, included_record),
+                evidence: included_evidence,
             },
         );
 
@@ -22327,7 +22328,7 @@ mod tests {
         );
         assert_eq!(round.cycle_cuts(), 1);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &excluded,
+            &mut excluded,
             excluded_owner,
             excluded_record,
             ProjectionDecision::Excluded,
@@ -22335,7 +22336,7 @@ mod tests {
     }
 
     fn assert_single_lower_matches_all_four_cpk_consumers(
-        machine: &ConstraintMachine,
+        machine: &mut ConstraintMachine,
         owner: TypeVar,
         record: BoundRecordId,
         expected: ProjectionDecision,
@@ -22431,7 +22432,7 @@ mod tests {
             no_ledger.proof_store.projection_formula_support_keys.len(),
         );
         assert_single_lower_matches_all_four_cpk_consumers(
-            &no_ledger,
+            &mut no_ledger,
             no_ledger_owner,
             no_ledger_record,
             ProjectionDecision::Unclaimed,
@@ -22462,7 +22463,7 @@ mod tests {
                 + 1,
         );
         assert_single_lower_matches_all_four_cpk_consumers(
-            &no_ledger,
+            &mut no_ledger,
             no_ledger_owner,
             no_ledger_record,
             ProjectionDecision::Unclaimed,
@@ -22482,8 +22483,9 @@ mod tests {
                 RecordProofClause::Standalone { support },
             ),
         );
+        let standalone_evidence = projection_evidence_for_test(&standalone, standalone_record);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &standalone,
+            &mut standalone,
             standalone_owner,
             standalone_record,
             ProjectionDecision::Included {
@@ -22491,7 +22493,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
-                evidence: projection_evidence_for_test(&standalone, standalone_record),
+                evidence: standalone_evidence,
             },
         );
 
@@ -22521,8 +22523,9 @@ mod tests {
                 },
             ),
         );
+        let derived_evidence = projection_evidence_for_test(&derived, derived_record);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &derived,
+            &mut derived,
             derived_owner,
             derived_record,
             ProjectionDecision::Included {
@@ -22530,7 +22533,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
-                evidence: projection_evidence_for_test(&derived, derived_record),
+                evidence: derived_evidence,
             },
         );
 
@@ -22546,8 +22549,9 @@ mod tests {
                 RecordProofClause::Standalone { support },
             ),
         );
+        let incomplete_evidence = projection_evidence_for_test(&incomplete, incomplete_record);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &incomplete,
+            &mut incomplete,
             incomplete_owner,
             incomplete_record,
             ProjectionDecision::Included {
@@ -22555,7 +22559,7 @@ mod tests {
                     uncovered_claims: Vec::new(),
                     independent_supports: vec![carrier],
                 },
-                evidence: projection_evidence_for_test(&incomplete, incomplete_record),
+                evidence: incomplete_evidence,
             },
         );
     }
@@ -22792,8 +22796,9 @@ mod tests {
                     + 1,
             );
             let owner = machine.bounds.record(record).unwrap().owner();
+            let evidence = projection_evidence_for_test(&machine, record);
             assert_single_lower_matches_all_four_cpk_consumers(
-                &machine,
+                &mut machine,
                 owner,
                 record,
                 ProjectionDecision::Included {
@@ -22801,7 +22806,7 @@ mod tests {
                         uncovered_claims: Vec::new(),
                         independent_supports: vec![carrier],
                     },
-                    evidence: projection_evidence_for_test(&machine, record),
+                    evidence,
                 },
             );
         }
@@ -22921,7 +22926,7 @@ mod tests {
         assert_ne!(replacement.representative_claim, before_representative);
         assert_eq!(replacement.representative_claim, replacement_claim);
         assert_single_lower_matches_all_four_cpk_consumers(
-            &fixture.machine,
+            &mut fixture.machine,
             owner,
             record,
             expected,
@@ -22962,7 +22967,7 @@ mod tests {
         ];
         let mut canonical_decision = None;
         for order in permutations {
-            let (fixture, _claims, record) = make_same_root_projection_included(order);
+            let (mut fixture, _claims, record) = make_same_root_projection_included(order);
             let owner = fixture.machine.bounds.record(record).unwrap().owner();
             let expected = ProjectionDecision::Included {
                 supports: ProjectionSupportSet {
@@ -22983,7 +22988,7 @@ mod tests {
             let (actual, _) = project_lower_for_test(&fixture.machine, record);
             assert_eq!(actual, Ok(expected.clone()), "arrival order {order:?}");
             assert_single_lower_matches_all_four_cpk_consumers(
-                &fixture.machine,
+                &mut fixture.machine,
                 owner,
                 record,
                 expected.clone(),

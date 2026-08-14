@@ -10,6 +10,7 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 use sources::{LoadedFile, Path};
 
+use crate::Arena;
 use crate::LoadedFilesError;
 use crate::ModuleId;
 use crate::constraints::TypeLevel;
@@ -132,43 +133,47 @@ pub fn summarize_lowering(lowering: &BodyLowering) -> PolyCheckReport {
     report
 }
 
-pub fn format_inferred_value_type(lowering: &BodyLowering, value: TypeVar) -> String {
-    format_inferred_value_type_with_path_rewriter(lowering, value, &|path| path.to_vec())
+pub fn format_inferred_value_type(lowering: &mut BodyLowering, value: TypeVar) -> String {
+    let types = &lowering.session.poly.typ;
+    let infer = &mut lowering.session.infer;
+    format_inferred_value_type_with_path_rewriter(types, infer, value, &|path| path.to_vec())
 }
 
 pub fn format_inferred_value_type_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> String {
-    let machine = lowering.session.infer.constraints();
+    let mut types = source_types.clone();
     let generalized = crate::generalize::generalize_type_var_with_boundaries(
-        machine,
+        infer.constraints_mut(),
         value,
         TypeLevel::root(),
         TypeLevel::root().child(),
         &FxHashSet::default(),
     );
-    let mut types = lowering.session.poly.typ.clone();
+    let machine = infer.constraints();
     let finalized =
         crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
     poly::dump::format_scheme_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
 }
 
 pub fn format_inferred_value_type_public_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> poly::dump::PublicTypeDisplay {
-    let machine = lowering.session.infer.constraints();
+    let mut types = source_types.clone();
     let generalized = crate::generalize::generalize_type_var_with_boundaries(
-        machine,
+        infer.constraints_mut(),
         value,
         TypeLevel::root(),
         TypeLevel::root().child(),
         &FxHashSet::default(),
     );
-    let mut types = lowering.session.poly.typ.clone();
+    let machine = infer.constraints();
     let finalized =
         crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
     poly::dump::format_scheme_public_with_path_rewriter(&types, &finalized.scheme, path_rewriter)
@@ -188,19 +193,20 @@ pub struct InferredMemberReceiver {
 }
 
 pub fn inferred_member_receiver_public_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> Option<InferredMemberReceiver> {
-    let machine = lowering.session.infer.constraints();
+    let mut types = source_types.clone();
     let generalized = crate::generalize::generalize_type_var_with_boundaries(
-        machine,
+        infer.constraints_mut(),
         value,
         TypeLevel::root(),
         TypeLevel::root().child(),
         &FxHashSet::default(),
     );
-    let mut types = lowering.session.poly.typ.clone();
+    let machine = infer.constraints();
     let finalized =
         crate::generalize::finalize_generalized_compact_root(&mut types, machine, &generalized);
     let (fields, nominal_path, ref_payload_path) = match types.pos(finalized.scheme.predicate) {
@@ -415,40 +421,42 @@ pub fn inferred_effect_method_candidates(
 }
 
 pub fn inferred_record_fields_public_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> Option<Vec<InferredRecordField>> {
-    inferred_member_receiver_public_with_path_rewriter(lowering, value, path_rewriter).and_then(
-        |receiver| {
+    inferred_member_receiver_public_with_path_rewriter(source_types, infer, value, path_rewriter)
+        .and_then(|receiver| {
             receiver
                 .nominal_path
                 .is_none()
                 .then_some(receiver.record_fields)
-        },
-    )
+        })
 }
 
 pub fn format_inferred_input_type_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> String {
-    let machine = lowering.session.infer.constraints();
+    let machine = infer.constraints();
     let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
-    let mut types = lowering.session.poly.typ.clone();
+    let mut types = source_types.clone();
     let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
     poly::dump::format_neg_with_path_rewriter(&types, ty, path_rewriter)
 }
 
 pub fn format_inferred_input_type_public_with_path_rewriter(
-    lowering: &BodyLowering,
+    source_types: &TypeArena,
+    infer: &Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> poly::dump::PublicTypeDisplay {
-    let machine = lowering.session.infer.constraints();
+    let machine = infer.constraints();
     let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
-    let mut types = lowering.session.poly.typ.clone();
+    let mut types = source_types.clone();
     let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
     poly::dump::format_neg_public_with_path_rewriter(&types, ty, path_rewriter)
 }

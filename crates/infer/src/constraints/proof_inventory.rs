@@ -955,13 +955,17 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-8G-6g1 removes the Legacy dependency-edge comparison read. CPK-8G-8c0 moves root
     // liveness, before-view capture, transitive closure, and all test assertions to the CPK index.
     // CPK-8G-8c1 removes the flat definition/reserve/commit mirror; only CPK storage remains.
-    ("dependent_records_by_premise", 12),
+    // CPK-SV-C-R0 adds one reviewed test-only failed-commit assertion against the CPK-owned
+    // secondary-premise index. It verifies receipt-gated publication and adds no authority.
+    ("dependent_records_by_premise", 13),
     // Fixture hygiene uses the reviewed root-admission API instead of four raw field writes;
     // CPK-8E removes the final migration-only Legacy normalizer read. CPK-8G-12 part 2 removes
     // the seven references belonging solely to the obsolete legacy payload facade. PCLF-D1's
     // order-before-validation regression fixture adds three test-only local `origins` references;
     // they construct independent supports and do not add a production proof-state authority.
-    ("origins", 124),
+    // CPK-SV-B's certificate-authority regression adds seven more fixture-local `origins`
+    // references to construct distinct independent supports; these are not storage reads.
+    ("origins", 131),
     ("source_boundaries", 7),
     // Fixture hygiene removes two raw synthetic ConstraintRecord field initializers and two
     // direct row-attachment writes in favor of the reviewed mirrored admission API. The CPK-7
@@ -1048,7 +1052,9 @@ const PROOF_STATE_REFERENCE_CENSUS: &[(&str, usize)] = &[
     // CPK-9 adds four reviewed CPK-only readers: two replace upper-claim scans in projection
     // preflight/evaluation, and replay-route batching adds two net shared-parent reads. All four
     // read the existing canonical ProofOccurrenceStore index and introduce no writer or mirror.
-    ("claims_by_upper_record", 40),
+    // CPK-SV-C-R2 adds three test-only capacity-census reads for the same canonical index. They
+    // measure allocation behavior and add neither a production reader nor another authority.
+    ("claims_by_upper_record", 43),
     // CPK-8E removes the final migration-only parent-set normalizer read.
     // CPK-8G-5 resets each former RCPF snapshot source once in its CPK-only freeze test.
     // CPK-8G-6d removes parent-admission failure and probe characterizations.
@@ -2756,7 +2762,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         "canonical_projection_storage_is_invariant_across_all_four_event_permutations",
         "cpk_8f3_rcpf_failure_does_not_start_a_second_proof_attempt",
         "cpk_8g_4b_evaluator_traps_missing_machine_issued_references",
-        "cpk_gap_1_every_proof_failure_is_attempt_terminal",
+        "cpk_gap_1_proof_failure_terminal_classification_is_complete",
         "cpk_gap_1_mixed_claim_fixture_matches_all_four_cpk_consumers_exactly",
         "cpk_premise_dependency_chain_contains_exact_replay_endpoints",
         "cpk_projection_target_and_dependency_admission_is_atomic_and_target_late",

@@ -21,6 +21,13 @@ impl ImmutableTypeShapeView<'_> {
         matches!(self.types.pos(id), Pos::Var(_))
     }
 
+    pub(in crate::constraints::structural_kernel) fn pos_var(self, id: PosId) -> Option<TypeVar> {
+        match self.types.pos(id) {
+            Pos::Var(var) => Some(*var),
+            _ => None,
+        }
+    }
+
     pub(in crate::constraints::structural_kernel) fn neg_var(self, id: NegId) -> Option<TypeVar> {
         match self.types.neg(id) {
             Neg::Var(var) => Some(*var),

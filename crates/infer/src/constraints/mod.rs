@@ -27,6 +27,13 @@ mod row_effect;
 #[cfg(test)]
 mod semantic_execution_snapshot;
 mod structural_kernel;
+#[allow(
+    unused_imports,
+    reason = "SS2-P0 exposes the exact cross-sibling projection signature surface incrementally"
+)]
+pub(crate) use structural_kernel::{
+    ProjectionEvaluationRoundState, QueryCompletion, ScopedLegacyProjectionQuery,
+};
 #[cfg(test)]
 mod tests;
 mod timing;
@@ -1039,7 +1046,10 @@ impl RecordProofClauseLinkAdmission {
                 ClaimedProjectionProofSource::ReplayEvidence { .. },
             )
         );
-        assert!(source_matches, "claimed clause metadata must match its exact writer kind");
+        assert!(
+            source_matches,
+            "claimed clause metadata must match its exact writer kind"
+        );
         Self {
             support: SchemeProjectionProofSupport::Claimed(representative_claim),
             clause,
@@ -1135,8 +1145,10 @@ impl<'a> CpkTestProjectionEvaluationRound<'a> {
             .expect("sharing remains available until a cycle cut disables it");
         let cuts_before = shared.cycle_cuts();
         let result = shared.eval_record(record);
-        assert!(!shared.has_visiting_state(),
-            "projection evaluation left a Visiting node after a top-level query");
+        assert!(
+            !shared.has_visiting_state(),
+            "projection evaluation left a Visiting node after a top-level query"
+        );
         let cycle_was_cut = shared.cycle_cuts() != cuts_before;
 
         if cycle_was_cut {
@@ -1633,9 +1645,9 @@ impl ConstraintMachine {
             | UpperReplayClaimLineage::ReductionRouteConstraint { result, .. } => {
                 self.lower_record_for_constraint(result)
             }
-            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => self
-                .proof_store
-                .projection_lower_record_for_replay(replay),
+            UpperReplayClaimLineage::ReplayEvidence { replay, .. } => {
+                self.proof_store.projection_lower_record_for_replay(replay)
+            }
         };
         match &decision {
             proof::PreparedDerivedClaimDecision::Coalesced { claim, .. } => {
@@ -2252,7 +2264,6 @@ impl TypeBounds {
     fn record_var_epoch(&mut self, var: TypeVar, epoch: ConstraintEpoch) {
         self.bounds_mut(var).epoch = epoch;
     }
-
 }
 
 fn ensure_slot<T>(items: &mut Vec<Option<T>>, index: usize) {

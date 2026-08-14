@@ -1469,7 +1469,7 @@ impl<'a> ExprLowerer<'a> {
         let compact = compact_type_var(self.session.infer.constraints(), root);
         let role_predicate = compact_role_constraint(self.session.infer.constraints(), &role);
         let generalized = generalize_prepared_compact_root_with_roles(
-            self.session.infer.constraints(),
+            self.session.infer.constraints_mut(),
             TypeLevel::root(),
             compact,
             vec![role_predicate],

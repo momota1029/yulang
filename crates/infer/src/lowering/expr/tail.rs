@@ -984,7 +984,7 @@ impl<'a> ExprLowerer<'a> {
             );
         }
         let generalized = generalize_type_var_with_boundaries(
-            self.session.infer.constraints(),
+            self.session.infer.constraints_mut(),
             value,
             fetch.generalize_boundary(boundary),
             boundary.child(),

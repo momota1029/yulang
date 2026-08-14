@@ -504,8 +504,8 @@ fn hover_draft_for_source(
     position: Position,
     options: &crate::StdSourceOptions,
 ) -> Option<LspHoverDraft> {
-    let analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
-    hover_for_analysis(path, &source, &analysis, position)
+    let mut analysis = source_analysis_for_source(path, source.clone(), options).ok()?;
+    hover_for_analysis(path, &source, &mut analysis, position)
 }
 
 fn completion_items_for_source(
@@ -623,7 +623,7 @@ fn rename_for_source(
 fn hover_for_analysis(
     path: &Path,
     source: &str,
-    analysis: &SourceTextAnalysis,
+    analysis: &mut SourceTextAnalysis,
     position: Position,
 ) -> Option<LspHoverDraft> {
     if let Some(hover) = diagnostic_hover_for_analysis(path, source, analysis, position) {
