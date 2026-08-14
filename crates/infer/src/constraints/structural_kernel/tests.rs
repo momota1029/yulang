@@ -215,6 +215,10 @@ fn cpk_sv_d_ss2_p0_legacy_scopes_read_real_machine_fields_without_machine_reborr
 fn cpk_sv_d_ss2_p0_legacy_delegates_reject_foreign_rounds_before_scope_entry() {
     let first = ConstraintMachine::new();
     let mut foreign_projection = first.new_projection_evaluation_round();
+    let foreign_failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerPreflight,
+    };
+    foreign_projection.inject_terminal_failure_for_test(foreign_failure);
     let projection_actual = foreign_projection.attempt_nonce_for_test();
     let mut second = ConstraintMachine::new();
     let projection_expected = second
@@ -234,6 +238,7 @@ fn cpk_sv_d_ss2_p0_legacy_delegates_reject_foreign_rounds_before_scope_entry() {
     );
     assert!(!projection_invoked.get());
     assert_eq!(second.proof_terminal_failure(), None);
+    assert_eq!(second.proof_attempt.query_trace(), (1, 1, 0, 0, 0));
 
     let mut foreign_publication = first.new_publication_evaluation_round();
     let publication_actual = foreign_publication.attempt_nonce_for_test();
