@@ -26,6 +26,7 @@ mod proof_soak;
 mod row_effect;
 #[cfg(test)]
 mod semantic_execution_snapshot;
+mod structural_kernel;
 #[cfg(test)]
 mod tests;
 mod timing;
@@ -109,7 +110,7 @@ pub struct ConstraintMachine {
     bounds: TypeBounds,
     #[allow(dead_code, reason = "CPK-6a promotes storage before writer cutover")]
     proof_store: proof::ProofOccurrenceStore,
-    proof_terminal_failure: RefCell<Option<proof::ProofFailure>>,
+    proof_attempt: structural_kernel::ProofAttemptKernel,
     var_adjacency: FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
     subtracts: SubtractTable,
     levels: TypeLevels,

@@ -10,7 +10,7 @@ impl ConstraintMachine {
             queue: VecDeque::new(),
             bounds: TypeBounds::new(),
             proof_store: proof::ProofOccurrenceStore::default(),
-            proof_terminal_failure: RefCell::new(None),
+            proof_attempt: structural_kernel::ProofAttemptKernel::new(),
             var_adjacency: FxHashMap::default(),
             subtracts: SubtractTable::new(),
             levels: TypeLevels::new(),
@@ -70,7 +70,7 @@ impl ConstraintMachine {
     }
 
     pub(crate) fn proof_terminal_failure(&self) -> Option<proof::ProofFailure> {
-        self.proof_terminal_failure.borrow().clone()
+        self.proof_attempt.terminal_failure()
     }
 
     pub(in crate::constraints) fn mark_proof_terminal_failure(
@@ -78,11 +78,7 @@ impl ConstraintMachine {
         operation: proof::ProofOperation,
         failure: proof::ProofFailure,
     ) {
-        let mut terminal = self.proof_terminal_failure.borrow_mut();
-        if terminal.is_none() {
-            record_proof_terminal_failure(operation, &failure);
-            *terminal = Some(failure);
-        }
+        self.proof_attempt.mark_terminal_failure(operation, failure);
     }
 
     pub fn alloc_pos(&mut self, pos: Pos) -> PosId {
