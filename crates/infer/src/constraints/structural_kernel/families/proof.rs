@@ -5,7 +5,4 @@ pub(in crate::constraints::structural_kernel) fn publish_shadow(port: ProofPubli
 }
 
 #[cfg(cpk_sv_d_ss2_p0_ui_legacy_sources_private)]
-fn ui_family_cannot_name_legacy_read_sources(
-    _: super::super::access::legacy_read_view::LegacyOnlyReadSources<'_>,
-) {
-}
+fn ui_family_cannot_name_legacy_read_sources(_: super::super::LegacyOnlyReadSources<'_>) {}

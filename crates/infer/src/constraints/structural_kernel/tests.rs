@@ -1,10 +1,16 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
 
+use poly::expr::DefId;
+use poly::types::{Neg, Pos, Subtractability, TypeVar};
+
 use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
 use crate::constraints::proof::{ProofFailure, ProofOperation};
-use crate::constraints::{ConstraintMachine, ConstraintRecordId, OriginId};
+use crate::constraints::{
+    BoundDerivation, ConstraintMachine, ConstraintRecordId, ConstraintWeights,
+    GeneralizedSchemeRecordId, LowerFilterRecordId, OriginId, ProvenanceCompleteness,
+};
 
 const ALL_INTENTS: [I; 29] = [
     I::AppendProofOccurrence,
@@ -95,7 +101,7 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
         ),
         (
             "cpk_sv_d_ss2_p0_ui_legacy_sources_private",
-            "module `legacy_read_view` is private",
+            "cannot find type `LegacyOnlyReadSources` in module `super::super`",
         ),
         (
             "cpk_sv_d_ss2_p0_ui_legacy_view_storage",
@@ -126,31 +132,153 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
 #[test]
 fn cpk_sv_d_ss2_p0_legacy_scopes_read_real_machine_fields_without_machine_reborrow() {
     let mut machine = ConstraintMachine::new();
+
+    // Proof family: seed one occurrence independent of the other family fixtures.
     machine
         .proof_store
-        .record_constraint_root(ConstraintRecordId(0), OriginId::unknown_internal());
+        .record_constraint_root(ConstraintRecordId(99), OriginId::unknown_internal());
+
+    // Bounds family: populate both the canonical index and record arena.
+    let bound_endpoint = machine.alloc_pos(Pos::Con(vec!["ss2_p0_bound".into()], Vec::new()));
+    machine.bounds.add_lower(
+        TypeVar(70),
+        bound_endpoint,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(OriginId::unknown_internal()),
+    );
+
+    // Constraint/replay family: populate its canonical index and record arena through production.
+    let constraint_lower = machine.alloc_pos(Pos::Con(vec!["ss2_p0_lower".into()], Vec::new()));
+    let constraint_upper = machine.alloc_neg(Neg::Con(vec!["ss2_p0_upper".into()], Vec::new()));
+    machine.subtype(
+        constraint_lower,
+        constraint_upper,
+        OriginId::unknown_internal(),
+    );
+
+    // Row family: seed both its map and exact-key record-index faces.
+    let row_owner = TypeVar(71);
+    let row_filter = Subtractability::Set(vec!["ss2_p0_row".into()], Vec::new());
+    machine
+        .lower_filters
+        .entry(row_owner)
+        .or_default()
+        .insert(row_filter.clone());
+    machine
+        .lower_filter_record_ids
+        .insert((row_owner, row_filter), LowerFilterRecordId(0));
+
+    // Identity family: the real interner populates the record and canonical index together.
+    machine.intern_scheme_instantiation(
+        GeneralizedSchemeRecordId(0),
+        DefId(1),
+        DefId(2),
+        TypeVar(72),
+        ProvenanceCompleteness::Complete,
+    );
 
     let mut projection_round = machine.new_projection_evaluation_round();
     let projection_counts = machine
         .with_legacy_projection_query(&mut projection_round, |mut query| {
             assert!(!query.shadow_check_target(7));
             assert!(query.shadow_check_target(7));
-            let counts = query.legacy_storage_counts();
+            let counts = query.legacy_storage_census();
             Ok(query.complete(counts))
         })
         .expect("legacy projection scope reads production owners");
-    assert_eq!(projection_counts, (1, 0, 0, 0, 2));
+    assert!(projection_counts.proof_occurrences >= 3);
+    assert_eq!(projection_counts.bound_canonical, 1);
+    assert_eq!(projection_counts.bound_records, 1);
+    assert_eq!(projection_counts.constraint_canonical, 1);
+    assert_eq!(projection_counts.constraint_records, 1);
+    assert_eq!(projection_counts.replay_drop_index, 0);
+    assert_eq!(projection_counts.row_records, 0);
+    assert_eq!(projection_counts.row_lower_filter_map, 1);
+    assert_eq!(projection_counts.row_lower_filter_index, 1);
+    assert_eq!(projection_counts.identity_records, 3);
+    assert_eq!(projection_counts.scheme_instantiations, 1);
+    assert_eq!(projection_counts.scheme_instantiation_index, 1);
 
     let mut publication_round = machine.new_publication_evaluation_round();
     let publication_counts = machine
         .with_legacy_publication_query(&mut publication_round, |mut query| {
             assert!(!query.shadow_check_target(11));
             assert!(query.shadow_check_target(11));
-            let counts = query.legacy_storage_counts();
+            let counts = query.legacy_storage_census();
             Ok(query.complete(counts))
         })
         .expect("legacy publication scope reads production owners");
     assert_eq!(publication_counts, projection_counts);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_legacy_delegates_reject_foreign_rounds_before_scope_entry() {
+    let first = ConstraintMachine::new();
+    let mut foreign_projection = first.new_projection_evaluation_round();
+    let projection_actual = foreign_projection.attempt_nonce_for_test();
+    let mut second = ConstraintMachine::new();
+    let projection_expected = second
+        .new_projection_evaluation_round()
+        .attempt_nonce_for_test();
+    let projection_invoked = std::cell::Cell::new(false);
+    let projection_result = second.with_legacy_projection_query(&mut foreign_projection, |query| {
+        projection_invoked.set(true);
+        Ok(query.complete(()))
+    });
+    assert_eq!(
+        projection_result,
+        Err(ProofFailure::ForeignAttemptRoundState {
+            expected: projection_expected,
+            actual: projection_actual,
+        })
+    );
+    assert!(!projection_invoked.get());
+    assert_eq!(second.proof_terminal_failure(), None);
+
+    let mut foreign_publication = first.new_publication_evaluation_round();
+    let publication_actual = foreign_publication.attempt_nonce_for_test();
+    let publication_expected = second
+        .new_publication_evaluation_round()
+        .attempt_nonce_for_test();
+    let publication_invoked = std::cell::Cell::new(false);
+    let publication_result =
+        second.with_legacy_publication_query(&mut foreign_publication, |query| {
+            publication_invoked.set(true);
+            Ok(query.complete(()))
+        });
+    assert_eq!(
+        publication_result,
+        Err(ProofFailure::ForeignAttemptRoundState {
+            expected: publication_expected,
+            actual: publication_actual,
+        })
+    );
+    assert!(!publication_invoked.get());
+    assert_eq!(second.proof_terminal_failure(), None);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_legacy_delegate_access_denials_remain_retryable() {
+    let mut machine = ConstraintMachine::new();
+    let busy = ProofFailure::TerminalLatchBusy;
+
+    let mut projection = machine.new_projection_evaluation_round();
+    let projection_result: Result<(), ProofFailure> =
+        machine.with_legacy_projection_query(&mut projection, |_| Err(busy.clone()));
+    assert_eq!(projection_result, Err(busy.clone()));
+    assert_eq!(machine.proof_terminal_failure(), None);
+    machine
+        .with_legacy_projection_query(&mut projection, |query| Ok(query.complete(())))
+        .expect("projection access denial stays retryable");
+
+    let mut publication = machine.new_publication_evaluation_round();
+    let publication_result: Result<(), ProofFailure> =
+        machine.with_legacy_publication_query(&mut publication, |_| Err(busy.clone()));
+    assert_eq!(publication_result, Err(busy));
+    assert_eq!(machine.proof_terminal_failure(), None);
+    machine
+        .with_legacy_publication_query(&mut publication, |query| Ok(query.complete(())))
+        .expect("publication access denial stays retryable");
 }
 
 #[test]

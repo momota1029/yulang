@@ -195,21 +195,45 @@ impl<'query> LegacyOnlyQueryView<'query> {
     }
 
     #[cfg(test)]
-    pub(super) fn storage_counts(&self) -> (usize, usize, usize, usize, usize) {
+    pub(super) fn storage_census(&self) -> LegacyStorageCensus {
         let _ = self.type_shapes;
-        (
-            self.sources.proof.occurrences.len(),
-            self.sources.bounds.records.len(),
-            self.sources.constraints_replay.constraint_records.len(),
-            self.sources.rows.row_residual_records.len()
+        LegacyStorageCensus {
+            proof_occurrences: self.sources.proof.occurrences.len(),
+            bound_canonical: self.sources.bounds.canonical.len(),
+            bound_records: self.sources.bounds.records.len(),
+            constraint_canonical: self.sources.constraints_replay.canonical_constraints.len(),
+            constraint_records: self.sources.constraints_replay.constraint_records.len(),
+            replay_drop_index: self.sources.constraints_replay.replay_drop_index.len(),
+            row_records: self.sources.rows.row_residual_records.len()
                 + self.sources.rows.unweighted_row_reduction_records.len()
                 + self.sources.rows.row_derivations.len()
                 + self.sources.rows.lower_filter_records.len(),
-            self.sources.identities.origins.len()
+            row_lower_filter_map: self.sources.rows.lower_filters.len(),
+            row_lower_filter_index: self.sources.rows.lower_filter_record_ids.len(),
+            identity_records: self.sources.identities.origins.len()
                 + self.sources.identities.source_boundaries.len()
                 + self.sources.identities.generalized_schemes.len()
                 + self.sources.identities.generalized_witnesses.len()
                 + self.sources.identities.scheme_instantiations.len(),
-        )
+            scheme_instantiations: self.sources.identities.scheme_instantiations.len(),
+            scheme_instantiation_index: self.sources.identities.scheme_instantiation_index.len(),
+        }
     }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::constraints::structural_kernel) struct LegacyStorageCensus {
+    pub(in crate::constraints::structural_kernel) proof_occurrences: usize,
+    pub(in crate::constraints::structural_kernel) bound_canonical: usize,
+    pub(in crate::constraints::structural_kernel) bound_records: usize,
+    pub(in crate::constraints::structural_kernel) constraint_canonical: usize,
+    pub(in crate::constraints::structural_kernel) constraint_records: usize,
+    pub(in crate::constraints::structural_kernel) replay_drop_index: usize,
+    pub(in crate::constraints::structural_kernel) row_records: usize,
+    pub(in crate::constraints::structural_kernel) row_lower_filter_map: usize,
+    pub(in crate::constraints::structural_kernel) row_lower_filter_index: usize,
+    pub(in crate::constraints::structural_kernel) identity_records: usize,
+    pub(in crate::constraints::structural_kernel) scheme_instantiations: usize,
+    pub(in crate::constraints::structural_kernel) scheme_instantiation_index: usize,
 }

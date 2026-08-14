@@ -826,8 +826,8 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
     }
 
     #[cfg(test)]
-    pub(super) fn legacy_storage_counts(&self) -> (usize, usize, usize, usize, usize) {
-        self.view.storage_counts()
+    pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
+        self.view.storage_census()
     }
 
     #[cfg(test)]
@@ -879,8 +879,8 @@ impl<'query> ScopedLegacyPublicationQuery<'query> {
     }
 
     #[cfg(test)]
-    pub(super) fn legacy_storage_counts(&self) -> (usize, usize, usize, usize, usize) {
-        self.view.storage_counts()
+    pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
+        self.view.storage_census()
     }
 
     #[cfg(test)]
@@ -970,7 +970,31 @@ impl<'machine> LegacyQueryMachineFields<'machine> {
             generalized_witnesses,
             scheme_instantiations,
             scheme_instantiation_index,
-            ..
+            // Non-routed machine orchestration and diagnostic sidecars are explicit so a newly
+            // added field makes this census non-exhaustive until its authority is classified.
+            queue: _,
+            var_adjacency: _,
+            subtracts: _,
+            levels: _,
+            next_internal_type_var: _,
+            bound_dispositions: _,
+            declared_subtracts: _,
+            effect_family_paths: _,
+            row_tail_vars: _,
+            pre_pop_effect_families: _,
+            effect_filter_violations: _,
+            events: _,
+            method_role_mutations: _,
+            timing: _,
+            epoch: _,
+            provenance_epoch: _,
+            role_solve_supplemental_epoch: _,
+            replay_frontier_shadow: _,
+            replay_routing_shadow: _,
+            #[cfg(test)]
+                cdm_lower_delta_census: _,
+            #[cfg(test)]
+                semantic_execution_trace: _,
         } = machine;
 
         let constraints_replay = LegacyConstraintReplayReadSources::new(
