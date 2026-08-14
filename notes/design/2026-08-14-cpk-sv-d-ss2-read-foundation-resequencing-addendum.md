@@ -2,9 +2,9 @@
 
 日付: 2026-08-14
 
-版: **rev.7（確定）**
+版: **rev.9（確定）**
 
-状態: **確定 rev.7、Claude (Sonnet 5) 独立査読済み、ユーザ承認済み（2026-08-14）**
+状態: **確定 rev.9、Claude (Sonnet 5) 独立査読済み、ユーザ承認済み（2026-08-14）**
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読・確定
 
@@ -14,8 +14,10 @@
 > ならない。承認後は、
 > `notes/design/2026-08-13-cpk-sv-d-sealed-conservative-cache-plan.md`
 > rev.9（以下、親設計）の§7にあるSS1完了後からSS6完了までの**実装順序とslice gateだけ**を本書が補足・
-> 置換する。親設計の§0〜§6、§8 invariants 37〜78、§9 stop conditions、§10 review checklist、SS7以降の
-> cache authorityは変更しない。
+> 置換する。rev.9はこれに加え、親設計invariant 76のexact visibilityを、§2.1.1に列挙する
+> projection-side cross-sibling surfaceだけ`pub(crate)`へ狭く修正する。それ以外の親設計§0〜§6、§8
+> invariants 37〜78の結果要件、§9 stop conditions、§10 review checklist、SS7以降のcache authorityは
+> 変更しない。
 
 rev.2はrev.1への独立adversarial reviewで判明した、partial sealing中のcross-scope reuseがD0 writer censusの
 exhaustivenessへ依存するsoundness gapを修正する。SS2〜SS5ではcross-scope checked/memo reuseを機械的に無効化し、
@@ -50,6 +52,18 @@ rev.7はcaller inventoryの残る二つのmechanical gapを閉じる。row 7へc
 `scheme_projection_record_is_included` callを追加し、pre-mutation scopeをwrite前に必ず閉じ、post-mutation scopeを
 publication evaluation全体の外側で一回だけ開く。またP0ではborrowed `SchemeProjectableLower<'query>`をscope-localに
 留め、owned conversionは従来どおりSS2へ残す。P0から逃がすのはwitness draftや`CompactRoot`など上位のowned outputだけである。
+
+rev.8はSlice Cの実装contactで判明したexact visibility gapを閉じる。rev.7は
+`generalize/mod.rs`と`check.rs`をprojection queryのproduction callerとして列挙したが、これらは
+`constraints`のdescendantではなくsiblingである。従ってprojection-sideのmachine entrypoint、その
+signatureに現れるround/scope/completion type、および必要なsafe scope methodだけを`pub(crate)`へ広げる。
+publication-side、raw source/view/storage、field、constructor、candidate internalsは広げない。
+
+rev.9はrev.8のcross-sibling safe surfaceに不足していたtype-shape queryを追加する。row 2は
+projectable lowerのweightを検査した後、その`PosId`が`TypeVar`かを解決する。scope内で
+`ConstraintMachine::types()`を再borrowせず同じ条件付き順序を保つため、legacy/final projection facadeへ
+`pos_var_in_scope(PosId) -> Option<TypeVar>`だけを追加する。general view、type arena、raw type-shape referenceは
+公開しない。
 
 ## 0. 決定の要約
 
@@ -126,21 +140,31 @@ HRTB scopeへbatchすることで保存する。separate scopeは別immutable bo
 
 ### 2.1 Exact restricted surface
 
-SS1-RFで次の型を、親設計§3.1.1どおりexactly `pub(in crate::constraints)`で定義・re-exportする。ただし
-これは新規に同名の二重shellを作る意味ではない。SS1ですでに
-`crates/infer/src/constraints/structural_kernel/mod.rs`と`access.rs`へ入った
-`ProjectionEvaluationRoundState`、`CpkPublicationEvaluationRoundState`、`ScopedProjectionQuery`、
-`ScopedPublicationProjectionQuery`、`QueryCompletion`、`ScopedQueryView`のshadow shellを、本節のexact lifetime・visibility・
-reuse-mode contractで**拡張・置換**する。field、constructor、cache candidate、raw storageはそれぞれのowner
-module privateのままとする。
+SS1-RFではSS1ですでに`crates/infer/src/constraints/structural_kernel/mod.rs`と`access.rs`へ入った
+round/scope shellを、本節のexact lifetime・visibility・reuse-mode contractで**拡張・置換**する。
+同名の二重shellは作らない。rev.9以降のexact visibilityは次の二帯で固定する。
 
-- `ProjectionEvaluationRoundState`
-- `CpkPublicationEvaluationRoundState`
-- `ScopedQueryView<'query>`
-- `ScopedProjectionQuery<'query>`
-- `ScopedPublicationProjectionQuery<'query>`
-- `QueryCompletion<R>`
-- `ProofAccessError::ForeignAttemptRoundState`
+| Surface | Exact visibility | Reason |
+|---|---|---|
+| `ProjectionEvaluationRoundState` | `pub(crate)` | `generalize` / `check` / `compact`が`constraints`のsiblingからprojection roundをthreadする |
+| `ScopedProjectionQuery<'query>` | `pub(crate)` | final sealed projection closureのparameterとしてcross-sibling signatureに現れる |
+| `QueryCompletion<R>` | `pub(crate)` | projection closure boundのreturnに現れるshared opaque completion typeである |
+| `CpkPublicationEvaluationRoundState` | `pub(in crate::constraints)` | publication callerはcurrent inventory上`constraints` subtree内だけである |
+| `ScopedPublicationProjectionQuery<'query>` | `pub(in crate::constraints)` | 同上 |
+| `ScopedQueryView<'query>` | `pub(in crate::constraints)` by default | cross-sibling callerには`ScopedProjectionQuery`上の目的別safe methodを出し、raw/general view型は広げない |
+| `ProofAccessError::ForeignAttemptRoundState` | `pub(in crate::constraints)` | access/kernel internal contractの現行範囲を維持する |
+
+`ScopedProjectionQuery::complete`、`ScopedProjectionQuery::pos_var_in_scope`とcross-sibling production callerが
+実際に使う列挙済みの目的別safe projection getter/helperは`pub(crate)`とする。
+`ScopedProjectionQuery::view()`をcross-sibling surfaceにしてはならない。将来それが必要に
+なった場合は、`ScopedQueryView<'query>`と対象safe getterも`pub(crate)`でなければ
+`deny(private_bounds, private_interfaces)`を満たせないため、本列挙の自動拡張ではなく再査読対象とする。
+
+`structural_kernel/mod.rs`は対象型のre-export bindingだけを`pub(crate)`に分離する。
+`constraints/mod.rs`は`structural_kernel`自体を`pub(crate)`にせず、cross-sibling signatureに必要な
+`ProjectionEvaluationRoundState`、`ScopedProjectionQuery`、`QueryCompletion`だけを
+`pub(crate) use structural_kernel::{...}`で再exportする。field、constructor、cache candidate、raw storageはそれぞれの
+owner module privateのままとする。
 
 `ProjectionEvaluationRoundState` / `CpkPublicationEvaluationRoundState`は、final SS6 APIとpartial-sealing safetyを同じ型で
 表すためprivate reuse modeを持つ。
@@ -180,7 +204,7 @@ impl<T> RoundReuseSlot<T> {
 }
 
 // access.rs。RoundReuseState自体をname/match/constructできない。
-pub(in crate::constraints) struct ProjectionEvaluationRoundState {
+pub(crate) struct ProjectionEvaluationRoundState {
     attempt: Option<ProofAttemptNonce>,
     terminal_failure: Option<ProofFailure>,
     reuse: sealing::RoundReuseSlot<ProjectionReusableRoundState>,
@@ -231,19 +255,72 @@ struct CpkProjectionEvaluatorFacade<'query> {
 `validate_constraint`、CPK-SV-C late-bound claim/live read、record/root recursionも同じfacade内で直接再帰し、nested
 query scopeを作らない。scope間の共有はSS6の`Sealed` modeまで禁止する。
 
+#### 2.1.1 Projection callerのcross-sibling visibility例外
+
+rev.7のexact surfaceはproduction callerがすべて`constraints` subtree内にいると暗黙に仮定していた。しかし
+§4.0.1.1と§4.0.2 row 1/2が列挙する`generalize/mod.rs`、`generalize/provenance.rs`、`compact/collect`、
+`check.rs`は`constraints`のdescendantではなくcrate siblingである。`pub(in crate::constraints)`の
+`ConstraintMachine::with_legacy_projection_query`はこれらから呼べず、entrypointだけを`pub(crate)`に
+しても、closure bound内のscope/completion typeとround argumentがより狭いため
+`deny(private_bounds, private_interfaces)`でcompileしない。
+
+従って次のprojection-side列挙だけをcross-sibling surfaceとする。
+
+- `ConstraintMachine::new_projection_evaluation_round`: `pub(crate)`
+- `ConstraintMachine::with_legacy_projection_query`: `pub(crate)`
+- `ProjectionEvaluationRoundState`: `pub(crate)`
+- `ScopedLegacyProjectionQuery<'query>`: `pub(crate)`
+- `QueryCompletion<R>`: `pub(crate)`
+- `ScopedLegacyProjectionQuery::complete`: `pub(crate)`
+- `ScopedLegacyProjectionQuery::scheme_projectable_lowers_in_scope`: `pub(crate)`
+- `ScopedLegacyProjectionQuery::pos_var_in_scope(PosId) -> Option<TypeVar>`: `pub(crate)`
+- final sealed cutoverの`ConstraintMachine::with_projection_query`、`ScopedProjectionQuery<'query>`、
+  `ScopedProjectionQuery::complete`、
+  `ScopedProjectionQuery::pos_var_in_scope(PosId) -> Option<TypeVar>`、および本節に列挙する実caller用の
+  目的別safe projection getter/helper: `pub(crate)`
+
+`structural_kernel/mod.rs`は上の型のre-export bindingだけを`pub(crate)`に分離し、
+`constraints/mod.rs`はその型だけを`pub(crate) use structural_kernel::{...}`で到達可能にする。
+`structural_kernel`自体、`LegacyOnlyReadSources`、`LegacyOnlyQueryView`、`RoundReuseState`、
+`ProofAttemptKernel`、scope/round/completionのfield・constructor・candidate internals、raw storageは広げない。
+
+publication-sideのround/scope/delegateはcurrent caller inventoryが`constraints` subtree内で閉じているため、
+`pub(in crate::constraints)`のままとする。将来cross-sibling publication callerが見つかった場合だけ、
+そのcallerとsignature surfaceを別の査読対象とする。
+
+この例外はinvariant 66のraw storage/write authority privacyを弱めない。nameableになるのは
+HRTBでlifetime-boundされたopaque safe facadeとmachine-minted round/completionの型名・必要safe methodだけである。
+constructor、field、raw getter/mutator、capability、cache/publication portはprivateのままである。invariant 76の
+「wrapperとsignature typeを同じeffective visibilityにし、constructorを閉じる」結果要件を、
+cross-sibling projection callerの実breadthに合わせて正確化するものである。
+
+`pos_var_in_scope`はraw `Pos`、`TypeArena`、`ImmutableTypeShapeView`へのreferenceを返さない。実装はscope内の
+type-shape authorityに対する`PosId` lookupを行い、`Pos::Var(var)`だけをowned `TypeVar`として返す。
+row 2は現行どおりweightがalias-neutralと判定されたlowerに対してだけこのmethodを呼ぶ。従って全lowerを
+eagerにresolveするresult-shape変更を避け、lookup順序、skip条件、allocation特性を変えない。
+
 ### 2.2 Exact machine entrypoints
 
-production caller breadthへ見せるsignatureは親設計rev.9から変更しない。
+production caller breadthへ見せるsignatureのerror/lifetime/constructor contractは親設計rev.9から変更しない。
+visibilityだけは§2.1.1のcross-sibling projection例外を適用する。
 
 ```rust
 impl ConstraintMachine {
-    pub(in crate::constraints) fn with_projection_query<R>(
+    pub(crate) fn new_projection_evaluation_round(
+        &self,
+    ) -> ProjectionEvaluationRoundState;
+
+    pub(crate) fn with_projection_query<R>(
         &mut self,
         round: &mut ProjectionEvaluationRoundState,
         query: impl for<'query> FnOnce(
             ScopedProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
     ) -> Result<R, ProofFailure>;
+
+    pub(in crate::constraints) fn new_publication_evaluation_round(
+        &self,
+    ) -> CpkPublicationEvaluationRoundState;
 
     pub(in crate::constraints) fn with_publication_projection_query<R>(
         &mut self,
@@ -252,6 +329,10 @@ impl ConstraintMachine {
             ScopedPublicationProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
     ) -> Result<R, ProofFailure>;
+}
+
+impl<'query> ScopedProjectionQuery<'query> {
+    pub(crate) fn pos_var_in_scope(&self, pos: PosId) -> Option<TypeVar>;
 }
 ```
 
@@ -314,8 +395,11 @@ visibility、attempt binding、one-scope内のephemeral sharingを検証する�
 
 ### 3.2 Gate
 
-- `ScopedProjectionQuery` / `ScopedPublicationProjectionQuery` / `QueryCompletion<R>` / both round-state typesが
-  exactly `pub(in crate::constraints)`でre-exportされ、fields/constructors/candidate internalsはprivateである。
+- projection-sideの`ProjectionEvaluationRoundState` / `ScopedProjectionQuery` / `QueryCompletion<R>`はexactly
+  `pub(crate)`で`constraints` rootからre-exportされ、publication-side round/scopeはexactly
+  `pub(in crate::constraints)`のままである。fields/constructors/candidate internalsはprivateである。
+- legacy/final projection facadeの`pos_var_in_scope(PosId) -> Option<TypeVar>`がexactly `pub(crate)`で、
+  raw `Pos` / view / type-shape referenceを返さず、row 2 closureが`ConstraintMachine::types()`を再borrowしない。
 - 両`ConstraintMachine::with_*_query` signatureが`deny(private_bounds, private_interfaces)`でgreenである。
 - query scopeからraw `&T` / cursor / viewを返すprobeがE0515相当、scope内からsame kernel terminal/mutation methodを
   呼ぶprobeがE0500/E0501相当でcompile-failし、owned value returnはgreenである。
@@ -341,7 +425,8 @@ visibility、attempt binding、one-scope内のephemeral sharingを検証する�
 - `SealingIncomplete` modeでもsuccess-derived checked/memo/override/cycle payloadをpersistent roundへ保存できるescapeが
   残る。
 - raw reference/cursorをscope外へ返さないとexisting semantic resultを表せず、owned result planでも閉じない。
-- exact restricted visibilityが`pub(crate)`、public field/constructor、private-bound lint回避を要求する。
+- §2.1.1の列挙外でexact restricted visibilityが`pub(crate)`、public field/constructor、private-bound lint回避を
+  要求する。
 - production pathを切り替えないままshadow APIを置くこと自体がexisting terminal-latch semanticsを変える。
 - `TypeArena` append-only premiseがSS0結果と矛盾する。
 
@@ -372,8 +457,8 @@ struct LegacyOnlyReadSources<'query> {
     identities: LegacyIdentityReadSources<'query>,
 }
 
-// 型名だけcaller breadthへ見せ、field/constructor/getter backendはprivateにする。
-pub(in crate::constraints) struct ScopedLegacyProjectionQuery<'query> {
+// projection型名だけcrate sibling callerへ見せ、field/constructor/getter backendはprivateにする。
+pub(crate) struct ScopedLegacyProjectionQuery<'query> {
     view: LegacyOnlyQueryView<'query>,
     // projection用scope-local ephemeral state
 }
@@ -383,8 +468,12 @@ pub(in crate::constraints) struct ScopedLegacyPublicationQuery<'query> {
     // publication用scope-local ephemeral state
 }
 
+impl<'query> ScopedLegacyProjectionQuery<'query> {
+    pub(crate) fn pos_var_in_scope(&self, pos: PosId) -> Option<TypeVar>;
+}
+
 impl ConstraintMachine {
-    pub(in crate::constraints) fn with_legacy_projection_query<R>(
+    pub(crate) fn with_legacy_projection_query<R>(
         &mut self,
         round: &mut ProjectionEvaluationRoundState,
         query: impl for<'query> FnOnce(
@@ -401,6 +490,14 @@ impl ConstraintMachine {
     ) -> Result<R, ProofFailure>;
 }
 ```
+
+P0 projection closureがcompletion、scope-local lower fold、条件付き`PosId`→`TypeVar`解決を表現できるよう、
+`ScopedLegacyProjectionQuery::complete`、`scheme_projectable_lowers_in_scope`、
+`pos_var_in_scope`だけを`pub(crate)`とする。
+`ProjectionEvaluationRoundState`、`ScopedLegacyProjectionQuery`、`QueryCompletion`は`constraints/mod.rs`から
+`pub(crate) use structural_kernel::{...}`でre-exportする。`LegacyOnlyReadSources`と`LegacyOnlyQueryView`は
+re-exportせず、scope型のfield/constructorもprivateのままとする。publication-sideの
+`ScopedLegacyPublicationQuery`、`with_legacy_publication_query`、safe methodは`pub(in crate::constraints)`を維持する。
 
 delegateは`&mut self.proof_attempt`、`&self.types`、そして実際のlegacy family field群をfield split-borrowする。
 closureに`&ConstraintMachine`を再渡しせず、現行preflight/evaluatorが必須とする読み取りを
@@ -510,7 +607,7 @@ production callerを全件列挙する。rev.7起案時点のactual codeで次�
 | # | current round owner | Before | After: HRTB boundaryとsharing維持 |
 |---|---|---|---|
 | 1 | `ConstraintMachine::scheme_projectable_lowers` (`constraints/mod.rs:1262`)とその派生caller | method内で一つ`ProjectionEvaluationRound`を作り、`scheme_projectable_lowers_in_round` (`:1271`)のowner-record loop全体へthreadする。さらに`capture_generalized_witnesses` (`generalize/provenance.rs:21,212`)のrecursive `WitnessCollector`と、scheme-mode `CompactCollector` (`compact/collect/mod.rs:655-660`)がこのmethodを呼ぶ | direct helperは`with_legacy_projection_query`内でだけ呼べるscope-local APIとし、borrowed `Vec<SchemeProjectableLower<'query>>` / iteratorをclosure外へ返さない。witness captureは`lowering/expr/tail.rs:993`と`analysis/session/instantiate.rs:59`の各top-level captureごとにcollector traversal全体を一scopeで包み、owned witness draft/completenessだけを返す。input formattingは`check.rs:432,444`からscheme-mode compaction全体を一scopeで包み、owned `CompactRoot`だけを返す。`SchemeProjectableLower`自身のowned conversionはSS2まで行わない |
-| 2 | `expand_positive_aliases_in_scheme_compact` (`generalize/mod.rs:281`, round creation `:291`) | root、全recursive-variable bounds、role input、associated valueのwalk全体に一roundをthreadし、recursively reached ownerも同じroundを使う | callerがexclusive machine accessを渡し、`with_legacy_projection_query`をroot/rec-var/role traversal全体の外側へhoistする。recursive helperはmachine/roundではなくscope-local facadeをthreadし、nested scope zeroでcache/visiting/checked sharingを維持する |
+| 2 | `expand_positive_aliases_in_scheme_compact` (`generalize/mod.rs:281`, round creation `:291`) | root、全recursive-variable bounds、role input、associated valueのwalk全体に一roundをthreadし、recursively reached ownerも同じroundを使う。projectable lowerのweightがalias-neutralなら`machine.types().pos(bound.pos)`で`TypeVar`を解決する | callerがexclusive machine accessを渡し、`with_legacy_projection_query`をroot/rec-var/role traversal全体の外側へhoistする。recursive helperはmachine/roundではなくscope-local facadeをthreadし、weight判定後に`pos_var_in_scope(bound.pos)`を呼ぶ。nested scope zero、machine再borrow zeroでcache/visiting/checked sharingと現行のconditional lookup順序を維持する |
 | 3 | `record_scheme_projection_liveness_mutation` (`constraints/mod.rs:1399`) | root overrideを持つ`before_round`とcurrent resultの`after_round`を作り、`affected_records` filter全体でそれぞれのevaluator memoを共有する | 一回の`with_legacy_publication_query`がaffected-record traversal全体を包み、scope内にbefore/afterの二つの独立ephemeral evaluator laneを作る。owned affected-owner setをscope外へ返し、後続mutation/publicationはscope drop後に行う |
 | 4 | `evaluate_record_inclusion_publication` (`constraints/mod.rs:1833`) | record override付きbefore roundとafter roundを作り、dependent-record loopで二つのmemoを共有する | outer entryでは一publication scopeがdependent-record loop全体を包み、scope-local before/after laneを使う。既にpublication scope内にいるrow 7 subrow 7-bからは`evaluate_record_inclusion_publication_in_scope`相当を直接呼び、wrapperをnested callしない。`SchemeProjectionPublicationIntent`に必要なowned owner set/metadataだけを返す |
 | 5 | `try_evaluate_projection_inclusion_snapshot` (`constraints/mod.rs:1879`) | 一のafter roundを`before` snapshot map全entryで共有する | 一publication scopeをsnapshot-map loopの外へhoistし、同じscope-local evaluatorで全recordを評価する。owned intent/transition traceだけを返す |
@@ -1288,7 +1385,8 @@ authority前に必要なallocation/failure/candidate-publication hardeningを独
 
 変更しないもの:
 
-- 親設計§3のfinal architectureとexact visibility。
+- 親設計§3のfinal architecture。exact visibilityは§2.1.1に列挙するprojection-side cross-sibling surfaceだけ
+  `pub(crate)`に正確化し、それ以外は親設計の範囲を変更しない。
 - sealed gateway、closed mutation vocabulary、conservative Changed default、private `Unchanged` proof allowlist。
 - semantic base、domain-typed reservation token、closed publication plan、panic-free publication、receipt authority。
 - CPK-SV-A/B/Cのcertificate/order/stable obligation/late binding/support-ledger/canonical fallback/error precedence。
@@ -1312,7 +1410,7 @@ authority前に必要なallocation/failure/candidate-publication hardeningを独
 | 53 no partial-sealing cache authority | SS1-RF〜SS5はcross-scope checked/memo reuseもcache hitもoff。SS6も§6.1 structural guard、§6.2 human census/test/review、capacity、latch、failure propagation、candidate discardの全gateがgreenになるまでは`SealingIncomplete`を維持し、最後のatomic gateでだけ`Sealed` reuseを有効化する。SS6中の早期activationを部分landingとして認めない。persistent validity-cache hitはSS7までoff |
 | 55 CPK-SV-A/B/C preservation | recursive/late-bound readと共有target batchをsingle exclusive query scope内で行い、formula/claim/move semanticsを変えない |
 | 63 snapshot/conflict separation | SS2〜SS5はD0 snapshotをround reuseにもprepared base/conflictにも使わない。SS6のround bindingはwitnessがborrowするgateway authorityからcompleted snapshotを導出し、raw/D0 snapshotを別引数で受け取らない。gateway completed snapshotもreuse identityだけでconflict baseにしない |
-| 66 Rust privacy | P0 legacy-only sourceとpartial read sourceはprivate access/read_view internalsだけに置き、layout field/constructor、family/raw mutator visibilityを広げない |
+| 66 Rust privacy | P0 legacy-only sourceとpartial read sourceはprivate access/read_view internalsだけに置く。§2.1.1の`pub(crate)`例外はopaque projection round/scope/completionの型名と必要safe methodだけで、`structural_kernel`、layout field/constructor、family/raw storage/mutator、capability、candidate internalsのvisibilityは広げない |
 | 67 active-attempt closure | queryはSS1-RFの`&mut ProofAttemptKernel` HRTB wrapperだけから到達する |
 | 68 publication failure | SS6 closeoutで従来どおりtyped `Result` propagationをlandingし、SS7前gateを維持する |
 | 69 prepared lifetime | read resequenceはpreparation arena/guard lifetimeを変更しない |
@@ -1320,7 +1418,7 @@ authority前に必要なallocation/failure/candidate-publication hardeningを独
 | 72 panic-free publication | SS2のclosed proof publication-plan gateを一切縮小しない |
 | 73 HRTB lifetime closure | SS1-RFでcompiler gateを先行し、SS2からreal readへ適用する |
 | 75 lifetime-free round persistence | SS2〜SS5は意図的なtransition narrowingとしてround-persistent stateをattempt identityとprojection terminal controlだけへ限定し、success-derived checked/memo/override/cycle payloadを保持しない。current sharingはone immutable scope内で維持する。親invariantのfull cross-scope owned-state complianceは、SS6 atomic gateが§6.1 witnessをconsumeし、§6.2 human gateも完了してsealed snapshot-bound reuseを回復した時点で再開する。witness単独をexhaustive sealing proofとは扱わない |
-| 76 exact visibility/type shape | exact `pub(in crate::constraints)` surfaceとexplicit `&TypeArena` split borrowをSS1-RFで固定する |
+| 76 exact visibility/type shape | cross-sibling production callerを持つprojection-side列挙はwrapperとsignature typeを同effective visibilityのexact `pub(crate)`にし、`constraints` rootから必要型だけre-exportする。safe methodはlegacy/final両facadeの`complete`、legacyの`scheme_projectable_lowers_in_scope`、legacy/final両方の`pos_var_in_scope`と本節で明示した目的別helperだけに限定する。publication-sideはexact `pub(in crate::constraints)`を維持する。両帯ともfield/constructor/cache portはprivate、`&TypeArena` split borrowはexplicitのままとする |
 | 77 owned result boundary | proof read cutoverと同じSS2でborrowed resultをowned化する |
 | 78 closed multi-container publication | original SS2〜SS5 gateを維持する |
 
@@ -1386,6 +1484,12 @@ Claude (Sonnet 5) は少なくとも次を反証する。
     scope内変換され、`SchemeProjectableLower`自身のowned conversionをSS2より前へ無断で移していないか。
 30. row 7 subrow 7-aのscopeがclause-link write前にdropし、7-bがwrite後にfresh scopeへ入り、current inclusionとrow 4の
     dependent-record evaluationを同じscope-local evaluatorで行い、scope drop後だけdefer/publicationしているか。
+31. `pub(crate)`へ広げたitemが§2.1.1のprojection-side列挙だけで、safe accessorがlegacy/final両facadeの
+    `pos_var_in_scope(PosId) -> Option<TypeVar>`を含む一方、publication-side、`structural_kernel`自体、
+    `ScopedQueryView` / `LegacyOnlyQueryView` / `ImmutableTypeShapeView`、legacy/raw source/storage、capability、
+    candidate internalsへ広がっていないか。
+32. `constraints` rootの`pub(crate) use structural_kernel::{...}`が必要なprojection round/scope/completion typeだけを
+    re-exportし、fields/constructorsのexternal struct-literal構築とscope/completion偽造がcompile-failのままか。
 
 ---
 
