@@ -3168,12 +3168,12 @@ fn source_hover_from_check(
     let local_spans = session
         .local_defs
         .source_spans()
-        .map(|(def, span)| (def, span.clone()))
+        .filter_map(|(def, span)| {
+            (&span.file == file && source_range_contains(span.range, byte_offset))
+                .then(|| (def, span.clone()))
+        })
         .collect::<Vec<_>>();
     for (def, span) in local_spans {
-        if &span.file != file || !source_range_contains(span.range, byte_offset) {
-            continue;
-        }
         push_best_hover(
             &mut best,
             hover_for_def(session, labels, &format_context, def, span.range),
@@ -3204,12 +3204,12 @@ fn source_hover_from_check(
     let selection_spans = session
         .selections
         .source_spans()
-        .map(|(select, span)| (select, span.clone()))
+        .filter_map(|(select, span)| {
+            (&span.file == file && source_range_contains(span.range, byte_offset))
+                .then(|| (select, span.clone()))
+        })
         .collect::<Vec<_>>();
     for (select, span) in selection_spans {
-        if &span.file != file || !source_range_contains(span.range, byte_offset) {
-            continue;
-        }
         push_best_hover(
             &mut best,
             hover_for_select(session, labels, &format_context, select, span.range),
@@ -3284,9 +3284,15 @@ fn source_completion_from_check(
         .local_defs
         .completion_scopes()
         .filter_map(|(_, local)| {
+            let scope_span = local.scope_span.as_ref()?;
+            if &scope_span.file != file
+                || byte_offset < scope_span.range.start
+                || byte_offset > scope_span.range.end
+            {
+                return None;
+            }
             Some((
                 local.name.clone()?,
-                local.scope_span.clone()?,
                 local.role,
                 local.value,
                 local.scope_depth,
@@ -3294,13 +3300,7 @@ fn source_completion_from_check(
         })
         .collect::<Vec<_>>();
     let mut locals = HashMap::<String, (usize, SourceCompletionItem)>::new();
-    for (name, scope_span, role, value, scope_depth) in completion_locals {
-        if &scope_span.file != file
-            || byte_offset < scope_span.range.start
-            || byte_offset > scope_span.range.end
-        {
-            continue;
-        }
+    for (name, role, value, scope_depth) in completion_locals {
         let detail = Some(match role {
             infer::uses::LocalDefRole::Input => {
                 format_context.format_input_type(&check.lowering.session, value)

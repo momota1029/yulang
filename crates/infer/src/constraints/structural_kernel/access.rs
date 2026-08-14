@@ -676,7 +676,7 @@ pub(crate) struct QueryCompletion<R> {
     candidates: SuccessfulValidationCandidates,
 }
 
-pub(in crate::constraints) struct ScopedProjectionQuery<'query> {
+pub(crate) struct ScopedProjectionQuery<'query> {
     view: ScopedQueryView<'query>,
     candidates: SuccessfulValidationCandidates,
     invocation: ProjectionInvocationState,
@@ -703,13 +703,13 @@ pub(in crate::constraints) struct ScopedLegacyPublicationQuery<'query> {
 }
 
 macro_rules! query_shell {
-    ($name:ident) => {
+    ($name:ident, $complete_visibility:vis) => {
         impl $name<'_> {
             pub(in crate::constraints) fn view(&self) -> &ScopedQueryView<'_> {
                 &self.view
             }
 
-            pub(in crate::constraints) fn complete<R>(self, value: R) -> QueryCompletion<R> {
+            $complete_visibility fn complete<R>(self, value: R) -> QueryCompletion<R> {
                 QueryCompletion {
                     value,
                     candidates: self.candidates,
@@ -719,8 +719,11 @@ macro_rules! query_shell {
     };
 }
 
-query_shell!(ScopedProjectionQuery);
-query_shell!(ScopedPublicationProjectionQuery);
+query_shell!(ScopedProjectionQuery, pub(crate));
+query_shell!(
+    ScopedPublicationProjectionQuery,
+    pub(in crate::constraints)
+);
 
 impl<'query> ScopedProjectionQuery<'query> {
     fn try_new(
@@ -732,6 +735,10 @@ impl<'query> ScopedProjectionQuery<'query> {
             candidates: SuccessfulValidationCandidates,
             invocation: ProjectionInvocationState::default(),
         })
+    }
+
+    pub(crate) fn pos_var_in_scope(&self, pos: PosId) -> Option<TypeVar> {
+        self.view.type_shapes().pos_var(pos)
     }
 
     #[cfg(cpk_sv_d_ss1_rf_ui_raw_escape)]
@@ -1096,7 +1103,7 @@ impl ConstraintMachine {
     }
 
     #[deny(private_bounds, private_interfaces)]
-    pub(in crate::constraints) fn with_projection_query<R>(
+    pub(crate) fn with_projection_query<R>(
         &mut self,
         round: &mut ProjectionEvaluationRoundState,
         query: impl for<'query> FnOnce(

@@ -14,11 +14,12 @@ mod read_view;
 
 pub(in crate::constraints) use access::{
     CpkPublicationEvaluationRoundState, PreparedStructuralMutationHandle, ProofAccessError,
-    ProofAttemptKernel, ProofAttemptNonce, ScopedLegacyPublicationQuery, ScopedProjectionQuery,
+    ProofAttemptKernel, ProofAttemptNonce, ScopedLegacyPublicationQuery,
     ScopedPublicationProjectionQuery, StructuralPreparationScope,
 };
 pub(crate) use access::{
     ProjectionEvaluationRoundState, QueryCompletion, ScopedLegacyProjectionQuery,
+    ScopedProjectionQuery,
 };
 pub(in crate::constraints) use commands::{CommittedStructuralMutation, StructuralMutationIntent};
 pub(in crate::constraints) use read_view::{ImmutableTypeShapeView, ScopedQueryView};

@@ -33,6 +33,7 @@ mod structural_kernel;
 )]
 pub(crate) use structural_kernel::{
     ProjectionEvaluationRoundState, QueryCompletion, ScopedLegacyProjectionQuery,
+    ScopedProjectionQuery,
 };
 #[cfg(test)]
 mod tests;
