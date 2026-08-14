@@ -101,6 +101,15 @@ pub(in crate::constraints::structural_kernel) struct ProofStructuralState {
 }
 
 impl ProofStructuralState {
+    pub(super) fn query_data(&self) -> &StructuralData {
+        &self.data
+    }
+
+    #[cfg(test)]
+    pub(super) fn shadow_snapshot_value(&self) -> u64 {
+        self.shadow_snapshot
+    }
+
     pub(super) fn next_scope_nonce(&mut self) -> PreparationScopeNonce {
         let nonce = PreparationScopeNonce(self.next_scope_nonce);
         self.next_scope_nonce = self.next_scope_nonce.saturating_add(1);

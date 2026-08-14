@@ -2,7 +2,8 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
 
 use super::commands::StructuralMutationIntent as I;
-use super::{ProofAccessError, ProofAttemptKernel};
+use super::{ProofAccessError, ProofAttemptKernel, ProofQueryError};
+use crate::constraints::ConstraintMachine;
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 
 const ALL_INTENTS: [I; 29] = [
@@ -72,6 +73,14 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
             "cpk_sv_d_ss1_ui_domain_port_mismatch",
             "expected `ProofOccurrencesDomain`, found `ProjectionFormulaByRecordDomain`",
         ),
+        (
+            "cpk_sv_d_ss1_rf_ui_raw_escape",
+            "cannot move out of `query` because it is borrowed",
+        ),
+        (
+            "cpk_sv_d_ss1_rf_ui_same_kernel_mutation",
+            "cannot borrow `*machine` as mutable because it is also borrowed as immutable",
+        ),
     ];
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     for (cfg, expected) in probes {
@@ -92,6 +101,186 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
             "UI probe {cfg} missed expected diagnostic {expected:?}:\n{stderr}",
         );
     }
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_one_scope_shares_but_separate_scopes_always_miss() {
+    let mut machine = ConstraintMachine::new();
+    let mut round = machine.new_projection_evaluation_round();
+    let before_snapshot = machine.proof_attempt.shadow_snapshot_value();
+
+    let within_scope = machine
+        .with_projection_query(&mut round, |mut query| {
+            assert!(!query.shadow_check_target(41));
+            // A second top-level target reaches the same shadow record inside one scope.
+            assert!(query.shadow_check_target(41));
+            let stats = query.shadow_stats();
+            Ok(query.complete(stats))
+        })
+        .unwrap();
+    assert_eq!(within_scope, (1, 1));
+
+    let separate_scope = machine
+        .with_projection_query(&mut round, |mut query| {
+            assert!(!query.shadow_check_target(41));
+            let stats = query.shadow_stats();
+            Ok(query.complete(stats))
+        })
+        .unwrap();
+    assert_eq!(separate_scope, (1, 0));
+    assert_eq!(
+        machine.proof_attempt.shadow_snapshot_value(),
+        before_snapshot
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_publication_scope_state_is_invocation_local() {
+    let mut machine = ConstraintMachine::new();
+    let mut round = machine.new_publication_evaluation_round();
+    let first = machine
+        .with_publication_projection_query(&mut round, |mut query| {
+            assert!(!query.shadow_check_target(7));
+            assert!(query.shadow_check_target(7));
+            let stats = query.shadow_stats();
+            Ok(query.complete(stats))
+        })
+        .unwrap();
+    let second = machine
+        .with_publication_projection_query(&mut round, |mut query| {
+            assert!(!query.shadow_check_target(7));
+            let stats = query.shadow_stats();
+            Ok(query.complete(stats))
+        })
+        .unwrap();
+    assert_eq!(first, (1, 1));
+    assert_eq!(second, (1, 0));
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_foreign_projection_round_is_access_denial() {
+    let first = ConstraintMachine::new();
+    let mut foreign_round = first.new_projection_evaluation_round();
+    let actual = foreign_round.attempt_nonce_for_test();
+    let mut second = ConstraintMachine::new();
+    let expected = second
+        .new_projection_evaluation_round()
+        .attempt_nonce_for_test();
+    let invoked = std::cell::Cell::new(false);
+
+    let result = second.with_projection_query(&mut foreign_round, |query| {
+        invoked.set(true);
+        Ok(query.complete(()))
+    });
+    assert_eq!(
+        result,
+        Err(ProofQueryError::Access(
+            ProofAccessError::ForeignAttemptRoundState { expected, actual }
+        ))
+    );
+    assert!(!invoked.get());
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_foreign_publication_round_is_access_denial() {
+    let first = ConstraintMachine::new();
+    let mut foreign_round = first.new_publication_evaluation_round();
+    let actual = foreign_round.attempt_nonce_for_test();
+    let mut second = ConstraintMachine::new();
+    let expected = second
+        .new_publication_evaluation_round()
+        .attempt_nonce_for_test();
+    let invoked = std::cell::Cell::new(false);
+
+    let result = second.with_publication_projection_query(&mut foreign_round, |query| {
+        invoked.set(true);
+        Ok(query.complete(()))
+    });
+    assert_eq!(
+        result,
+        Err(ProofQueryError::Access(
+            ProofAccessError::ForeignAttemptRoundState { expected, actual }
+        ))
+    );
+    assert!(!invoked.get());
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_nonce_exhaustion_uses_fresh_ephemeral_state() {
+    let mut machine = ConstraintMachine::new();
+    machine.proof_attempt = ProofAttemptKernel::new_reuse_disabled_for_test();
+    let mut round = machine.new_projection_evaluation_round();
+    assert_eq!(round.attempt_nonce_for_test(), None);
+
+    for _ in 0..2 {
+        let stats = machine
+            .with_projection_query(&mut round, |mut query| {
+                assert!(!query.shadow_check_target(9));
+                let stats = query.shadow_stats();
+                Ok(query.complete(stats))
+            })
+            .unwrap();
+        assert_eq!(stats, (1, 0));
+    }
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_query_failure_stays_separate_from_access_denial() {
+    let mut machine = ConstraintMachine::new();
+    let mut round = machine.new_projection_evaluation_round();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    let result: Result<(), ProofQueryError> =
+        machine.with_projection_query(&mut round, |_| Err(failure.clone()));
+    assert_eq!(result, Err(ProofQueryError::Failure(failure.clone())));
+
+    let result = machine.with_projection_query(&mut round, |query| Ok(query.complete(())));
+    assert_eq!(
+        result,
+        Err(ProofQueryError::Access(ProofAccessError::Terminal(failure)))
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_authenticated_scope_construction_failure_uses_common_branch() {
+    let mut machine = ConstraintMachine::new();
+    let mut round = machine.new_projection_evaluation_round();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerPreflight,
+    };
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    let invoked = std::cell::Cell::new(false);
+    let result: Result<(), ProofQueryError> = machine.with_projection_query(&mut round, |query| {
+        invoked.set(true);
+        Ok(query.complete(()))
+    });
+    assert_eq!(result, Err(ProofQueryError::Failure(failure.clone())));
+    assert!(!invoked.get());
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_publication_scope_construction_failure_uses_common_branch() {
+    let mut machine = ConstraintMachine::new();
+    let mut round = machine.new_publication_evaluation_round();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerPreflight,
+    };
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    let invoked = std::cell::Cell::new(false);
+    let result: Result<(), ProofQueryError> =
+        machine.with_publication_projection_query(&mut round, |query| {
+            invoked.set(true);
+            Ok(query.complete(()))
+        });
+    assert_eq!(result, Err(ProofQueryError::Failure(failure.clone())));
+    assert!(!invoked.get());
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
 }
 
 #[test]

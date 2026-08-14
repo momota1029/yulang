@@ -66,4 +66,9 @@ impl StructuralData {
             self.identities.shadow_publications,
         ]
     }
+
+    #[cfg(cpk_sv_d_ss1_rf_ui_raw_escape)]
+    pub(in crate::constraints::structural_kernel) fn raw_shadow_probe(&self) -> &u64 {
+        &self.proof.shadow_publications
+    }
 }
