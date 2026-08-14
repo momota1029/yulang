@@ -1688,3 +1688,244 @@ failure-boundary設計が row 7 と共通することを踏まえてこの節が
 
 記録状態: 2026-08-15、ユーザは就寝中のため確認を求めず、既存の「質問なくpushしながら続けてOK」という
 標準承認の範囲内でこの規模の新規architecture判断まで進めるべきではないと判断し、ここで区切った。
+
+## 2026-08-15 追記（三度目）: row 4 / row 7はrow 3の既存idiomをそのまま転用する
+
+本節は、二度目の却下後に行ったactual call graphとgateway failure contractの調査結果に基づく。
+新しいpending ownership protocol、call-site-specific terminal escalation、retry loop、terminal latch書き込み
+mechanismは追加しない。row 4 / row 7は、既にmerge済みで独立査読greenのrow 3が使っている
+failure-handling idiomと同じclassification branchを、post-commit queryのcaller boundaryでそのまま使う。
+
+### 調査で確定した既存contract
+
+`with_legacy_projection_query` / `with_legacy_publication_query`はgateway内のquery closureまたは
+scope constructionから`Err(failure)`を受けたとき、次の既存branchを通る。
+
+```rust
+if failure.requires_attempt_terminal() {
+    self.mark_terminal_failure(
+        ProofOperation::ProjectLowerEvaluation,
+        failure.clone(),
+    );
+}
+Err(failure)
+```
+
+したがって、`requires_attempt_terminal() == true`のproof-semantic failureはgatewayから返る時点で
+attempt terminal latchは既にset済みである。一方、access-layer denialである
+`TerminalLatchBusy`と`ForeignAttemptRoundState`は`requires_attempt_terminal() == false`であり、gatewayはこれらを
+deliberately latchしない。pre-authenticationの`ensure_query_kernel_active` / `authenticate_round`が返すdenialも、
+query-result共通branchより前に返るためautomatic latchの対象にならない。
+
+row 3の既存`insert_scheme_projection_live_coverage_state` /
+`remove_scheme_projection_live_coverage_state`は、fallible queryをauthoritative commitより前に行う
+`try_update_scheme_projection_live_coverage`の`Result`を受け、denial時に次のidiomを使う。
+
+```rust
+Err(failure) => {
+    if failure.requires_attempt_terminal() {
+        self.mark_proof_terminal_failure(
+            proof::ProofOperation::UpdateClaimLifecycle,
+            failure,
+        );
+    }
+    false
+}
+```
+
+このcaller branchはgatewayと同じclassificationを尊重する。proof-semantic failureはterminalのままであり、
+`TerminalLatchBusy` / `ForeignAttemptRoundState`を新たにsticky terminalへ格上げしない。その後、このcaller自身は
+failureを`false`へ畳み込み、そのoperationをno-opとして終了する。
+
+### 決定: pre-commitは`Result`で防ぎ、post-commitはrow 3 idiomでno-opに畳み込む
+
+この決定は、row 4の直接entryである`apply_scheme_projection_mutation`だけでなく、row 7の
+clause-link/index cascadeと、同じread -> commit -> read/evaluate構造を持つ
+`defer_scheme_projection_mutation`も明示的に対象とする。
+
+#### 1. pre-commit read
+
+`was_included`の読み取りは、fresh `with_legacy_publication_query`を一回だけ開いてowned `bool`へ
+畳み込み、scopeを閉じる。このscopeがdenialを返した場合、Phase A commitはzeroとする。
+
+これを実現するため、`apply_scheme_projection_mutation` / `defer_scheme_projection_mutation`と、
+row 7 subrow 7-aのpre-readをownする必要最小限のcaller chainは`Result<_, ProofFailure>`を返す。
+pre-commit denialは`?`で上位のfailure boundaryへ伝播する。これは新しいfailure categoryや
+recovery protocolではなく、既存gatewayとrow 3の`try_*` helperが使う`Result<_, ProofFailure>`
+signatureをcaller chainへ機械的にthreadする変更である。
+
+#### 2. authoritative commit
+
+pre-commit readが成功した後だけ、対象のauthoritative structural mutationを一回だけ無条件にcommitする。
+
+- row 4の直接entryと`defer_scheme_projection_mutation`: `commit_scheme_projection_mutation`
+- row 7: clause-link / dependency / index mutation
+
+このcommitにrollback、prepared overlay、pending receiptを追加しない。
+
+#### 3. post-commit read + dependent evaluation
+
+commit後にfresh `with_legacy_publication_query` scopeを開く。このscope内でlive `is_included`を読み、
+Phase A前のowned `was_included`をbefore laneのrecord-result overrideに使い、before/afterの独立ephemeral laneで
+dependent-record traversalを完了する。scopeから返すのはowned
+`SchemeProjectionPublicationIntent`だけとする。
+
+row 4の直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-bは、同じ
+`evaluate_record_inclusion_publication_in_scope`相当のscope-local helperを使う。row 7は7-bのouter scope内からこの
+helperを呼び、nested gateway scopeを開かない。
+
+#### 4. post-commit denial
+
+post-commit scopeが`Err(failure)`を返した場合、各callerはrow 3と同一のbranchを使う。
+
+```rust
+if failure.requires_attempt_terminal() {
+    self.mark_proof_terminal_failure(
+        proof::ProofOperation::ProjectLowerEvaluation,
+        failure,
+    );
+}
+```
+
+その後、completed intentを作らず、publication / fence append / deferを行わず、そのcaller operationを
+no-opとして終了する。post-commit denialはこのcallerからさらに`Err`として返さず、
+`apply_scheme_projection_mutation`は`Ok(())`、`defer_scheme_projection_mutation`とrow 7の該当operationも各自の
+success/no-op値へ畳み込む。この後半はrow 3のinsert/remove callerが`Err`を`false`へ畳み込む形と同じである。
+
+`TerminalLatchBusy` / `ForeignAttemptRoundState`は`requires_attempt_terminal() == false`のため、
+`mark_proof_terminal_failure`は呼ばれない。proof-semantic failureは同methodが`true`を返すため、
+gatewayのautomatic latchに加えてcallerもrow 3と同じclassification checkを通す。新しいterminal escalation規則はない。
+
+### 二度目案の査読指摘への対応
+
+1. **pre-commit failure contractが存在しない**: 存在しないcontractに依存せず、
+   `apply_scheme_projection_mutation` / `defer_scheme_projection_mutation`と必要caller chainを
+   `Result<_, ProofFailure>`へ機械的に変更し、pre-commit denialを`?`で伝播することを明記した。
+2. **terminal latchが全downstream consumerをgateしない**: 追加調査により、
+   `lower_binding_bodies`とsingle-file `dump.rs`経路は未checkだが、現在のin-repo production callerはzeroであること、
+   actual production entryは`lower_loaded_files*`とその上位経路でterminal latchをcheckすることを確認した。
+   これはrow 3の既に承認されたfailure idiomにも存在するpre-existingかつ直交するgapであり、
+   row 4 / row 7 migrationで新たに修正または拡大しない。
+3. **`defer_scheme_projection_mutation`が未網羅**: 本節のpre-read、commit、post-read/evaluate、
+   denial/no-opの全flowに明示的に含めた。
+4. **`TerminalLatchBusy`をmarkする際の`RefCell` borrow conflict**: `TerminalLatchBusy`は
+   `requires_attempt_terminal() == false`であり、row 3と同じbranchでは
+   `mark_proof_terminal_failure`呼び出しへ到達しない。従って同cellへの新しい`borrow_mut()` pathは生じず、
+   二度目案のpanic riskをconstructionで持ち込まない。
+
+### 残るtradeoffと適用範囲
+
+post-commit Phase Bが`TerminalLatchBusy` / `ForeignAttemptRoundState`のようなnon-terminal failureでdenyされた場合、
+Phase Aのauthoritative commitは残るが、そのadmission eventに対するderived publication / dependent-record propagationは
+そのroundでは行われない。これは意図的なgraceful degradationであり、silent corruptionとは扱わない。
+authoritative proof/support/clause/index mutation自体は既存commit contractに従って完了し、half-commitにはならない。
+欠落するのは後続のderived publication signalであり、authoritative store自体を別の値へ書き戻したり
+不完全なintentをpublishしたりしない。
+
+調査では、同じadmission eventのconstraint / bound / original claim / derived claim / row reduction /
+qualified-parent admissionにもrollbackのないcommit pointが複数あり、それらのcommit後には現在fallible queryも
+rollback pathもないことが確定した。row 4 / row 7の新しくfallibleになる特定readにだけ、
+classification済みfailureをterminal latchまたはno-opに畳み込む経路を与えることは、同call chainのその他の
+commit pointが持つ「failure handling zero」に比べて厳しくなることはあっても、新しい不安定性を加えるものではない。
+
+現行production call graphでは、fresh same-machine roundへのforeign-attempt denialは正常経路で生じず、
+`TerminalLatchBusy`も主にfailure injectionで観測する防御経路である。ただし、これを「不可達」とは主張しない。
+上記のnon-terminal denial tradeoffを明示した上で、fault injection gateで振る舞いを固定する。
+本節で新規に承認が必要なpolicy判断は、このpost-commit non-terminal denialをpublication zeroのno-opとし、
+authoritative commitを保持するgraceful degradationだけである。branch自体はrow 3と同一だが、
+commit後に適用することの意味はrow 3から自動的に導かれるものではなく、本追記の査読対象とする。
+
+本追記が承認するのは、row 4 / row 7 / `defer_scheme_projection_mutation`に既存row 3 idiomを
+適用するためのResult signature threadingとscope relocationだけである。他のcaller row、family authority、sealed reuse、
+snapshot、cache、visibility、terminal classification、その他の既存invariantを再開または緩和しない。
+
+### 既存invariantとの整合
+
+1. **failure classificationは不変**: `ProofFailure::requires_attempt_terminal()`の定義と各variantの分類は変更しない。
+   gatewayとcallerはrow 3と同じbranchを使う。
+2. **pre-commit denialはcommitを防ぐ**: pre-readの`Result`を`?`で伝播し、denialの後に対応する
+   Phase A commitを実行しない。enclosing eventがそれ以前にcommitした状態へのrollbackは約束しない。
+3. **commitをscope間に置く**: pre-scopeをdropしてからcommitし、commit後にfresh post-scopeを開く。
+   mutationを跨いでmemo、override、visiting/cycle state、reference、facadeを保持しない。
+4. **publicationはcompleted intentだけ**: post-scope successが返したowned intentだけをpublish / defer / fence appendする。
+   denial時はこれらを全てzeroとする。
+5. **single scope-local evaluator**: row 4の直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-bは
+   同じscope-local helperを使い、nested scope、direct `proof_store` fallback、duplicated evaluator logicを残さない。
+6. **no persistent retry machinery**: pending receipt、retry ownership、retry loop、cross-call pending state、
+   call-site-specific attempt-terminal overrideを作らない。
+
+### Gate / stop
+
+実装gateに次を追加する。
+
+- row 4の直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-aのそれぞれで、pre-commit queryに
+  failureを注入すると`Result::Err`が上位へ伝播し、対応するPhase A commit、publication、defer、fence appendが
+  全てzeroになること。
+- pre-commit success後のPhase A commitがexactly onceかつ無条件で、post-scope resultによってrollbackまたは
+  二重実行されないこと。
+- 三pathのpost-commit scopeにproof-semantic failureを注入すると、row 3と同じ
+  `requires_attempt_terminal()`-gated branchが通り、attempt latch set、publication / defer / fence append zeroになること。
+- 三pathのpost-commit scopeに`TerminalLatchBusy`と`ForeignAttemptRoundState`を注入すると、
+  `mark_proof_terminal_failure`に到達せず、panic zero、publication / defer / fence append zero、caller operationがno-opとして
+  終了すること。
+- post-commit success時はcompleted `SchemeProjectionPublicationIntent`をexactly onceだけpublish / defer / fence appendし、
+  pre/postのactual inclusionとdependent owner setがpre-migrationと一致すること。
+- row 4直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-bが一つの
+  `evaluate_record_inclusion_publication_in_scope`相当implementationを共有し、nested gateway scope zeroであること。
+- `PendingRecordInclusionPublication`相当型、pending failure wrapper、retry loop、cross-call pending storage、
+  Phase B専用terminal escalation branchのproduction symbol/referenceがzeroであること。
+
+pre-commit denialを`Result`で伝播できない、post-commit no-opの後に同期admission eventがcompleted publicationを
+必須とする不変条件を破る、authoritative store自体がhalf-commitまたは内部矛盾になる、またはrow 3の
+existing branch以外のfailure machineryが必要となる場合は停止する。pending state、retry loop、
+call-site-specific terminal escalation、global failure reclassificationで穴埋めしない。
+
+追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読・確定予定
+
+追記状態: ドラフト、Claude査読待ち、ユーザ未承認
+
+## 2026-08-15 追記: 三度目も却下、構造的ジレンマの発見
+
+上の「三度目」節も、一切文脈を持たない独立review（Codex gpt-5.6-sol、xhigh）でNOT SOUNDと判定された。
+指摘はHIGH 4件・MEDIUM 1件。最も重要なのはHIGH #1・#2で、今回は前2回と質が異なる——実装の詰めの甘さでは
+なく、この節の核心である「post-commit denial時、authoritative commitは残すがpublicationはこのroundでは
+行わない」という graceful degradation の前提そのものを否定した。
+
+`SchemeProjectionPublicationIntent::OwnersChanged` は単なる通知ではなく、owner の `ConstraintBounds`
+mutation journal 発行・global `ConstraintEpoch` 進行・owner の `VarBounds::epoch` 進行・provenance epoch
+進行を同期的に行う（`constraints/mod.rs:1988,2072`）。下流の method-role pass や owner-dirty scheduler は
+この epoch の不変を「mutation が無かった証明」として使い、cached 結果を再利用する
+（`constraints/mod.rs:194`、`analysis/session/selection.rs:217`、`analysis/session/lifecycle.rs:720`、
+`analysis/session/owner_dirty_scheduler.rs:21,585`）。つまり publication は best-effort な信号ではなく、
+correctness-sensitive な invalidation そのものであり、それを一度でも飛ばすと silent stale-reuse になる。
+さらに、一度飛ばされた `was_included` は再admissionでは復元できない（`metadata_would_change == false`なら
+`Ok(None)`、`proof/mod.rs:5805`）ため、「後で同じrecordに触れれば自然に直る」という前提も成立しない
+（永久stale化のリスク）。row 7ではさらに、`ReplayAdmissionPublicationFence`が単純なvectorであるため、
+denyされたintentだけがno-op化されても同じeventの他のintentは通常どおりpublishされてしまう
+——event-level atomic publicationではなく部分publicationになる（HIGH #3）。
+
+**この3回の却下を並べると、単なる実装の詰めが甘いという話を超えた構造的ジレンマが見える**。
+
+1. pending receipt方式（retry） → NOT SOUND（Rustの所有権はaffineでlinearでないためsilent dropを防げない、
+   `TerminalLatchBusy`が持続すると合法な終了経路が無くsolver全体を停止しうる）
+2. どんな失敗もattempt-terminalへ昇格 → NOT SOUND（`TerminalLatchBusy`は`try_borrow()`失敗から生成される
+   一方、terminal化は同じcellへの`borrow_mut()`を要求するため、conflicting borrowが生存中ならpanicしうる）
+3. row3の既存idiom（no-op skip）を転用 → NOT SOUND（publicationのskip自体がcorrectness-sensitiveな
+   状態更新を飛ばすことになり、stale-reuseを生む）
+
+3つの設計が別々の理由で落ちているが、突き詰めると同一のジレンマに帰着する。post-commit Phase Bが
+`TerminalLatchBusy`のようなnon-terminal-classified failureで拒否されたとき、**terminal latchへ書こうとすれば
+その原因と同じborrow conflictでpanicしうる。書かなければ、publicationという correctness-sensitive な
+state更新が silent に失われる。** この二択のどちらも安全ではない。これはrow 4/7固有の実装上の見落としでは
+なく、「commit後のfallible readにHRTB query gatewayを使う」というこの migrationのアーキテクチャ自体が
+内包する緊張だと考えられる。
+
+**現状の評価**: これはCPK-SV-C redesign（[[cpk-preflight-and-sv-c-redesign-2026-08-12-13]]）で経験した
+「severityが収束せず実質的な指摘が出続ける」パターンと同型だが、今回はさらに一段深い——次に必要なのは
+「4度目の局所設計案」ではなく、上記ジレンマそのものの解消方針（例えば`TerminalLatchBusy`を
+`debug_assert`/panicとして扱う方向に倒し「本当に到達しない」ことをinvariantとして固定するか、
+gatewayのterminal-latch記録機構自体を見直すか）という、もう一段上の判断だと考える。これは
+row 4/7だけでなく、既にmergeされたrow 1〜3や、今後のfamily cutover全体にも波及しうる判断であり、
+狭いaddendum追記で決めるべき重さを超えていると判断する。row 4/7のfailure-boundary設計は引き続き
+blockedとし、次の一手は新しい正本文書として起案するか、少なくともこのジレンマ自体を主題とした
+専用の調査・設計ラウンドとして扱うべきと考える。
