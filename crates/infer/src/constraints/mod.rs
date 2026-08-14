@@ -27,6 +27,7 @@ mod row_effect;
 #[cfg(test)]
 mod semantic_execution_snapshot;
 mod structural_kernel;
+use structural_kernel::ScopedLegacyPublicationQuery;
 #[allow(
     unused_imports,
     reason = "SS2-P0 exposes the exact cross-sibling projection signature surface incrementally"
@@ -1179,14 +1180,13 @@ impl<'a> CpkTestProjectionEvaluationRound<'a> {
 struct CpkPublicationEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
     record_result_override: Option<(BoundRecordId, bool)>,
-    root_result_override: Option<(UpperReplayClaimId, bool)>,
     shared: Option<proof::CpkProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
 impl<'a> CpkPublicationEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
-        Self::new_with_overrides(machine, None, None)
+        Self::new_with_record_result_override(machine, None)
     }
 
     fn with_record_result_override(
@@ -1194,43 +1194,25 @@ impl<'a> CpkPublicationEvaluationRound<'a> {
         record: BoundRecordId,
         result: bool,
     ) -> Self {
-        Self::new_with_overrides(machine, Some((record, result)), None)
+        Self::new_with_record_result_override(machine, Some((record, result)))
     }
 
-    fn with_root_result_override(
-        machine: &'a ConstraintMachine,
-        root: UpperReplayClaimId,
-        result: bool,
-    ) -> Self {
-        Self::new_with_overrides(machine, None, Some((root, result)))
-    }
-
-    fn new_with_overrides(
+    fn new_with_record_result_override(
         machine: &'a ConstraintMachine,
         record_result_override: Option<(BoundRecordId, bool)>,
-        root_result_override: Option<(UpperReplayClaimId, bool)>,
     ) -> Self {
         Self {
             machine,
             record_result_override,
-            root_result_override,
-            shared: Some(Self::new_evaluator(
-                machine,
-                record_result_override,
-                root_result_override,
-            )),
+            shared: Some(Self::new_evaluator(machine, record_result_override)),
             sharing_disabled: false,
         }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if self.sharing_disabled {
-            return Self::new_evaluator(
-                self.machine,
-                self.record_result_override,
-                self.root_result_override,
-            )
-            .eval_record(record);
+            return Self::new_evaluator(self.machine, self.record_result_override)
+                .eval_record(record);
         }
 
         let shared = self
@@ -1253,9 +1235,88 @@ impl<'a> CpkPublicationEvaluationRound<'a> {
     fn new_evaluator(
         machine: &'a ConstraintMachine,
         record_result_override: Option<(BoundRecordId, bool)>,
-        root_result_override: Option<(UpperReplayClaimId, bool)>,
     ) -> proof::CpkProjectionEvaluator<'a> {
         let mut evaluator = proof::CpkProjectionEvaluator::new(machine, &machine.proof_store);
+        if let Some((record, result)) = record_result_override {
+            evaluator = evaluator.with_record_result_override(record, result);
+        }
+        evaluator
+    }
+}
+
+/// One publication evaluator lane whose memo state cannot outlive its legacy HRTB query scope.
+struct ScopedCpkPublicationEvaluationLane<'scope, 'query> {
+    query: &'scope ScopedLegacyPublicationQuery<'query>,
+    record_result_override: Option<(BoundRecordId, bool)>,
+    root_result_override: Option<(UpperReplayClaimId, bool)>,
+    shared: Option<proof::CpkProjectionEvaluator<'scope>>,
+    sharing_disabled: bool,
+}
+
+impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> {
+    fn new(query: &'scope ScopedLegacyPublicationQuery<'query>) -> Self {
+        Self::new_with_overrides(query, None, None)
+    }
+
+    fn with_root_result_override(
+        query: &'scope ScopedLegacyPublicationQuery<'query>,
+        root: UpperReplayClaimId,
+        result: bool,
+    ) -> Self {
+        Self::new_with_overrides(query, None, Some((root, result)))
+    }
+
+    fn new_with_overrides(
+        query: &'scope ScopedLegacyPublicationQuery<'query>,
+        record_result_override: Option<(BoundRecordId, bool)>,
+        root_result_override: Option<(UpperReplayClaimId, bool)>,
+    ) -> Self {
+        Self {
+            query,
+            record_result_override,
+            root_result_override,
+            shared: Some(Self::new_evaluator(
+                query,
+                record_result_override,
+                root_result_override,
+            )),
+            sharing_disabled: false,
+        }
+    }
+
+    fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        if self.sharing_disabled {
+            return Self::new_evaluator(
+                self.query,
+                self.record_result_override,
+                self.root_result_override,
+            )
+            .eval_record(record);
+        }
+
+        let shared = self
+            .shared
+            .as_mut()
+            .expect("sharing remains available until a scoped CPK cycle cut disables it");
+        let cuts_before = shared.cycle_cuts();
+        let result = shared.eval_record(record);
+        assert!(
+            !shared.has_visiting_state(),
+            "scoped CPK projection evaluation left a Visiting node after a top-level query"
+        );
+        if shared.cycle_cuts() != cuts_before {
+            self.shared = None;
+            self.sharing_disabled = true;
+        }
+        result
+    }
+
+    fn new_evaluator(
+        query: &'scope ScopedLegacyPublicationQuery<'query>,
+        record_result_override: Option<(BoundRecordId, bool)>,
+        root_result_override: Option<(UpperReplayClaimId, bool)>,
+    ) -> proof::CpkProjectionEvaluator<'scope> {
+        let mut evaluator = query.cpk_projection_evaluator();
         if let Some((record, result)) = record_result_override {
             evaluator = evaluator.with_record_result_override(record, result);
         }
@@ -1438,14 +1499,25 @@ impl ConstraintMachine {
         );
         self.extend_with_record_dependents(&mut affected_records);
 
-        let mut before_round =
-            CpkPublicationEvaluationRound::with_root_result_override(self, root, was_empty);
-        let mut after_round = CpkPublicationEvaluationRound::new(self);
-        let affected_owners = affected_records
-            .into_iter()
-            .filter(|record| before_round.eval_record(*record) != after_round.eval_record(*record))
-            .filter_map(|record| self.active_projection_record_owner(record))
-            .collect::<FxHashSet<_>>();
+        let mut round = self.new_publication_evaluation_round();
+        let Ok(affected_owners) = self.with_legacy_publication_query(&mut round, |query| {
+            let affected_owners = {
+                let mut before_lane = ScopedCpkPublicationEvaluationLane::with_root_result_override(
+                    &query, root, was_empty,
+                );
+                let mut after_lane = ScopedCpkPublicationEvaluationLane::new(&query);
+                affected_records
+                    .into_iter()
+                    .filter(|record| {
+                        before_lane.eval_record(*record) != after_lane.eval_record(*record)
+                    })
+                    .filter_map(|record| query.active_projection_record_owner(record))
+                    .collect::<FxHashSet<_>>()
+            };
+            Ok(query.complete(affected_owners))
+        }) else {
+            return;
+        };
         self.record_scheme_projection_mutation(affected_owners);
     }
 

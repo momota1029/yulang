@@ -952,6 +952,19 @@ impl<'query> ScopedLegacyPublicationQuery<'query> {
         }
     }
 
+    pub(in crate::constraints) fn cpk_projection_evaluator(
+        &self,
+    ) -> proof::CpkProjectionEvaluator<'_> {
+        self.view.cpk_projection_evaluator()
+    }
+
+    pub(in crate::constraints) fn active_projection_record_owner(
+        &self,
+        record: crate::constraints::BoundRecordId,
+    ) -> Option<TypeVar> {
+        self.view.active_projection_record_owner(record)
+    }
+
     #[cfg(test)]
     pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
         self.view.storage_census()

@@ -5,8 +5,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::super::read_view::ImmutableTypeShapeView;
 use crate::constraints::proof::{
-    ProjectionDecision, ProjectionEvaluationRound, ProofFailure, ProofOccurrenceStore,
-    SemanticBoundRecordRef, SemanticConstraintRecordRef, SemanticFactView,
+    CpkProjectionEvaluator, ProjectionDecision, ProjectionEvaluationRound, ProofFailure,
+    ProofOccurrenceStore, SemanticBoundRecordRef, SemanticConstraintRecordRef, SemanticFactView,
     SemanticRowReductionRecordRef,
 };
 use crate::constraints::{
@@ -219,6 +219,16 @@ impl<'query> LegacyOnlyQueryView<'query> {
 
     pub(super) fn pos_var(&self, id: PosId) -> Option<TypeVar> {
         self.type_shapes.pos_var(id)
+    }
+
+    pub(super) fn cpk_projection_evaluator(&self) -> CpkProjectionEvaluator<'_> {
+        CpkProjectionEvaluator::new(self, self.sources.proof)
+    }
+
+    pub(super) fn active_projection_record_owner(&self, record: BoundRecordId) -> Option<TypeVar> {
+        self.bound(record)
+            .filter(|record| record.state() != crate::constraints::BoundRecordState::Tombstone)
+            .map(SemanticBoundRecordRef::owner)
     }
 
     #[cfg(test)]
