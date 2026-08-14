@@ -43,3 +43,14 @@ fn ui_ticket_and_reserved_operation_construction_is_rejected() {
 fn ui_raw_structural_data_is_rejected(data: &mut super::gateway::StructuralData) {
     let _ = &mut data.proof;
 }
+
+#[cfg(cpk_sv_d_ss1_ui_noop_proof)]
+fn ui_noop_proof_is_rejected() {
+    let proof: super::gateway::unchanged::ExplicitNoOpProof = unreachable!();
+    let _ = proof;
+}
+
+#[cfg(cpk_sv_d_ss1_ui_write_port)]
+fn ui_write_port_constructor_is_rejected(data: &mut super::gateway::StructuralData) {
+    let _ = super::gateway::ProofPublishPort::new(data, unreachable!());
+}

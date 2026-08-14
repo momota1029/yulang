@@ -10,6 +10,20 @@ use crate::constraints::{
     UpperReplayClaimId,
 };
 
+#[derive(Debug)]
+pub(super) enum ReservationError {
+    Allocation,
+    ArithmeticOverflow,
+    DomainMismatch,
+    TicketIdExhausted,
+}
+
+impl From<TryReserveError> for ReservationError {
+    fn from(_: TryReserveError) -> Self {
+        Self::Allocation
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::constraints::structural_kernel) enum IdentityFamily {
     Origin,
@@ -145,6 +159,12 @@ pub(super) struct ReservedOperation {
     domain: StructuralResourceDomainKey,
 }
 
+/// A one-shot operation whose ticket and exact target domain were checked by the ledger layer.
+#[derive(Debug)]
+pub(super) struct VerifiedReservedOperation {
+    _private: (),
+}
+
 #[derive(Debug)]
 pub(super) struct StructuralReservationLedger {
     next_ticket_id: Option<NonZeroU64>,
@@ -166,36 +186,51 @@ impl StructuralReservationLedger {
     pub(super) fn reserve(
         &mut self,
         claims: &[ReservationClaim],
-    ) -> Result<(StructuralReservationTicket, Vec<ReservedOperation>), TryReserveError> {
+    ) -> Result<(StructuralReservationTicket, Vec<ReservedOperation>), ReservationError> {
         let mut aggregated = FxHashMap::default();
         aggregated.try_reserve(claims.len())?;
         for claim in claims {
             let units = aggregated.entry(claim.domain).or_insert(0usize);
-            *units = units.saturating_add(claim.units);
+            *units = units
+                .checked_add(claim.units)
+                .ok_or(ReservationError::ArithmeticOverflow)?;
         }
 
         self.domains.try_reserve(aggregated.len())?;
         self.active_tickets.try_reserve(1)?;
         let mut owned_claims = Vec::new();
         owned_claims.try_reserve(aggregated.len())?;
-        let operation_count = aggregated.values().copied().sum();
+        let operation_count = aggregated.values().try_fold(0usize, |total, units| {
+            total
+                .checked_add(*units)
+                .ok_or(ReservationError::ArithmeticOverflow)
+        })?;
         let mut operations = Vec::new();
         operations.try_reserve(operation_count)?;
+        let mut staged_domains = Vec::new();
+        staged_domains.try_reserve(aggregated.len())?;
         for (&domain, &units) in &aggregated {
             owned_claims.push(ReservationClaim { domain, units });
+            let outstanding = self
+                .domains
+                .get(&domain)
+                .map_or(0, |state| state.outstanding_units);
+            let required = outstanding
+                .checked_add(units)
+                .ok_or(ReservationError::ArithmeticOverflow)?;
+            staged_domains.push((domain, units, required));
+        }
+
+        // All fallible allocation and checked arithmetic ends before ID issuance. The pushes and
+        // map insertions below consume capacity reserved above and cannot grow their containers.
+        let id = self.take_next_ticket_id()?;
+        for &(domain, units, _) in &staged_domains {
             for _ in 0..units {
-                // The ticket is patched in after its non-reused ID has been minted.
-                operations.push((domain,));
+                operations.push(ReservedOperation { ticket: id, domain });
             }
         }
-        let id = self.take_next_ticket_id().ok_or_else(capacity_error)?;
-        let operations = operations
-            .into_iter()
-            .map(|(domain,)| ReservedOperation { ticket: id, domain })
-            .collect();
-        for (&domain, &requested) in &aggregated {
+        for (domain, _units, required) in staged_domains {
             let state = self.domains.entry(domain).or_default();
-            let required = state.outstanding_units.saturating_add(requested);
             state.physical_spare = state.physical_spare.max(required);
             state.outstanding_units = required;
         }
@@ -209,10 +244,13 @@ impl StructuralReservationLedger {
         Ok((StructuralReservationTicket { id }, operations))
     }
 
-    fn take_next_ticket_id(&mut self) -> Option<ReservationTicketId> {
-        let raw = self.next_ticket_id.take()?;
+    fn take_next_ticket_id(&mut self) -> Result<ReservationTicketId, ReservationError> {
+        let raw = self
+            .next_ticket_id
+            .take()
+            .ok_or(ReservationError::TicketIdExhausted)?;
         self.next_ticket_id = raw.get().checked_add(1).and_then(NonZeroU64::new);
-        Some(ReservationTicketId(raw))
+        Ok(ReservationTicketId(raw))
     }
 
     pub(super) fn release(&mut self, ticket: StructuralReservationTicket) {
@@ -260,20 +298,25 @@ impl StructuralReservationLedger {
 }
 
 impl ReservedOperation {
-    pub(super) fn audit(&self, ticket: ReservationTicketId) -> bool {
-        self.ticket == ticket
-    }
-
     pub(super) fn domain(&self) -> StructuralResourceDomainKey {
         self.domain
     }
-}
 
-fn capacity_error() -> TryReserveError {
-    let mut values = Vec::<u8>::new();
-    values
-        .try_reserve(usize::MAX)
-        .expect_err("impossible reserve")
+    pub(super) fn verify(
+        self,
+        ticket: ReservationTicketId,
+        expected: StructuralResourceDomainKey,
+    ) -> Result<VerifiedReservedOperation, ReservationError> {
+        if self.ticket != ticket || self.domain != expected {
+            return Err(ReservationError::DomainMismatch);
+        }
+        Ok(VerifiedReservedOperation { _private: () })
+    }
+
+    #[cfg(test)]
+    pub(super) fn replace_domain_for_test(&mut self, domain: StructuralResourceDomainKey) {
+        self.domain = domain;
+    }
 }
 
 #[cfg(test)]
@@ -329,5 +372,36 @@ mod tests {
         assert_eq!(ledger.counts(), (1, 1, 1));
         ledger.release(ticket);
         assert_eq!(ledger.counts(), (0, 0, 0));
+    }
+
+    #[test]
+    fn cpk_sv_d_ss1_reserved_operation_rejects_a_different_domain() {
+        let reserved = StructuralResourceDomainKey::ProofOccurrences;
+        let wrong = StructuralResourceDomainKey::BoundRecords;
+        let mut ledger = StructuralReservationLedger::default();
+        let (ticket, mut operations) = ledger.reserve(&[claim(reserved, 1)]).unwrap();
+        let operation = operations.pop().unwrap();
+        assert!(matches!(
+            operation.verify(ticket.id, wrong),
+            Err(ReservationError::DomainMismatch)
+        ));
+        ledger.release(ticket);
+        assert_eq!(ledger.counts(), (0, 0, 0));
+    }
+
+    #[test]
+    fn cpk_sv_d_ss1_reservation_arithmetic_overflow_is_typed_and_atomic() {
+        let domain = StructuralResourceDomainKey::ProofOccurrences;
+        let mut ledger = StructuralReservationLedger::default();
+        let result = ledger.reserve(&[claim(domain, usize::MAX), claim(domain, 1)]);
+        assert!(matches!(result, Err(ReservationError::ArithmeticOverflow)));
+        assert_eq!(ledger.counts(), (0, 0, 0));
+        assert_eq!(ledger.spare_and_outstanding(domain), (0, 0));
+        let (first_ticket, _) = ledger.reserve(&[claim(domain, 1)]).unwrap();
+        assert_eq!(
+            first_ticket.id,
+            ReservationTicketId(NonZeroU64::new(1).unwrap())
+        );
+        ledger.release(first_ticket);
     }
 }

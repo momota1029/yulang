@@ -1,19 +1,19 @@
 //! Gateway-constructed, family-specific shadow publication ports.
 
-use super::reservation::ReservedOperation;
+use super::reservation::VerifiedReservedOperation;
 use super::storage::StructuralData;
 
 macro_rules! shadow_port {
     ($name:ident, $method:ident) => {
         pub(in crate::constraints::structural_kernel) struct $name<'write> {
             data: &'write mut StructuralData,
-            reserved: ReservedOperation,
+            reserved: VerifiedReservedOperation,
         }
 
         impl<'write> $name<'write> {
             pub(super) fn new(
                 data: &'write mut StructuralData,
-                reserved: ReservedOperation,
+                reserved: VerifiedReservedOperation,
             ) -> Self {
                 Self { data, reserved }
             }

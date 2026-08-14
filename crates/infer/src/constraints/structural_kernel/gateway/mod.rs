@@ -5,14 +5,12 @@ mod storage;
 mod unchanged;
 mod write_ports;
 
-use std::collections::TryReserveError;
-
 use super::access::{ActiveProofAttempt, ProofAccessError};
 use super::commands::{CommittedStructuralMutation, StructuralMutationIntent};
 use super::families;
 use reservation::{
-    ReservationClaim, ReservedOperation, StructuralReservationLedger, StructuralReservationTicket,
-    StructuralResourceDomainKey,
+    ReservationClaim, ReservationTicketId, ReservedOperation, StructuralReservationLedger,
+    StructuralReservationTicket, StructuralResourceDomainKey, VerifiedReservedOperation,
 };
 use unchanged::ExplicitNoOpProof;
 
@@ -110,7 +108,7 @@ impl ProofStructuralState {
         active.ensure_active()?;
         self.try_reserve_arena_slot()?;
         let payload = prepare_payload(intent);
-        let claims = reservation_plan(intent);
+        let claims = reservation_plan(&payload)?;
         let (ticket, reserved_operations) = self
             .reservations
             .reserve(&claims)
@@ -152,8 +150,8 @@ impl ProofStructuralState {
         scope: PreparationScopeNonce,
         slot: PreparedMutationSlotId,
     ) -> Result<CommittedStructuralMutation, ProofAccessError> {
-        active.ensure_active()?;
         let mut guard = InFlightCommitGuard::take(self, scope, slot)?;
+        active.ensure_active()?;
         guard.commit(false, false)
     }
 
@@ -166,8 +164,8 @@ impl ProofStructuralState {
         early_error: bool,
         panic_mid_commit: bool,
     ) -> Result<CommittedStructuralMutation, ProofAccessError> {
-        active.ensure_active()?;
         let mut guard = InFlightCommitGuard::take(self, scope, slot)?;
+        active.ensure_active()?;
         guard.pin_first_reserved_domain_for_cleanup_probe();
         guard.commit(early_error, panic_mid_commit)
     }
@@ -213,15 +211,38 @@ impl ProofStructuralState {
     }
 
     #[cfg(test)]
-    pub(super) fn shadow_counts(&self) -> ([u64; 5], u64, usize, usize, usize) {
+    pub(super) fn shadow_counts(&self) -> ([u64; 5], u64, usize, usize, usize, usize) {
         let (tickets, outstanding, pins) = self.reservations.counts();
         (
             self.data.shadow_publication_counts(),
             self.shadow_snapshot,
+            self.prepared.entries.iter().flatten().count(),
             tickets,
             outstanding,
             pins,
         )
+    }
+
+    #[cfg(test)]
+    pub(super) fn corrupt_first_reserved_domain_for_test(
+        &mut self,
+        scope: PreparationScopeNonce,
+        slot: PreparedMutationSlotId,
+    ) -> Result<(), ProofAccessError> {
+        let prepared = self
+            .prepared
+            .entries
+            .get_mut(slot.0)
+            .and_then(Option::as_mut)
+            .filter(|prepared| prepared.scope == scope)
+            .ok_or(ProofAccessError::InvalidPreparedHandle)?;
+        prepared
+            .command
+            .reserved_operations
+            .first_mut()
+            .ok_or(ProofAccessError::InvalidReservedOperation)?
+            .replace_domain_for_test(StructuralResourceDomainKey::BoundRecords);
+        Ok(())
     }
 }
 
@@ -264,25 +285,23 @@ impl<'state> InFlightCommitGuard<'state> {
             panic!("CPK-SV-D-SS1 deliberate mid-commit panic");
         }
         let prepared = self.prepared.as_mut().expect("in-flight command");
-        let all_tokens_belong_to_ticket = prepared
-            .command
-            .reserved_operations
-            .iter()
-            .all(|operation| operation.audit(prepared.command.ticket.id));
-        debug_assert!(all_tokens_belong_to_ticket);
         let disposition = try_prove_unchanged(&prepared.command.payload).map_or(
             StructuralMutationDisposition::Changed,
             StructuralMutationDisposition::Unchanged,
         );
         let receipt = match disposition {
             StructuralMutationDisposition::Changed => {
-                let reserved = prepared
-                    .command
-                    .reserved_operations
-                    .pop()
-                    .expect("every SS1 shadow command reserves one publish operation");
-                debug_assert!(prepared.command.reserved_operations.is_empty());
-                dispatch_changed(&prepared.command.payload, &mut self.state.data, reserved)
+                let command = &mut prepared.command;
+                let receipt = dispatch_changed(
+                    &command.payload,
+                    &mut self.state.data,
+                    command.ticket.id,
+                    &mut command.reserved_operations,
+                )?;
+                if !command.reserved_operations.is_empty() {
+                    return Err(ProofAccessError::InvalidReservedOperation);
+                }
+                receipt
             }
             StructuralMutationDisposition::Unchanged(proof) => match proof {},
         };
@@ -400,12 +419,14 @@ fn try_prove_unchanged(payload: &PreparedPayload) -> Option<ExplicitNoOpProof> {
 fn dispatch_changed(
     payload: &PreparedPayload,
     data: &mut StructuralData,
-    reserved: ReservedOperation,
-) -> CommittedStructuralMutation {
+    ticket: ReservationTicketId,
+    operations: &mut Vec<ReservedOperation>,
+) -> Result<CommittedStructuralMutation, ProofAccessError> {
     macro_rules! publish {
         ($family:path, $port:ident, $receipt:ident) => {{
+            let reserved = take_verified_operation(operations, ticket, primary_domain(payload))?;
             $family($port::new(data, reserved));
-            CommittedStructuralMutation::$receipt
+            Ok(CommittedStructuralMutation::$receipt)
         }};
     }
     match payload {
@@ -419,11 +440,16 @@ fn dispatch_changed(
             ProofPublishPort,
             AdmitProjectionSupport
         ),
-        PreparedPayload::AdmitProjectionFormulaClause => publish!(
-            families::proof::publish_shadow,
-            ProofPublishPort,
-            AdmitProjectionFormulaClause
-        ),
+        PreparedPayload::AdmitProjectionFormulaClause => {
+            for domain in [
+                StructuralResourceDomainKey::ProjectionFormulaByRecordMap,
+                StructuralResourceDomainKey::ProjectionLowerByConstraint,
+            ] {
+                let reserved = take_verified_operation(operations, ticket, domain)?;
+                families::proof::publish_shadow(ProofPublishPort::new(data, reserved));
+            }
+            Ok(CommittedStructuralMutation::AdmitProjectionFormulaClause)
+        }
         PreparedPayload::AdmitProjectionIndex => publish!(
             families::proof::publish_shadow,
             ProofPublishPort,
@@ -557,43 +583,79 @@ fn dispatch_changed(
     }
 }
 
-fn reservation_plan(intent: StructuralMutationIntent) -> Vec<ReservationClaim> {
-    use StructuralMutationIntent as I;
-    use StructuralResourceDomainKey as D;
-    let domain = match intent {
-        I::AppendProofOccurrence => D::ProofOccurrences,
-        I::AdmitProjectionSupport => D::ProjectionSupportsByRecord,
-        I::AdmitProjectionFormulaClause => D::ProjectionFormulaByRecordMap,
-        I::AdmitProjectionIndex => D::DependentRecordsByPremiseMap,
-        I::AdmitOriginalClaim | I::DecideDerivedClaim | I::MoveUpperClaim => D::UpperClaimArena,
-        I::BindReductionClaim => D::ReductionClaimIndex,
-        I::TransitionLiveCoverage => D::LiveCoverageFlat,
-        I::AdmitReplayRelation => D::ReplayFiniteMapArena,
-        I::AdmitReplayQualifiedParents | I::AdmitQualifiedParents => D::ReplayQualifiedArmResultMap,
-        I::AdmitBound | I::PromoteBound | I::TombstoneBound | I::ExtendBoundDerivation => {
-            D::BoundRecords
-        }
-        I::AdmitConstraint | I::ExtendConstraintProof | I::UpdateReplayCompleteness => {
-            D::ConstraintRecords
-        }
-        I::AdmitReplayDrop => D::ReplayDropRecords,
-        I::AdmitRowResidual => D::RowResidualRecords,
-        I::AdmitRowDerivation => D::RowDerivationArena,
-        I::AdmitRowReduction | I::AdvanceRowReductionMatched | I::AdvanceRowReductionUnmatched => {
-            D::RowReductionRecords
-        }
-        I::UpdateRowReductionOwner => D::RowReductionOwnerMap,
-        I::AdmitLowerFilter => D::LowerFilterRecords,
-        I::AdmitStructuralIdentity => D::IdentityRecords(reservation::IdentityFamily::Origin),
-        I::AdmitSchemeInstantiation => {
-            D::IdentityRecords(reservation::IdentityFamily::SchemeInstantiation)
-        }
-    };
-    vec![ReservationClaim { domain, units: 1 }]
+fn take_verified_operation(
+    operations: &mut Vec<ReservedOperation>,
+    ticket: ReservationTicketId,
+    expected: StructuralResourceDomainKey,
+) -> Result<VerifiedReservedOperation, ProofAccessError> {
+    let position = operations
+        .iter()
+        .position(|operation| operation.domain() == expected)
+        .ok_or(ProofAccessError::InvalidReservedOperation)?;
+    operations
+        .swap_remove(position)
+        .verify(ticket, expected)
+        .map_err(|_| ProofAccessError::InvalidReservedOperation)
 }
 
-impl From<TryReserveError> for ProofAccessError {
-    fn from(_: TryReserveError) -> Self {
-        Self::StructuralResourceExhausted
+fn primary_domain(payload: &PreparedPayload) -> StructuralResourceDomainKey {
+    use StructuralResourceDomainKey as D;
+    match payload {
+        PreparedPayload::AppendProofOccurrence => D::ProofOccurrences,
+        PreparedPayload::AdmitProjectionSupport => D::ProjectionSupportsByRecord,
+        PreparedPayload::AdmitProjectionFormulaClause => D::ProjectionFormulaByRecordMap,
+        PreparedPayload::AdmitProjectionIndex => D::DependentRecordsByPremiseMap,
+        PreparedPayload::AdmitOriginalClaim
+        | PreparedPayload::DecideDerivedClaim
+        | PreparedPayload::MoveUpperClaim => D::UpperClaimArena,
+        PreparedPayload::BindReductionClaim => D::ReductionClaimIndex,
+        PreparedPayload::TransitionLiveCoverage => D::LiveCoverageFlat,
+        PreparedPayload::AdmitReplayRelation => D::ReplayFiniteMapArena,
+        PreparedPayload::AdmitReplayQualifiedParents | PreparedPayload::AdmitQualifiedParents => {
+            D::ReplayQualifiedArmResultMap
+        }
+        PreparedPayload::AdmitBound
+        | PreparedPayload::PromoteBound
+        | PreparedPayload::TombstoneBound
+        | PreparedPayload::ExtendBoundDerivation => D::BoundRecords,
+        PreparedPayload::AdmitConstraint
+        | PreparedPayload::ExtendConstraintProof
+        | PreparedPayload::UpdateReplayCompleteness => D::ConstraintRecords,
+        PreparedPayload::AdmitReplayDrop => D::ReplayDropRecords,
+        PreparedPayload::AdmitRowResidual => D::RowResidualRecords,
+        PreparedPayload::AdmitRowDerivation => D::RowDerivationArena,
+        PreparedPayload::AdmitRowReduction
+        | PreparedPayload::AdvanceRowReductionMatched
+        | PreparedPayload::AdvanceRowReductionUnmatched => D::RowReductionRecords,
+        PreparedPayload::UpdateRowReductionOwner => D::RowReductionOwnerMap,
+        PreparedPayload::AdmitLowerFilter => D::LowerFilterRecords,
+        PreparedPayload::AdmitStructuralIdentity => {
+            D::IdentityRecords(reservation::IdentityFamily::Origin)
+        }
+        PreparedPayload::AdmitSchemeInstantiation => {
+            D::IdentityRecords(reservation::IdentityFamily::SchemeInstantiation)
+        }
     }
+}
+
+fn reservation_plan(payload: &PreparedPayload) -> Result<Vec<ReservationClaim>, ProofAccessError> {
+    let count = usize::from(matches!(
+        payload,
+        PreparedPayload::AdmitProjectionFormulaClause
+    )) + 1;
+    let mut claims = Vec::new();
+    claims
+        .try_reserve(count)
+        .map_err(|_| ProofAccessError::StructuralResourceExhausted)?;
+    claims.push(ReservationClaim {
+        domain: primary_domain(payload),
+        units: 1,
+    });
+    if matches!(payload, PreparedPayload::AdmitProjectionFormulaClause) {
+        claims.push(ReservationClaim {
+            domain: StructuralResourceDomainKey::ProjectionLowerByConstraint,
+            units: 1,
+        });
+    }
+    Ok(claims)
 }

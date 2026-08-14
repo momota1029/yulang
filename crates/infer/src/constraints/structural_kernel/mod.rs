@@ -16,7 +16,7 @@ pub(in crate::constraints) use access::{
     StructuralPreparationScope,
 };
 pub(in crate::constraints) use commands::{CommittedStructuralMutation, StructuralMutationIntent};
-pub(in crate::constraints) use read_view::ScopedQueryView;
+pub(in crate::constraints) use read_view::{ImmutableTypeShapeView, ScopedQueryView};
 
 #[cfg(test)]
 mod tests;

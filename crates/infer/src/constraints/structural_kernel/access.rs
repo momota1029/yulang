@@ -36,6 +36,7 @@ pub(in crate::constraints) enum ProofAccessError {
     },
     StructuralResourceExhausted,
     InvalidPreparedHandle,
+    InvalidReservedOperation,
     InjectedShadowFailure,
 }
 
@@ -138,6 +139,11 @@ impl<'attempt> ActiveProofAttempt<'attempt> {
     pub(super) fn identity(&self) -> (Option<ProofAttemptNonce>, bool) {
         (self.attempt_nonce, self.reuse_disabled)
     }
+
+    #[cfg(test)]
+    fn inject_terminal_failure(&self, failure: ProofFailure) {
+        *self.terminal_failure.borrow_mut() = Some(failure);
+    }
 }
 
 pub(in crate::constraints) struct StructuralPreparationScope<'scope> {
@@ -170,34 +176,38 @@ impl<'scope> StructuralPreparationScope<'scope> {
         &mut self,
         handle: PreparedStructuralMutationHandle<'scope>,
     ) -> Result<CommittedStructuralMutation, ProofAccessError> {
-        self.take_live_slot(handle.slot, handle.scope_nonce)?;
-        self.structural
-            .commit(&self.active, self.scope_nonce, handle.slot)
+        let position = self.live_slot_position(handle.slot, handle.scope_nonce)?;
+        let result = self
+            .structural
+            .commit(&self.active, self.scope_nonce, handle.slot);
+        self.live_slots.swap_remove(position);
+        result
     }
 
     pub(in crate::constraints) fn cancel(
         &mut self,
         handle: PreparedStructuralMutationHandle<'scope>,
     ) -> Result<(), ProofAccessError> {
-        self.take_live_slot(handle.slot, handle.scope_nonce)?;
-        self.structural.cancel_slot(self.scope_nonce, handle.slot)
+        let position = self.live_slot_position(handle.slot, handle.scope_nonce)?;
+        let result = self.structural.cancel_slot(self.scope_nonce, handle.slot);
+        if result.is_ok() {
+            self.live_slots.swap_remove(position);
+        }
+        result
     }
 
-    fn take_live_slot(
-        &mut self,
+    fn live_slot_position(
+        &self,
         slot: PreparedMutationSlotId,
         scope_nonce: PreparationScopeNonce,
-    ) -> Result<(), ProofAccessError> {
+    ) -> Result<usize, ProofAccessError> {
         if scope_nonce != self.scope_nonce {
             return Err(ProofAccessError::InvalidPreparedHandle);
         }
-        let position = self
-            .live_slots
+        self.live_slots
             .iter()
             .position(|candidate| *candidate == slot)
-            .ok_or(ProofAccessError::InvalidPreparedHandle)?;
-        self.live_slots.swap_remove(position);
-        Ok(())
+            .ok_or(ProofAccessError::InvalidPreparedHandle)
     }
 
     #[cfg(test)]
@@ -207,14 +217,36 @@ impl<'scope> StructuralPreparationScope<'scope> {
         early_error: bool,
         panic_mid_commit: bool,
     ) -> Result<CommittedStructuralMutation, ProofAccessError> {
-        self.take_live_slot(handle.slot, handle.scope_nonce)?;
-        self.structural.commit_with_injected_exit(
+        let position = self.live_slot_position(handle.slot, handle.scope_nonce)?;
+        let result = self.structural.commit_with_injected_exit(
             &self.active,
             self.scope_nonce,
             handle.slot,
             early_error,
             panic_mid_commit,
-        )
+        );
+        self.live_slots.swap_remove(position);
+        result
+    }
+
+    #[cfg(test)]
+    pub(super) fn inject_terminal_failure(&self, failure: ProofFailure) {
+        self.active.inject_terminal_failure(failure);
+    }
+
+    #[cfg(test)]
+    pub(super) fn shadow_counts(&self) -> ([u64; 5], u64, usize, usize, usize, usize) {
+        self.structural.shadow_counts()
+    }
+
+    #[cfg(test)]
+    pub(super) fn corrupt_first_reserved_domain_for_test(
+        &mut self,
+        handle: &PreparedStructuralMutationHandle<'scope>,
+    ) -> Result<(), ProofAccessError> {
+        self.live_slot_position(handle.slot, handle.scope_nonce)?;
+        self.structural
+            .corrupt_first_reserved_domain_for_test(self.scope_nonce, handle.slot)
     }
 }
 

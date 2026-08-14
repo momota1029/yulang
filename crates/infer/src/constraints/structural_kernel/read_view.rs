@@ -1,14 +1,31 @@
 //! Scope-bound immutable view shell. Production queries cut over in SS6.
 
-use poly::types::TypeArena;
+use poly::types::{Pos, PosId, TypeArena};
 
 use super::gateway::StructuralData;
 use crate::constraints::proof::ProofStructuralSnapshotId;
 
+#[derive(Clone, Copy)]
+pub(in crate::constraints) struct ImmutableTypeShapeView<'query> {
+    types: &'query TypeArena,
+}
+
+impl ImmutableTypeShapeView<'_> {
+    pub(in crate::constraints::structural_kernel) fn new(
+        types: &TypeArena,
+    ) -> ImmutableTypeShapeView<'_> {
+        ImmutableTypeShapeView { types }
+    }
+
+    pub(in crate::constraints) fn is_var_pos(self, id: PosId) -> bool {
+        matches!(self.types.pos(id), Pos::Var(_))
+    }
+}
+
 pub(in crate::constraints) struct ScopedQueryView<'query> {
     data: &'query StructuralData,
     snapshot: ProofStructuralSnapshotId,
-    type_shapes: &'query TypeArena,
+    type_shapes: ImmutableTypeShapeView<'query>,
 }
 
 impl ScopedQueryView<'_> {
@@ -20,7 +37,7 @@ impl ScopedQueryView<'_> {
         ScopedQueryView {
             data,
             snapshot,
-            type_shapes,
+            type_shapes: ImmutableTypeShapeView::new(type_shapes),
         }
     }
 
@@ -28,7 +45,7 @@ impl ScopedQueryView<'_> {
         self.snapshot
     }
 
-    pub(in crate::constraints) fn type_shapes(&self) -> &TypeArena {
+    pub(in crate::constraints) fn type_shapes(&self) -> ImmutableTypeShapeView<'_> {
         self.type_shapes
     }
 

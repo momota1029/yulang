@@ -2467,6 +2467,7 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
     let bounds_source = include_str!("machine/bounds.rs");
     let constraints_source = include_str!("mod.rs");
     let machine_entry_source = include_str!("machine/entry.rs");
+    let structural_access_source = include_str!("structural_kernel/access.rs");
     let arena_source = include_str!("../arena.rs");
     let lifecycle_source = include_str!("../analysis/session/lifecycle.rs");
     let lowering_body_source = include_str!("../lowering/body/mod.rs");
@@ -2722,9 +2723,22 @@ fn cpk_8g_physical_removal_manifest_is_complete_and_uniquely_classified() {
         );
     }
     assert!(
-        machine_entry_source.contains("proof_terminal_failure: RefCell"),
-        "CPK-8G-12 part 1 must retain the sticky first-failure cell",
+        constraints_source.contains("proof_attempt: structural_kernel::ProofAttemptKernel"),
+        "CPK-8G-12 part 1 must retain one attempt-owned proof kernel",
     );
+    assert!(
+        structural_access_source.contains("terminal_failure: RefCell<Option<ProofFailure>>"),
+        "CPK-8G-12 part 1 must retain the sticky first-failure cell inside the attempt kernel",
+    );
+    for delegated_operation in [
+        "self.proof_attempt.terminal_failure()",
+        "self.proof_attempt.mark_terminal_failure(operation, failure)",
+    ] {
+        assert!(
+            machine_entry_source.contains(delegated_operation),
+            "CPK-8G-12 terminal-failure delegate moved or disappeared: {delegated_operation}",
+        );
+    }
     for surviving_writer in [
         "commit_claim_qualified_parent_mutation",
         "record_cpk_replay_parent_snapshot",
