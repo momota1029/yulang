@@ -1,5 +1,6 @@
 //! Attempt capability, terminal latch, preparation scopes, and opaque query shells.
 
+mod legacy_read_view;
 mod sealing;
 
 #[cfg(test)]
@@ -17,6 +18,11 @@ use crate::constraints::{ConstraintMachine, record_proof_terminal_failure};
 use poly::types::TypeArena;
 
 use sealing::RoundReuseSlot;
+
+use legacy_read_view::{
+    LegacyConstraintReplayReadSources, LegacyIdentityReadSources, LegacyOnlyQueryView,
+    LegacyOnlyReadSources, LegacyRowReadSources,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::constraints) enum ProofAccessError {
@@ -302,6 +308,143 @@ impl ProofAttemptKernel {
         }
     }
 
+    fn with_legacy_projection_query<'legacy, R>(
+        &mut self,
+        type_shapes: &'legacy TypeArena,
+        sources: LegacyOnlyReadSources<'legacy>,
+        round: &mut ProjectionEvaluationRoundState,
+        query: impl for<'query> FnOnce(
+            ScopedLegacyProjectionQuery<'query>,
+        ) -> Result<QueryCompletion<R>, ProofFailure>,
+    ) -> Result<R, ProofFailure> {
+        // 1. Authenticate the current kernel before inspecting caller-owned round state.
+        self.ensure_query_kernel_active()?;
+        // 2. A legacy read route still belongs to exactly one proof attempt.
+        let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+        #[cfg(test)]
+        self.query_trace
+            .authenticated_round_state_entries
+            .set(self.query_trace.authenticated_round_state_entries.get() + 1);
+        // 3. Only an authenticated round may contribute its sticky failure.
+        if access == AuthenticatedRoundAccess::Bound {
+            if let Some(failure) = &round.terminal_failure {
+                return Err(failure.clone());
+            }
+        }
+        // 4. P0 remains SealingIncomplete and never binds persistent success state.
+        debug_assert!(round.reuse.is_sealing_incomplete());
+        // 5. The all-legacy sources and all invocation state live inside this HRTB call.
+        let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
+            #[cfg(test)]
+            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+                return Err(failure);
+            }
+            let scope = ScopedLegacyProjectionQuery::try_new(
+                sources,
+                super::read_view::ImmutableTypeShapeView::new(type_shapes),
+            )?;
+            #[cfg(test)]
+            self.query_trace
+                .scope_entries
+                .set(self.query_trace.scope_entries.get() + 1);
+            query(scope)
+        })();
+
+        match result {
+            Ok(completion) => {
+                // 6. No candidate leaves the scope before kernel and round authentication repeat.
+                #[cfg(test)]
+                self.activate_injected_post_scope_failure();
+                #[cfg(test)]
+                self.query_trace
+                    .post_scope_checks
+                    .set(self.query_trace.post_scope_checks.get() + 1);
+                self.ensure_query_kernel_active()?;
+                let post_access =
+                    self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+                if post_access == AuthenticatedRoundAccess::Bound {
+                    if let Some(failure) = &round.terminal_failure {
+                        return Err(failure.clone());
+                    }
+                }
+                Ok(completion.into_value())
+            }
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    if access == AuthenticatedRoundAccess::Bound && round.terminal_failure.is_none()
+                    {
+                        round.terminal_failure = Some(failure.clone());
+                    }
+                    self.mark_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        failure.clone(),
+                    );
+                }
+                Err(failure)
+            }
+        }
+    }
+
+    fn with_legacy_publication_query<'legacy, R>(
+        &mut self,
+        type_shapes: &'legacy TypeArena,
+        sources: LegacyOnlyReadSources<'legacy>,
+        round: &mut CpkPublicationEvaluationRoundState,
+        query: impl for<'query> FnOnce(
+            ScopedLegacyPublicationQuery<'query>,
+        ) -> Result<QueryCompletion<R>, ProofFailure>,
+    ) -> Result<R, ProofFailure> {
+        // Steps 1--3: kernel authority, attempt identity, publication's no-op round latch.
+        self.ensure_query_kernel_active()?;
+        let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+        #[cfg(test)]
+        self.query_trace
+            .authenticated_round_state_entries
+            .set(self.query_trace.authenticated_round_state_entries.get() + 1);
+        debug_assert!(round.reuse.is_sealing_incomplete());
+        // Steps 4--5: P0 sources and publication memo state are invocation-local.
+        let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
+            #[cfg(test)]
+            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+                return Err(failure);
+            }
+            let scope = ScopedLegacyPublicationQuery::try_new(
+                sources,
+                super::read_view::ImmutableTypeShapeView::new(type_shapes),
+            )?;
+            #[cfg(test)]
+            self.query_trace
+                .scope_entries
+                .set(self.query_trace.scope_entries.get() + 1);
+            query(scope)
+        })();
+
+        match result {
+            Ok(completion) => {
+                // Step 6: candidate publication remains behind a post-scope recheck.
+                #[cfg(test)]
+                self.activate_injected_post_scope_failure();
+                #[cfg(test)]
+                self.query_trace
+                    .post_scope_checks
+                    .set(self.query_trace.post_scope_checks.get() + 1);
+                self.ensure_query_kernel_active()?;
+                self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+                let _ = access;
+                Ok(completion.into_value())
+            }
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    self.mark_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        failure.clone(),
+                    );
+                }
+                Err(failure)
+            }
+        }
+    }
+
     #[cfg(test)]
     pub(super) fn shadow_state(&self) -> &ProofStructuralState {
         &self.structural
@@ -542,6 +685,20 @@ pub(in crate::constraints) struct ScopedPublicationProjectionQuery<'query> {
     invocation: PublicationInvocationState,
 }
 
+/// P0 projection facade backed exclusively by current production-owned legacy storage.
+pub(in crate::constraints) struct ScopedLegacyProjectionQuery<'query> {
+    view: LegacyOnlyQueryView<'query>,
+    candidates: SuccessfulValidationCandidates,
+    invocation: ProjectionInvocationState,
+}
+
+/// P0 publication facade backed exclusively by current production-owned legacy storage.
+pub(in crate::constraints) struct ScopedLegacyPublicationQuery<'query> {
+    view: LegacyOnlyQueryView<'query>,
+    candidates: SuccessfulValidationCandidates,
+    invocation: PublicationInvocationState,
+}
+
 macro_rules! query_shell {
     ($name:ident) => {
         impl $name<'_> {
@@ -649,6 +806,110 @@ impl<'query> ScopedPublicationProjectionQuery<'query> {
     }
 }
 
+impl<'query> ScopedLegacyProjectionQuery<'query> {
+    fn try_new(
+        sources: LegacyOnlyReadSources<'query>,
+        type_shapes: super::read_view::ImmutableTypeShapeView<'query>,
+    ) -> Result<Self, ProofFailure> {
+        Ok(Self {
+            view: LegacyOnlyQueryView::new(sources, type_shapes),
+            candidates: SuccessfulValidationCandidates,
+            invocation: ProjectionInvocationState::default(),
+        })
+    }
+
+    pub(in crate::constraints) fn complete<R>(self, value: R) -> QueryCompletion<R> {
+        QueryCompletion {
+            value,
+            candidates: self.candidates,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn legacy_storage_counts(&self) -> (usize, usize, usize, usize, usize) {
+        self.view.storage_counts()
+    }
+
+    #[cfg(test)]
+    pub(super) fn shadow_check_target(&mut self, target: u64) -> bool {
+        if self.invocation.checked_targets.insert(target) {
+            self.invocation.canonical_reads += 1;
+            false
+        } else {
+            self.invocation.hits += 1;
+            true
+        }
+    }
+
+    #[cfg(cpk_sv_d_ss2_p0_ui_legacy_view_storage)]
+    fn complete_with_owned_view<R>(
+        self,
+        finish: impl FnOnce(LegacyOnlyQueryView<'query>) -> R,
+    ) -> QueryCompletion<R> {
+        let Self {
+            view,
+            candidates,
+            invocation,
+        } = self;
+        let _ = invocation;
+        QueryCompletion {
+            value: finish(view),
+            candidates,
+        }
+    }
+}
+
+impl<'query> ScopedLegacyPublicationQuery<'query> {
+    fn try_new(
+        sources: LegacyOnlyReadSources<'query>,
+        type_shapes: super::read_view::ImmutableTypeShapeView<'query>,
+    ) -> Result<Self, ProofFailure> {
+        Ok(Self {
+            view: LegacyOnlyQueryView::new(sources, type_shapes),
+            candidates: SuccessfulValidationCandidates,
+            invocation: PublicationInvocationState::default(),
+        })
+    }
+
+    pub(in crate::constraints) fn complete<R>(self, value: R) -> QueryCompletion<R> {
+        QueryCompletion {
+            value,
+            candidates: self.candidates,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn legacy_storage_counts(&self) -> (usize, usize, usize, usize, usize) {
+        self.view.storage_counts()
+    }
+
+    #[cfg(test)]
+    pub(super) fn shadow_check_target(&mut self, target: u64) -> bool {
+        if self.invocation.memoized_targets.insert(target) {
+            self.invocation.canonical_reads += 1;
+            false
+        } else {
+            self.invocation.hits += 1;
+            true
+        }
+    }
+}
+
+#[cfg(cpk_sv_d_ss2_p0_ui_legacy_view_storage)]
+struct UiLegacyRoundViewHolder<'query> {
+    view: LegacyOnlyQueryView<'query>,
+}
+
+#[cfg(cpk_sv_d_ss2_p0_ui_legacy_view_storage)]
+fn ui_legacy_view_cannot_be_stored_in_round<'machine>(
+    machine: &'machine mut ConstraintMachine,
+    round: &'machine mut ProjectionEvaluationRoundState,
+) -> Result<UiLegacyRoundViewHolder<'machine>, ProofFailure> {
+    machine.with_legacy_projection_query(round, |query| {
+        Ok(query.complete_with_owned_view(|view| UiLegacyRoundViewHolder { view }))
+    })
+}
+
 #[derive(Debug)]
 pub(in crate::constraints) struct ProjectionEvaluationRoundState {
     attempt_nonce: Option<ProofAttemptNonce>,
@@ -669,6 +930,90 @@ impl<R> QueryCompletion<R> {
         let Self { value, candidates } = self;
         let _ = candidates;
         value
+    }
+}
+
+/// One disjoint borrow of the machine fields required by the P0 all-legacy route.
+struct LegacyQueryMachineFields<'machine> {
+    type_shapes: &'machine TypeArena,
+    proof_attempt: &'machine mut ProofAttemptKernel,
+    sources: LegacyOnlyReadSources<'machine>,
+}
+
+impl<'machine> LegacyQueryMachineFields<'machine> {
+    fn split(machine: &'machine mut ConstraintMachine) -> Self {
+        let ConstraintMachine {
+            types,
+            bounds,
+            proof_store,
+            proof_attempt,
+            row_residuals,
+            row_residual_record_ids,
+            row_residual_records,
+            unweighted_row_reductions_by_source,
+            unweighted_row_reduction_owners_by_upper,
+            unweighted_row_reduction_records,
+            row_derivations,
+            row_derivation_index,
+            lower_filters,
+            lower_filter_record_ids,
+            lower_filter_records,
+            canonical_constraints,
+            constraint_records,
+            replay_drop_records,
+            replay_drop_index,
+            replay_derivation_budget,
+            replay_derivation_storage,
+            origins,
+            source_boundaries,
+            generalized_schemes,
+            generalized_witnesses,
+            scheme_instantiations,
+            scheme_instantiation_index,
+            ..
+        } = machine;
+
+        let constraints_replay = LegacyConstraintReplayReadSources::new(
+            canonical_constraints,
+            constraint_records,
+            replay_drop_records,
+            replay_drop_index,
+            replay_derivation_budget,
+            replay_derivation_storage,
+        );
+        let rows = LegacyRowReadSources::new(
+            row_residuals,
+            row_residual_record_ids,
+            row_residual_records,
+            unweighted_row_reductions_by_source,
+            unweighted_row_reduction_owners_by_upper,
+            unweighted_row_reduction_records,
+            row_derivations,
+            row_derivation_index,
+            lower_filters,
+            lower_filter_record_ids,
+            lower_filter_records,
+        );
+        let identities = LegacyIdentityReadSources::new(
+            origins,
+            source_boundaries,
+            generalized_schemes,
+            generalized_witnesses,
+            scheme_instantiations,
+            scheme_instantiation_index,
+        );
+
+        Self {
+            type_shapes: types,
+            proof_attempt,
+            sources: LegacyOnlyReadSources::new(
+                proof_store,
+                bounds,
+                constraints_replay,
+                rows,
+                identities,
+            ),
+        }
     }
 }
 
@@ -709,6 +1054,38 @@ impl ConstraintMachine {
         let type_shapes = &self.types;
         self.proof_attempt
             .with_publication_projection_query(type_shapes, round, query)
+    }
+
+    #[deny(private_bounds, private_interfaces)]
+    pub(in crate::constraints) fn with_legacy_projection_query<R>(
+        &mut self,
+        round: &mut ProjectionEvaluationRoundState,
+        query: impl for<'query> FnOnce(
+            ScopedLegacyProjectionQuery<'query>,
+        ) -> Result<QueryCompletion<R>, ProofFailure>,
+    ) -> Result<R, ProofFailure> {
+        let LegacyQueryMachineFields {
+            type_shapes,
+            proof_attempt,
+            sources,
+        } = LegacyQueryMachineFields::split(self);
+        proof_attempt.with_legacy_projection_query(type_shapes, sources, round, query)
+    }
+
+    #[deny(private_bounds, private_interfaces)]
+    pub(in crate::constraints) fn with_legacy_publication_query<R>(
+        &mut self,
+        round: &mut CpkPublicationEvaluationRoundState,
+        query: impl for<'query> FnOnce(
+            ScopedLegacyPublicationQuery<'query>,
+        ) -> Result<QueryCompletion<R>, ProofFailure>,
+    ) -> Result<R, ProofFailure> {
+        let LegacyQueryMachineFields {
+            type_shapes,
+            proof_attempt,
+            sources,
+        } = LegacyQueryMachineFields::split(self);
+        proof_attempt.with_legacy_publication_query(type_shapes, sources, round, query)
     }
 }
 

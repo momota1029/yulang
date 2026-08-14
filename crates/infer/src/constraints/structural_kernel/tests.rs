@@ -3,8 +3,8 @@ use std::process::Command;
 
 use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
-use crate::constraints::ConstraintMachine;
 use crate::constraints::proof::{ProofFailure, ProofOperation};
+use crate::constraints::{ConstraintMachine, ConstraintRecordId, OriginId};
 
 const ALL_INTENTS: [I; 29] = [
     I::AppendProofOccurrence,
@@ -93,6 +93,14 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
             "cpk_sv_d_ss1_rf_ui_nonce_forge",
             "cannot initialize a tuple struct which contains private fields",
         ),
+        (
+            "cpk_sv_d_ss2_p0_ui_legacy_sources_private",
+            "module `legacy_read_view` is private",
+        ),
+        (
+            "cpk_sv_d_ss2_p0_ui_legacy_view_storage",
+            "lifetime may not live long enough",
+        ),
     ];
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     for (cfg, expected) in probes {
@@ -113,6 +121,36 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
             "UI probe {cfg} missed expected diagnostic {expected:?}:\n{stderr}",
         );
     }
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_legacy_scopes_read_real_machine_fields_without_machine_reborrow() {
+    let mut machine = ConstraintMachine::new();
+    machine
+        .proof_store
+        .record_constraint_root(ConstraintRecordId(0), OriginId::unknown_internal());
+
+    let mut projection_round = machine.new_projection_evaluation_round();
+    let projection_counts = machine
+        .with_legacy_projection_query(&mut projection_round, |mut query| {
+            assert!(!query.shadow_check_target(7));
+            assert!(query.shadow_check_target(7));
+            let counts = query.legacy_storage_counts();
+            Ok(query.complete(counts))
+        })
+        .expect("legacy projection scope reads production owners");
+    assert_eq!(projection_counts, (1, 0, 0, 0, 2));
+
+    let mut publication_round = machine.new_publication_evaluation_round();
+    let publication_counts = machine
+        .with_legacy_publication_query(&mut publication_round, |mut query| {
+            assert!(!query.shadow_check_target(11));
+            assert!(query.shadow_check_target(11));
+            let counts = query.legacy_storage_counts();
+            Ok(query.complete(counts))
+        })
+        .expect("legacy publication scope reads production owners");
+    assert_eq!(publication_counts, projection_counts);
 }
 
 #[test]

@@ -15,8 +15,8 @@ mod read_view;
 pub(in crate::constraints) use access::{
     CpkPublicationEvaluationRoundState, PreparedStructuralMutationHandle,
     ProjectionEvaluationRoundState, ProofAccessError, ProofAttemptKernel, ProofAttemptNonce,
-    QueryCompletion, ScopedProjectionQuery, ScopedPublicationProjectionQuery,
-    StructuralPreparationScope,
+    QueryCompletion, ScopedLegacyProjectionQuery, ScopedLegacyPublicationQuery,
+    ScopedProjectionQuery, ScopedPublicationProjectionQuery, StructuralPreparationScope,
 };
 pub(in crate::constraints) use commands::{CommittedStructuralMutation, StructuralMutationIntent};
 pub(in crate::constraints) use read_view::{ImmutableTypeShapeView, ScopedQueryView};
