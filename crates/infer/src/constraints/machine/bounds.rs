@@ -1474,16 +1474,16 @@ impl ConstraintMachine {
     }
 
     fn try_evaluate_record_proof_clause_link_batch(
-        &self,
+        &mut self,
         snapshot: &ClauseLinkBatchAdmissionSnapshot,
     ) -> ProofKernelResult<SchemeProjectionPublicationIntent> {
         let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
-        Ok(self.evaluate_record_inclusion_publication(
+        self.evaluate_record_inclusion_publication(
             snapshot.lower_record,
             snapshot.was_included,
             is_included,
             false,
-        ))
+        )
     }
 
     fn register_premise_dependency_chain(
@@ -1899,7 +1899,19 @@ impl ConstraintMachine {
         }
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
         self.commit_scheme_projection_mutation(&mut mutation);
-        let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
+        let intent = match self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
+        {
+            Ok(intent) => intent,
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return;
+            }
+        };
         self.defer_replay_admission_publication(fence, intent);
     }
 

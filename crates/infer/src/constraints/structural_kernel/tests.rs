@@ -8,7 +8,7 @@ use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{
-    BoundDerivation, ConstraintMachine, ConstraintRecordId, ConstraintWeights,
+    BoundDerivation, BoundRecordId, ConstraintMachine, ConstraintRecordId, ConstraintWeights,
     GeneralizedSchemeRecordId, LowerFilterRecordId, OriginId, ProvenanceCompleteness,
     UnweightedRowReductionRecordId, UpperReplayClaimId,
 };
@@ -65,6 +65,23 @@ fn cpk_sv_d_ss2_p0_liveness_query_denial_precedes_authoritative_commit() {
     assert!(
         !machine.insert_scheme_projection_live_coverage_state(root, state),
         "the successful retry must commit exactly once"
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_record_inclusion_publication_propagates_query_denial() {
+    let mut machine = ConstraintMachine::new();
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
+
+    let result =
+        machine.evaluate_record_inclusion_publication(BoundRecordId(98_103), false, true, false);
+    assert!(matches!(result, Err(ProofFailure::TerminalLatchBusy)));
+    assert_eq!(
+        machine.proof_attempt.query_trace(),
+        (1, 1, 1, 0, 0),
+        "row 4 denial must return before scope entry or owned intent publication"
     );
 }
 

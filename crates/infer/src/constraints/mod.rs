@@ -1179,40 +1179,22 @@ impl<'a> CpkTestProjectionEvaluationRound<'a> {
 /// decisions and test evaluation rounds use the CPK-authoritative evaluator below.
 struct CpkPublicationEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
-    record_result_override: Option<(BoundRecordId, bool)>,
     shared: Option<proof::CpkProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
 impl<'a> CpkPublicationEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
-        Self::new_with_record_result_override(machine, None)
-    }
-
-    fn with_record_result_override(
-        machine: &'a ConstraintMachine,
-        record: BoundRecordId,
-        result: bool,
-    ) -> Self {
-        Self::new_with_record_result_override(machine, Some((record, result)))
-    }
-
-    fn new_with_record_result_override(
-        machine: &'a ConstraintMachine,
-        record_result_override: Option<(BoundRecordId, bool)>,
-    ) -> Self {
         Self {
             machine,
-            record_result_override,
-            shared: Some(Self::new_evaluator(machine, record_result_override)),
+            shared: Some(Self::new_evaluator(machine)),
             sharing_disabled: false,
         }
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if self.sharing_disabled {
-            return Self::new_evaluator(self.machine, self.record_result_override)
-                .eval_record(record);
+            return Self::new_evaluator(self.machine).eval_record(record);
         }
 
         let shared = self
@@ -1232,15 +1214,8 @@ impl<'a> CpkPublicationEvaluationRound<'a> {
         result
     }
 
-    fn new_evaluator(
-        machine: &'a ConstraintMachine,
-        record_result_override: Option<(BoundRecordId, bool)>,
-    ) -> proof::CpkProjectionEvaluator<'a> {
-        let mut evaluator = proof::CpkProjectionEvaluator::new(machine, &machine.proof_store);
-        if let Some((record, result)) = record_result_override {
-            evaluator = evaluator.with_record_result_override(record, result);
-        }
-        evaluator
+    fn new_evaluator(machine: &'a ConstraintMachine) -> proof::CpkProjectionEvaluator<'a> {
+        proof::CpkProjectionEvaluator::new(machine, &machine.proof_store)
     }
 }
 
@@ -1264,6 +1239,14 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
         result: bool,
     ) -> Self {
         Self::new_with_overrides(query, None, Some((root, result)))
+    }
+
+    fn with_record_result_override(
+        query: &'scope ScopedLegacyPublicationQuery<'query>,
+        record: BoundRecordId,
+        result: bool,
+    ) -> Self {
+        Self::new_with_overrides(query, Some((record, result)), None)
     }
 
     fn new_with_overrides(
@@ -1511,7 +1494,19 @@ impl ConstraintMachine {
     fn apply_scheme_projection_mutation(&mut self, mut mutation: SchemeProjectionMutation) {
         let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
         self.commit_scheme_projection_mutation(&mut mutation);
-        let intent = self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before);
+        let intent = match self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
+        {
+            Ok(intent) => intent,
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return;
+            }
+        };
         self.publish_scheme_projection_intent(intent);
     }
 
@@ -1526,12 +1521,12 @@ impl ConstraintMachine {
     }
 
     fn evaluate_cpk_scheme_projection_mutation(
-        &self,
+        &mut self,
         mutation: SchemeProjectionMutation,
         inclusion_before: Option<bool>,
-    ) -> SchemeProjectionPublicationIntent {
+    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         match mutation {
-            SchemeProjectionMutation::None => SchemeProjectionPublicationIntent::None,
+            SchemeProjectionMutation::None => Ok(SchemeProjectionPublicationIntent::None),
             SchemeProjectionMutation::ProofsChanged { lower_record, .. } => {
                 let was_included = inclusion_before
                     .expect("a proof mutation captures its CPK before view before commit");
@@ -1903,42 +1898,55 @@ impl ConstraintMachine {
     }
 
     fn evaluate_record_inclusion_publication(
-        &self,
+        &mut self,
         lower_record: BoundRecordId,
         was_included: bool,
         is_included: bool,
         metadata_changed: bool,
-    ) -> SchemeProjectionPublicationIntent {
+    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         if was_included == is_included {
-            return if metadata_changed {
+            return Ok(if metadata_changed {
                 SchemeProjectionPublicationIntent::MetadataOnly
             } else {
                 SchemeProjectionPublicationIntent::None
-            };
+            });
         }
-        let mut affected_records = self
-            .proof_store
-            .dependent_records(ProofPremise::Record(lower_record))
-            .cloned()
-            .unwrap_or_default();
-        self.extend_with_record_dependents(&mut affected_records);
-        let mut before_round = CpkPublicationEvaluationRound::with_record_result_override(
-            self,
+
+        let mut round = self.new_publication_evaluation_round();
+        let intent = self.with_legacy_publication_query(&mut round, |query| {
+            let intent = Self::evaluate_record_inclusion_publication_in_scope(
+                &query,
+                lower_record,
+                was_included,
+            );
+            Ok(query.complete(intent))
+        })?;
+        #[cfg(test)]
+        self.record_semantic_projectability_transition(lower_record, was_included, is_included);
+        Ok(intent)
+    }
+
+    fn evaluate_record_inclusion_publication_in_scope(
+        query: &ScopedLegacyPublicationQuery<'_>,
+        lower_record: BoundRecordId,
+        was_included: bool,
+    ) -> SchemeProjectionPublicationIntent {
+        let affected_records = query.projection_record_dependents(lower_record);
+        let mut before_lane = ScopedCpkPublicationEvaluationLane::with_record_result_override(
+            query,
             lower_record,
             was_included,
         );
-        let mut after_round = CpkPublicationEvaluationRound::new(self);
+        let mut after_lane = ScopedCpkPublicationEvaluationLane::new(query);
         let mut affected_owners = FxHashSet::default();
         for record in affected_records {
-            if before_round.eval_record(record) != after_round.eval_record(record)
-                && let Some(owner) = self.active_projection_record_owner(record)
+            if before_lane.eval_record(record) != after_lane.eval_record(record)
+                && let Some(owner) = query.active_projection_record_owner(record)
             {
                 affected_owners.insert(owner);
             }
         }
-        #[cfg(test)]
-        self.record_semantic_projectability_transition(lower_record, was_included, is_included);
-        if let Some(owner) = self.active_projection_record_owner(lower_record) {
+        if let Some(owner) = query.active_projection_record_owner(lower_record) {
             affected_owners.insert(owner);
         }
         if affected_owners.is_empty() {

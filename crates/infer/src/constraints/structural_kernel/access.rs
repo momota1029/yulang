@@ -975,6 +975,13 @@ impl<'query> ScopedLegacyPublicationQuery<'query> {
         self.view.projection_liveness_affected_records(claim)
     }
 
+    pub(in crate::constraints) fn projection_record_dependents(
+        &self,
+        record: crate::constraints::BoundRecordId,
+    ) -> rustc_hash::FxHashSet<crate::constraints::BoundRecordId> {
+        self.view.projection_record_dependents(record)
+    }
+
     #[cfg(test)]
     pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
         self.view.storage_census()
