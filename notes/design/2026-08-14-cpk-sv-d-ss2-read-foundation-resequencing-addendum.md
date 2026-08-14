@@ -1496,3 +1496,195 @@ Claude (Sonnet 5) は少なくとも次を反証する。
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読・確定
 
 状態: ドラフト、Claude査読待ち、ユーザ未承認
+
+## 2026-08-15 追記（改訂）: row 4 / row 7 Phase A/B failure boundary
+
+本節は同日の先行草案「row 4 / row 7 Phase A/B pending-receipt propagation」を置き換える。
+先行草案は独立査読でNOT SOUNDと判定されたため撤回する。指摘されたHIGH 4件は、pendingを`let _ =`や
+early `?`でsilent dropできること、event-local性をRustの型で保証できないこと、persistent
+`TerminalLatchBusy`に対するretry loopに合法な終了経路がなくsolver全体を停止し得ること、pre-event query時点で
+enclosing admissionが既に別のside effectをcommit済みの場合を見落としたこと、である。本改訂ではpending receipt、
+retry loop、cross-call ownership propagationを一切導入しない。
+
+### 問題
+
+SS2-P0 row 4の`apply_scheme_projection_mutation`とrow 7のclause-link/index cascadeは、どちらも
+pre-commit inclusionを読んだ後、実のstructural mutationをPhase Aで無条件commitし、その後にfresh scopeで
+post-commit inclusionとdependent-record publicationを評価する。Phase B queryはこのHRTB migrationによって初めて
+fallibleになる。pre-migrationの同じ位置はlegacy `proof_store`へのdirect readであり、access denialやretryという
+production contractを持っていなかった。
+
+Phase A後のfailureを通常のretryable denialとして返すと、commit済みmutationに対応するpublicationを失う。
+一方、失敗を保持してretryする先行草案は上記四経路を閉じられない。従って、不可逆commit後のPhase Bだけに
+局所化したconservative failure boundaryが必要である。
+
+### 決定: post-commit Phase B failureはvariantを問わずattempt-terminal
+
+row 4の直接entryとrow 7 subrow 7-bでは、Phase A commit後に開くPhase B queryが返す
+**すべての**`ProofFailure`をattempt-terminalとする。`TerminalLatchBusy`と`ForeignAttemptRoundState`を含み、
+`failure.requires_attempt_terminal()`の値はこの二つのpost-commit boundaryでは参照しない。
+
+この局所規則は`ProofFailure::requires_attempt_terminal()`の一般分類を変更しない。同methodは、不可逆commit前で
+安全かつ安価なretry pathを持つcaller向けのdefault classificationとして維持する。row 3や通常のpre-commit queryでは、
+既存どおり`false`のfailureをsticky terminalへ格上げしない。row 4 / row 7 Phase Bだけは、既にauthoritative mutationが
+commit済みであり、安全なretry ownership protocolが存在しないため、call-site-specificにattempt terminalへ昇格する。
+
+これは既存retry contractの削除ではない。Phase Bのfallibility自体がP0で新設されたものであり、pre-migrationの
+direct readにはfailure/retry contractがなかった。failure後に同じattemptを継続してincomplete publicationを観測可能に
+するより、attempt全体をterminalにして以後のsemantic resultを不採用とする方がpre-migration robustnessに対して
+conservativeである。
+
+### 共通Phase B wrapperとscope-local evaluator
+
+row 4とrow 7は同じpost-commit wrapperとscope-local evaluatorを使う。名称は実装時に既存命名へ合わせてよいが、
+failure terminalizationをcaller任せに分散してはならない。
+
+```rust
+fn try_evaluate_record_inclusion_publication_after_commit(
+    &mut self,
+    lower_record: BoundRecordId,
+    was_included: bool,
+    metadata_changed: bool,
+) -> Result<SchemeProjectionPublicationIntent, ProofFailure>;
+
+fn evaluate_record_inclusion_publication_in_scope(
+    query: &ScopedLegacyPublicationQuery<'_>,
+    lower_record: BoundRecordId,
+    was_included: bool,
+    metadata_changed: bool,
+) -> SchemeProjectionPublicationIntent;
+```
+
+outer wrapperはfresh `with_legacy_publication_query`を一回だけ開き、scope内で共通helperを呼ぶ。helperは自分でscopeを
+開かず、current post-commit inclusion read、dependent-record closure、before record-result override、独立した
+before/after ephemeral evaluator lane、owner dedup、owned intent constructionを一つのscope内で完了する。
+
+outer wrapperはquery resultをcallerへ返す**前に**failure branchを処理する。`Err(failure)`ならvariant分類を問わず、
+existing `mark_proof_terminal_failure` / attempt-terminal latch mechanismへ必ず記録し、その後にfailureを既存failure channelへ
+伝播する。従って、上位callerが誤って`let _ = ...`、early `?`、early returnを使っても、Phase B failureがterminal化されずに
+失われることはない。`Ok(intent)`だけがdefer/publishへ進める。
+
+### row 4のflow
+
+row 4の直接entryは次の順に固定する。
+
+1. Phase A前にfresh `with_legacy_publication_query` scopeを開き、current evaluatorからowned
+   `was_included: bool`を取得してscopeを閉じる。
+2. このpre-Phase-A scopeがfailureを返した場合は、row 4 Phase A commitへ進まず、既存のcaller failure-handling contractへ
+   伝播する。本追記のpost-commit special terminalizationは適用しない。enclosing admissionにそれ以前のside effectが
+   ない、またはevent全体をscratchから安全にretryできる、とは仮定しない。本追記はpre-Phase-A failureへの新しい
+   retry保証を追加しない。
+3. pre-read成功後、`commit_scheme_projection_mutation`を一回だけ無条件に実行する。
+4. fresh Phase B scopeを共通post-commit wrapperから開き、live `is_included`とdependent-record propagationを評価する。
+5. success時だけowned `SchemeProjectionPublicationIntent`をdefer/publishする。failure時はwrapper内でattempt-terminalを
+   latchし、publication zeroのままfailureを伝播してcurrent attemptを終了する。Phase Bをretryしない。
+
+### row 7のflow
+
+row 7は承認済みの7-a/7-b phase分離を維持する。
+
+1. 7-aのfresh pre-mutation scopeでowned `was_included: bool`を取得し、scopeを閉じる。
+2. 7-a failureはclause-link/dependency/index mutationへ進めず、既存のpre-commit failure contractへ伝播する。
+   本追記によるautomatic retryまたはspecial terminalizationを追加しない。
+3. 7-a成功後、clause-link/dependency/index mutationを一回だけ無条件にcommitする。
+4. fresh 7-b scopeを共通post-commit wrapperから開く。同じscopeでcurrent inclusionとrow 4の
+   `evaluate_record_inclusion_publication_in_scope`を実行し、nested query wrapperを作らない。
+5. success時だけcompleted intentを`ReplayAdmissionPublicationFence`へappendまたはimmediate publishする。
+   failure時はvariantを問わずwrapper内でattempt-terminalをlatchし、fence append/publication zeroのままcurrent attemptを
+   終了する。7-bをretryしない。
+
+row 4とrow 7の違いはPhase Aのcommit内容と`metadata_changed`だけである。post-commit query entry、
+dependent traversal、before/after lanes、owner dedup、intent construction、failure terminalizationは共通実装にする。
+
+### 既存invariantとの整合
+
+1. **一般failure classificationは不変**: `TerminalLatchBusy` / `ForeignAttemptRoundState`の
+   `requires_attempt_terminal() == false`は変更しない。昇格はrow 4 / row 7のpost-commit Phase B boundaryに限る。
+2. **CPK-SV-C Phase A/B precedent**: authoritative structural mutationはPhase Aで無条件commitし、derived
+   evaluation/publicationはPhase B successにgateする。Phase B failure時はPhase Aをrollbackまたは再実行せず、attemptを
+   terminalにしてそのattemptのsemantic resultを採用しない。
+3. **MPC/DPN round boundary**: pre-commit scopeとpost-commit scopeは必ずfreshとし、mutationを跨いでmemo、override、
+   visiting/cycle state、reference、query facadeを保持しない。pending stateやcross-round evaluator stateを新設しない。
+4. **Publication authority**: completed `SchemeProjectionPublicationIntent`だけがfence/publisherへ入る。Phase B failure時は
+   publication zeroかつattempt-terminalであり、未完成intentを保存、drop、retryする状態を作らない。
+5. **Scope coverage**: row 4 Phase Bとrow 7 7-bは同じscope-local evaluatorを使い、post-commit semantic readの
+   direct `proof_store` fallback、nested scope、duplicated evaluator implementationを残さない。
+
+### Gate / stop
+
+実装gateに次を追加する。
+
+- row 4でpre-Phase-A query failureならrow 4 Phase A commit zeroであり、既存pre-commit failure pathへ伝播すること。
+- row 4でPhase A commit exactly oneの後、Phase Bへ`TerminalLatchBusy`、`ForeignAttemptRoundState`、および一つの
+  proof-semantic failureを注入し、いずれもattempt-terminal latch set、publication/defer zero、retry zeroになること。
+- row 7で7-a scope exit -> clause-link/dependency/index commit exactly one -> fresh 7-b scopeの順序をtraceし、7-bの
+  failure variantを問わずattempt-terminal latch set、fence append/publication zero、retry zeroになること。
+- 両pathのPhase B successではattempt-terminal latchを設定せず、completed intentをexactly onceだけdefer/publishすること。
+- terminalizationが共通post-commit wrapper内でquery `Err`のreturn前に起き、outer callerの`let _ =`、`?`、early returnで
+  bypassできないこと。
+- row 4 Phase Bとrow 7 7-bが一つの`evaluate_record_inclusion_publication_in_scope` implementationを共有し、row 7が
+  nested `with_legacy_publication_query`を呼ばないこと。
+- rejected draftの`PendingRecordInclusionPublication`、pending failure wrapper、retry loop、cross-call pending storageの
+  production symbol/referenceがzeroであること。
+
+Phase B failure後も同じattemptを継続する必要がある、attempt-terminal latch後にcompleted intentがpublishされ得る、
+またはPhase B terminalizationを共通wrapperの外へ出さなければ実装できない場合は停止する。pending保存、busy-loop、
+failure分類のglobal変更、Phase A rollbackで穴埋めしない。
+
+本追記が許可するのはrow 4 / row 7のpost-commit Phase B failureをcall-site-specificにattempt-terminalへ昇格することだけである。
+他のcaller row、pre-commit failure contract、`requires_attempt_terminal()`の一般分類、SS2以降のfamily cutover、sealed gateway、
+cache、snapshot、visibility、round reuse、その他の既存invariant/stop conditionを変更または緩和しない。
+
+追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読・確定予定
+
+追記状態: ドラフト、Claude査読待ち、ユーザ未承認
+
+## 2026-08-15 追記: row 4 / row 7 Phase A/B failure boundary、二度目の却下とblocked状態
+
+上の「2026-08-15 追記（改訂）: row 4 / row 7 Phase A/B failure boundary」節も、一切文脈を持たない
+独立review（Codex gpt-5.6-sol、xhigh）でNOT SOUNDと判定された。指摘はHIGH 3件・MEDIUM 1件。
+
+1. **HIGH**: pre-Phase-A read失敗時の「既存のpre-commit failure contractへ伝播する」という記述に対応する
+   実装が存在しない。`apply_scheme_projection_mutation`は`()`を返し、row 7の該当entryは`Option`を返す
+   （`Result`ではない）ため、retry ownership を保持できる形になっていない。さらに重要な点として、
+   row 4のこの関数が呼ばれる時点で、同じadmission event内で**それより前に**original claim admission /
+   derived claim admissionの実commitが既に起きている（`constraints/mod.rs:1634,1707`、
+   `machine/bounds.rs:903,972`）。つまり「Phase A commit前は安全にscratch retryできる」という前提が、
+   row 4/7で新設したPhase Aの手前だけを見ても成立しない——真の不可逆commit境界はこのaddendumが想定した
+   よりも早い時点にある。
+2. **HIGH**: 既存の`mark_proof_terminal_failure` / attempt-terminal latch機構は、実際には全ての下流
+   消費経路を守っていない。`lower_binding_bodies`（`lowering/body/mod.rs:637`、`lowering/mod.rs:119`で
+   re-export）やsingle-file dump経路（`dump.rs:57,95`）はterminal latchを検査せずに結果を消費し得る。
+   「terminalizeすればそのattemptのsemantic resultは採用されない」という本節の前提は、現在の
+   production API surface全体には及ばない。
+3. **HIGH**: `defer_scheme_projection_mutation`（`machine/bounds.rs:1892`、production callerは
+   `bounds.rs:1005,2146`）が、named entry（`apply_scheme_projection_mutation`）と全く同じ
+   read→commit→evaluateの構造を持つにもかかわらず、本節の「row 4 / row 7の二箇所限定」という
+   scope記述に含まれていない。
+4. **MEDIUM**: `TerminalLatchBusy`は`RefCell::try_borrow()`失敗から生成される
+   （`structural_kernel/access.rs:139`）が、本節が要求するterminalization自体が同じcellへの
+   `borrow_mut()`を呼ぶ（`access.rs:89`）。conflicting borrowが生存中なら、これはErrを返さずpanicする。
+   つまり「genuineなTerminalLatchBusyを確実に記録できる」という約束が、その机構自身と矛盾する。
+
+**現状の評価**: 2回連続の独立reviewが、いずれも「row 4/7固有の設計ミス」というより、
+このaddendumが仮定した「Phase Aという単一の無条件commit境界」自体が実際のcall graphと一致しない
+——真の不可逆側面はより広い範囲（admission event全体、terminal latchの消費側網羅性、
+`defer_scheme_projection_mutation`を含む複数のcaller）に及ぶ、という共通の根を指摘している。
+これはCPK-SV-C redesignで経験した「severityが収束せず実質的な指摘が出続ける」パターンと同型であり、
+このプロジェクトの既存の教訓（[[cpk-preflight-and-sv-c-redesign-2026-08-12-13]]）に従えば、
+これは「あと一手で直る」局面ではなく、設計そのものを立ち止まって見直すべき局面と判断する。
+
+**この場でのpending action**: row 4 / row 7のPhase A/B failure boundary設計はblockedとする。
+row 4の最初の実装commit（`97c382eb`、pushされていない local-only commit、独立reviewでHIGH 1件・
+MEDIUM 2件が未修正のまま残っている）はそのまま保持し、破棄しない——共有evaluator helperや
+scope構造など、設計が確定すれば再利用できる部分を含むため。row 5〜7の着手も、row 4の
+failure-boundary設計が row 7 と共通することを踏まえてこの節が解決するまで見合わせる。
+
+次に着手する際は、狭い「row 4/7だけの局所修正」ではなく、次を最初に調査するところから始めるべきと考える。
+(a) このadmission eventの本当の不可逆commit境界はどこか（original claim / derived claim commitまで
+遡る必要があるか）、(b) attempt-terminal latchが実際に守るべき消費経路の全量棚卸し（`lower_binding_bodies`
+やdump系列を含む）、(c) `defer_scheme_projection_mutation`を含めた完全なcaller inventory。
+これは新しい正本文書として起案するに値する規模であり、既存addendumへの追記では収まらない可能性がある。
+
+記録状態: 2026-08-15、ユーザは就寝中のため確認を求めず、既存の「質問なくpushしながら続けてOK」という
+標準承認の範囲内でこの規模の新規architecture判断まで進めるべきではないと判断し、ここで区切った。
