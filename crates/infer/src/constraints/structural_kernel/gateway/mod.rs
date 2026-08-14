@@ -244,6 +244,36 @@ impl ProofStructuralState {
             .replace_domain_for_test(StructuralResourceDomainKey::BoundRecords);
         Ok(())
     }
+
+    #[cfg(test)]
+    pub(super) fn corrupt_projection_formula_secondary_domain_for_test(
+        &mut self,
+        scope: PreparationScopeNonce,
+        slot: PreparedMutationSlotId,
+    ) -> Result<(), ProofAccessError> {
+        let prepared = self
+            .prepared
+            .entries
+            .get_mut(slot.0)
+            .and_then(Option::as_mut)
+            .filter(|prepared| prepared.scope == scope)
+            .ok_or(ProofAccessError::InvalidPreparedHandle)?;
+        prepared
+            .command
+            .reserved_operations
+            .iter_mut()
+            .find(|operation| {
+                operation.domain() == StructuralResourceDomainKey::ProjectionLowerByConstraint
+            })
+            .ok_or(ProofAccessError::InvalidReservedOperation)?
+            .replace_domain_for_test(StructuralResourceDomainKey::BoundRecords);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(super) fn exhaust_snapshot_for_test(&mut self) {
+        self.shadow_snapshot = u64::MAX;
+    }
 }
 
 struct InFlightCommitGuard<'state> {
@@ -292,20 +322,24 @@ impl<'state> InFlightCommitGuard<'state> {
         let receipt = match disposition {
             StructuralMutationDisposition::Changed => {
                 let command = &mut prepared.command;
-                let receipt = dispatch_changed(
+                // Snapshot exhaustion is checked before the first publication. Once cache reads
+                // become authoritative, a changed write must never complete without a fresh ID.
+                let next_snapshot = self
+                    .state
+                    .shadow_snapshot
+                    .checked_add(1)
+                    .ok_or(ProofAccessError::StructuralSnapshotExhausted)?;
+                let plan = verify_changed_publication(
                     &command.payload,
-                    &mut self.state.data,
                     command.ticket.id,
                     &mut command.reserved_operations,
                 )?;
-                if !command.reserved_operations.is_empty() {
-                    return Err(ProofAccessError::InvalidReservedOperation);
-                }
+                let receipt = publish_verified_plan(plan, &mut self.state.data);
+                self.state.shadow_snapshot = next_snapshot;
                 receipt
             }
             StructuralMutationDisposition::Unchanged(proof) => match proof {},
         };
-        self.state.shadow_snapshot = self.state.shadow_snapshot.saturating_add(1);
         let prepared = self.prepared.take().expect("in-flight command");
         self.state.reservations.release(prepared.command.ticket);
         Ok(receipt)
@@ -416,20 +450,48 @@ fn try_prove_unchanged(payload: &PreparedPayload) -> Option<ExplicitNoOpProof> {
     }
 }
 
-fn dispatch_changed(
+type ShadowPublisher =
+    fn(&mut StructuralData, VerifiedReservedOperation, StructuralResourceDomainKey);
+
+struct VerifiedPublication {
+    domain: StructuralResourceDomainKey,
+    reserved: VerifiedReservedOperation,
+    publisher: ShadowPublisher,
+}
+
+enum VerifiedPublicationPlan {
+    Single {
+        receipt: CommittedStructuralMutation,
+        publication: VerifiedPublication,
+    },
+    ProjectionFormula {
+        formula: VerifiedPublication,
+        lower_index: VerifiedPublication,
+    },
+}
+
+fn verify_changed_publication(
     payload: &PreparedPayload,
-    data: &mut StructuralData,
     ticket: ReservationTicketId,
     operations: &mut Vec<ReservedOperation>,
-) -> Result<CommittedStructuralMutation, ProofAccessError> {
+) -> Result<VerifiedPublicationPlan, ProofAccessError> {
     macro_rules! publish {
         ($family:path, $port:ident, $receipt:ident) => {{
-            let reserved = take_verified_operation(operations, ticket, primary_domain(payload))?;
-            $family($port::new(data, reserved));
-            Ok(CommittedStructuralMutation::$receipt)
+            let domain = primary_domain(payload);
+            let reserved = take_verified_operation(operations, ticket, domain)?;
+            VerifiedPublicationPlan::Single {
+                receipt: CommittedStructuralMutation::$receipt,
+                publication: VerifiedPublication {
+                    domain,
+                    reserved,
+                    publisher: |data, reserved, expected| {
+                        $family($port::new(data, reserved, expected));
+                    },
+                },
+            }
         }};
     }
-    match payload {
+    let plan = match payload {
         PreparedPayload::AppendProofOccurrence => publish!(
             families::proof::publish_shadow,
             ProofPublishPort,
@@ -441,14 +503,30 @@ fn dispatch_changed(
             AdmitProjectionSupport
         ),
         PreparedPayload::AdmitProjectionFormulaClause => {
-            for domain in [
-                StructuralResourceDomainKey::ProjectionFormulaByRecordMap,
-                StructuralResourceDomainKey::ProjectionLowerByConstraint,
-            ] {
-                let reserved = take_verified_operation(operations, ticket, domain)?;
-                families::proof::publish_shadow(ProofPublishPort::new(data, reserved));
+            let formula_domain = StructuralResourceDomainKey::ProjectionFormulaByRecordMap;
+            let lower_domain = StructuralResourceDomainKey::ProjectionLowerByConstraint;
+            let formula = take_verified_operation(operations, ticket, formula_domain)?;
+            let lower_index = take_verified_operation(operations, ticket, lower_domain)?;
+            VerifiedPublicationPlan::ProjectionFormula {
+                formula: VerifiedPublication {
+                    domain: formula_domain,
+                    reserved: formula,
+                    publisher: |data, reserved, expected| {
+                        families::proof::publish_shadow(ProofPublishPort::new(
+                            data, reserved, expected,
+                        ));
+                    },
+                },
+                lower_index: VerifiedPublication {
+                    domain: lower_domain,
+                    reserved: lower_index,
+                    publisher: |data, reserved, expected| {
+                        families::proof::publish_shadow(ProofPublishPort::new(
+                            data, reserved, expected,
+                        ));
+                    },
+                },
             }
-            Ok(CommittedStructuralMutation::AdmitProjectionFormulaClause)
         }
         PreparedPayload::AdmitProjectionIndex => publish!(
             families::proof::publish_shadow,
@@ -580,6 +658,39 @@ fn dispatch_changed(
             IdentitiesPublishPort,
             AdmitSchemeInstantiation
         ),
+    };
+    if !operations.is_empty() {
+        return Err(ProofAccessError::InvalidReservedOperation);
+    }
+    Ok(plan)
+}
+
+fn publish_verified(publication: VerifiedPublication, data: &mut StructuralData) {
+    (publication.publisher)(data, publication.reserved, publication.domain);
+}
+
+fn publish_verified_plan(
+    plan: VerifiedPublicationPlan,
+    data: &mut StructuralData,
+) -> CommittedStructuralMutation {
+    match plan {
+        VerifiedPublicationPlan::Single {
+            receipt,
+            publication,
+        } => {
+            publish_verified(publication, data);
+            receipt
+        }
+        VerifiedPublicationPlan::ProjectionFormula {
+            formula,
+            lower_index,
+        } => {
+            // Both exact domains and absence of residual operations were proved before this first
+            // write. Publication contains no fallible reservation checks.
+            publish_verified(formula, data);
+            publish_verified(lower_index, data);
+            CommittedStructuralMutation::AdmitProjectionFormulaClause
+        }
     }
 }
 

@@ -35,6 +35,7 @@ pub(in crate::constraints) enum ProofAccessError {
         actual: Option<ProofAttemptNonce>,
     },
     StructuralResourceExhausted,
+    StructuralSnapshotExhausted,
     InvalidPreparedHandle,
     InvalidReservedOperation,
     InjectedShadowFailure,
@@ -247,6 +248,21 @@ impl<'scope> StructuralPreparationScope<'scope> {
         self.live_slot_position(handle.slot, handle.scope_nonce)?;
         self.structural
             .corrupt_first_reserved_domain_for_test(self.scope_nonce, handle.slot)
+    }
+
+    #[cfg(test)]
+    pub(super) fn corrupt_projection_formula_secondary_domain_for_test(
+        &mut self,
+        handle: &PreparedStructuralMutationHandle<'scope>,
+    ) -> Result<(), ProofAccessError> {
+        self.live_slot_position(handle.slot, handle.scope_nonce)?;
+        self.structural
+            .corrupt_projection_formula_secondary_domain_for_test(self.scope_nonce, handle.slot)
+    }
+
+    #[cfg(test)]
+    pub(super) fn exhaust_snapshot_for_test(&mut self) {
+        self.structural.exhaust_snapshot_for_test();
     }
 }
 

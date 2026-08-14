@@ -206,6 +206,48 @@ fn cpk_sv_d_ss1_gateway_rejects_a_reserved_operation_for_the_wrong_domain() {
 }
 
 #[test]
+fn cpk_sv_d_ss1_multi_domain_verification_finishes_before_first_publication() {
+    let mut kernel = ProofAttemptKernel::new();
+    kernel
+        .try_with_structural_preparation_scope(|scope| {
+            let prepared = scope.prepare(I::AdmitProjectionFormulaClause)?;
+            scope.corrupt_projection_formula_secondary_domain_for_test(&prepared)?;
+            assert_eq!(
+                scope.commit(prepared),
+                Err(ProofAccessError::InvalidReservedOperation)
+            );
+            Ok(())
+        })
+        .unwrap();
+    let (publications, snapshot, arena, tickets, outstanding, pins) =
+        kernel.shadow_state().shadow_counts();
+    assert_eq!(publications, [0; 5]);
+    assert_eq!(snapshot, 0);
+    assert_eq!((arena, tickets, outstanding, pins), (0, 0, 0, 0));
+}
+
+#[test]
+fn cpk_sv_d_ss1_snapshot_exhaustion_fails_before_publication() {
+    let mut kernel = ProofAttemptKernel::new();
+    kernel
+        .try_with_structural_preparation_scope(|scope| {
+            scope.exhaust_snapshot_for_test();
+            let prepared = scope.prepare(I::AppendProofOccurrence)?;
+            assert_eq!(
+                scope.commit(prepared),
+                Err(ProofAccessError::StructuralSnapshotExhausted)
+            );
+            Ok(())
+        })
+        .unwrap();
+    let (publications, snapshot, arena, tickets, outstanding, pins) =
+        kernel.shadow_state().shadow_counts();
+    assert_eq!(publications, [0; 5]);
+    assert_eq!(snapshot, u64::MAX);
+    assert_eq!((arena, tickets, outstanding, pins), (0, 0, 0, 0));
+}
+
+#[test]
 fn cpk_sv_d_ss1_active_check_failure_keeps_raii_ownership_until_guard_take() {
     let mut kernel = ProofAttemptKernel::new();
     let failure = ProofFailure::ResourceExhausted {

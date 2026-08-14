@@ -162,7 +162,7 @@ pub(super) struct ReservedOperation {
 /// A one-shot operation whose ticket and exact target domain were checked by the ledger layer.
 #[derive(Debug)]
 pub(super) struct VerifiedReservedOperation {
-    _private: (),
+    domain: StructuralResourceDomainKey,
 }
 
 #[derive(Debug)]
@@ -310,12 +310,24 @@ impl ReservedOperation {
         if self.ticket != ticket || self.domain != expected {
             return Err(ReservationError::DomainMismatch);
         }
-        Ok(VerifiedReservedOperation { _private: () })
+        Ok(VerifiedReservedOperation {
+            domain: self.domain,
+        })
     }
 
     #[cfg(test)]
     pub(super) fn replace_domain_for_test(&mut self, domain: StructuralResourceDomainKey) {
         self.domain = domain;
+    }
+}
+
+impl VerifiedReservedOperation {
+    /// Rechecks the exact dynamic target at the write-port boundary.
+    pub(super) fn assert_domain(&self, expected: StructuralResourceDomainKey) {
+        assert_eq!(
+            self.domain, expected,
+            "verified reservation reached wrong port"
+        );
     }
 }
 
