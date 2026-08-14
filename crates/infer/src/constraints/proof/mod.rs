@@ -5,6 +5,7 @@
 //! assert the production store directly.
 
 use super::*;
+use std::num::NonZeroU64;
 use std::sync::Arc;
 
 /// One canonical claimed support returned by [`ProofOccurrenceStore::project_lower`].
@@ -133,6 +134,13 @@ pub(crate) enum ReplayRoutingInvariantViolation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProofFailure {
+    /// Query access could not inspect the attempt-terminal latch without re-entering it.
+    TerminalLatchBusy,
+    /// A round owned by another proof attempt reached this machine's query boundary.
+    ForeignAttemptRoundState {
+        expected: Option<ProofAttemptNonce>,
+        actual: Option<ProofAttemptNonce>,
+    },
     MissingSemanticFact {
         fact: SemanticFactRef,
     },
@@ -178,6 +186,13 @@ pub(crate) enum ProofFailure {
         operation: ProofOperation,
     },
 }
+
+/// Process-unique identity for one proof attempt.
+///
+/// The type name is crate-visible because it is part of [`ProofFailure`]'s crate-visible surface;
+/// only the constraints kernel can construct a value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ProofAttemptNonce(pub(in crate::constraints) NonZeroU64);
 
 pub(crate) type ProofKernelResult<T> = Result<T, ProofFailure>;
 

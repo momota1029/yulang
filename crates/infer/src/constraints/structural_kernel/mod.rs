@@ -15,7 +15,7 @@ mod read_view;
 pub(in crate::constraints) use access::{
     CpkPublicationEvaluationRoundState, PreparedStructuralMutationHandle,
     ProjectionEvaluationRoundState, ProofAccessError, ProofAttemptKernel, ProofAttemptNonce,
-    ProofQueryError, QueryCompletion, ScopedProjectionQuery, ScopedPublicationProjectionQuery,
+    QueryCompletion, ScopedProjectionQuery, ScopedPublicationProjectionQuery,
     StructuralPreparationScope,
 };
 pub(in crate::constraints) use commands::{CommittedStructuralMutation, StructuralMutationIntent};
@@ -28,11 +28,42 @@ mod tests;
 fn ui_query_raw_reference_escape_is_rejected<'a>(
     machine: &'a mut crate::constraints::ConstraintMachine,
     round: &'a mut ProjectionEvaluationRoundState,
-) -> Result<&'a u64, ProofQueryError> {
+) -> Result<&'a u64, crate::constraints::proof::ProofFailure> {
     machine.with_projection_query(round, |query| {
-        let escaped = query.view().raw_shadow_probe();
+        let escaped = query.raw_shadow_probe();
         Ok(query.complete(escaped))
     })
+}
+
+#[cfg(cpk_sv_d_ss1_rf_ui_cursor_escape)]
+fn ui_query_cursor_escape_is_rejected<'a>(
+    machine: &'a mut crate::constraints::ConstraintMachine,
+    round: &'a mut ProjectionEvaluationRoundState,
+) -> Result<read_view::ShadowQueryCursor<'a>, crate::constraints::proof::ProofFailure> {
+    machine.with_projection_query(round, |query| {
+        let escaped = query.shadow_cursor();
+        let _ = escaped.value();
+        Ok(query.complete(escaped))
+    })
+}
+
+#[cfg(cpk_sv_d_ss1_rf_ui_round_view_storage)]
+struct UiRoundViewHolder<'a> {
+    view: Option<&'a ScopedQueryView<'a>>,
+}
+
+#[cfg(cpk_sv_d_ss1_rf_ui_round_view_storage)]
+fn ui_query_view_cannot_be_stored_in_round(
+    machine: &mut crate::constraints::ConstraintMachine,
+    round: &mut ProjectionEvaluationRoundState,
+) {
+    let mut holder = UiRoundViewHolder { view: None };
+    let _ = machine.with_projection_query(round, |query| {
+        holder.view = Some(query.view());
+        Err::<QueryCompletion<()>, _>(crate::constraints::proof::ProofFailure::ResourceExhausted {
+            operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
+        })
+    });
 }
 
 #[cfg(cpk_sv_d_ss1_rf_ui_same_kernel_mutation)]

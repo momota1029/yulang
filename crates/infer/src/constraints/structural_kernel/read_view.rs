@@ -1,4 +1,5 @@
-//! Scope-bound immutable view shell. Production queries cut over in SS6.
+//! Scope-bound immutable view shell. Production proof reads cut over in SS2; the remaining
+//! structural families follow in SS3--SS5.
 
 use poly::types::{Pos, PosId, TypeArena};
 
@@ -26,11 +27,11 @@ pub(in crate::constraints) struct ScopedQueryView<'query> {
     type_shapes: ImmutableTypeShapeView<'query>,
 }
 
-impl ScopedQueryView<'_> {
-    pub(in crate::constraints::structural_kernel) fn new<'query>(
+impl<'query> ScopedQueryView<'query> {
+    pub(in crate::constraints::structural_kernel) fn new(
         data: &'query StructuralData,
         type_shapes: ImmutableTypeShapeView<'query>,
-    ) -> ScopedQueryView<'query> {
+    ) -> Self {
         ScopedQueryView { data, type_shapes }
     }
 
@@ -44,7 +45,26 @@ impl ScopedQueryView<'_> {
     }
 
     #[cfg(cpk_sv_d_ss1_rf_ui_raw_escape)]
-    pub(in crate::constraints) fn raw_shadow_probe(&self) -> &u64 {
+    pub(in crate::constraints) fn raw_shadow_probe(&self) -> &'query u64 {
         self.data.raw_shadow_probe()
+    }
+
+    #[cfg(cpk_sv_d_ss1_rf_ui_cursor_escape)]
+    pub(in crate::constraints) fn shadow_cursor(&self) -> ShadowQueryCursor<'query> {
+        ShadowQueryCursor {
+            value: self.data.raw_shadow_probe(),
+        }
+    }
+}
+
+#[cfg(cpk_sv_d_ss1_rf_ui_cursor_escape)]
+pub(in crate::constraints::structural_kernel) struct ShadowQueryCursor<'query> {
+    value: &'query u64,
+}
+
+#[cfg(cpk_sv_d_ss1_rf_ui_cursor_escape)]
+impl ShadowQueryCursor<'_> {
+    pub(in crate::constraints::structural_kernel) fn value(&self) -> u64 {
+        *self.value
     }
 }

@@ -2,6 +2,8 @@
 
 mod sealing;
 
+#[cfg(test)]
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -11,14 +13,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use super::commands::{CommittedStructuralMutation, StructuralMutationIntent};
 use super::gateway::{PreparationScopeNonce, PreparedMutationSlotId, ProofStructuralState};
 use super::read_view::ScopedQueryView;
+pub(in crate::constraints) use crate::constraints::proof::ProofAttemptNonce;
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{ConstraintMachine, record_proof_terminal_failure};
 use poly::types::TypeArena;
 
 use sealing::RoundReuseSlot;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::constraints) struct ProofAttemptNonce(NonZeroU64);
 
 static NEXT_PROOF_ATTEMPT_NONCE: AtomicU64 = AtomicU64::new(1);
 
@@ -47,12 +47,6 @@ pub(in crate::constraints) enum ProofAccessError {
     InjectedShadowFailure,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::constraints) enum ProofQueryError {
-    Access(ProofAccessError),
-    Failure(ProofFailure),
-}
-
 pub(in crate::constraints) struct ProofAttemptKernel {
     attempt_nonce: Option<ProofAttemptNonce>,
     reuse_disabled: bool,
@@ -60,6 +54,20 @@ pub(in crate::constraints) struct ProofAttemptKernel {
     structural: ProofStructuralState,
     #[cfg(test)]
     injected_query_scope_failure: RefCell<Option<ProofFailure>>,
+    #[cfg(test)]
+    injected_post_scope_failure: RefCell<Option<ProofFailure>>,
+    #[cfg(test)]
+    query_trace: QueryAccessTrace,
+}
+
+#[cfg(test)]
+#[derive(Debug, Default)]
+struct QueryAccessTrace {
+    active_checks: Cell<usize>,
+    round_authentications: Cell<usize>,
+    scope_entries: Cell<usize>,
+    post_scope_checks: Cell<usize>,
+    getter_checks: Cell<usize>,
 }
 
 impl ProofAttemptKernel {
@@ -72,6 +80,10 @@ impl ProofAttemptKernel {
             structural: ProofStructuralState::default(),
             #[cfg(test)]
             injected_query_scope_failure: RefCell::new(None),
+            #[cfg(test)]
+            injected_post_scope_failure: RefCell::new(None),
+            #[cfg(test)]
+            query_trace: QueryAccessTrace::default(),
         }
     }
 
@@ -129,20 +141,30 @@ impl ProofAttemptKernel {
         }
     }
 
-    fn ensure_kernel_active(&self) -> Result<(), ProofAccessError> {
-        ActiveProofAttempt::new(
-            &self.terminal_failure,
-            self.attempt_nonce,
-            self.reuse_disabled,
-        )
-        .map(|_| ())
+    fn ensure_query_kernel_active(&self) -> Result<(), ProofFailure> {
+        #[cfg(test)]
+        self.query_trace
+            .active_checks
+            .set(self.query_trace.active_checks.get() + 1);
+        let terminal = self
+            .terminal_failure
+            .try_borrow()
+            .map_err(|_| ProofFailure::TerminalLatchBusy)?;
+        match terminal.as_ref() {
+            Some(failure) => Err(failure.clone()),
+            None => Ok(()),
+        }
     }
 
     fn authenticate_round(
         &self,
         actual: Option<ProofAttemptNonce>,
         round_reuse_disabled: bool,
-    ) -> Result<AuthenticatedRoundAccess, ProofAccessError> {
+    ) -> Result<AuthenticatedRoundAccess, ProofFailure> {
+        #[cfg(test)]
+        self.query_trace
+            .round_authentications
+            .set(self.query_trace.round_authentications.get() + 1);
         match (
             self.attempt_nonce,
             self.reuse_disabled,
@@ -154,7 +176,7 @@ impl ProofAttemptKernel {
             }
             (None, true, None, true) => Ok(AuthenticatedRoundAccess::ReuseDisabled),
             (expected, _, actual, _) => {
-                Err(ProofAccessError::ForeignAttemptRoundState { expected, actual })
+                Err(ProofFailure::ForeignAttemptRoundState { expected, actual })
             }
         }
     }
@@ -166,20 +188,15 @@ impl ProofAttemptKernel {
         query: impl for<'query> FnOnce(
             ScopedProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
-    ) -> Result<R, ProofQueryError> {
+    ) -> Result<R, ProofFailure> {
         // 1. Current-kernel authority is checked before any caller-owned round field.
-        self.ensure_kernel_active()
-            .map_err(ProofQueryError::Access)?;
+        self.ensure_query_kernel_active()?;
         // 2. Only attempt identity participates in authentication.
-        let access = self
-            .authenticate_round(round.attempt_nonce, round.reuse_disabled)
-            .map_err(ProofQueryError::Access)?;
+        let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
         // 3. A foreign round can never import its sticky failure into this attempt.
         if access == AuthenticatedRoundAccess::Bound {
             if let Some(failure) = &round.terminal_failure {
-                return Err(ProofQueryError::Access(ProofAccessError::Terminal(
-                    failure.clone(),
-                )));
+                return Err(failure.clone());
             }
         }
         // 4. SS1-RF has no Sealed constructor; every reachable branch is ephemeral.
@@ -194,21 +211,28 @@ impl ProofAttemptKernel {
                 self.structural.query_data(),
                 super::read_view::ImmutableTypeShapeView::new(type_shapes),
             )?;
+            #[cfg(test)]
+            self.query_trace
+                .scope_entries
+                .set(self.query_trace.scope_entries.get() + 1);
             query(scope)
         })();
 
         match result {
             Ok(completion) => {
                 // 6. Re-check authority and binding after all scope borrows are dead.
-                self.ensure_kernel_active()
-                    .map_err(ProofQueryError::Access)?;
-                self.authenticate_round(round.attempt_nonce, round.reuse_disabled)
-                    .map_err(ProofQueryError::Access)?;
-                if access == AuthenticatedRoundAccess::Bound {
+                #[cfg(test)]
+                self.activate_injected_post_scope_failure();
+                #[cfg(test)]
+                self.query_trace
+                    .post_scope_checks
+                    .set(self.query_trace.post_scope_checks.get() + 1);
+                self.ensure_query_kernel_active()?;
+                let post_access =
+                    self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+                if post_access == AuthenticatedRoundAccess::Bound {
                     if let Some(failure) = &round.terminal_failure {
-                        return Err(ProofQueryError::Access(ProofAccessError::Terminal(
-                            failure.clone(),
-                        )));
+                        return Err(failure.clone());
                     }
                 }
                 Ok(completion.into_value())
@@ -218,7 +242,7 @@ impl ProofAttemptKernel {
                     round.terminal_failure = Some(failure.clone());
                 }
                 self.mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, failure.clone());
-                Err(ProofQueryError::Failure(failure))
+                Err(failure)
             }
         }
     }
@@ -230,13 +254,10 @@ impl ProofAttemptKernel {
         query: impl for<'query> FnOnce(
             ScopedPublicationProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
-    ) -> Result<R, ProofQueryError> {
+    ) -> Result<R, ProofFailure> {
         // Steps 1--3: current kernel, attempt identity, publication's no-op round latch.
-        self.ensure_kernel_active()
-            .map_err(ProofQueryError::Access)?;
-        let access = self
-            .authenticate_round(round.attempt_nonce, round.reuse_disabled)
-            .map_err(ProofQueryError::Access)?;
+        self.ensure_query_kernel_active()?;
+        let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
         debug_assert!(round.reuse.is_sealing_incomplete());
         // Steps 4--5: fresh invocation-local state and one HRTB scope.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
@@ -248,22 +269,30 @@ impl ProofAttemptKernel {
                 self.structural.query_data(),
                 super::read_view::ImmutableTypeShapeView::new(type_shapes),
             )?;
+            #[cfg(test)]
+            self.query_trace
+                .scope_entries
+                .set(self.query_trace.scope_entries.get() + 1);
             query(scope)
         })();
 
         match result {
             Ok(completion) => {
                 // Step 6: no candidate can publish until authority is re-authenticated.
-                self.ensure_kernel_active()
-                    .map_err(ProofQueryError::Access)?;
-                self.authenticate_round(round.attempt_nonce, round.reuse_disabled)
-                    .map_err(ProofQueryError::Access)?;
+                #[cfg(test)]
+                self.activate_injected_post_scope_failure();
+                #[cfg(test)]
+                self.query_trace
+                    .post_scope_checks
+                    .set(self.query_trace.post_scope_checks.get() + 1);
+                self.ensure_query_kernel_active()?;
+                self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
                 let _ = access;
                 Ok(completion.into_value())
             }
             Err(failure) => {
                 self.mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, failure.clone());
-                Err(ProofQueryError::Failure(failure))
+                Err(failure)
             }
         }
     }
@@ -271,6 +300,13 @@ impl ProofAttemptKernel {
     #[cfg(test)]
     pub(super) fn shadow_state(&self) -> &ProofStructuralState {
         &self.structural
+    }
+
+    #[cfg(test)]
+    fn activate_injected_post_scope_failure(&self) {
+        if let Some(failure) = self.injected_post_scope_failure.borrow_mut().take() {
+            *self.terminal_failure.borrow_mut() = Some(failure);
+        }
     }
 }
 
@@ -533,6 +569,18 @@ impl<'query> ScopedProjectionQuery<'query> {
         })
     }
 
+    #[cfg(cpk_sv_d_ss1_rf_ui_raw_escape)]
+    pub(in crate::constraints) fn raw_shadow_probe(&self) -> &'query u64 {
+        self.view.raw_shadow_probe()
+    }
+
+    #[cfg(cpk_sv_d_ss1_rf_ui_cursor_escape)]
+    pub(in crate::constraints) fn shadow_cursor(
+        &self,
+    ) -> super::read_view::ShadowQueryCursor<'query> {
+        self.view.shadow_cursor()
+    }
+
     #[cfg(test)]
     pub(super) fn shadow_check_target(&mut self, target: u64) -> bool {
         if self.invocation.checked_targets.insert(target) {
@@ -622,7 +670,7 @@ impl ConstraintMachine {
         query: impl for<'query> FnOnce(
             ScopedProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
-    ) -> Result<R, ProofQueryError> {
+    ) -> Result<R, ProofFailure> {
         let type_shapes = &self.types;
         self.proof_attempt
             .with_projection_query(type_shapes, round, query)
@@ -635,7 +683,7 @@ impl ConstraintMachine {
         query: impl for<'query> FnOnce(
             ScopedPublicationProjectionQuery<'query>,
         ) -> Result<QueryCompletion<R>, ProofFailure>,
-    ) -> Result<R, ProofQueryError> {
+    ) -> Result<R, ProofFailure> {
         let type_shapes = &self.types;
         self.proof_attempt
             .with_publication_projection_query(type_shapes, round, query)
@@ -646,6 +694,10 @@ impl ConstraintMachine {
 impl ProjectionEvaluationRoundState {
     pub(super) fn attempt_nonce_for_test(&self) -> Option<ProofAttemptNonce> {
         self.attempt_nonce
+    }
+
+    pub(super) fn inject_terminal_failure_for_test(&mut self, failure: ProofFailure) {
+        self.terminal_failure = Some(failure);
     }
 }
 
@@ -665,6 +717,8 @@ impl ProofAttemptKernel {
             terminal_failure: RefCell::new(None),
             structural: ProofStructuralState::default(),
             injected_query_scope_failure: RefCell::new(None),
+            injected_post_scope_failure: RefCell::new(None),
+            query_trace: QueryAccessTrace::default(),
         }
     }
 
@@ -674,5 +728,33 @@ impl ProofAttemptKernel {
 
     pub(super) fn inject_query_scope_failure(&self, failure: ProofFailure) {
         *self.injected_query_scope_failure.borrow_mut() = Some(failure);
+    }
+
+    pub(super) fn inject_post_scope_failure(&self, failure: ProofFailure) {
+        *self.injected_post_scope_failure.borrow_mut() = Some(failure);
+    }
+
+    pub(super) fn query_trace(&self) -> (usize, usize, usize, usize, usize) {
+        (
+            self.query_trace.active_checks.get(),
+            self.query_trace.round_authentications.get(),
+            self.query_trace.scope_entries.get(),
+            self.query_trace.post_scope_checks.get(),
+            self.query_trace.getter_checks.get(),
+        )
+    }
+
+    pub(super) fn reset_query_trace(&self) {
+        self.query_trace.active_checks.set(0);
+        self.query_trace.round_authentications.set(0);
+        self.query_trace.scope_entries.set(0);
+        self.query_trace.post_scope_checks.set(0);
+        self.query_trace.getter_checks.set(0);
+    }
+
+    pub(super) fn query_latch_busy_failure_for_test(&self) -> ProofFailure {
+        let _held = self.terminal_failure.borrow_mut();
+        self.ensure_query_kernel_active()
+            .expect_err("held query terminal latch must reject access")
     }
 }
