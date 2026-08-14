@@ -1929,3 +1929,234 @@ row 4/7だけでなく、既にmergeされたrow 1〜3や、今後のfamily cuto
 狭いaddendum追記で決めるべき重さを超えていると判断する。row 4/7のfailure-boundary設計は引き続き
 blockedとし、次の一手は新しい正本文書として起案するか、少なくともこのジレンマ自体を主題とした
 専用の調査・設計ラウンドとして扱うべきと考える。
+
+## 2026-08-15 追記（四度目）: 到達可能性の実証に基づく解消
+
+本節は、前三案のようにpost-commit failureを局所的なownershipまたはpolicyで処理する案ではない。
+三度目の却下後、本節のために独立して行った二つのreachability調査が、構造的ジレンマを生んでいた二variantの
+実行可能性を次のとおり確定したことを根拠とする。三度目節自身は`TerminalLatchBusy`を「主にfailure injectionで観測する
+防御経路」と記す一方で「不可達とは主張しない」と明記していたため、本節は三度目節をunreachability evidenceとして
+引用しない。以下のproduction-path unreachabilityは、全borrow site、guard lifetime、re-entrancy、thread / async、および
+round construction / consumptionを改めて追跡した独立調査で初めて確定した。
+
+1. `TerminalLatchBusy`は、current safe production APIからは到達不能である。唯一のorganic constructorは
+   `ensure_query_kernel_active`内の`terminal_failure.try_borrow()` failureだが、同cellのborrow guardをcallback越しに
+   保持するproduction APIはなく、gatewayは`&mut ConstraintMachine`をexclusiveに借用して同期的にclosureを実行する。
+   query scopeからのre-entrant gateway entryも型で拒否され、thread / async yieldも存在しない。現行testの大半は
+   実際の`RefCell` conflictを作らずtest-only failure slotへ`TerminalLatchBusy`を直接injectする。ただし
+   `cpk_sv_d_ss1_rf_busy_terminal_latch_uses_exact_proof_failure_surface`は例外であり、test-only
+   `query_latch_busy_failure_for_test`内でactual `terminal_failure.borrow_mut()` guardを保持して genuine conflictを作り、
+   current implementationがtyped `Err(ProofFailure::TerminalLatchBusy)`を返すことをassertする。このtest-only direct accessが
+   存在することと、safe production call graphから同じguard overlapへ到達不能であることは両立する。
+2. `ForeignAttemptRoundState`はgeneral API全体では到達可能である。K1で作ったowned roundをK2へ渡すsafe API misuseを
+   round型のlifetimeは防がない。一方、rows 2〜4の全production round construction siteは、同じ同期関数内で
+   `self.new_*_evaluation_round()`を呼び、直後に同じ`self.with_legacy_*_query(...)`へ渡す。roundをfieldへ保存、return、
+   helper parameter化、または別`self`へ転送する箇所はzeroである。row 4の直接entry、
+   `defer_scheme_projection_mutation`、row 7 subrow 7-a / 7-bも、このsame-self local construction形で実装でき、
+   shared helperへ渡すのはroundではなくHRTB内の`ScopedLegacyPublicationQuery`だけである。
+
+以下の決定は、この二点を「稀だが起こりうる」という推測ではなく、current call graphとborrow lifetimeの全量調査で
+確定した事実として使う。どちらかのreachability factを将来の変更が崩す場合、本節の結論も自動的に無効となり、
+再査読を必要とする。
+
+### Part 1: organic `TerminalLatchBusy`をrecoverable `ProofFailure` surfaceから除く
+
+`ProofAttemptKernel::ensure_query_kernel_active`のterminal latch readを、次のfallible accessから
+
+```rust
+let terminal = self
+    .terminal_failure
+    .try_borrow()
+    .map_err(|_| ProofFailure::TerminalLatchBusy)?;
+```
+
+次のinfallible accessへ変更する。
+
+```rust
+let terminal = self.terminal_failure.borrow();
+```
+
+safe production pathではconflictが到達不能であるため、正常実行のfailure setは変わらない。仮にこの調査が見落とした
+re-entrancyまたは将来のunsafeなborrow lifetime拡張があれば、`RefCell::borrow()`のnative panicが即座にinvariant violationを
+露呈する。recoverable `Err(TerminalLatchBusy)`としてcall stackを戻り、post-commit callerにcorrectness-sensitiveな
+publicationをskipさせる経路はorganic gateway contractから消える。
+
+これはrow 4 / row 7だけの変更ではなく、次の共有gateway全体のcontract変更である。
+
+- `with_projection_query`
+- `with_publication_projection_query`
+- `with_legacy_projection_query`
+- `with_legacy_publication_query`
+
+従って、merge済みrows 1〜3を含む既存callerを再検証する。current productionの
+`requires_attempt_terminal()` branchは、上の4 gateway implementation、row 3の
+`insert_scheme_projection_live_coverage_state` / `remove_scheme_projection_live_coverage_state`、および未push row 4実装の
+`apply_scheme_projection_mutation` / `defer_scheme_projection_mutation`に限られる。Part 1後もこれらのbranch自体は
+proof-semantic failureをterminal latchへ記録するために必要であり、削除しない。organic `TerminalLatchBusy`が
+`requires_attempt_terminal() == false`側へ入る可能性だけがdeadになる。row 2のようにgateway resultを上位へ返さず
+gatewayのautomatic latchへ依存するcallerも、organic failureがproof-semantic terminal failureへ限定されるため、
+behavioral contractを失わない。
+
+`ProofFailure::TerminalLatchBusy` variantと`requires_attempt_terminal() == false`分類は、このsliceでは削除しない。
+test-only injectionおよびdefensive classification surfaceとして残す。ただし、testの意味は次のとおり明示的に分ける。
+
+1. `inject_query_scope_failure(ProofFailure::TerminalLatchBusy)`を使う既存retryability testは保持する。これはproductionで
+   実在するrecoverable borrow conflictの再現ではなく、「到達不能と証明したvariantがtest overrideまたは将来の誤った
+   closure resultから入っても、一般gateway / pre-commit row 3 callerがpanicやsticky poisoningを起こさない」という
+   defensive robustness testへ改名・再説明する。assertionを緩めない。
+2. `busy_terminal_latch_uses_exact_proof_failure_surface`のように、実RefCell conflictがrecoverable
+   `ProofFailure::TerminalLatchBusy`になると主張するtestは、その契約がPart 1で消えるため同じ意味では残さない。
+   test-only helperでactual `terminal_failure.borrow_mut()` guardを保持したまま`ensure_query_kernel_active`を呼び、
+   `RefCell::borrow()`がpanicすることを`#[should_panic]`または`catch_unwind`で固定するinvariant testへ置き換える。
+
+これはincidentalなtest adjustmentではなく、Part 1が意図的に行うcontract changeである。現行の
+`cpk_sv_d_ss1_rf_busy_terminal_latch_uses_exact_proof_failure_surface`は、genuine borrow conflictのoutcomeをtyped recoverable
+`Err(ProofFailure::TerminalLatchBusy)`としてassertしている。Part 1後、同じgenuine conflictのoutcomeはpanicとなる。
+replacement testは「conflictを必ず検出する」という元の目的を保存する一方、assertするoutcomeをtyped `Err`からpanicへ変える。
+このoutcome変更こそ、到達不能なinvariant violationをrecoverable production failureとして扱わないPart 1の目的である。
+
+このtest整理により、synthetic defensive behaviorとorganic invariant violationを同じ「retryable production case」として
+混同しない。
+
+### Part 2: row 4 / row 7はrow 3の既存branchをpost-commit boundaryへ転用する
+
+scopeとmutationの順序は三度目案で確定した形を維持する。本節の対象は、row 4の直接entryである
+`apply_scheme_projection_mutation`、同じread -> commit -> read/evaluate形を持つ`defer_scheme_projection_mutation`、
+row 7 subrow 7-a / 7-bの全てである。
+
+1. pre-commit `was_included` readをfresh same-self `with_legacy_publication_query` scope内でowned値へ畳み込み、scopeを閉じる。
+   denialは必要最小限の`Result<_, ProofFailure>` signature chainを`?`で伝播し、対象commitへ進まない。
+2. pre-read success後、row 4 / deferは`commit_scheme_projection_mutation`を、row 7はclause-link / dependency / index
+   mutationをexactly once commitする。rollback、pending receipt、retry ownershipを追加しない。
+3. commit後、同じ`self`から作ったfresh local roundで新しい`with_legacy_publication_query` scopeを開く。同じscope内で
+   live `is_included` readとdependent-record evaluationを完了し、owned `SchemeProjectionPublicationIntent`だけを返す。
+   row 4、defer、row 7 subrow 7-bは一つの`evaluate_record_inclusion_publication_in_scope`相当helperを共有し、
+   nested gatewayを呼ばない。
+4. post-commit scopeが`Err(failure)`を返した場合、後述のreachability canaryに続けて、row 3と同じbranchをそのまま置く。
+
+```rust
+if failure.requires_attempt_terminal() {
+    self.mark_proof_terminal_failure(
+        proof::ProofOperation::ProjectLowerEvaluation,
+        failure,
+    );
+}
+```
+
+completed intentがないためpublication / defer / fence appendは行わず、そのlocal operationをno-opとして閉じる。
+新しいfailure wrapper、retry loop、pending state、variant reclassification、call-site-specific terminal escalationはない。
+
+このcode shapeは三度目案と同じだが、soundnessの前提が異なる。Part 1後、real row 4 / row 7 post-commit pathへ
+`TerminalLatchBusy`は返らない。`ForeignAttemptRoundState`も、fresh roundを同じ`self`でconstruct/consumeするこの三pathでは
+発生しない。従って、real executionでこのbranchへ到達する`Err`は
+`requires_attempt_terminal() == true`のproof-semantic failure、または既にterminal latchへ格納済みのfailureに限られる。
+gatewayは前者をreturn前にautomatic latchし、callerのrow 3 branchも同じclassificationでidempotentに記録する。
+先行調査では、`lower_loaded_files*`とその上位にあるactual in-repo production compiler pathsがterminal latchを必ずgateすることも
+確認済みであるため、この場合はpublication skip後のresultを正常attemptとして再利用しない。この主張は全public API surfaceを
+対象にしない。terminal latchをcheckしない`lower_binding_bodies`とsingle-file `dump.rs` pathはpre-existingかつ直交するsurfaceとして
+残るが、current in-repo production callerはzeroである。本節はその別gapを修正済みとも、全外部callerがgate済みとも主張しない。
+
+三度目案でliveだった「non-terminal denialをno-opへ畳み込むとcorrectness-sensitive publicationを永久に失い、
+silent stale-reuseを許す」というpathは、Part 1とsame-self round localityによりreal row 4 / row 7 executionから消える。
+source上の`requires_attempt_terminal() == false`側はsynthetic injectionとfuture invariant violationに対するdefensive形として
+残るが、production recovery policyとしては使わない。
+
+### Foreign round localityの残余riskとcanary
+
+`TerminalLatchBusy`のunreachabilityはexclusive borrow構造に基づく一方、`ForeignAttemptRoundState`のrow 4 / row 7
+unreachabilityはcurrent call graphの事実であり、Rust type systemによるowner bindingではない。round stateはlifetimeを持たない
+owned valueなので、将来K1 construction -> K2 consumptionを行うhelper、field、return value、またはcross-self parameterが
+追加されれば、本節の前提はコンパイルエラーなしで崩れる。
+
+このdriftを黙って許さないため、row 4の直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-bの
+post-commit error boundaryでは、row 3のbranchの直前に次のrelease-mode invariant canaryを置く。
+
+```rust
+assert!(
+    failure.requires_attempt_terminal(),
+    "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant",
+);
+```
+
+canary後のclassification / mark / no-op branchはrow 3と同じ構造を維持する。これは新しいterminalization logicではなく、
+全build profileでreachability premiseの破壊を即座にpanicとして露呈し、査読対象へ戻すinvariant assertionである。
+この`assert!`はqueryのhot success pathではなく、post-commit gatewayが既に`Err`を返したfailure pathだけで評価されるため、
+通常実行のruntime costはzeroであり、failure時のboolean check costも無視できる。ここで守る対象はperformance hintではなく、
+publication欠落によるsilent stale-reuseである。release buildでcanaryを消すriskは、このfailure-path-only checkのcostを上回るため、
+debug-only assertionではなく、意図的に全build profileで有効な`assert!`を使う。
+既存test-only failure injectionを使って各三pathへ`ForeignAttemptRoundState`を入れ、publication / defer assertionへ到達する前に
+このmessageでpanicするregression testを置く。`TerminalLatchBusy` injectionも同じcanaryを通し、Part 1のorganic panic testとは
+別に「post-commit boundaryではsynthetic non-terminal denialも正常no-opとして受理しない」ことを固定する。
+
+さらに、production round construction inventoryをgateへ固定する。row 2、row 3、row 4 / defer、row 7の各siteについて、
+roundがlocal variableとして同じreceiverから作られ、同じ同期関数内で同じreceiverのgatewayへ渡され、round-typed field、return、
+cross-self helper parameterがzeroであることをsource censusまたは明示的review checklistで照合する。新しいproduction constructor site、
+round forwarding、machine attempt resetを追加する変更は、本節の`ForeignAttemptRoundState` reachability proofを無効化するためstopし、
+独立再査読を必要とする。
+
+### 既存invariantとの整合
+
+1. **terminal classification**: `ProofFailure::requires_attempt_terminal()`とvariant分類は変更しない。
+   `TerminalLatchBusy`はsynthetic defensive surface上non-terminalのまま残る。Part 1はorganic constructorだけをpanic invariantへ変える。
+2. **shared gateway scope**: Part 1はgatewayのterminal latch readだけを変え、HRTB lifetime、nonce authentication、
+   SealingIncomplete、scope-local memo、post-scope recheckの順序を変えない。
+3. **rows 1〜3 compatibility**: four gatewayとrow 3 callerのexisting classification branchを残す。
+   organic proof-semantic failureのterminal behavior、owned result、production outputを変えない。
+4. **pre/commit/post boundary**: pre-scopeをdropしてからauthoritative mutationをcommitし、commit後にfresh scopeを開く。
+   reference、facade、memo、override、visiting/cycle stateをmutation越しに保持しない。
+5. **publication correctness**: post-commit successで得たcompleted owned intentだけをpublish / defer / fence appendする。
+   real post-commit failureはattempt terminalとなり、`lower_loaded_files*`を通るcurrent in-repo production compiler pathを
+   通過しない。non-gatedだがin-repo production caller zeroの`lower_binding_bodies` / single-file dump public surfaceは
+   この保証の対象外であり、本節と直交するpre-existing gapとして残る。
+6. **single evaluator**: row 4直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-bは同じscope-local evaluatorを使う。
+7. **no recovery machinery**: pending receipt、cross-call pending state、retry loop、call-site-specific failure wrapper、
+   call-site-specific terminal escalationを作らない。release-mode invariant canaryはreachability assertionであり
+   recovery pathではない。
+
+### Gate / stop
+
+実装gateを次のとおり置き換える。
+
+- `ensure_query_kernel_active`が`terminal_failure.borrow()`を使い、organic pathに
+  `try_borrow().map_err(|_| ProofFailure::TerminalLatchBusy)`または同等のrecoverable conversionがzeroであること。
+- actual conflicting `RefCell` guardを使うtestがnative panicを確認し、test-only variant injectionをactual borrow conflictの
+  evidenceとして扱わないこと。
+- rows 1〜3について、structural-kernel query tests、row 2 generalization tests、row 3 liveness tests、既存constraints baselineを
+  Part 1変更後に実行し、既存`requires_attempt_terminal()` branchがcompileし、semantic resultとpass/fail baselineが不変であること。
+  synthetic `TerminalLatchBusy` injection testsはdefensive testへ改名・再説明した上でassertionを維持すること。
+- row 4直接entry、`defer_scheme_projection_mutation`、row 7 subrow 7-aでpre-commit denialを注入すると、
+  `Result::Err`が上位へ伝播し、対応するcommit、publication、defer、fence appendがzeroであること。
+- pre-read success後のauthoritative commitがexactly onceであり、pre/post scopeが別invocation、別fresh local roundであること。
+- row 4直接entry、defer、row 7 subrow 7-bのpost-commit error boundaryで、全build profileで有効な`assert!` canaryの直後にrow 3と同じ
+  `if failure.requires_attempt_terminal() { self.mark_proof_terminal_failure(...) }` branchが同じ構造で存在すること。
+- release build相当のconfigurationでも上記canaryがcompile outされず、non-terminal failure injectionが指定messageでpanicすること。
+- 三つのpost-commit pathへtest-only `TerminalLatchBusy` / `ForeignAttemptRoundState`をinjectすると、canaryが指定messageでpanicし、
+  publication / defer / fence appendがzeroであること。proof-semantic failureではcanaryを通過し、attempt terminal latch set、
+  publication zeroとなること。
+- row 4直接entry、defer、row 7 subrow 7-bが一つのscope-local evaluator implementationを共有し、nested gateway、
+  direct `proof_store` fallback、duplicated dependent-record evaluatorがzeroであること。
+- production round construction censusが全siteでsame-self immediate consumptionを示し、round-typed field / return /
+  cross-self parameter、またはround constructionとconsumptionの間のattempt resetがzeroであること。
+- pending-receipt type、retry loop、cross-call pending storage、Phase B専用terminal escalation、`TerminalLatchBusy`のglobal
+  terminal再分類がzeroであること。
+
+次のいずれかを検出した場合は実装を停止し、本節を再査読する。
+
+- safe production APIからactual terminal latch conflictへ到達するborrow guard、re-entrancy、thread、async yieldが見つかる。
+- row 4 / defer / row 7でroundがsame-self local construction以外の経路から供給される。
+- post-commit queryから`requires_attempt_terminal() == false`のfailureがtest overrideなしで観測される。
+- terminal latchをcheckせずattempt resultを利用する新しいin-repo production consumerが追加される。
+- release-mode invariant canary以外の新しいfailure recovery / escalation mechanismが必要になる。
+
+本節が許可するのは、organic terminal-latch conflictをpanic invariantへ変更する共有gatewayのPart 1と、実証済みの
+same-self round localityを前提にrow 4 / row 7 / deferへrow 3 idiomを適用するPart 2だけである。他のcaller row、
+proof family authority、sealed reuse、snapshot、cache、visibility、publication meaning、既存terminal classificationを
+再開または緩和しない。
+
+追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読・確定
+
+追記状態: 確定・ユーザ承認済み（2026-08-15）。独立査読SOUND（一切文脈のない別セッションによる確認reviewを含め計2ラウンド、
+findings完全ゼロ）。Claude (Sonnet 5) が全文を直接通読し、既存正本群（CPK-SV-D sealed gateway、CPK-SV-C Phase A/B先例、
+DPN/MPCのmutationを跨がないmemo規律）との整合を確認済み。row 4 / row 7 / `defer_scheme_projection_mutation`の
+failure-boundary設計として、上の三度の却下（pending-receipt propagation案、単純attempt-terminal案、row3 idiom直接転用案）を
+すべて置き換える正本として確定する。
