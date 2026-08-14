@@ -187,6 +187,20 @@ pub(crate) enum ProofFailure {
     },
 }
 
+impl ProofFailure {
+    /// Whether this failure makes the current proof attempt unsafe to continue.
+    ///
+    /// Access-layer rejection is returned to the caller but remains retryable. Every semantic
+    /// failure, including future variants by default, preserves the existing sticky-terminal
+    /// behavior.
+    pub(crate) fn requires_attempt_terminal(&self) -> bool {
+        !matches!(
+            self,
+            Self::TerminalLatchBusy | Self::ForeignAttemptRoundState { .. }
+        )
+    }
+}
+
 /// Process-unique identity for one proof attempt.
 ///
 /// The type name is crate-visible because it is part of [`ProofFailure`]'s crate-visible surface;

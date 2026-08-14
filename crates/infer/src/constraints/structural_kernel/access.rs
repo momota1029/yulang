@@ -65,9 +65,9 @@ pub(in crate::constraints) struct ProofAttemptKernel {
 struct QueryAccessTrace {
     active_checks: Cell<usize>,
     round_authentications: Cell<usize>,
+    authenticated_round_state_entries: Cell<usize>,
     scope_entries: Cell<usize>,
     post_scope_checks: Cell<usize>,
-    getter_checks: Cell<usize>,
 }
 
 impl ProofAttemptKernel {
@@ -193,6 +193,10 @@ impl ProofAttemptKernel {
         self.ensure_query_kernel_active()?;
         // 2. Only attempt identity participates in authentication.
         let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+        #[cfg(test)]
+        self.query_trace
+            .authenticated_round_state_entries
+            .set(self.query_trace.authenticated_round_state_entries.get() + 1);
         // 3. A foreign round can never import its sticky failure into this attempt.
         if access == AuthenticatedRoundAccess::Bound {
             if let Some(failure) = &round.terminal_failure {
@@ -238,10 +242,16 @@ impl ProofAttemptKernel {
                 Ok(completion.into_value())
             }
             Err(failure) => {
-                if access == AuthenticatedRoundAccess::Bound && round.terminal_failure.is_none() {
-                    round.terminal_failure = Some(failure.clone());
+                if failure.requires_attempt_terminal() {
+                    if access == AuthenticatedRoundAccess::Bound && round.terminal_failure.is_none()
+                    {
+                        round.terminal_failure = Some(failure.clone());
+                    }
+                    self.mark_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        failure.clone(),
+                    );
                 }
-                self.mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, failure.clone());
                 Err(failure)
             }
         }
@@ -258,6 +268,10 @@ impl ProofAttemptKernel {
         // Steps 1--3: current kernel, attempt identity, publication's no-op round latch.
         self.ensure_query_kernel_active()?;
         let access = self.authenticate_round(round.attempt_nonce, round.reuse_disabled)?;
+        #[cfg(test)]
+        self.query_trace
+            .authenticated_round_state_entries
+            .set(self.query_trace.authenticated_round_state_entries.get() + 1);
         debug_assert!(round.reuse.is_sealing_incomplete());
         // Steps 4--5: fresh invocation-local state and one HRTB scope.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
@@ -291,7 +305,12 @@ impl ProofAttemptKernel {
                 Ok(completion.into_value())
             }
             Err(failure) => {
-                self.mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, failure.clone());
+                if failure.requires_attempt_terminal() {
+                    self.mark_terminal_failure(
+                        ProofOperation::ProjectLowerEvaluation,
+                        failure.clone(),
+                    );
+                }
                 Err(failure)
             }
         }
@@ -581,6 +600,23 @@ impl<'query> ScopedProjectionQuery<'query> {
         self.view.shadow_cursor()
     }
 
+    #[cfg(cpk_sv_d_ss1_rf_ui_round_view_storage)]
+    pub(in crate::constraints) fn complete_with_owned_view<R>(
+        self,
+        finish: impl FnOnce(ScopedQueryView<'query>) -> R,
+    ) -> QueryCompletion<R> {
+        let Self {
+            view,
+            candidates,
+            invocation,
+        } = self;
+        let _ = invocation;
+        QueryCompletion {
+            value: finish(view),
+            candidates,
+        }
+    }
+
     #[cfg(test)]
     pub(super) fn shadow_check_target(&mut self, target: u64) -> bool {
         if self.invocation.checked_targets.insert(target) {
@@ -738,18 +774,18 @@ impl ProofAttemptKernel {
         (
             self.query_trace.active_checks.get(),
             self.query_trace.round_authentications.get(),
+            self.query_trace.authenticated_round_state_entries.get(),
             self.query_trace.scope_entries.get(),
             self.query_trace.post_scope_checks.get(),
-            self.query_trace.getter_checks.get(),
         )
     }
 
     pub(super) fn reset_query_trace(&self) {
         self.query_trace.active_checks.set(0);
         self.query_trace.round_authentications.set(0);
+        self.query_trace.authenticated_round_state_entries.set(0);
         self.query_trace.scope_entries.set(0);
         self.query_trace.post_scope_checks.set(0);
-        self.query_trace.getter_checks.set(0);
     }
 
     pub(super) fn query_latch_busy_failure_for_test(&self) -> ProofFailure {

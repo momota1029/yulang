@@ -49,21 +49,17 @@ fn ui_query_cursor_escape_is_rejected<'a>(
 
 #[cfg(cpk_sv_d_ss1_rf_ui_round_view_storage)]
 struct UiRoundViewHolder<'a> {
-    view: Option<&'a ScopedQueryView<'a>>,
+    view: ScopedQueryView<'a>,
 }
 
 #[cfg(cpk_sv_d_ss1_rf_ui_round_view_storage)]
-fn ui_query_view_cannot_be_stored_in_round(
-    machine: &mut crate::constraints::ConstraintMachine,
-    round: &mut ProjectionEvaluationRoundState,
-) {
-    let mut holder = UiRoundViewHolder { view: None };
-    let _ = machine.with_projection_query(round, |query| {
-        holder.view = Some(query.view());
-        Err::<QueryCompletion<()>, _>(crate::constraints::proof::ProofFailure::ResourceExhausted {
-            operation: crate::constraints::proof::ProofOperation::ProjectLowerEvaluation,
-        })
-    });
+fn ui_query_view_cannot_be_stored_in_round<'a>(
+    machine: &'a mut crate::constraints::ConstraintMachine,
+    round: &'a mut ProjectionEvaluationRoundState,
+) -> Result<UiRoundViewHolder<'a>, crate::constraints::proof::ProofFailure> {
+    machine.with_projection_query(round, |query| {
+        Ok(query.complete_with_owned_view(|view| UiRoundViewHolder { view }))
+    })
 }
 
 #[cfg(cpk_sv_d_ss1_rf_ui_same_kernel_mutation)]

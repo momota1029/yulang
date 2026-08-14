@@ -83,7 +83,7 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
         ),
         (
             "cpk_sv_d_ss1_rf_ui_round_view_storage",
-            "borrowed data escapes outside of closure",
+            "lifetime may not live long enough",
         ),
         (
             "cpk_sv_d_ss1_rf_ui_same_kernel_mutation",
@@ -204,6 +204,9 @@ fn cpk_sv_d_ss1_rf_foreign_publication_round_is_access_denial() {
         })
         .unwrap();
     assert_eq!(warmed, (1, 0));
+    // SealingIncomplete deliberately retains no memo/override payload. The ordering proof is
+    // therefore the K2 trace below: authentication must fail before the wrapper enters any
+    // authenticated round-state path, irrespective of this prior successful K1 invocation.
     let actual = foreign_round.attempt_nonce_for_test();
     let mut second = ConstraintMachine::new();
     let expected = second
@@ -220,7 +223,13 @@ fn cpk_sv_d_ss1_rf_foreign_publication_round_is_access_denial() {
         Err(ProofFailure::ForeignAttemptRoundState { expected, actual })
     );
     assert!(!invoked.get());
-    assert_eq!(second.proof_attempt.query_trace(), (1, 1, 0, 0, 0));
+    let trace = second.proof_attempt.query_trace();
+    assert_eq!(
+        trace.2, 0,
+        "foreign publication round entered its authenticated state path"
+    );
+    assert_eq!(trace.3, 0, "foreign publication query scope was entered");
+    assert_eq!(trace, (1, 1, 0, 0, 0));
 }
 
 #[test]
@@ -274,6 +283,42 @@ fn cpk_sv_d_ss1_rf_query_failure_uses_exact_proof_failure_surface() {
 
     let result = machine.with_projection_query(&mut round, |query| Ok(query.complete(())));
     assert_eq!(result, Err(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss1_rf_access_denials_are_returned_without_poisoning_the_attempt() {
+    let mut machine = ConstraintMachine::new();
+    let mut projection = machine.new_projection_evaluation_round();
+    let busy = ProofFailure::TerminalLatchBusy;
+    assert!(!busy.requires_attempt_terminal());
+    let result: Result<(), ProofFailure> =
+        machine.with_projection_query(&mut projection, |_| Err(busy.clone()));
+    assert_eq!(result, Err(busy));
+    assert_eq!(machine.proof_terminal_failure(), None);
+    machine
+        .with_projection_query(&mut projection, |query| Ok(query.complete(())))
+        .unwrap();
+
+    let mut publication = machine.new_publication_evaluation_round();
+    let foreign = ProofFailure::ForeignAttemptRoundState {
+        expected: publication.attempt_nonce_for_test(),
+        actual: None,
+    };
+    assert!(!foreign.requires_attempt_terminal());
+    let result: Result<(), ProofFailure> =
+        machine.with_publication_projection_query(&mut publication, |_| Err(foreign.clone()));
+    assert_eq!(result, Err(foreign));
+    assert_eq!(machine.proof_terminal_failure(), None);
+    machine
+        .with_publication_projection_query(&mut publication, |query| Ok(query.complete(())))
+        .unwrap();
+
+    assert!(
+        ProofFailure::ResourceExhausted {
+            operation: ProofOperation::ProjectLowerEvaluation,
+        }
+        .requires_attempt_terminal()
+    );
 }
 
 #[test]
@@ -353,15 +398,29 @@ fn cpk_sv_d_ss1_rf_scope_checks_are_once_per_scope_not_per_getter() {
     let mut projection = machine.new_projection_evaluation_round();
     machine.proof_attempt.reset_query_trace();
     machine
+        .with_projection_query(&mut projection, |query| Ok(query.complete(())))
+        .unwrap();
+    let projection_without_getters = machine.proof_attempt.query_trace();
+
+    machine.proof_attempt.reset_query_trace();
+    machine
         .with_projection_query(&mut projection, |query| {
             assert!(query.view().is_empty_shadow());
             assert!(query.view().is_empty_shadow());
             Ok(query.complete(()))
         })
         .unwrap();
-    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 0));
+    let projection_with_getters = machine.proof_attempt.query_trace();
+    assert_eq!(projection_without_getters, (2, 2, 1, 1, 1));
+    assert_eq!(projection_with_getters, projection_without_getters);
 
     let mut publication = machine.new_publication_evaluation_round();
+    machine.proof_attempt.reset_query_trace();
+    machine
+        .with_publication_projection_query(&mut publication, |query| Ok(query.complete(())))
+        .unwrap();
+    let publication_without_getters = machine.proof_attempt.query_trace();
+
     machine.proof_attempt.reset_query_trace();
     machine
         .with_publication_projection_query(&mut publication, |query| {
@@ -370,7 +429,9 @@ fn cpk_sv_d_ss1_rf_scope_checks_are_once_per_scope_not_per_getter() {
             Ok(query.complete(()))
         })
         .unwrap();
-    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 0));
+    let publication_with_getters = machine.proof_attempt.query_trace();
+    assert_eq!(publication_without_getters, (2, 2, 1, 1, 1));
+    assert_eq!(publication_with_getters, publication_without_getters);
 }
 
 #[test]
@@ -391,7 +452,7 @@ fn cpk_sv_d_ss1_rf_post_scope_kernel_recheck_precedes_publication() {
     });
     assert!(invoked.get());
     assert_eq!(result, Err(failure));
-    assert_eq!(machine.proof_attempt.query_trace(), (2, 1, 1, 1, 0));
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 1, 1, 1, 1));
 }
 
 #[test]
@@ -412,7 +473,7 @@ fn cpk_sv_d_ss1_rf_publication_post_scope_kernel_recheck_precedes_publication() 
     });
     assert!(invoked.get());
     assert_eq!(result, Err(failure));
-    assert_eq!(machine.proof_attempt.query_trace(), (2, 1, 1, 1, 0));
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 1, 1, 1, 1));
 }
 
 #[test]
