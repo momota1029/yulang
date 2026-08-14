@@ -7,30 +7,16 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::marker::PhantomData;
-use std::num::NonZeroU64;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::commands::{CommittedStructuralMutation, StructuralMutationIntent};
 use super::gateway::{PreparationScopeNonce, PreparedMutationSlotId, ProofStructuralState};
 use super::read_view::ScopedQueryView;
 pub(in crate::constraints) use crate::constraints::proof::ProofAttemptNonce;
-use crate::constraints::proof::{ProofFailure, ProofOperation};
+use crate::constraints::proof::{ProofFailure, ProofOperation, mint_proof_attempt_nonce};
 use crate::constraints::{ConstraintMachine, record_proof_terminal_failure};
 use poly::types::TypeArena;
 
 use sealing::RoundReuseSlot;
-
-static NEXT_PROOF_ATTEMPT_NONCE: AtomicU64 = AtomicU64::new(1);
-
-fn mint_proof_attempt_nonce() -> Option<ProofAttemptNonce> {
-    NEXT_PROOF_ATTEMPT_NONCE
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
-            next.checked_add(1)
-        })
-        .ok()
-        .and_then(NonZeroU64::new)
-        .map(ProofAttemptNonce)
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::constraints) enum ProofAccessError {

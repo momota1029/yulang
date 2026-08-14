@@ -7,6 +7,7 @@
 use super::*;
 use std::num::NonZeroU64;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// One canonical claimed support returned by [`ProofOccurrenceStore::project_lower`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -206,7 +207,20 @@ impl ProofFailure {
 /// The type name is crate-visible because it is part of [`ProofFailure`]'s crate-visible surface;
 /// only the constraints kernel can construct a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct ProofAttemptNonce(pub(in crate::constraints) NonZeroU64);
+pub(crate) struct ProofAttemptNonce(NonZeroU64);
+
+static NEXT_PROOF_ATTEMPT_NONCE: AtomicU64 = AtomicU64::new(1);
+
+/// Mint the next process-unique proof-attempt identity without exposing raw construction.
+pub(in crate::constraints) fn mint_proof_attempt_nonce() -> Option<ProofAttemptNonce> {
+    NEXT_PROOF_ATTEMPT_NONCE
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+            next.checked_add(1)
+        })
+        .ok()
+        .and_then(NonZeroU64::new)
+        .map(ProofAttemptNonce)
+}
 
 pub(crate) type ProofKernelResult<T> = Result<T, ProofFailure>;
 
@@ -22993,7 +23007,7 @@ mod tests {
     }
 
     #[test]
-    fn cpk_gap_1_every_proof_failure_is_attempt_terminal() {
+    fn cpk_gap_1_proof_failure_terminal_classification_is_complete() {
         let mut machine = cpk_machine();
         let record = cpk_gap_1_projection_record(&mut machine, 30);
         let owner = ProofFactRef::ProjectionSupports(record);
@@ -23018,11 +23032,34 @@ mod tests {
                 field: MandatoryProofField::ExactCarrier,
             },
             ProofFailure::NonCanonicalProjectionOrder { record },
+            ProofFailure::ProjectionInvariantViolation {
+                record,
+                kind: ProjectionInvariantViolation::OrphanFormula,
+            },
+            ProofFailure::InvalidReplayRouteTarget {
+                lower: record,
+                upper: record,
+                kind: ReplayRouteTargetViolation::OwnerMismatch,
+            },
+            ProofFailure::NonCanonicalReplayParentOrder {
+                lower: record,
+                upper: record,
+                side: ReplayClaimParentSide::Lower,
+            },
+            ProofFailure::ReplayRoutingInvariantViolation {
+                lower: record,
+                upper: record,
+                kind: ReplayRoutingInvariantViolation::ClaimIndexMismatch,
+            },
             ProofFailure::ResourceExhausted {
                 operation: ProofOperation::ProjectLowerPreflight,
             },
         ];
         for failure in failures {
+            assert!(
+                failure.requires_attempt_terminal(),
+                "semantic proof failure must remain attempt-terminal: {failure:?}",
+            );
             let mut round = ProjectionEvaluationRound::new();
             round.terminal_failure = Some(failure.clone());
             assert_eq!(
@@ -23039,6 +23076,22 @@ mod tests {
                 "an attempt-terminal failure must remain sticky",
             );
         }
+        for failure in [
+            ProofFailure::TerminalLatchBusy,
+            ProofFailure::ForeignAttemptRoundState {
+                expected: Some(ProofAttemptNonce(
+                    std::num::NonZeroU64::new(1).expect("nonzero nonce"),
+                )),
+                actual: Some(ProofAttemptNonce(
+                    std::num::NonZeroU64::new(2).expect("nonzero nonce"),
+                )),
+            },
+        ] {
+            assert!(
+                !failure.requires_attempt_terminal(),
+                "access denial must remain retryable: {failure:?}",
+            );
+        }
         for kind in [
             ProjectionInvariantViolation::OrphanFormula,
             ProjectionInvariantViolation::DuplicateClaimedRoot,
@@ -23047,6 +23100,7 @@ mod tests {
             ProjectionInvariantViolation::FormulaSupportMismatch,
             ProjectionInvariantViolation::FormulaCategoryOrder,
             ProjectionInvariantViolation::VisitingStateEscaped,
+            ProjectionInvariantViolation::PreparedFormulaBaseChanged,
         ] {
             let failure = ProofFailure::ProjectionInvariantViolation { record, kind };
             let mut round = ProjectionEvaluationRound::new();

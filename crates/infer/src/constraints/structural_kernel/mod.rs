@@ -77,3 +77,8 @@ fn ui_same_kernel_mutation_inside_scope_is_rejected(
         Ok(query.complete(()))
     });
 }
+
+#[cfg(cpk_sv_d_ss1_rf_ui_nonce_forge)]
+fn ui_constraints_sibling_cannot_forge_attempt_nonce() -> ProofAttemptNonce {
+    ProofAttemptNonce(std::num::NonZeroU64::new(7).unwrap())
+}

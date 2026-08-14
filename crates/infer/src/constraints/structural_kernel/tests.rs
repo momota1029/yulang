@@ -89,6 +89,10 @@ fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
             "cpk_sv_d_ss1_rf_ui_same_kernel_mutation",
             "cannot borrow `*machine` as mutable because it is also borrowed as immutable",
         ),
+        (
+            "cpk_sv_d_ss1_rf_ui_nonce_forge",
+            "cannot initialize a tuple struct which contains private fields",
+        ),
     ];
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     for (cfg, expected) in probes {
