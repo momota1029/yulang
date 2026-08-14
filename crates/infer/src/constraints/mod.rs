@@ -1407,26 +1407,18 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
-        let transition = match self.try_update_scheme_projection_live_coverage(root, state, false) {
-            Ok(transition) => transition,
+        match self.try_update_scheme_projection_live_coverage(root, state, false) {
+            Ok(changed) => changed,
             Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::UpdateClaimLifecycle,
-                    failure,
-                );
-                return false;
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::UpdateClaimLifecycle,
+                        failure,
+                    );
+                }
+                false
             }
-        };
-        let proof::PreparedLiveCoverageTransition::Changed {
-            was_empty,
-            is_empty,
-            ..
-        } = transition
-        else {
-            return false;
-        };
-        self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
-        true
+        }
     }
 
     fn insert_scheme_projection_live_coverage_state(
@@ -1434,26 +1426,18 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
     ) -> bool {
-        let transition = match self.try_update_scheme_projection_live_coverage(root, state, true) {
-            Ok(transition) => transition,
+        match self.try_update_scheme_projection_live_coverage(root, state, true) {
+            Ok(changed) => changed,
             Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::UpdateClaimLifecycle,
-                    failure,
-                );
-                return false;
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::UpdateClaimLifecycle,
+                        failure,
+                    );
+                }
+                false
             }
-        };
-        let proof::PreparedLiveCoverageTransition::Changed {
-            was_empty,
-            is_empty,
-            ..
-        } = transition
-        else {
-            return false;
-        };
-        self.record_scheme_projection_liveness_mutation(root, was_empty, is_empty);
-        true
+        }
     }
 
     fn try_update_scheme_projection_live_coverage(
@@ -1461,51 +1445,57 @@ impl ConstraintMachine {
         root: UpperReplayClaimId,
         state: UnweightedRowReductionRecordId,
         active: bool,
-    ) -> Result<proof::PreparedLiveCoverageTransition, proof::ProofFailure> {
+    ) -> Result<bool, proof::ProofFailure> {
         let mut mutation = self
             .proof_store
             .try_prepare_live_coverage_mutation(root, state, active)?;
+        let proof::PreparedLiveCoverageTransition::Changed {
+            was_empty,
+            is_empty,
+            ..
+        } = mutation.transition
+        else {
+            self.proof_store
+                .commit_live_coverage_mutation(&mut mutation);
+            return Ok(false);
+        };
+
+        // Prepare the complete publication result against the unchanged legacy snapshot. The
+        // hypothetical after lane supplies the pending liveness bit; no semantic write occurs
+        // unless the authenticated query finishes successfully.
+        let affected_owners =
+            self.prepare_scheme_projection_liveness_publication(root, was_empty, is_empty)?;
         self.proof_store
             .commit_live_coverage_mutation(&mut mutation);
-        Ok(mutation.transition)
+        if let Some(affected_owners) = affected_owners {
+            self.record_scheme_projection_mutation(affected_owners);
+        } else {
+            self.bump_provenance_epoch();
+        }
+        Ok(true)
     }
 
-    fn record_scheme_projection_liveness_mutation(
+    fn prepare_scheme_projection_liveness_publication(
         &mut self,
         root: UpperReplayClaimId,
         was_empty: bool,
         is_empty: bool,
-    ) {
+    ) -> Result<Option<FxHashSet<TypeVar>>, proof::ProofFailure> {
         if was_empty == is_empty {
-            self.bump_provenance_epoch();
-            return;
-        }
-        let Some(root) = self.proof_store.claim_coverage_root(root) else {
-            self.bump_provenance_epoch();
-            return;
+            return Ok(None);
         };
-        let mut affected_records = self
-            .proof_store
-            .projection_lower_records_for_root(root)
-            .iter()
-            .copied()
-            .collect::<FxHashSet<_>>();
-        affected_records.extend(
-            self.proof_store
-                .dependent_records(ProofPremise::RootCoverage(root))
-                .into_iter()
-                .flatten()
-                .copied(),
-        );
-        self.extend_with_record_dependents(&mut affected_records);
 
         let mut round = self.new_publication_evaluation_round();
-        let Ok(affected_owners) = self.with_legacy_publication_query(&mut round, |query| {
+        self.with_legacy_publication_query(&mut round, |query| {
+            let Some((root, affected_records)) = query.projection_liveness_affected_records(root)
+            else {
+                return Ok(query.complete(None));
+            };
             let affected_owners = {
-                let mut before_lane = ScopedCpkPublicationEvaluationLane::with_root_result_override(
-                    &query, root, was_empty,
+                let mut before_lane = ScopedCpkPublicationEvaluationLane::new(&query);
+                let mut after_lane = ScopedCpkPublicationEvaluationLane::with_root_result_override(
+                    &query, root, is_empty,
                 );
-                let mut after_lane = ScopedCpkPublicationEvaluationLane::new(&query);
                 affected_records
                     .into_iter()
                     .filter(|record| {
@@ -1514,11 +1504,8 @@ impl ConstraintMachine {
                     .filter_map(|record| query.active_projection_record_owner(record))
                     .collect::<FxHashSet<_>>()
             };
-            Ok(query.complete(affected_owners))
-        }) else {
-            return;
-        };
-        self.record_scheme_projection_mutation(affected_owners);
+            Ok(query.complete(Some(affected_owners)))
+        })
     }
 
     fn apply_scheme_projection_mutation(&mut self, mut mutation: SchemeProjectionMutation) {

@@ -10,6 +10,7 @@ use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{
     BoundDerivation, ConstraintMachine, ConstraintRecordId, ConstraintWeights,
     GeneralizedSchemeRecordId, LowerFilterRecordId, OriginId, ProvenanceCompleteness,
+    UnweightedRowReductionRecordId, UpperReplayClaimId,
 };
 
 const ALL_INTENTS: [I; 29] = [
@@ -43,6 +44,29 @@ const ALL_INTENTS: [I; 29] = [
     I::AdmitStructuralIdentity,
     I::AdmitSchemeInstantiation,
 ];
+
+#[test]
+fn cpk_sv_d_ss2_p0_liveness_query_denial_precedes_authoritative_commit() {
+    let mut machine = ConstraintMachine::new();
+    let root = UpperReplayClaimId(98_101);
+    let state = UnweightedRowReductionRecordId(98_102);
+
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
+    assert!(
+        !machine.insert_scheme_projection_live_coverage_state(root, state),
+        "retryable query denial must not report a committed liveness transition"
+    );
+    assert!(
+        machine.insert_scheme_projection_live_coverage_state(root, state),
+        "the same transition must remain commit-ready after retryable query denial"
+    );
+    assert!(
+        !machine.insert_scheme_projection_live_coverage_state(root, state),
+        "the successful retry must commit exactly once"
+    );
+}
 
 #[test]
 fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {

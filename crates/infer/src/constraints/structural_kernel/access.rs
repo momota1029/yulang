@@ -15,7 +15,7 @@ use super::read_view::ScopedQueryView;
 pub(in crate::constraints) use crate::constraints::proof::ProofAttemptNonce;
 use crate::constraints::proof::{self, ProofFailure, ProofOperation, mint_proof_attempt_nonce};
 use crate::constraints::{
-    ConstraintMachine, SchemeProjectableLower, SchemeProjectableLowerReason,
+    ConstraintMachine, SchemeProjectableLower, SchemeProjectableLowerReason, UpperReplayClaimId,
     record_proof_terminal_failure,
 };
 use poly::types::{PosId, TypeArena, TypeVar};
@@ -963,6 +963,16 @@ impl<'query> ScopedLegacyPublicationQuery<'query> {
         record: crate::constraints::BoundRecordId,
     ) -> Option<TypeVar> {
         self.view.active_projection_record_owner(record)
+    }
+
+    pub(in crate::constraints) fn projection_liveness_affected_records(
+        &self,
+        claim: UpperReplayClaimId,
+    ) -> Option<(
+        UpperReplayClaimId,
+        rustc_hash::FxHashSet<crate::constraints::BoundRecordId>,
+    )> {
+        self.view.projection_liveness_affected_records(claim)
     }
 
     #[cfg(test)]

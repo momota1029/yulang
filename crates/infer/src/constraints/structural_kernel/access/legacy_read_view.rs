@@ -1,5 +1,7 @@
 //! Scope-private read routing over the pre-sealing production owners.
 
+use std::collections::VecDeque;
+
 use poly::types::{PosId, Subtractability, TypeVar};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -11,12 +13,12 @@ use crate::constraints::proof::{
 };
 use crate::constraints::{
     BoundRecordId, BoundSemanticKey, ConstraintRecord, ConstraintRecordId, GeneralizedSchemeRecord,
-    GeneralizedSchemeWitness, LowerFilterRecord, LowerFilterRecordId, OriginRecord,
+    GeneralizedSchemeWitness, LowerFilterRecord, LowerFilterRecordId, OriginRecord, ProofPremise,
     ReplayDerivationBudget, ReplayDerivationStorage, ReplayDropRecord, ReplayDropRecordId,
     RowDerivation, RowDerivationId, RowResidualKey, RowResidualRecord, RowResidualRecordId,
     SchemeInstantiationId, SchemeInstantiationKey, SchemeInstantiationRecord, SourceBoundaryRecord,
     SubtypeConstraintKey, TypeBounds, UnweightedRowReductionOwner, UnweightedRowReductionRecord,
-    UnweightedRowReductionRecordId,
+    UnweightedRowReductionRecordId, UpperReplayClaimId,
 };
 
 /// All production read authorities before any family has been sealed.
@@ -229,6 +231,46 @@ impl<'query> LegacyOnlyQueryView<'query> {
         self.bound(record)
             .filter(|record| record.state() != crate::constraints::BoundRecordState::Tombstone)
             .map(SemanticBoundRecordRef::owner)
+    }
+
+    pub(super) fn projection_liveness_affected_records(
+        &self,
+        claim: UpperReplayClaimId,
+    ) -> Option<(UpperReplayClaimId, FxHashSet<BoundRecordId>)> {
+        let root = self.sources.proof.claim_coverage_root(claim)?;
+        let mut affected_records = self
+            .sources
+            .proof
+            .projection_lower_records_for_root(root)
+            .iter()
+            .copied()
+            .collect::<FxHashSet<_>>();
+        affected_records.extend(
+            self.sources
+                .proof
+                .dependent_records(ProofPremise::RootCoverage(root))
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+
+        let mut queue = affected_records.iter().copied().collect::<VecDeque<_>>();
+        while let Some(record) = queue.pop_front() {
+            let Some(dependents) = self
+                .sources
+                .proof
+                .dependent_records(ProofPremise::Record(record))
+            else {
+                continue;
+            };
+            for dependent in dependents {
+                if affected_records.insert(*dependent) {
+                    queue.push_back(*dependent);
+                }
+            }
+        }
+
+        Some((root, affected_records))
     }
 
     #[cfg(test)]
