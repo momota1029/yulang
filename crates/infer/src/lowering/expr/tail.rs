@@ -991,7 +991,7 @@ impl<'a> ExprLowerer<'a> {
             &non_generic,
         );
         let (witnesses, witness_completeness) = crate::generalize::capture_generalized_witnesses(
-            self.session.infer.constraints(),
+            self.session.infer.constraints_mut(),
             value,
             &generalized,
         );

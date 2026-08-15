@@ -15,11 +15,12 @@ use crate::constraints::mutation::DependencyKey;
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{
     BoundDerivation, BoundRecordId, ConstraintEffectFamily, ConstraintMachine, ConstraintRecordId,
-    ConstraintWeights, DerivedUnaryCarrier, GeneralizedSchemeRecordId, LowerFilterRecordId,
-    OriginId, ProjectionProofCarrier, ProofPremise, ProvenanceCompleteness, RecordProofClause,
-    RecordProofClauseLinkAdmission, RowDerivationId, SchemeProjectionProof,
-    SchemeProjectionProofSupport, StructuralDerivation, StructuralDerivationRule, SubtractFact,
-    TypeLevel, UnweightedRowReductionRecordId, UpperReplayClaimId, UpperReplayClaimKind,
+    ConstraintWeights, DerivedUnaryCarrier, GeneralizationParent, GeneralizedSchemeRecordId,
+    GeneralizedWitnessRole, LowerFilterRecordId, OriginId, ProjectionProofCarrier, ProofPremise,
+    ProvenanceCompleteness, RecordProofClause, RecordProofClauseLinkAdmission, RowDerivationId,
+    SchemeProjectionProof, SchemeProjectionProofSupport, StructuralDerivation,
+    StructuralDerivationRule, SubtractFact, TypeLevel, UnweightedRowReductionRecordId,
+    UpperReplayClaimId, UpperReplayClaimKind,
 };
 
 fn foreign_publication_round_failure() -> ProofFailure {
@@ -1299,6 +1300,111 @@ fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
         .expect("scope-local projectable lowers remain available");
 
     assert_eq!(actual, expected);
+}
+
+fn row1_witness_empty_generalized_root() -> crate::generalize::GeneralizedCompactRoot {
+    crate::generalize::GeneralizedCompactRoot {
+        compact: crate::compact::CompactRoot::default(),
+        role_predicates: Vec::new(),
+        quantifiers: Vec::new(),
+        stack_quantifiers: Vec::new(),
+        substitutions: Vec::new(),
+        sandwiches: Vec::new(),
+    }
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_witness_capture_uses_one_scope_with_success_parity() {
+    let (mut machine, owner, direct, transitive) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    let record_for = |machine: &ConstraintMachine, owner, endpoint| {
+        machine
+            .bounds
+            .of(owner)
+            .into_iter()
+            .flat_map(crate::constraints::VarBounds::generalized_projection_lowers)
+            .find_map(|(record, bound)| {
+                matches!(machine.types.pos(bound.pos), Pos::Var(found) if *found == endpoint)
+                    .then_some(record)
+            })
+            .expect("ordinary witness fixture has its expected lower record")
+    };
+    let owner_record = record_for(&machine, owner, direct);
+    let direct_record = record_for(&machine, direct, transitive);
+
+    machine.proof_attempt.reset_query_trace();
+    let (drafts, completeness) = crate::generalize::capture_generalized_witnesses(
+        &mut machine,
+        owner,
+        &row1_witness_empty_generalized_root(),
+    );
+
+    assert_eq!(completeness, ProvenanceCompleteness::Incomplete);
+    let lower = drafts
+        .iter()
+        .find(|draft| {
+            draft.path == crate::constraints::GeneralizedTypePath::default()
+                && draft.role == GeneralizedWitnessRole::LowerBound
+        })
+        .expect("ordinary projectable lower retains its root witness");
+    assert_eq!(
+        lower
+            .incoming
+            .iter()
+            .flat_map(|edge| &edge.parents)
+            .collect::<Vec<_>>(),
+        vec![
+            &GeneralizationParent::Bound(owner_record),
+            &GeneralizationParent::Bound(direct_record),
+        ]
+    );
+    assert_eq!(
+        machine.proof_attempt.query_trace(),
+        (2, 2, 1, 1, 1),
+        "the top-level witness traversal enters one scope and no nested scope"
+    );
+
+    let production_source = include_str!("../../generalize/provenance.rs")
+        .split("#[cfg(test)]")
+        .next()
+        .expect("production witness source precedes its tests");
+    assert_eq!(
+        production_source
+            .matches(".scheme_projectable_lowers(")
+            .count(),
+        0,
+        "production witness capture must not call the old direct helper"
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_witness_denial_latches_before_empty_incomplete_poison() {
+    let (mut machine, owner, _, _) = ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    machine.proof_attempt.reset_query_trace();
+
+    let (drafts, completeness) = crate::generalize::capture_generalized_witnesses(
+        &mut machine,
+        owner,
+        &row1_witness_empty_generalized_root(),
+    );
+
+    assert!(
+        drafts.is_empty(),
+        "denial must not leak partial witness drafts"
+    );
+    assert_eq!(completeness, ProvenanceCompleteness::Incomplete);
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+    assert_eq!(
+        machine.proof_attempt.query_trace(),
+        (1, 1, 1, 0, 0),
+        "the injected real gateway denial precedes scope entry and poison construction"
+    );
 }
 
 struct Row1OwnedReadScalingFixture {

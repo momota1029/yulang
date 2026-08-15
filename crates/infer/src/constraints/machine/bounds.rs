@@ -5990,7 +5990,7 @@ mod mutation_tests {
                 assert_eq!(keys, canonical_projection_key::normalize_clone(&keys));
             }
 
-            fn consumer_snapshot(&self) -> ConsumerSnapshot {
+            fn consumer_snapshot(&mut self) -> ConsumerSnapshot {
                 let entry = self.machine.scheme_projectable_lowers(self.target)
                     .find(|entry| entry.record == self.lower_record)
                     .expect("isolated lower remains projectable");
@@ -6010,12 +6010,14 @@ mod mutation_tests {
                 }
             }
 
-            fn capture_witnesses(&self) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
+            fn capture_witnesses(
+                &mut self,
+            ) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
                 let generalized = GeneralizedCompactRoot {
                     compact: CompactRoot::default(), role_predicates: Vec::new(), quantifiers: Vec::new(),
                     stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
                 };
-                capture_generalized_witnesses(&self.machine, self.target, &generalized)
+                capture_generalized_witnesses(&mut self.machine, self.target, &generalized)
             }
 
             fn record_witness_roots(&mut self) -> Vec<PortableProvenanceExportRoot> {
@@ -6241,7 +6243,7 @@ mod mutation_tests {
                     stack_quantifiers: Vec::new(), substitutions: Vec::new(), sandwiches: Vec::new(),
                 };
                 let (drafts, completeness) = capture_generalized_witnesses(
-                    &self.machine, self.target, &generalized,
+                    &mut self.machine, self.target, &generalized,
                 );
                 let parents = drafts.iter().flat_map(|draft| &draft.incoming)
                     .flat_map(|edge| &edge.parents).cloned().collect::<Vec<_>>();

@@ -8,10 +8,12 @@
 use rustc_hash::FxHashSet;
 
 use super::*;
+use crate::constraints::proof::ProjectionEvaluationRound;
 use crate::constraints::{
     BoundRecordId, GeneralizationDerivation, GeneralizationDerivationRule, GeneralizationParent,
     GeneralizedTypePath, GeneralizedTypePathStep, GeneralizedWitnessDraft, GeneralizedWitnessRole,
-    ProvenanceCompleteness, SchemeProjectableLowerReason, StructuralIndex,
+    ProofFailure, ProvenanceCompleteness, SchemeProjectableLowerReason,
+    ScopedLegacyProjectionQuery, StructuralIndex,
 };
 
 const MAX_WITNESSES_PER_SCHEME: usize = 128;
@@ -19,55 +21,66 @@ const MAX_INCOMING_EDGES_PER_SCHEME: usize = 256;
 const MAX_GENERALIZED_PATH_DEPTH: usize = 16;
 
 pub(crate) fn capture_generalized_witnesses(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     root: TypeVar,
     generalized: &GeneralizedCompactRoot,
 ) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
-    let mut collector = WitnessCollector::new(machine);
-    collector.collect_var(root, true, GeneralizedTypePath::default(), None);
-    collector.drafts.retain_mut(|draft| {
-        if function_argument_only(&draft.path) {
-            return structural_path_survives(&generalized.compact.root, &draft.path);
-        }
-        if !structural_path_survives(&generalized.compact.root, &draft.path) {
-            draft.completeness = ProvenanceCompleteness::Incomplete;
-        }
-        true
-    });
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let mut collector = WitnessCollector::new(&query);
+            collector.collect_var(root, true, GeneralizedTypePath::default(), None)?;
+            collector.drafts.retain_mut(|draft| {
+                if function_argument_only(&draft.path) {
+                    return structural_path_survives(&generalized.compact.root, &draft.path);
+                }
+                if !structural_path_survives(&generalized.compact.root, &draft.path) {
+                    draft.completeness = ProvenanceCompleteness::Incomplete;
+                }
+                true
+            });
 
-    let sandwich_incomplete = !generalized.sandwiches.is_empty();
-    if sandwich_incomplete {
-        for draft in &mut collector.drafts {
-            draft.completeness = ProvenanceCompleteness::Incomplete;
-        }
-    }
-    for (index, _) in generalized.compact.rec_vars.iter().enumerate() {
-        let path = GeneralizedTypePath(vec![GeneralizedTypePathStep::RecursiveBound(
-            StructuralIndex::from_usize(index),
-        )]);
-        collector.drafts.push(GeneralizedWitnessDraft {
-            path: path.clone(),
-            role: GeneralizedWitnessRole::RecursiveLowerBound,
-            incoming: Vec::new(),
-            completeness: ProvenanceCompleteness::Incomplete,
-        });
-        collector.drafts.push(GeneralizedWitnessDraft {
-            path,
-            role: GeneralizedWitnessRole::RecursiveUpperBound,
-            incoming: Vec::new(),
-            completeness: ProvenanceCompleteness::Incomplete,
-        });
-    }
+            let sandwich_incomplete = !generalized.sandwiches.is_empty();
+            if sandwich_incomplete {
+                for draft in &mut collector.drafts {
+                    draft.completeness = ProvenanceCompleteness::Incomplete;
+                }
+            }
+            for (index, _) in generalized.compact.rec_vars.iter().enumerate() {
+                let path = GeneralizedTypePath(vec![GeneralizedTypePathStep::RecursiveBound(
+                    StructuralIndex::from_usize(index),
+                )]);
+                collector.drafts.push(GeneralizedWitnessDraft {
+                    path: path.clone(),
+                    role: GeneralizedWitnessRole::RecursiveLowerBound,
+                    incoming: Vec::new(),
+                    completeness: ProvenanceCompleteness::Incomplete,
+                });
+                collector.drafts.push(GeneralizedWitnessDraft {
+                    path,
+                    role: GeneralizedWitnessRole::RecursiveUpperBound,
+                    incoming: Vec::new(),
+                    completeness: ProvenanceCompleteness::Incomplete,
+                });
+            }
 
-    // PUSP-C deliberately does not claim complete whole-scheme coverage until every structural
-    // compact transformation has a parallel projection. Individual argument witnesses remain
-    // complete when their exact path did not cross a sandwich or the storage budget.
-    let scheme_completeness = ProvenanceCompleteness::Incomplete;
-    (collector.drafts, scheme_completeness)
+            // PUSP-C deliberately does not claim complete whole-scheme coverage until every
+            // structural compact transformation has a parallel projection. Individual argument
+            // witnesses remain complete when their exact path did not cross a sandwich or the
+            // storage budget.
+            let scheme_completeness = ProvenanceCompleteness::Incomplete;
+            let drafts = std::mem::take(&mut collector.drafts);
+            drop(collector);
+            Ok(query.complete((drafts, scheme_completeness)))
+        })
+        // This value is an attempt-local poison only. The gateway records every organically
+        // reachable denial in the same machine's terminal latch before returning the error.
+        .unwrap_or((Vec::new(), ProvenanceCompleteness::Incomplete))
 }
 
-struct WitnessCollector<'a> {
-    machine: &'a ConstraintMachine,
+struct WitnessCollector<'scope, 'query> {
+    query: &'scope ScopedLegacyProjectionQuery<'query>,
+    projection_round: ProjectionEvaluationRound<'scope>,
     drafts: Vec<GeneralizedWitnessDraft>,
     visiting: FxHashSet<(TypeVar, bool)>,
     incoming_edges: usize,
@@ -86,10 +99,11 @@ impl<'a> From<BoundRecordId> for WitnessParents<'a> {
     }
 }
 
-impl<'a> WitnessCollector<'a> {
-    fn new(machine: &'a ConstraintMachine) -> Self {
+impl<'scope, 'query> WitnessCollector<'scope, 'query> {
+    fn new(query: &'scope ScopedLegacyProjectionQuery<'query>) -> Self {
         Self {
-            machine,
+            query,
+            projection_round: ProjectionEvaluationRound::new(),
             drafts: Vec::new(),
             visiting: FxHashSet::default(),
             incoming_edges: 0,
@@ -163,11 +177,7 @@ impl<'a> WitnessCollector<'a> {
         self.incoming_edges += 1;
     }
 
-    fn mark_incomplete(
-        &mut self,
-        path: &GeneralizedTypePath,
-        role: GeneralizedWitnessRole,
-    ) {
+    fn mark_incomplete(&mut self, path: &GeneralizedTypePath, role: GeneralizedWitnessRole) {
         if let Some(draft) = self
             .drafts
             .iter_mut()
@@ -194,97 +204,97 @@ impl<'a> WitnessCollector<'a> {
         positive: bool,
         path: GeneralizedTypePath,
         structural_parent: Option<WitnessParents<'_>>,
-    ) {
+    ) -> Result<(), ProofFailure> {
         if self.truncated || path.depth() > MAX_GENERALIZED_PATH_DEPTH {
             self.truncated = true;
-            return;
+            return Ok(());
         }
         if let Some(parent) = structural_parent {
             self.add(&path, GeneralizedWitnessRole::ConstraintRelation, parent);
         }
         if !self.visiting.insert((var, positive)) {
-            return;
+            return Ok(());
         }
-        if let Some(bounds) = self.machine.bounds().of(var) {
-            if positive {
-                let entries = self
-                    .machine
-                    .scheme_projectable_lowers(var)
-                    .collect::<Vec<_>>();
-                for entry in entries {
-                    let endpoint = entry.bound.pos;
-                    match entry.reason {
-                        SchemeProjectableLowerReason::Unclaimed => {
-                            self.add(&path, GeneralizedWitnessRole::LowerBound, entry.record);
-                            self.collect_pos(
-                                endpoint,
-                                path.clone(),
-                                WitnessParents::Bound(entry.record),
-                            );
-                        }
-                        SchemeProjectableLowerReason::Qualified {
-                            uncovered_claims: _,
-                            independent_supports,
-                        } => {
-                            let evidence = entry.projection_evidence.expect(
-                                "qualified projection lower must carry its evaluation evidence",
-                            );
-                            let mut parents = Vec::new();
-                            let fail_open = match evidence {
-                                crate::constraints::proof::ProjectionEvidence::DecisiveClaimedArm(
-                                    proof,
-                                ) => {
-                                    parents.push(
-                                        GeneralizationParent::BoundClaimProjectionProof {
-                                            bound: entry.record,
-                                            coverage_root: proof.coverage_root(),
-                                            representative_claim: proof.representative_claim(),
-                                            proof: Box::new(proof),
-                                        },
-                                    );
-                                    false
-                                }
-                                crate::constraints::proof::ProjectionEvidence::ExactWithoutClaimedArm => {
-                                    false
-                                }
-                                crate::constraints::proof::ProjectionEvidence::FailOpenIncomplete => {
-                                    true
-                                }
-                            };
-                            parents.extend(independent_supports.into_iter().map(|carrier| {
-                                GeneralizationParent::BoundProjectionProof {
-                                    bound: entry.record,
-                                    carrier,
-                                }
-                            }));
-                            let parents = WitnessParents::Selected(&parents);
-                            self.add(&path, GeneralizedWitnessRole::LowerBound, parents);
-                            if fail_open {
-                                self.mark_incomplete(
-                                    &path,
-                                    GeneralizedWitnessRole::LowerBound,
-                                );
+        if positive {
+            let entries = self
+                .query
+                .scheme_projectable_lowers_in_scope(var, &mut self.projection_round)?
+                .into_iter()
+                .map(|entry| {
+                    (
+                        entry.record,
+                        entry.bound.pos,
+                        entry.reason,
+                        entry.projection_evidence,
+                    )
+                })
+                .collect::<Vec<_>>();
+            for (record, endpoint, reason, projection_evidence) in entries {
+                match reason {
+                    SchemeProjectableLowerReason::Unclaimed => {
+                        self.add(&path, GeneralizedWitnessRole::LowerBound, record);
+                        self.collect_pos(endpoint, path.clone(), WitnessParents::Bound(record))?;
+                    }
+                    SchemeProjectableLowerReason::Qualified {
+                        uncovered_claims: _,
+                        independent_supports,
+                    } => {
+                        let evidence = projection_evidence.expect(
+                            "qualified projection lower must carry its evaluation evidence",
+                        );
+                        let mut parents = Vec::new();
+                        let fail_open = match evidence {
+                            crate::constraints::proof::ProjectionEvidence::DecisiveClaimedArm(
+                                proof,
+                            ) => {
+                                parents.push(GeneralizationParent::BoundClaimProjectionProof {
+                                    bound: record,
+                                    coverage_root: proof.coverage_root(),
+                                    representative_claim: proof.representative_claim(),
+                                    proof: Box::new(proof),
+                                });
+                                false
                             }
-                            self.collect_pos(endpoint, path.clone(), parents);
+                            crate::constraints::proof::ProjectionEvidence::ExactWithoutClaimedArm => {
+                                false
+                            }
+                            crate::constraints::proof::ProjectionEvidence::FailOpenIncomplete => {
+                                true
+                            }
+                        };
+                        parents.extend(independent_supports.into_iter().map(|carrier| {
+                            GeneralizationParent::BoundProjectionProof {
+                                bound: record,
+                                carrier,
+                            }
+                        }));
+                        let parents = WitnessParents::Selected(&parents);
+                        self.add(&path, GeneralizedWitnessRole::LowerBound, parents);
+                        if fail_open {
+                            self.mark_incomplete(&path, GeneralizedWitnessRole::LowerBound);
                         }
+                        self.collect_pos(endpoint, path.clone(), parents)?;
                     }
                 }
-            } else {
-                let entries = bounds
-                    .generalized_projection_uppers()
-                    .map(|(id, bound)| (id, bound.neg))
-                    .collect::<Vec<_>>();
-                for (record, endpoint) in entries {
-                    self.add(&path, GeneralizedWitnessRole::UpperBound, record);
-                    self.collect_neg(endpoint, path.clone(), record);
-                }
+            }
+        } else {
+            let entries = self.query.projection_upper_records_in_scope(var);
+            for (record, bound) in entries {
+                self.add(&path, GeneralizedWitnessRole::UpperBound, record);
+                self.collect_neg(bound.neg, path.clone(), record)?;
             }
         }
         self.visiting.remove(&(var, positive));
+        Ok(())
     }
 
-    fn collect_pos(&mut self, id: PosId, path: GeneralizedTypePath, parent: WitnessParents<'_>) {
-        match self.machine.types().pos(id).clone() {
+    fn collect_pos(
+        &mut self,
+        id: PosId,
+        path: GeneralizedTypePath,
+        parent: WitnessParents<'_>,
+    ) -> Result<(), ProofFailure> {
+        match self.query.pos_shape_in_scope(id) {
             Pos::Var(var) => self.collect_var(var, true, path, Some(parent)),
             Pos::Con(_, args) => self.collect_neu_items(
                 &args,
@@ -305,7 +315,7 @@ impl<'a> WitnessCollector<'a> {
                     arg,
                     child(&path, GeneralizedTypePathStep::FunctionArgument),
                     parent,
-                );
+                )?;
                 // The shipped PUSP graph exposes only the root function argument. Adding root
                 // return/effect witnesses would change existing bounded-query topology. Nested
                 // function positions are new structural positions and can be captured inertly.
@@ -314,18 +324,19 @@ impl<'a> WitnessCollector<'a> {
                         arg_eff,
                         child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_pos(
                         ret_eff,
                         child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_pos(
                         ret,
                         child(&path, GeneralizedTypePathStep::FunctionReturn),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Pos::Record(fields)
             | Pos::RecordTailSpread { fields, .. }
@@ -341,8 +352,9 @@ impl<'a> WitnessCollector<'a> {
                             },
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Pos::PolyVariant(items) => {
                 for (item, (_, payloads)) in items.into_iter().enumerate() {
@@ -358,9 +370,10 @@ impl<'a> WitnessCollector<'a> {
                                 },
                             ),
                             parent,
-                        );
+                        )?;
                     }
                 }
+                Ok(())
             }
             Pos::Tuple(items) => {
                 for (index, value) in items.into_iter().enumerate() {
@@ -373,18 +386,19 @@ impl<'a> WitnessCollector<'a> {
                             )),
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Pos::Row(items) => self.collect_pos_row_items(&items, &path, parent),
             Pos::Union(lhs, rhs) => {
-                self.collect_pos(lhs, path.clone(), parent);
-                self.collect_pos(rhs, path, parent);
+                self.collect_pos(lhs, path.clone(), parent)?;
+                self.collect_pos(rhs, path, parent)
             }
             Pos::NonSubtract(inner, _) | Pos::Stack { inner, .. } => {
                 self.collect_pos(inner, path, parent)
             }
-            _ => {}
+            _ => Ok(()),
         }
     }
 
@@ -393,9 +407,9 @@ impl<'a> WitnessCollector<'a> {
         id: NegId,
         path: GeneralizedTypePath,
         parent: impl Into<WitnessParents<'parents>>,
-    ) {
+    ) -> Result<(), ProofFailure> {
         let parent = parent.into();
-        match self.machine.types().neg(id).clone() {
+        match self.query.neg_shape_in_scope(id) {
             Neg::Var(var) => self.collect_var(var, false, path, Some(parent)),
             Neg::Con(_, args) => self.collect_neu_items(
                 &args,
@@ -416,24 +430,25 @@ impl<'a> WitnessCollector<'a> {
                     arg,
                     child(&path, GeneralizedTypePathStep::FunctionArgument),
                     parent,
-                );
+                )?;
                 if path.depth() != 0 {
                     self.collect_pos(
                         arg_eff,
                         child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_neg(
                         ret_eff,
                         child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_neg(
                         ret,
                         child(&path, GeneralizedTypePathStep::FunctionReturn),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Neg::Record(fields) => {
                 for (field, value) in fields.into_iter().enumerate() {
@@ -447,8 +462,9 @@ impl<'a> WitnessCollector<'a> {
                             },
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Neg::PolyVariant(items) => {
                 for (item, (_, payloads)) in items.into_iter().enumerate() {
@@ -464,9 +480,10 @@ impl<'a> WitnessCollector<'a> {
                                 },
                             ),
                             parent,
-                        );
+                        )?;
                     }
                 }
+                Ok(())
             }
             Neg::Tuple(items) => {
                 for (index, value) in items.into_iter().enumerate() {
@@ -479,27 +496,33 @@ impl<'a> WitnessCollector<'a> {
                             )),
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Neg::Row(items, tail) => {
-                self.collect_neg_row_items(&items, &path, parent);
-                self.collect_neg(tail, child(&path, GeneralizedTypePathStep::RowTail), parent);
+                self.collect_neg_row_items(&items, &path, parent)?;
+                self.collect_neg(tail, child(&path, GeneralizedTypePathStep::RowTail), parent)
             }
             Neg::Intersection(lhs, rhs) => {
-                self.collect_neg(lhs, path.clone(), parent);
-                self.collect_neg(rhs, path, parent);
+                self.collect_neg(lhs, path.clone(), parent)?;
+                self.collect_neg(rhs, path, parent)
             }
             Neg::Stack { inner, .. } => self.collect_neg(inner, path, parent),
-            _ => {}
+            _ => Ok(()),
         }
     }
 
-    fn collect_neu(&mut self, id: NeuId, path: GeneralizedTypePath, parent: WitnessParents<'_>) {
-        match self.machine.types().neu(id).clone() {
+    fn collect_neu(
+        &mut self,
+        id: NeuId,
+        path: GeneralizedTypePath,
+        parent: WitnessParents<'_>,
+    ) -> Result<(), ProofFailure> {
+        match self.query.neu_shape_in_scope(id) {
             Neu::Bounds(lower, upper) => {
-                self.collect_pos(lower, path.clone(), parent);
-                self.collect_neg(upper, path, parent);
+                self.collect_pos(lower, path.clone(), parent)?;
+                self.collect_neg(upper, path, parent)
             }
             Neu::Con(_, args) => self.collect_neu_items(
                 &args,
@@ -520,24 +543,25 @@ impl<'a> WitnessCollector<'a> {
                     arg,
                     child(&path, GeneralizedTypePathStep::FunctionArgument),
                     parent,
-                );
+                )?;
                 if path.depth() != 0 {
                     self.collect_neu(
                         arg_eff,
                         child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_neu(
                         ret_eff,
                         child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
                         parent,
-                    );
+                    )?;
                     self.collect_neu(
                         ret,
                         child(&path, GeneralizedTypePathStep::FunctionReturn),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Neu::Record(fields) => {
                 for (field, value) in fields.into_iter().enumerate() {
@@ -551,8 +575,9 @@ impl<'a> WitnessCollector<'a> {
                             },
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
             Neu::PolyVariant(items) => {
                 for (item, (_, payloads)) in items.into_iter().enumerate() {
@@ -568,9 +593,10 @@ impl<'a> WitnessCollector<'a> {
                                 },
                             ),
                             parent,
-                        );
+                        )?;
                     }
                 }
+                Ok(())
             }
             Neu::Tuple(items) => {
                 for (index, value) in items.into_iter().enumerate() {
@@ -583,8 +609,9 @@ impl<'a> WitnessCollector<'a> {
                             )),
                         ),
                         parent,
-                    );
+                    )?;
                 }
+                Ok(())
             }
         }
     }
@@ -595,14 +622,15 @@ impl<'a> WitnessCollector<'a> {
         path: &GeneralizedTypePath,
         step: impl Fn(StructuralIndex) -> GeneralizedTypePathStep,
         parent: WitnessParents<'_>,
-    ) {
+    ) -> Result<(), ProofFailure> {
         for (index, item) in items.iter().copied().enumerate() {
             self.collect_neu(
                 item,
                 child(path, step(StructuralIndex::from_usize(index))),
                 parent,
-            );
+            )?;
         }
+        Ok(())
     }
 
     fn collect_pos_row_items(
@@ -610,9 +638,9 @@ impl<'a> WitnessCollector<'a> {
         items: &[PosId],
         path: &GeneralizedTypePath,
         parent: WitnessParents<'_>,
-    ) {
+    ) -> Result<(), ProofFailure> {
         for (item, id) in items.iter().copied().enumerate() {
-            if let Pos::Con(_, args) = self.machine.types().pos(id).clone() {
+            if let Pos::Con(_, args) = self.query.pos_shape_in_scope(id) {
                 for (argument, value) in args.into_iter().enumerate() {
                     self.collect_neu(
                         value,
@@ -624,10 +652,11 @@ impl<'a> WitnessCollector<'a> {
                             },
                         ),
                         parent,
-                    );
+                    )?;
                 }
             }
         }
+        Ok(())
     }
 
     fn collect_neg_row_items(
@@ -635,9 +664,9 @@ impl<'a> WitnessCollector<'a> {
         items: &[NegId],
         path: &GeneralizedTypePath,
         parent: WitnessParents<'_>,
-    ) {
+    ) -> Result<(), ProofFailure> {
         for (item, id) in items.iter().copied().enumerate() {
-            if let Neg::Con(_, args) = self.machine.types().neg(id).clone() {
+            if let Neg::Con(_, args) = self.query.neg_shape_in_scope(id) {
                 for (argument, value) in args.into_iter().enumerate() {
                     self.collect_neu(
                         value,
@@ -649,10 +678,11 @@ impl<'a> WitnessCollector<'a> {
                             },
                         ),
                         parent,
-                    );
+                    )?;
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -828,11 +858,11 @@ mod tests {
 
     #[test]
     fn covered_only_lower_contributes_no_generalized_witness_parent() {
-        let (machine, endpoint, owner, _) =
+        let (mut machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
         let record = raw_var_lower_record(&machine, owner, endpoint);
 
-        let drafts = capture(&machine, owner);
+        let drafts = capture(&mut machine, owner);
 
         assert!(
             drafts
@@ -846,7 +876,7 @@ mod tests {
 
     #[test]
     fn mixed_lower_contributes_only_its_uncovered_claim_parent() {
-        let (machine, endpoint, owner, _) =
+        let (mut machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
         let record = raw_var_lower_record(&machine, owner, endpoint);
         let (uncovered, proof) = machine
@@ -869,7 +899,7 @@ mod tests {
             panic!("the claimed fixture must retain its decisive exact certificate");
         };
 
-        let drafts = capture(&machine, owner);
+        let drafts = capture(&mut machine, owner);
         let lower = draft_at_root(&drafts, GeneralizedWitnessRole::LowerBound);
         let expected = GeneralizationParent::BoundClaimProjectionProof {
             bound: record,
@@ -903,13 +933,13 @@ mod tests {
 
     #[test]
     fn ordinary_lowers_preserve_the_raw_bound_edges_exactly() {
-        let (machine, owner, direct, transitive) =
+        let (mut machine, owner, direct, transitive) =
             ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
         let owner_record = raw_var_lower_record(&machine, owner, direct);
         let direct_record = raw_var_lower_record(&machine, direct, transitive);
         let expected = vec![bound_edge(owner_record), bound_edge(direct_record)];
 
-        let drafts = capture(&machine, owner);
+        let drafts = capture(&mut machine, owner);
         let lower = draft_at_root(&drafts, GeneralizedWitnessRole::LowerBound);
 
         assert_eq!(
@@ -941,18 +971,23 @@ mod tests {
             claim,
         };
         let selected = [parent.clone()];
-        let mut collector = WitnessCollector::new(&machine);
+        let mut round_state = machine.new_projection_evaluation_round();
+        let (drafts, incoming_edges) = machine
+            .with_legacy_projection_query(&mut round_state, |query| {
+                let mut collector = WitnessCollector::new(&query);
+                collector.collect_pos(
+                    union,
+                    GeneralizedTypePath::default(),
+                    WitnessParents::Selected(&selected),
+                )?;
+                let incoming_edges = collector.incoming_edges;
+                let drafts = std::mem::take(&mut collector.drafts);
+                drop(collector);
+                Ok(query.complete((drafts, incoming_edges)))
+            })
+            .expect("duplicate-path witness collection completes");
 
-        collector.collect_pos(
-            union,
-            GeneralizedTypePath::default(),
-            WitnessParents::Selected(&selected),
-        );
-
-        let draft = draft_at_root(
-            &collector.drafts,
-            GeneralizedWitnessRole::ConstraintRelation,
-        );
+        let draft = draft_at_root(&drafts, GeneralizedWitnessRole::ConstraintRelation);
         assert_eq!(
             draft.incoming,
             vec![
@@ -967,9 +1002,7 @@ mod tests {
             ],
             "both union traversal paths are considered before canonical insertion"
         );
-        assert_eq!(collector.incoming_edges, 2);
-        let drafts = std::mem::take(&mut collector.drafts);
-        drop(collector);
+        assert_eq!(incoming_edges, 2);
 
         let scheme = machine.alloc_generalized_scheme_record(
             DefId(0),
@@ -1003,7 +1036,7 @@ mod tests {
         );
     }
 
-    fn capture(machine: &ConstraintMachine, root: TypeVar) -> Vec<GeneralizedWitnessDraft> {
+    fn capture(machine: &mut ConstraintMachine, root: TypeVar) -> Vec<GeneralizedWitnessDraft> {
         capture_generalized_witnesses(machine, root, &empty_generalized_root()).0
     }
 

@@ -22242,7 +22242,7 @@ mod tests {
             sandwiches: Vec::new(),
         };
         let (witnesses, completeness) =
-            crate::generalize::capture_generalized_witnesses(&machine, owner, &generalized);
+            crate::generalize::capture_generalized_witnesses(&mut machine, owner, &generalized);
         assert_eq!(
             completeness,
             ProvenanceCompleteness::Incomplete,
@@ -22671,7 +22671,7 @@ mod tests {
             sandwiches: Vec::new(),
         };
         let (drafts, completeness) =
-            crate::generalize::capture_generalized_witnesses(&machine, owner, &generalized);
+            crate::generalize::capture_generalized_witnesses(&mut machine, owner, &generalized);
         assert_eq!(completeness, ProvenanceCompleteness::Incomplete);
         let exact_parent = GeneralizationParent::BoundClaimProjectionProof {
             bound: record,

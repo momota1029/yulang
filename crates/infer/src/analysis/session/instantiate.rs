@@ -57,7 +57,7 @@ impl AnalysisSession {
             let ancestors = self.scheme_ancestors_for_current_poly(def);
             let (mut witnesses, mut witness_completeness) =
                 crate::generalize::capture_generalized_witnesses(
-                    self.infer.constraints(),
+                    self.infer.constraints_mut(),
                     root,
                     &scheme,
                 );
