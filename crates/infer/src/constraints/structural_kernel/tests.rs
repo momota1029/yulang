@@ -12,7 +12,7 @@ use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
 use crate::analysis::begin_owner_dependency_reads;
 use crate::constraints::mutation::DependencyKey;
-use crate::constraints::proof::{ProofFailure, ProofOperation};
+use crate::constraints::proof::{ProofFactRef, ProofFailure, ProofOperation};
 use crate::constraints::{
     BoundDerivation, BoundRecordId, ConstraintEffectFamily, ConstraintMachine, ConstraintRecordId,
     ConstraintWeights, DerivedUnaryCarrier, GeneralizationParent, GeneralizedSchemeRecordId,
@@ -1424,6 +1424,48 @@ fn row1_scheme_compaction_role(machine: &mut ConstraintMachine, var: TypeVar) ->
     }
 }
 
+fn row1_scheme_compaction_invariant_neu(machine: &mut ConstraintMachine, var: TypeVar) -> NeuId {
+    let lower = machine.alloc_pos(Pos::Var(var));
+    let upper = machine.alloc_neg(Neg::Var(var));
+    machine.alloc_neu(Neu::Bounds(lower, upper))
+}
+
+fn row1_scheme_compaction_merge_fixture() -> (ConstraintMachine, TypeVar) {
+    let mut machine = ConstraintMachine::new();
+    let root = TypeVar(96_020);
+    let left = TypeVar(96_021);
+    let right = TypeVar(96_022);
+    for var in [root, left, right] {
+        machine.register_type_var(var, TypeLevel::root());
+    }
+    let left_arg = row1_scheme_compaction_invariant_neu(&mut machine, left);
+    let right_arg = row1_scheme_compaction_invariant_neu(&mut machine, right);
+    let left_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![left_arg]));
+    let right_box = machine.alloc_pos(Pos::Con(vec!["box".into()], vec![right_arg]));
+    for lower in [left_box, right_box] {
+        machine.bounds.add_lower(
+            root,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+    }
+    (machine, root)
+}
+
+fn row1_legacy_projectable_var_lowers(
+    machine: &ConstraintMachine,
+    owner: TypeVar,
+) -> FxHashSet<TypeVar> {
+    machine
+        .scheme_projectable_lowers(owner)
+        .filter_map(|entry| match machine.types().pos(entry.bound.pos) {
+            Pos::Var(var) => Some(*var),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
 fn cpk_sv_d_ss2_p0_row1_scheme_compaction_surfaces_use_one_scope_with_legacy_parity() {
     let (mut machine, owner, _, _) = ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
@@ -1500,6 +1542,165 @@ fn cpk_sv_d_ss2_p0_row1_scheme_compaction_surfaces_use_one_scope_with_legacy_par
         !production.contains(".scheme_projectable_lowers(")
             && !production.contains("scheme_projectable_lowers_in_round("),
         "scheme-mode production compaction must not reintroduce the old direct helper"
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_scheme_compaction_covers_negative_claims_and_nonempty_merges() {
+    let (mut negative_machine, root, nested_owner, covered, unclaimed) =
+        ConstraintMachine::row1_scheme_compaction_negative_claim_fixture();
+    let legacy_projectable = row1_legacy_projectable_var_lowers(&negative_machine, nested_owner);
+    assert_eq!(legacy_projectable, FxHashSet::from_iter([unclaimed]));
+
+    negative_machine.proof_attempt.reset_query_trace();
+    let negative =
+        crate::compact::compact_negative_type_var_for_scheme(&mut negative_machine, root);
+    let function = negative
+        .root
+        .funs
+        .first()
+        .expect("negative scheme fixture retains its function upper");
+    let nested_actual = function
+        .arg
+        .vars
+        .iter()
+        .map(|var| var.var)
+        .collect::<FxHashSet<_>>();
+    let mut nested_expected = legacy_projectable.clone();
+    nested_expected.insert(nested_owner);
+    assert_eq!(
+        nested_actual, nested_expected,
+        "nested positive traversal must match the old direct projectable-lower oracle"
+    );
+    assert!(!nested_actual.contains(&covered));
+    assert_eq!(
+        negative_machine.proof_attempt.query_trace(),
+        (2, 2, 1, 1, 1)
+    );
+
+    let (mut recording_machine, recording_root) = row1_scheme_compaction_merge_fixture();
+    let legacy_recording = crate::compact::compact_type_var_recording_merge_constraints(
+        &recording_machine,
+        recording_root,
+    );
+    assert!(
+        !legacy_recording.1.is_empty(),
+        "recording fixture must exercise merge-constraint production"
+    );
+    recording_machine.proof_attempt.reset_query_trace();
+    let scoped_recording = crate::compact::compact_type_var_recording_merge_constraints_for_scheme(
+        &mut recording_machine,
+        recording_root,
+    );
+    assert_eq!(scoped_recording, legacy_recording);
+    assert!(!scoped_recording.1.is_empty());
+    assert_eq!(
+        recording_machine.proof_attempt.query_trace(),
+        (2, 2, 1, 1, 1)
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_scheme_role_compaction_covers_claimed_unclaimed_and_merges() {
+    let (mut machine, _, nested_owner, covered, unclaimed) =
+        ConstraintMachine::row1_scheme_compaction_negative_claim_fixture();
+    let legacy_projectable = row1_legacy_projectable_var_lowers(&machine, nested_owner);
+    let seed = crate::compact::compact_type_var_for_scheme(&mut machine, nested_owner);
+
+    let merge_lower = TypeVar(96_030);
+    let merge_upper = TypeVar(96_031);
+    for var in [merge_lower, merge_upper] {
+        machine.register_type_var(var, TypeLevel::root());
+    }
+    let role = RoleConstraint {
+        role: vec!["row1_claimed_unclaimed".into()],
+        inputs: vec![
+            RoleConstraintArg {
+                lower: machine.alloc_pos(Pos::Var(nested_owner)),
+                upper: machine.alloc_neg(Neg::Var(nested_owner)),
+            },
+            RoleConstraintArg {
+                lower: machine.alloc_pos(Pos::Var(merge_lower)),
+                upper: machine.alloc_neg(Neg::Var(merge_upper)),
+            },
+        ],
+        associated: Vec::new(),
+    };
+    let (legacy_role, legacy_merges) =
+        crate::compact::compact_role_constraint_recording_merge_constraints(&machine, &role);
+    assert!(
+        !legacy_merges.is_empty(),
+        "role fixture must exercise merge-constraint production"
+    );
+
+    machine.proof_attempt.reset_query_trace();
+    let (roles, merges) =
+        crate::compact::compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
+            &mut machine,
+            &seed,
+            &[nested_owner],
+            &[role],
+        );
+    assert_eq!(roles.len(), 1);
+    let crate::compact::CompactBounds::Interval { lower, .. } = &roles[0].inputs[0].bounds else {
+        panic!("claimed/unclaimed role input remains an interval")
+    };
+    let actual = lower
+        .vars
+        .iter()
+        .map(|var| var.var)
+        .collect::<FxHashSet<_>>();
+    let mut expected = legacy_projectable;
+    expected.insert(nested_owner);
+    assert_eq!(actual, expected);
+    assert!(actual.contains(&unclaimed));
+    assert!(!actual.contains(&covered));
+    assert_eq!(
+        roles[0].inputs[1], legacy_role.inputs[1],
+        "the non-projection role argument must retain its legacy compact structure"
+    );
+    assert_eq!(
+        merges, legacy_merges,
+        "the recording role surface must retain its full non-empty legacy merge payload"
+    );
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_scheme_compaction_mid_traversal_denial_drops_partial_output() {
+    let (mut machine, owner, partial, partial_record, invalid_record) =
+        ConstraintMachine::row1_scheme_compaction_mid_traversal_failure_fixture();
+    assert!(
+        partial_record.0 < invalid_record.0,
+        "the valid lower must evaluate first"
+    );
+    let raw = crate::compact::compact_type_var(&machine, owner);
+    assert!(
+        raw.root.vars.iter().any(|var| var.var == partial),
+        "the first lower would contribute observable partial output"
+    );
+    assert_eq!(machine.proof_terminal_failure(), None);
+
+    machine.proof_attempt.reset_query_trace();
+    let actual = crate::compact::compact_type_var_recording_merge_constraints_for_scheme(
+        &mut machine,
+        owner,
+    );
+    assert_eq!(
+        actual,
+        (crate::compact::CompactRoot::default(), Vec::new()),
+        "a real evaluator denial must discard the collector's earlier partial output"
+    );
+    assert_eq!(
+        machine.proof_terminal_failure(),
+        Some(ProofFailure::MissingProofFact {
+            fact: ProofFactRef::ProjectionFormula(invalid_record),
+        })
+    );
+    assert_eq!(
+        machine.proof_attempt.query_trace(),
+        (1, 1, 1, 1, 0),
+        "the denial happens after scope entry and before post-scope completion"
     );
 }
 

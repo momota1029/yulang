@@ -5094,6 +5094,105 @@ impl ConstraintMachine {
         );
         (machine, owner, direct, transitive)
     }
+
+    pub(crate) fn row1_scheme_compaction_negative_claim_fixture(
+    ) -> (Self, TypeVar, TypeVar, TypeVar, TypeVar) {
+        let (mut machine, covered, nested_owner, _) =
+            Self::compact_scheme_projection_unmatched_route_fixture(false);
+        let unclaimed = TypeVar(96_000);
+        let root = TypeVar(96_001);
+        machine.register_type_var(unclaimed, TypeLevel::root());
+        machine.register_type_var(root, TypeLevel::root());
+
+        let unclaimed_pos = machine.alloc_pos(Pos::Var(unclaimed));
+        machine.bounds.add_lower(
+            nested_owner,
+            unclaimed_pos,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        let arg = machine.alloc_pos(Pos::Var(nested_owner));
+        let arg_eff = machine.alloc_pos(Pos::Bot);
+        let ret_eff = machine.alloc_neg(Neg::Top);
+        let ret = machine.alloc_neg(Neg::Top);
+        let function = machine.alloc_neg(Neg::Fun {
+            arg,
+            arg_eff,
+            ret_eff,
+            ret,
+        });
+        machine.bounds.add_upper(
+            root,
+            function,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        );
+
+        (machine, root, nested_owner, covered, unclaimed)
+    }
+
+    pub(crate) fn row1_scheme_compaction_mid_traversal_failure_fixture(
+    ) -> (Self, TypeVar, TypeVar, BoundRecordId, BoundRecordId) {
+        let mut machine = Self::new();
+        let owner = TypeVar(96_010);
+        let partial = TypeVar(96_011);
+        let invalid = TypeVar(96_012);
+        for var in [owner, partial, invalid] {
+            machine.register_type_var(var, TypeLevel::root());
+        }
+        let partial_pos = machine.alloc_pos(Pos::Var(partial));
+        let invalid_pos = machine.alloc_pos(Pos::Var(invalid));
+        let partial_record = machine
+            .bounds
+            .add_lower(
+                owner,
+                partial_pos,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+        let invalid_record = machine
+            .bounds
+            .add_lower(
+                owner,
+                invalid_pos,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(OriginId::unknown_internal()),
+            )
+            .id;
+
+        let producer = ConstraintRecordId(96_010);
+        let invalid_upper = machine.alloc_neg(Neg::Var(owner));
+        let invalid_upper_record = machine
+            .bounds
+            .add_upper(
+                invalid,
+                invalid_upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Constraint(producer),
+            )
+            .id;
+        let unattributed_claim = machine
+            .original_upper_replay_claim(
+                invalid_upper_record,
+                producer,
+                UpperReplayClaimKind::Direct,
+            )
+            .claim;
+
+        // Deliberately stop after the support link but before formula admission, matching the
+        // existing unattributed-claim characterization fixture. The first lower evaluates
+        // normally; only the second reaches the real evaluator's MissingProofFact branch.
+        let mutation = machine
+            .try_prepare_scheme_projection_mutation(invalid_record, &[unattributed_claim], &[])
+            .expect("mid-traversal failure fixture support preparation");
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("mid-traversal failure fixture support commit");
+
+        (machine, owner, partial, partial_record, invalid_record)
+    }
 }
 
 fn has_constraint_bounds_mutation(mutations: &[MethodRoleMutation], owner: TypeVar) -> bool {

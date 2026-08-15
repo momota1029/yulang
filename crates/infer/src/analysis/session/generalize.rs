@@ -1131,6 +1131,8 @@ mod final_role_reuse_tests {
     #[test]
     fn row1_scheme_compaction_success_is_preserved_by_generalize_cache() {
         let mut session = AnalysisSession::new(PolyArena::new());
+        // Do not let YULANG_GENERALIZE_COMPACT_CACHE make this cache-contract test ambient.
+        session.generalize_compact_cache = Some(GeneralizeCompactCache::default());
         let root = session.infer.fresh_type_var();
         let lower = session
             .infer
