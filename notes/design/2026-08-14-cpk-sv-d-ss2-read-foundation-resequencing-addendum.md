@@ -2546,6 +2546,10 @@ genuine terminal-latched `PolyCheckOutput`で動的に通すcross-crate test sea
 (c) unchecked single-file dumpのbase / formatter surface全量列挙を同じ第五案へ取り込む。前三者はいずれもtestability / censusの
 gapを閉じるものであり、attempt-local poisonの意味やproduction failure contractは変更しない。
 
+その改訂への第二回独立reviewも`SOUND WITH GAPS`（MEDIUM 2件、LOW 2件）であった。本再改訂は、pre-latch shortcutを撤回して
+existing one-shot query-scope failure injectionをreal gateway pathでconsumeするtest seamへ置換し、CI / release feature reachabilityと
+proof-soak telemetry originをactual build graphに合わせ、dump call chainの記述を訂正する。
+
 ### 1. この案を支える確認済み事実
 
 1. 本書の「2026-08-15 追記（四度目）」で確定したとおり、organic `TerminalLatchBusy`はcurrent safe production APIから
@@ -2686,27 +2690,39 @@ impl PolyCheckOutput {
 `&self -> bool`だけをcross-crate surfaceとし、final formatterがmutable machine borrowをdropした後に呼ぶ。
 名前は「diagnosticがある」「lowering errorがある」ではなくproof attemptのterminal latchそのものを問うことを明示する。
 
-#### 5.1 `test-support`によるgenuine cross-crate gate fixture
+#### 5.1 `test-support`によるreal gateway denial fixture
 
-三production gateのdynamic regressionには、単なるboolean helper overrideではなく、real
-`ProofAttemptKernel::terminal_failure`がterminal値を保持する`PolyCheckOutput`が必要である。通常の`check_loaded_files`はattempt末尾で
-terminal latchを検出すると`Err`を返して`BodyLowering`を破棄するため、testはcheck成功後に同じmachineをterminal化する
-専用constructorを使う。cross-crate public surfaceは`crates/infer/src/check.rs`の次の一関数だけとする。
+三production gateのdynamic regressionは、あらかじめterminal latchを直接setしたoutputを使ってはならない。それでは
+`with_legacy_projection_query`がscope denialを分類し、authenticated round-local failureを記録し、gateway自身が
+`mark_terminal_failure`を呼ぶchainの回帰を検出できないためである。
+
+既存infer test suiteには、このchainを実際に通すone-shot mechanismが既にある。`ProofAttemptKernel`の
+`injected_query_scope_failure: RefCell<Option<(usize, ProofFailure)>>`を`inject_query_scope_failure`でarmすると、次のquery delegateが
+scope closureを作る位置で`take_injected_query_scope_failure`をconsumeして`Err(failure)`を返す。この`Err`はshortcutせず通常の
+`match result`へ入り、`failure.requires_attempt_terminal()`、authenticated round-local failure assignment、
+`mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, ..)`を通る。`structural_kernel/tests.rs`はこのrouteを既に使用する。
+
+implementationでは、injection slot、その`ProofAttemptKernel::new`初期化、四query delegate内のconsume branch、private
+arm / pending-check helperだけを`#[cfg(any(test, feature = "test-support"))]`へ広げる。`query_trace`、post-scope injection、任意failureを
+cross-crateから選ぶsurfaceは`#[cfg(test)]`のままにする。production gatewayのfailure classification / latch branch自体は変更しない。
+
+cross-crate public surfaceは`crates/infer/src/check.rs`の次の一関数だけとする。
 
 ```rust
 #[cfg(feature = "test-support")]
 #[doc(hidden)]
-pub fn check_loaded_files_with_terminal_proof_failure_for_test(
-    files: &[LoadedFile],
-) -> Result<PolyCheckOutput, LoadedFilesError>;
+pub fn with_terminal_projection_query_failure_for_test<R>(
+    check: &mut PolyCheckOutput,
+    run: impl FnOnce(&mut PolyCheckOutput) -> R,
+) -> R;
 ```
 
-実装は通常の`check_loaded_files(files)?`でcleanな`PolyCheckOutput`を作った直後、同output内のmachineへ
-`ProofFailure::ResourceExhausted { operation: ProofOperation::ProjectLowerEvaluation }`を既存
-`mark_proof_terminal_failure` routeで記録して返す。test-only override slotやpredicate flagではなく、production gateが読むものと同じ
-real terminal latchを使う。これに必要な`ConstraintMachine`内helperも`#[cfg(feature = "test-support")] pub(crate)`とし、
-`ProofFailure`、`ProofOperation`、setter、machine referenceはcross-crateへ出さない。clear、任意variant指定、non-terminal failure注入、
-既存outputを後からmutateするpublic APIは許可しない。
+この関数は同outputのnext query scopeへ
+`ProofFailure::ResourceExhausted { operation: ProofOperation::ProjectLowerEvaluation }`をarmし、後述の
+`with_intentional_proof_soak_test_injection` guard内で`run(check)`を同期実行する。callback return後、(a) one-shot slotがconsume済み、
+(b) `check.has_proof_terminal_failure()`がtrue、をassertする。従ってcallbackがreal formatter queryを開かなかった場合、gatewayが
+failureをterminal分類しなかった場合、またはgateway自身のlatch branchが消えた場合はtestがfailする。pre-latch setter、predicate
+override、latch clear、任意variant選択、non-terminal injection、machine referenceはcross-crateへ出さない。
 
 Cargo wiringは次で固定する。
 
@@ -2723,20 +2739,39 @@ infer = { path = "../infer", features = ["test-support"] }
 
 `yulang`の既存`[dependencies] infer = { path = "../infer" }`は変更しない。workspace rootは明示的に
 `resolver = "2"`であり、両crateはedition 2024である。従って通常の`cargo build -p yulang`、通常release build、
-`cargo test -p infer`（feature flagなし）ではdev-dependency edgeがactiveにならず、`test-support` itemはartifactに存在しない。
+`cargo test -p infer`（feature flagなし）ではdev-dependency edgeがactiveにならず、`test-support` itemはそのbuild graphに存在しない。
 `cargo test -p yulang`ではdev-dependencyがactiveになり、同test graph内のnormal `infer` dependencyへfeatureが意図どおりunifyされる。
 Cargoがdev-dependencyを適用するのはdependent packageのtest / benchmark / example等のdev targetをbuildするときであり、
 `yulang`のnormal lib / bin targetだけをbuildするdependency graphへこのmanifest edgeは入らない。
-resolver 2はdev featureを通常production graphへ常時持ち上げない。一方、`cargo test --workspace`のactive test graph内では同じpackageの
-featureが他の同時build unitへunionされ得るため、「workspace test graph内でもinferの各build unitが常にfeature分離される」とは
-主張しない。そのgraphはtest buildであり、production artifactを構成しない。
+resolver 2はdev featureを通常production graphへ常時持ち上げない。一方、`.github/workflows/ci.yml`の
+`cargo build --workspace --all-targets`や`cargo test --workspace`相当のactive verification graphでは、同じpackageのfeatureがnormal
+lib / bin build unitを含む他unitへunionされ、feature-gated codeがcompileされ得る。従って「test-support codeは全CI artifactで常に
+非compile」とは主張しない。
+
+代わりにreachabilityをinvariantとする。`main.rs`、`server.rs`、CLI / source production routeのcensusではtest-support関数のcallerは
+zeroであり、通常の`check_loaded_files`だけを使う。唯一のcallerは`source/mod.rs`の`#[cfg(test)]` test moduleに置く。CI all-targets
+graphでfunction metadata / codeが存在してもreal production entryからcall edgeはない。一方、`.github/workflows/release.yml`のshipped
+binary commandは`cargo build --release -p yulang --target "${target}"`で、`--all-targets` / `--all-features`を使わない。dev edgeはinactiveで
+あり、shipped release artifactにはfeature-gated seam自体がcompile / linkされない。
 
 このseamのproduction isolation invariantは、(1) featureがdefault feature setにない、(2) workspace manifestでenableするedgeが
-`yulang`のdev-dependencyだけ、(3) constructorと内部latch helperの双方が同じ`cfg(feature = "test-support")`で丸ごと非compile、
-(4) normal/release feature-tree censusで`infer/test-support` zero、の四点で固定する。明示的なCLI flagや将来のnormal dependencyから
+`yulang`のdev-dependencyだけ、(3) cross-crate wrapperと内部arm / pending helperが同じ`cfg(feature = "test-support")`でguardされる、
+(4) production entry caller census zero、(5) shipped release feature-treeで`infer/test-support` zero、の五点で固定する。明示的なCLI flagや将来のnormal dependencyから
 このfeatureをenableする変更はsupported production configurationではなく、本節のinvariantを破るため即stop / re-reviewとする。
-これは「Cargo featureを誰も明示enableできない」という偽の主張ではなく、normal production manifest graphから到達edgeをzeroにする
-reviewed build contractである。
+これは「Cargo featureを誰も明示enableできない」または「CI all-targets graphにもcodeが存在しない」という偽の主張ではなく、
+shipped graphでは非compile、verification graphでcompileされた場合もproduction call edge zeroとするreviewed build contractである。
+
+#### 5.2 proof-soak telemetry origin
+
+feature-enabled dependency buildでは`cfg(test)`が立たないため、現行のままではinjected `ResourceExhausted`が
+`ProofSoakEventOrigin::Organic`へ誤分類される。本節はcounter reset / exclusionという事後補正を採らず、既存分類routeをfeatureへ
+正しく延長する。`INTENTIONAL_TEST_INJECTION_DEPTH`、`with_intentional_proof_soak_test_injection`、
+`current_event_origin`のintentional branchを`#[cfg(any(test, feature = "test-support"))]`とする。`TEST_CAPTURE`とsnapshot assertion helperは
+引き続き`#[cfg(test)]`だけでよい。`constraints/mod.rs`のre-exportも分割し、`with_intentional_proof_soak_test_injection`だけを
+`cfg(any(test, feature = "test-support"))`でcrate内から使えるようにし、capture / snapshot surfaceはtest-onlyのままにする。
+上のcross-crate wrapperがformatter callback全体をintentional guardで包むため、real gatewayが
+terminal latchをmarkする瞬間もdepth > 0であり、Organic counterは増えず`IntentionalTestInjection`だけが増える。callback後に
+one-shot consumeをassertするため、armed failureがguard外へ残って後のorganic queryを汚染することも許さない。
 
 ### 6. yulangの三final-output gate
 
@@ -2798,7 +2833,8 @@ unchecked-composable public surfaceは次の八関数である。
 7. `dump_lowering_raw`
 8. `dump_lowering_in_module`
 
-前四wrapperとbase `lower_loaded_file`は`lower_binding_bodies`を直接使いterminal latchをgateしない。後三formatterは任意の
+actual unchecked chainは`dump_source* -> dump_loaded_file* -> lower_loaded_file -> lower_binding_bodies`であり、
+`lower_binding_bodies`を直接呼ぶのはbase `lower_loaded_file`だけである。このchainはterminal latchをgateしない。後三formatterは任意の
 `BodyLowering`を受けるため、unchecked `lower_loaded_file` resultからも構成できる。ただし後三者はchecked `dump_loaded_files*`からも
 正当に使われるので、formatter自体のcallerがzeroとは主張しない。workspace-wide censusでzeroなのは、infer自身のtest /
 characterizationを除く**`lower_loaded_file`起点のunchecked compositionのin-repo production caller**である。real yulang / CLI dumpは
@@ -2824,20 +2860,23 @@ callをmutable reborrowへ変える機械的compile fixは必要になる。asse
    terminal latchをsetすること、partial output zero、gate到達までpanic / loopしないことを検証する。
 3. `PolyCheckOutput::has_proof_terminal_failure`がclean attemptでfalse、terminal-latched machineでtrueを返すことをinfer unit testで
    実machineに対して検証する。production-default artifactへsetterやfailure variantを追加しない。
-4. yulang testは`infer::check::check_loaded_files_with_terminal_proof_failure_for_test`で、各fixtureについてgenuine
-   terminal-latched `PolyCheckOutput`を作る。clean twinではhoverが`Some`、ordinary completionとmember completionがそれぞれ
-   type-derived non-empty outputを持つことを先に固定し、terminal twinをactual `source_hover_from_check`、
-   `source_completion_from_check`、`source_member_completion_from_check`へ直接渡して`None` / empty / emptyを確認する。
-   三関数のlast expression以後にformat/queryがzeroであることも同test対象とする。これによりprivate boolean helperだけを試すproxyを
-   禁止し、real latch readからreal production return boundaryまでを同一dynamic testで通す。
+4. yulang testは通常の`check_loaded_files`で各fixtureのclean `PolyCheckOutput`を作る。clean twinではhoverが`Some`、ordinary
+   completionとmember completionがそれぞれtype-derived non-empty outputを持つことを先に固定する。terminal twinは
+   `infer::check::with_terminal_projection_query_failure_for_test(&mut check, |check| ..)`のcallback内からactual
+   `source_hover_from_check`、`source_completion_from_check`、`source_member_completion_from_check`を直接呼び、real formatter queryが
+   injectionをconsumeし、real gateway auto-latch後のfinal gateが`None` / empty / emptyを返すことを確認する。wrapperのpending-zero /
+   terminal-latched assertも通す。三関数のlast expression以後にformat/queryがzeroであることも同test対象とする。
 5. `SourceTextAnalysis::hover` route、fresh hover route、ordinary completion、member completionの正常系をbounded targeted testで通す。
    ordinary LSP completionのterminal caseは上記source-level gate testに加え、test-support fixtureを使えるprivate routeから
    type-derived item/detail zeroかつkeyword-only、memberはzero、hoverはNoneを確認する。
 6. infer側で同じterminal-latched `PolyCheckOutput`への複数回のaccessor readが全てtrueであることを固定し、yulang側では
    `SourceTextAnalysis::hover`が呼出しごとに同じfinal gateへ到達するcall-graph test / code assertionを置く。
-7. `cargo check -p yulang --release`とnormal-edge feature-tree censusで`infer/test-support`がzero、
-   `cargo test -p yulang`のtest graphでのみ同featureがpresentであることを検証する。
-8. existing yulang source/server、infer generalize/compact/constraints suiteを実行し、正常系output parityとbaselineを維持する。
+7. `cargo test -p infer --features test-support`でcross-crate wrapperと同じarm + intentional-guard routeをformatter相当のreal query closureへ
+   通し、existing proof-soak captureでintentional countのみ増え、organic countがzeroであることを固定する。yulang E2Eは同じpublic
+   wrapperを使うため、別のcounter reset / sink exclusion routeを作らない。
+8. `cargo check -p yulang --release`とrelease-edge feature-tree censusで`infer/test-support`がzeroであること、CI
+   `cargo build --workspace --all-targets`ではcompileされ得ても`main` / `server` / production source caller censusがzeroであることを検証する。
+9. existing yulang source/server、infer generalize/compact/constraints suiteを実行し、正常系output parityとbaselineを維持する。
 
 boolean helperだけをtestして三production return siteがそのhelperを使わない、actual accessor testがない、またはgate後に別の
 format/queryが走る場合はtest gate不合格とする。
@@ -2856,8 +2895,10 @@ format/queryが走る場合はtest gate不合格とする。
 10. **Normal-output parity**: denialがない場合のscheme、witness、hover、completion、member completionはmigration前と同一である。
 11. **Public-surface scope precision**:保証対象はcurrent in-repo checked compiler / yulang output graphであり、unchecked single-file dump、
     arbitrary external composition、未知のexternal direct formatter callerを安全化済みとは主張しない。
-12. **Test seam isolation**: genuine terminal fixture constructorと内部latch helperはnon-default `test-support` featureとyulang dev edgeにだけ存在し、
-    normal/release production feature graphには存在しない。featureをnormal edgeへ追加する変更はimplementationではなくdesign再査読を要する。
+12. **Test seam isolation**: real-gateway injection wrapperと内部one-shot arm / pending helperはnon-default `test-support` featureとyulang dev edgeにだけ
+    宣言上のenable edgeを持つ。CI all-targets graphでcompileされ得てもproduction callerはzero、shipped release graphではfeature offで
+    非compileである。featureをnormal edgeへ追加する変更はimplementationではなくdesign再査読を要する。
+13. **Telemetry isolation**: feature seamのterminal markは`IntentionalTestInjection`へ分類し、Organic soak counter / sinkを増やさない。
 
 ### 11. implementation sliceとGate / stop
 
@@ -2866,8 +2907,8 @@ implementationは次のreviewable sliceへ分ける。
 1. 八owned getter、private read-source wiring、instrumentation parity、success/performance test。
 2. witness captureのone-scope migrationとlocal/component mutable reborrow、denial-to-empty+Incomplete test。
 3. four scheme-compaction surfaceのone-scope migration、generalize/tail/analysis/check/yulang mutable-owner cascade、success/cache parity test。
-4. `PolyCheckOutput::has_proof_terminal_failure`、non-default `test-support` seam、三final-output gate、genuine-latch end-to-end
-   attempt-isolation / user-facing suppression test。
+4. `PolyCheckOutput::has_proof_terminal_failure`、existing one-shot injectionを使うnon-default `test-support` seam、intentional telemetry
+   classification、三final-output gate、real-denial end-to-end attempt-isolation / user-facing suppression test。
 5. old `scheme_projectable_lowers` production caller census zero、full infer/yulang bounded regression、public API/doc audit。
 
 各sliceで次をgateする。
@@ -2877,10 +2918,12 @@ implementationは次のreviewable sliceへ分ける。
 - `with_legacy_projection_query`のproof-semantic Errがplaceholder生成より前にterminal latchをsetする。
 - checked lowering failureでは`BodyLowering` / compiled artifact / `SourceTextAnalysis`が生成・cacheされない。
 - post-check formatter failureでは三source boundaryが必ずterminal latchを再checkし、hover None、source completion empty、member emptyとなる。
-- yulangの三gate testは`test-support` constructorが作るreal terminal latchを読み、clean twinがnon-emptyである同じproduction functionを
-  terminal twinがNone / emptyへ抑止する。predicate override / isolated helperだけのtestは不合格とする。
-- `infer/test-support`はdefault feature zero、normal/release dependency edge zeroであり、constructor / internal helperはfeature-off artifactに
-  symbolもcodeも存在しない。workspace test graph内のfeature unionをproduction isolationの根拠には使わない。
+- yulangの三gate testは`test-support` wrapper内でreal formatter queryがone-shot failureをconsumeし、gateway自身のterminal branchが
+  latchした状態をfinal gateが読む。pre-latch、predicate override、isolated helperだけのtestは不合格とする。
+- `infer/test-support`はdefault feature zero、normal/release dependency edge zeroであり、shipped artifactにsurfaceが存在しない。
+  CI all-targets graph内のcompile有無ではなくproduction caller zeroをreachability gateに使う。
+- injected terminal markはintentional telemetry guard内で起き、one-shotはcallback内でconsumeされる。Organic soak delta nonzero、
+  callback return時のpending injection、またはterminal latch未設定はgate不合格とする。
 - final gateはformatter後にあり、gate check後に型format/queryを再開しない。
 - request cacheに保存されるのはgate後resultだけで、document versionを跨ぐAnalysisSession / compact / witness stateがzeroである。
 - normal hover/completion/member outputとscheme/witness semanticsがbyte-for-byte / structure-for-structureで不変である。
@@ -2901,11 +2944,13 @@ implementationは次のreviewable sliceへ分ける。
 - public API compatibility要件が`check.rs` formatterの`&mut Arena`化を許さず、別のauthority設計が必要になる。
 - external/public unchecked dumpまたはartifact compositionまで同じ保証範囲へ含める必要が生じる。
 - `infer/test-support`がdefault feature、normal dependency edge、またはsupported release feature graphからenableされる。
+- feature seamがpre-latch shortcutを使う、real query delegateのclassification / round-local recording / gateway markを迂回する、または
+  injected failureをOrganic proof-soak eventとして記録する。
 
 本節が許可するのは、八owned getter、row 1残りpure-read migration、その必要最小限のmutable-owner cascade、boolean terminal accessor、
-non-default `test-support` feature下の一cross-crate fixture constructorと一crate-private latch helper、三つのyulang final-output gateと
-そのprivate pure helperだけである。`CompactRoot::default()`の意味、proof failure分類、publication、write authority、cache lifetime、
-server error contract、row 2〜7の確定設計を変更しない。
+non-default `test-support` feature下の一cross-crate synchronous wrapper、既存one-shot injection slotのfeature-gated wiring、intentional
+proof-soak guard、三つのyulang final-output gateとそのprivate pure helperだけである。`CompactRoot::default()`の意味、production
+proof failure分類、publication、write authority、cache lifetime、server error contract、row 2〜7の確定設計を変更しない。
 
 追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読予定
 
