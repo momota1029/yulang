@@ -4,15 +4,17 @@ use std::{cell::Cell, rc::Rc};
 
 use poly::expr::DefId;
 use poly::types::{Neg, Pos, Subtractability, TypeVar};
-use rustc_hash::FxHashMap;
 
 use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{
-    BoundDerivation, BoundRecordId, ConstraintMachine, ConstraintRecordId, ConstraintWeights,
-    GeneralizedSchemeRecordId, LowerFilterRecordId, OriginId, ProvenanceCompleteness,
-    UnweightedRowReductionRecordId, UpperReplayClaimId,
+    BoundDerivation, BoundRecordId, ClaimQualifiedParent, ConstraintMachine, ConstraintRecordId,
+    ConstraintWeights, DerivedUnaryCarrier, GeneralizedSchemeRecordId, LowerFilterRecordId,
+    OriginId, ProjectionProofCarrier, ProofPremise, ProvenanceCompleteness, RecordProofClause,
+    RecordProofClauseLinkAdmission, RowDerivationId, SchemeProjectionProof,
+    SchemeProjectionProofSupport, StructuralDerivation, StructuralDerivationRule,
+    UnweightedRowReductionRecordId, UpperReplayClaimId, UpperReplayClaimKind,
 };
 
 fn foreign_publication_round_failure() -> ProofFailure {
@@ -49,6 +51,115 @@ fn assert_row4_row7_canary_panic(panic: Box<dyn std::any::Any + Send>) {
             "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant"
         )
     );
+}
+
+struct Row5ProductionPathFixture {
+    machine: ConstraintMachine,
+    result: ConstraintRecordId,
+    parent: ClaimQualifiedParent,
+    primary: BoundRecordId,
+    dependents: [BoundRecordId; 2],
+}
+
+fn row5_production_path_fixture() -> Row5ProductionPathFixture {
+    let mut machine = crate::constraints::with_semantic_execution_snapshot_capture_for_new_machines(
+        ConstraintMachine::new,
+    );
+    let source = TypeVar(98_150);
+    let target = TypeVar(98_151);
+    let parent_source = TypeVar(98_152);
+    let lower = machine.alloc_pos(Pos::Var(source));
+    let upper = machine.alloc_neg(Neg::Var(target));
+    let origin = OriginId::unknown_internal();
+    assert!(machine.enqueue_root_subtype(
+        lower,
+        ConstraintWeights::empty(),
+        upper,
+        origin,
+    ));
+    let result = machine
+        .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+        .expect("the row-5 fixture constraint must be canonical");
+    let primary = machine
+        .bounds
+        .add_lower(
+            target,
+            lower,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(result),
+        )
+        .id;
+    let parent_record = machine
+        .bounds
+        .add_upper(
+            parent_source,
+            upper,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        )
+        .id;
+    let registration = machine.original_upper_replay_claim(
+        parent_record,
+        ConstraintRecordId(98_153),
+        UpperReplayClaimKind::Direct,
+    );
+    machine
+        .apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+        .expect("the row-5 fixture claim support must commit");
+    machine
+        .exercise_row7_self_cycle_clause_link_for_test(primary)
+        .expect("the row-5 fixture primary exclusion must commit");
+    assert!(!machine.scheme_projection_record_is_included(primary));
+
+    let dependents = [98_154, 98_156].map(|seed| {
+        let dependent = add_row4_test_lower(&mut machine, seed);
+        let carrier = ProjectionProofCarrier::Origin(origin);
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        machine.proof_store.record_projection_supports(
+            dependent,
+            &[SchemeProjectionProof {
+                lower_record: dependent,
+                support,
+            }],
+        );
+        machine.register_cpk_projection_clause_for_test(
+            dependent,
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::DerivedUnary {
+                    carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                        parent: result,
+                        rule: StructuralDerivationRule::FunctionReturn,
+                    }),
+                    premise: ProofPremise::Constraint(result),
+                },
+            ),
+        );
+        assert!(!machine.scheme_projection_record_is_included(dependent));
+        dependent
+    });
+    assert_eq!(machine.proof_store.qualified_parent_count(result), 0);
+
+    Row5ProductionPathFixture {
+        machine,
+        result,
+        parent: ClaimQualifiedParent::ReductionRouteConstraint {
+            parent_claim: registration.claim,
+            derivation: RowDerivationId(98_157),
+        },
+        primary,
+        dependents,
+    }
+}
+
+fn row5_semantic_snapshot(
+    machine: &ConstraintMachine,
+) -> crate::constraints::SemanticExecutionSnapshot {
+    let scc = crate::scc::SccMachine::new();
+    machine.semantic_execution_snapshot(
+        crate::constraints::SccExecutionSnapshot::new(scc.stats(), Vec::new()),
+        crate::constraints::SemanticOutputSnapshot::default(),
+    )
 }
 
 const ALL_INTENTS: [I; 29] = [
@@ -422,57 +533,141 @@ fn cpk_sv_d_ss2_p0_replay_bootstrap_wrapper_preserves_precommit_classification()
 }
 
 #[test]
-fn cpk_sv_d_ss2_p0_row5_snapshot_map_uses_one_publication_scope() {
-    let mut machine = ConstraintMachine::new();
-    let first = add_row4_test_lower(&mut machine, 98_130);
-    let second = add_row4_test_lower(&mut machine, 98_132);
-    let before = FxHashMap::from_iter([
-        (first, machine.scheme_projection_record_is_included(first)),
-        (second, machine.scheme_projection_record_is_included(second)),
-    ]);
-    machine.proof_attempt.reset_query_trace();
+fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_two_transitions_once() {
+    let mut fixture = row5_production_path_fixture();
+    let before = row5_semantic_snapshot(&fixture.machine).publication;
+    let epoch_before = fixture.machine.provenance_epoch.as_u64();
+    fixture.machine.proof_attempt.reset_query_trace();
 
-    let intent = machine
-        .try_evaluate_projection_inclusion_snapshot(&before)
-        .expect("the row-5 snapshot evaluation must succeed");
+    fixture
+        .machine
+        .admit_claim_qualified_parent(fixture.result, fixture.parent);
 
-    assert!(matches!(
-        intent,
-        crate::constraints::SchemeProjectionPublicationIntent::None
-    ));
-    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+    assert_eq!(
+        fixture
+            .machine
+            .proof_store
+            .qualified_parent_count(fixture.result),
+        1,
+        "the authoritative replay-qualified-parent commit must happen exactly once",
+    );
+    assert!(!fixture.machine.scheme_projection_record_is_included(fixture.primary));
+    assert!(fixture
+        .dependents
+        .iter()
+        .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    assert_eq!(fixture.machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+    assert_eq!(fixture.machine.provenance_epoch.as_u64(), epoch_before + 1);
+
+    let after = row5_semantic_snapshot(&fixture.machine).publication;
+    let transitions = &after.projectability_transitions[before.projectability_transitions.len()..];
+    assert_eq!(transitions.len(), 2);
+    assert!(fixture.dependents.iter().all(|record| {
+        transitions.iter().any(|transition| {
+            transition.lower_record == *record
+                && !transition.was_included
+                && transition.is_included
+        })
+    }));
+    let invalidations = &after.owner_invalidations[before.owner_invalidations.len()..];
+    assert_eq!(invalidations.len(), 2);
+    assert!(invalidations.windows(2).all(|pair| {
+        pair[0].before_constraint_epoch == pair[1].before_constraint_epoch
+            && pair[0].after_constraint_epoch == pair[1].after_constraint_epoch
+            && pair[0].provenance_epoch == pair[1].provenance_epoch
+    }));
 }
 
 #[test]
-fn cpk_sv_d_ss2_p0_row5_postcommit_denials_use_canary_or_terminal_branch() {
+fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boundary() {
     for failure in [
         ProofFailure::TerminalLatchBusy,
         foreign_publication_round_failure(),
     ] {
-        let mut machine = ConstraintMachine::new();
-        machine.proof_attempt.inject_query_scope_failure(failure);
+        let mut fixture = row5_production_path_fixture();
+        let before = row5_semantic_snapshot(&fixture.machine).publication;
+        let epoch_before = fixture.machine.provenance_epoch;
+        fixture.machine.proof_attempt.reset_query_trace();
+        fixture
+            .machine
+            .proof_attempt
+            .inject_query_scope_failure(failure);
 
         let panic = catch_unwind(AssertUnwindSafe(|| {
-            let _ = machine
-                .evaluate_projection_inclusion_snapshot_after_commit_for_test(FxHashMap::default());
+            fixture
+                .machine
+                .admit_claim_qualified_parent(fixture.result, fixture.parent);
         }));
         assert_row4_row7_canary_panic(panic.expect_err("the row-5 canary must panic"));
-        assert_eq!(machine.proof_terminal_failure(), None);
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .qualified_parent_count(fixture.result),
+            1,
+            "the authoritative commit must precede the denied row-5 scope",
+        );
+        assert_eq!(fixture.machine.proof_terminal_failure(), None);
+        assert_eq!(fixture.machine.provenance_epoch, epoch_before);
+        let after = row5_semantic_snapshot(&fixture.machine).publication;
+        assert_eq!(after.owner_invalidations, before.owner_invalidations);
+        assert_eq!(
+            after.projectability_transitions,
+            before.projectability_transitions,
+        );
     }
 
-    let mut machine = ConstraintMachine::new();
+    let mut fixture = row5_production_path_fixture();
+    let before = row5_semantic_snapshot(&fixture.machine).publication;
+    let epoch_before = fixture.machine.provenance_epoch;
     let failure = ProofFailure::ResourceExhausted {
         operation: ProofOperation::ProjectLowerEvaluation,
     };
-    machine
+    fixture
+        .machine
         .proof_attempt
         .inject_query_scope_failure(failure.clone());
-
-    assert!(
-        !machine
-            .evaluate_projection_inclusion_snapshot_after_commit_for_test(FxHashMap::default())
+    fixture
+        .machine
+        .admit_claim_qualified_parent(fixture.result, fixture.parent);
+    assert_eq!(
+        fixture
+            .machine
+            .proof_store
+            .qualified_parent_count(fixture.result),
+        1,
     );
-    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+    assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
+    assert_eq!(fixture.machine.provenance_epoch, epoch_before);
+    let after = row5_semantic_snapshot(&fixture.machine).publication;
+    assert_eq!(after.owner_invalidations, before.owner_invalidations);
+    assert_eq!(
+        after.projectability_transitions,
+        before.projectability_transitions,
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row5_source_shape_keeps_one_lane_outside_the_map_loop() {
+    let source = include_str!("../mod.rs");
+    let start = source
+        .find("fn try_evaluate_projection_inclusion_snapshot(")
+        .expect("the row-5 evaluator must remain present");
+    let end = source[start..]
+        .find("\n    fn publish_scheme_projection_intent(")
+        .map(|offset| start + offset)
+        .expect("the row-5 evaluator must retain its next-function boundary");
+    let body = &source[start..end];
+    assert_eq!(body.matches("with_legacy_publication_query").count(), 1);
+    assert_eq!(
+        body.matches("ScopedCpkPublicationEvaluationLane::new(&query)")
+            .count(),
+        1,
+    );
+    assert!(
+        body.find("ScopedCpkPublicationEvaluationLane::new(&query)")
+            < body.find("for (record, was_included) in before")
+    );
 }
 
 #[test]
