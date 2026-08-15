@@ -560,10 +560,17 @@ fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_two_tran
         .dependents
         .iter()
         .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
-    assert_eq!(fixture.machine.row5_publication_trace_for_test(), (1, 1));
+    assert_eq!(
+        fixture.machine.row5_publication_trace_for_test(),
+        (1, 1, 1),
+        "row 5 must construct one lane, append its intent once, and publish its fence once",
+    );
     let after = row5_semantic_snapshot(&fixture.machine).publication;
     let transitions = &after.projectability_transitions[before.projectability_transitions.len()..];
-    assert!(transitions.len() >= 2);
+    assert_eq!(transitions.len(), 3);
+    assert!(transitions
+        .iter()
+        .all(|transition| !transition.was_included && transition.is_included));
     assert!(fixture.dependents.iter().all(|record| {
         transitions.iter().any(|transition| {
             transition.lower_record == *record
@@ -572,34 +579,24 @@ fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_two_tran
         })
     }));
     let invalidations = &after.owner_invalidations[before.owner_invalidations.len()..];
-    let mut expected_owners = fixture
-        .dependents
-        .map(|record| {
+    let mut expected_owners = transitions
+        .iter()
+        .map(|transition| {
             fixture
                 .machine
                 .bounds
-                .record(record)
-                .expect("every row-5 transition must retain its owner")
+                .record(transition.lower_record)
+                .expect("every production-path transition must retain its owner")
                 .owner()
         })
-        .to_vec();
-    expected_owners.sort_unstable_by_key(|owner| owner.0);
-    let row5_invalidations = invalidations
-        .iter()
-        .filter(|invalidation| expected_owners.contains(&invalidation.owner))
-        .copied()
         .collect::<Vec<_>>();
-    let mut invalidated_owners = row5_invalidations
+    expected_owners.sort_unstable_by_key(|owner| owner.0);
+    let mut invalidated_owners = invalidations
         .iter()
         .map(|invalidation| invalidation.owner)
         .collect::<Vec<_>>();
     invalidated_owners.sort_unstable_by_key(|owner| owner.0);
     assert_eq!(invalidated_owners, expected_owners);
-    assert!(row5_invalidations.windows(2).all(|pair| {
-        pair[0].before_constraint_epoch == pair[1].before_constraint_epoch
-            && pair[0].after_constraint_epoch == pair[1].after_constraint_epoch
-            && pair[0].provenance_epoch == pair[1].provenance_epoch
-    }));
 }
 
 #[test]
@@ -661,7 +658,10 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
             "the authoritative commit must precede the denied row-5 scope",
         );
         assert_eq!(fixture.machine.proof_terminal_failure(), None);
-        assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0));
+        assert_eq!(
+            fixture.machine.row5_publication_trace_for_test(),
+            (0, 0, 0),
+        );
         let after = row5_semantic_snapshot(&fixture.machine).publication;
         assert_eq!(after.owner_invalidations, before.owner_invalidations);
         assert_eq!(
@@ -696,7 +696,10 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
         1,
     );
     assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
-    assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0));
+    assert_eq!(
+        fixture.machine.row5_publication_trace_for_test(),
+        (0, 0, 0),
+    );
     let after = row5_semantic_snapshot(&fixture.machine).publication;
     assert_eq!(after.owner_invalidations, before.owner_invalidations);
     assert_eq!(

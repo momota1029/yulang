@@ -47,30 +47,52 @@ use std::cell::Cell;
 #[cfg(test)]
 thread_local! {
     static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
-    static ROW5_PUBLICATION_FENCE_PUSHES: Cell<usize> = const { Cell::new(0) };
+    static ROW5_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static ROW5_PUBLICATION_FENCE_APPENDS: Cell<usize> = const { Cell::new(0) };
+    static ROW5_PUBLICATION_FENCE_PUBLISHES: Cell<usize> = const { Cell::new(0) };
 }
 
 #[cfg(test)]
 fn record_row5_publication_lane_construction() {
-    ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
+    if ROW5_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
+        ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
+    }
 }
 
 #[cfg(test)]
-fn record_row5_publication_fence_push() {
-    ROW5_PUBLICATION_FENCE_PUSHES.with(|count| count.set(count.get() + 1));
+fn begin_row5_publication_lane_tracking() {
+    ROW5_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(true));
+}
+
+#[cfg(test)]
+fn end_row5_publication_lane_tracking() {
+    ROW5_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+}
+
+#[cfg(test)]
+fn record_row5_publication_fence_append() {
+    ROW5_PUBLICATION_FENCE_APPENDS.with(|count| count.set(count.get() + 1));
+}
+
+#[cfg(test)]
+fn record_row5_publication_fence_publish() {
+    ROW5_PUBLICATION_FENCE_PUBLISHES.with(|count| count.set(count.get() + 1));
 }
 
 #[cfg(test)]
 fn reset_row5_publication_trace() {
     ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
-    ROW5_PUBLICATION_FENCE_PUSHES.with(|count| count.set(0));
+    ROW5_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+    ROW5_PUBLICATION_FENCE_APPENDS.with(|count| count.set(0));
+    ROW5_PUBLICATION_FENCE_PUBLISHES.with(|count| count.set(0));
 }
 
 #[cfg(test)]
-fn row5_publication_trace() -> (usize, usize) {
+fn row5_publication_trace() -> (usize, usize, usize) {
     (
         ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
-        ROW5_PUBLICATION_FENCE_PUSHES.with(Cell::get),
+        ROW5_PUBLICATION_FENCE_APPENDS.with(Cell::get),
+        ROW5_PUBLICATION_FENCE_PUBLISHES.with(Cell::get),
     )
 }
 use std::cell::RefCell;
@@ -1289,6 +1311,8 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
         record_result_override: Option<(BoundRecordId, bool)>,
         root_result_override: Option<(UpperReplayClaimId, bool)>,
     ) -> Self {
+        #[cfg(test)]
+        record_row5_publication_lane_construction();
         Self {
             query,
             record_result_override,
@@ -1300,14 +1324,6 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
             )),
             sharing_disabled: false,
         }
-    }
-
-    #[cfg(test)]
-    fn for_projection_inclusion_snapshot(
-        query: &'scope ScopedLegacyPublicationQuery<'query>,
-    ) -> Self {
-        record_row5_publication_lane_construction();
-        Self::new(query)
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
@@ -2057,11 +2073,9 @@ impl ConstraintMachine {
         before: &FxHashMap<BoundRecordId, bool>,
     ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         let mut round = self.new_publication_evaluation_round();
+        #[cfg(test)]
+        begin_row5_publication_lane_tracking();
         let result = self.with_legacy_publication_query(&mut round, |query| {
-            #[cfg(test)]
-            let mut after_lane =
-                ScopedCpkPublicationEvaluationLane::for_projection_inclusion_snapshot(&query);
-            #[cfg(not(test))]
             let mut after_lane = ScopedCpkPublicationEvaluationLane::new(&query);
             let mut affected_owners = FxHashSet::default();
             #[cfg(test)]
@@ -2086,6 +2100,8 @@ impl ConstraintMachine {
             #[cfg(not(test))]
             Ok(query.complete(intent))
         });
+        #[cfg(test)]
+        end_row5_publication_lane_tracking();
         #[cfg(test)]
         let (intent, semantic_transitions) = result?;
         #[cfg(test)]

@@ -85,6 +85,10 @@ enum ProjectionClauseCommitPolicy {
 struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
     #[cfg(test)]
+    row5_intents: usize,
+    #[cfg(test)]
+    row5_append_expected: bool,
+    #[cfg(test)]
     observed_pushes: Option<std::rc::Rc<std::cell::Cell<usize>>>,
 }
 
@@ -92,6 +96,10 @@ impl Default for ReplayAdmissionPublicationFence {
     fn default() -> Self {
         Self {
             intents: Vec::new(),
+            #[cfg(test)]
+            row5_intents: 0,
+            #[cfg(test)]
+            row5_append_expected: false,
             #[cfg(test)]
             observed_pushes: None,
         }
@@ -107,10 +115,26 @@ impl ReplayAdmissionPublicationFence {
             })?;
         self.intents.push(intent);
         #[cfg(test)]
+        if self.row5_append_expected {
+            self.row5_intents += 1;
+            record_row5_publication_fence_append();
+        }
+        #[cfg(test)]
         if let Some(pushes) = &self.observed_pushes {
             pushes.set(pushes.get() + 1);
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn begin_row5_append_observation(&mut self) {
+        assert!(!self.row5_append_expected);
+        self.row5_append_expected = true;
+    }
+
+    #[cfg(test)]
+    fn end_row5_append_observation(&mut self) {
+        self.row5_append_expected = false;
     }
 }
 
@@ -135,7 +159,9 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
-    pub(in crate::constraints) fn row5_publication_trace_for_test(&self) -> (usize, usize) {
+    pub(in crate::constraints) fn row5_publication_trace_for_test(
+        &self,
+    ) -> (usize, usize, usize) {
         row5_publication_trace()
     }
 
@@ -1960,11 +1986,11 @@ impl ConstraintMachine {
         let Some(intent) = self.evaluate_claim_qualified_parent_admission(&snapshot) else {
             return;
         };
+        #[cfg(test)]
+        fence.begin_row5_append_observation();
         self.defer_replay_admission_publication(fence, intent);
         #[cfg(test)]
-        if self.proof_terminal_failure().is_none() {
-            record_row5_publication_fence_push();
-        }
+        fence.end_row5_append_observation();
     }
 
     fn defer_scheme_projection_mutation(
@@ -1993,6 +2019,8 @@ impl ConstraintMachine {
     ) -> ProofKernelResult<()> {
         let mut fence = ReplayAdmissionPublicationFence {
             intents: Vec::new(),
+            row5_intents: 0,
+            row5_append_expected: false,
             observed_pushes: Some(observed_pushes),
         };
         self.defer_scheme_projection_mutation(&mut fence, mutation)
@@ -2196,8 +2224,14 @@ impl ConstraintMachine {
         &mut self,
         fence: ReplayAdmissionPublicationFence,
     ) {
+        #[cfg(test)]
+        let publishes_row5 = fence.row5_intents > 0;
         for intent in fence.intents {
             self.publish_scheme_projection_intent(intent);
+        }
+        #[cfg(test)]
+        if publishes_row5 {
+            record_row5_publication_fence_publish();
         }
     }
 
