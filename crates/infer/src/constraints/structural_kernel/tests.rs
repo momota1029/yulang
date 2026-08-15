@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use poly::expr::DefId;
 use poly::roles::{RoleConstraint, RoleConstraintArg};
-use poly::types::{Neg, NegId, Neu, Pos, PosId, SubtractId, Subtractability, TypeVar};
+use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, SubtractId, Subtractability, TypeVar};
 use rustc_hash::FxHashSet;
 
 use super::commands::StructuralMutationIntent as I;
@@ -1301,14 +1301,65 @@ fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
     assert_eq!(actual, expected);
 }
 
+fn row1_owned_read_surface_best_elapsed(
+    machine: &mut ConstraintMachine,
+    owner: TypeVar,
+    positive: PosId,
+    negative: NegId,
+    neutral: NeuId,
+    role: &RoleConstraint,
+) -> Duration {
+    const SAMPLES: usize = 5;
+    const READS_PER_SAMPLE: usize = 2_048;
+
+    (0..SAMPLES)
+        .map(|_| {
+            let mut round = machine.new_projection_evaluation_round();
+            let started = Instant::now();
+            let checksum = machine
+                .with_legacy_projection_query(&mut round, |query| {
+                    let mut checksum = 0_usize;
+                    for _ in 0..READS_PER_SAMPLE {
+                        checksum = checksum.wrapping_add(
+                            std::hint::black_box(query.projection_upper_records_in_scope(owner))
+                                .len(),
+                        );
+                        let _ = std::hint::black_box(query.pos_shape_in_scope(positive));
+                        let _ = std::hint::black_box(query.neg_shape_in_scope(negative));
+                        let _ = std::hint::black_box(query.neu_shape_in_scope(neutral));
+                        checksum = checksum.wrapping_add(
+                            std::hint::black_box(query.role_constraint_raw_vars_in_scope(role))
+                                .len(),
+                        );
+                        checksum = checksum.wrapping_add(
+                            std::hint::black_box(query.var_neighbors_in_scope(owner)).len(),
+                        );
+                        checksum = checksum.wrapping_add(
+                            std::hint::black_box(query.pre_pop_effect_families_in_scope(owner))
+                                .len(),
+                        );
+                        checksum = checksum.wrapping_add(
+                            std::hint::black_box(query.subtract_facts_in_scope(owner)).len(),
+                        );
+                    }
+                    Ok(query.complete(checksum))
+                })
+                .expect("repeated row-1 owned reads remain available");
+            assert_ne!(checksum, 0);
+            started.elapsed()
+        })
+        .min()
+        .expect("at least one scaling sample")
+}
+
 #[test]
 fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded() {
     let mut machine = ConstraintMachine::new();
-    let owner = TypeVar(81_000);
-    let lower_var = TypeVar(81_001);
-    let upper_var = TypeVar(81_002);
-    let neighbor_a = TypeVar(81_003);
-    let neighbor_b = TypeVar(81_004);
+    let owner = TypeVar(10);
+    let lower_var = TypeVar(11);
+    let upper_var = TypeVar(12);
+    let neighbor_a = TypeVar(13);
+    let neighbor_b = TypeVar(14);
     let lower = machine.alloc_pos(Pos::Var(lower_var));
     let upper = machine.alloc_neg(Neg::Var(upper_var));
     let neutral = machine.alloc_neu(Neu::Bounds(lower, upper));
@@ -1316,7 +1367,7 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
     let negative_shape = Neg::Con(vec!["row1_owned_neg".into()], vec![neutral]);
     let positive = machine.alloc_pos(positive_shape.clone());
     let negative = machine.alloc_neg(negative_shape.clone());
-    let ordinary_negative = machine.alloc_neg(Neg::Var(TypeVar(81_005)));
+    let ordinary_negative = machine.alloc_neg(Neg::Var(TypeVar(15)));
     let origin = OriginId::unknown_internal();
     let evidence_record = machine
         .bounds
@@ -1349,7 +1400,7 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
         .pre_pop_effect_families
         .insert(owner, vec![family.clone()]);
     let subtract = SubtractFact {
-        id: SubtractId(81_006),
+        id: SubtractId(16),
         subtractability: Subtractability::Set(vec!["row1_owned_subtract".into()], vec![neutral]),
     };
     machine.subtract_fact(owner, subtract.id, subtract.subtractability.clone());
@@ -1362,19 +1413,35 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
         associated: Vec::new(),
     };
 
-    // Unrelated keyed data must not affect the owned element count or turn a getter into a
-    // whole-map scan. Construction stays outside the timed query.
-    for index in 0..2_048 {
-        let unrelated = TypeVar(82_000 + index);
-        machine
-            .var_adjacency
-            .entry(unrelated)
-            .or_default()
-            .insert(TypeVar(85_000 + index), 1);
-        machine
-            .pre_pop_effect_families
-            .insert(unrelated, vec![family.clone()]);
-    }
+    let add_unrelated_entries = |machine: &mut ConstraintMachine, start: u32, end: u32| {
+        for index in start..end {
+            let unrelated = TypeVar(100 + index);
+            let unrelated_pos = machine.alloc_pos(Pos::Var(TypeVar(10_000 + index * 2)));
+            let unrelated_neg = machine.alloc_neg(Neg::Var(TypeVar(10_001 + index * 2)));
+            let _ = machine.alloc_neu(Neu::Bounds(unrelated_pos, unrelated_neg));
+            machine.bounds.add_upper(
+                unrelated,
+                ordinary_negative,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            );
+            machine
+                .var_adjacency
+                .entry(unrelated)
+                .or_default()
+                .insert(TypeVar(20_000 + index), 1);
+            machine
+                .pre_pop_effect_families
+                .insert(unrelated, vec![family.clone()]);
+            machine
+                .subtracts
+                .facts
+                .entry(unrelated)
+                .or_default()
+                .push(subtract.clone());
+        }
+    };
+    add_unrelated_entries(&mut machine, 0, 256);
 
     let expected_upper_records = machine
         .bounds()
@@ -1393,15 +1460,15 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
     let _ = machine.var_neighbors(owner).collect::<Vec<_>>();
     let _ = machine.pre_pop_effect_families(owner);
     let _ = machine.subtracts().facts(owner);
-    let legacy_read_keys = legacy_guard
-        .finish()
+    let legacy_reads = legacy_guard.finish();
+    let legacy_hook_calls = legacy_reads.logical_read_hook_calls();
+    let legacy_read_keys = legacy_reads
         .constraint_dependency_keys()
         .into_iter()
         .collect::<FxHashSet<_>>();
 
     machine.proof_attempt.reset_query_trace();
     let scoped_guard = begin_owner_dependency_reads();
-    let started = Instant::now();
     let mut round = machine.new_projection_evaluation_round();
     let actual = machine
         .with_legacy_projection_query(&mut round, |query| {
@@ -1418,9 +1485,9 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
             Ok(query.complete(output))
         })
         .expect("all eight row-1 owned reads complete in one scope");
-    let elapsed = started.elapsed();
-    let scoped_read_keys = scoped_guard
-        .finish()
+    let scoped_reads = scoped_guard.finish();
+    let scoped_hook_calls = scoped_reads.logical_read_hook_calls();
+    let scoped_read_keys = scoped_reads
         .constraint_dependency_keys()
         .into_iter()
         .collect::<FxHashSet<_>>();
@@ -1440,6 +1507,10 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
     assert_eq!(actual.6.len(), 1);
     assert_eq!(actual.7.len(), 1);
     assert_eq!(scoped_read_keys, legacy_read_keys);
+    // Bounds, neighbors, pre-pop families, and subtract facts have one hook each. Shape and
+    // role-raw-var getters intentionally have none.
+    assert_eq!(legacy_hook_calls, 4);
+    assert_eq!(scoped_hook_calls, 4);
     assert_eq!(
         scoped_read_keys,
         [
@@ -1452,9 +1523,31 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
         .collect()
     );
     assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+
+    // This is a key-local complexity guard, not the slice 4/5 full-pipeline cold/warm wall/RSS
+    // gate. Growing every unrelated backing collection by 16x must not make these target-key
+    // reads scale with total corpus size.
+    let small_fixture_elapsed = row1_owned_read_surface_best_elapsed(
+        &mut machine,
+        owner,
+        positive,
+        negative,
+        neutral,
+        &role,
+    );
+    add_unrelated_entries(&mut machine, 256, 4_096);
+    let large_fixture_elapsed = row1_owned_read_surface_best_elapsed(
+        &mut machine,
+        owner,
+        positive,
+        negative,
+        neutral,
+        &role,
+    );
+    let maximum_key_local_growth = small_fixture_elapsed.as_nanos().saturating_mul(4);
     assert!(
-        elapsed < Duration::from_millis(100),
-        "eight keyed owned reads exceeded the bounded unit-test budget: {elapsed:?}"
+        large_fixture_elapsed.as_nanos() <= maximum_key_local_growth,
+        "16x unrelated-data growth made keyed reads grow more than 4x: small={small_fixture_elapsed:?}, large={large_fixture_elapsed:?}"
     );
 }
 

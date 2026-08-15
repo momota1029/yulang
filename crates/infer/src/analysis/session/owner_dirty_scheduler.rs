@@ -98,6 +98,8 @@ pub(crate) struct OwnerReadFrontier {
     pub(super) birth_level_vars: FxHashSet<TypeVar>,
     #[cfg(test)]
     pub(super) pre_pop_vars: FxHashSet<TypeVar>,
+    #[cfg(test)]
+    pub(super) logical_read_hook_calls: usize,
     pub(super) candidate_buckets: FxHashSet<Vec<String>>,
     pub(super) taint_vars: FxHashSet<TypeVar>,
     pub(super) applied_resolution_reads: FxHashMap<RoleResolutionKey, bool>,
@@ -145,6 +147,11 @@ impl OwnerReadFrontier {
                 .map(DependencyKey::ConstraintPrePopFamilies),
         );
         keys
+    }
+
+    #[cfg(test)]
+    pub(crate) fn logical_read_hook_calls(&self) -> usize {
+        self.logical_read_hook_calls
     }
 
     fn scheduler_owner_dependency_keys(
@@ -248,6 +255,7 @@ pub(crate) fn begin_owner_dependency_reads() -> OwnerReadGuard {
 #[cfg(test)]
 pub(crate) fn record_owner_bound_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.bound_vars.insert(var);
     });
 }
@@ -279,6 +287,7 @@ pub(crate) fn record_owner_dependency_read(key: DependencyKey) {
 #[cfg(test)]
 pub(crate) fn record_owner_neighbor_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.neighbor_vars.insert(var);
     });
 }
@@ -286,6 +295,7 @@ pub(crate) fn record_owner_neighbor_read(var: TypeVar) {
 #[cfg(test)]
 pub(crate) fn record_owner_subtract_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.subtract_vars.insert(var);
     });
 }
@@ -293,6 +303,7 @@ pub(crate) fn record_owner_subtract_read(var: TypeVar) {
 #[cfg(test)]
 pub(crate) fn record_owner_level_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.level_vars.insert(var);
     });
 }
@@ -300,6 +311,7 @@ pub(crate) fn record_owner_level_read(var: TypeVar) {
 #[cfg(test)]
 pub(crate) fn record_owner_birth_level_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.birth_level_vars.insert(var);
     });
 }
@@ -307,6 +319,7 @@ pub(crate) fn record_owner_birth_level_read(var: TypeVar) {
 #[cfg(test)]
 pub(crate) fn record_owner_pre_pop_read(var: TypeVar) {
     with_active_owner_reads(|reads| {
+        reads.logical_read_hook_calls += 1;
         reads.pre_pop_vars.insert(var);
     });
 }
