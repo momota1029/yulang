@@ -1304,6 +1304,10 @@ fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
 struct Row1OwnedReadScalingFixture {
     machine: ConstraintMachine,
     absent_owner: TypeVar,
+    present_upper_owner: TypeVar,
+    present_neighbor_owner: TypeVar,
+    present_pre_pop_owner: TypeVar,
+    present_subtract_owner: TypeVar,
     positive: PosId,
     negative: NegId,
     neutral: NeuId,
@@ -1312,25 +1316,33 @@ struct Row1OwnedReadScalingFixture {
 
 #[derive(Clone, Copy, Debug)]
 enum Row1OwnedReadScalingProbe {
-    UpperRecords,
+    UpperRecordsAbsent,
+    UpperRecordsPresent,
     PosShape,
     NegShape,
     NeuShape,
     RoleRawVars,
-    VarNeighbors,
-    PrePopFamilies,
-    SubtractFacts,
+    VarNeighborsAbsent,
+    VarNeighborsPresent,
+    PrePopFamiliesAbsent,
+    PrePopFamiliesPresent,
+    SubtractFactsAbsent,
+    SubtractFactsPresent,
 }
 
-const ROW1_OWNED_READ_SCALING_PROBES: [Row1OwnedReadScalingProbe; 8] = [
-    Row1OwnedReadScalingProbe::UpperRecords,
+const ROW1_OWNED_READ_SCALING_PROBES: [Row1OwnedReadScalingProbe; 12] = [
+    Row1OwnedReadScalingProbe::UpperRecordsAbsent,
+    Row1OwnedReadScalingProbe::UpperRecordsPresent,
     Row1OwnedReadScalingProbe::PosShape,
     Row1OwnedReadScalingProbe::NegShape,
     Row1OwnedReadScalingProbe::NeuShape,
     Row1OwnedReadScalingProbe::RoleRawVars,
-    Row1OwnedReadScalingProbe::VarNeighbors,
-    Row1OwnedReadScalingProbe::PrePopFamilies,
-    Row1OwnedReadScalingProbe::SubtractFacts,
+    Row1OwnedReadScalingProbe::VarNeighborsAbsent,
+    Row1OwnedReadScalingProbe::VarNeighborsPresent,
+    Row1OwnedReadScalingProbe::PrePopFamiliesAbsent,
+    Row1OwnedReadScalingProbe::PrePopFamiliesPresent,
+    Row1OwnedReadScalingProbe::SubtractFactsAbsent,
+    Row1OwnedReadScalingProbe::SubtractFactsPresent,
 ];
 
 fn row1_owned_read_scaling_fixture(unrelated_entries: u32) -> Row1OwnedReadScalingFixture {
@@ -1394,9 +1406,69 @@ fn row1_owned_read_scaling_fixture(unrelated_entries: u32) -> Row1OwnedReadScali
         associated: Vec::new(),
     };
 
+    // Bounds use the TypeVar as a direct Vec index. Add the present owner after the unrelated
+    // range so its indexed record is last and a regression to `iter().nth(var.0)` must traverse
+    // the whole corpus before cloning the record.
+    let present_upper_owner = TypeVar(unrelated_entries);
+    machine.bounds.add_upper(
+        present_upper_owner,
+        negative,
+        ConstraintWeights::empty(),
+        BoundDerivation::Origin(origin),
+    );
+
+    // FxHashMap insertion order is not iteration order. Select each backing map's actual final
+    // iteration key, then replace its value after all unrelated data exists. A hypothetical
+    // `iter().find(...)` present-key regression must therefore visit the entire map, while each
+    // target still has the same one-element payload at both fixture sizes.
+    let present_neighbor_owner = machine
+        .var_adjacency
+        .keys()
+        .copied()
+        .last()
+        .expect("scaling fixture has neighbor entries");
+    machine.var_adjacency.insert(
+        present_neighbor_owner,
+        [(TypeVar(40_000), 1)].into_iter().collect(),
+    );
+    let present_pre_pop_owner = machine
+        .pre_pop_effect_families
+        .keys()
+        .copied()
+        .last()
+        .expect("scaling fixture has pre-pop entries");
+    machine.pre_pop_effect_families.insert(
+        present_pre_pop_owner,
+        vec![ConstraintEffectFamily {
+            path: vec!["row1_scaling_target_effect".into()],
+            args: vec![neutral],
+        }],
+    );
+    let present_subtract_owner = machine
+        .subtracts
+        .facts
+        .keys()
+        .copied()
+        .last()
+        .expect("scaling fixture has subtract entries");
+    machine.subtracts.facts.insert(
+        present_subtract_owner,
+        vec![SubtractFact {
+            id: SubtractId(unrelated_entries),
+            subtractability: Subtractability::Set(
+                vec!["row1_scaling_target_subtract".into()],
+                vec![neutral],
+            ),
+        }],
+    );
+
     Row1OwnedReadScalingFixture {
         machine,
         absent_owner: TypeVar(u32::MAX),
+        present_upper_owner,
+        present_neighbor_owner,
+        present_pre_pop_owner,
+        present_subtract_owner,
         positive,
         negative,
         neutral,
@@ -1406,7 +1478,11 @@ fn row1_owned_read_scaling_fixture(unrelated_entries: u32) -> Row1OwnedReadScali
 
 fn row1_owned_read_surface_best_elapsed(
     machine: &mut ConstraintMachine,
-    owner: TypeVar,
+    absent_owner: TypeVar,
+    present_upper_owner: TypeVar,
+    present_neighbor_owner: TypeVar,
+    present_pre_pop_owner: TypeVar,
+    present_subtract_owner: TypeVar,
     positive: PosId,
     negative: NegId,
     neutral: NeuId,
@@ -1425,10 +1501,14 @@ fn row1_owned_read_surface_best_elapsed(
                     let mut checksum = 0_usize;
                     for _ in 0..READS_PER_SAMPLE {
                         let observed = match probe {
-                            Row1OwnedReadScalingProbe::UpperRecords => {
-                                std::hint::black_box(query.projection_upper_records_in_scope(owner))
-                                    .len()
-                            }
+                            Row1OwnedReadScalingProbe::UpperRecordsAbsent => std::hint::black_box(
+                                query.projection_upper_records_in_scope(absent_owner),
+                            )
+                            .len(),
+                            Row1OwnedReadScalingProbe::UpperRecordsPresent => std::hint::black_box(
+                                query.projection_upper_records_in_scope(present_upper_owner),
+                            )
+                            .len(),
                             Row1OwnedReadScalingProbe::PosShape => {
                                 let _ = std::hint::black_box(query.pos_shape_in_scope(positive));
                                 0
@@ -1445,15 +1525,35 @@ fn row1_owned_read_surface_best_elapsed(
                                 std::hint::black_box(query.role_constraint_raw_vars_in_scope(role))
                                     .len()
                             }
-                            Row1OwnedReadScalingProbe::VarNeighbors => {
-                                std::hint::black_box(query.var_neighbors_in_scope(owner)).len()
-                            }
-                            Row1OwnedReadScalingProbe::PrePopFamilies => {
-                                std::hint::black_box(query.pre_pop_effect_families_in_scope(owner))
+                            Row1OwnedReadScalingProbe::VarNeighborsAbsent => {
+                                std::hint::black_box(query.var_neighbors_in_scope(absent_owner))
                                     .len()
                             }
-                            Row1OwnedReadScalingProbe::SubtractFacts => {
-                                std::hint::black_box(query.subtract_facts_in_scope(owner)).len()
+                            Row1OwnedReadScalingProbe::VarNeighborsPresent => std::hint::black_box(
+                                query.var_neighbors_in_scope(present_neighbor_owner),
+                            )
+                            .len(),
+                            Row1OwnedReadScalingProbe::PrePopFamiliesAbsent => {
+                                std::hint::black_box(
+                                    query.pre_pop_effect_families_in_scope(absent_owner),
+                                )
+                                .len()
+                            }
+                            Row1OwnedReadScalingProbe::PrePopFamiliesPresent => {
+                                std::hint::black_box(
+                                    query.pre_pop_effect_families_in_scope(present_pre_pop_owner),
+                                )
+                                .len()
+                            }
+                            Row1OwnedReadScalingProbe::SubtractFactsAbsent => {
+                                std::hint::black_box(query.subtract_facts_in_scope(absent_owner))
+                                    .len()
+                            }
+                            Row1OwnedReadScalingProbe::SubtractFactsPresent => {
+                                std::hint::black_box(
+                                    query.subtract_facts_in_scope(present_subtract_owner),
+                                )
+                                .len()
                             }
                         };
                         checksum = checksum.wrapping_add(observed + 1);
@@ -1466,6 +1566,31 @@ fn row1_owned_read_surface_best_elapsed(
         })
         .min()
         .expect("at least one scaling sample")
+}
+
+fn assert_row1_owned_read_scaling_present_targets(fixture: &mut Row1OwnedReadScalingFixture) {
+    let mut round = fixture.machine.new_projection_evaluation_round();
+    let observed = fixture
+        .machine
+        .with_legacy_projection_query(&mut round, |query| {
+            let lengths = (
+                query
+                    .projection_upper_records_in_scope(fixture.present_upper_owner)
+                    .len(),
+                query
+                    .var_neighbors_in_scope(fixture.present_neighbor_owner)
+                    .len(),
+                query
+                    .pre_pop_effect_families_in_scope(fixture.present_pre_pop_owner)
+                    .len(),
+                query
+                    .subtract_facts_in_scope(fixture.present_subtract_owner)
+                    .len(),
+            );
+            Ok(query.complete(lengths))
+        })
+        .expect("present-key scaling targets remain readable");
+    assert_eq!(observed, (1, 1, 1, 1));
 }
 
 #[test]
@@ -1611,18 +1736,27 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
     assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
 
     // This is a key-local complexity guard, not the slice 4/5 full-pipeline cold/warm wall/RSS
-    // gate. The collection target is absent in both fixtures, so a hypothetical linear scan
-    // cannot stop at an early match and must traverse all 256/4096 entries. The Pos/Neg/Neu
-    // targets are allocated after every unrelated node, putting them last in their arenas too.
-    // Every getter is timed as a separate probe, so one O(n) regression cannot hide behind the
-    // other seven constant-time reads: it would grow toward 16x and fail the 4x ceiling. The real
-    // keyed lookup/indexing path remains relative to target data and should stay near constant.
+    // gate. Collection getters have both absent-key probes, which cannot stop at an early match,
+    // and present-key probes whose one-element payloads sit at the final Vec index / final actual
+    // FxHashMap iteration position. Thus a hypothetical sequential scan must traverse all
+    // 256/4096 entries on both paths instead of hiding behind an early target or an empty fast
+    // path. The Pos/Neg/Neu targets are allocated after every unrelated node, putting them last
+    // in their arenas too. Every getter/path is timed as a separate probe, so one O(n) regression
+    // cannot hide behind constant-time reads: it would grow toward 16x and fail the 4x ceiling.
+    // The real keyed lookup/indexing path remains relative to target data and should stay near
+    // constant. Slice 4/5 still owns the full-pipeline cold/warm wall/RSS landing gate.
     let mut small_fixture = row1_owned_read_scaling_fixture(256);
     let mut large_fixture = row1_owned_read_scaling_fixture(4_096);
+    assert_row1_owned_read_scaling_present_targets(&mut small_fixture);
+    assert_row1_owned_read_scaling_present_targets(&mut large_fixture);
     for probe in ROW1_OWNED_READ_SCALING_PROBES {
         let small_fixture_elapsed = row1_owned_read_surface_best_elapsed(
             &mut small_fixture.machine,
             small_fixture.absent_owner,
+            small_fixture.present_upper_owner,
+            small_fixture.present_neighbor_owner,
+            small_fixture.present_pre_pop_owner,
+            small_fixture.present_subtract_owner,
             small_fixture.positive,
             small_fixture.negative,
             small_fixture.neutral,
@@ -1632,6 +1766,10 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
         let large_fixture_elapsed = row1_owned_read_surface_best_elapsed(
             &mut large_fixture.machine,
             large_fixture.absent_owner,
+            large_fixture.present_upper_owner,
+            large_fixture.present_neighbor_owner,
+            large_fixture.present_pre_pop_owner,
+            large_fixture.present_subtract_owner,
             large_fixture.positive,
             large_fixture.negative,
             large_fixture.neutral,
