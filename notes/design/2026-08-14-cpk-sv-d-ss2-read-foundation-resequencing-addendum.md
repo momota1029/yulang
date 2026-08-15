@@ -3052,9 +3052,15 @@ intentional proof-soak guard / capture、三つのyulang
 final-output gateとそのprivate pure helperだけである。`CompactRoot::default()`の意味、production
 proof failure分類、publication、write authority、cache lifetime、server error contract、row 2〜7の確定設計を変更しない。
 
-追記著者: Codex gpt-5.6-sol（xhigh）が起案・四回の独立review findingを反映。Claude (Sonnet 5) の最終confirmation review待ち
+5. fix `de648fe9`への第五回review: **`SOUND`（無条件、CRITICAL/HIGH/MEDIUM/LOWすべてゼロ）**。cfg symmetry、fixed-only feature arm
+   surface、attempt-isolation、same-self reachability、三gate completeness、public / unchecked residual scope、invariant/番号/用語の
+   section全体一貫性を確認し、finalizeを妨げるgapは見つからなかった。旧戦略（四案・NOT SOUND四連続）と新戦略（第五案・本節）を
+   通じて、row 1残りsubrow問題で初めて到達した無条件SOUND判定である。
 
-追記状態: **draft・未承認（2026-08-15、第四回`SOUND WITH GAPS`の2 MEDIUM + 1 LOW修正済み）**。第五案は、四案が失敗した
+追記著者: Codex gpt-5.6-sol（xhigh）が起案・五回の独立review findingを反映。Claude (Sonnet 5) が査読・本節を確定。
+
+追記状態: **設計レベル確定・SOUND（2026-08-15、第五回独立reviewで無条件SOUND）**。第五案は、四案が失敗した
 「内部fallback値を正常な意味論値として証明する」問題を解こうとせず、attempt-local poisonをchecked attempt boundaryと三post-format
-terminal gateで外部から隔離する案である。次回の最終confirmation reviewが本改訂のcfg symmetry、fixed-only feature arm surface、
-attempt-isolation、same-self reachability、三gate completeness、public / unchecked residual scopeを確認するまでimplementationへ進まない。
+terminal gateで外部から隔離する案である。5回の独立review（初回`SOUND WITH GAPS`から段階的にgapを閉じ、第五回で無条件`SOUND`）を
+経て、設計としての健全性は確定した。ただし本リポジトリの正本化規約（`~/CLAUDE.md`および`/CLAUDE.md`の「設計判断の優先順位と
+正本」）に従い、implementation着手にはユーザ承認が別途必要——本節はまだ「ユーザ承認済み」正本の署名を持たない。
