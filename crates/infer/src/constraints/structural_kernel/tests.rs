@@ -4,6 +4,7 @@ use std::{cell::Cell, rc::Rc};
 
 use poly::expr::DefId;
 use poly::types::{Neg, Pos, Subtractability, TypeVar};
+use rustc_hash::FxHashMap;
 
 use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
@@ -373,7 +374,9 @@ fn exercise_all_parent_clause_link_wrapper(
             }),
         AllParentClauseLinkCaller::ReplayBootstrap => machine
             .exercise_replay_bootstrap_wrapper_for_test(|machine| {
-                machine.proof_attempt.inject_query_scope_failure(failure);
+                machine
+                    .proof_attempt
+                    .inject_query_scope_failure_after_successful_scopes(1, failure);
             }),
     }
 }
@@ -416,6 +419,60 @@ fn cpk_sv_d_ss2_p0_factored_all_parent_wrapper_preserves_precommit_classificatio
 #[test]
 fn cpk_sv_d_ss2_p0_replay_bootstrap_wrapper_preserves_precommit_classification() {
     assert_all_parent_precommit_failure_classification(AllParentClauseLinkCaller::ReplayBootstrap);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row5_snapshot_map_uses_one_publication_scope() {
+    let mut machine = ConstraintMachine::new();
+    let first = add_row4_test_lower(&mut machine, 98_130);
+    let second = add_row4_test_lower(&mut machine, 98_132);
+    let before = FxHashMap::from_iter([
+        (first, machine.scheme_projection_record_is_included(first)),
+        (second, machine.scheme_projection_record_is_included(second)),
+    ]);
+    machine.proof_attempt.reset_query_trace();
+
+    let intent = machine
+        .try_evaluate_projection_inclusion_snapshot(&before)
+        .expect("the row-5 snapshot evaluation must succeed");
+
+    assert!(matches!(
+        intent,
+        crate::constraints::SchemeProjectionPublicationIntent::None
+    ));
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row5_postcommit_denials_use_canary_or_terminal_branch() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+        machine.proof_attempt.inject_query_scope_failure(failure);
+
+        let panic = catch_unwind(AssertUnwindSafe(|| {
+            let _ = machine
+                .evaluate_projection_inclusion_snapshot_after_commit_for_test(FxHashMap::default());
+        }));
+        assert_row4_row7_canary_panic(panic.expect_err("the row-5 canary must panic"));
+        assert_eq!(machine.proof_terminal_failure(), None);
+    }
+
+    let mut machine = ConstraintMachine::new();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+
+    assert!(
+        !machine
+            .evaluate_projection_inclusion_snapshot_after_commit_for_test(FxHashMap::default())
+    );
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
 }
 
 #[test]

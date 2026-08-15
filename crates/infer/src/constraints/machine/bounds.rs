@@ -1860,15 +1860,8 @@ impl ConstraintMachine {
         &mut self,
         snapshot: ClaimQualifiedParentAdmissionSnapshot,
     ) {
-        let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
-            Ok(intent) => intent,
-            Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::ProjectLowerEvaluation,
-                    failure,
-                );
-                return;
-            }
+        let Some(intent) = self.evaluate_claim_qualified_parent_admission(&snapshot) else {
+            return;
         };
         if self.proof_terminal_failure().is_some() {
             return;
@@ -1877,10 +1870,43 @@ impl ConstraintMachine {
     }
 
     fn try_evaluate_claim_qualified_parent_admission(
-        &self,
+        &mut self,
         snapshot: &ClaimQualifiedParentAdmissionSnapshot,
     ) -> ProofKernelResult<SchemeProjectionPublicationIntent> {
         self.try_evaluate_projection_inclusion_snapshot(&snapshot.inclusion_before)
+    }
+
+    fn evaluate_claim_qualified_parent_admission(
+        &mut self,
+        snapshot: &ClaimQualifiedParentAdmissionSnapshot,
+    ) -> Option<SchemeProjectionPublicationIntent> {
+        match self.try_evaluate_claim_qualified_parent_admission(snapshot) {
+            Ok(intent) => Some(intent),
+            Err(failure) => {
+                assert!(
+                    failure.requires_attempt_terminal(),
+                    "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant",
+                );
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                None
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn evaluate_projection_inclusion_snapshot_after_commit_for_test(
+        &mut self,
+        inclusion_before: FxHashMap<BoundRecordId, bool>,
+    ) -> bool {
+        self.evaluate_claim_qualified_parent_admission(&ClaimQualifiedParentAdmissionSnapshot {
+            inclusion_before,
+        })
+        .is_some()
     }
 
     fn defer_replay_admission_publication(
@@ -1904,15 +1930,8 @@ impl ConstraintMachine {
         if self.proof_terminal_failure().is_some() {
             return;
         }
-        let intent = match self.try_evaluate_claim_qualified_parent_admission(&snapshot) {
-            Ok(intent) => intent,
-            Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::ProjectLowerEvaluation,
-                    failure,
-                );
-                return;
-            }
+        let Some(intent) = self.evaluate_claim_qualified_parent_admission(&snapshot) else {
+            return;
         };
         self.defer_replay_admission_publication(fence, intent);
     }

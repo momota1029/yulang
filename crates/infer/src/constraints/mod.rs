@@ -2015,32 +2015,45 @@ impl ConstraintMachine {
     }
 
     fn try_evaluate_projection_inclusion_snapshot(
-        &self,
+        &mut self,
         before: &FxHashMap<BoundRecordId, bool>,
     ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
-        let mut after_round = CpkPublicationEvaluationRound::new(self);
-        let mut affected_owners = FxHashSet::default();
-        #[cfg(test)]
-        let mut semantic_transitions = Vec::new();
-        for (record, was_included) in before {
-            let is_included = after_round.eval_record(*record);
-            if *was_included != is_included {
-                #[cfg(test)]
-                semantic_transitions.push((*record, *was_included, is_included));
-                if let Some(owner) = self.active_projection_record_owner(*record) {
-                    affected_owners.insert(owner);
+        let mut round = self.new_publication_evaluation_round();
+        let result = self.with_legacy_publication_query(&mut round, |query| {
+            let mut after_lane = ScopedCpkPublicationEvaluationLane::new(&query);
+            let mut affected_owners = FxHashSet::default();
+            #[cfg(test)]
+            let mut semantic_transitions = Vec::new();
+            for (record, was_included) in before {
+                let is_included = after_lane.eval_record(*record);
+                if *was_included != is_included {
+                    #[cfg(test)]
+                    semantic_transitions.push((*record, *was_included, is_included));
+                    if let Some(owner) = query.active_projection_record_owner(*record) {
+                        affected_owners.insert(owner);
+                    }
                 }
             }
-        }
+            let intent = if affected_owners.is_empty() {
+                SchemeProjectionPublicationIntent::None
+            } else {
+                SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
+            };
+            #[cfg(test)]
+            return Ok(query.complete((intent, semantic_transitions)));
+            #[cfg(not(test))]
+            Ok(query.complete(intent))
+        });
+        #[cfg(test)]
+        let (intent, semantic_transitions) = result?;
         #[cfg(test)]
         for (record, was_included, is_included) in semantic_transitions {
             self.record_semantic_projectability_transition(record, was_included, is_included);
         }
-        Ok(if affected_owners.is_empty() {
-            SchemeProjectionPublicationIntent::None
-        } else {
-            SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
-        })
+        #[cfg(test)]
+        return Ok(intent);
+        #[cfg(not(test))]
+        result
     }
 
     fn publish_scheme_projection_intent(&mut self, intent: SchemeProjectionPublicationIntent) {
