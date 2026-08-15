@@ -914,7 +914,7 @@ fn negative_filter_stack_effect_projects_set_as_row_prefix() {
         crate::constraints::OriginId::unknown_internal(),
     );
 
-    let compact = compact_negative_type_var_for_scheme(&machine, root);
+    let compact = compact_negative_type_var_for_scheme(&mut machine, root);
     let fun = compact.root.funs.first().expect("function upper");
     assert!(compact_row_contains_path(&fun.ret_eff, "effect"));
 }

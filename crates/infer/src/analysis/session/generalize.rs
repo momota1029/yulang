@@ -75,7 +75,7 @@ impl AnalysisSession {
                 (Vec::new(), Vec::new())
             } else {
                 compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
-                    self.infer.constraints(),
+                    self.infer.constraints_mut(),
                     &next_compact,
                     &[root],
                     self.roles.for_owner(def),
@@ -592,8 +592,10 @@ impl AnalysisSession {
         if self.generalize_compact_cache.is_some() {
             self.timing.record_generalize_compact_cache(false);
         }
-        let out =
-            compact_type_var_recording_merge_constraints_for_scheme(self.infer.constraints(), root);
+        let out = compact_type_var_recording_merge_constraints_for_scheme(
+            self.infer.constraints_mut(),
+            root,
+        );
         if let Some(cache) = self.generalize_compact_cache.as_mut() {
             cache.insert(root, compact_epoch, &out.0, &out.1);
             self.timing.record_generalize_compact_cache_insert();
@@ -1125,6 +1127,35 @@ mod final_role_reuse_tests {
     use poly::expr::Arena as PolyArena;
     use poly::types::{Neg, Neu, Pos, TypeVar};
     use std::cell::Cell;
+
+    #[test]
+    fn row1_scheme_compaction_success_is_preserved_by_generalize_cache() {
+        let mut session = AnalysisSession::new(PolyArena::new());
+        let root = session.infer.fresh_type_var();
+        let lower = session
+            .infer
+            .alloc_pos(Pos::Con(vec!["row1_cache".into()], Vec::new()));
+        let upper = session.infer.alloc_neg(Neg::Var(root));
+        session.infer.subtype(
+            lower,
+            upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+
+        let first = session.compact_root_for_generalize(root);
+        assert!(first.0.root.cons.contains_key(&vec!["row1_cache".into()]));
+        assert_eq!(session.timing.generalize_compact_cache_requests, 1);
+        assert_eq!(session.timing.generalize_compact_cache_misses, 1);
+        assert_eq!(session.timing.generalize_compact_cache_inserts, 1);
+        assert_eq!(session.timing.generalize_compact_cache_hits, 0);
+
+        let second = session.compact_root_for_generalize(root);
+        assert_eq!(second, first, "a cache hit must preserve the scoped output");
+        assert_eq!(session.timing.generalize_compact_cache_requests, 2);
+        assert_eq!(session.timing.generalize_compact_cache_misses, 1);
+        assert_eq!(session.timing.generalize_compact_cache_inserts, 1);
+        assert_eq!(session.timing.generalize_compact_cache_hits, 1);
+    }
 
     #[test]
     fn exact_raw_inputs_skip_view_rebuild_and_match_full_resolve() {

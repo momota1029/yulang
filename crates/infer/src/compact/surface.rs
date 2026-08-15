@@ -10,17 +10,31 @@ pub(crate) fn compact_type_var(machine: &ConstraintMachine, root: TypeVar) -> Co
 }
 
 pub(crate) fn compact_type_var_for_scheme(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     root: TypeVar,
 ) -> CompactRoot {
-    CompactCollector::new_for_scheme(machine).compact_root(root)
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let value = CompactCollector::new_for_scheme(&query).compact_root_for_scheme(root)?;
+            Ok(query.complete(value))
+        })
+        // Attempt-local poison only; the gateway latches every organically reachable denial.
+        .unwrap_or_default()
 }
 
 pub(crate) fn compact_negative_type_var_for_scheme(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     root: TypeVar,
 ) -> CompactRoot {
-    CompactCollector::new_for_scheme(machine).compact_root_with_polarity(root, Polarity::Negative)
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let value = CompactCollector::new_for_scheme(&query)
+                .compact_root_with_polarity_for_scheme(root, Polarity::Negative)?;
+            Ok(query.complete(value))
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -158,10 +172,17 @@ pub(crate) fn compact_type_var_recording_owner_dependencies(
 }
 
 pub(crate) fn compact_type_var_recording_merge_constraints_for_scheme(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     root: TypeVar,
 ) -> (CompactRoot, Vec<CompactMergeConstraint>) {
-    CompactCollector::new_recording_for_scheme(machine).compact_root_with_merge_constraints(root)
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let value = CompactCollector::new_recording_for_scheme(&query)
+                .compact_root_with_merge_constraints_for_scheme(root)?;
+            Ok(query.complete(value))
+        })
+        .unwrap_or_else(|_| (CompactRoot::default(), Vec::new()))
 }
 
 #[allow(
@@ -501,16 +522,19 @@ pub(crate) fn compact_reachable_role_constraints(
 }
 
 pub(crate) fn compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
-    machine: &ConstraintMachine,
+    machine: &mut ConstraintMachine,
     seed: &CompactRoot,
     raw_seed_vars: &[TypeVar],
     constraints: &[RoleConstraint],
 ) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
-    if constraints.is_empty() {
-        return (Vec::new(), Vec::new());
-    }
-    CompactCollector::new_recording_for_scheme(machine)
-        .compact_reachable_role_constraints_with_merge_constraints(seed, raw_seed_vars, constraints)
+    let mut round_state = machine.new_projection_evaluation_round();
+    machine
+        .with_legacy_projection_query(&mut round_state, |query| {
+            let value = CompactCollector::new_recording_for_scheme(&query)
+                .compact_reachable_role_constraints_for_scheme(seed, raw_seed_vars, constraints)?;
+            Ok(query.complete(value))
+        })
+        .unwrap_or_else(|_| (Vec::new(), Vec::new()))
 }
 
 pub(crate) fn compact_role_constraint(

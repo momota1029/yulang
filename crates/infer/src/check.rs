@@ -437,11 +437,11 @@ pub fn inferred_record_fields_public_with_path_rewriter(
 
 pub fn format_inferred_input_type_with_path_rewriter(
     source_types: &TypeArena,
-    infer: &Arena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> String {
-    let machine = infer.constraints();
+    let machine = infer.constraints_mut();
     let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
     let mut types = source_types.clone();
     let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);
@@ -450,11 +450,11 @@ pub fn format_inferred_input_type_with_path_rewriter(
 
 pub fn format_inferred_input_type_public_with_path_rewriter(
     source_types: &TypeArena,
-    infer: &Arena,
+    infer: &mut Arena,
     value: TypeVar,
     path_rewriter: &dyn Fn(&[String]) -> Vec<String>,
 ) -> poly::dump::PublicTypeDisplay {
-    let machine = infer.constraints();
+    let machine = infer.constraints_mut();
     let compact = crate::compact::compact_negative_type_var_for_scheme(machine, value);
     let mut types = source_types.clone();
     let ty = crate::compact::finalize_compact_type_to_neg(&mut types, &compact.root);

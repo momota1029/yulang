@@ -1413,6 +1413,162 @@ fn cpk_sv_d_ss2_p0_row1_witness_denial_latches_before_empty_incomplete_poison() 
     );
 }
 
+fn row1_scheme_compaction_role(machine: &mut ConstraintMachine, var: TypeVar) -> RoleConstraint {
+    RoleConstraint {
+        role: vec!["row1_scheme_compaction".into()],
+        inputs: vec![RoleConstraintArg {
+            lower: machine.alloc_pos(Pos::Var(var)),
+            upper: machine.alloc_neg(Neg::Var(var)),
+        }],
+        associated: Vec::new(),
+    }
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_scheme_compaction_surfaces_use_one_scope_with_legacy_parity() {
+    let (mut machine, owner, _, _) = ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+
+    let raw_root = crate::compact::compact_type_var(&machine, owner);
+    machine.proof_attempt.reset_query_trace();
+    let scoped_root = crate::compact::compact_type_var_for_scheme(&mut machine, owner);
+    assert_eq!(
+        scoped_root, raw_root,
+        "local-shaped compact root preserves legacy output"
+    );
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+
+    let raw_negative =
+        crate::compact::compact_negative_type_var_recording_merge_constraints(&machine, owner).0;
+    machine.proof_attempt.reset_query_trace();
+    let scoped_negative = crate::compact::compact_negative_type_var_for_scheme(&mut machine, owner);
+    assert_eq!(scoped_negative, raw_negative);
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+
+    let raw_recording =
+        crate::compact::compact_type_var_recording_merge_constraints(&machine, owner);
+    machine.proof_attempt.reset_query_trace();
+    let scoped_recording = crate::compact::compact_type_var_recording_merge_constraints_for_scheme(
+        &mut machine,
+        owner,
+    );
+    assert_eq!(scoped_recording, raw_recording);
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+
+    let role = row1_scheme_compaction_role(&mut machine, owner);
+    let raw_roles = crate::compact::compact_reachable_role_constraints(
+        &machine,
+        &raw_root,
+        std::slice::from_ref(&role),
+    );
+    machine.proof_attempt.reset_query_trace();
+    let (scoped_roles, scoped_merges) =
+        crate::compact::compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
+            &mut machine,
+            &scoped_root,
+            &[owner],
+            &[role],
+        );
+    assert_eq!(
+        scoped_roles, raw_roles,
+        "component-shaped role compaction preserves legacy output"
+    );
+    assert!(scoped_merges.is_empty());
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+
+    machine.proof_attempt.reset_query_trace();
+    assert_eq!(
+        crate::compact::compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
+            &mut machine,
+            &scoped_root,
+            &[owner],
+            &[],
+        ),
+        (Vec::new(), Vec::new()),
+        "the empty role surface preserves its legacy output"
+    );
+    assert_eq!(
+        machine.proof_attempt.query_trace(),
+        (2, 2, 1, 1, 1),
+        "even an empty top-level role surface owns exactly one scope"
+    );
+
+    let production = concat!(
+        include_str!("../../compact/collect/mod.rs"),
+        include_str!("../../compact/collect/type_nodes.rs")
+    );
+    assert!(
+        !production.contains(".scheme_projectable_lowers(")
+            && !production.contains("scheme_projectable_lowers_in_round("),
+        "scheme-mode production compaction must not reintroduce the old direct helper"
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_scheme_compaction_denials_latch_before_poison_outputs() {
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+
+    let (mut root_machine, owner, _, _) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    root_machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    assert_eq!(
+        crate::compact::compact_type_var_for_scheme(&mut root_machine, owner),
+        crate::compact::CompactRoot::default()
+    );
+    assert_eq!(root_machine.proof_terminal_failure(), Some(failure.clone()));
+
+    let (mut negative_machine, owner, _, _) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    negative_machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    assert_eq!(
+        crate::compact::compact_negative_type_var_for_scheme(&mut negative_machine, owner),
+        crate::compact::CompactRoot::default()
+    );
+    assert_eq!(
+        negative_machine.proof_terminal_failure(),
+        Some(failure.clone())
+    );
+
+    let (mut recording_machine, owner, _, _) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    recording_machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    assert_eq!(
+        crate::compact::compact_type_var_recording_merge_constraints_for_scheme(
+            &mut recording_machine,
+            owner,
+        ),
+        (crate::compact::CompactRoot::default(), Vec::new())
+    );
+    assert_eq!(
+        recording_machine.proof_terminal_failure(),
+        Some(failure.clone())
+    );
+
+    let (mut role_machine, owner, _, _) =
+        ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+    let role = row1_scheme_compaction_role(&mut role_machine, owner);
+    role_machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+    assert_eq!(
+        crate::compact::compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints(
+            &mut role_machine,
+            &crate::compact::CompactRoot::default(),
+            &[owner],
+            &[role],
+        ),
+        (Vec::new(), Vec::new())
+    );
+    assert_eq!(role_machine.proof_terminal_failure(), Some(failure));
+}
+
 struct Row1OwnedReadScalingFixture {
     machine: ConstraintMachine,
     absent_owner: TypeVar,

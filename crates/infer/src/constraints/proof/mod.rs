@@ -22220,7 +22220,7 @@ mod tests {
                 .all(|pair| pair[0].coverage_root.0 < pair[1].coverage_root.0)
         );
 
-        let compact = crate::compact::compact_type_var_for_scheme(&machine, owner);
+        let compact = crate::compact::compact_type_var_for_scheme(&mut machine, owner);
         assert_eq!(
             compact,
             crate::compact::compact_type_var(&machine, owner),

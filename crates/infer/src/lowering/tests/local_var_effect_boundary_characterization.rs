@@ -1027,7 +1027,7 @@ fn negative_callback_boundary_materializes_payload_family_and_shared_residual() 
         true,
     );
 
-    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let compact = compact_type_var_for_scheme(&mut witness.machine, witness.root);
     let (callback, helper) = compact_callback_and_helper(&compact);
     let row =
         callback.ret_eff.rows.first().unwrap_or_else(|| {
@@ -1111,7 +1111,7 @@ fn negative_callback_boundary_materializes_argumentless_family_through_same_path
         false,
     );
 
-    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let compact = compact_type_var_for_scheme(&mut witness.machine, witness.root);
     let (callback, helper) = compact_callback_and_helper(&compact);
     let row =
         callback.ret_eff.rows.first().unwrap_or_else(|| {
@@ -1166,12 +1166,12 @@ fn negative_callback_boundary_materializes_argumentless_family_through_same_path
 
 #[test]
 fn invariant_direct_row_push_only_control_does_not_create_residual_correspondence() {
-    let witness = direct_row_control_witness();
+    let mut witness = direct_row_control_witness();
     assert_precompact_ref_effect_contains_push_only_carrier(
         witness.machine.types(),
         witness.ref_effect_bounds,
     );
-    let compact = compact_type_var_for_scheme(&witness.machine, witness.root);
+    let compact = compact_type_var_for_scheme(&mut witness.machine, witness.root);
     let (callback, helper) = compact_callback_and_helper(&compact);
 
     let ref_effect = compact_ref_effect_bounds(callback);

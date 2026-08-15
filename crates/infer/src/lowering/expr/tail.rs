@@ -977,7 +977,7 @@ impl<'a> ExprLowerer<'a> {
         let mut forced_quantifiers = Vec::new();
         if needs_recursive_effect_passthrough {
             forced_quantifiers = add_root_vars_connected_to_environment(
-                self.session.infer.constraints(),
+                self.session.infer.constraints_mut(),
                 value,
                 boundary,
                 &mut non_generic,
@@ -1239,7 +1239,7 @@ fn close_non_generic_vars(
 }
 
 fn add_root_vars_connected_to_environment(
-    machine: &crate::constraints::ConstraintMachine,
+    machine: &mut crate::constraints::ConstraintMachine,
     root: TypeVar,
     boundary: TypeLevel,
     non_generic: &mut FxHashSet<TypeVar>,
@@ -1253,7 +1253,7 @@ fn add_root_vars_connected_to_environment(
     effect_vars.sort_by_key(|var| var.0);
 
     let representatives =
-        effect_representatives_reaching_environment(machine, effect_vars, &environment, boundary);
+        effect_representatives_reaching_environment(&*machine, effect_vars, &environment, boundary);
     non_generic.extend(representatives.iter().copied());
     representatives
 }

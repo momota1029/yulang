@@ -1,12 +1,12 @@
 use super::*;
 
-impl<'a> CompactCollector<'a> {
+impl<'scope, 'query> CompactCollector<'scope, 'query> {
     pub(in crate::compact) fn compact_pos_id(
         &mut self,
         id: PosId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().pos(id).clone() {
+        match self.pos_shape(id) {
             Pos::Bot => CompactType::default(),
             Pos::Var(var) => self.compact_var_side(var, Polarity::Positive, weight),
             Pos::Con(path, args) => self.compact_con(path, args, weight),
@@ -106,7 +106,7 @@ impl<'a> CompactCollector<'a> {
         id: NegId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
             Neg::Var(var) => self.compact_var_side(var, Polarity::Negative, weight),
@@ -198,11 +198,11 @@ impl<'a> CompactCollector<'a> {
         id: PosId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().pos(id).clone() {
+        match self.pos_shape(id) {
             Pos::Bot => CompactType::default(),
             Pos::Var(var) => self.compact_var_side(var, Polarity::Positive, weight),
             Pos::Con(_, _) | Pos::NonSubtract(_, _) | Pos::Stack { .. } | Pos::Union(_, _) => {
-                match self.machine.types().pos(id).clone() {
+                match self.pos_shape(id) {
                     Pos::Union(lhs, rhs) => {
                         let lhs = self.compact_pos_effect_id(lhs, weight.clone());
                         let rhs = self.compact_pos_effect_id(rhs, weight);
@@ -230,7 +230,7 @@ impl<'a> CompactCollector<'a> {
         id: NegId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
             Neg::Var(var) => self.compact_var_side(var, Polarity::Negative, weight),
@@ -263,7 +263,7 @@ impl<'a> CompactCollector<'a> {
         id: PosId,
         weight: ConstraintWeight,
     ) -> Option<(Vec<String>, Vec<CompactBounds>)> {
-        match self.machine.types().pos(id).clone() {
+        match self.pos_shape(id) {
             Pos::Con(path, args) => Some((
                 path,
                 args.into_iter()
@@ -293,7 +293,7 @@ impl<'a> CompactCollector<'a> {
         &mut self,
         id: NegId,
     ) -> Option<(Vec<String>, Vec<CompactBounds>)> {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Con(path, args) => Some((
                 path,
                 args.into_iter()
@@ -320,7 +320,7 @@ impl<'a> CompactCollector<'a> {
         id: NeuId,
         weight: ConstraintWeight,
     ) -> CompactBounds {
-        match self.machine.types().neu(id).clone() {
+        match self.neu_shape(id) {
             Neu::Bounds(lower, upper) => CompactBounds::Interval {
                 lower: self.compact_pos_id(lower, weight),
                 upper: self.compact_neg_id(upper, ConstraintWeight::empty()),
@@ -381,7 +381,7 @@ impl<'a> CompactCollector<'a> {
         id: NeuId,
         weight: ConstraintWeight,
     ) -> CompactBounds {
-        match self.machine.types().neu(id).clone() {
+        match self.neu_shape(id) {
             Neu::Bounds(lower, upper) => CompactBounds::Interval {
                 lower: self.compact_pos_effect_id(lower, weight),
                 upper: self.compact_neg_effect_id(upper, ConstraintWeight::empty()),
@@ -409,7 +409,7 @@ impl<'a> CompactCollector<'a> {
         let mut vars_and_nested = CompactType::default();
         let mut concrete_items = CompactRowItemMap::default();
         for item in items {
-            match self.machine.types().pos(item).clone() {
+            match self.pos_shape(item) {
                 Pos::Var(var) => {
                     let compact = self.compact_var_side(var, Polarity::Positive, weight.clone());
                     vars_and_nested = self.merge_types(true, vars_and_nested, compact);
@@ -518,7 +518,7 @@ impl<'a> CompactCollector<'a> {
         id: NegId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Top => CompactType::default(),
             Neg::Bot => CompactType::never(),
             Neg::Var(var) => self.compact_neg_row_tail_var(var, weight),
@@ -599,13 +599,10 @@ impl<'a> CompactCollector<'a> {
             return out;
         }
         self.record_owner_constraint_read(var, DependencyKey::ConstraintBounds(var));
-        let Some(bounds) = self.machine.bounds().of(var).cloned() else {
-            self.row_tail_in_progress.remove(&var);
-            return out;
-        };
-        for bound in bounds.projection_uppers() {
+        let bounds = self.projection_upper_records(var);
+        for (_, bound) in bounds {
             let bound_weight = weight.union(&bound.weights.right.to_stack_weight());
-            let compact = match self.machine.types().neg(bound.neg).clone() {
+            let compact = match self.neg_shape(bound.neg) {
                 Neg::Row(items, tail) => self.compact_neg_row_upper_bound(
                     var,
                     items,

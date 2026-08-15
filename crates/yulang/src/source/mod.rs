@@ -3303,7 +3303,7 @@ fn source_completion_from_check(
     for (name, role, value, scope_depth) in completion_locals {
         let detail = Some(match role {
             infer::uses::LocalDefRole::Input => {
-                format_context.format_input_type(&check.lowering.session, value)
+                format_context.format_input_type(&mut check.lowering.session, value)
             }
             infer::uses::LocalDefRole::Value => {
                 format_context.format_value_type(&mut check.lowering.session, value)
@@ -4184,12 +4184,12 @@ impl<'a> HoverFormatContext<'a> {
 
     fn format_input_type(
         &self,
-        session: &infer::analysis::AnalysisSession,
+        session: &mut infer::analysis::AnalysisSession,
         value: poly::types::TypeVar,
     ) -> String {
         infer::check::format_inferred_input_type_public_with_path_rewriter(
             &session.poly.typ,
-            &session.infer,
+            &mut session.infer,
             value,
             &|path| self.rewrite_type_path(path),
         )

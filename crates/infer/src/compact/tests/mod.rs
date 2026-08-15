@@ -45,18 +45,17 @@ fn raw_and_scheme_projection_collectors_are_identical_while_mode_is_inert() {
     );
 
     let raw = CompactCollector::new(&machine).compact_root(root);
-    let scheme = CompactCollector::new_for_scheme(&machine).compact_root(root);
+    let scheme = compact_type_var_for_scheme(&mut machine, root);
     assert_eq!(raw, scheme);
 
     let raw = CompactCollector::new_recording(&machine).compact_root_with_merge_constraints(root);
-    let scheme = CompactCollector::new_recording_for_scheme(&machine)
-        .compact_root_with_merge_constraints(root);
+    let scheme = compact_type_var_recording_merge_constraints_for_scheme(&mut machine, root);
     assert_eq!(raw, scheme);
 }
 
 #[test]
 fn scheme_compaction_excludes_covered_lower_while_raw_compaction_keeps_it() {
-    let (machine, covered, owner, _) =
+    let (mut machine, covered, owner, _) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
 
     let raw = compact_type_var(&machine, owner);
@@ -77,7 +76,7 @@ fn scheme_compaction_excludes_covered_lower_while_raw_compaction_keeps_it() {
         "a Var lower remains secondary on the unchanged raw path"
     );
 
-    let scheme = compact_type_var_for_scheme(&machine, owner);
+    let scheme = compact_type_var_for_scheme(&mut machine, owner);
     assert!(
         scheme.root.vars.iter().all(|var| var.var != covered),
         "scheme compaction excludes the lower while its only claim is covered"
@@ -86,10 +85,10 @@ fn scheme_compaction_excludes_covered_lower_while_raw_compaction_keeps_it() {
 
 #[test]
 fn scheme_compaction_projects_mixed_claim_lower_exactly_once() {
-    let (machine, covered, owner, _) =
+    let (mut machine, covered, owner, _) =
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
 
-    let scheme = compact_type_var_for_scheme(&machine, owner);
+    let scheme = compact_type_var_for_scheme(&mut machine, owner);
     let projected = scheme
         .root
         .vars
@@ -111,7 +110,7 @@ fn scheme_compaction_reprojects_lower_after_last_live_coverage_leaves() {
         ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
 
     let raw_before = compact_type_var(&machine, owner);
-    let scheme_before = compact_type_var_for_scheme(&machine, owner);
+    let scheme_before = compact_type_var_for_scheme(&mut machine, owner);
     assert!(
         scheme_before.root.vars.iter().all(|var| var.var != covered),
         "the live covered claim initially suppresses the lower"
@@ -128,7 +127,7 @@ fn scheme_compaction_reprojects_lower_after_last_live_coverage_leaves() {
     );
 
     let raw_after = compact_type_var(&machine, owner);
-    let scheme_after = compact_type_var_for_scheme(&machine, owner);
+    let scheme_after = compact_type_var_for_scheme(&mut machine, owner);
     assert_eq!(
         raw_after, raw_before,
         "coverage liveness never changes the raw compact input"
@@ -165,7 +164,7 @@ fn no_claim_owner_has_byte_for_byte_identical_raw_and_scheme_compaction() {
     machine.subtype(ordinary, owner_upper, origin);
 
     let raw = compact_type_var(&machine, owner);
-    let scheme = compact_type_var_for_scheme(&machine, owner);
+    let scheme = compact_type_var_for_scheme(&mut machine, owner);
     assert_eq!(
         scheme, raw,
         "a no-claim owner preserves compact nodes, weights, and ordering exactly"

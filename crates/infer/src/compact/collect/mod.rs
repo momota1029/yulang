@@ -1,11 +1,16 @@
 use super::merge::*;
 use super::*;
 use crate::constraints::mutation::DependencyKey;
+use crate::constraints::proof::ProjectionEvaluationRound;
+use crate::constraints::{ProofFailure, ScopedLegacyProjectionQuery};
 
 mod type_nodes;
 
-pub(in crate::compact) struct CompactCollector<'a> {
-    machine: &'a ConstraintMachine,
+pub(in crate::compact) struct CompactCollector<'scope, 'query> {
+    machine: Option<&'scope ConstraintMachine>,
+    query: Option<&'scope ScopedLegacyProjectionQuery<'query>>,
+    projection_round: Option<ProjectionEvaluationRound<'scope>>,
+    query_failure: Option<ProofFailure>,
     bound_mode: CompactBoundMode,
     record_merge_constraints: bool,
     record_owner_dependencies: bool,
@@ -30,26 +35,15 @@ pub(in crate::compact) struct CompactVarSideKey {
     weight: ConstraintWeight,
 }
 
-impl<'a> CompactCollector<'a> {
+impl<'a> CompactCollector<'a, 'a> {
     pub(in crate::compact) fn new(machine: &'a ConstraintMachine) -> Self {
         Self::with_bound_mode(machine, CompactBoundMode::Raw)
-    }
-
-    pub(in crate::compact) fn new_for_scheme(machine: &'a ConstraintMachine) -> Self {
-        Self::with_bound_mode(machine, CompactBoundMode::SchemeProjection)
     }
 
     pub(in crate::compact) fn new_recording(machine: &'a ConstraintMachine) -> Self {
         Self {
             record_merge_constraints: true,
             ..Self::new(machine)
-        }
-    }
-
-    pub(in crate::compact) fn new_recording_for_scheme(machine: &'a ConstraintMachine) -> Self {
-        Self {
-            record_merge_constraints: true,
-            ..Self::new_for_scheme(machine)
         }
     }
 
@@ -65,7 +59,10 @@ impl<'a> CompactCollector<'a> {
 
     fn with_bound_mode(machine: &'a ConstraintMachine, bound_mode: CompactBoundMode) -> Self {
         Self {
-            machine,
+            machine: Some(machine),
+            query: None,
+            projection_round: None,
+            query_failure: None,
             bound_mode,
             record_merge_constraints: false,
             record_owner_dependencies: false,
@@ -77,27 +74,185 @@ impl<'a> CompactCollector<'a> {
             cache: FxHashMap::default(),
         }
     }
+}
 
-    pub(in crate::compact) fn compact_root(self, root: TypeVar) -> CompactRoot {
-        self.compact_root_with_merge_constraints(root).0
+impl<'scope, 'query> CompactCollector<'scope, 'query> {
+    pub(in crate::compact) fn new_for_scheme(
+        query: &'scope ScopedLegacyProjectionQuery<'query>,
+    ) -> Self {
+        Self {
+            machine: None,
+            query: Some(query),
+            projection_round: Some(ProjectionEvaluationRound::new()),
+            query_failure: None,
+            bound_mode: CompactBoundMode::SchemeProjection,
+            record_merge_constraints: false,
+            record_owner_dependencies: false,
+            merge_constraints: Vec::new(),
+            in_progress: FxHashSet::default(),
+            row_tail_in_progress: FxHashSet::default(),
+            recursive: FxHashSet::default(),
+            rec_vars: FxHashMap::default(),
+            cache: FxHashMap::default(),
+        }
     }
 
-    pub(in crate::compact) fn compact_root_with_polarity(
+    pub(in crate::compact) fn new_recording_for_scheme(
+        query: &'scope ScopedLegacyProjectionQuery<'query>,
+    ) -> Self {
+        Self {
+            record_merge_constraints: true,
+            ..Self::new_for_scheme(query)
+        }
+    }
+
+    fn machine(&self) -> &ConstraintMachine {
+        self.machine
+            .expect("raw compact collector must retain its machine")
+    }
+
+    fn pos_shape(&self, id: PosId) -> Pos {
+        match self.query {
+            Some(query) => query.pos_shape_in_scope(id),
+            None => self.machine().types().pos(id).clone(),
+        }
+    }
+
+    fn neg_shape(&self, id: NegId) -> Neg {
+        match self.query {
+            Some(query) => query.neg_shape_in_scope(id),
+            None => self.machine().types().neg(id).clone(),
+        }
+    }
+
+    fn neu_shape(&self, id: NeuId) -> Neu {
+        match self.query {
+            Some(query) => query.neu_shape_in_scope(id),
+            None => self.machine().types().neu(id).clone(),
+        }
+    }
+
+    fn role_constraint_raw_vars(&self, constraint: &RoleConstraint) -> FxHashSet<TypeVar> {
+        match self.query {
+            Some(query) => query.role_constraint_raw_vars_in_scope(constraint),
+            None => constraint.raw_vars(self.machine().types()),
+        }
+    }
+
+    fn var_neighbors(&self, var: TypeVar) -> Vec<TypeVar> {
+        match self.query {
+            Some(query) => query.var_neighbors_in_scope(var),
+            None => self.machine().var_neighbors(var).collect(),
+        }
+    }
+
+    fn pre_pop_effect_families(
+        &self,
+        var: TypeVar,
+    ) -> Vec<crate::constraints::ConstraintEffectFamily> {
+        match self.query {
+            Some(query) => query.pre_pop_effect_families_in_scope(var),
+            None => self.machine().pre_pop_effect_families(var).to_vec(),
+        }
+    }
+
+    fn subtract_facts(&self, source: TypeVar) -> Vec<crate::constraints::SubtractFact> {
+        match self.query {
+            Some(query) => query.subtract_facts_in_scope(source),
+            None => self.machine().subtracts().facts(source).to_vec(),
+        }
+    }
+
+    fn projection_upper_records(
+        &self,
+        var: TypeVar,
+    ) -> Vec<(
+        crate::constraints::BoundRecordId,
+        crate::constraints::WeightedUpperBound,
+    )> {
+        match self.query {
+            Some(query) => query.projection_upper_records_in_scope(var),
+            None => self
+                .machine()
+                .bounds()
+                .of(var)
+                .into_iter()
+                .flat_map(VarBounds::generalized_projection_uppers)
+                .map(|(record, bound)| (record, bound.clone()))
+                .collect(),
+        }
+    }
+
+    fn take_query_failure(&mut self) -> Option<ProofFailure> {
+        self.query_failure.take()
+    }
+
+    pub(in crate::compact) fn compact_root_for_scheme(
         mut self,
         root: TypeVar,
-        polarity: Polarity,
-    ) -> CompactRoot {
-        let root_ty = self.compact_var_side(root, polarity, ConstraintWeight::empty());
+    ) -> Result<CompactRoot, ProofFailure> {
+        let root_ty = self.compact_var_side(root, Polarity::Positive, ConstraintWeight::empty());
+        if let Some(failure) = self.take_query_failure() {
+            return Err(failure);
+        }
         let mut rec_vars = self
             .rec_vars
             .into_iter()
             .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
             .collect::<Vec<_>>();
         rec_vars.sort_by_key(|rec| rec.var.0);
-        CompactRoot {
+        Ok(CompactRoot {
             root: root_ty,
             rec_vars,
+        })
+    }
+
+    pub(in crate::compact) fn compact_root_with_polarity_for_scheme(
+        mut self,
+        root: TypeVar,
+        polarity: Polarity,
+    ) -> Result<CompactRoot, ProofFailure> {
+        let root_ty = self.compact_var_side(root, polarity, ConstraintWeight::empty());
+        if let Some(failure) = self.take_query_failure() {
+            return Err(failure);
         }
+        let mut rec_vars = self
+            .rec_vars
+            .into_iter()
+            .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
+            .collect::<Vec<_>>();
+        rec_vars.sort_by_key(|rec| rec.var.0);
+        Ok(CompactRoot {
+            root: root_ty,
+            rec_vars,
+        })
+    }
+
+    pub(in crate::compact) fn compact_root_with_merge_constraints_for_scheme(
+        mut self,
+        root: TypeVar,
+    ) -> Result<(CompactRoot, Vec<CompactMergeConstraint>), ProofFailure> {
+        let root_ty = self.compact_var_side(root, Polarity::Positive, ConstraintWeight::empty());
+        if let Some(failure) = self.take_query_failure() {
+            return Err(failure);
+        }
+        let mut rec_vars = self
+            .rec_vars
+            .into_iter()
+            .map(|(var, bounds)| CompactRecursiveVar { var, bounds })
+            .collect::<Vec<_>>();
+        rec_vars.sort_by_key(|rec| rec.var.0);
+        Ok((
+            CompactRoot {
+                root: root_ty,
+                rec_vars,
+            },
+            self.merge_constraints,
+        ))
+    }
+
+    pub(in crate::compact) fn compact_root(self, root: TypeVar) -> CompactRoot {
+        self.compact_root_with_merge_constraints(root).0
     }
 
     #[cfg(test)]
@@ -269,7 +424,7 @@ impl<'a> CompactCollector<'a> {
         &mut self,
         id: PosId,
     ) -> Vec<CompactStackFamily> {
-        match self.machine.types().pos(id).clone() {
+        match self.pos_shape(id) {
             Pos::Bot | Pos::Var(_) => Vec::new(),
             Pos::Con(_, args) => self.compact_neu_stack_families(args),
             Pos::Fun {
@@ -335,7 +490,7 @@ impl<'a> CompactCollector<'a> {
         &mut self,
         id: NegId,
     ) -> Vec<CompactStackFamily> {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Top | Neg::Bot | Neg::Var(_) => Vec::new(),
             Neg::Con(_, args) => self.compact_neu_stack_families(args),
             Neg::Fun {
@@ -400,7 +555,7 @@ impl<'a> CompactCollector<'a> {
         &mut self,
         id: NeuId,
     ) -> Vec<CompactStackFamily> {
-        match self.machine.types().neu(id).clone() {
+        match self.neu_shape(id) {
             Neu::Bounds(lower, upper) => {
                 let mut out = self.compact_pos_stack_families(lower);
                 out.extend(self.compact_neg_stack_families(upper));
@@ -452,12 +607,27 @@ impl<'a> CompactCollector<'a> {
             .0
     }
 
+    #[cfg(test)]
     pub(in crate::compact) fn compact_reachable_role_constraints_with_merge_constraints(
         mut self,
         seed: &CompactRoot,
         raw_seed_vars: &[TypeVar],
         constraints: &[RoleConstraint],
     ) -> (Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>) {
+        let out = self.compact_reachable_role_constraints_with_merge_constraints_inner(
+            seed,
+            raw_seed_vars,
+            constraints,
+        );
+        (out, self.merge_constraints)
+    }
+
+    fn compact_reachable_role_constraints_with_merge_constraints_inner(
+        &mut self,
+        seed: &CompactRoot,
+        raw_seed_vars: &[TypeVar],
+        constraints: &[RoleConstraint],
+    ) -> Vec<CompactRoleConstraint> {
         let mut reachable = free_vars_in_root(seed);
         reachable.extend(raw_seed_vars.iter().copied());
         self.expand_reachable_role_vars(&mut reachable);
@@ -470,7 +640,7 @@ impl<'a> CompactCollector<'a> {
                 if selected[index] {
                     continue;
                 }
-                let raw_vars = constraint.raw_vars(self.machine.types());
+                let raw_vars = self.role_constraint_raw_vars(constraint);
                 if !raw_vars.is_empty() && raw_vars.is_disjoint(&reachable) {
                     continue;
                 }
@@ -488,16 +658,33 @@ impl<'a> CompactCollector<'a> {
                 changed = true;
             }
             if !changed {
-                return (out, self.merge_constraints);
+                return out;
             }
         }
+    }
+
+    pub(in crate::compact) fn compact_reachable_role_constraints_for_scheme(
+        mut self,
+        seed: &CompactRoot,
+        raw_seed_vars: &[TypeVar],
+        constraints: &[RoleConstraint],
+    ) -> Result<(Vec<CompactRoleConstraint>, Vec<CompactMergeConstraint>), ProofFailure> {
+        let result = self.compact_reachable_role_constraints_with_merge_constraints_inner(
+            seed,
+            raw_seed_vars,
+            constraints,
+        );
+        if let Some(failure) = self.take_query_failure() {
+            return Err(failure);
+        }
+        Ok((result, self.merge_constraints))
     }
 
     fn expand_reachable_role_vars(&self, reachable: &mut FxHashSet<TypeVar>) {
         let mut stack = reachable.iter().copied().collect::<Vec<_>>();
         while let Some(var) = stack.pop() {
             self.record_owner_constraint_read(var, DependencyKey::ConstraintNeighbors(var));
-            for neighbor in self.machine.var_neighbors(var) {
+            for neighbor in self.var_neighbors(var) {
                 if reachable.insert(neighbor) {
                     stack.push(neighbor);
                 }
@@ -633,12 +820,62 @@ impl<'a> CompactCollector<'a> {
         weight: &ConstraintWeight,
     ) -> CompactType {
         self.record_owner_constraint_read(var, DependencyKey::ConstraintBounds(var));
-        let Some(bounds) = self.machine.bounds().of(var).cloned() else {
+        match (self.bound_mode, polarity) {
+            (CompactBoundMode::Raw, polarity) => {
+                let Some(bounds) = self.machine().bounds().of(var).cloned() else {
+                    return CompactType::default();
+                };
+                match polarity {
+                    Polarity::Positive => self.compact_lower_bounds(var, &bounds, weight),
+                    Polarity::Negative => self.compact_upper_bounds(var, &bounds, weight),
+                }
+            }
+            (CompactBoundMode::SchemeProjection, Polarity::Positive) => {
+                self.compact_scheme_lower_bounds(var, weight)
+            }
+            (CompactBoundMode::SchemeProjection, Polarity::Negative) => {
+                let bounds = self.projection_upper_records(var);
+                let mut acc = CompactType::default();
+                for (_, bound) in bounds {
+                    let compact = self.compact_upper_bound(var, &bound, weight);
+                    acc = self.merge_types(false, acc, compact);
+                }
+                acc
+            }
+        }
+    }
+
+    fn compact_scheme_lower_bounds(
+        &mut self,
+        var: TypeVar,
+        outer_weight: &ConstraintWeight,
+    ) -> CompactType {
+        if self.query_failure.is_some() {
             return CompactType::default();
+        }
+        let result = {
+            let query = self
+                .query
+                .expect("scheme collector must retain its scoped query");
+            let round = self
+                .projection_round
+                .as_mut()
+                .expect("scheme collector must retain its projection round");
+            query
+                .scheme_projectable_lowers_in_scope(var, round)
+                .map(|entries| {
+                    entries
+                        .into_iter()
+                        .map(|entry| entry.bound.clone())
+                        .collect::<Vec<_>>()
+                })
         };
-        match polarity {
-            Polarity::Positive => self.compact_lower_bounds(var, &bounds, weight),
-            Polarity::Negative => self.compact_upper_bounds(var, &bounds, weight),
+        match result {
+            Ok(bounds) => self.compact_lower_bounds_from(var, bounds.iter(), outer_weight),
+            Err(failure) => {
+                self.query_failure = Some(failure);
+                CompactType::default()
+            }
         }
     }
 
@@ -653,14 +890,7 @@ impl<'a> CompactCollector<'a> {
                 self.compact_lower_bounds_from(var, bounds.projection_lowers(), outer_weight)
             }
             CompactBoundMode::SchemeProjection => {
-                let machine = self.machine;
-                self.compact_lower_bounds_from(
-                    var,
-                    machine
-                        .scheme_projectable_lowers(var)
-                        .map(|entry| entry.bound),
-                    outer_weight,
-                )
+                self.compact_scheme_lower_bounds(var, outer_weight)
             }
         }
     }
@@ -692,10 +922,8 @@ impl<'a> CompactCollector<'a> {
         var: TypeVar,
     ) -> Vec<CompactStackFamily> {
         self.record_owner_constraint_read(var, DependencyKey::ConstraintPrePopFamilies(var));
-        self.machine
-            .pre_pop_effect_families(var)
-            .iter()
-            .cloned()
+        self.pre_pop_effect_families(var)
+            .into_iter()
             .map(|family| CompactStackFamily {
                 path: family.path,
                 args: family
@@ -728,7 +956,7 @@ impl<'a> CompactCollector<'a> {
         outer_weight: &ConstraintWeight,
     ) -> CompactType {
         let weight = outer_weight.union(&bound.weights.right.to_stack_weight());
-        match self.machine.types().neg(bound.neg).clone() {
+        match self.neg_shape(bound.neg) {
             Neg::Row(items, tail) => {
                 let cancelled = bound.weights.left.to_stack_weight();
                 self.compact_neg_row_upper_bound(source, items, tail, weight, &cancelled)
@@ -798,7 +1026,7 @@ impl<'a> CompactCollector<'a> {
     ) -> CompactType {
         let mut retained_items = items;
         self.record_owner_constraint_read(source, DependencyKey::ConstraintSubtractFacts(source));
-        for fact in self.machine.subtracts().facts(source) {
+        for fact in self.subtract_facts(source) {
             if cancelled.contains(fact.id) {
                 continue;
             }
@@ -865,7 +1093,7 @@ impl<'a> CompactCollector<'a> {
         item: NegId,
         path: &[String],
     ) -> bool {
-        matches!(self.machine.types().neg(item), Neg::Con(item_path, _) if item_path == path)
+        matches!(self.neg_shape(item), Neg::Con(item_path, _) if item_path == path)
     }
 
     pub(in crate::compact) fn compact_pos_bound_id(
@@ -873,7 +1101,7 @@ impl<'a> CompactCollector<'a> {
         id: PosId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().pos(id).clone() {
+        match self.pos_shape(id) {
             Pos::Var(var) => CompactType::from_var(self.compact_secondary_var_occurrence(
                 var,
                 Polarity::Positive,
@@ -906,7 +1134,7 @@ impl<'a> CompactCollector<'a> {
         id: NegId,
         weight: ConstraintWeight,
     ) -> CompactType {
-        match self.machine.types().neg(id).clone() {
+        match self.neg_shape(id) {
             Neg::Var(var) if weight.is_empty() => {
                 CompactType::from_var(self.compact_secondary_var_occurrence(
                     var,
