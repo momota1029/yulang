@@ -2703,6 +2703,121 @@ my got = make(1).norm2
     }
 
     #[test]
+    fn terminal_projection_denial_is_suppressed_at_lsp_output_boundaries() {
+        use crate::source::{
+            TerminalProjectionQueryTestTarget,
+            with_terminal_projection_query_failure_for_source_test,
+        };
+
+        fn assert_intentional_projection_denial(delta: infer::check::TestSupportProofSoakDelta) {
+            assert_eq!(delta.organic_terminal_failures(), 0);
+            assert_eq!(delta.intentional_project_lower_evaluation_failures(), 1);
+        }
+
+        let root = lsp_test_workspace("terminal-projection-output-gates");
+        let options = crate::StdSourceOptions {
+            std_root: Some(root.join("lib")),
+        };
+        let path = root.join("main.yu");
+
+        let ordinary_source = "my id x = x\n";
+        let clean_items = completion_items_for_source(
+            &path,
+            ordinary_source.to_string(),
+            Position {
+                line: 0,
+                character: 10,
+            },
+            &options,
+        );
+        assert!(clean_items.iter().any(|item| {
+            item.label == "x"
+                && item.kind == Some(CompletionItemKind::VARIABLE)
+                && item.detail.is_some()
+        }));
+        let (terminal_items, delta) = with_terminal_projection_query_failure_for_source_test(
+            TerminalProjectionQueryTestTarget::Completion,
+            || {
+                completion_items_for_source(
+                    &path,
+                    ordinary_source.to_string(),
+                    Position {
+                        line: 0,
+                        character: 10,
+                    },
+                    &options,
+                )
+            },
+        );
+        assert_eq!(terminal_items.len(), parser::scan::KEYWORDS.len());
+        assert!(terminal_items.iter().all(|item| {
+            item.kind == Some(CompletionItemKind::KEYWORD)
+                && item.detail.is_none()
+                && parser::scan::KEYWORDS.contains(&item.label.as_str())
+        }));
+        assert_intentional_projection_denial(delta);
+
+        let member_source = "my p = { x: 1, y: false }\nmy got = p.\n";
+        let clean_member_items = completion_items_for_source(
+            &path,
+            member_source.to_string(),
+            Position {
+                line: 1,
+                character: 11,
+            },
+            &options,
+        );
+        assert!(
+            clean_member_items
+                .iter()
+                .any(|item| { item.label == "x" && item.kind == Some(CompletionItemKind::FIELD) })
+        );
+        let (terminal_member_items, delta) = with_terminal_projection_query_failure_for_source_test(
+            TerminalProjectionQueryTestTarget::MemberCompletion,
+            || {
+                completion_items_for_source(
+                    &path,
+                    member_source.to_string(),
+                    Position {
+                        line: 1,
+                        character: 11,
+                    },
+                    &options,
+                )
+            },
+        );
+        assert!(terminal_member_items.is_empty());
+        assert_intentional_projection_denial(delta);
+
+        let clean_hover = hover_draft_for_source(
+            &path,
+            ordinary_source.to_string(),
+            Position {
+                line: 0,
+                character: 6,
+            },
+            &options,
+        );
+        assert!(clean_hover.is_some());
+        let (terminal_hover, delta) = with_terminal_projection_query_failure_for_source_test(
+            TerminalProjectionQueryTestTarget::Hover,
+            || {
+                hover_draft_for_source(
+                    &path,
+                    ordinary_source.to_string(),
+                    Position {
+                        line: 0,
+                        character: 6,
+                    },
+                    &options,
+                )
+            },
+        );
+        assert!(terminal_hover.is_none());
+        assert_intentional_projection_denial(delta);
+    }
+
+    #[test]
     fn completion_for_source_returns_module_level_value_names() {
         let root = lsp_test_workspace("completion-module-values");
         let source = "my answer: int = 42\nans";
