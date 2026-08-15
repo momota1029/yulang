@@ -805,6 +805,163 @@ fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_add_lower_bound_commit() {
 }
 
 #[test]
+fn cpk_sv_d_ss2_p0_row7_add_lower_postcommit_snapshot_uses_one_lane_for_every_record() {
+    let mut fixture = row5_production_path_fixture();
+    let target = TypeVar(98_164);
+    let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_165)));
+    fixture.machine.register_type_var(target, TypeLevel::root());
+    let before = row5_semantic_snapshot(&fixture.machine).publication;
+    fixture
+        .machine
+        .reset_row7_snapshot_publication_lane_trace_for_test();
+
+    fixture.machine.add_lower_bound(
+        target,
+        endpoint,
+        ConstraintWeights::empty(),
+        BoundDerivation::Constraint(fixture.result),
+    );
+
+    assert!(
+        fixture.machine.bounds.of(target).is_some(),
+        "the real add-lower commit must precede the post-commit snapshot evaluation",
+    );
+    let (lane_constructions, mut evaluated_records) = fixture
+        .machine
+        .row7_snapshot_publication_lane_trace_for_test();
+    evaluated_records.sort_unstable_by_key(|record| record.0);
+    let mut expected_records = fixture.dependents.to_vec();
+    expected_records.sort_unstable_by_key(|record| record.0);
+    assert_eq!(lane_constructions, 1);
+    assert_eq!(
+        evaluated_records, expected_records,
+        "one row-7 post-commit lane must evaluate every record from the real pre-commit snapshot exactly once",
+    );
+
+    let after = row5_semantic_snapshot(&fixture.machine).publication;
+    let transitions = &after.projectability_transitions[before.projectability_transitions.len()..];
+    assert_eq!(transitions.len(), expected_records.len());
+    assert!(transitions.iter().all(|transition| {
+        expected_records.contains(&transition.lower_record)
+            && !transition.was_included
+            && transition.is_included
+    }));
+    let mut expected_owners = expected_records
+        .iter()
+        .map(|record| {
+            fixture
+                .machine
+                .bounds
+                .record(*record)
+                .expect("every transitioned record must retain its owner")
+                .owner()
+        })
+        .collect::<Vec<_>>();
+    expected_owners.sort_unstable_by_key(|owner| owner.0);
+    let mut invalidated_owners = after.owner_invalidations
+        [before.owner_invalidations.len()..]
+        .iter()
+        .map(|invalidation| invalidation.owner)
+        .collect::<Vec<_>>();
+    invalidated_owners.sort_unstable_by_key(|owner| owner.0);
+    assert_eq!(invalidated_owners, expected_owners);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row7_add_lower_postcommit_denials_publish_nothing() {
+    for (offset, failure) in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut fixture = row5_production_path_fixture();
+        let target = TypeVar(98_166 + offset as u32 * 2);
+        let endpoint = fixture
+            .machine
+            .alloc_pos(Pos::Var(TypeVar(target.0 + 1)));
+        fixture.machine.register_type_var(target, TypeLevel::root());
+        let before = row5_semantic_snapshot(&fixture.machine).publication;
+        fixture
+            .machine
+            .reset_row7_snapshot_publication_lane_trace_for_test();
+        fixture
+            .machine
+            .proof_attempt
+            .inject_query_scope_failure_after_successful_scopes(1, failure);
+
+        let panic = catch_unwind(AssertUnwindSafe(|| {
+            fixture.machine.add_lower_bound(
+                target,
+                endpoint,
+                ConstraintWeights::empty(),
+                BoundDerivation::Constraint(fixture.result),
+            );
+        }));
+
+        assert_row4_row7_canary_panic(
+            panic.expect_err("the row-7 add-lower post-commit canary must panic"),
+        );
+        assert!(
+            fixture.machine.bounds.of(target).is_some(),
+            "the authoritative add-lower commit must precede the denied post-commit scope",
+        );
+        assert_eq!(
+            fixture
+                .machine
+                .row7_snapshot_publication_lane_trace_for_test(),
+            (0, Vec::new()),
+        );
+        assert_eq!(fixture.machine.proof_terminal_failure(), None);
+        let after = row5_semantic_snapshot(&fixture.machine).publication;
+        assert_eq!(after.owner_invalidations, before.owner_invalidations);
+        assert_eq!(
+            after.projectability_transitions,
+            before.projectability_transitions,
+        );
+    }
+
+    let mut fixture = row5_production_path_fixture();
+    let target = TypeVar(98_170);
+    let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_171)));
+    fixture.machine.register_type_var(target, TypeLevel::root());
+    let before = row5_semantic_snapshot(&fixture.machine).publication;
+    fixture
+        .machine
+        .reset_row7_snapshot_publication_lane_trace_for_test();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    fixture
+        .machine
+        .proof_attempt
+        .inject_query_scope_failure_after_successful_scopes(1, failure.clone());
+
+    fixture.machine.add_lower_bound(
+        target,
+        endpoint,
+        ConstraintWeights::empty(),
+        BoundDerivation::Constraint(fixture.result),
+    );
+
+    assert!(fixture.machine.bounds.of(target).is_some());
+    assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
+    assert_eq!(
+        fixture
+            .machine
+            .row7_snapshot_publication_lane_trace_for_test(),
+        (0, Vec::new()),
+    );
+    let after = row5_semantic_snapshot(&fixture.machine).publication;
+    assert_eq!(after.owner_invalidations, before.owner_invalidations);
+    assert_eq!(
+        after.projectability_transitions,
+        before.projectability_transitions,
+    );
+}
+
+#[test]
 fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_replay_qualified_parent_commit() {
     for failure in [
         ProofFailure::TerminalLatchBusy,

@@ -178,6 +178,18 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
+    pub(in crate::constraints) fn reset_row7_snapshot_publication_lane_trace_for_test(&self) {
+        reset_row7_snapshot_publication_lane_trace();
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn row7_snapshot_publication_lane_trace_for_test(
+        &self,
+    ) -> (usize, Vec<BoundRecordId>) {
+        row7_snapshot_publication_lane_trace()
+    }
+
+    #[cfg(test)]
     pub(in crate::constraints) fn inject_row6_caller_failure_for_test(
         &self,
         failure: proof::ProofFailure,

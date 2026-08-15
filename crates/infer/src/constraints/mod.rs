@@ -54,6 +54,10 @@ thread_local! {
     static ROW6_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
     static ROW6_PUBLICATION_LANE_EVALUATED_RECORDS: RefCell<Vec<BoundRecordId>> =
         const { RefCell::new(Vec::new()) };
+    static ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
+    static ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS: RefCell<Vec<BoundRecordId>> =
+        const { RefCell::new(Vec::new()) };
     static ROW6_CALLER_FAILURE_OVERRIDE: RefCell<Option<ProofFailure>> =
         const { RefCell::new(None) };
 }
@@ -65,6 +69,10 @@ fn record_row5_publication_lane_construction() {
     }
     if ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
         ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
+    }
+    if ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
+        ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS
+            .with(|count| count.set(count.get() + 1));
     }
 }
 
@@ -136,6 +144,41 @@ fn row6_publication_lane_trace() -> (usize, Vec<BoundRecordId>) {
     (
         ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
         ROW6_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow().clone()),
+    )
+}
+
+#[cfg(test)]
+fn begin_row7_snapshot_publication_lane_tracking() {
+    ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(true));
+}
+
+#[cfg(test)]
+fn record_row7_snapshot_publication_lane_evaluation(record: BoundRecordId) {
+    if ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
+        ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS
+            .with(|records| records.borrow_mut().push(record));
+    }
+}
+
+#[cfg(test)]
+fn end_row7_snapshot_publication_lane_tracking() {
+    ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+}
+
+#[cfg(test)]
+fn reset_row7_snapshot_publication_lane_trace() {
+    ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
+    ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+    ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS
+        .with(|records| records.borrow_mut().clear());
+}
+
+#[cfg(test)]
+fn row7_snapshot_publication_lane_trace() -> (usize, Vec<BoundRecordId>) {
+    (
+        ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
+        ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS
+            .with(|records| records.borrow().clone()),
     )
 }
 
@@ -1293,12 +1336,14 @@ impl<'a> CpkTestProjectionEvaluationRound<'a> {
 ///
 /// RCPF's factored stores remain available to their direct structure tests, but publication
 /// decisions and test evaluation rounds use the CPK-authoritative evaluator below.
+#[cfg(test)]
 struct CpkPublicationEvaluationRound<'a> {
     machine: &'a ConstraintMachine,
     shared: Option<proof::CpkProjectionEvaluator<'a>>,
     sharing_disabled: bool,
 }
 
+#[cfg(test)]
 impl<'a> CpkPublicationEvaluationRound<'a> {
     fn new(machine: &'a ConstraintMachine) -> Self {
         Self {
@@ -1388,6 +1433,8 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
         #[cfg(test)]
         record_row6_publication_lane_evaluation(record);
+        #[cfg(test)]
+        record_row7_snapshot_publication_lane_evaluation(record);
         if self.sharing_disabled {
             return Self::new_evaluator(
                 self.query,
@@ -2187,6 +2234,7 @@ impl ConstraintMachine {
         }
     }
 
+    #[cfg(test)]
     fn scheme_projection_record_is_included(&self, lower_record: BoundRecordId) -> bool {
         CpkPublicationEvaluationRound::new(self).eval_record(lower_record)
     }
@@ -2231,17 +2279,53 @@ impl ConstraintMachine {
         if before.is_empty() {
             return;
         }
-        let mut affected_owners = FxHashSet::default();
-        for (record, was_included) in before {
-            let is_included = self.scheme_projection_record_is_included(record);
-            if was_included != is_included {
-                #[cfg(test)]
-                self.record_semantic_projectability_transition(record, was_included, is_included);
-                if let Some(owner) = self.active_projection_record_owner(record) {
-                    affected_owners.insert(owner);
+        let mut round = self.new_publication_evaluation_round();
+        #[cfg(test)]
+        begin_row7_snapshot_publication_lane_tracking();
+        let result = self.with_legacy_publication_query(&mut round, |query| {
+            let mut lane = ScopedCpkPublicationEvaluationLane::new(&query);
+            let mut affected_owners = FxHashSet::default();
+            #[cfg(test)]
+            let mut semantic_transitions = Vec::new();
+            for (record, was_included) in before {
+                let is_included = lane.eval_record(record);
+                if was_included != is_included {
+                    #[cfg(test)]
+                    semantic_transitions.push((record, was_included, is_included));
+                    if let Some(owner) = query.active_projection_record_owner(record) {
+                        affected_owners.insert(owner);
+                    }
                 }
             }
+            #[cfg(test)]
+            return Ok(query.complete((affected_owners, semantic_transitions)));
+            #[cfg(not(test))]
+            Ok(query.complete((affected_owners, ())))
+        });
+        #[cfg(test)]
+        end_row7_snapshot_publication_lane_tracking();
+        let (affected_owners, semantic_transitions) = match result {
+            Ok(result) => result,
+            Err(failure) => {
+                assert!(
+                    failure.requires_attempt_terminal(),
+                    "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant",
+                );
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return;
+            }
+        };
+        #[cfg(test)]
+        for (record, was_included, is_included) in semantic_transitions {
+            self.record_semantic_projectability_transition(record, was_included, is_included);
         }
+        #[cfg(not(test))]
+        let _ = semantic_transitions;
         if !affected_owners.is_empty() {
             self.record_scheme_projection_mutation(affected_owners);
         }
