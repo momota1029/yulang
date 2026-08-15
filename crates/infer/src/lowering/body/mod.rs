@@ -842,8 +842,7 @@ fn lower_loaded_files_with_prefix_once(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer =
-        BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let suffix_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -947,8 +946,7 @@ fn lower_root_loaded_file_with_prefix_once(
     );
 
     let phase_start = Instant::now();
-    let mut lowerer =
-        BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
+    let mut lowerer = BodyLowerer::new_with_imported_boundary(append.lower, &prefix.boundary);
     lowerer.prefix_runtime = prefix.runtime.clone();
     let root_labels = lowerer.labels.clone();
     lowerer.labels = prefix.labels.clone();
@@ -2832,10 +2830,7 @@ mod rcpf_c3a_retry_tests {
                 run_proof_compilation_attempt(|| {
                     let identity = next_identity;
                     next_identity += 1;
-                    record_proof_terminal_failure(
-                        ProofOperation::ProjectLowerEvaluation,
-                        &failure,
-                    );
+                    record_proof_terminal_failure(ProofOperation::ProjectLowerEvaluation, &failure);
                     Ok(ProofCompilationAttempt {
                         output: identity,
                         terminal_failure: (identity == 0).then_some(failure.clone()),
@@ -2868,10 +2863,7 @@ mod rcpf_c3a_retry_tests {
             with_intentional_proof_soak_test_injection(|| {
                 run_proof_compilation_attempt::<()>(|| {
                     attempts += 1;
-                    record_proof_terminal_failure(
-                        ProofOperation::ProjectLowerEvaluation,
-                        &failure,
-                    );
+                    record_proof_terminal_failure(ProofOperation::ProjectLowerEvaluation, &failure);
                     Ok(ProofCompilationAttempt {
                         output: (),
                         terminal_failure: Some(failure.clone()),
@@ -2936,15 +2928,10 @@ mod rcpf_c3a_retry_tests {
         let output = lower_loaded_files(&loaded).expect("lower the authority fixture");
 
         assert_eq!(
-            output
-                .session
-                .infer
-                .constraints()
-                .proof_terminal_failure(),
+            output.session.infer.constraints().proof_terminal_failure(),
             None
         );
     }
-
 }
 
 #[cfg(test)]

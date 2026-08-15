@@ -1776,7 +1776,10 @@ impl fmt::Display for LoadedFilesError {
                 format_module_path(module_path)
             ),
             Self::ProofKernelFailed => {
-                write!(f, "proof kernel state failed; the compilation attempt was discarded")
+                write!(
+                    f,
+                    "proof kernel state failed; the compilation attempt was discarded"
+                )
             }
         }
     }

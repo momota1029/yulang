@@ -661,12 +661,7 @@ mod tests {
             assert_eq!(insertion, ReplayDerivationInsert::Incomplete);
 
             let publication_intent = machine
-                .try_evaluate_record_inclusion_publication(
-                    lower_record,
-                    false,
-                    true,
-                    false,
-                )
+                .try_evaluate_record_inclusion_publication(lower_record, false, true, false)
                 .expect("the fixture projection read is complete");
             machine.publish_scheme_projection_intent(publication_intent);
 

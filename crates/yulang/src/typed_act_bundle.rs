@@ -3,8 +3,8 @@
 #[cfg(test)]
 use infer::typed_act_bundle::verify_profile_external_anchors;
 use infer::typed_act_bundle::{
-    capture_profile_from_legacy_lowering, SemanticStdManifest, SemanticStdModule,
-    TypedActTemplateBundle, TypedActTemplateBundleError, TypedActTemplateProfileKind,
+    SemanticStdManifest, SemanticStdModule, TypedActTemplateBundle, TypedActTemplateBundleError,
+    TypedActTemplateProfileKind, capture_profile_from_legacy_lowering,
 };
 use std::sync::OnceLock;
 

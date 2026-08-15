@@ -242,38 +242,47 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
                     ConstraintWeights::empty(),
                     BoundDerivation::Origin(OriginId::unknown_internal()),
                 );
-                let derived_upper = machine.bounds.of(claim_source)
+                let derived_upper = machine
+                    .bounds
+                    .of(claim_source)
                     .into_iter()
                     .flat_map(VarBounds::upper_record_ids)
                     .copied()
-                    .find(|record| machine.bounds.record(*record).is_some_and(|record| {
-                        record.endpoint() == BoundEndpoint::Upper(derived_upper_neg)
-                    }))
+                    .find(|record| {
+                        machine.bounds.record(*record).is_some_and(|record| {
+                            record.endpoint() == BoundEndpoint::Upper(derived_upper_neg)
+                        })
+                    })
                     .expect("derived upper record");
                 let (producer, parent) = match lineage {
-                    LineageCase::ReplayConstraint => (replay_result,
+                    LineageCase::ReplayConstraint => (
+                        replay_result,
                         ClaimQualifiedParent::ReplayConstraint {
                             parent_claim: original_claim,
                             parent_side: ReplayClaimParentSide::Upper,
                             replay,
-                        }),
-                    LineageCase::ReductionRouteConstraint => {
-                        (reduction_result, ClaimQualifiedParent::ReductionRouteConstraint {
+                        },
+                    ),
+                    LineageCase::ReductionRouteConstraint => (
+                        reduction_result,
+                        ClaimQualifiedParent::ReductionRouteConstraint {
                             parent_claim: original_claim,
                             derivation: reduction_derivation,
-                        })
-                    }
+                        },
+                    ),
                     LineageCase::Original | LineageCase::ReplayEvidence => unreachable!(),
                 };
                 machine.admit_claim_qualified_parent(producer, parent);
-                machine.register_constraint_upper_replay_claims(
-                    derived_upper,
-                    Some(producer),
-                ).into_iter().find(|claim| {
-                    machine.proof_store.upper_claim(*claim).is_some_and(|claim| {
-                        claim.current_record == derived_upper
+                machine
+                    .register_constraint_upper_replay_claims(derived_upper, Some(producer))
+                    .into_iter()
+                    .find(|claim| {
+                        machine
+                            .proof_store
+                            .upper_claim(*claim)
+                            .is_some_and(|claim| claim.current_record == derived_upper)
                     })
-                }).expect("qualified parent materializes the derived claim")
+                    .expect("qualified parent materializes the derived claim")
             }
             LineageCase::ReplayEvidence => {
                 let evidence_lower = machine.alloc_pos(Pos::Var(TypeVar(40)));

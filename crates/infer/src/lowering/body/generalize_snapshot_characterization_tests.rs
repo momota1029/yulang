@@ -8,7 +8,7 @@ use crate::analysis::{
     with_generalize_snapshot_characterization_for_new_sessions,
 };
 use crate::constraints::{
-    SemanticExecutionSnapshot, SemanticOutputSnapshot, SccExecutionSnapshot,
+    SccExecutionSnapshot, SemanticExecutionSnapshot, SemanticOutputSnapshot,
     with_semantic_execution_snapshot_capture_for_new_machines,
 };
 use crate::interface_oracle::{BoundaryInterface, SchemeAlphaView};
@@ -719,10 +719,7 @@ impl GeneralizationRestartCensus {
                 "max-iterations-per-root".into(),
                 self.max_iterations_per_root,
             ),
-            (
-                "max-restarts-per-root".into(),
-                self.max_restarts_per_root,
-            ),
+            ("max-restarts-per-root".into(), self.max_restarts_per_root),
             ("top-iterations".into(), self.top_iterations),
             ("top-total-restarts".into(), self.top_total_restarts),
             ("top-merge-restarts".into(), self.top_merge_restarts),
