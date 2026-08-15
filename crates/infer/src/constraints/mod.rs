@@ -52,6 +52,10 @@ thread_local! {
     static ROW5_PUBLICATION_FENCE_PUBLISHES: Cell<usize> = const { Cell::new(0) };
     static ROW6_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
     static ROW6_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static ROW6_PUBLICATION_LANE_EVALUATED_RECORDS: RefCell<Vec<BoundRecordId>> =
+        const { RefCell::new(Vec::new()) };
+    static ROW6_CALLER_FAILURE_OVERRIDE: RefCell<Option<ProofFailure>> =
+        const { RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -107,6 +111,14 @@ fn begin_row6_publication_lane_tracking() {
 }
 
 #[cfg(test)]
+fn record_row6_publication_lane_evaluation(record: BoundRecordId) {
+    if ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
+        ROW6_PUBLICATION_LANE_EVALUATED_RECORDS
+            .with(|records| records.borrow_mut().push(record));
+    }
+}
+
+#[cfg(test)]
 fn end_row6_publication_lane_tracking() {
     ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
 }
@@ -115,11 +127,32 @@ fn end_row6_publication_lane_tracking() {
 fn reset_row6_publication_lane_trace() {
     ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
     ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+    ROW6_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow_mut().clear());
+    ROW6_CALLER_FAILURE_OVERRIDE.with(|failure| *failure.borrow_mut() = None);
 }
 
 #[cfg(test)]
-fn row6_publication_lane_trace() -> usize {
-    ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get)
+fn row6_publication_lane_trace() -> (usize, Vec<BoundRecordId>) {
+    (
+        ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
+        ROW6_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow().clone()),
+    )
+}
+
+#[cfg(test)]
+fn inject_row6_caller_failure(failure: ProofFailure) {
+    ROW6_CALLER_FAILURE_OVERRIDE.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "row-6 caller failure injection is single-use"
+        );
+        *slot.borrow_mut() = Some(failure);
+    });
+}
+
+#[cfg(test)]
+fn take_row6_caller_failure() -> Option<ProofFailure> {
+    ROW6_CALLER_FAILURE_OVERRIDE.with(|failure| failure.borrow_mut().take())
 }
 use std::cell::RefCell;
 use std::collections::{VecDeque, hash_map::Entry};
@@ -1353,6 +1386,8 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
     }
 
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
+        #[cfg(test)]
+        record_row6_publication_lane_evaluation(record);
         if self.sharing_disabled {
             return Self::new_evaluator(
                 self.query,
@@ -2181,6 +2216,14 @@ impl ConstraintMachine {
         });
         #[cfg(test)]
         end_row6_publication_lane_tracking();
+        // This test-only override sits after the gateway so a semantic failure here can only be
+        // latched by the production caller's requires_attempt_terminal branch.
+        #[cfg(test)]
+        if result.is_ok()
+            && let Some(failure) = take_row6_caller_failure()
+        {
+            return Err(failure);
+        }
         result
     }
 

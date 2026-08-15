@@ -14,7 +14,7 @@ use crate::constraints::{
     OriginId, ProjectionProofCarrier, ProofPremise, ProvenanceCompleteness, RecordProofClause,
     RecordProofClauseLinkAdmission, RowDerivationId, SchemeProjectionProof,
     SchemeProjectionProofSupport, StructuralDerivation, StructuralDerivationRule,
-    UnweightedRowReductionRecordId, UpperReplayClaimId, UpperReplayClaimKind,
+    TypeLevel, UnweightedRowReductionRecordId, UpperReplayClaimId, UpperReplayClaimKind,
 };
 
 fn foreign_publication_round_failure() -> ProofFailure {
@@ -657,10 +657,15 @@ fn cpk_sv_d_ss2_p0_row6_real_snapshot_producer_uses_one_precommit_lane() {
         .dependents
         .iter()
         .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    let (lane_constructions, mut evaluated_records) =
+        fixture.machine.row6_publication_lane_trace_for_test();
+    evaluated_records.sort_unstable_by_key(|record| record.0);
+    let mut expected_records = fixture.dependents.to_vec();
+    expected_records.sort_unstable_by_key(|record| record.0);
+    assert_eq!(lane_constructions, 1);
     assert_eq!(
-        fixture.machine.row6_publication_lane_trace_for_test(),
-        1,
-        "one row-6 lane must evaluate the complete dependent-record snapshot",
+        evaluated_records, expected_records,
+        "the one row-6 lane must evaluate every record in the real dependent set exactly once",
     );
 }
 
@@ -696,7 +701,10 @@ fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
                 .qualified_parent_count(fixture.result),
             0,
         );
-        assert_eq!(fixture.machine.row6_publication_lane_trace_for_test(), 0);
+        assert_eq!(
+            fixture.machine.row6_publication_lane_trace_for_test(),
+            (0, Vec::new())
+        );
         assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0));
         assert_eq!(fixture.machine.proof_terminal_failure(), None);
     }
@@ -711,8 +719,7 @@ fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
     };
     fixture
         .machine
-        .proof_attempt
-        .inject_query_scope_failure(failure.clone());
+        .inject_row6_caller_failure_for_test(failure.clone());
 
     fixture
         .machine
@@ -730,9 +737,107 @@ fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
             .qualified_parent_count(fixture.result),
         0,
     );
-    assert_eq!(fixture.machine.row6_publication_lane_trace_for_test(), 0);
+    let (lane_constructions, evaluated_records) =
+        fixture.machine.row6_publication_lane_trace_for_test();
+    assert_eq!(lane_constructions, 1);
+    assert_eq!(evaluated_records.len(), fixture.dependents.len());
     assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0));
     assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_add_lower_bound_commit() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut fixture = row5_production_path_fixture();
+        let target = TypeVar(98_160);
+        let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_161)));
+        fixture.machine.register_type_var(target, TypeLevel::root());
+        fixture
+            .machine
+            .reset_row6_publication_lane_trace_for_test();
+        fixture
+            .machine
+            .proof_attempt
+            .inject_query_scope_failure(failure);
+
+        fixture.machine.add_lower_bound(
+            target,
+            endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Constraint(fixture.result),
+        );
+
+        assert!(fixture.machine.bounds.of(target).is_none());
+        assert_eq!(
+            fixture.machine.row6_publication_lane_trace_for_test(),
+            (0, Vec::new())
+        );
+        assert_eq!(fixture.machine.proof_terminal_failure(), None);
+    }
+
+    let mut fixture = row5_production_path_fixture();
+    let target = TypeVar(98_162);
+    let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_163)));
+    fixture.machine.register_type_var(target, TypeLevel::root());
+    fixture
+        .machine
+        .reset_row6_publication_lane_trace_for_test();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    fixture
+        .machine
+        .inject_row6_caller_failure_for_test(failure.clone());
+
+    fixture.machine.add_lower_bound(
+        target,
+        endpoint,
+        ConstraintWeights::empty(),
+        BoundDerivation::Constraint(fixture.result),
+    );
+
+    assert!(fixture.machine.bounds.of(target).is_none());
+    assert_eq!(fixture.machine.row6_publication_lane_trace_for_test().0, 1);
+    assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_replay_qualified_parent_commit() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+        machine.reset_row6_publication_lane_trace_for_test();
+
+        let committed = machine.exercise_row6_replay_qualified_parent_commit_for_test(|machine| {
+            machine.proof_attempt.inject_query_scope_failure(failure);
+        });
+
+        assert_eq!(committed, 0);
+        assert_eq!(
+            machine.row6_publication_lane_trace_for_test(),
+            (0, Vec::new())
+        );
+        assert_eq!(machine.proof_terminal_failure(), None);
+    }
+
+    let mut machine = ConstraintMachine::new();
+    machine.reset_row6_publication_lane_trace_for_test();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+
+    let committed = machine.exercise_row6_replay_qualified_parent_commit_for_test(|machine| {
+        machine.inject_row6_caller_failure_for_test(failure.clone());
+    });
+
+    assert_eq!(committed, 0);
+    assert_eq!(machine.row6_publication_lane_trace_for_test().0, 1);
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
 }
 
 #[test]

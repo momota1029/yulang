@@ -171,8 +171,18 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
-    pub(in crate::constraints) fn row6_publication_lane_trace_for_test(&self) -> usize {
+    pub(in crate::constraints) fn row6_publication_lane_trace_for_test(
+        &self,
+    ) -> (usize, Vec<BoundRecordId>) {
         row6_publication_lane_trace()
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn inject_row6_caller_failure_for_test(
+        &self,
+        failure: proof::ProofFailure,
+    ) {
+        inject_row6_caller_failure(failure);
     }
 
     #[cfg(test)]
@@ -2256,6 +2266,20 @@ impl ConstraintMachine {
         self.register_cpk_replay_claim_parents(result, replay, &[parent], true);
         self.proof_store
             .projection_clause_link_is_registered(lower_record, support, clause)
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_row6_replay_qualified_parent_commit_for_test(
+        &mut self,
+        inject: impl FnOnce(&mut ConstraintMachine),
+    ) -> usize {
+        let (result, _, replay, parent, _, _) =
+            self.prepare_all_parent_clause_link_failure_fixture(false);
+        let before = self.proof_store.qualified_parent_count(result);
+        assert_eq!(before, 0, "the replay row-6 fixture starts uncommitted");
+        inject(self);
+        self.register_cpk_replay_claim_parents(result, replay, &[parent], true);
+        self.proof_store.qualified_parent_count(result)
     }
 
     fn publish_replay_admission_publication_fence(
