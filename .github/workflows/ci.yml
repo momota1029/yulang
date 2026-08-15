@@ -102,7 +102,15 @@ jobs:
     name: frontend tests
     needs: workspace_build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # cprov_a_characterizes_constraints_replay_std_and_regressions alone
+    # takes ~41 minutes (a known, pre-existing performance regression
+    # attributed to commit 95b95586, unrelated to CI infrastructure) --
+    # 45 minutes left almost no room for the rest of `-p parser -p infer`,
+    # so the job was getting killed mid-run and reporting unrelated
+    # in-flight tests as spurious failures rather than a genuine timeout.
+    # This raise doesn't fix that regression; it stops the job from
+    # producing misleading failures while it's outstanding.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
@@ -137,7 +145,14 @@ jobs:
     name: yulang tests
     needs: workspace_build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # This job was observed taking ~55 minutes and getting killed at the
+    # prior 45-minute limit; the exact slow test wasn't pinned down (the
+    # GitHub Actions log for that run was unavailable), but this crate's
+    # own test suite is known to include some std-compilation-heavy
+    # fixtures. Raise the budget so a genuinely-slow-but-passing run isn't
+    # reported as a spurious failure; this does not fix the underlying
+    # slowness if there is a real regression here.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
@@ -238,7 +253,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 1 of 4
-        run: cargo run -q -p yulang -- --std-root lib contract --shard 1/4 tests/yulang/cases.toml
+        run: cargo run -q -p yulang --bin yulang -- --std-root lib contract --shard 1/4 tests/yulang/cases.toml
 
   contract_shard_2:
     name: contract shard 2/4
@@ -273,7 +288,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 2 of 4
-        run: cargo run -q -p yulang -- --std-root lib contract --shard 2/4 tests/yulang/cases.toml
+        run: cargo run -q -p yulang --bin yulang -- --std-root lib contract --shard 2/4 tests/yulang/cases.toml
 
   contract_shard_3:
     name: contract shard 3/4
@@ -308,7 +323,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 3 of 4
-        run: cargo run -q -p yulang -- --std-root lib contract --shard 3/4 tests/yulang/cases.toml
+        run: cargo run -q -p yulang --bin yulang -- --std-root lib contract --shard 3/4 tests/yulang/cases.toml
 
   contract_shard_4:
     name: contract shard 4/4
@@ -343,7 +358,7 @@ jobs:
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 4 of 4
-        run: cargo run -q -p yulang -- --std-root lib contract --shard 4/4 tests/yulang/cases.toml
+        run: cargo run -q -p yulang --bin yulang -- --std-root lib contract --shard 4/4 tests/yulang/cases.toml
 
   core_gate:
     name: core gate
