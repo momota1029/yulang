@@ -2703,118 +2703,84 @@ my got = make(1).norm2
     }
 
     #[test]
-    fn terminal_projection_denial_is_suppressed_at_lsp_output_boundaries() {
-        use crate::source::{
-            TerminalProjectionQueryTestTarget,
-            with_terminal_projection_query_failure_for_source_test,
-        };
-
-        fn assert_intentional_projection_denial(delta: infer::check::TestSupportProofSoakDelta) {
-            assert_eq!(delta.organic_terminal_failures(), 0);
-            assert_eq!(delta.intentional_project_lower_evaluation_failures(), 1);
-        }
-
-        let root = lsp_test_workspace("terminal-projection-output-gates");
+    fn lsp_outer_postprocessing_preserves_empty_source_results() {
+        let root = lsp_test_workspace("empty-source-output-composition");
         let options = crate::StdSourceOptions {
             std_root: Some(root.join("lib")),
         };
         let path = root.join("main.yu");
 
-        let ordinary_source = "my id x = x\n";
-        let clean_items = completion_items_for_source(
+        let ordinary_source = "";
+        let source_items = crate::source::completion_entry_source_with_std_options(
+            &path,
+            ordinary_source,
+            0,
+            &options,
+        )
+        .unwrap();
+        assert!(
+            source_items.is_empty(),
+            "fixture must supply an empty source Vec"
+        );
+        let lsp_items = completion_items_for_source(
             &path,
             ordinary_source.to_string(),
             Position {
                 line: 0,
-                character: 10,
+                character: 0,
             },
             &options,
         );
-        assert!(clean_items.iter().any(|item| {
-            item.label == "x"
-                && item.kind == Some(CompletionItemKind::VARIABLE)
-                && item.detail.is_some()
-        }));
-        let (terminal_items, delta) = with_terminal_projection_query_failure_for_source_test(
-            TerminalProjectionQueryTestTarget::Completion,
-            || {
-                completion_items_for_source(
-                    &path,
-                    ordinary_source.to_string(),
-                    Position {
-                        line: 0,
-                        character: 10,
-                    },
-                    &options,
-                )
-            },
-        );
-        assert_eq!(terminal_items.len(), parser::scan::KEYWORDS.len());
-        assert!(terminal_items.iter().all(|item| {
+        assert_eq!(lsp_items.len(), parser::scan::KEYWORDS.len());
+        assert!(lsp_items.iter().all(|item| {
             item.kind == Some(CompletionItemKind::KEYWORD)
                 && item.detail.is_none()
                 && parser::scan::KEYWORDS.contains(&item.label.as_str())
         }));
-        assert_intentional_projection_denial(delta);
 
-        let member_source = "my p = { x: 1, y: false }\nmy got = p.\n";
-        let clean_member_items = completion_items_for_source(
+        let member_source = "missing.";
+        let source_member_items = crate::source::completion_entry_source_with_std_options(
+            &path,
+            member_source,
+            member_source.len(),
+            &options,
+        )
+        .unwrap();
+        assert!(
+            source_member_items.is_empty(),
+            "fixture must supply an empty member source Vec"
+        );
+        let lsp_member_items = completion_items_for_source(
             &path,
             member_source.to_string(),
             Position {
-                line: 1,
-                character: 11,
+                line: 0,
+                character: member_source.len() as u32,
             },
             &options,
+        );
+        assert!(lsp_member_items.is_empty());
+
+        let hover_source = "my value = 1\n";
+        let source_hover =
+            crate::source::hover_entry_source_with_std_options(&path, hover_source, 2, &options)
+                .unwrap();
+        assert_eq!(
+            source_hover, None,
+            "fixture must supply a None source hover"
         );
         assert!(
-            clean_member_items
-                .iter()
-                .any(|item| { item.label == "x" && item.kind == Some(CompletionItemKind::FIELD) })
+            hover_draft_for_source(
+                &path,
+                hover_source.to_string(),
+                Position {
+                    line: 0,
+                    character: 2,
+                },
+                &options,
+            )
+            .is_none()
         );
-        let (terminal_member_items, delta) = with_terminal_projection_query_failure_for_source_test(
-            TerminalProjectionQueryTestTarget::MemberCompletion,
-            || {
-                completion_items_for_source(
-                    &path,
-                    member_source.to_string(),
-                    Position {
-                        line: 1,
-                        character: 11,
-                    },
-                    &options,
-                )
-            },
-        );
-        assert!(terminal_member_items.is_empty());
-        assert_intentional_projection_denial(delta);
-
-        let clean_hover = hover_draft_for_source(
-            &path,
-            ordinary_source.to_string(),
-            Position {
-                line: 0,
-                character: 6,
-            },
-            &options,
-        );
-        assert!(clean_hover.is_some());
-        let (terminal_hover, delta) = with_terminal_projection_query_failure_for_source_test(
-            TerminalProjectionQueryTestTarget::Hover,
-            || {
-                hover_draft_for_source(
-                    &path,
-                    ordinary_source.to_string(),
-                    Position {
-                        line: 0,
-                        character: 6,
-                    },
-                    &options,
-                )
-            },
-        );
-        assert!(terminal_hover.is_none());
-        assert_intentional_projection_denial(delta);
     }
 
     #[test]

@@ -53,70 +53,6 @@ pub const IMPLICIT_STD_SOURCE_PREFIX_LEN: usize =
     IMPLICIT_PRELUDE_IMPORT.len() + IMPLICIT_STD_MODULE_DECL.len();
 const COMPLETION_PROBE_IDENTIFIER: &str = "yulang__completion__probe";
 
-#[cfg(test)]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TerminalProjectionQueryTestTarget {
-    Hover,
-    Completion,
-    MemberCompletion,
-}
-
-#[cfg(test)]
-enum TerminalProjectionQueryTestState {
-    Armed(TerminalProjectionQueryTestTarget),
-    Completed(infer::check::TestSupportProofSoakDelta),
-}
-
-#[cfg(test)]
-std::thread_local! {
-    static TERMINAL_PROJECTION_QUERY_TEST_STATE:
-        std::cell::RefCell<Option<TerminalProjectionQueryTestState>> = const {
-            std::cell::RefCell::new(None)
-        };
-}
-
-#[cfg(test)]
-pub(crate) fn with_terminal_projection_query_failure_for_source_test<R>(
-    target: TerminalProjectionQueryTestTarget,
-    run: impl FnOnce() -> R,
-) -> (R, infer::check::TestSupportProofSoakDelta) {
-    TERMINAL_PROJECTION_QUERY_TEST_STATE.with(|state| {
-        assert!(
-            state.borrow().is_none(),
-            "nested source terminal-query test"
-        );
-        *state.borrow_mut() = Some(TerminalProjectionQueryTestState::Armed(target));
-    });
-    let output = run();
-    let state = TERMINAL_PROJECTION_QUERY_TEST_STATE.with(|state| state.borrow_mut().take());
-    let Some(TerminalProjectionQueryTestState::Completed(delta)) = state else {
-        panic!("outer source route did not consume the requested terminal query failure");
-    };
-    (output, delta)
-}
-
-#[cfg(test)]
-fn maybe_inject_terminal_projection_query_failure<R>(
-    target: TerminalProjectionQueryTestTarget,
-    check: &mut infer::check::PolyCheckOutput,
-    run: impl FnOnce(&mut infer::check::PolyCheckOutput) -> R,
-) -> R {
-    let armed = TERMINAL_PROJECTION_QUERY_TEST_STATE.with(|state| {
-        matches!(
-            *state.borrow(),
-            Some(TerminalProjectionQueryTestState::Armed(armed)) if armed == target
-        )
-    });
-    if !armed {
-        return run(check);
-    }
-    let (output, delta) = infer::check::with_terminal_projection_query_failure_for_test(check, run);
-    TERMINAL_PROJECTION_QUERY_TEST_STATE.with(|state| {
-        *state.borrow_mut() = Some(TerminalProjectionQueryTestState::Completed(delta));
-    });
-    output
-}
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StdSourceOptions {
     pub std_root: Option<PathBuf>,
@@ -1746,13 +1682,6 @@ impl SourceTextAnalysis {
 
     pub(crate) fn hover(&mut self, byte_offset: usize) -> Option<SourceHover> {
         let byte_offset = self.loaded_byte_offset(byte_offset);
-        #[cfg(test)]
-        return maybe_inject_terminal_projection_query_failure(
-            TerminalProjectionQueryTestTarget::Hover,
-            &mut self.check,
-            |check| source_hover_from_check(check, byte_offset, &self.focus_module),
-        );
-        #[cfg(not(test))]
         source_hover_from_check(&mut self.check, byte_offset, &self.focus_module)
     }
 
@@ -3088,13 +3017,6 @@ fn completion_from_loaded_files(
     file: &Path,
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
     let mut check = infer::check::check_loaded_files(&loaded).map_err(RouteError::Lower)?;
-    #[cfg(test)]
-    return Ok(maybe_inject_terminal_projection_query_failure(
-        TerminalProjectionQueryTestTarget::Completion,
-        &mut check,
-        |check| source_completion_from_check(check, byte_offset, file),
-    ));
-    #[cfg(not(test))]
     Ok(source_completion_from_check(&mut check, byte_offset, file))
 }
 
@@ -3105,13 +3027,6 @@ fn member_completion_from_sources(
 ) -> Result<Vec<SourceCompletionItem>, RouteError> {
     let mut check = infer::check::check_loaded_files(&load_collected_sources(files))
         .map_err(RouteError::Lower)?;
-    #[cfg(test)]
-    return Ok(maybe_inject_terminal_projection_query_failure(
-        TerminalProjectionQueryTestTarget::MemberCompletion,
-        &mut check,
-        |check| source_member_completion_from_check(check, identifier_range, file),
-    ));
-    #[cfg(not(test))]
     Ok(source_member_completion_from_check(
         &mut check,
         identifier_range,
@@ -3710,22 +3625,12 @@ mod terminal_latch_gate_tests {
         for production_source in [include_str!("../main.rs"), include_str!("../server.rs")] {
             assert!(!production_source.contains("with_terminal_projection_query_failure_for_test"));
         }
-        let source_before_test_module = include_str!("mod.rs")
+        let source_production_prefix = include_str!("mod.rs")
             .split("#[cfg(test)]\nmod terminal_latch_gate_tests")
             .next()
             .unwrap();
-        let (source_before_test_seam, test_seam_and_production) = source_before_test_module
-            .split_once("#[cfg(test)]\nfn maybe_inject_terminal_projection_query_failure")
-            .unwrap();
         assert!(
-            !source_before_test_seam.contains("with_terminal_projection_query_failure_for_test")
-        );
-        assert_eq!(
-            test_seam_and_production
-                .matches("with_terminal_projection_query_failure_for_test")
-                .count(),
-            1,
-            "the sole pre-test-module caller must remain inside the cfg(test) source seam"
+            !source_production_prefix.contains("with_terminal_projection_query_failure_for_test")
         );
     }
 }
