@@ -1301,6 +1301,109 @@ fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
     assert_eq!(actual, expected);
 }
 
+struct Row1OwnedReadScalingFixture {
+    machine: ConstraintMachine,
+    absent_owner: TypeVar,
+    positive: PosId,
+    negative: NegId,
+    neutral: NeuId,
+    role: RoleConstraint,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Row1OwnedReadScalingProbe {
+    UpperRecords,
+    PosShape,
+    NegShape,
+    NeuShape,
+    RoleRawVars,
+    VarNeighbors,
+    PrePopFamilies,
+    SubtractFacts,
+}
+
+const ROW1_OWNED_READ_SCALING_PROBES: [Row1OwnedReadScalingProbe; 8] = [
+    Row1OwnedReadScalingProbe::UpperRecords,
+    Row1OwnedReadScalingProbe::PosShape,
+    Row1OwnedReadScalingProbe::NegShape,
+    Row1OwnedReadScalingProbe::NeuShape,
+    Row1OwnedReadScalingProbe::RoleRawVars,
+    Row1OwnedReadScalingProbe::VarNeighbors,
+    Row1OwnedReadScalingProbe::PrePopFamilies,
+    Row1OwnedReadScalingProbe::SubtractFacts,
+];
+
+fn row1_owned_read_scaling_fixture(unrelated_entries: u32) -> Row1OwnedReadScalingFixture {
+    let mut machine = ConstraintMachine::new();
+    let origin = OriginId::unknown_internal();
+
+    for index in 0..unrelated_entries {
+        let unrelated = TypeVar(index);
+        let unrelated_pos = machine.alloc_pos(Pos::Var(TypeVar(10_000 + index * 2)));
+        let unrelated_neg = machine.alloc_neg(Neg::Var(TypeVar(10_001 + index * 2)));
+        let unrelated_neu = machine.alloc_neu(Neu::Bounds(unrelated_pos, unrelated_neg));
+        machine.bounds.add_upper(
+            unrelated,
+            unrelated_neg,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        );
+        machine
+            .var_adjacency
+            .entry(unrelated)
+            .or_default()
+            .insert(TypeVar(20_000 + index), 1);
+        machine.pre_pop_effect_families.insert(
+            unrelated,
+            vec![ConstraintEffectFamily {
+                path: vec!["row1_scaling_effect".into()],
+                args: vec![unrelated_neu],
+            }],
+        );
+        machine
+            .subtracts
+            .facts
+            .entry(unrelated)
+            .or_default()
+            .push(SubtractFact {
+                id: SubtractId(index),
+                subtractability: Subtractability::Set(
+                    vec!["row1_scaling_subtract".into()],
+                    vec![unrelated_neu],
+                ),
+            });
+    }
+
+    let lower = machine.alloc_pos(Pos::Var(TypeVar(30_000)));
+    let upper = machine.alloc_neg(Neg::Var(TypeVar(30_001)));
+    let neutral = machine.alloc_neu(Neu::Bounds(lower, upper));
+    let positive = machine.alloc_pos(Pos::Con(
+        vec!["row1_scaling_target_pos".into()],
+        vec![neutral],
+    ));
+    let negative = machine.alloc_neg(Neg::Con(
+        vec!["row1_scaling_target_neg".into()],
+        vec![neutral],
+    ));
+    let role = RoleConstraint {
+        role: vec!["row1_scaling_target_role".into()],
+        inputs: vec![RoleConstraintArg {
+            lower: positive,
+            upper: negative,
+        }],
+        associated: Vec::new(),
+    };
+
+    Row1OwnedReadScalingFixture {
+        machine,
+        absent_owner: TypeVar(u32::MAX),
+        positive,
+        negative,
+        neutral,
+        role,
+    }
+}
+
 fn row1_owned_read_surface_best_elapsed(
     machine: &mut ConstraintMachine,
     owner: TypeVar,
@@ -1308,6 +1411,7 @@ fn row1_owned_read_surface_best_elapsed(
     negative: NegId,
     neutral: NeuId,
     role: &RoleConstraint,
+    probe: Row1OwnedReadScalingProbe,
 ) -> Duration {
     const SAMPLES: usize = 5;
     const READS_PER_SAMPLE: usize = 2_048;
@@ -1320,27 +1424,39 @@ fn row1_owned_read_surface_best_elapsed(
                 .with_legacy_projection_query(&mut round, |query| {
                     let mut checksum = 0_usize;
                     for _ in 0..READS_PER_SAMPLE {
-                        checksum = checksum.wrapping_add(
-                            std::hint::black_box(query.projection_upper_records_in_scope(owner))
-                                .len(),
-                        );
-                        let _ = std::hint::black_box(query.pos_shape_in_scope(positive));
-                        let _ = std::hint::black_box(query.neg_shape_in_scope(negative));
-                        let _ = std::hint::black_box(query.neu_shape_in_scope(neutral));
-                        checksum = checksum.wrapping_add(
-                            std::hint::black_box(query.role_constraint_raw_vars_in_scope(role))
-                                .len(),
-                        );
-                        checksum = checksum.wrapping_add(
-                            std::hint::black_box(query.var_neighbors_in_scope(owner)).len(),
-                        );
-                        checksum = checksum.wrapping_add(
-                            std::hint::black_box(query.pre_pop_effect_families_in_scope(owner))
-                                .len(),
-                        );
-                        checksum = checksum.wrapping_add(
-                            std::hint::black_box(query.subtract_facts_in_scope(owner)).len(),
-                        );
+                        let observed = match probe {
+                            Row1OwnedReadScalingProbe::UpperRecords => {
+                                std::hint::black_box(query.projection_upper_records_in_scope(owner))
+                                    .len()
+                            }
+                            Row1OwnedReadScalingProbe::PosShape => {
+                                let _ = std::hint::black_box(query.pos_shape_in_scope(positive));
+                                0
+                            }
+                            Row1OwnedReadScalingProbe::NegShape => {
+                                let _ = std::hint::black_box(query.neg_shape_in_scope(negative));
+                                0
+                            }
+                            Row1OwnedReadScalingProbe::NeuShape => {
+                                let _ = std::hint::black_box(query.neu_shape_in_scope(neutral));
+                                0
+                            }
+                            Row1OwnedReadScalingProbe::RoleRawVars => {
+                                std::hint::black_box(query.role_constraint_raw_vars_in_scope(role))
+                                    .len()
+                            }
+                            Row1OwnedReadScalingProbe::VarNeighbors => {
+                                std::hint::black_box(query.var_neighbors_in_scope(owner)).len()
+                            }
+                            Row1OwnedReadScalingProbe::PrePopFamilies => {
+                                std::hint::black_box(query.pre_pop_effect_families_in_scope(owner))
+                                    .len()
+                            }
+                            Row1OwnedReadScalingProbe::SubtractFacts => {
+                                std::hint::black_box(query.subtract_facts_in_scope(owner)).len()
+                            }
+                        };
+                        checksum = checksum.wrapping_add(observed + 1);
                     }
                     Ok(query.complete(checksum))
                 })
@@ -1412,36 +1528,6 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
         }],
         associated: Vec::new(),
     };
-
-    let add_unrelated_entries = |machine: &mut ConstraintMachine, start: u32, end: u32| {
-        for index in start..end {
-            let unrelated = TypeVar(100 + index);
-            let unrelated_pos = machine.alloc_pos(Pos::Var(TypeVar(10_000 + index * 2)));
-            let unrelated_neg = machine.alloc_neg(Neg::Var(TypeVar(10_001 + index * 2)));
-            let _ = machine.alloc_neu(Neu::Bounds(unrelated_pos, unrelated_neg));
-            machine.bounds.add_upper(
-                unrelated,
-                ordinary_negative,
-                ConstraintWeights::empty(),
-                BoundDerivation::Origin(origin),
-            );
-            machine
-                .var_adjacency
-                .entry(unrelated)
-                .or_default()
-                .insert(TypeVar(20_000 + index), 1);
-            machine
-                .pre_pop_effect_families
-                .insert(unrelated, vec![family.clone()]);
-            machine
-                .subtracts
-                .facts
-                .entry(unrelated)
-                .or_default()
-                .push(subtract.clone());
-        }
-    };
-    add_unrelated_entries(&mut machine, 0, 256);
 
     let expected_upper_records = machine
         .bounds()
@@ -1525,30 +1611,39 @@ fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded()
     assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
 
     // This is a key-local complexity guard, not the slice 4/5 full-pipeline cold/warm wall/RSS
-    // gate. Growing every unrelated backing collection by 16x must not make these target-key
-    // reads scale with total corpus size.
-    let small_fixture_elapsed = row1_owned_read_surface_best_elapsed(
-        &mut machine,
-        owner,
-        positive,
-        negative,
-        neutral,
-        &role,
-    );
-    add_unrelated_entries(&mut machine, 256, 4_096);
-    let large_fixture_elapsed = row1_owned_read_surface_best_elapsed(
-        &mut machine,
-        owner,
-        positive,
-        negative,
-        neutral,
-        &role,
-    );
-    let maximum_key_local_growth = small_fixture_elapsed.as_nanos().saturating_mul(4);
-    assert!(
-        large_fixture_elapsed.as_nanos() <= maximum_key_local_growth,
-        "16x unrelated-data growth made keyed reads grow more than 4x: small={small_fixture_elapsed:?}, large={large_fixture_elapsed:?}"
-    );
+    // gate. The collection target is absent in both fixtures, so a hypothetical linear scan
+    // cannot stop at an early match and must traverse all 256/4096 entries. The Pos/Neg/Neu
+    // targets are allocated after every unrelated node, putting them last in their arenas too.
+    // Every getter is timed as a separate probe, so one O(n) regression cannot hide behind the
+    // other seven constant-time reads: it would grow toward 16x and fail the 4x ceiling. The real
+    // keyed lookup/indexing path remains relative to target data and should stay near constant.
+    let mut small_fixture = row1_owned_read_scaling_fixture(256);
+    let mut large_fixture = row1_owned_read_scaling_fixture(4_096);
+    for probe in ROW1_OWNED_READ_SCALING_PROBES {
+        let small_fixture_elapsed = row1_owned_read_surface_best_elapsed(
+            &mut small_fixture.machine,
+            small_fixture.absent_owner,
+            small_fixture.positive,
+            small_fixture.negative,
+            small_fixture.neutral,
+            &small_fixture.role,
+            probe,
+        );
+        let large_fixture_elapsed = row1_owned_read_surface_best_elapsed(
+            &mut large_fixture.machine,
+            large_fixture.absent_owner,
+            large_fixture.positive,
+            large_fixture.negative,
+            large_fixture.neutral,
+            &large_fixture.role,
+            probe,
+        );
+        let maximum_key_local_growth = small_fixture_elapsed.as_nanos().saturating_mul(4);
+        assert!(
+            large_fixture_elapsed.as_nanos() <= maximum_key_local_growth,
+            "16x unrelated-data growth made {probe:?} grow more than 4x: small={small_fixture_elapsed:?}, large={large_fixture_elapsed:?}"
+        );
+    }
 }
 
 #[test]
