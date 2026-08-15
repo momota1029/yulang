@@ -1368,13 +1368,18 @@ fn cpk_sv_d_ss2_p0_row1_witness_capture_uses_one_scope_with_success_parity() {
         .split("#[cfg(test)]")
         .next()
         .expect("production witness source precedes its tests");
-    assert_eq!(
-        production_source
-            .matches(".scheme_projectable_lowers(")
-            .count(),
-        0,
-        "production witness capture must not call the old direct helper"
-    );
+    let production_identifiers = production_source
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .collect::<Vec<_>>();
+    for forbidden in [
+        "scheme_projectable_lowers",
+        "scheme_projectable_lowers_in_round",
+    ] {
+        assert!(
+            !production_identifiers.contains(&forbidden),
+            "production witness capture must not call old direct helper identifier {forbidden}"
+        );
+    }
 }
 
 #[test]

@@ -857,6 +857,702 @@ mod tests {
     use super::*;
 
     #[test]
+    fn scoped_capture_matches_legacy_oracle_for_full_local_and_component_drafts() {
+        let (mut local_machine, local_owner, _, _) =
+            ConstraintMachine::ordinary_no_claim_positive_alias_fixture();
+        let local_generalized = empty_generalized_root();
+        assert_scoped_capture_matches_legacy(
+            &mut local_machine,
+            local_owner,
+            &local_generalized,
+            "local binding",
+        );
+
+        let (mut component_machine, _, component_owner, _) =
+            ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(true);
+        let mut component_generalized = empty_generalized_root();
+        component_generalized
+            .compact
+            .rec_vars
+            .push(crate::compact::CompactRecursiveVar {
+                var: TypeVar(900),
+                bounds: crate::compact::CompactBounds::Interval {
+                    lower: CompactType::default(),
+                    upper: CompactType::default(),
+                },
+            });
+        component_generalized
+            .sandwiches
+            .push(crate::compact::CompactSandwich {
+                var: TypeVar(901),
+                kind: crate::compact::CompactSandwichKind::Fun,
+            });
+        assert_scoped_capture_matches_legacy(
+            &mut component_machine,
+            component_owner,
+            &component_generalized,
+            "component",
+        );
+    }
+
+    fn assert_scoped_capture_matches_legacy(
+        machine: &mut ConstraintMachine,
+        root: TypeVar,
+        generalized: &GeneralizedCompactRoot,
+        surface: &str,
+    ) {
+        let expected = capture_generalized_witnesses_legacy_oracle(machine, root, generalized);
+        let actual = capture_generalized_witnesses(machine, root, generalized);
+        assert_eq!(
+            actual, expected,
+            "{surface} capture must preserve every draft path, role, parent, completeness, and order"
+        );
+    }
+
+    // Frozen pre-slice-2 traversal: this test-only oracle deliberately retains the old direct
+    // read so scoped migration parity covers every draft field and ordering decision.
+    fn capture_generalized_witnesses_legacy_oracle(
+        machine: &ConstraintMachine,
+        root: TypeVar,
+        generalized: &GeneralizedCompactRoot,
+    ) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
+        let mut collector = LegacyWitnessCollector::new(machine);
+        collector.collect_var(root, true, GeneralizedTypePath::default(), None);
+        collector.drafts.retain_mut(|draft| {
+            if function_argument_only(&draft.path) {
+                return structural_path_survives(&generalized.compact.root, &draft.path);
+            }
+            if !structural_path_survives(&generalized.compact.root, &draft.path) {
+                draft.completeness = ProvenanceCompleteness::Incomplete;
+            }
+            true
+        });
+
+        let sandwich_incomplete = !generalized.sandwiches.is_empty();
+        if sandwich_incomplete {
+            for draft in &mut collector.drafts {
+                draft.completeness = ProvenanceCompleteness::Incomplete;
+            }
+        }
+        for (index, _) in generalized.compact.rec_vars.iter().enumerate() {
+            let path = GeneralizedTypePath(vec![GeneralizedTypePathStep::RecursiveBound(
+                StructuralIndex::from_usize(index),
+            )]);
+            collector.drafts.push(GeneralizedWitnessDraft {
+                path: path.clone(),
+                role: GeneralizedWitnessRole::RecursiveLowerBound,
+                incoming: Vec::new(),
+                completeness: ProvenanceCompleteness::Incomplete,
+            });
+            collector.drafts.push(GeneralizedWitnessDraft {
+                path,
+                role: GeneralizedWitnessRole::RecursiveUpperBound,
+                incoming: Vec::new(),
+                completeness: ProvenanceCompleteness::Incomplete,
+            });
+        }
+
+        // PUSP-C deliberately does not claim complete whole-scheme coverage until every structural
+        // compact transformation has a parallel projection. Individual argument witnesses remain
+        // complete when their exact path did not cross a sandwich or the storage budget.
+        let scheme_completeness = ProvenanceCompleteness::Incomplete;
+        (collector.drafts, scheme_completeness)
+    }
+
+    struct LegacyWitnessCollector<'a> {
+        machine: &'a ConstraintMachine,
+        drafts: Vec<GeneralizedWitnessDraft>,
+        visiting: FxHashSet<(TypeVar, bool)>,
+        incoming_edges: usize,
+        truncated: bool,
+    }
+
+    #[derive(Clone, Copy)]
+    enum LegacyWitnessParents<'a> {
+        Bound(BoundRecordId),
+        Selected(&'a [GeneralizationParent]),
+    }
+
+    impl<'a> From<BoundRecordId> for LegacyWitnessParents<'a> {
+        fn from(record: BoundRecordId) -> Self {
+            Self::Bound(record)
+        }
+    }
+
+    impl<'a> LegacyWitnessCollector<'a> {
+        fn new(machine: &'a ConstraintMachine) -> Self {
+            Self {
+                machine,
+                drafts: Vec::new(),
+                visiting: FxHashSet::default(),
+                incoming_edges: 0,
+                truncated: false,
+            }
+        }
+
+        fn add<'parents>(
+            &mut self,
+            path: &GeneralizedTypePath,
+            role: GeneralizedWitnessRole,
+            parents: impl Into<LegacyWitnessParents<'parents>>,
+        ) {
+            match parents.into() {
+                LegacyWitnessParents::Bound(record) => {
+                    self.add_parent(path, role, GeneralizationParent::Bound(record));
+                }
+                LegacyWitnessParents::Selected(parents) => {
+                    // An empty qualified selection means the formula proved this lower relation but
+                    // no direct support currently contributes provenance. Keep it parentless rather
+                    // than fabricating the raw Bound(record) parent used by an unclaimed relation.
+                    for parent in parents {
+                        self.add_parent(path, role, parent.clone());
+                    }
+                }
+            }
+        }
+
+        fn add_parent(
+            &mut self,
+            path: &GeneralizedTypePath,
+            role: GeneralizedWitnessRole,
+            parent: GeneralizationParent,
+        ) {
+            if self.truncated {
+                return;
+            }
+            let edge = GeneralizationDerivation {
+                rule: GeneralizationDerivationRule::BoundCollection,
+                parents: vec![parent],
+            };
+            if let Some(draft) = self
+                .drafts
+                .iter_mut()
+                .find(|draft| draft.path == *path && draft.role == role)
+            {
+                // Keep duplicate candidates until arena insertion so the storage metrics can distinguish
+                // considered edges from the canonical deduplicated set. This remains a flat edge list,
+                // never a list of transitive proof paths.
+                if self.incoming_edges >= MAX_INCOMING_EDGES_PER_SCHEME {
+                    draft.completeness = ProvenanceCompleteness::Incomplete;
+                    self.truncated = true;
+                } else {
+                    draft.incoming.push(edge);
+                    self.incoming_edges += 1;
+                }
+                return;
+            }
+            if self.drafts.len() >= MAX_WITNESSES_PER_SCHEME
+                || self.incoming_edges >= MAX_INCOMING_EDGES_PER_SCHEME
+            {
+                self.truncated = true;
+                return;
+            }
+            self.drafts.push(GeneralizedWitnessDraft {
+                path: path.clone(),
+                role,
+                incoming: vec![edge],
+                completeness: ProvenanceCompleteness::Complete,
+            });
+            self.incoming_edges += 1;
+        }
+
+        fn mark_incomplete(&mut self, path: &GeneralizedTypePath, role: GeneralizedWitnessRole) {
+            if let Some(draft) = self
+                .drafts
+                .iter_mut()
+                .find(|draft| draft.path == *path && draft.role == role)
+            {
+                draft.completeness = ProvenanceCompleteness::Incomplete;
+                return;
+            }
+            if self.drafts.len() >= MAX_WITNESSES_PER_SCHEME {
+                self.truncated = true;
+                return;
+            }
+            self.drafts.push(GeneralizedWitnessDraft {
+                path: path.clone(),
+                role,
+                incoming: Vec::new(),
+                completeness: ProvenanceCompleteness::Incomplete,
+            });
+        }
+
+        fn collect_var(
+            &mut self,
+            var: TypeVar,
+            positive: bool,
+            path: GeneralizedTypePath,
+            structural_parent: Option<LegacyWitnessParents<'_>>,
+        ) {
+            if self.truncated || path.depth() > MAX_GENERALIZED_PATH_DEPTH {
+                self.truncated = true;
+                return;
+            }
+            if let Some(parent) = structural_parent {
+                self.add(&path, GeneralizedWitnessRole::ConstraintRelation, parent);
+            }
+            if !self.visiting.insert((var, positive)) {
+                return;
+            }
+            if let Some(bounds) = self.machine.bounds().of(var) {
+                if positive {
+                    let entries = self
+                        .machine
+                        .scheme_projectable_lowers(var)
+                        .collect::<Vec<_>>();
+                    for entry in entries {
+                        let endpoint = entry.bound.pos;
+                        match entry.reason {
+                            SchemeProjectableLowerReason::Unclaimed => {
+                                self.add(&path, GeneralizedWitnessRole::LowerBound, entry.record);
+                                self.collect_pos(
+                                    endpoint,
+                                    path.clone(),
+                                    LegacyWitnessParents::Bound(entry.record),
+                                );
+                            }
+                            SchemeProjectableLowerReason::Qualified {
+                                uncovered_claims: _,
+                                independent_supports,
+                            } => {
+                                let evidence = entry.projection_evidence.expect(
+                                    "qualified projection lower must carry its evaluation evidence",
+                                );
+                                let mut parents = Vec::new();
+                                let fail_open = match evidence {
+                                    crate::constraints::proof::ProjectionEvidence::DecisiveClaimedArm(
+                                        proof,
+                                    ) => {
+                                        parents.push(
+                                            GeneralizationParent::BoundClaimProjectionProof {
+                                                bound: entry.record,
+                                                coverage_root: proof.coverage_root(),
+                                                representative_claim: proof.representative_claim(),
+                                                proof: Box::new(proof),
+                                            },
+                                        );
+                                        false
+                                    }
+                                    crate::constraints::proof::ProjectionEvidence::ExactWithoutClaimedArm => {
+                                        false
+                                    }
+                                    crate::constraints::proof::ProjectionEvidence::FailOpenIncomplete => {
+                                        true
+                                    }
+                                };
+                                parents.extend(independent_supports.into_iter().map(|carrier| {
+                                    GeneralizationParent::BoundProjectionProof {
+                                        bound: entry.record,
+                                        carrier,
+                                    }
+                                }));
+                                let parents = LegacyWitnessParents::Selected(&parents);
+                                self.add(&path, GeneralizedWitnessRole::LowerBound, parents);
+                                if fail_open {
+                                    self.mark_incomplete(&path, GeneralizedWitnessRole::LowerBound);
+                                }
+                                self.collect_pos(endpoint, path.clone(), parents);
+                            }
+                        }
+                    }
+                } else {
+                    let entries = bounds
+                        .generalized_projection_uppers()
+                        .map(|(id, bound)| (id, bound.neg))
+                        .collect::<Vec<_>>();
+                    for (record, endpoint) in entries {
+                        self.add(&path, GeneralizedWitnessRole::UpperBound, record);
+                        self.collect_neg(endpoint, path.clone(), record);
+                    }
+                }
+            }
+            self.visiting.remove(&(var, positive));
+        }
+
+        fn collect_pos(
+            &mut self,
+            id: PosId,
+            path: GeneralizedTypePath,
+            parent: LegacyWitnessParents<'_>,
+        ) {
+            match self.machine.types().pos(id).clone() {
+                Pos::Var(var) => self.collect_var(var, true, path, Some(parent)),
+                Pos::Con(_, args) => self.collect_neu_items(
+                    &args,
+                    &path,
+                    |argument| GeneralizedTypePathStep::ConstructorArgument {
+                        alternative: StructuralIndex::from_usize(0),
+                        argument,
+                    },
+                    parent,
+                ),
+                Pos::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    self.collect_neg(
+                        arg,
+                        child(&path, GeneralizedTypePathStep::FunctionArgument),
+                        parent,
+                    );
+                    // The shipped PUSP graph exposes only the root function argument. Adding root
+                    // return/effect witnesses would change existing bounded-query topology. Nested
+                    // function positions are new structural positions and can be captured inertly.
+                    if path.depth() != 0 {
+                        self.collect_neg(
+                            arg_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
+                            parent,
+                        );
+                        self.collect_pos(
+                            ret_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
+                            parent,
+                        );
+                        self.collect_pos(
+                            ret,
+                            child(&path, GeneralizedTypePathStep::FunctionReturn),
+                            parent,
+                        );
+                    }
+                }
+                Pos::Record(fields)
+                | Pos::RecordTailSpread { fields, .. }
+                | Pos::RecordHeadSpread { fields, .. } => {
+                    for (field, value) in fields.into_iter().enumerate() {
+                        self.collect_pos(
+                            value.value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::RecordField {
+                                    alternative: StructuralIndex::from_usize(0),
+                                    field: StructuralIndex::from_usize(field),
+                                },
+                            ),
+                            parent,
+                        );
+                    }
+                }
+                Pos::PolyVariant(items) => {
+                    for (item, (_, payloads)) in items.into_iter().enumerate() {
+                        for (payload, value) in payloads.into_iter().enumerate() {
+                            self.collect_pos(
+                                value,
+                                child(
+                                    &path,
+                                    GeneralizedTypePathStep::VariantPayload {
+                                        alternative: StructuralIndex::from_usize(0),
+                                        item: StructuralIndex::from_usize(item),
+                                        payload: StructuralIndex::from_usize(payload),
+                                    },
+                                ),
+                                parent,
+                            );
+                        }
+                    }
+                }
+                Pos::Tuple(items) => {
+                    for (index, value) in items.into_iter().enumerate() {
+                        self.collect_pos(
+                            value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::TupleElement(StructuralIndex::from_usize(
+                                    index,
+                                )),
+                            ),
+                            parent,
+                        );
+                    }
+                }
+                Pos::Row(items) => self.collect_pos_row_items(&items, &path, parent),
+                Pos::Union(lhs, rhs) => {
+                    self.collect_pos(lhs, path.clone(), parent);
+                    self.collect_pos(rhs, path, parent);
+                }
+                Pos::NonSubtract(inner, _) | Pos::Stack { inner, .. } => {
+                    self.collect_pos(inner, path, parent)
+                }
+                _ => {}
+            }
+        }
+
+        fn collect_neg<'parents>(
+            &mut self,
+            id: NegId,
+            path: GeneralizedTypePath,
+            parent: impl Into<LegacyWitnessParents<'parents>>,
+        ) {
+            let parent = parent.into();
+            match self.machine.types().neg(id).clone() {
+                Neg::Var(var) => self.collect_var(var, false, path, Some(parent)),
+                Neg::Con(_, args) => self.collect_neu_items(
+                    &args,
+                    &path,
+                    |argument| GeneralizedTypePathStep::ConstructorArgument {
+                        alternative: StructuralIndex::from_usize(0),
+                        argument,
+                    },
+                    parent,
+                ),
+                Neg::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    self.collect_pos(
+                        arg,
+                        child(&path, GeneralizedTypePathStep::FunctionArgument),
+                        parent,
+                    );
+                    if path.depth() != 0 {
+                        self.collect_pos(
+                            arg_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
+                            parent,
+                        );
+                        self.collect_neg(
+                            ret_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
+                            parent,
+                        );
+                        self.collect_neg(
+                            ret,
+                            child(&path, GeneralizedTypePathStep::FunctionReturn),
+                            parent,
+                        );
+                    }
+                }
+                Neg::Record(fields) => {
+                    for (field, value) in fields.into_iter().enumerate() {
+                        self.collect_neg(
+                            value.value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::RecordField {
+                                    alternative: StructuralIndex::from_usize(0),
+                                    field: StructuralIndex::from_usize(field),
+                                },
+                            ),
+                            parent,
+                        );
+                    }
+                }
+                Neg::PolyVariant(items) => {
+                    for (item, (_, payloads)) in items.into_iter().enumerate() {
+                        for (payload, value) in payloads.into_iter().enumerate() {
+                            self.collect_neg(
+                                value,
+                                child(
+                                    &path,
+                                    GeneralizedTypePathStep::VariantPayload {
+                                        alternative: StructuralIndex::from_usize(0),
+                                        item: StructuralIndex::from_usize(item),
+                                        payload: StructuralIndex::from_usize(payload),
+                                    },
+                                ),
+                                parent,
+                            );
+                        }
+                    }
+                }
+                Neg::Tuple(items) => {
+                    for (index, value) in items.into_iter().enumerate() {
+                        self.collect_neg(
+                            value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::TupleElement(StructuralIndex::from_usize(
+                                    index,
+                                )),
+                            ),
+                            parent,
+                        );
+                    }
+                }
+                Neg::Row(items, tail) => {
+                    self.collect_neg_row_items(&items, &path, parent);
+                    self.collect_neg(tail, child(&path, GeneralizedTypePathStep::RowTail), parent);
+                }
+                Neg::Intersection(lhs, rhs) => {
+                    self.collect_neg(lhs, path.clone(), parent);
+                    self.collect_neg(rhs, path, parent);
+                }
+                Neg::Stack { inner, .. } => self.collect_neg(inner, path, parent),
+                _ => {}
+            }
+        }
+
+        fn collect_neu(
+            &mut self,
+            id: NeuId,
+            path: GeneralizedTypePath,
+            parent: LegacyWitnessParents<'_>,
+        ) {
+            match self.machine.types().neu(id).clone() {
+                Neu::Bounds(lower, upper) => {
+                    self.collect_pos(lower, path.clone(), parent);
+                    self.collect_neg(upper, path, parent);
+                }
+                Neu::Con(_, args) => self.collect_neu_items(
+                    &args,
+                    &path,
+                    |argument| GeneralizedTypePathStep::ConstructorArgument {
+                        alternative: StructuralIndex::from_usize(0),
+                        argument,
+                    },
+                    parent,
+                ),
+                Neu::Fun {
+                    arg,
+                    arg_eff,
+                    ret_eff,
+                    ret,
+                } => {
+                    self.collect_neu(
+                        arg,
+                        child(&path, GeneralizedTypePathStep::FunctionArgument),
+                        parent,
+                    );
+                    if path.depth() != 0 {
+                        self.collect_neu(
+                            arg_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionArgumentEffect),
+                            parent,
+                        );
+                        self.collect_neu(
+                            ret_eff,
+                            child(&path, GeneralizedTypePathStep::FunctionReturnEffect),
+                            parent,
+                        );
+                        self.collect_neu(
+                            ret,
+                            child(&path, GeneralizedTypePathStep::FunctionReturn),
+                            parent,
+                        );
+                    }
+                }
+                Neu::Record(fields) => {
+                    for (field, value) in fields.into_iter().enumerate() {
+                        self.collect_neu(
+                            value.value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::RecordField {
+                                    alternative: StructuralIndex::from_usize(0),
+                                    field: StructuralIndex::from_usize(field),
+                                },
+                            ),
+                            parent,
+                        );
+                    }
+                }
+                Neu::PolyVariant(items) => {
+                    for (item, (_, payloads)) in items.into_iter().enumerate() {
+                        for (payload, value) in payloads.into_iter().enumerate() {
+                            self.collect_neu(
+                                value,
+                                child(
+                                    &path,
+                                    GeneralizedTypePathStep::VariantPayload {
+                                        alternative: StructuralIndex::from_usize(0),
+                                        item: StructuralIndex::from_usize(item),
+                                        payload: StructuralIndex::from_usize(payload),
+                                    },
+                                ),
+                                parent,
+                            );
+                        }
+                    }
+                }
+                Neu::Tuple(items) => {
+                    for (index, value) in items.into_iter().enumerate() {
+                        self.collect_neu(
+                            value,
+                            child(
+                                &path,
+                                GeneralizedTypePathStep::TupleElement(StructuralIndex::from_usize(
+                                    index,
+                                )),
+                            ),
+                            parent,
+                        );
+                    }
+                }
+            }
+        }
+
+        fn collect_neu_items(
+            &mut self,
+            items: &[NeuId],
+            path: &GeneralizedTypePath,
+            step: impl Fn(StructuralIndex) -> GeneralizedTypePathStep,
+            parent: LegacyWitnessParents<'_>,
+        ) {
+            for (index, item) in items.iter().copied().enumerate() {
+                self.collect_neu(
+                    item,
+                    child(path, step(StructuralIndex::from_usize(index))),
+                    parent,
+                );
+            }
+        }
+
+        fn collect_pos_row_items(
+            &mut self,
+            items: &[PosId],
+            path: &GeneralizedTypePath,
+            parent: LegacyWitnessParents<'_>,
+        ) {
+            for (item, id) in items.iter().copied().enumerate() {
+                if let Pos::Con(_, args) = self.machine.types().pos(id).clone() {
+                    for (argument, value) in args.into_iter().enumerate() {
+                        self.collect_neu(
+                            value,
+                            child(
+                                path,
+                                GeneralizedTypePathStep::RowItemArgument {
+                                    item: StructuralIndex::from_usize(item),
+                                    argument: StructuralIndex::from_usize(argument),
+                                },
+                            ),
+                            parent,
+                        );
+                    }
+                }
+            }
+        }
+
+        fn collect_neg_row_items(
+            &mut self,
+            items: &[NegId],
+            path: &GeneralizedTypePath,
+            parent: LegacyWitnessParents<'_>,
+        ) {
+            for (item, id) in items.iter().copied().enumerate() {
+                if let Neg::Con(_, args) = self.machine.types().neg(id).clone() {
+                    for (argument, value) in args.into_iter().enumerate() {
+                        self.collect_neu(
+                            value,
+                            child(
+                                path,
+                                GeneralizedTypePathStep::RowItemArgument {
+                                    item: StructuralIndex::from_usize(item),
+                                    argument: StructuralIndex::from_usize(argument),
+                                },
+                            ),
+                            parent,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn covered_only_lower_contributes_no_generalized_witness_parent() {
         let (mut machine, endpoint, owner, _) =
             ConstraintMachine::compact_scheme_projection_unmatched_route_fixture(false);
