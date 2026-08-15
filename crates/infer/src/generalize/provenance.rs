@@ -895,18 +895,77 @@ mod tests {
         );
     }
 
+    #[test]
+    fn scoped_capture_matches_legacy_oracle_through_compound_neutral_and_upper_paths() {
+        let mut machine = ConstraintMachine::new();
+        let owner = TypeVar(920);
+        let positive_leaf = TypeVar(921);
+        let upper_owner = TypeVar(922);
+        let negative_leaf = TypeVar(923);
+        for var in [owner, positive_leaf, upper_owner, negative_leaf] {
+            machine.register_type_var(var, TypeLevel::root());
+        }
+
+        let nested_lower = machine.alloc_pos(Pos::Var(positive_leaf));
+        let nested_upper = machine.alloc_neg(Neg::Var(upper_owner));
+        let nested_bounds = machine.alloc_neu(Neu::Bounds(nested_lower, nested_upper));
+        let compound_lower = machine.alloc_pos(Pos::Con(
+            vec!["witness-compound".into()],
+            vec![nested_bounds],
+        ));
+        let owner_upper = machine.alloc_neg(Neg::Var(owner));
+        machine.subtype(
+            compound_lower,
+            owner_upper,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+
+        let upper_nested_lower = machine.alloc_pos(Pos::Var(positive_leaf));
+        let upper_nested_upper = machine.alloc_neg(Neg::Var(negative_leaf));
+        let upper_nested_bounds =
+            machine.alloc_neu(Neu::Bounds(upper_nested_lower, upper_nested_upper));
+        let upper_compound = machine.alloc_neg(Neg::Con(
+            vec!["witness-upper-compound".into()],
+            vec![upper_nested_bounds],
+        ));
+        let upper_source = machine.alloc_pos(Pos::Var(upper_owner));
+        machine.subtype(
+            upper_source,
+            upper_compound,
+            crate::constraints::OriginId::unknown_internal(),
+        );
+
+        let (drafts, _) = assert_scoped_capture_matches_legacy(
+            &mut machine,
+            owner,
+            &empty_generalized_root(),
+            "compound/neutral/upper",
+        );
+        let nested_path = GeneralizedTypePath(vec![GeneralizedTypePathStep::ConstructorArgument {
+            alternative: StructuralIndex::from_usize(0),
+            argument: StructuralIndex::from_usize(0),
+        }]);
+        assert!(drafts.iter().any(|draft| {
+            draft.path == nested_path && draft.role == GeneralizedWitnessRole::ConstraintRelation
+        }));
+        assert!(drafts.iter().any(|draft| {
+            draft.path == nested_path && draft.role == GeneralizedWitnessRole::UpperBound
+        }));
+    }
+
     fn assert_scoped_capture_matches_legacy(
         machine: &mut ConstraintMachine,
         root: TypeVar,
         generalized: &GeneralizedCompactRoot,
         surface: &str,
-    ) {
+    ) -> (Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness) {
         let expected = capture_generalized_witnesses_legacy_oracle(machine, root, generalized);
         let actual = capture_generalized_witnesses(machine, root, generalized);
         assert_eq!(
             actual, expected,
             "{surface} capture must preserve every draft path, role, parent, completeness, and order"
         );
+        actual
     }
 
     // Frozen pre-slice-2 traversal: this test-only oracle deliberately retains the old direct
