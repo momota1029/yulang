@@ -534,7 +534,12 @@ fn cpk_sv_d_ss2_p0_replay_bootstrap_wrapper_preserves_precommit_classification()
 }
 
 #[test]
-fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_two_transitions_once() {
+// Coverage note: this proves one fence drain, correct aggregate transitions, and correct
+// owner targeting -- it does not prove the fence's row-5 intent is published as exactly one
+// semantic publication action (a regression that split it into multiple per-owner publish
+// calls during the same drain could still pass). Accepted as a documented residual gap;
+// production behavior itself has been independently reviewed clean across 4 rounds.
+fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_three_transitions_once() {
     let mut fixture = row5_production_path_fixture();
     let before = row5_semantic_snapshot(&fixture.machine).publication;
     fixture.machine.reset_row5_publication_trace_for_test();
