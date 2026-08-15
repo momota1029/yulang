@@ -222,10 +222,6 @@ impl<'query> LegacyOnlyQueryView<'query> {
             .flat_map(crate::constraints::VarBounds::projection_lower_records)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn projection_upper_records(
         &self,
         var: TypeVar,
@@ -251,34 +247,18 @@ impl<'query> LegacyOnlyQueryView<'query> {
         self.type_shapes.pos_var(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn pos_shape(&self, id: PosId) -> Pos {
         self.type_shapes.pos_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn neg_shape(&self, id: NegId) -> Neg {
         self.type_shapes.neg_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn neu_shape(&self, id: NeuId) -> Neu {
         self.type_shapes.neu_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn role_constraint_raw_vars(
         &self,
         constraint: &RoleConstraint,
@@ -286,10 +266,6 @@ impl<'query> LegacyOnlyQueryView<'query> {
         self.type_shapes.role_constraint_raw_vars(constraint)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn var_neighbors(&self, var: TypeVar) -> Vec<TypeVar> {
         #[cfg(test)]
         crate::analysis::record_owner_neighbor_read(var);
@@ -301,10 +277,6 @@ impl<'query> LegacyOnlyQueryView<'query> {
             .collect()
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn pre_pop_effect_families(&self, var: TypeVar) -> Vec<ConstraintEffectFamily> {
         #[cfg(test)]
         crate::analysis::record_owner_pre_pop_read(var);
@@ -315,10 +287,6 @@ impl<'query> LegacyOnlyQueryView<'query> {
             .unwrap_or_default()
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
-    )]
     pub(super) fn subtract_facts(&self, source: TypeVar) -> Vec<SubtractFact> {
         #[cfg(test)]
         crate::analysis::record_owner_subtract_read(source);

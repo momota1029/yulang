@@ -2518,7 +2518,7 @@ row 7 snapshot-publication loopの既に完走・push済みの成果とは切り
 次に着手する際は、この4回で見えた「新規構築の失敗を正常値にすり替えない安全な
 degradation」という、まだ解けていない核心の問い自体を主題とした専用ラウンドが必要。
 
-## 2026-08-15 追記（五度目・draft）: attempt-local poisonとfinal-output terminal gateの分離
+## 2026-08-15 追記（五度目・確定・ユーザ承認済み）: attempt-local poisonとfinal-output terminal gateの分離
 
 ### 0. 本節の位置づけと戦略変更
 

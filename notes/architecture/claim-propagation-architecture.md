@@ -85,7 +85,10 @@ URR stateとroot claimを登録
         +-- one-sided lower ---- stable BoundRecordIdへproofをlink
         |
         v
-scheme_projectable_lowers(owner)
+with_legacy_projection_query（top-level traversalごとに一scope）
+        |
+        v
+ScopedLegacyProjectionQuery::scheme_projectable_lowers_in_scope(owner)
         |
         +-- projectable supportなし ---- schemeから除外
         |
@@ -169,9 +172,12 @@ independent proofまたはuncovered claimが一つでもあれば、endpointを�
 
 ## scheme projectionの共有判定
 
-`ConstraintMachine::scheme_projectable_lowers`は共有classification APIである。
-schemeへ入れるpositive lower relationは、このAPIだけが決める。
-実装は`crates/infer/src/constraints/mod.rs:603-688`にある。
+`ScopedLegacyProjectionQuery::scheme_projectable_lowers_in_scope`は共有classification APIである。
+schemeへ入れるpositive lower relationは、このscoped facadeだけが決める。callerはtop-level traversal全体を
+一回の`ConstraintMachine::with_legacy_projection_query`で包み、同じscope-local evaluation roundを再帰全体で
+共有する。scope外へ出せるのはwitness draftやcompact rootなどのowned resultだけであり、machineのraw read
+authorityやevaluator memoは出せない。実装は
+`crates/infer/src/constraints/structural_kernel/access.rs`の`ScopedLegacyProjectionQuery`にある。
 
 判定は次の通りである。
 
@@ -181,11 +187,15 @@ schemeへ入れるpositive lower relationは、このAPIだけが決める。
 | covered claimだけがある | 採用しない |
 | live coverageのないclaimがある | `Qualified`として一回採用 |
 | independent supportがある | `Qualified`として一回採用 |
-| claim metadataが壊れている | 情報を失わない側へfail-open |
+| claim metadataが壊れている | typed `ProofFailure`としてscopeをdenyし、gatewayがattempt-terminal latchへ記録 |
 
 `Qualified`は、projectableな`uncovered_claims`と`independent_supports`だけを返す。
 raw `BoundRecord`と全derivationは消さない。
 scheme provenanceがcovered siblingを再展開しないための境界がここにある。
+
+deny時にwitness/compactionが返すempty/`Incomplete`/`CompactRoot::default()`はattempt-local poisonであり、
+型意味上のfallbackではない。proof-semantic failureはgateway内でterminal latchへ先に記録され、checked compiler
+boundaryとhover/completion/member-completionのfinal-output gateがそのattemptの結果を破棄する。
 
 coverageはquery時にcompressed rootから`live_coverage_by_root`を引いて判定する。
 emptyとnon-emptyをまたぐliveness transitionはepoch mutationである。
@@ -200,15 +210,17 @@ H1、H2、H3は現在の三つの実装層を指す名前として読める。
 | 層 | 現在の責務 | 主な入口 |
 | --- | --- | --- |
 | H1 | claim identity、compressed root、live coverage、replay lineage、initial unmatched self-tag、mirror lower link | `constraints/mod.rs`、`row_effect.rs`、`machine/bounds.rs` |
-| H2 | scheme用compactionだけをclaim-aware viewへ接続 | `compact/collect/mod.rs:4-65`、`:636-681` |
+| H2 | 四つのscheme用compaction surfaceを同じscoped claim-aware viewへ接続 | `compact/surface.rs`、`compact/collect/` |
 | H3 | positive alias expansionとgeneralized witness collectionを同じviewへ接続 | `generalize/mod.rs:543-577`、`generalize/provenance.rs:174-225` |
 
 H2の`CompactCollector`は`Raw`と`SchemeProjection`のmodeをinstanceごとに固定する。
-scheme用entrypointだけが`new_for_scheme`または`new_recording_for_scheme`を使う。
-generic compaction、negative upper collection、scheme外のrole solveはrawのままである。
-entrypointは`crates/infer/src/compact/surface.rs:7-23`と同ファイル`:155-165`にある。
+positive root、negative root、merge-constraint recording、reachable role-constraint recordingの四つのscheme用
+entrypointだけが`new_for_scheme`または`new_recording_for_scheme`を一つのHRTB scope内で使う。negative upper
+collectionを含む再帰的なshape/bounds readも同じscopeのowned getterを通る。scheme外のgeneric compactionは
+`Raw` modeのままである。entrypointは`crates/infer/src/compact/surface.rs`にある。
 
-H3のalias expansionは`scheme_projectable_lowers`から得たprojectableな`Pos::Var`だけを推移的にたどる。
+H3のalias expansionとwitness captureはそれぞれtop-level traversalを一scopeで包み、
+`scheme_projectable_lowers_in_scope`から得たprojectable relationだけを推移的にたどる。
 generalized witness collectionは`Unclaimed`を従来の`Bound` parentとして扱う。
 `Qualified`はclaimを`BoundClaim`、independent supportを`BoundProjectionProof`として保存する。
 これらのparentはraw mixed record全体ではなく、選ばれたexact carrierだけへ解決される。
@@ -286,7 +298,7 @@ inner rowのcanonical lower `BoundRecordId(10439)`では`independent_supports`�
 ```
 
 9個はいずれもlive coverageを持たず、元のcovered reduction root `36823`とも異なる。
-現在の`scheme_projectable_lowers`はper-proof contractどおり、このuncovered supportがあるendpointを残す。
+現在の`scheme_projectable_lowers_in_scope`はper-proof contractどおり、このuncovered supportがあるendpointを残す。
 したがって、projectionをさらに強く抑止することは修正にならない。
 独立relationを消し、現在のmixed-proof safetyを壊すためである。
 

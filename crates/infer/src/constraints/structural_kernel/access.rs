@@ -899,10 +899,6 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         self.view.pos_var(pos)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn projection_upper_records_in_scope(
         &self,
         var: TypeVar,
@@ -910,34 +906,18 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         self.view.projection_upper_records(var)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn pos_shape_in_scope(&self, id: PosId) -> Pos {
         self.view.pos_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn neg_shape_in_scope(&self, id: NegId) -> Neg {
         self.view.neg_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn neu_shape_in_scope(&self, id: NeuId) -> Neu {
         self.view.neu_shape(id)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn role_constraint_raw_vars_in_scope(
         &self,
         constraint: &RoleConstraint,
@@ -945,18 +925,10 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         self.view.role_constraint_raw_vars(constraint)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn var_neighbors_in_scope(&self, var: TypeVar) -> Vec<TypeVar> {
         self.view.var_neighbors(var)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn pre_pop_effect_families_in_scope(
         &self,
         var: TypeVar,
@@ -964,10 +936,6 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         self.view.pre_pop_effect_families(var)
     }
 
-    #[allow(
-        dead_code,
-        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
-    )]
     pub(crate) fn subtract_facts_in_scope(&self, source: TypeVar) -> Vec<SubtractFact> {
         self.view.subtract_facts(source)
     }

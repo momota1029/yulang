@@ -12,7 +12,7 @@
 //
 // A correctness-contract: 5 CPK proof query fixtures with an explicit proof-store mirror.
 // B historical Legacy characterization: 0 after CPK-8G-6e closes all 60 retirements.
-// C semantic fixture: 9 local semantic/provenance fixtures that inspect record identity.
+// C semantic fixture: 11 local semantic/provenance fixtures that inspect record identity.
 // D fixture-construction debt: 0; the CPK-6b/CPK-7 hygiene passes migrated every known
 // oracle-active shortcut to a mirrored admission path.
 //
@@ -83,11 +83,13 @@ const CPK8_RAW_FIXTURE_WRITER_CLASSIFICATION: &[(Cpk8RawFixtureWriterClass, usiz
     // CPK-8G-2b moves twelve reviewed original-claim fixture calls behind the CPK-owned
     // allocation transaction. CPK-8G-2c moves the final two direct derived-claim fixture
     // calls behind the same CPK-owned transaction; they are no longer raw flat-store writers.
-    (Cpk8RawFixtureWriterClass::SemanticFixture, 9),
+    // The two row-1 negative-compaction oracle writes deliberately construct lower/upper
+    // semantic shape without exercising admission, propagation, or publication behavior.
+    (Cpk8RawFixtureWriterClass::SemanticFixture, 11),
     (Cpk8RawFixtureWriterClass::FixtureConstructionDebt, 0),
 ];
 
-const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 14;
+const CPK8_RAW_FIXTURE_WRITER_TOTAL: usize = 16;
 
 const CPK8_CDM_MIRRORED_FIXTURE_CALLERS: &[&str] = &[
     "cpk_0b_captures_canonical_logical_proof_surfaces_end_to_end",
