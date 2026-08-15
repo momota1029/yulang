@@ -3454,7 +3454,9 @@ fn unattributed_claim_link_fixture(
     let mutation = machine
         .try_prepare_scheme_projection_mutation(lower_record, &[claim], &[])
         .expect("test projection support mutation must have capacity");
-    machine.apply_scheme_projection_mutation(mutation);
+    machine
+        .apply_scheme_projection_mutation(mutation)
+        .expect("test scheme projection mutation must succeed");
 
     (machine, owner, lower_record, claim)
 }

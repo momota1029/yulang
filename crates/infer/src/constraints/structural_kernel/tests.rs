@@ -1,5 +1,6 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
+use std::{cell::Cell, rc::Rc};
 
 use poly::expr::DefId;
 use poly::types::{Neg, Pos, Subtractability, TypeVar};
@@ -12,6 +13,42 @@ use crate::constraints::{
     GeneralizedSchemeRecordId, LowerFilterRecordId, OriginId, ProvenanceCompleteness,
     UnweightedRowReductionRecordId, UpperReplayClaimId,
 };
+
+fn foreign_publication_round_failure() -> ProofFailure {
+    let first = ConstraintMachine::new();
+    let mut round = first.new_publication_evaluation_round();
+    let mut second = ConstraintMachine::new();
+    second
+        .with_legacy_publication_query(&mut round, |query| Ok(query.complete(())))
+        .expect_err("a round minted by another machine must fail authentication")
+}
+
+fn add_row4_test_lower(machine: &mut ConstraintMachine, seed: u32) -> BoundRecordId {
+    let owner = TypeVar(seed);
+    let endpoint = machine.alloc_pos(Pos::Var(TypeVar(seed + 1)));
+    machine
+        .bounds
+        .add_lower(
+            owner,
+            endpoint,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(OriginId::unknown_internal()),
+        )
+        .id
+}
+
+fn assert_row4_row7_canary_panic(panic: Box<dyn std::any::Any + Send>) {
+    let message = panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str));
+    assert_eq!(
+        message,
+        Some(
+            "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant"
+        )
+    );
+}
 
 const ALL_INTENTS: [I; 29] = [
     I::AppendProofOccurrence,
@@ -69,19 +106,252 @@ fn cpk_sv_d_ss2_p0_liveness_query_denial_precedes_authoritative_commit() {
 }
 
 #[test]
-fn cpk_sv_d_ss2_p0_record_inclusion_publication_propagates_query_denial() {
+#[should_panic(
+    expected = "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant"
+)]
+fn cpk_sv_d_ss2_p0_record_inclusion_publication_rejects_nonterminal_post_commit_denial() {
     let mut machine = ConstraintMachine::new();
     machine
         .proof_attempt
         .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
 
-    let result =
-        machine.evaluate_record_inclusion_publication(BoundRecordId(98_103), false, true, false);
-    assert!(matches!(result, Err(ProofFailure::TerminalLatchBusy)));
+    let _ = machine.evaluate_record_inclusion_publication(BoundRecordId(98_103), false, false);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row4_precommit_denial_blocks_commit_and_publication() {
+    let mut machine = ConstraintMachine::new();
+    let lower_record = add_row4_test_lower(&mut machine, 98_104);
+    let commits = Rc::new(Cell::new(0));
+    let mutation =
+        ConstraintMachine::test_scheme_projection_mutation(lower_record, Rc::clone(&commits));
+    let publication_before = machine.provenance_epoch;
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
+
     assert_eq!(
-        machine.proof_attempt.query_trace(),
-        (1, 1, 1, 0, 0),
-        "row 4 denial must return before scope entry or owned intent publication"
+        machine.apply_scheme_projection_mutation(mutation),
+        Err(ProofFailure::TerminalLatchBusy)
+    );
+    assert_eq!(commits.get(), 0);
+    assert_eq!(machine.provenance_epoch, publication_before);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row4_success_commits_and_publishes_exactly_once() {
+    let mut machine = ConstraintMachine::new();
+    let lower_record = add_row4_test_lower(&mut machine, 98_105);
+    let commits = Rc::new(Cell::new(0));
+    let mutation =
+        ConstraintMachine::test_scheme_projection_mutation(lower_record, Rc::clone(&commits));
+    let publication_before = machine.provenance_epoch.as_u64();
+
+    machine.apply_scheme_projection_mutation(mutation).unwrap();
+
+    assert_eq!(commits.get(), 1);
+    assert_eq!(machine.provenance_epoch.as_u64(), publication_before + 1);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row4_semantic_postcommit_failure_is_terminal_without_publication() {
+    let mut machine = ConstraintMachine::new();
+    let lower_record = add_row4_test_lower(&mut machine, 98_106);
+    let commits = Rc::new(Cell::new(0));
+    let mutation =
+        ConstraintMachine::test_scheme_projection_mutation(lower_record, Rc::clone(&commits));
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    let publication_before = machine.provenance_epoch;
+    machine
+        .proof_attempt
+        .inject_query_scope_failure_after_successful_scopes(1, failure.clone());
+
+    machine.apply_scheme_projection_mutation(mutation).unwrap();
+
+    assert_eq!(commits.get(), 1);
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+    assert_eq!(machine.provenance_epoch, publication_before);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row4_nonterminal_postcommit_denials_trip_release_canary() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+        let lower_record = add_row4_test_lower(&mut machine, 98_107);
+        let commits = Rc::new(Cell::new(0));
+        let mutation =
+            ConstraintMachine::test_scheme_projection_mutation(lower_record, Rc::clone(&commits));
+        let publication_before = machine.provenance_epoch;
+        machine
+            .proof_attempt
+            .inject_query_scope_failure_after_successful_scopes(1, failure);
+
+        let panic = catch_unwind(AssertUnwindSafe(|| {
+            let _ = machine.apply_scheme_projection_mutation(mutation);
+        }));
+        assert_row4_row7_canary_panic(
+            panic.expect_err("a post-commit non-terminal denial must trip the release canary"),
+        );
+        assert_eq!(commits.get(), 1);
+        assert_eq!(machine.provenance_epoch, publication_before);
+    }
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_defer_precommit_denial_and_success_preserve_fence_boundary() {
+    let mut denied = ConstraintMachine::new();
+    let denied_record = add_row4_test_lower(&mut denied, 98_110);
+    let denied_commits = Rc::new(Cell::new(0));
+    let denied_pushes = Rc::new(Cell::new(0));
+    denied
+        .proof_attempt
+        .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
+    let result = denied.defer_scheme_projection_mutation_for_test(
+        ConstraintMachine::test_scheme_projection_mutation(
+            denied_record,
+            Rc::clone(&denied_commits),
+        ),
+        Rc::clone(&denied_pushes),
+    );
+    assert_eq!(result, Err(ProofFailure::TerminalLatchBusy));
+    assert_eq!((denied_commits.get(), denied_pushes.get()), (0, 0));
+
+    let mut success = ConstraintMachine::new();
+    let success_record = add_row4_test_lower(&mut success, 98_112);
+    let success_commits = Rc::new(Cell::new(0));
+    let success_pushes = Rc::new(Cell::new(0));
+    success
+        .defer_scheme_projection_mutation_for_test(
+            ConstraintMachine::test_scheme_projection_mutation(
+                success_record,
+                Rc::clone(&success_commits),
+            ),
+            Rc::clone(&success_pushes),
+        )
+        .unwrap();
+    assert_eq!((success_commits.get(), success_pushes.get()), (1, 1));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_defer_postcommit_denials_use_canary_or_terminal_branch() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+        let record = add_row4_test_lower(&mut machine, 98_114);
+        let commits = Rc::new(Cell::new(0));
+        let pushes = Rc::new(Cell::new(0));
+        machine
+            .proof_attempt
+            .inject_query_scope_failure_after_successful_scopes(1, failure);
+        let panic = catch_unwind(AssertUnwindSafe(|| {
+            let _ = machine.defer_scheme_projection_mutation_for_test(
+                ConstraintMachine::test_scheme_projection_mutation(record, Rc::clone(&commits)),
+                Rc::clone(&pushes),
+            );
+        }));
+        assert_row4_row7_canary_panic(panic.expect_err("defer canary must panic"));
+        assert_eq!((commits.get(), pushes.get()), (1, 0));
+    }
+
+    let mut machine = ConstraintMachine::new();
+    let record = add_row4_test_lower(&mut machine, 98_116);
+    let commits = Rc::new(Cell::new(0));
+    let pushes = Rc::new(Cell::new(0));
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    machine
+        .proof_attempt
+        .inject_query_scope_failure_after_successful_scopes(1, failure.clone());
+    machine
+        .defer_scheme_projection_mutation_for_test(
+            ConstraintMachine::test_scheme_projection_mutation(record, Rc::clone(&commits)),
+            Rc::clone(&pushes),
+        )
+        .unwrap();
+    assert_eq!((commits.get(), pushes.get()), (1, 0));
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row7_precommit_denial_blocks_clause_commit() {
+    let mut machine = ConstraintMachine::new();
+    let record = add_row4_test_lower(&mut machine, 98_118);
+    machine
+        .proof_attempt
+        .inject_query_scope_failure(ProofFailure::TerminalLatchBusy);
+    assert_eq!(
+        machine.exercise_row7_clause_link_for_test(record),
+        Err(ProofFailure::TerminalLatchBusy)
+    );
+    assert!(!machine.row7_clause_link_exists_for_test(record));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row7_postcommit_denials_and_success_preserve_publication_boundary() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+        let record = add_row4_test_lower(&mut machine, 98_120);
+        let publication_before = machine.provenance_epoch;
+        machine
+            .proof_attempt
+            .inject_query_scope_failure_after_successful_scopes(1, failure);
+        let panic = catch_unwind(AssertUnwindSafe(|| {
+            let _ = machine.exercise_row7_clause_link_for_test(record);
+        }));
+        assert_row4_row7_canary_panic(panic.expect_err("row 7 canary must panic"));
+        assert!(machine.row7_clause_link_exists_for_test(record));
+        assert_eq!(machine.provenance_epoch, publication_before);
+    }
+
+    let mut semantic = ConstraintMachine::new();
+    let record = add_row4_test_lower(&mut semantic, 98_122);
+    let publication_before = semantic.provenance_epoch;
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    semantic
+        .proof_attempt
+        .inject_query_scope_failure_after_successful_scopes(1, failure.clone());
+    semantic.exercise_row7_clause_link_for_test(record).unwrap();
+    assert!(semantic.row7_clause_link_exists_for_test(record));
+    assert_eq!(semantic.proof_terminal_failure(), Some(failure));
+    assert_eq!(semantic.provenance_epoch, publication_before);
+
+    let mut success = ConstraintMachine::new();
+    let record = add_row4_test_lower(&mut success, 98_124);
+    success
+        .exercise_row7_self_cycle_clause_link_for_test(record)
+        .unwrap();
+    let publication_before = success.provenance_epoch.as_u64();
+    assert!(
+        !success
+            .scheme_projection_record_is_included_in_fresh_scope(record)
+            .unwrap(),
+        "the row-7 positive fixture must begin excluded"
+    );
+    success.exercise_row7_clause_link_for_test(record).unwrap();
+    assert!(success.row7_clause_link_exists_for_test(record));
+    assert!(
+        success
+            .scheme_projection_record_is_included_in_fresh_scope(record)
+            .unwrap(),
+        "the committed standalone clause must make the row-7 fixture projectable"
+    );
+    assert_eq!(
+        success.provenance_epoch.as_u64(),
+        publication_before + 1,
+        "the false-to-true row-7 transition must publish exactly once"
     );
 }
 

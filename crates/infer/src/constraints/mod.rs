@@ -554,6 +554,11 @@ enum SchemeProjectionMutation {
         lower_record: BoundRecordId,
         prepared: proof::PreparedProjectionSupportMutation,
     },
+    #[cfg(test)]
+    TestOnly {
+        lower_record: BoundRecordId,
+        commits: std::rc::Rc<std::cell::Cell<usize>>,
+    },
 }
 
 enum SchemeProjectionPublicationIntent {
@@ -1491,52 +1496,51 @@ impl ConstraintMachine {
         })
     }
 
-    fn apply_scheme_projection_mutation(&mut self, mut mutation: SchemeProjectionMutation) {
-        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
+    fn apply_scheme_projection_mutation(
+        &mut self,
+        mut mutation: SchemeProjectionMutation,
+    ) -> proof::ProofKernelResult<()> {
+        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation)?;
         self.commit_scheme_projection_mutation(&mut mutation);
-        let intent = match self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
+        if let Some(intent) =
+            self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
         {
-            Ok(intent) => intent,
-            Err(failure) => {
-                if failure.requires_attempt_terminal() {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::ProjectLowerEvaluation,
-                        failure,
-                    );
-                }
-                return;
-            }
-        };
-        self.publish_scheme_projection_intent(intent);
+            self.publish_scheme_projection_intent(intent);
+        }
+        Ok(())
     }
 
     fn cpk_projection_mutation_inclusion_before(
-        &self,
+        &mut self,
         mutation: &SchemeProjectionMutation,
-    ) -> Option<bool> {
-        let SchemeProjectionMutation::ProofsChanged { lower_record, .. } = mutation else {
-            return None;
+    ) -> proof::ProofKernelResult<Option<bool>> {
+        let lower_record = match mutation {
+            SchemeProjectionMutation::None => return Ok(None),
+            SchemeProjectionMutation::ProofsChanged { lower_record, .. } => *lower_record,
+            #[cfg(test)]
+            SchemeProjectionMutation::TestOnly { lower_record, .. } => *lower_record,
         };
-        Some(self.scheme_projection_record_is_included(*lower_record))
+        self.scheme_projection_record_is_included_in_fresh_scope(lower_record)
+            .map(Some)
     }
 
     fn evaluate_cpk_scheme_projection_mutation(
         &mut self,
         mutation: SchemeProjectionMutation,
         inclusion_before: Option<bool>,
-    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
+    ) -> Option<SchemeProjectionPublicationIntent> {
         match mutation {
-            SchemeProjectionMutation::None => Ok(SchemeProjectionPublicationIntent::None),
+            SchemeProjectionMutation::None => Some(SchemeProjectionPublicationIntent::None),
             SchemeProjectionMutation::ProofsChanged { lower_record, .. } => {
                 let was_included = inclusion_before
                     .expect("a proof mutation captures its CPK before view before commit");
-                let is_included = self.scheme_projection_record_is_included(lower_record);
-                self.evaluate_record_inclusion_publication(
-                    lower_record,
-                    was_included,
-                    is_included,
-                    true,
-                )
+                self.evaluate_record_inclusion_publication(lower_record, was_included, true)
+            }
+            #[cfg(test)]
+            SchemeProjectionMutation::TestOnly { lower_record, .. } => {
+                let was_included = inclusion_before
+                    .expect("a test mutation captures its CPK before view before commit");
+                self.evaluate_record_inclusion_publication(lower_record, was_included, true)
             }
         }
     }
@@ -1841,11 +1845,27 @@ impl ConstraintMachine {
     }
 
     fn commit_scheme_projection_mutation(&mut self, mutation: &mut SchemeProjectionMutation) {
-        let SchemeProjectionMutation::ProofsChanged { prepared, .. } = mutation else {
-            return;
-        };
-        self.proof_store
-            .commit_projection_support_mutation(prepared);
+        match mutation {
+            SchemeProjectionMutation::None => {}
+            SchemeProjectionMutation::ProofsChanged { prepared, .. } => self
+                .proof_store
+                .commit_projection_support_mutation(prepared),
+            #[cfg(test)]
+            SchemeProjectionMutation::TestOnly { commits, .. } => {
+                commits.set(commits.get() + 1);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn test_scheme_projection_mutation(
+        lower_record: BoundRecordId,
+        commits: std::rc::Rc<std::cell::Cell<usize>>,
+    ) -> SchemeProjectionMutation {
+        SchemeProjectionMutation::TestOnly {
+            lower_record,
+            commits,
+        }
     }
 
     #[cfg(test)]
@@ -1901,36 +1921,59 @@ impl ConstraintMachine {
         &mut self,
         lower_record: BoundRecordId,
         was_included: bool,
-        is_included: bool,
         metadata_changed: bool,
-    ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
-        if was_included == is_included {
-            return Ok(if metadata_changed {
-                SchemeProjectionPublicationIntent::MetadataOnly
-            } else {
-                SchemeProjectionPublicationIntent::None
-            });
-        }
-
+    ) -> Option<SchemeProjectionPublicationIntent> {
         let mut round = self.new_publication_evaluation_round();
-        let intent = self.with_legacy_publication_query(&mut round, |query| {
-            let intent = Self::evaluate_record_inclusion_publication_in_scope(
+        let result = self.with_legacy_publication_query(&mut round, |query| {
+            let (intent, is_included) = Self::evaluate_record_inclusion_publication_in_scope(
                 &query,
                 lower_record,
                 was_included,
+                metadata_changed,
             );
-            Ok(query.complete(intent))
-        })?;
+            Ok(query.complete((intent, is_included)))
+        });
+        let (intent, is_included) = match result {
+            Ok(result) => result,
+            Err(failure) => {
+                assert!(
+                    failure.requires_attempt_terminal(),
+                    "row 4/7 post-commit non-terminal denial invalidates the reviewed same-machine round-locality invariant",
+                );
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return None;
+            }
+        };
+        #[cfg(not(test))]
+        let _ = is_included;
         #[cfg(test)]
         self.record_semantic_projectability_transition(lower_record, was_included, is_included);
-        Ok(intent)
+        Some(intent)
     }
 
     fn evaluate_record_inclusion_publication_in_scope(
         query: &ScopedLegacyPublicationQuery<'_>,
         lower_record: BoundRecordId,
         was_included: bool,
-    ) -> SchemeProjectionPublicationIntent {
+        metadata_changed: bool,
+    ) -> (SchemeProjectionPublicationIntent, bool) {
+        let is_included = {
+            let mut after_lane = ScopedCpkPublicationEvaluationLane::new(query);
+            after_lane.eval_record(lower_record)
+        };
+        if was_included == is_included {
+            let intent = if metadata_changed {
+                SchemeProjectionPublicationIntent::MetadataOnly
+            } else {
+                SchemeProjectionPublicationIntent::None
+            };
+            return (intent, is_included);
+        }
         let affected_records = query.projection_record_dependents(lower_record);
         let mut before_lane = ScopedCpkPublicationEvaluationLane::with_record_result_override(
             query,
@@ -1949,11 +1992,26 @@ impl ConstraintMachine {
         if let Some(owner) = query.active_projection_record_owner(lower_record) {
             affected_owners.insert(owner);
         }
-        if affected_owners.is_empty() {
+        let intent = if affected_owners.is_empty() {
             SchemeProjectionPublicationIntent::MetadataOnly
         } else {
             SchemeProjectionPublicationIntent::OwnersChanged(affected_owners)
-        }
+        };
+        (intent, is_included)
+    }
+
+    fn scheme_projection_record_is_included_in_fresh_scope(
+        &mut self,
+        lower_record: BoundRecordId,
+    ) -> proof::ProofKernelResult<bool> {
+        let mut round = self.new_publication_evaluation_round();
+        self.with_legacy_publication_query(&mut round, |query| {
+            let is_included = {
+                let mut lane = ScopedCpkPublicationEvaluationLane::new(&query);
+                lane.eval_record(lower_record)
+            };
+            Ok(query.complete(is_included))
+        })
     }
 
     fn try_evaluate_projection_inclusion_snapshot(

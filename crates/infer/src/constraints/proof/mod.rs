@@ -17364,7 +17364,9 @@ mod tests {
         let support_mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[claim], &[])
             .expect("move fixture support mutation");
-        machine.apply_scheme_projection_mutation(support_mutation);
+        machine
+            .apply_scheme_projection_mutation(support_mutation)
+            .expect("test scheme projection mutation must succeed");
         machine.proof_store.record_projection_clause(
             record,
             RecordProofClauseLinkAdmission::claimed(
@@ -17440,7 +17442,9 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[root], &[])
             .expect("live-row fixture support mutation");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         let support = SchemeProjectionProofSupport::Claimed(root);
         machine.proof_store.record_projection_clause(
             record,
@@ -19045,7 +19049,9 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[claim], &[])
             .expect("rekey stress support mutation");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         machine.proof_store.record_projection_clause(
             record,
             RecordProofClauseLinkAdmission::claimed(
@@ -19513,7 +19519,8 @@ mod tests {
         );
         fixture
             .machine
-            .apply_scheme_projection_mutation(second.scheme_projection_mutation);
+            .apply_scheme_projection_mutation(second.scheme_projection_mutation)
+            .expect("test scheme projection mutation must succeed");
         let second_admission = RecordProofClauseLinkAdmission::claimed(
             second.claim,
             RecordProofClause::Standalone {
@@ -19640,14 +19647,18 @@ mod tests {
         );
         fixture
             .machine
-            .apply_scheme_projection_mutation(second.scheme_projection_mutation);
+            .apply_scheme_projection_mutation(second.scheme_projection_mutation)
+            .expect("test scheme projection mutation must succeed");
         let claims = [fixture.coverage_root, second.claim];
         let record = cpk_gap_1_projection_record(&mut fixture.machine, 97_119);
         let mutation = fixture
             .machine
             .try_prepare_scheme_projection_mutation(record, &claims, &[])
             .expect("multi-arm fixture support mutation must have capacity");
-        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         for (claim, producer) in claims
             .into_iter()
             .zip([ConstraintRecordId(10_000), ConstraintRecordId(10_001)])
@@ -19748,7 +19759,10 @@ mod tests {
             .machine
             .try_prepare_scheme_projection_mutation(record, &[claim], &[])
             .expect("standalone tie fixture support mutation");
-        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
 
         let mismatched_clause = RecordProofClause::Standalone {
             support: SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Incomplete),
@@ -20248,7 +20262,9 @@ mod tests {
                 &[ProjectionProofCarrier::Incomplete],
             )
             .expect("test projection support mutation must have capacity");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         machine.register_cpk_projection_clause_for_test(
             record,
             RecordProofClauseLinkAdmission::independent(
@@ -21391,7 +21407,9 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[], &[carrier])
             .expect("duplicate support preflight must remain infallible");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
 
         assert_eq!(
             PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(Cell::get),
@@ -21407,12 +21425,16 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[claim], &[])
             .expect("new claimed support preflight must have capacity");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(|cell| cell.set(0));
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[claim], &[])
             .expect("duplicate claimed support preflight must remain infallible");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         assert_eq!(
             PROJECTION_SUPPORT_PREPARE_COPIED_ENTRIES.with(Cell::get),
             0,
@@ -21465,7 +21487,9 @@ mod tests {
                 &[ProjectionProofCarrier::Incomplete],
             )
             .expect("the next transaction must reuse the unchanged state");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         assert_eq!(
             machine.proof_store.projection_supports[&record],
             vec![SchemeProjectionProofSupport::Independent(
@@ -22090,7 +22114,9 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(mixed_record, &[], &[independent])
             .expect("test projection support mutation must have capacity");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         machine.register_cpk_projection_clause_for_test(
             mixed_record,
             RecordProofClauseLinkAdmission::independent(
@@ -22860,7 +22886,10 @@ mod tests {
             .machine
             .try_prepare_scheme_projection_mutation(record, &[fixture.coverage_root], &[])
             .expect("test projection support mutation must have capacity");
-        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         fixture.machine.register_cpk_projection_clause_for_test(
             record,
             RecordProofClauseLinkAdmission::claimed(
@@ -22904,7 +22933,10 @@ mod tests {
             .machine
             .try_prepare_scheme_projection_mutation(record, &[replacement_claim], &[])
             .expect("test projection support mutation must have capacity");
-        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         let expected = ProjectionDecision::Included {
             supports: ProjectionSupportSet {
                 uncovered_claims: vec![ProjectionClaimSupport {
@@ -23170,7 +23202,9 @@ mod tests {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(record, &[], &[carrier])
             .expect("test projection support mutation must have capacity");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         support
     }
 
@@ -23210,7 +23244,9 @@ mod tests {
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
         );
-        machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+        machine
+            .apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+            .expect("test scheme projection mutation must succeed");
         CpkReplayAdmissionFixture {
             machine,
             result,

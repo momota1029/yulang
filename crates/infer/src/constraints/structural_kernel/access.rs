@@ -48,7 +48,7 @@ pub(in crate::constraints) struct ProofAttemptKernel {
     terminal_failure: RefCell<Option<ProofFailure>>,
     structural: ProofStructuralState,
     #[cfg(test)]
-    injected_query_scope_failure: RefCell<Option<ProofFailure>>,
+    injected_query_scope_failure: RefCell<Option<(usize, ProofFailure)>>,
     #[cfg(test)]
     injected_post_scope_failure: RefCell<Option<ProofFailure>>,
     #[cfg(test)]
@@ -204,7 +204,7 @@ impl ProofAttemptKernel {
         // 5. Construction and the query closure share one authenticated failure path.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
             #[cfg(test)]
-            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+            if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
             let scope = ScopedProjectionQuery::try_new(
@@ -272,7 +272,7 @@ impl ProofAttemptKernel {
         // Steps 4--5: fresh invocation-local state and one HRTB scope.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
             #[cfg(test)]
-            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+            if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
             let scope = ScopedPublicationProjectionQuery::try_new(
@@ -340,7 +340,7 @@ impl ProofAttemptKernel {
         // 5. The all-legacy sources and all invocation state live inside this HRTB call.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
             #[cfg(test)]
-            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+            if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
             let scope = ScopedLegacyProjectionQuery::try_new(
@@ -409,7 +409,7 @@ impl ProofAttemptKernel {
         // Steps 4--5: P0 sources and publication memo state are invocation-local.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
             #[cfg(test)]
-            if let Some(failure) = self.injected_query_scope_failure.borrow_mut().take() {
+            if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
             let scope = ScopedLegacyPublicationQuery::try_new(
@@ -1253,7 +1253,15 @@ impl ProofAttemptKernel {
     }
 
     pub(super) fn inject_query_scope_failure(&self, failure: ProofFailure) {
-        *self.injected_query_scope_failure.borrow_mut() = Some(failure);
+        *self.injected_query_scope_failure.borrow_mut() = Some((0, failure));
+    }
+
+    pub(super) fn inject_query_scope_failure_after_successful_scopes(
+        &self,
+        successful_scopes: usize,
+        failure: ProofFailure,
+    ) {
+        *self.injected_query_scope_failure.borrow_mut() = Some((successful_scopes, failure));
     }
 
     pub(super) fn inject_post_scope_failure(&self, failure: ProofFailure) {
@@ -1268,6 +1276,16 @@ impl ProofAttemptKernel {
             self.query_trace.scope_entries.get(),
             self.query_trace.post_scope_checks.get(),
         )
+    }
+
+    fn take_injected_query_scope_failure(&self) -> Option<ProofFailure> {
+        let mut injection = self.injected_query_scope_failure.borrow_mut();
+        let (remaining, _) = injection.as_mut()?;
+        if *remaining > 0 {
+            *remaining -= 1;
+            return None;
+        }
+        injection.take().map(|(_, failure)| failure)
     }
 
     pub(super) fn reset_query_trace(&self) {

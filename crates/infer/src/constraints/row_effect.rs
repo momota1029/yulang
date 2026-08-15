@@ -517,7 +517,8 @@ impl ConstraintMachine {
                     return None;
                 }
             };
-            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+                .ok()?;
             let claim = registration.claim;
             self.insert_scheme_projection_live_coverage_state(claim, id);
             Some(claim)

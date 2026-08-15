@@ -82,9 +82,20 @@ enum ProjectionClauseCommitPolicy {
     SiblingMutationAlreadyCommitted,
 }
 
-#[derive(Default)]
 struct ReplayAdmissionPublicationFence {
     intents: Vec<SchemeProjectionPublicationIntent>,
+    #[cfg(test)]
+    observed_pushes: Option<std::rc::Rc<std::cell::Cell<usize>>>,
+}
+
+impl Default for ReplayAdmissionPublicationFence {
+    fn default() -> Self {
+        Self {
+            intents: Vec::new(),
+            #[cfg(test)]
+            observed_pushes: None,
+        }
+    }
 }
 
 impl ReplayAdmissionPublicationFence {
@@ -95,6 +106,10 @@ impl ReplayAdmissionPublicationFence {
                 operation: proof::ProofOperation::UpdateClaimLifecycle,
             })?;
         self.intents.push(intent);
+        #[cfg(test)]
+        if let Some(pushes) = &self.observed_pushes {
+            pushes.set(pushes.get() + 1);
+        }
         Ok(())
     }
 }
@@ -907,7 +922,12 @@ impl ConstraintMachine {
             ) else {
                 return claims;
             };
-            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            if self
+                .apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+                .is_err()
+            {
+                return claims;
+            }
             claims.push(registration.claim);
         }
         claims
@@ -1003,9 +1023,11 @@ impl ConstraintMachine {
                 }),
         }?;
         if let Some(fence) = publication_fence {
-            self.defer_scheme_projection_mutation(fence, registration.scheme_projection_mutation);
+            self.defer_scheme_projection_mutation(fence, registration.scheme_projection_mutation)
+                .ok()?;
         } else {
-            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+            self.apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+                .ok()?;
         }
         Some(registration.claim)
     }
@@ -1017,8 +1039,9 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
     ) {
-        let snapshot =
-            self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
+        let snapshot = self
+            .commit_claim_parent_clause_links_mutation(result, lower_record, parents)
+            .expect("test clause-link pre-read must succeed");
         self.seal_record_proof_clause_link_batch(snapshot, None);
     }
 
@@ -1027,7 +1050,7 @@ impl ConstraintMachine {
         result: ConstraintRecordId,
         lower_record: BoundRecordId,
         parents: &[ClaimQualifiedParent],
-    ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
+    ) -> ProofKernelResult<Option<ClauseLinkBatchAdmissionSnapshot>> {
         let preflight =
             self.preflight_claim_parent_clause_links(result, lower_record, parents.iter().copied());
         self.commit_record_proof_clause_link_batch_mutation(
@@ -1050,11 +1073,11 @@ impl ConstraintMachine {
             lower_record,
             associations.map(|entry| entry.parent),
         );
-        Ok(self.commit_record_proof_clause_link_batch_mutation(
+        self.commit_record_proof_clause_link_batch_mutation(
             lower_record,
             preflight.links,
             ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
-        ))
+        )
     }
 
     fn preflight_claim_parent_clause_links(
@@ -1138,7 +1161,18 @@ impl ConstraintMachine {
         // Phase A is unconditional. Only after Phase B has made the factored occurrence/parent
         // view current may the pending after-view be evaluated and published.
         let snapshot =
-            self.commit_claim_parent_clause_links_mutation(result, lower_record, parents);
+            match self.commit_claim_parent_clause_links_mutation(result, lower_record, parents) {
+                Ok(snapshot) => snapshot,
+                Err(failure) => {
+                    if failure.requires_attempt_terminal() {
+                        self.mark_proof_terminal_failure(
+                            proof::ProofOperation::ProjectLowerEvaluation,
+                            failure,
+                        );
+                    }
+                    return;
+                }
+            };
         if self.proof_terminal_failure().is_none() {
             self.seal_record_proof_clause_link_batch(snapshot, publication_fence);
         }
@@ -1219,12 +1253,17 @@ impl ConstraintMachine {
         {
             return;
         }
-        self.commit_record_proof_clause_link_batch_with_fence(
-            lower_record,
-            [admission],
-            None,
-            policy,
-        );
+        if self
+            .commit_record_proof_clause_link_batch_with_fence(
+                lower_record,
+                [admission],
+                None,
+                policy,
+            )
+            .is_err()
+        {
+            return;
+        }
     }
 
     #[cfg(test)]
@@ -1284,13 +1323,14 @@ impl ConstraintMachine {
         links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
         publication_fence: Option<&mut ReplayAdmissionPublicationFence>,
         policy: ProjectionClauseCommitPolicy,
-    ) {
+    ) -> ProofKernelResult<()> {
         let Some(snapshot) =
-            self.commit_record_proof_clause_link_batch_mutation(lower_record, links, policy)
+            self.commit_record_proof_clause_link_batch_mutation(lower_record, links, policy)?
         else {
-            return;
+            return Ok(());
         };
         self.seal_record_proof_clause_link_batch(Some(snapshot), publication_fence);
+        Ok(())
     }
 
     fn seal_record_proof_clause_link_batch(
@@ -1302,15 +1342,8 @@ impl ConstraintMachine {
             return;
         };
         if let Some(fence) = publication_fence {
-            let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
-                Ok(intent) => intent,
-                Err(failure) => {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::ProjectLowerEvaluation,
-                        failure,
-                    );
-                    return;
-                }
+            let Some(intent) = self.try_evaluate_record_proof_clause_link_batch(&snapshot) else {
+                return;
             };
             self.defer_replay_admission_publication(fence, intent);
         } else {
@@ -1323,12 +1356,13 @@ impl ConstraintMachine {
         lower_record: BoundRecordId,
         links: impl IntoIterator<Item = RecordProofClauseLinkAdmission>,
         policy: ProjectionClauseCommitPolicy,
-    ) -> Option<ClauseLinkBatchAdmissionSnapshot> {
+    ) -> ProofKernelResult<Option<ClauseLinkBatchAdmissionSnapshot>> {
         let links = links.into_iter().collect::<Vec<_>>();
         if links.is_empty() {
-            return None;
+            return Ok(None);
         }
-        let was_included = self.scheme_projection_record_is_included(lower_record);
+        let was_included =
+            self.scheme_projection_record_is_included_in_fresh_scope(lower_record)?;
         let commit_result = match policy {
             ProjectionClauseCommitPolicy::FormulaOnlyRetryable => self
                 .proof_store
@@ -1350,13 +1384,13 @@ impl ConstraintMachine {
         };
         let committed = match commit_result {
             Ok(Some(committed)) => committed,
-            Ok(None) => return None,
+            Ok(None) => return Ok(None),
             Err(failure) => {
                 self.mark_proof_terminal_failure(
                     proof::ProofOperation::UpdateClaimLifecycle,
                     failure,
                 );
-                return None;
+                return Ok(None);
             }
         };
         let mut inserted_clauses = Vec::new();
@@ -1391,10 +1425,10 @@ impl ConstraintMachine {
                 }
             }
         }
-        Some(ClauseLinkBatchAdmissionSnapshot {
+        Ok(Some(ClauseLinkBatchAdmissionSnapshot {
             lower_record,
             was_included,
-        })
+        }))
     }
 
     #[cfg(test)]
@@ -1408,6 +1442,7 @@ impl ConstraintMachine {
             links.iter().copied(),
             ProjectionClauseCommitPolicy::FormulaOnlyRetryable,
         )
+        .expect("test clause-link pre-read must succeed")
         .is_some()
     }
 
@@ -1415,15 +1450,8 @@ impl ConstraintMachine {
         &mut self,
         snapshot: ClauseLinkBatchAdmissionSnapshot,
     ) {
-        let intent = match self.try_evaluate_record_proof_clause_link_batch(&snapshot) {
-            Ok(intent) => intent,
-            Err(failure) => {
-                self.mark_proof_terminal_failure(
-                    proof::ProofOperation::ProjectLowerEvaluation,
-                    failure,
-                );
-                return;
-            }
+        let Some(intent) = self.try_evaluate_record_proof_clause_link_batch(&snapshot) else {
+            return;
         };
         if self.proof_terminal_failure().is_some() {
             return;
@@ -1476,12 +1504,10 @@ impl ConstraintMachine {
     fn try_evaluate_record_proof_clause_link_batch(
         &mut self,
         snapshot: &ClauseLinkBatchAdmissionSnapshot,
-    ) -> ProofKernelResult<SchemeProjectionPublicationIntent> {
-        let is_included = self.scheme_projection_record_is_included(snapshot.lower_record);
+    ) -> Option<SchemeProjectionPublicationIntent> {
         self.evaluate_record_inclusion_publication(
             snapshot.lower_record,
             snapshot.was_included,
-            is_included,
             false,
         )
     }
@@ -1893,26 +1919,105 @@ impl ConstraintMachine {
         &mut self,
         fence: &mut ReplayAdmissionPublicationFence,
         mut mutation: SchemeProjectionMutation,
-    ) {
+    ) -> ProofKernelResult<()> {
         if self.proof_terminal_failure().is_some() {
-            return;
+            return Ok(());
         }
-        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation);
+        let inclusion_before = self.cpk_projection_mutation_inclusion_before(&mutation)?;
         self.commit_scheme_projection_mutation(&mut mutation);
-        let intent = match self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
+        if let Some(intent) =
+            self.evaluate_cpk_scheme_projection_mutation(mutation, inclusion_before)
         {
-            Ok(intent) => intent,
-            Err(failure) => {
-                if failure.requires_attempt_terminal() {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::ProjectLowerEvaluation,
-                        failure,
-                    );
-                }
-                return;
-            }
+            self.defer_replay_admission_publication(fence, intent);
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn defer_scheme_projection_mutation_for_test(
+        &mut self,
+        mutation: SchemeProjectionMutation,
+        observed_pushes: std::rc::Rc<std::cell::Cell<usize>>,
+    ) -> ProofKernelResult<()> {
+        let mut fence = ReplayAdmissionPublicationFence {
+            intents: Vec::new(),
+            observed_pushes: Some(observed_pushes),
         };
-        self.defer_replay_admission_publication(fence, intent);
+        self.defer_scheme_projection_mutation(&mut fence, mutation)
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_row7_clause_link_for_test(
+        &mut self,
+        lower_record: BoundRecordId,
+    ) -> ProofKernelResult<()> {
+        let carrier = ProjectionProofCarrier::Origin(OriginId::unknown_internal());
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::Standalone { support },
+        );
+        let Some(snapshot) = self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            [admission],
+            ProjectionClauseCommitPolicy::FormulaOnlyRetryable,
+        )?
+        else {
+            return Ok(());
+        };
+        self.seal_record_proof_clause_link_batch(Some(snapshot), None);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_row7_self_cycle_clause_link_for_test(
+        &mut self,
+        lower_record: BoundRecordId,
+    ) -> ProofKernelResult<()> {
+        let carrier = ProjectionProofCarrier::Origin(OriginId::unknown_internal());
+        let support = SchemeProjectionProofSupport::Independent(carrier);
+        self.proof_store.record_projection_supports(
+            lower_record,
+            &[SchemeProjectionProof {
+                lower_record,
+                support,
+            }],
+        );
+        let admission = RecordProofClauseLinkAdmission::independent(
+            support,
+            RecordProofClause::DerivedUnary {
+                carrier: DerivedUnaryCarrier::Structural(StructuralDerivation {
+                    parent: ConstraintRecordId(98_125),
+                    rule: StructuralDerivationRule::FunctionReturn,
+                }),
+                premise: ProofPremise::Record(lower_record),
+            },
+        );
+        let Some(snapshot) = self.commit_record_proof_clause_link_batch_mutation(
+            lower_record,
+            [admission],
+            ProjectionClauseCommitPolicy::FormulaOnlyRetryable,
+        )?
+        else {
+            return Ok(());
+        };
+        self.seal_record_proof_clause_link_batch(Some(snapshot), None);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn row7_clause_link_exists_for_test(
+        &self,
+        lower_record: BoundRecordId,
+    ) -> bool {
+        let support = SchemeProjectionProofSupport::Independent(ProjectionProofCarrier::Origin(
+            OriginId::unknown_internal(),
+        ));
+        self.proof_store.projection_clause_link_is_registered(
+            lower_record,
+            support,
+            RecordProofClause::Standalone { support },
+        )
     }
 
     fn publish_replay_admission_publication_fence(
@@ -2144,9 +2249,16 @@ impl ConstraintMachine {
             }
         };
         if let Some(fence) = publication_fence.as_deref_mut() {
-            self.defer_scheme_projection_mutation(fence, mutation);
+            if self
+                .defer_scheme_projection_mutation(fence, mutation)
+                .is_err()
+            {
+                return;
+            }
         } else {
-            self.apply_scheme_projection_mutation(mutation);
+            if self.apply_scheme_projection_mutation(mutation).is_err() {
+                return;
+            }
         }
         let mut pending_links = Vec::new();
         let mut batch_link_keys = FxHashSet::default();
@@ -2168,12 +2280,17 @@ impl ConstraintMachine {
         if pending_links.is_empty() {
             return;
         }
-        self.commit_record_proof_clause_link_batch_with_fence(
-            lower_record,
-            pending_links,
-            publication_fence,
-            ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
-        );
+        if self
+            .commit_record_proof_clause_link_batch_with_fence(
+                lower_record,
+                pending_links,
+                publication_fence,
+                ProjectionClauseCommitPolicy::SiblingMutationAlreadyCommitted,
+            )
+            .is_err()
+        {
+            return;
+        }
     }
 
     #[cfg(test)]
@@ -2351,7 +2468,8 @@ impl ConstraintMachine {
         let mutation = self
             .try_prepare_scheme_projection_mutation(lower_record, &claims, &independent_supports)
             .expect("bulk projection oracle must have capacity");
-        self.apply_scheme_projection_mutation(mutation);
+        self.apply_scheme_projection_mutation(mutation)
+            .expect("bulk projection oracle mutation must succeed");
     }
 
     #[cfg(test)]
@@ -2361,7 +2479,8 @@ impl ConstraintMachine {
         let mutation = self
             .try_prepare_scheme_projection_mutation(lower_record, &[], &supports)
             .expect("bulk projection oracle must have capacity");
-        self.apply_scheme_projection_mutation(mutation);
+        self.apply_scheme_projection_mutation(mutation)
+            .expect("bulk projection oracle mutation must succeed");
     }
 
     #[cfg(test)]
@@ -2591,11 +2710,22 @@ impl ConstraintMachine {
                     }
                 }
             } else {
-                self.commit_claim_parent_clause_links_mutation(
+                match self.commit_claim_parent_clause_links_mutation(
                     result,
                     lower_record,
                     &inserted_parents,
-                )
+                ) {
+                    Ok(snapshot) => snapshot,
+                    Err(failure) => {
+                        if failure.requires_attempt_terminal() {
+                            self.mark_proof_terminal_failure(
+                                proof::ProofOperation::ProjectLowerEvaluation,
+                                failure,
+                            );
+                        }
+                        None
+                    }
+                }
             }
         } else {
             None
@@ -3609,7 +3739,12 @@ impl ConstraintMachine {
                     ) else {
                         return;
                     };
-                    self.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+                    if self
+                        .apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+                        .is_err()
+                    {
+                        return;
+                    }
                     self.register_replay_evidence_clause_link(
                         lower_record,
                         parent.claim,
@@ -4698,7 +4833,9 @@ mod mutation_tests {
                     &[ProjectionProofCarrier::Incomplete],
                 )
                 .expect("test projection support mutation must have capacity");
-            machine.apply_scheme_projection_mutation(mutation);
+            machine
+                .apply_scheme_projection_mutation(mutation)
+                .expect("cycle-guard fixture projection mutation must succeed");
             let cycle_clause = RecordProofClause::DerivedUnary {
                 carrier: dpn_b_synthetic_unary_carrier(3),
                 premise: ProofPremise::Record(dependent),
@@ -5081,7 +5218,10 @@ mod mutation_tests {
                 &[ProjectionProofCarrier::Origin(OriginId::unknown_internal())],
             )
             .expect("test projection support mutation must have capacity");
-        fixture.machine.apply_scheme_projection_mutation(mutation);
+        fixture
+            .machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("logical-proof fixture projection mutation must succeed");
 
         let child_lower = fixture
             .machine
@@ -5217,7 +5357,9 @@ mod mutation_tests {
             ConstraintRecordId(10_000),
             UpperReplayClaimKind::Direct,
         );
-        machine.apply_scheme_projection_mutation(registration.scheme_projection_mutation);
+        machine
+            .apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+            .expect("replay-claim fixture projection mutation must succeed");
         let coverage_root = registration.claim;
 
         CdmReplayClaimFixture {

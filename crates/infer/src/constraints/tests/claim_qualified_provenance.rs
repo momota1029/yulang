@@ -289,7 +289,9 @@ fn claim_qualified_fixture(lineage: LineageCase) -> ClaimQualifiedFixture {
         let mutation = machine
             .try_prepare_scheme_projection_mutation(audit_bound, &[selected_claim], &[])
             .expect("test projection support mutation must have capacity");
-        machine.apply_scheme_projection_mutation(mutation);
+        machine
+            .apply_scheme_projection_mutation(mutation)
+            .expect("test scheme projection mutation must succeed");
         let root = machine
             .proof_store
             .claim_coverage_root(selected_claim)
