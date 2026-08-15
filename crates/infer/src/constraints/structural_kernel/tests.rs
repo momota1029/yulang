@@ -488,7 +488,7 @@ fn exercise_all_parent_clause_link_wrapper(
             .exercise_replay_bootstrap_wrapper_for_test(|machine| {
                 machine
                     .proof_attempt
-                    .inject_query_scope_failure_after_successful_scopes(1, failure);
+                    .inject_query_scope_failure_after_successful_scopes(2, failure);
             }),
     }
 }
@@ -630,6 +630,112 @@ fn cpk_sv_d_ss2_p0_row5_real_snapshot_map_constructs_one_shared_lane() {
 }
 
 #[test]
+fn cpk_sv_d_ss2_p0_row6_real_snapshot_producer_uses_one_precommit_lane() {
+    let mut fixture = row5_production_path_fixture();
+    fixture
+        .machine
+        .reset_row6_publication_lane_trace_for_test();
+
+    fixture
+        .machine
+        .register_valid_reduction_route_claim_parent_for_test(
+            fixture.lower,
+            fixture.upper,
+            fixture.derivation,
+            fixture.parent_claim,
+        );
+
+    assert_eq!(
+        fixture
+            .machine
+            .proof_store
+            .qualified_parent_count(fixture.result),
+        1,
+        "the real qualified-parent commit must follow the row-6 snapshot",
+    );
+    assert!(fixture
+        .dependents
+        .iter()
+        .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    assert_eq!(
+        fixture.machine.row6_publication_lane_trace_for_test(),
+        1,
+        "one row-6 lane must evaluate the complete dependent-record snapshot",
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut fixture = row5_production_path_fixture();
+        fixture
+            .machine
+            .reset_row6_publication_lane_trace_for_test();
+        fixture.machine.reset_row5_publication_trace_for_test();
+        fixture
+            .machine
+            .proof_attempt
+            .inject_query_scope_failure(failure);
+
+        fixture
+            .machine
+            .register_valid_reduction_route_claim_parent_for_test(
+                fixture.lower,
+                fixture.upper,
+                fixture.derivation,
+                fixture.parent_claim,
+            );
+
+        assert_eq!(
+            fixture
+                .machine
+                .proof_store
+                .qualified_parent_count(fixture.result),
+            0,
+        );
+        assert_eq!(fixture.machine.row6_publication_lane_trace_for_test(), 0);
+        assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0));
+        assert_eq!(fixture.machine.proof_terminal_failure(), None);
+    }
+
+    let mut fixture = row5_production_path_fixture();
+    fixture
+        .machine
+        .reset_row6_publication_lane_trace_for_test();
+    fixture.machine.reset_row5_publication_trace_for_test();
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    fixture
+        .machine
+        .proof_attempt
+        .inject_query_scope_failure(failure.clone());
+
+    fixture
+        .machine
+        .register_valid_reduction_route_claim_parent_for_test(
+            fixture.lower,
+            fixture.upper,
+            fixture.derivation,
+            fixture.parent_claim,
+        );
+
+    assert_eq!(
+        fixture
+            .machine
+            .proof_store
+            .qualified_parent_count(fixture.result),
+        0,
+    );
+    assert_eq!(fixture.machine.row6_publication_lane_trace_for_test(), 0);
+    assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0));
+    assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
 fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boundary() {
     for failure in [
         ProofFailure::TerminalLatchBusy,
@@ -641,7 +747,7 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
         fixture
             .machine
             .proof_attempt
-            .inject_query_scope_failure(failure);
+            .inject_query_scope_failure_after_successful_scopes(1, failure);
 
         let panic = catch_unwind(AssertUnwindSafe(|| {
             fixture
@@ -684,7 +790,7 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
     fixture
         .machine
         .proof_attempt
-        .inject_query_scope_failure(failure.clone());
+        .inject_query_scope_failure_after_successful_scopes(1, failure.clone());
     fixture
         .machine
         .register_valid_reduction_route_claim_parent_for_test(

@@ -301,6 +301,34 @@ impl<'query> LegacyOnlyQueryView<'query> {
         affected_records
     }
 
+    pub(super) fn projection_premise_dependents(
+        &self,
+        premise: ProofPremise,
+    ) -> FxHashSet<BoundRecordId> {
+        let mut affected_records = self
+            .sources
+            .proof
+            .dependent_records(premise)
+            .cloned()
+            .unwrap_or_default();
+        let mut queue = affected_records.iter().copied().collect::<VecDeque<_>>();
+        while let Some(record) = queue.pop_front() {
+            let Some(dependents) = self
+                .sources
+                .proof
+                .dependent_records(ProofPremise::Record(record))
+            else {
+                continue;
+            };
+            for dependent in dependents {
+                if affected_records.insert(*dependent) {
+                    queue.push_back(*dependent);
+                }
+            }
+        }
+        affected_records
+    }
+
     #[cfg(test)]
     pub(super) fn storage_census(&self) -> LegacyStorageCensus {
         let _ = self.type_shapes;

@@ -50,12 +50,17 @@ thread_local! {
     static ROW5_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
     static ROW5_PUBLICATION_FENCE_APPENDS: Cell<usize> = const { Cell::new(0) };
     static ROW5_PUBLICATION_FENCE_PUBLISHES: Cell<usize> = const { Cell::new(0) };
+    static ROW6_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
+    static ROW6_PUBLICATION_LANE_TRACKING_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
 #[cfg(test)]
 fn record_row5_publication_lane_construction() {
     if ROW5_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
         ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
+    }
+    if ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
+        ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
     }
 }
 
@@ -94,6 +99,27 @@ fn row5_publication_trace() -> (usize, usize, usize) {
         ROW5_PUBLICATION_FENCE_APPENDS.with(Cell::get),
         ROW5_PUBLICATION_FENCE_PUBLISHES.with(Cell::get),
     )
+}
+
+#[cfg(test)]
+fn begin_row6_publication_lane_tracking() {
+    ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(true));
+}
+
+#[cfg(test)]
+fn end_row6_publication_lane_tracking() {
+    ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+}
+
+#[cfg(test)]
+fn reset_row6_publication_lane_trace() {
+    ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
+    ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
+}
+
+#[cfg(test)]
+fn row6_publication_lane_trace() -> usize {
+    ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get)
 }
 use std::cell::RefCell;
 use std::collections::{VecDeque, hash_map::Entry};
@@ -2138,20 +2164,24 @@ impl ConstraintMachine {
     }
 
     fn projection_inclusion_snapshot(
-        &self,
+        &mut self,
         premise: ProofPremise,
-    ) -> FxHashMap<BoundRecordId, bool> {
-        let mut records = self
-            .proof_store
-            .dependent_records(premise)
-            .cloned()
-            .unwrap_or_default();
-        self.extend_with_record_dependents(&mut records);
-        let mut round = CpkPublicationEvaluationRound::new(self);
-        records
-            .into_iter()
-            .map(|record| (record, round.eval_record(record)))
-            .collect()
+    ) -> proof::ProofKernelResult<FxHashMap<BoundRecordId, bool>> {
+        let mut round = self.new_publication_evaluation_round();
+        #[cfg(test)]
+        begin_row6_publication_lane_tracking();
+        let result = self.with_legacy_publication_query(&mut round, |query| {
+            let records = query.projection_premise_dependents(premise);
+            let mut lane = ScopedCpkPublicationEvaluationLane::new(&query);
+            let snapshot = records
+                .into_iter()
+                .map(|record| (record, lane.eval_record(record)))
+                .collect();
+            Ok(query.complete(snapshot))
+        });
+        #[cfg(test)]
+        end_row6_publication_lane_tracking();
+        result
     }
 
     fn publish_projection_inclusion_snapshot(&mut self, before: FxHashMap<BoundRecordId, bool>) {

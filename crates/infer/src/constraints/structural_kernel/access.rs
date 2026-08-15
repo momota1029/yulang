@@ -979,6 +979,13 @@ impl<'query> ScopedLegacyPublicationQuery<'query> {
         self.view.projection_record_dependents(record)
     }
 
+    pub(in crate::constraints) fn projection_premise_dependents(
+        &self,
+        premise: crate::constraints::ProofPremise,
+    ) -> rustc_hash::FxHashSet<crate::constraints::BoundRecordId> {
+        self.view.projection_premise_dependents(premise)
+    }
+
     #[cfg(test)]
     pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
         self.view.storage_census()

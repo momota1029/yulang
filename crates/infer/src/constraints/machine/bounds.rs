@@ -166,6 +166,16 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
+    pub(in crate::constraints) fn reset_row6_publication_lane_trace_for_test(&self) {
+        reset_row6_publication_lane_trace();
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn row6_publication_lane_trace_for_test(&self) -> usize {
+        row6_publication_lane_trace()
+    }
+
+    #[cfg(test)]
     pub(in crate::constraints) fn register_valid_reduction_route_claim_parent_for_test(
         &mut self,
         lower: PosId,
@@ -626,8 +636,23 @@ impl ConstraintMachine {
             );
             return;
         }
-        let premise_inclusion_before = producer
-            .map(|producer| self.projection_inclusion_snapshot(ProofPremise::Constraint(producer)));
+        let premise_inclusion_before = match producer
+            .map(|producer| {
+                self.projection_inclusion_snapshot(ProofPremise::Constraint(producer))
+            })
+            .transpose()
+        {
+            Ok(snapshot) => snapshot,
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return;
+            }
+        };
         let insertion = self
             .bounds
             .add_lower(target, pos, weights.clone(), derivation.clone());
@@ -1743,7 +1768,9 @@ impl ConstraintMachine {
         else {
             return;
         };
-        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
+        let Ok((accepted, snapshot)) = self.begin_qualified_parent_admission(&mut admission) else {
+            return;
+        };
         for entry in accepted.iter().copied() {
             self.commit_claim_qualified_parent_mutation(constraint, entry);
         }
@@ -1764,19 +1791,19 @@ impl ConstraintMachine {
     fn begin_qualified_parent_admission(
         &mut self,
         admission: &mut proof::PreparedQualifiedParentAdmission,
-    ) -> (
+    ) -> ProofKernelResult<(
         Vec<proof::ExactQualifiedParent>,
         ClaimQualifiedParentAdmissionSnapshot,
-    ) {
-        let inclusion_before =
-            self.projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()));
+    )> {
+        let inclusion_before = self
+            .projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()))?;
         let accepted = admission.accepted().to_vec();
         self.proof_store
             .commit_qualified_parent_admission(admission);
-        (
+        Ok((
             accepted,
             ClaimQualifiedParentAdmissionSnapshot { inclusion_before },
-        )
+        ))
     }
 
     fn try_prepare_replay_qualified_parent_transaction(
@@ -1792,19 +1819,19 @@ impl ConstraintMachine {
     fn begin_replay_qualified_parent_transaction(
         &mut self,
         transaction: &mut proof::PreparedReplayQualifiedParentTransaction,
-    ) -> (
+    ) -> ProofKernelResult<(
         Vec<proof::ExactQualifiedParent>,
         ClaimQualifiedParentAdmissionSnapshot,
-    ) {
-        let inclusion_before =
-            self.projection_inclusion_snapshot(ProofPremise::Constraint(transaction.result()));
+    )> {
+        let inclusion_before = self
+            .projection_inclusion_snapshot(ProofPremise::Constraint(transaction.result()))?;
         let accepted = transaction.accepted().to_vec();
         self.proof_store
             .commit_replay_qualified_parent_transaction(transaction);
-        (
+        Ok((
             accepted,
             ClaimQualifiedParentAdmissionSnapshot { inclusion_before },
-        )
+        ))
     }
 
     fn begin_non_replay_claim_parent_admission(
@@ -1826,7 +1853,18 @@ impl ConstraintMachine {
                 return (publication_fence, Vec::new());
             }
         };
-        let (accepted, snapshot) = self.begin_qualified_parent_admission(&mut admission);
+        let (accepted, snapshot) = match self.begin_qualified_parent_admission(&mut admission) {
+            Ok(result) => result,
+            Err(failure) => {
+                if failure.requires_attempt_terminal() {
+                    self.mark_proof_terminal_failure(
+                        proof::ProofOperation::ProjectLowerEvaluation,
+                        failure,
+                    );
+                }
+                return (publication_fence, Vec::new());
+            }
+        };
         let accepted_parents = accepted
             .iter()
             .map(|entry| entry.parent)
@@ -2879,7 +2917,19 @@ impl ConstraintMachine {
                     return;
                 }
             };
-        let (accepted, snapshot) = self.begin_replay_qualified_parent_transaction(&mut admission);
+        let (accepted, snapshot) =
+            match self.begin_replay_qualified_parent_transaction(&mut admission) {
+                Ok(result) => result,
+                Err(failure) => {
+                    if failure.requires_attempt_terminal() {
+                        self.mark_proof_terminal_failure(
+                            proof::ProofOperation::ProjectLowerEvaluation,
+                            failure,
+                        );
+                    }
+                    return;
+                }
+            };
         let mut inserted_parents = Vec::new();
         inserted_parents.reserve(accepted.len());
         for entry in accepted.iter().copied() {
@@ -4134,7 +4184,9 @@ impl ConstraintMachine {
         let mut transaction = self
             .try_prepare_replay_qualified_parent_transaction(result, derivation, &[parent])
             .expect("QORF test replay parent transaction must prepare");
-        let (accepted, snapshot) = self.begin_replay_qualified_parent_transaction(&mut transaction);
+        let (accepted, snapshot) = self
+            .begin_replay_qualified_parent_transaction(&mut transaction)
+            .expect("QORF test replay snapshot must evaluate");
         for entry in accepted.iter().copied() {
             self.commit_claim_qualified_parent_mutation(result, entry);
         }
