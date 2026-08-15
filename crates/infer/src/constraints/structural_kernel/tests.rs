@@ -355,6 +355,69 @@ fn cpk_sv_d_ss2_p0_row7_postcommit_denials_and_success_preserve_publication_boun
     );
 }
 
+#[derive(Clone, Copy)]
+enum AllParentClauseLinkCaller {
+    FactoredProjection,
+    ReplayBootstrap,
+}
+
+fn exercise_all_parent_clause_link_wrapper(
+    machine: &mut ConstraintMachine,
+    caller: AllParentClauseLinkCaller,
+    failure: ProofFailure,
+) -> bool {
+    match caller {
+        AllParentClauseLinkCaller::FactoredProjection => machine
+            .exercise_factored_all_parent_wrapper_for_test(|machine| {
+                machine.proof_attempt.inject_query_scope_failure(failure);
+            }),
+        AllParentClauseLinkCaller::ReplayBootstrap => machine
+            .exercise_replay_bootstrap_wrapper_for_test(|machine| {
+                machine.proof_attempt.inject_query_scope_failure(failure);
+            }),
+    }
+}
+
+fn assert_all_parent_precommit_failure_classification(caller: AllParentClauseLinkCaller) {
+    for failure in [
+        ProofFailure::TerminalLatchBusy,
+        foreign_publication_round_failure(),
+    ] {
+        let mut machine = ConstraintMachine::new();
+
+        assert!(!exercise_all_parent_clause_link_wrapper(
+            &mut machine,
+            caller,
+            failure,
+        ));
+        assert_eq!(machine.proof_terminal_failure(), None);
+    }
+
+    let failure = ProofFailure::ResourceExhausted {
+        operation: ProofOperation::ProjectLowerEvaluation,
+    };
+    let mut machine = ConstraintMachine::new();
+
+    assert!(!exercise_all_parent_clause_link_wrapper(
+        &mut machine,
+        caller,
+        failure.clone(),
+    ));
+    assert_eq!(machine.proof_terminal_failure(), Some(failure));
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_factored_all_parent_wrapper_preserves_precommit_classification() {
+    assert_all_parent_precommit_failure_classification(
+        AllParentClauseLinkCaller::FactoredProjection,
+    );
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_replay_bootstrap_wrapper_preserves_precommit_classification() {
+    assert_all_parent_precommit_failure_classification(AllParentClauseLinkCaller::ReplayBootstrap);
+}
+
 #[test]
 fn cpk_sv_d_ss1_privacy_ui_probes_are_ci_enforced() {
     let probes = [

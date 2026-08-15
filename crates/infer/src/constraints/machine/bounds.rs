@@ -1188,10 +1188,12 @@ impl ConstraintMachine {
             match self.try_commit_all_claim_parent_clause_links_mutation(result, lower_record) {
                 Ok(snapshot) => snapshot,
                 Err(failure) => {
-                    self.mark_proof_terminal_failure(
-                        proof::ProofOperation::ProjectLowerSupportCollection,
-                        failure,
-                    );
+                    if failure.requires_attempt_terminal() {
+                        self.mark_proof_terminal_failure(
+                            proof::ProofOperation::ProjectLowerSupportCollection,
+                            failure,
+                        );
+                    }
                     return;
                 }
             };
@@ -2020,6 +2022,126 @@ impl ConstraintMachine {
         )
     }
 
+    #[cfg(test)]
+    fn prepare_all_parent_clause_link_failure_fixture(
+        &mut self,
+        prepare_factored_parent: bool,
+    ) -> (
+        ConstraintRecordId,
+        BoundRecordId,
+        BinaryReplayDerivation,
+        SideTaggedReplayClaim,
+        SchemeProjectionProofSupport,
+        RecordProofClause,
+    ) {
+        let source = TypeVar(98_130);
+        let target = TypeVar(98_131);
+        let parent_source = TypeVar(98_132);
+        let lower = self.alloc_pos(Pos::Var(source));
+        let upper = self.alloc_neg(Neg::Var(target));
+        let origin = OriginId::unknown_internal();
+        assert!(self.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin,));
+        let result = self
+            .constraint_record_id(lower, ConstraintWeights::empty(), upper)
+            .expect("the fixture constraint is canonical before bound materialization");
+        let lower_record = self
+            .bounds
+            .add_lower(
+                target,
+                lower,
+                ConstraintWeights::empty(),
+                BoundDerivation::Constraint(result),
+            )
+            .id;
+        let upper_record = self
+            .bounds
+            .add_upper(
+                source,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Constraint(result),
+            )
+            .id;
+        let parent_record = self
+            .bounds
+            .add_upper(
+                parent_source,
+                upper,
+                ConstraintWeights::empty(),
+                BoundDerivation::Origin(origin),
+            )
+            .id;
+        let registration = self.original_upper_replay_claim(
+            parent_record,
+            ConstraintRecordId(98_133),
+            UpperReplayClaimKind::Direct,
+        );
+        self.apply_scheme_projection_mutation(registration.scheme_projection_mutation)
+            .expect("fixture claim projection mutation must succeed");
+        let replay = BinaryReplayDerivation {
+            pivot: source,
+            lower: lower_record,
+            upper: upper_record,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        assert_eq!(
+            self.merge_replay_derivation(result, replay),
+            ReplayDerivationInsert::Inserted,
+        );
+        let parent = SideTaggedReplayClaim {
+            claim: registration.claim,
+            parent_side: ReplayClaimParentSide::Lower,
+        };
+        let support = SchemeProjectionProofSupport::Claimed(registration.claim);
+        let clause = RecordProofClause::ReplayConjunction {
+            carrier: replay,
+            lower_premise: replay.lower,
+            upper_premise: replay.upper,
+        };
+        if prepare_factored_parent {
+            self.apply_cpk_replay_parent_arrival_without_materialization_for_test(
+                result,
+                replay,
+                registration.claim,
+            );
+        }
+        assert!(
+            !self.proof_store.has_projection_support_ledger(lower_record),
+            "the replay-bootstrap caller must take the all-parent bootstrap branch",
+        );
+        (result, lower_record, replay, parent, support, clause)
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_factored_all_parent_wrapper_for_test(
+        &mut self,
+        inject: impl FnOnce(&mut ConstraintMachine),
+    ) -> bool {
+        let (result, lower_record, _, _, support, clause) =
+            self.prepare_all_parent_clause_link_failure_fixture(true);
+        inject(self);
+        self.register_all_claim_parent_clause_links_after_factored_projection(
+            result,
+            lower_record,
+            None,
+        );
+        self.proof_store
+            .projection_clause_link_is_registered(lower_record, support, clause)
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn exercise_replay_bootstrap_wrapper_for_test(
+        &mut self,
+        inject: impl FnOnce(&mut ConstraintMachine),
+    ) -> bool {
+        let (result, lower_record, replay, parent, support, clause) =
+            self.prepare_all_parent_clause_link_failure_fixture(false);
+        inject(self);
+        self.register_cpk_replay_claim_parents(result, replay, &[parent], true);
+        self.proof_store
+            .projection_clause_link_is_registered(lower_record, support, clause)
+    }
+
     fn publish_replay_admission_publication_fence(
         &mut self,
         fence: ReplayAdmissionPublicationFence,
@@ -2702,10 +2824,12 @@ impl ConstraintMachine {
                 match self.try_commit_all_claim_parent_clause_links_mutation(result, lower_record) {
                     Ok(snapshot) => snapshot,
                     Err(failure) => {
-                        self.mark_proof_terminal_failure(
-                            proof::ProofOperation::ProjectLowerSupportCollection,
-                            failure,
-                        );
+                        if failure.requires_attempt_terminal() {
+                            self.mark_proof_terminal_failure(
+                                proof::ProofOperation::ProjectLowerSupportCollection,
+                                failure,
+                            );
+                        }
                         None
                     }
                 }
