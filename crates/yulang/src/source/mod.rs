@@ -3216,7 +3216,11 @@ fn source_hover_from_check(
             span.range,
         );
     }
-    best
+    if check.has_proof_terminal_failure() {
+        None
+    } else {
+        best
+    }
 }
 
 fn source_completion_from_check(
@@ -3333,7 +3337,11 @@ fn source_completion_from_check(
         })
     });
     items.dedup_by(|left, right| left.label == right.label);
-    items
+    if check.has_proof_terminal_failure() {
+        Vec::new()
+    } else {
+        items
+    }
 }
 
 fn source_member_completion_from_check(
@@ -3487,7 +3495,144 @@ fn source_member_completion_from_check(
         })
     });
     items.dedup_by(|left, right| left.label == right.label);
-    items
+    if check.has_proof_terminal_failure() {
+        Vec::new()
+    } else {
+        items
+    }
+}
+
+#[cfg(test)]
+mod terminal_latch_gate_tests {
+    use super::*;
+
+    fn check_source(source: &str) -> infer::check::PolyCheckOutput {
+        let files = collect_local_source_text("main.yu", source.to_string()).unwrap();
+        infer::check::check_loaded_files(&load_collected_sources(files)).unwrap()
+    }
+
+    fn assert_intentional_projection_denial(delta: infer::check::TestSupportProofSoakDelta) {
+        assert_eq!(delta.organic_terminal_failures(), 0);
+        assert_eq!(delta.intentional_project_lower_evaluation_failures(), 1);
+    }
+
+    #[test]
+    fn terminal_projection_denial_suppresses_real_hover_output() {
+        let source = "my id x = x\n";
+        let offset = source.find('x').unwrap();
+        let mut clean = check_source(source);
+        assert!(source_hover_from_check(&mut clean, offset, &Path::default()).is_some());
+
+        let mut terminal = check_source(source);
+        let (hover, delta) =
+            infer::check::with_terminal_projection_query_failure_for_test(&mut terminal, |check| {
+                source_hover_from_check(check, offset, &Path::default())
+            });
+
+        assert_eq!(hover, None);
+        assert_intentional_projection_denial(delta);
+    }
+
+    #[test]
+    fn terminal_projection_denial_suppresses_real_completion_output() {
+        let source = "my id x = x\n";
+        let offset = source.rfind('x').unwrap();
+        let mut clean = check_source(source);
+        let clean_items = source_completion_from_check(&mut clean, offset, &Path::default());
+        assert!(clean_items.iter().any(|item| {
+            item.label == "x"
+                && item.kind == SourceCompletionItemKind::Local
+                && item.detail.is_some()
+        }));
+
+        let mut terminal = check_source(source);
+        let (items, delta) =
+            infer::check::with_terminal_projection_query_failure_for_test(&mut terminal, |check| {
+                source_completion_from_check(check, offset, &Path::default())
+            });
+
+        assert!(items.is_empty());
+        assert_intentional_projection_denial(delta);
+    }
+
+    #[test]
+    fn terminal_projection_denial_suppresses_real_member_completion_output() {
+        let source = "my p = { x: 1, y: false }\nmy got = p.yulang__completion__probe\n";
+        let start = source.find(COMPLETION_PROBE_IDENTIFIER).unwrap();
+        let range = SourceRange {
+            start,
+            end: start + COMPLETION_PROBE_IDENTIFIER.len(),
+        };
+        let mut clean = check_source(source);
+        let clean_items = source_member_completion_from_check(&mut clean, range, &Path::default());
+        assert_eq!(
+            clean_items
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["x", "y"]
+        );
+        assert!(clean_items.iter().all(|item| item.detail.is_some()));
+
+        let mut terminal = check_source(source);
+        let (items, delta) =
+            infer::check::with_terminal_projection_query_failure_for_test(&mut terminal, |check| {
+                source_member_completion_from_check(check, range, &Path::default())
+            });
+
+        assert!(items.is_empty());
+        assert_intentional_projection_denial(delta);
+    }
+
+    #[test]
+    fn source_text_analysis_hover_reuse_routes_through_terminal_gate() {
+        let source = "my id x = x\n";
+        let offset = source.find('x').unwrap();
+        let mut analysis = source_text_analysis("main.yu", source).unwrap();
+        assert!(analysis.hover(offset).is_some());
+        assert!(analysis.hover(offset).is_some());
+
+        let (_, delta) = infer::check::with_terminal_projection_query_failure_for_test(
+            &mut analysis.check,
+            |check| source_hover_from_check(check, offset, &Path::default()),
+        );
+        assert_intentional_projection_denial(delta);
+        assert_eq!(analysis.hover(offset), None);
+        assert_eq!(analysis.hover(offset), None);
+
+        // This call-graph lock keeps the reusable analysis route on the same gated formatter.
+        let source_module = include_str!("mod.rs");
+        let hover_impl = source_module
+            .split("pub(crate) fn hover(&mut self")
+            .nth(1)
+            .and_then(|tail| tail.split("pub(crate) fn definition").next())
+            .unwrap();
+        assert!(hover_impl.contains("source_hover_from_check(&mut self.check"));
+    }
+
+    #[test]
+    fn test_support_feature_is_not_enabled_by_the_normal_yulang_edge() {
+        let infer_manifest = include_str!("../../../infer/Cargo.toml");
+        assert!(infer_manifest.contains("default = []"));
+        assert!(infer_manifest.contains("test-support = []"));
+
+        let yulang_manifest = include_str!("../../Cargo.toml");
+        assert!(yulang_manifest.contains("infer = { path = \"../infer\" }"));
+        assert!(
+            yulang_manifest
+                .contains("infer = { path = \"../infer\", features = [\"test-support\"] }")
+        );
+        for production_source in [include_str!("../main.rs"), include_str!("../server.rs")] {
+            assert!(!production_source.contains("with_terminal_projection_query_failure_for_test"));
+        }
+        let source_production_prefix = include_str!("mod.rs")
+            .split("#[cfg(test)]\nmod terminal_latch_gate_tests")
+            .next()
+            .unwrap();
+        assert!(
+            !source_production_prefix.contains("with_terminal_projection_query_failure_for_test")
+        );
+    }
 }
 
 fn completion_detail_for_def(

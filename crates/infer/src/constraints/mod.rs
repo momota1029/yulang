@@ -213,11 +213,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 pub(crate) use proof::ProofFailure;
 use proof_soak::ensure_proof_soak_telemetry_header;
 pub(crate) use proof_soak::record_proof_terminal_failure;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) use proof_soak::{
-    ProofSoakEventOrigin, capture_proof_soak_test_events,
+    ProofSoakEventOrigin, ProofSoakTelemetrySnapshot, capture_proof_soak_test_events,
     with_intentional_proof_soak_test_injection,
 };
+#[cfg(feature = "test-support")]
+pub(crate) use proof::ProofOperation;
 
 #[cfg(test)]
 pub(crate) use mutation::MethodRoleMutation;

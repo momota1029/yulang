@@ -15,7 +15,7 @@ pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 6;
 const CPK_SOAK_TELEMETRY_SCHEMA: &str = "cpk-only";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg_attr(not(any(test, feature = "test-support")), allow(dead_code))]
 pub(crate) enum ProofSoakEventOrigin {
     Organic,
     IntentionalTestInjection,
@@ -27,7 +27,7 @@ pub(crate) struct ProofSoakTelemetrySnapshot {
 }
 
 impl ProofSoakTelemetrySnapshot {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn proof_terminal_failures(
         self,
         origin: ProofSoakEventOrigin,
@@ -36,7 +36,7 @@ impl ProofSoakTelemetrySnapshot {
         self.proof_terminal_failures[proof_terminal_index(origin, operation)]
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn total_for_origin(self, origin: ProofSoakEventOrigin) -> u64 {
         self.proof_terminal_failures[origin_index(origin) * 9..origin_index(origin) * 9 + 9]
             .iter()
@@ -47,7 +47,7 @@ impl ProofSoakTelemetrySnapshot {
 static PROOF_TERMINAL_FAILURES: [AtomicU64; 18] = [const { AtomicU64::new(0) }; 18];
 static PROOF_TELEMETRY_SINK: OnceLock<Option<Mutex<File>>> = OnceLock::new();
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 std::thread_local! {
     static INTENTIONAL_TEST_INJECTION_DEPTH: std::cell::Cell<usize> = const {
         std::cell::Cell::new(0)
@@ -81,7 +81,7 @@ pub(crate) fn proof_soak_telemetry_snapshot() -> ProofSoakTelemetrySnapshot {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn with_intentional_proof_soak_test_injection<T>(run: impl FnOnce() -> T) -> T {
     struct Guard;
 
@@ -96,7 +96,7 @@ pub(crate) fn with_intentional_proof_soak_test_injection<T>(run: impl FnOnce() -
     run()
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn capture_proof_soak_test_events<T>(
     run: impl FnOnce() -> T,
 ) -> (T, ProofSoakTelemetrySnapshot) {
@@ -115,7 +115,7 @@ pub(crate) fn capture_proof_soak_test_events<T>(
 }
 
 fn current_event_origin() -> ProofSoakEventOrigin {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     {
         if INTENTIONAL_TEST_INJECTION_DEPTH.with(|depth| depth.get() > 0) {
             return ProofSoakEventOrigin::IntentionalTestInjection;
@@ -150,13 +150,13 @@ fn proof_terminal_index(origin: ProofSoakEventOrigin, operation: ProofOperation)
 }
 
 fn update_test_capture(update: impl FnOnce(&mut ProofSoakTelemetrySnapshot)) {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     TEST_CAPTURE.with(|capture| {
         if let Some(snapshot) = capture.borrow_mut().as_mut() {
             update(snapshot);
         }
     });
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "test-support")))]
     let _ = update;
 }
 

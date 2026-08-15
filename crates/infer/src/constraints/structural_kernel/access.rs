@@ -50,7 +50,7 @@ pub(in crate::constraints) struct ProofAttemptKernel {
     reuse_disabled: bool,
     terminal_failure: RefCell<Option<ProofFailure>>,
     structural: ProofStructuralState,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     injected_query_scope_failure: RefCell<Option<(usize, ProofFailure)>>,
     #[cfg(test)]
     injected_post_scope_failure: RefCell<Option<ProofFailure>>,
@@ -76,7 +76,7 @@ impl ProofAttemptKernel {
             reuse_disabled: attempt_nonce.is_none(),
             terminal_failure: RefCell::new(None),
             structural: ProofStructuralState::default(),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             injected_query_scope_failure: RefCell::new(None),
             #[cfg(test)]
             injected_post_scope_failure: RefCell::new(None),
@@ -206,7 +206,7 @@ impl ProofAttemptKernel {
         debug_assert!(round.reuse.is_sealing_incomplete());
         // 5. Construction and the query closure share one authenticated failure path.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
@@ -274,7 +274,7 @@ impl ProofAttemptKernel {
         debug_assert!(round.reuse.is_sealing_incomplete());
         // Steps 4--5: fresh invocation-local state and one HRTB scope.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
@@ -342,7 +342,7 @@ impl ProofAttemptKernel {
         debug_assert!(round.reuse.is_sealing_incomplete());
         // 5. The all-legacy sources and all invocation state live inside this HRTB call.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
@@ -411,7 +411,7 @@ impl ProofAttemptKernel {
         debug_assert!(round.reuse.is_sealing_incomplete());
         // Steps 4--5: P0 sources and publication memo state are invocation-local.
         let result: Result<QueryCompletion<R>, ProofFailure> = (|| {
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             if let Some(failure) = self.take_injected_query_scope_failure() {
                 return Err(failure);
             }
@@ -1364,16 +1364,6 @@ impl ProofAttemptKernel {
         )
     }
 
-    fn take_injected_query_scope_failure(&self) -> Option<ProofFailure> {
-        let mut injection = self.injected_query_scope_failure.borrow_mut();
-        let (remaining, _) = injection.as_mut()?;
-        if *remaining > 0 {
-            *remaining -= 1;
-            return None;
-        }
-        injection.take().map(|(_, failure)| failure)
-    }
-
     pub(super) fn reset_query_trace(&self) {
         self.query_trace.active_checks.set(0);
         self.query_trace.round_authentications.set(0);
@@ -1385,5 +1375,36 @@ impl ProofAttemptKernel {
     pub(super) fn trigger_query_latch_conflict_for_test(&self) {
         let _held = self.terminal_failure.borrow_mut();
         let _ = self.ensure_query_kernel_active();
+    }
+}
+
+#[cfg(any(test, feature = "test-support"))]
+impl ProofAttemptKernel {
+    fn take_injected_query_scope_failure(&self) -> Option<ProofFailure> {
+        let mut injection = self.injected_query_scope_failure.borrow_mut();
+        let (remaining, _) = injection.as_mut()?;
+        if *remaining > 0 {
+            *remaining -= 1;
+            return None;
+        }
+        injection.take().map(|(_, failure)| failure)
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl ProofAttemptKernel {
+    pub(in crate::constraints) fn arm_terminal_projection_query_failure_for_test_support(&self) {
+        *self.injected_query_scope_failure.borrow_mut() = Some((
+            0,
+            ProofFailure::ResourceExhausted {
+                operation: ProofOperation::ProjectLowerEvaluation,
+            },
+        ));
+    }
+
+    pub(in crate::constraints) fn terminal_projection_query_failure_pending_for_test_support(
+        &self,
+    ) -> bool {
+        self.injected_query_scope_failure.borrow().is_some()
     }
 }

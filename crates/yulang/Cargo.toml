@@ -29,5 +29,8 @@ unicode-width = "0.2"
 tokio = { version = "1", features = ["full"] }
 tower-lsp = "0.20"
 
+[dev-dependencies]
+infer = { path = "../infer", features = ["test-support"] }
+
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"

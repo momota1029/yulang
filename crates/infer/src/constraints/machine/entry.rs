@@ -73,6 +73,18 @@ impl ConstraintMachine {
         self.proof_attempt.terminal_failure()
     }
 
+    #[cfg(feature = "test-support")]
+    pub(crate) fn arm_terminal_projection_query_failure_for_test_support(&self) {
+        self.proof_attempt
+            .arm_terminal_projection_query_failure_for_test_support();
+    }
+
+    #[cfg(feature = "test-support")]
+    pub(crate) fn terminal_projection_query_failure_pending_for_test_support(&self) -> bool {
+        self.proof_attempt
+            .terminal_projection_query_failure_pending_for_test_support()
+    }
+
     pub(in crate::constraints) fn mark_proof_terminal_failure(
         &self,
         operation: proof::ProofOperation,

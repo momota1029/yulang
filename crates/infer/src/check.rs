@@ -23,6 +23,88 @@ pub struct PolyCheckOutput {
     pub timing: PolyCheckTiming,
 }
 
+impl PolyCheckOutput {
+    pub fn has_proof_terminal_failure(&self) -> bool {
+        self.lowering
+            .session
+            .infer
+            .constraints()
+            .proof_terminal_failure()
+            .is_some()
+    }
+}
+
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub struct TestSupportProofSoakDelta {
+    organic_terminal_failures: u64,
+    intentional_project_lower_evaluation_failures: u64,
+}
+
+#[cfg(feature = "test-support")]
+impl TestSupportProofSoakDelta {
+    pub fn organic_terminal_failures(&self) -> u64 {
+        self.organic_terminal_failures
+    }
+
+    pub fn intentional_project_lower_evaluation_failures(&self) -> u64 {
+        self.intentional_project_lower_evaluation_failures
+    }
+}
+
+#[cfg(feature = "test-support")]
+#[doc(hidden)]
+pub fn with_terminal_projection_query_failure_for_test<R>(
+    check: &mut PolyCheckOutput,
+    run: impl FnOnce(&mut PolyCheckOutput) -> R,
+) -> (R, TestSupportProofSoakDelta) {
+    check
+        .lowering
+        .session
+        .infer
+        .constraints()
+        .arm_terminal_projection_query_failure_for_test_support();
+    let ((output, pending, terminal), snapshot) =
+        crate::constraints::capture_proof_soak_test_events(|| {
+            crate::constraints::with_intentional_proof_soak_test_injection(|| {
+                let output = run(check);
+                let constraints = check.lowering.session.infer.constraints();
+                (
+                    output,
+                    constraints.terminal_projection_query_failure_pending_for_test_support(),
+                    check.has_proof_terminal_failure(),
+                )
+            })
+        });
+    assert!(
+        !pending,
+        "test-support terminal projection failure must be consumed by a real query"
+    );
+    assert!(
+        terminal,
+        "real query denial must latch the proof attempt before callback return"
+    );
+
+    let delta = test_support_proof_soak_delta(snapshot);
+    assert_eq!(delta.organic_terminal_failures(), 0);
+    assert_eq!(delta.intentional_project_lower_evaluation_failures(), 1);
+    (output, delta)
+}
+
+#[cfg(feature = "test-support")]
+fn test_support_proof_soak_delta(
+    snapshot: crate::constraints::ProofSoakTelemetrySnapshot,
+) -> TestSupportProofSoakDelta {
+    TestSupportProofSoakDelta {
+        organic_terminal_failures: snapshot
+            .total_for_origin(crate::constraints::ProofSoakEventOrigin::Organic),
+        intentional_project_lower_evaluation_failures: snapshot.proof_terminal_failures(
+            crate::constraints::ProofSoakEventOrigin::IntentionalTestInjection,
+            crate::constraints::ProofOperation::ProjectLowerEvaluation,
+        ),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PolyCheckTiming {
     pub infer: Duration,
