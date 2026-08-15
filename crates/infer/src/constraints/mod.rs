@@ -43,6 +43,36 @@ mod trace;
 
 #[cfg(test)]
 use std::cell::Cell;
+
+#[cfg(test)]
+thread_local! {
+    static ROW5_PUBLICATION_LANE_CONSTRUCTIONS: Cell<usize> = const { Cell::new(0) };
+    static ROW5_PUBLICATION_FENCE_PUSHES: Cell<usize> = const { Cell::new(0) };
+}
+
+#[cfg(test)]
+fn record_row5_publication_lane_construction() {
+    ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
+}
+
+#[cfg(test)]
+fn record_row5_publication_fence_push() {
+    ROW5_PUBLICATION_FENCE_PUSHES.with(|count| count.set(count.get() + 1));
+}
+
+#[cfg(test)]
+fn reset_row5_publication_trace() {
+    ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
+    ROW5_PUBLICATION_FENCE_PUSHES.with(|count| count.set(0));
+}
+
+#[cfg(test)]
+fn row5_publication_trace() -> (usize, usize) {
+    (
+        ROW5_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
+        ROW5_PUBLICATION_FENCE_PUSHES.with(Cell::get),
+    )
+}
 use std::cell::RefCell;
 use std::collections::{VecDeque, hash_map::Entry};
 
@@ -1272,6 +1302,14 @@ impl<'scope, 'query: 'scope> ScopedCpkPublicationEvaluationLane<'scope, 'query> 
         }
     }
 
+    #[cfg(test)]
+    fn for_projection_inclusion_snapshot(
+        query: &'scope ScopedLegacyPublicationQuery<'query>,
+    ) -> Self {
+        record_row5_publication_lane_construction();
+        Self::new(query)
+    }
+
     fn eval_record(&mut self, record: BoundRecordId) -> bool {
         if self.sharing_disabled {
             return Self::new_evaluator(
@@ -2020,6 +2058,10 @@ impl ConstraintMachine {
     ) -> proof::ProofKernelResult<SchemeProjectionPublicationIntent> {
         let mut round = self.new_publication_evaluation_round();
         let result = self.with_legacy_publication_query(&mut round, |query| {
+            #[cfg(test)]
+            let mut after_lane =
+                ScopedCpkPublicationEvaluationLane::for_projection_inclusion_snapshot(&query);
+            #[cfg(not(test))]
             let mut after_lane = ScopedCpkPublicationEvaluationLane::new(&query);
             let mut affected_owners = FxHashSet::default();
             #[cfg(test)]

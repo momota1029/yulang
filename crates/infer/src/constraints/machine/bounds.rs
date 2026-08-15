@@ -130,6 +130,33 @@ impl BoundReplayApplyStats {
 
 impl ConstraintMachine {
     #[cfg(test)]
+    pub(in crate::constraints) fn reset_row5_publication_trace_for_test(&self) {
+        reset_row5_publication_trace();
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn row5_publication_trace_for_test(&self) -> (usize, usize) {
+        row5_publication_trace()
+    }
+
+    #[cfg(test)]
+    pub(in crate::constraints) fn register_valid_reduction_route_claim_parent_for_test(
+        &mut self,
+        lower: PosId,
+        upper: NegId,
+        derivation: RowDerivationId,
+        claim: UpperReplayClaimId,
+    ) {
+        self.merge_unweighted_row_route_provenance(
+            lower,
+            ConstraintWeights::empty(),
+            upper,
+            derivation,
+            Some(claim),
+        );
+    }
+
+    #[cfg(test)]
     pub(in crate::constraints) fn exercise_cpk_sv_d0_bound_promotion_writer_for_test(&mut self) {
         let target = TypeVar(91_101);
         self.register_type_var(target, TypeLevel::root());
@@ -1934,6 +1961,10 @@ impl ConstraintMachine {
             return;
         };
         self.defer_replay_admission_publication(fence, intent);
+        #[cfg(test)]
+        if self.proof_terminal_failure().is_none() {
+            record_row5_publication_fence_push();
+        }
     }
 
     fn defer_scheme_projection_mutation(
