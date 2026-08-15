@@ -2160,3 +2160,360 @@ findings完全ゼロ）。Claude (Sonnet 5) が全文を直接通読し、既存
 DPN/MPCのmutationを跨がないmemo規律）との整合を確認済み。row 4 / row 7 / `defer_scheme_projection_mutation`の
 failure-boundary設計として、上の三度の却下（pending-receipt propagation案、単純attempt-terminal案、row3 idiom直接転用案）を
 すべて置き換える正本として確定する。
+
+## 2026-08-15 追記: row 1残りsubrow（witness collection / compaction）のscoped facade read surface拡張
+
+### 発見した不足と本節の範囲
+
+§4.0.2 row 1 subrow 1-a〜1-dの実装前inventoryで、rev.9 §2.1.1が列挙した
+`ScopedLegacyProjectionQuery::scheme_projectable_lowers_in_scope`と`pos_var_in_scope`だけでは、
+`capture_generalized_witnesses`の再帰walkとscheme-mode `CompactCollector`のwalk全体を一つのHRTB scope内へ
+移せないことが分かった。両collectorはprojectable-lower判定以外にも、型shape、upper bound、row/subtract、
+constraint-neighbor情報を同じ再帰walk中に読む。gatewayへ`&mut ConstraintMachine`を渡したclosure内から
+同じmachineを`&ConstraintMachine`として再borrowすることはできず、それをraw pointerやscope外snapshotで回避することも
+本設計のexclusive scope / single authority条件に反する。
+
+本節は、この二traversalのactual codeが現在行うreadだけをowned-return getterとして追加する。
+既存scoped getterのsignature、failure classification、round/completion type、publication-side facade、writer authorityは変更しない。
+scheme-mode compaction / witness surfaceとそのproduction callerのinfallible signatureも変更せず、denialは後述する
+row 2と同じscope-local degradationへ畳む。
+general-purposeな`machine()`、`types()`、`bounds()`、`view()`、raw storage referenceは追加しない。
+
+### Actual read inventoryと既存surface照合
+
+lineは2026-08-15 HEADの目安であり、実装時に`rg`で再確認する。
+
+| traversal | current read | current location | existing scoped equivalent | decision |
+|---|---|---|---|---|
+| witness | positive lower selection | `generalize/provenance.rs:208-212`の`bounds().of(var)` / `scheme_projectable_lowers(var)` | `scheme_projectable_lowers_in_scope` | 既存methodを使う。new getter zero |
+| witness | ordered evidence+ordinary upper records | `generalize/provenance.rs:208,263-276`の`generalized_projection_uppers()` | none | owned upper-record getterを追加 |
+| witness | full positive node shape | `generalize/provenance.rs:287,615`の`types().pos(id).clone()` | `pos_var_in_scope`はVar caseだけで不十分 | owned `Pos` getterを追加 |
+| witness | full negative node shape | `generalize/provenance.rs:398,640`の`types().neg(id).clone()` | none | owned `Neg` getterを追加 |
+| witness | full neutral node shape | `generalize/provenance.rs:499`の`types().neu(id).clone()` | none | owned `Neu` getterを追加 |
+| scheme compact | full positive node shape | `compact/collect/mod.rs:272,876`の`types().pos(id).clone()` | `pos_var_in_scope`は不十分 | witnessと同じowned `Pos` getterを共用 |
+| scheme compact | full negative node shape / effect-family match | `compact/collect/mod.rs:338,731,868,909`の`types().neg(..)` | none | witnessと同じowned `Neg` getterを共用 |
+| scheme compact | full neutral node shape | `compact/collect/mod.rs:403`の`types().neu(id).clone()` | none | witnessと同じowned `Neu` getterを共用 |
+| scheme compact / type node recursion | positive node shape | `compact/collect/type_nodes.rs:9,201,205,266,412`の`types().pos(..)` | `pos_shape_in_scope`（本節で追加） | 同じowned `Pos` getterを再帰helperから共用。追加getter zero |
+| scheme compact / type node recursion | negative node shape | `compact/collect/type_nodes.rs:109,233,296,521,608`の`types().neg(..)` | `neg_shape_in_scope`（本節で追加） | 同じowned `Neg` getterを再帰helperから共用。追加getter zero |
+| scheme compact / type node recursion | neutral node shape | `compact/collect/type_nodes.rs:323,384`の`types().neu(..)` | `neu_shape_in_scope`（本節で追加） | 同じowned `Neu` getterを再帰helperから共用。追加getter zero |
+| scheme compact / negative row tail recursion | cloned upper records followed by negative node lookup | `compact/collect/type_nodes.rs:602-608`の`bounds().of(var).cloned()` / `types().neg(..)` | `projection_upper_records_in_scope` + `neg_shape_in_scope`（本節で追加） | full `VarBounds` getterは追加せず、同じ二getterを共用 |
+| scheme compact | role constraint raw vars | `compact/collect/mod.rs:473`の`RoleConstraint::raw_vars(machine.types())` | none | purpose-specific owned set getterを追加 |
+| scheme compact | constraint-neighbor closure | `compact/collect/mod.rs:500`の`machine.var_neighbors(var)` | none | owned neighbor vector getterを追加 |
+| scheme compact | bounds presence / positive and negative projection bounds | `compact/collect/mod.rs:636-660`の`bounds().of(var).cloned()` | positive側は`scheme_projectable_lowers_in_scope`、negative側はnone | full `VarBounds` cloneは公開せず、positiveは既存method、negativeは同じowned upper-record getterを使う |
+| scheme compact | pre-pop effect families | `compact/collect/mod.rs:695-705`の`pre_pop_effect_families(var)` | none | owned family vector getterを追加 |
+| scheme compact | subtract facts | `compact/collect/mod.rs:801`の`subtracts().facts(source)` | none | owned fact vector getterを追加 |
+
+`compact/collect/mod.rs:473,500`はinput formatterのroot compactionだけでなく、
+`CompactCollector::new_recording_for_scheme`を使うproduction role-constraint compactionから到達する。
+具体的には`compact/surface.rs:503-514`を介して`analysis/session/generalize.rs:77`から呼ばれるため、test-only readとして
+除外しない。同様にscheme-mode collectorはinput formattingだけでなく、`compact_type_var_for_scheme`
+（`generalize/mod.rs:82`、`lowering/expr/tail.rs:1247`）と
+`compact_type_var_recording_merge_constraints_for_scheme`（`analysis/session/generalize.rs:596`）からも使われる。
+row 1のold helper production reference zero gateは、これら全てを同じscheme-mode scoped routeへ移した後にだけ成立する。
+
+上表の`compact/collect/type_nodes.rs`行は、reviewで指摘された`9,201,266,109,233,521,608,323,384,602`に加え、
+同じ再帰surface上の反復lookupである`205,296,412`も列挙する。これらはgetter数を増やさず、main collectorと同じ
+`Pos` / `Neg` / `Neu` / upper-record surfaceへ割り当てる。従って「actual read inventoryに未割当read zero」は
+`collect/mod.rs`だけでなく`collect/type_nodes.rs`を含む主張になる。
+
+### 追加するexact safe surface
+
+P0 legacy facadeへ次のmethodだけを追加し、全てexactly `pub(crate)`とする。内部
+`LegacyOnlyQueryView`側の対応methodは`pub(super)`、source field / constructorはprivateのままとする。
+
+```rust
+impl ScopedLegacyProjectionQuery<'_> {
+    pub(crate) fn projection_upper_records_in_scope(
+        &self,
+        var: TypeVar,
+    ) -> Vec<(BoundRecordId, WeightedUpperBound)>;
+
+    pub(crate) fn pos_shape_in_scope(&self, id: PosId) -> Pos;
+    pub(crate) fn neg_shape_in_scope(&self, id: NegId) -> Neg;
+    pub(crate) fn neu_shape_in_scope(&self, id: NeuId) -> Neu;
+
+    pub(crate) fn role_constraint_raw_vars_in_scope(
+        &self,
+        constraint: &RoleConstraint,
+    ) -> FxHashSet<TypeVar>;
+
+    pub(crate) fn var_neighbors_in_scope(&self, var: TypeVar) -> Vec<TypeVar>;
+
+    pub(crate) fn pre_pop_effect_families_in_scope(
+        &self,
+        var: TypeVar,
+    ) -> Vec<ConstraintEffectFamily>;
+
+    pub(crate) fn subtract_facts_in_scope(&self, source: TypeVar) -> Vec<SubtractFact>;
+}
+```
+
+返却順序はcurrent readと同じにする。
+
+- `projection_upper_records_in_scope`は`VarBounds::generalized_projection_uppers()`と同じく、evidence upperを先、
+  ordinary upperを後にして、各groupのinsertion orderを保つ。record IDと`WeightedUpperBound`をcloneして返す。
+- `pos_shape_in_scope` / `neg_shape_in_scope` / `neu_shape_in_scope`はcurrent `TypeArena::{pos,neg,neu}` lookupと
+  同じinvalid-ID behaviorを保ち、node enumをcloneして返す。
+- `role_constraint_raw_vars_in_scope`はscopeが保持するtype-shape authorityを使い、current
+  `RoleConstraint::raw_vars(TypeArena)`と同じowned `FxHashSet<TypeVar>`を返す。この`constraint`はcaller-owned immutable
+  inputであり、proof/constraint record storageへのraw accessではない。
+- `var_neighbors_in_scope`はcurrent `ConstraintMachine::var_neighbors`のiteration content/orderをそのままowned `Vec`へcollectする。
+  current pathはmap-keyのlazy iteratorなので、この`Vec` allocationは新規である。
+- `pre_pop_effect_families_in_scope`はcurrent sliceから`ConstraintEffectFamily`のowned `Vec`を返す。current pathは最終
+  compact conversion時に各familyをcloneするが、中間`Vec`を作らないため、このgetterはclone時点を早め、追加の
+  intermediate allocationを導入する。
+- `subtract_facts_in_scope`はcurrent `SubtractTable::facts(source)`からowned `Vec<SubtractFact>`を返す。current pathは
+  borrowed sliceをiterateするため、このgetterは`Subtractability`を含む`SubtractFact`全体の新しいdeep cloneと
+  intermediate allocationを導入する。
+
+full `VarBounds`、`TypeArena`、`SubtractTable`、adjacency map、pre-pop mapへのreferenceを返すgetterは作らない。
+特に`bounds_in_scope() -> Option<&VarBounds>`や`types_in_scope() -> &TypeArena`のようなgeneral escape hatchは禁止する。
+
+この実装のため、private `LegacyOnlyReadSources` / `LegacyOnlyQueryView`内部へ、既存`bounds`とtype-shape authorityに加えて
+次のread-only source referenceを追加してよい。
+
+- `var_adjacency: &FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>`
+- `subtracts: &SubtractTable`
+- `pre_pop_effect_families: &FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>`
+
+これらfield、source bundle、constructor、`LegacyOnlyQueryView`は引き続き`structural_kernel`内部privateとする。
+`ImmutableTypeShapeView`にはnode cloneとrole raw-var calculationに必要なprivate/internal methodだけを追加し、
+`TypeArena` reference自体は返さない。
+
+`compact/collect/mod.rs:868`のeffect-family判定もcurrent pathでは`&Neg`に対してmatchするが、scoped routeでは
+`neg_shape_in_scope`が`Neg`をcloneする。従って本節は、八getterを「current direct traversalが同じ地点で既に行うcloneの
+単なる移動」とは主張しない。upper recordと多くの`Pos` / `Neg` / `Neu` lookupはcurrent codeでもcloneする一方、
+effect-family `Neg`、subtract fact、neighbor、pre-pop familyには上記の新しいowned intermediate costがある。
+
+このcostは無条件にcold-path costとして受容しない。GWCB
+`notes/design/2026-08-10-generalized-witness-claim-bridge-provenance-gap.md` §9は
+`scheme_projectable_lowers` payloadを明示的にhot pathと分類し、`std::text::parse`、full lowering、representative corpusの
+cold/warm測定をlanding条件にしている。本節もその分類を継承する。
+
+その上でP0では、各allocationが一varのadjacency/fact/familyまたは一nodeに局所化されることと、cloneを避ける
+callback/visitor型scoped APIがclosure lifetime、early return、再帰control flowをsafe surfaceへ持ち込むより大きい
+API/design変更になることから、owned getterをprovisionalに採る。GWCBと同じstd/full-lowering/corpus測定でwall/RSS、
+scope-entry、getter call、owned element countを比較し、既存baseline内である場合だけlandingを認める。regressionが出た場合は
+「hot pathではない」として受容せず、visitor APIを別設計・再査読するstop条件とする。
+
+#### Test-only read instrumentation parity
+
+新getterはprivate fieldを直接読むため、旧public/internal getterに付随する次の`#[cfg(test)]` instrumentationを
+偶然迂回し得る。
+
+- `var_neighbors`: `constraints/machine/entry.rs:265-266`の`record_owner_neighbor_read(var)`。
+- `pre_pop_effect_families`: `constraints/machine/entry.rs:949-951`の`record_owner_pre_pop_read(var)`。
+- `subtract_facts`: `constraints/mod.rs:3398-3400`の`record_owner_subtract_read(source)`。
+
+これらは旧call siteだけのobsolete instrumentationとは扱わない。dependency/audit fixtureが観測するlogical readを
+scoped routeでも維持するため、新getterまたはその直下のprivate view methodが、owned collect/cloneの直前に同じhookを
+exactly once呼ぶ。旧getterを経由して二重発火させず、raw fieldを読む新routeだけが対応hookを一回発火する。
+既存fixtureのexpected read owner / countを新実装の出力へ合わせて弱めず、旧routeとscoped routeのtrace parityで検証する。
+
+SS2 final sealed projection cutoverでは、production callerを`ScopedProjectionQuery`へ移す前に、上の八methodと
+同じname / owned return shapeをfinal facadeのpurpose-specific safe surfaceへ用意する。P0ではfinal backing familyを
+先回りして公開せず、legacy facadeの八methodだけを実装する。final counterpartが用意できない状態でlegacy methodを
+削除またはcallerをfinal routeへ移すことはstop条件とする。
+
+### Ownership / HRTB safety
+
+八methodは全てowned valueを返す。返却値に`'query` reference、facade/view、`TypeArena`、`VarBounds`、table/map slice、
+evaluator、round、memo、visiting stateを含めない。従って個々のowned cloneはclosure内の再帰処理で保持できるが、
+scope-local authorityやevaluation stateをclosure外へ運べない。
+
+既存`scheme_projectable_lowers_in_scope`だけは`SchemeProjectableLower<'scope>`内にborrowed
+`WeightedLowerBound`を持つが、HRTB closure内で全消費し、owned resultへ含めないという§4.0.2の既存条件を維持する。
+新getterはこのborrowed surfaceを広げない。upper entryと多くのnode lookupはcurrent pathのcloneを移すだけだが、
+effect-family `Neg`、subtract fact、neighbor、pre-pop familyには前節で明示した新しいintermediate allocation / deep cloneがある。
+それらの受容判断とperformance stop条件を含めてsafe surfaceの一部とする。
+
+新getterはいずれもread-onlyであり、candidate publication、proof write、family write authority、attempt nonce、
+query completion、cache hit/miss、round reuseへ触れない。persistent memo、cross-round state、nested gatewayを追加しない。
+
+### Pure-read failure boundary: row 2のscope-local degradationをそのまま転用する
+
+row 2のshipped implementationである`generalize/mod.rs:283-340`の
+`expand_positive_aliases_in_scheme_compact`は、外側の`CompactRoot` / role predicatesを保持したまま、
+
+```rust
+let _ = machine.with_legacy_projection_query(&mut round_state, |query| { ... });
+```
+
+とする。scope entry/authenticationがdenialした場合はclosureが始まらず、pre-scope compactをそのまま後続simplifyへ渡す。
+closure途中の`scheme_projectable_lowers_in_scope`がdenialした場合は、それ以前に完了したalias expansionをrollbackせず、
+未完の残りwalkだけを行わない。関数signatureは`()`のままで、Err自体は`let _ =`でscope-localに捨てる。
+
+row 1残りsubrowもこの既存precedentを採る。hard `Result` cascadeは採らず、
+`generalize_type_var_with_boundaries`、`AnalysisSession::{drain_work,step,take_scc_events}`、`quantify_component`、
+`lower_binding_bodies`、dump entry、`check.rs` formatter、yulang hover/completion/server routeのsignatureを変更しない。
+各top-level surfaceはfresh roundを同じmachineで作り、一回のscope resultをその関数内だけでsuccess outputまたは
+degraded outputへ畳む。raw-mode再実行やnested scopeは行わない。
+
+collectorについてはpartial internal stateをscope外へ漏らす必要がないため、row 2より強いlocal transaction形にする。
+collectorをclosure内で完結させ、`query.complete(owned_output)`まで成功した場合だけfull outputを返す。denial時のexact outputは
+次のとおりである。
+
+1. `compact_type_var_for_scheme`: `CompactRoot::default()`。これはroot bounds / recursive boundsを一件も主張しない
+   empty-equivalent compactであり、raw boundsを代替authorityとして再読しない。
+2. `compact_negative_type_var_for_scheme`: 同じく`CompactRoot::default()`。input formatterは従来どおり同じinfallible
+   `String` / `PublicTypeDisplay` surfaceを使い、default compactを既存finalizerへ渡す。
+3. `compact_type_var_recording_merge_constraints_for_scheme`:
+   `(CompactRoot::default(), Vec::new())`。partial compact、partial merge constraint、cache candidateを返さない。
+4. `compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints`:
+   `(Vec::new(), Vec::new())`。partial role constraint / merge constraintを返さない。
+5. `capture_generalized_witnesses`: `(Vec::new(), ProvenanceCompleteness::Incomplete)`。queryから得た親edgeやpartial draftを
+   返さず、scheme record全体をincompleteとして保存する。empty witness + incompleteは既存provenance modelが持つ
+   fail-open表現であり、complete witnessを捏造しない。
+
+上の五surfaceはcurrent return typeを維持する。実装はscope resultへ`unwrap_or_default`相当を使ってよいが、witnessだけは
+`ProvenanceCompleteness::Incomplete`を明示し、default/completeと取り違えない。test-only denial injectionでは各exact degraded
+outputとscope entry one / nested zeroを検証する。
+
+このlocal degradationがterminal failureを隠すことはない。本書の「2026-08-15 追記（四度目）」で確定したとおり、
+organic `TerminalLatchBusy`はgatewayのreal pathから除かれ、`ForeignAttemptRoundState`はfresh roundを同じ`self`で直ちに
+consumeする本migrationのcall shapeでは到達しない。実際に到達し得るproof-semantic failureはgatewayがErrを返す前に
+`requires_attempt_terminal()`分類に従ってterminal latchへ記録する。従ってcallerがErrをlocal degradationへ畳んでも、
+in-repo production compiler result consumerのterminal gateはfailureを観測する。non-terminal denialのoutput shapeは、
+同じtest-only injection / safe-API misuse耐性としてrow 2と同じ範囲でのみ意味を持つ。
+
+`check.rs`のvalue/member/input formattingのexact Result shapeを新設する必要はなく、先行draftのsignature ambiguityは消滅する。
+formatterの既存`String` / `PublicTypeDisplay` / `Option` contractとyulang route-error-to-no-hover behaviorは変更しない。
+
+`analysis/session/instantiate.rs`の`quantify_component`も`()`のまま、scheme generalization、scheme insertion、witness recordingを
+従来どおり一回だけ実行する。witness denialはempty + `Incomplete` provenanceへ局所化され、scheme自体をpartialにしたり、
+quantificationを早期return / retry / 二重実行したりしない。current un-migrated pathでprojectable lowerが正常にzero件のときも
+sparse/empty witnessを許し、scheme-level completenessは既に`Incomplete`である。従って
+`notes/design/2026-07-13-role-impl-method-two-stage-lifecycle.md`の「ordinary quantification exactly once」invariantと
+role lifecycle control flowは変更されない。これより前のscheme compaction自体がproof-semantic denialした場合は
+empty-equivalent compactが同attempt内で後続処理され得るが、そのfailureは既にterminal latchへ記録済みなので
+in-repo production compiler result consumerへschemeが到達しない。non-terminal denialは上記same-self call shapeでは
+到達しない。この二条件をquantify-onceと混同して「partial schemeをproductionへ許す」とは扱わない。
+
+### row 1 migration shape
+
+#### 1-a / 1-b witness collection
+
+`capture_generalized_witnesses`は`&mut ConstraintMachine`を受け、fresh
+`ProjectionEvaluationRoundState`を同じmachineで作り、一回の`with_legacy_projection_query`で
+collector root、全recursive `collect_var` / `collect_pos` / `collect_neg` / `collect_neu`、draft post-processingを包む。
+`WitnessCollector`は`&ConstraintMachine`ではなく`&ScopedLegacyProjectionQuery`とscope-local
+`ProjectionEvaluationRound`を使う。positive lowerだけがfallibleなので、collector recursionは
+scope内部だけで`Result`をthreadする。closure外へ返すのはowned
+`(Vec<GeneralizedWitnessDraft>, ProvenanceCompleteness)`だけであり、scope denialは同じreturn typeの
+`(Vec::new(), ProvenanceCompleteness::Incomplete)`へ畳む。
+
+`lowering/expr/tail.rs`のlocal witness captureと`analysis/session/instantiate.rs`のcomponent witness captureは、
+各top-level captureごとに既存infallible signatureのままこのowned full/degraded resultを受け取る。scope終了後のancestor
+adjustment、generalized witness storage、scheme finalizeはowned resultだけを使う。witness traversal中のscope再entry、
+`&ConstraintMachine` fallback、borrowed lowerのescapeはzeroとする。
+
+#### 1-c / 1-dおよび全scheme-mode compaction entry
+
+scheme-mode compact surfaceは`&mut ConstraintMachine`を受け、top-level compact call一回につきfresh roundと一回の
+`with_legacy_projection_query`を開く。scheme-mode `CompactCollector`は
+`&ScopedLegacyProjectionQuery`と同一scope-local `ProjectionEvaluationRound`を使い、上のowned getterと
+`scheme_projectable_lowers_in_scope`だけでroot / recursive bounds / stack-family / subtract / role traversalを完了する。
+scheme-mode recursionはscope内部だけで`Result`をthreadし、closure外へ出るsuccess valueはowned `CompactRoot`、または
+既存surfaceが要求するowned `(CompactRoot, Vec<CompactMergeConstraint>)` / owned role-constraint vectorだけである。
+failure時はpartially built collector outputをdropし、上節でsurfaceごとに固定したempty-equivalent owned resultを返す。
+
+raw-mode `CompactCollector::new` / `new_recording` / `new_recording_owner_dependencies`は本節の対象外で、既存machine readを
+変更しない。scheme-mode constructorだけをscoped readerへ切り替える。input completion / hoverでは
+`check.rs`の各top-level input formatterが、scopeを所有するscheme compact surfaceを一回だけ呼び、owned full/degraded
+`CompactRoot`を既存signatureのままfinalize / formatする。
+generalization、local environment compaction、recording scheme compaction、scheme-mode role compactionも、それぞれの
+top-level surfaceで同じ一scope形を使い、collector内部でgatewayをnested callしない。どのsurfaceもdenialをraw-mode readや
+caller-level Result cascadeへ変換せず、同じ関数内のexact degraded outputへ畳む。
+
+### rev.9 exact safe surfaceとの整合
+
+本節はrev.9 §2.1.1のcross-sibling例外リストへ上の八methodを加える狭い追加である。
+method visibilityは`generalize` / `compact` / `check`が`constraints`のsiblingであるため`pub(crate)`、
+backing view/source visibilityは従来どおり`pub(super)`以下とする。既存methodやtypeのvisibilityをさらに広げない。
+
+この追加は「legitimate production callerが必要とする目的別safe methodだけを同effective visibilityにする」という
+rev.9 invariant 66 / 76の理由を維持する。raw storage layout、constructor、field、mutator、write port、candidate internals、
+publication facadeは公開しない。八method以外の追加が必要になった場合は本節を黙って拡張せず、実装を停止して再査読する。
+
+### Gate / stop
+
+- 上のinventory各行を`compact/collect/mod.rs`と`compact/collect/type_nodes.rs`を含むactual call graphで再確認し、
+  提案した八getter全てに一件以上のproduction read siteが対応し、unassigned readとspeculative getterがzeroであること。
+- `ScopedLegacyProjectionQuery`の新methodがexactly `pub(crate)`、対応する`LegacyOnlyQueryView` methodが
+  `pub(super)`、source field / constructorがprivateであること。
+- 新getterのreturn typeにreference、facade/view、arena/table/map/slice、round/evaluator/cache stateがzeroであること。
+- `projection_upper_records_in_scope`のentry順、node getterのinvalid-ID behavior、neighbor iteration content、pre-pop family、
+  subtract fact、role raw-var setがcurrent direct readとsemantic parityを持つこと。
+- `var_neighbors_in_scope`、`pre_pop_effect_families_in_scope`、`subtract_facts_in_scope`が旧routeと同じtest-only
+  read-instrumentation hookをlogical read一件につきexactly once発火し、dependency/audit fixtureのowner/count traceが
+  migration前と一致すること。hook zeroまたは二重発火は不可。
+- effect-family `Neg` clone、subtract fact deep clone、neighbor/pre-pop intermediate `Vec`を含む新allocationをwall/RSSで
+  bounded測定し、GWCB §9の`std::text::parse`、full lowering、representative corpusのcold/warm baselineから説明不能な
+  regressionがないこと。regression時にzero-cost parityを主張せず、visitor APIの別設計・再査読へ停止すること。
+- witness 1-a / 1-bで各top-level captureにつきquery scope entry exactly one、nested entry zero、owned draft/completenessだけが
+  closure外へ出ること。success時のlocal/component witness outputとcompletenessがmigration前と一致し、denial fixtureが
+  exactly `(Vec::new(), ProvenanceCompleteness::Incomplete)`を返すこと。
+- input 1-c / 1-dで各top-level formatterにつきscope entry exactly one、success時のowned `CompactRoot`だけがformat phaseへ渡り、
+  hover/completion outputがbyte-for-byte一致すること。denial fixtureでは四surfaceが上節のexact default/empty tupleを返し、
+  partial compact / merge / role output、raw-mode fallback、nested scopeがzeroであること。
+- `new_for_scheme` / `new_recording_for_scheme`を使う全production surfaceがscoped routeへ移り、generalization、local environment、
+  role compaction、merge-constraint recordingのsemantic outputが不変であること。
+- 四つのscheme compact surface、`capture_generalized_witnesses`、`generalize_type_var_with_boundaries`、
+  `quantify_component`、check/yulang formatter/routeの既存infallible return shapeが不変であること。scope Errはtop-level
+  traversal内だけでrow 2型local degradationへ畳み、caller chainへ新しい`Result`を追加しないこと。
+- terminal proof-semantic denial fixtureでgateway terminal latchがcallerのdegradationより先に設定されること。
+  `TerminalLatchBusy` / `ForeignAttemptRoundState` injection fixtureはdegraded outputを検証するが、organic production
+  reachabilityを主張する証拠として扱わないこと。
+- `quantify_component`がsuccess / witness-denialの双方でordinary quantificationとscheme insertionをexactly once行い、
+  witness denial時はempty + incomplete provenanceだけを記録してretry / second quantificationを行わないこと。
+- old `ConstraintMachine::scheme_projectable_lowers` / `scheme_projectable_lowers_in_round`のproduction callerがzeroであること。
+  test-only callerを残す場合はproduction censusから明確に分離し、旧helperをproduction fallbackに使わないこと。
+- `LegacyOnlyReadSources`へ追加するmachine field referenceが`var_adjacency`、`subtracts`、
+  `pre_pop_effect_families`の三つだけであり、新しいwrite authorityやmutable referenceがzeroであること。
+- inferのconstraints / generalize / compact tests、local/component witness tests、yulangのbounded hover / completion testsを実行し、
+  既存baselineとuser-visible output parityを確認すること。
+
+次のいずれかを検出した場合は実装を停止し、本節を再査読する。
+
+- 八getter以外のmachine readがscheme-mode witness / compact traversalに残る、または新たに必要になる。
+- full machine、arena、bounds/table/map、raw viewへのreference getterが必要になる。
+- borrowed `SchemeProjectableLower`、`WeightedLowerBound`、scope facade、round/evaluator stateがHRTB closure外resultへ現れる。
+- one top-level traversalを一scopeで包めず、nested gatewayまたはper-record/per-var scopeが必要になる。
+- getter追加がproof/constraint/row writer authority、candidate publication、round reuse、failure classificationを変更する。
+- exact degraded outputだけではscope denialを局所化できず、caller-level `Result` cascade、新しいuser-visible error policy、
+  raw-mode再実行、retry、またはpartial collector outputのescapeが必要になる。
+- owned getter追加によるwall/RSS regressionが既存baselineを超え、八getterのpurpose-specific `Vec` return shapeを維持できない。
+- scoped routeでneighbor/pre-pop/subtractのtest-only instrumentationをexactly once維持できず、dependency/audit fixtureの
+  coverageを弱める必要が生じる。
+- final sealed facadeへ同じpurpose-specific operationを実装できず、legacy routeをSS2後へ残す必要が生じる。
+
+本節が許可するのは、row 1残りsubrowと同じscheme-mode collector production pathに必要な八owned getter、
+そのprivate legacy read-source wiring、既存test-only read instrumentationのparity wiring、およびこれらgetterを使うcaller
+migrationとrow 2同型のscope-local degraded outputだけである。他row、publication-side API、write authority、caller signature、
+cache design、failure classification、pending/retry mechanismを再開または変更しない。
+
+追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読予定
+
+追記状態: **blocked（2026-08-15）**。4回連続で独立reviewがNOT SOUNDと判定した
+（1回目: failure boundary完全未設計、2回目: hard Result propagationが実在しない境界を要求、
+3回目: row2前例への置換提案自体は妥当だが実装詳細が不十分、4回目: CRITICAL 3件——
+(a) scheme-mode compact surfaceが`&mut ConstraintMachine`を要求する一方、`check.rs`のinput
+formatterは`&ConstraintMachine`/`&Arena`の共有参照しか持たず、署名を変えないという制約と
+両立しない。(b) `CompactRoot::default()`は「情報が無い」ことを表さず、finalizerの規約上
+実際に`Pos::Bot`（never）・`Neg::Top`（any）という強い型的主張へ変換される——failureを
+正常なsemantic valueへすり替えてしまう。(c) hover/completion/single-file dumpの経路には
+lowering完了後のformatter実行前にterminal latchを再確認するgateが無く、degraded output
+が誤ったhover text・偽のnever/any表示・空candidateとしてそのままユーザへ届き得る）。
+
+row2の前例（既存compactへのin-place mutationを短く終える）と、本節が対象とする
+witness collection/compactionの構造（新しい出力をゼロから作る処理そのものが失敗する）は
+根本的にrisk profileが異なると4回目のreviewで指摘された——前者は既存情報を保持するだけ
+だが、後者はfailureを「制約なし」「witnessゼロ」という正常に見える意味論値へすり替える。
+これはCPK-SV-C episodeと同型の「指摘がエスカレートする」パターン（1回目:設計皆無→
+2回目:実現不能な要求→3回目:方向性は妥当だが実装が粗い→4回目:CRITICAL 3件）であり、
+次の一手で直る局面ではないと判断し、ここで停止する。row 1残りsubrow
+（witness collection: `capture_generalized_witnesses`、compaction:
+`compact_type_var_for_scheme`他3surface）は引き続きblockedとし、row 2〜7と
+row 7 snapshot-publication loopの既に完走・push済みの成果とは切り離して扱う。
+次に着手する際は、この4回で見えた「新規構築の失敗を正常値にすり替えない安全な
+degradation」という、まだ解けていない核心の問い自体を主題とした専用ラウンドが必要。
