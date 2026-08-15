@@ -2541,14 +2541,23 @@ failure時の内部値を「意味論的に安全なfallback」と証明する�
 安全でない。scope denial後に内部処理を同attempt内で閉じるための**attempt-local poison placeholder**としてだけ許可し、
 そのattemptのsemantic outputが外へ出ないことをterminal latchとfinal-output gateで保証する。
 
-本節の初回独立reviewは`SOUND WITH GAPS`（MEDIUM 1件、LOW 2件）であった。本改訂は、(a) 三production gateを
-genuine terminal-latched `PolyCheckOutput`で動的に通すcross-crate test seam、(b) bounds fixtureのmutable-owner cascade、
-(c) unchecked single-file dumpのbase / formatter surface全量列挙を同じ第五案へ取り込む。前三者はいずれもtestability / censusの
-gapを閉じるものであり、attempt-local poisonの意味やproduction failure contractは変更しない。
+本節の独立review履歴は次のとおりである。いずれもfresh-context reviewであり、既存の四案のblocked履歴とは別に、第五案を
+同じsection内で精密化した履歴である。
 
-その改訂への第二回独立reviewも`SOUND WITH GAPS`（MEDIUM 2件、LOW 2件）であった。本再改訂は、pre-latch shortcutを撤回して
-existing one-shot query-scope failure injectionをreal gateway pathでconsumeするtest seamへ置換し、CI / release feature reachabilityと
-proof-soak telemetry originをactual build graphに合わせ、dump call chainの記述を訂正する。
+1. initial draft `9199da95`への第一回review: `SOUND WITH GAPS`（MEDIUM 1件、LOW 2件）。三production gateを
+   genuine terminal-latched `PolyCheckOutput`で動的に通すcross-crate test seam、bounds fixtureのmutable-owner cascade、
+   unchecked single-file dumpのbase / formatter surface全量列挙を要求した。
+2. fix `872d1b9a`への第二回review: `SOUND WITH GAPS`（MEDIUM 2件、LOW 2件）。pre-latch shortcutを撤回してexisting
+   one-shot query-scope failure injectionをreal gateway pathでconsumeすること、CI / release feature reachability、proof-soak
+   telemetry origin、dump call chainの精密化を要求した。
+3. fix `6506161a`への第三回review: `SOUND WITH GAPS`（MEDIUM 2件）。feature-only buildにもconsume / arm / pending helperを存在させる
+   crate-private bridgeと、同じyulang E2Eでfeature-only proof-soak originを検証することを要求した。
+4. fix `74b9571f`への第四回review: `SOUND WITH GAPS`（MEDIUM 2件、LOW 1件）。`update_test_capture`のpositive / negative
+   `cfg`を完全な補集合にすること、feature側のarm surfaceをfixed failureへ実際に限定すること、本review履歴とclosing statusを
+   current stateへ合わせることを要求した。本改訂はこの三点を反映する。
+
+これらは全てtestability、compile completeness、surface precision、censusのgapを閉じるものであり、attempt-local poisonの意味や
+production failure contractは変更しない。
 
 ### 1. この案を支える確認済み事実
 
@@ -2609,7 +2618,8 @@ GWCB §9のhot-path分類に従ってbounded performance gateを通し、zero-co
 八getter以外のread、reference-return getter、write authority、nested gateway、persistent memoが必要ならstopする。
 ただし§5.1のnon-default `test-support` control seamだけは、このproduction semantic-read surface制限とinvariant 8への明示的例外とする。
 例外はfixed terminal failureをone-shot slotへarmするcrate-private methodとpending bool method、feature-gated cross-crate wrapper / owned
-telemetry deltaだけであり、scheme / proof semantic factのgetter、raw reference、任意failure、write authorityを公開しない。
+telemetry deltaだけであり、scheme / proof semantic factのgetter、raw reference、任意failure、任意remaining count、write authorityを
+feature側へ公開しない。既存の任意failure / count注入APIは`cfg(test)`だけに残す。
 
 ### 3. 内部denialの扱い: semantic fallbackではなくattempt-local poison
 
@@ -2705,18 +2715,24 @@ scope closureを作る位置で`take_injected_query_scope_failure`をconsumeし�
 `match result`へ入り、`failure.requires_attempt_terminal()`、authenticated round-local failure assignment、
 `mark_terminal_failure(ProofOperation::ProjectLowerEvaluation, ..)`を通る。`structural_kernel/tests.rs`はこのrouteを既に使用する。
 
-implementationでは、injection slot、その`ProofAttemptKernel::new`初期化、四query delegate内のconsume branch、shared
-arm / pending-check helperだけを`#[cfg(any(test, feature = "test-support"))]`へ広げる。特に現行
-`take_injected_query_scope_failure`は`#[cfg(test)] impl ProofAttemptKernel`全体の中にあるため、method本体をそこへ残してはならない。
-次のshared helperを新しい`#[cfg(any(test, feature = "test-support"))] impl ProofAttemptKernel`へ移す。
+implementationでは、injection slot、その`ProofAttemptKernel::new`初期化、四query delegate内のconsume branch、actual consume methodだけを
+`#[cfg(any(test, feature = "test-support"))]`へ広げる。特に現行`take_injected_query_scope_failure`は
+`#[cfg(test)] impl ProofAttemptKernel`全体の中にあるため、method本体をそこへ残してはならず、private methodとして新しい
+`#[cfg(any(test, feature = "test-support"))] impl ProofAttemptKernel`へ移す。
 
-- `arm_injected_query_scope_failure(remaining, failure)`（`pub(in crate::constraints)`。既存`#[cfg(test)]` test helperと下の
-  ConstraintMachine bridgeだけが呼ぶ）。
-- `take_injected_query_scope_failure()`（四delegateがconsumeするactual method）。
-- `has_pending_injected_query_scope_failure()`（`pub(in crate::constraints)`。下のbridgeがcallback後のconsume assertionに使うbool）。
+任意の`remaining`と`ProofFailure`を受けるgeneric arm primitive、および`inject_query_scope_failure`、
+`inject_query_scope_failure_after_successful_scopes`、`query_trace`、post-scope injectionを含む任意failure test APIは
+`#[cfg(test)]`だけに残す。feature-only pathはgeneric armを呼ばない。代わりに次の二methodだけを
+`#[cfg(feature = "test-support")] impl ProofAttemptKernel`へ置く。
 
-`query_trace`、post-scope injection、`inject_query_scope_failure_after_successful_scopes`を含む任意failure test APIは`#[cfg(test)]`のままにする。
-production gatewayのfailure classification / latch branch自体は変更しない。
+- `arm_terminal_projection_query_failure_for_test_support()`（`pub(in crate::constraints)`）。内部で
+  `remaining = 0`と`ProofFailure::ResourceExhausted { operation: ProofOperation::ProjectLowerEvaluation }`をhard-codeし、slotへ直接armする。
+  parameterは一つも受けない。
+- `terminal_projection_query_failure_pending_for_test_support()`（`pub(in crate::constraints)`）。fixed one-shot slotがpendingかだけを返す。
+
+この分離により、`test-support`をenableしてもconstraints subtreeの任意codeがfailure variantやremaining countを選択するsurfaceは存在しない。
+feature側で可能なのはfixed terminal projection failureを一回armし、そのpending boolを読むことだけである。production gatewayの
+failure classification / latch branch自体は変更しない。
 
 `check.rs`はprivate `ConstraintMachine::proof_attempt` fieldやstructural-kernelの`pub(super)` methodへ直接到達できないため、
 `constraints/machine/entry.rs`の`ConstraintMachine`へ次のfeature-gated crate-private bridgeだけを置く。
@@ -2729,9 +2745,9 @@ pub(crate) fn arm_terminal_projection_query_failure_for_test_support(&self);
 pub(crate) fn terminal_projection_query_failure_pending_for_test_support(&self) -> bool;
 ```
 
-前者はfixed `ProofFailure::ResourceExhausted { operation: ProofOperation::ProjectLowerEvaluation }`をremaining zeroでcommon arm helperへ渡し、
-後者はpending boolだけを返す。`proof_attempt` fieldはprivate、generic arm / pending helperと`ProofFailure`はconstraints-internalのままであり、
-`check.rs`がstructural-kernel moduleやfieldへ直接触るrouteは作らない。
+前者は同名のfixed `ProofAttemptKernel` primitiveを呼び、後者はfixed pending boolだけを返す。`proof_attempt` fieldはprivate、
+generic arbitrary-failure armは`cfg(test)`だけ、`ProofFailure`はconstraints-internalのままであり、`check.rs`がstructural-kernel module、
+field、failure variant、remaining countへ直接触るrouteは作らない。
 
 cross-crate callable surfaceは`crates/infer/src/check.rs`の次の一関数だけとし、telemetry assertion用のowned result typeを一つ添える。
 
@@ -2799,7 +2815,8 @@ binary commandは`cargo build --release -p yulang --target "${target}"`で、`--
 
 このseamのproduction isolation invariantは、(1) featureがdefault feature setにない、(2) workspace manifestでenableするedgeが
 `yulang`のdev-dependencyだけ、(3) cross-crate wrapper / deltaとConstraintMachine bridgeが`cfg(feature = "test-support")`、
-shared slot / consume / arm / pending helperが`cfg(any(test, feature = "test-support"))`でguardされる、
+shared slot / consumeが`cfg(any(test, feature = "test-support"))`、fixed arm / pending bridgeだけが
+`cfg(feature = "test-support")`でguardされる、generic arbitrary-failure armが`cfg(test)`だけに残る、
 (4) production entry caller census zero、(5) shipped release feature-treeで`infer/test-support` zero、の五点で固定する。明示的なCLI flagや将来のnormal dependencyから
 このfeatureをenableする変更はsupported production configurationではなく、本節のinvariantを破るため即stop / re-reviewとする。
 これは「Cargo featureを誰も明示enableできない」または「CI all-targets graphにもcodeが存在しない」という偽の主張ではなく、
@@ -2813,6 +2830,25 @@ feature-enabled dependency buildでは`cfg(test)`が立たないため、現行�
 `current_event_origin`のintentional branchに加え、thread-local `TEST_CAPTURE`、`capture_proof_soak_test_events`、
 `update_test_capture`のcapture branch、`ProofSoakTelemetrySnapshot::{proof_terminal_failures, total_for_origin}`を
 `#[cfg(any(test, feature = "test-support"))]`とする。これらは全てcrate-privateであり、cross-crateへ出すのは上のowned delta二値だけである。
+`update_test_capture`にはmoved closureを捨てるnegative branchもあるため、positive branchだけを広げてはならない。両branchを次の
+完全な補集合として変更する。
+
+```rust
+#[cfg(any(test, feature = "test-support"))]
+TEST_CAPTURE.with(|capture| {
+    if let Some(snapshot) = capture.borrow_mut().as_mut() {
+        update(snapshot);
+    }
+});
+
+#[cfg(not(any(test, feature = "test-support")))]
+let _ = update;
+```
+
+現行`proof_soak.rs`のsibling auditでは、同一関数内にpositive `cfg(test)` branchとmoved valueをconsumeする
+`cfg(not(test))` branchの対を持つのは`update_test_capture`だけである。`current_event_origin`を含む他のpositive-only branchには
+対応するnegative move sinkがない。ただしimplementation時には同fileの全`cfg(test)` / `cfg(not(test))`を再censusし、positive側だけ
+widenされてnegative側が旧conditionに残る非対称pairをzeroとする。
 `constraints/mod.rs`のre-exportも分割し、intentional guardとcapture / snapshot typeだけを
 `cfg(any(test, feature = "test-support"))`でcrate内から使えるようにする。他のtest-only soak assertion surfaceは広げない。
 上のcross-crate wrapperがformatter callback全体をintentional guardで包むため、real gatewayが
@@ -2940,16 +2976,17 @@ format/queryが走る場合はtest gate不合格とする。
 6. **Same-self round locality**: roundは各top-level surface内でsame receiverから作り、同じreceiverへ直ちに渡す。
 7. **One scope / no fallback authority**: traversalごとにscope one、nested zero、old direct proof read / raw-mode rerun zero。
 8. **Exact safe surface**: production semantic-readのcross-sibling visibilityは八owned getterと既存rev.9 projection facadeだけに限定する。
-   唯一の明示例外はnon-default `test-support`下のcrate-private arm / pending control bridge、one public synchronous wrapper、owned
-   telemetry deltaであり、semantic factやreferenceを返さない。
+   唯一の明示例外はnon-default `test-support`下のfixed-parameter crate-private arm / pending control bridge、one public synchronous
+   wrapper、owned telemetry deltaである。feature側はfailure variant / remaining countを選べず、semantic factやreferenceを返さない。
+   generic arbitrary-failure armは`cfg(test)`だけで、この例外inventoryに含めない。
 9. **No new recovery protocol**: Result cascade、retry loop、pending receipt、call-site-specific terminal escalation、latch clearを追加しない。
 10. **Normal-output parity**: denialがない場合のscheme、witness、hover、completion、member completionはmigration前と同一である。
 11. **Public-surface scope precision**:保証対象はcurrent in-repo checked compiler / yulang output graphであり、unchecked single-file dump、
     arbitrary external composition、未知のexternal direct formatter callerを安全化済みとは主張しない。
-12. **Test seam isolation**: real-gateway injection wrapper / delta、ConstraintMachine bridge、内部one-shot consume / arm / pending helperは
-    non-default `test-support` featureとyulang dev edgeにだけ宣言上のenable edgeを持つ。CI all-targets graphでcompileされ得てもproduction
-    callerはzero、shipped release graphではfeature offで非compileである。featureをnormal edgeへ追加する変更はimplementationではなく
-    design再査読を要する。
+12. **Test seam isolation**: real-gateway injection wrapper / delta、ConstraintMachine bridge、内部one-shot consume、fixed arm / pending
+    helperはnon-default `test-support` featureとyulang dev edgeにだけ宣言上のenable edgeを持つ。generic arbitrary-failure armは
+    `cfg(test)`だけでfeature-only buildには存在しない。CI all-targets graphでfixed seamがcompileされ得てもproduction callerはzero、
+    shipped release graphではfeature offで非compileである。featureをnormal edgeへ追加する変更はimplementationではなくdesign再査読を要する。
 13. **Telemetry isolation**: feature seamのterminal markは`IntentionalTestInjection`へ分類し、Organic soak counter / sinkを増やさない。
 
 ### 11. implementation sliceとGate / stop
@@ -2974,6 +3011,8 @@ implementationは次のreviewable sliceへ分ける。
   latchした状態をfinal gateが読む。pre-latch、predicate override、isolated helperだけのtestは不合格とする。
 - feature-only infer dependencyから返る`TestSupportProofSoakDelta`を各yulang E2Eが読み、Organic total zero / Intentional
   ProjectLowerEvaluation exactly oneをassertする。cfg(test)+featureだけのinfer unit testを代用してはならない。
+- `update_test_capture`のpositive branchは`cfg(any(test, feature = "test-support"))`、moved closureを捨てるnegative branchはそのexact complement
+  `cfg(not(any(test, feature = "test-support")))`である。同file内に旧`cfg(not(test))`を残したasymmetric pairがzeroである。
 - `infer/test-support`はdefault feature zero、normal/release dependency edge zeroであり、shipped artifactにsurfaceが存在しない。
   CI all-targets graph内のcompile有無ではなくproduction caller zeroをreachability gateに使う。
 - injected terminal markはintentional telemetry guard内で起き、one-shotはcallback内でconsumeされる。Organic soak delta nonzero、
@@ -3000,18 +3039,22 @@ implementationは次のreviewable sliceへ分ける。
 - `infer/test-support`がdefault feature、normal dependency edge、またはsupported release feature graphからenableされる。
 - feature seamがpre-latch shortcutを使う、real query delegateのclassification / round-local recording / gateway markを迂回する、または
   injected failureをOrganic proof-soak eventとして記録する。
-- `take_injected_query_scope_failure`、common arm / pending helper、capture / intentional telemetry branchのいずれかが
+- `take_injected_query_scope_failure`、fixed arm / pending helper、capture / intentional telemetry branchのいずれかが
   `cfg(test)`だけに残り、feature-only dependency buildから消える。
+- generic arbitrary-failure / arbitrary-count armが`feature = "test-support"`でcompileされる、またはfixed bridgeがparameterを受ける。
+- `update_test_capture`のpositive branchをfeatureへ広げたのにnegative branchが`cfg(not(test))`のまま残り、feature-only dependency
+  buildでmoved closureの両consume branchが同時compileされる。
 
 本節が許可するのは、八owned getter、row 1残りpure-read migration、その必要最小限のmutable-owner cascade、boolean terminal accessor、
 non-default `test-support` feature下の一cross-crate synchronous wrapperとowned telemetry delta、二crate-private ConstraintMachine bridge、
-既存one-shot injection slot / consume / arm / pendingのfeature-gated wiring、intentional proof-soak guard / capture、三つのyulang
+既存one-shot injection slot / consume、fixed arm / pendingのfeature-gated wiring（generic arbitrary-failure armは`cfg(test)`限定）、
+intentional proof-soak guard / capture、三つのyulang
 final-output gateとそのprivate pure helperだけである。`CompactRoot::default()`の意味、production
 proof failure分類、publication、write authority、cache lifetime、server error contract、row 2〜7の確定設計を変更しない。
 
-追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読予定
+追記著者: Codex gpt-5.6-sol（xhigh）が起案・四回の独立review findingを反映。Claude (Sonnet 5) の最終confirmation review待ち
 
-追記状態: **draft・未承認（2026-08-15）**。第五案は、四案が失敗した「内部fallback値を正常な意味論値として証明する」問題を
-解こうとせず、attempt-local poisonをchecked attempt boundaryと三post-format terminal gateで外部から隔離する案である。
-独立reviewが上のattempt-isolation、same-self reachability、三gate completeness、public/unchecked residual scopeを全て確認するまで
-implementationへ進まない。
+追記状態: **draft・未承認（2026-08-15、第四回`SOUND WITH GAPS`の2 MEDIUM + 1 LOW修正済み）**。第五案は、四案が失敗した
+「内部fallback値を正常な意味論値として証明する」問題を解こうとせず、attempt-local poisonをchecked attempt boundaryと三post-format
+terminal gateで外部から隔離する案である。次回の最終confirmation reviewが本改訂のcfg symmetry、fixed-only feature arm surface、
+attempt-isolation、same-self reachability、三gate completeness、public / unchecked residual scopeを確認するまでimplementationへ進まない。
