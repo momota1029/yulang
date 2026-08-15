@@ -13,11 +13,20 @@ on:
 permissions:
   contents: read
 
+# Keep the linker configuration identical for every job that restores the
+# shared target directory. Otherwise Cargo correctly invalidates its artifacts
+# between the workspace build and the test jobs.
+env:
+  RUSTFLAGS: -C link-arg=-fuse-ld=mold
+
 jobs:
   workspace_build:
     name: workspace build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # A cold all-targets build can exceed the former 25-minute limit before a
+    # cache matching its manifest key exists. Mold reduces link time; this
+    # remains a safety margin for cold runners and unusually large changes.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
 
@@ -27,6 +36,12 @@ jobs:
           rustup toolchain install stable --profile minimal --component rustfmt
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -34,8 +49,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Check formatting
@@ -61,6 +77,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -68,8 +90,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Test poly, specialize, and the runtimes
@@ -89,6 +112,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -96,8 +125,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Test parser and infer
@@ -117,6 +147,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -124,8 +160,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       # This test temporarily mutates a process-wide cache environment variable,
@@ -147,6 +184,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -154,8 +197,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Test user cache persistence in isolation
@@ -175,6 +219,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -182,8 +232,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 1 of 4
@@ -203,6 +254,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -210,8 +267,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 2 of 4
@@ -231,6 +289,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -238,8 +302,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 3 of 4
@@ -259,6 +324,12 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - name: Install mold linker
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mold
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -266,8 +337,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml') }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-ci-mold-v1-
             ${{ runner.os }}-${{ runner.arch }}-cargo-ci-
 
       - name: Run contract shard 4 of 4
