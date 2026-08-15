@@ -2517,3 +2517,315 @@ witness collection/compactionの構造（新しい出力をゼロから作る処
 row 7 snapshot-publication loopの既に完走・push済みの成果とは切り離して扱う。
 次に着手する際は、この4回で見えた「新規構築の失敗を正常値にすり替えない安全な
 degradation」という、まだ解けていない核心の問い自体を主題とした専用ラウンドが必要。
+
+## 2026-08-15 追記（五度目・draft）: attempt-local poisonとfinal-output terminal gateの分離
+
+### 0. 本節の位置づけと戦略変更
+
+本節は、直前のblocked節を削除、修正、または遡及的に承認しない。四案が失敗した履歴と
+`CompactRoot::default()`が実際の`Never` / `Any`を表すという指摘をそのまま正本に残した上で、
+failure時の内部値を「意味論的に安全なfallback」と証明する課題自体をuser-facing safetyから分離する第五案である。
+
+対象は§4.0.2 row 1の未完部分だけである。
+
+- 1-a / 1-b: `generalize/provenance.rs::capture_generalized_witnesses`を起点とするlocal binding / component witness capture。
+- 1-c / 1-d: `compact_type_var_for_scheme`、`compact_negative_type_var_for_scheme`、
+  `compact_type_var_recording_merge_constraints_for_scheme`、
+  `compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints`を起点とするscheme-mode compaction。
+- 上のpure-read traversalが必要とする、blocked節で全量inventory済みの八つのpurpose-specific owned getter。
+- formatter実行後にterminal latchを再確認する、current in-repo yulang production hover / completion / member-completionの
+  三final-output gate。
+
+本節は、denial時の`CompactRoot::default()`をunknown、neutral、または正しい型と再定義しない。
+`CompactRoot::default()`は引き続きfinalizer上の`Pos::Bot` / `Neg::Top`であり、単独ではuser-visible semantic valueとして
+安全でない。scope denial後に内部処理を同attempt内で閉じるための**attempt-local poison placeholder**としてだけ許可し、
+そのattemptのsemantic outputが外へ出ないことをterminal latchとfinal-output gateで保証する。
+
+### 1. この案を支える確認済み事実
+
+1. 本書の「2026-08-15 追記（四度目）」で確定したとおり、organic `TerminalLatchBusy`はcurrent safe production APIから
+   到達不能であり、`ensure_query_kernel_active`のreal pathは`RefCell::borrow()`を使う。actual conflictはtyped denialではなく
+   invariant panicとなる。
+2. `ForeignAttemptRoundState`はgeneral API上のmisuseとしては可能だが、fresh roundを同じ`self`で作り、同じ同期関数内で直ちに
+   consumeするrows 2〜7の形では到達しない。row 1残りも同じsame-self immediate-consumption形を採り、roundをfield、return、
+   helper parameter、cross-machine boundaryへ出さない。
+3. 従ってrow 1残りのreal call shapeでgateway denialとして有機的に到達し得るのは、
+   `requires_attempt_terminal() == true`のproof-semantic failure、または既にterminal latchへ格納済みのfailureだけである。
+   `with_legacy_projection_query`は前者をcallerへ`Err`として返す前にterminal latchへ記録する。
+4. checked loweringの`run_proof_compilation_attempt` / `body_lowering_attempt`は、lowering終了時に同じmachineのterminal latchを読み、
+   failureがあれば`BodyLowering`をdropして`LoadedFilesError::ProofKernelFailed`を返す。witness captureとgeneralization-time
+   compactionのdenialはこの既存gateで既にattempt全体を破棄する。
+5. 一方、`check_loaded_files`成功後にhover / completion formatterが新たにscheme compactionを行うため、
+   `source_hover_from_check`、`source_completion_from_check`、`source_member_completion_from_check`にはformatter後の再checkが必要である。
+   current codeにはこの三箇所のどこにもpost-format terminal gateがない。
+6. `GeneralizeCompactCache`は`AnalysisSession` fieldであり、`AnalysisSession::new*`ごとに
+   `GeneralizeCompactCache::from_env()`から新規作成される。env/global stateが持つのはenable flagだけで、entryは保持しない。
+   fresh `SourceTextAnalysis`もfresh `check_loaded_files` / `AnalysisSession`を所有する。従ってterminal-failed attemptでcacheされた
+   poison compactは同attempt内でだけ再利用され、後のsuccessful attemptへ移らない。
+
+この六事実のいずれかが崩れれば本案も無効となる。特に3と6はlocal placeholderの意味論を問わず安全性を成立させる
+load-bearing premiseであり、推測や「稀」の評価ではなく実装gateとして固定する。
+
+### 2. exact safe read surfaceはblocked節の八getterを継承する
+
+blocked節のActual read inventory、allocation caveat、test-only instrumentation parityはfailure-boundary案とは独立しており、
+本節も次の八methodだけを`ScopedLegacyProjectionQuery`へexactly `pub(crate)`で加える。
+
+```rust
+pub(crate) fn projection_upper_records_in_scope(
+    &self,
+    var: TypeVar,
+) -> Vec<(BoundRecordId, WeightedUpperBound)>;
+pub(crate) fn pos_shape_in_scope(&self, id: PosId) -> Pos;
+pub(crate) fn neg_shape_in_scope(&self, id: NegId) -> Neg;
+pub(crate) fn neu_shape_in_scope(&self, id: NeuId) -> Neu;
+pub(crate) fn role_constraint_raw_vars_in_scope(
+    &self,
+    constraint: &RoleConstraint,
+) -> FxHashSet<TypeVar>;
+pub(crate) fn var_neighbors_in_scope(&self, var: TypeVar) -> Vec<TypeVar>;
+pub(crate) fn pre_pop_effect_families_in_scope(
+    &self,
+    var: TypeVar,
+) -> Vec<ConstraintEffectFamily>;
+pub(crate) fn subtract_facts_in_scope(&self, source: TypeVar) -> Vec<SubtractFact>;
+```
+
+対応する`LegacyOnlyQueryView` methodは`pub(super)`、source bundle / field / constructorはprivateとし、returnは全てownedとする。
+`TypeArena`、`VarBounds`、table/map/slice、facade、round、evaluator、cacheへのreferenceは返さない。
+`var_neighbors_in_scope`、`pre_pop_effect_families_in_scope`、`subtract_facts_in_scope`は旧routeと同じtest-only logical-read hookを
+exactly once発火する。effect-family `Neg`、subtract facts、neighbor、pre-pop familyのnew intermediate clone/allocationは
+GWCB §9のhot-path分類に従ってbounded performance gateを通し、zero-cost parityとは主張しない。
+
+八getter以外のread、reference-return getter、write authority、nested gateway、persistent memoが必要ならstopする。
+
+### 3. 内部denialの扱い: semantic fallbackではなくattempt-local poison
+
+各top-level witness / scheme-compaction surfaceは、同じmachineでfresh
+`ProjectionEvaluationRoundState`を作り、一回の`with_legacy_projection_query`でtraversal全体を包む。
+collector、scope-local `ProjectionEvaluationRound`、cache、visiting stateはclosure内に置き、成功時だけowned resultを返す。
+gateway `Err`はrow 2のshipped `expand_positive_aliases_in_scheme_compact`と同様にtop-level surface内で畳み、
+infallible caller chainへ新しい`Result`を伝播しない。
+
+`WitnessCollector`とscheme-mode `CompactCollector`は、scope facadeへのimmutable handleとscope-local
+`ProjectionEvaluationRound`を同じcollector内に持つ。`scheme_projectable_lowers_in_scope`のborrowed lowerはscope内で消費し、
+compact recursionへ渡す必要があるboundだけをowned cloneへ変換してからcollectorを再びmutableに借りる。raw-mode collectorは
+既存`&ConstraintMachine` routeを維持し、scheme-modeからraw-modeへfallbackしない。
+
+denial時の具体的な内部値は次のとおり固定する。ただし、いずれも正常なsemantic substituteではなく、terminal-failed attemptを
+既存同期control flowの終端まで運ぶためのpoisonである。
+
+1. `compact_type_var_for_scheme`と`compact_negative_type_var_for_scheme`は`CompactRoot::default()`。
+2. `compact_type_var_recording_merge_constraints_for_scheme`は`(CompactRoot::default(), Vec::new())`。
+3. `compact_reachable_role_constraints_from_seed_vars_recording_merge_constraints`は`(Vec::new(), Vec::new())`。
+4. `capture_generalized_witnesses`は`(Vec::new(), ProvenanceCompleteness::Incomplete)`。
+
+partial collector output、partial merge/role constraints、partial witness draftsは返さずdropする。raw-mode fallback、retry、second
+quantification、cross-call pending stateは作らない。poisonが同attempt内の後続generalization、scheme insertion、cache insertion、
+finalizationを通ること自体は許容するが、その意味論的正しさを主張しない。必要な主張は、そのattemptがterminal latchを保持したまま
+checked lowering gateまたは後述のpost-format gateに到達し、poison由来のsemantic outputを公開しないことだけである。
+
+このためimplementation testでは、proof-semantic denialを各surfaceへinjectしたattemptがpanic、無限loop、unbounded allocationを
+起こさずgateまで到達することも確認する。poisonが内部不変条件を壊してgate到達前にpanicする場合、final-output gateだけでは
+解決にならないためstopし、本節を再査読する。
+
+test-only `TerminalLatchBusy` / `ForeignAttemptRoundState` injectionはorganic reachabilityの証拠に使わない。これらはterminal latchを
+setしないため、full user-facing routeで「gateが必ず隠す」とは主張しない。real production call shapeからこの二variantを除外する
+same-self round censusが本案の前提である。
+
+### 4. mutable-owner cascade
+
+HRTB gatewayは`&mut ConstraintMachine`を要求するため、前案の「caller signature不変」は撤回する。ただし変更は既に`&mut` ownerを
+持つ地点までの機械的reborrowで止まり、`Result`、server route、`SourceTextAnalysis` public behaviorのcascadeは作らない。
+
+| surface / call chain | current shape | target shapeとtermination point |
+|---|---|---|
+| witness collector | `capture_generalized_witnesses(&ConstraintMachine, ..)` / `WitnessCollector { machine: &ConstraintMachine }` | entryを`&mut ConstraintMachine`へ変更し、collectorは`&ScopedLegacyProjectionQuery`を保持する。一scopeがrootと全recursive Pos/Neg/Neu walkを包む |
+| local witness | `ExprLowerer::generalize_local_binding(&mut self)`が`self.session.infer.constraints()`を渡す | outer signatureは既に`&mut self`。`constraints_mut()`を短くreborrowし、scope終了後にshared reborrowでfinalizeする。外側cascade zero |
+| component witness | `AnalysisSession::quantify_component(&mut self)`が`self.infer.constraints()`を渡す | `self.infer.constraints_mut()`を短くreborrowする。`ancestors` / `scheme`はowned/localであり、scope終了後に`self.poly.typ`とshared constraintsを使う既存finalizeへ戻る。外側cascade zero |
+| ordinary scheme compact | `compact_type_var_for_scheme(&ConstraintMachine, ..)` | `&mut ConstraintMachine`へ変更。`generalize_type_var_with_boundaries`は既に`&mut ConstraintMachine`なのでその場で終端する |
+| local environment scheme compact | `add_root_vars_connected_to_environment(&ConstraintMachine, ..)`（`lowering/expr/tail.rs`） | helperだけ`&mut ConstraintMachine`へ変更し、既に`&mut self`を持つ`generalize_local_binding`から`constraints_mut()`を渡す。compact scope drop後、同helper内でshared reborrowしてenvironment reachabilityを読む |
+| cached scheme compact | `AnalysisSession::compact_root_for_generalize(&mut self)`内の`self.infer.constraints()` | `constraints_mut()`へ変更。cache lookup borrowをscope前に終え、owned compact取得後にcacheを再borrowしてinsertする。`GeneralizeCompactCache`のownership/lifetimeは変えない |
+| role scheme compact | `generalize_root_with_prepasses_and_metrics(&mut self)`から`self.infer.constraints()`と`self.roles.for_owner(def)`を同時使用 | `self.infer`のmutable borrowと`self.roles`のimmutable borrowをdisjoint field splitし、role input sliceとseedはscope内で読む。outer signatureは既に`&mut self` |
+| input formatter | `check.rs::{format_inferred_input_type_with_path_rewriter, format_inferred_input_type_public_with_path_rewriter}`が`infer: &Arena` | 両方を`infer: &mut Arena`へ変更し、`constraints_mut()`を渡す。これはpublic Rust APIのshared-to-mutable source breakであり、本節が明示的に承認対象へ含める |
+| yulang input formatting | `HoverFormatContext::format_input_type(&AnalysisSession, ..)` | `&mut AnalysisSession`へ変更。`hover_for_local_def`は既に`&mut AnalysisSession`、`source_completion_from_check`は既に`&mut PolyCheckOutput`を持つ。completion local metadataをownedでcollect後、sessionをmutable reborrowする |
+
+`source_hover_from_check` / `source_completion_from_check` / `source_member_completion_from_check`は既に
+`&mut PolyCheckOutput`を受けるため署名変更しない。`SourceTextAnalysis::hover`、`hover_from_loaded_files`、completion/member route、
+`server.rs`までmutable signatureを広げない。`HoverFormatContext`はmodules / path-rewrite inputだけを保持し、whole
+`PolyCheckOutput`または`AnalysisSession`のshared borrowを保持しないため、既存row 2のborrow-split形を維持できる。
+
+test-only callerはowned `ConstraintMachine` / `Arena` bindingを`mut`へ機械的に更新する。production caller inventory以外の
+signature変更が必要になれば、silent scope expansionをせずstopする。
+
+### 5. inferからyulangへ出すexact terminal-state accessor
+
+`ConstraintMachine::proof_terminal_failure`自体は`pub(crate)`のまま維持し、`ProofFailure`やmachine internalsをyulangへ公開しない。
+代わりに`crates/infer/src/check.rs`の`PolyCheckOutput`へ次のread-only boolean accessorを追加する。
+
+```rust
+impl PolyCheckOutput {
+    pub fn has_proof_terminal_failure(&self) -> bool {
+        self.lowering
+            .session
+            .infer
+            .constraints()
+            .proof_terminal_failure()
+            .is_some()
+    }
+}
+```
+
+このmethodはterminal valueのclone、failure variant、latch clear/mutation、`ConstraintMachine` referenceを公開しない。
+`&self -> bool`だけをcross-crate surfaceとし、final formatterがmutable machine borrowをdropした後に呼ぶ。
+名前は「diagnosticがある」「lowering errorがある」ではなくproof attemptのterminal latchそのものを問うことを明示する。
+
+### 6. yulangの三final-output gate
+
+gateはformatterの前ではなく**後**に置く。前checkだけでは、その直後のscheme compactionがterminal failureをlatchした場合を
+捕捉できないためである。三関数の全non-empty / `Some` returnを次の一箇所ずつへ集約する。実装は、
+`has_proof_terminal_failure: bool`と既存outputを受け、terminal時に`T::default()`を返すprivate generic helperを一つ置いてよい。
+その場合も三production functionが最後のexpressionとして同helperへ
+`check.has_proof_terminal_failure()`を直接渡し、helper後のformat/queryはzeroとする。
+
+1. `source_hover_from_check`（current `source/mod.rs:3149`）は既存の`best`を構築した後、
+   `check.has_proof_terminal_failure()`がtrueなら`None`、falseなら`best`を返す。
+   `SourceTextAnalysis::hover`とfresh `hover_from_loaded_files`の両routeがこの関数を通るため、outer signatureは変えない。
+2. `source_completion_from_check`（current `source/mod.rs:3222`）はsort / dedupまで終えた後、terminalなら`Vec::new()`、
+   otherwise `items`を返す。`completion_from_loaded_files`は従来どおり`Ok(Vec<_>)`であり、route error contractを変えない。
+3. `source_member_completion_from_check`（current `source/mod.rs:3339`）も全candidate detail formatting、sort / dedup後に同じcheckを行い、
+   terminalなら`Vec::new()`を返す。既存early returnは全て既に`Vec::new()`なので安全側であり、non-empty returnだけをfinal gateへ通す。
+
+source APIではterminal failure時にhoverは`None`、completion / member completionはempty vectorとなる。
+LSP `completion_items_for_source`はordinary non-member contextでparser keyword fallbackを先に持つため、source completionがemptyでも
+最終LSP responseはkeyword-onlyになり得る。これは型由来candidate / detailを公開しない既存fallback behaviorであり、
+member contextはemptyのままである。hoverは既存`Option` chainによりno-hoverとなる。いずれも新しい`RouteError` variantや
+server signatureを必要とせず、request cacheへ入るのはgate通過後のno-hover / keyword-only / empty resultだけである。
+
+### 7. witness / GWCB completenessとattempt-locality
+
+`capture_generalized_witnesses` denial時のempty + `ProvenanceCompleteness::Incomplete`は、normal-caseの既存Incompleteと値だけでは
+区別できず、`quantify_component`もscheme-level completenessを独立にgateしない。この弱点自体は否定しない。本案の保証は値の
+区別ではなく、同じdenialがその値を作る前に同じmachineのterminal latchへ記録される因果関係に置く。
+
+- local/component witness、scheme record、occurrence provenanceが同attempt内でempty/incomplete witnessを参照しても、checked
+  `lower_loaded_files*`はattempt終了時にterminal latchを見て`BodyLowering`全体をdropする。
+- `quantify_component`はordinary quantification、scheme insertion、witness recordingを従来どおり一回だけ行い、retryや二重schemeを
+  作らない。role lifecycleのquantify-once invariantを変更しない。
+- same `SourceTextAnalysis` / `PolyCheckOutput`を複数回読む場合もterminal latchはstickyである。現行reuse surfaceである
+  `SourceTextAnalysis::hover`は呼出しごとに`source_hover_from_check`のgateを通り、fresh completion/member routeも各自のgateを通る。
+- `GeneralizeCompactCache`、generalized scheme table、witness table、occurrence provenanceは全て同じ`AnalysisSession`に所有され、
+  later attemptへ移送されない。
+- serverはhover requestごとにfresh `SourceTextAnalysis`を作り、completion routeもfresh `check_loaded_files`を行う。
+  LSP request cacheは`AnalysisSession`やcompact/witnessを保存せず、final gated resultだけをdocument version付きで保存する。
+- persistent compiled-unit artifactのcurrent in-repo production writerはchecked `lower_loaded_files`またはそのtyped-act wrapperを使い、
+  terminal-failed `BodyLowering`からartifactを作らない。artifact自体も`ConstraintMachine`、`AnalysisSession`、
+  `GeneralizeCompactCache`を保存しない。
+
+従ってcurrent in-repo production graphには、terminal-failed attemptのpoison compact / degraded witnessをlater successful attemptが読む
+channelは見つからない。ただし、公開されている`compiled_unit_artifact_from_lowering*`へexternal callerがunchecked
+`BodyLowering`を直接渡す組合せや、後述のsingle-file unchecked dumpはこの保証に含めない。新しいin-repo production callerが
+これらを使う場合は本案のattempt-isolation proofが崩れるためstopし、checked gateを追加して再査読する。
+
+### 8. single-file dumpの扱い
+
+`dump_loaded_file` / `dump_loaded_file_raw` / `dump_source` / `dump_source_raw`は`lower_binding_bodies`を直接使いterminal latchをgateしない。
+workspace-wide caller censusではinfer自身のtest / characterization以外のin-repo production callerはzeroであり、real yulang / CLI dumpは
+checked `dump_loaded_files*`を使う。本節はrow 4 / row 7確定節と同じく、このpublic unchecked surfaceをpre-existingかつ直交するgapとして
+明示的に範囲外へ置く。
+
+ただし新しいriskはzeroではない。migration後、このunchecked pathがwitness / scheme compaction denialを通ると、poison compactや
+degraded witnessを含む`BodyLowering`をterminal recheckなしでdumpし得る。現行production caller zeroだから本sliceのuser-facing
+correctnessを破らないが、将来callerを追加する前にsingle-file APIをchecked `Result` surfaceへ移すか、dump直前にterminal gateを
+追加する必要がある。この制約をdoc commentとproduction caller census test / review gateに残す。
+
+### 9. test impactと追加regression
+
+current yulang hover / completion testsにterminal failureを意図的に作るcaseはなく、正常系expected outputの変更は不要である。
+mutable signature化により、inferのgeneralize / compact / proof / bounds test fixtureにあるowned `ConstraintMachine` / `Arena`を`mut`へし、
+callをmutable reborrowへ変える機械的compile fixは必要になる。assertionやexpected type、hover text、completion itemは変更しない。
+
+実装時には次を追加する。
+
+1. 各witness / scheme compact surfaceのsuccess parity、top-level scope entry exactly one、nested zero、old direct helper read zeroを
+   infer側で検証する。
+2. existing structural-kernel failure injectionでproof-semantic terminal failureをscopeへ入れ、gatewayがplaceholder returnより前に
+   terminal latchをsetすること、partial output zero、gate到達までpanic / loopしないことを検証する。
+3. `PolyCheckOutput::has_proof_terminal_failure`がclean attemptでfalse、terminal-latched machineでtrueを返すことをinfer unit testで
+   実machineに対して検証する。setterやfailure variantをproduction public APIへ追加しない。
+4. yulang側では三final-output functionのlast expressionが、actual
+   `check.has_proof_terminal_failure()`とoutputを同じprivate gate helperへ渡す形であることを固定する。helperをterminal predicate
+   true / falseの双方で直接testし、trueなら`None` / empty / empty、falseなら既存outputをbyte-for-byte保持することを検証する。
+   infer側のactual-latch accessor testと組み合わせ、production setter、cross-crate test-only latch setter、feature、environment
+   switchは追加しない。
+5. `SourceTextAnalysis::hover` route、fresh hover route、ordinary completion、member completionをbounded targeted testで通す。
+   ordinary LSP completionのterminal caseはtype-derived item/detail zeroかつkeyword-only、memberはzero、hoverはNoneを確認する。
+6. infer側で同じterminal-latched `PolyCheckOutput`への複数回のaccessor readが全てtrueであることを固定し、yulang側では
+   `SourceTextAnalysis::hover`が呼出しごとに同じfinal gateへ到達するcall-graph test / code assertionを置く。
+7. existing yulang source/server、infer generalize/compact/constraints suiteを実行し、正常系output parityとbaselineを維持する。
+
+boolean helperだけをtestして三production return siteがそのhelperを使わない、actual accessor testがない、またはgate後に別の
+format/queryが走る場合はtest gate不合格とする。
+
+### 10. invariant
+
+1. **No semantic claim for poison**: denial placeholderをUnknown、Never、Any、constraint-free correct resultとして正当化しない。
+2. **Latch-before-poison**: organic denialはplaceholder生成前にsame-machine terminal latchへ記録済みである。
+3. **Attempt isolation**: poisonを保持するcache、scheme、witness、provenance、arenaはsame `AnalysisSession`から出ない。
+4. **Checked initial output**: witness/generalization-time denialは既存`lower_loaded_files*` gateが`BodyLowering`ごと破棄する。
+5. **Checked post-format output**: post-check formatter denialは三source final-output gateがtype-derived outputを破棄する。
+6. **Same-self round locality**: roundは各top-level surface内でsame receiverから作り、同じreceiverへ直ちに渡す。
+7. **One scope / no fallback authority**: traversalごとにscope one、nested zero、old direct proof read / raw-mode rerun zero。
+8. **Exact safe surface**: cross-sibling visibilityは八owned getterと既存rev.9 projection facadeだけに限定する。
+9. **No new recovery protocol**: Result cascade、retry loop、pending receipt、call-site-specific terminal escalation、latch clearを追加しない。
+10. **Normal-output parity**: denialがない場合のscheme、witness、hover、completion、member completionはmigration前と同一である。
+11. **Public-surface scope precision**:保証対象はcurrent in-repo checked compiler / yulang output graphであり、unchecked single-file dump、
+    arbitrary external composition、未知のexternal direct formatter callerを安全化済みとは主張しない。
+
+### 11. implementation sliceとGate / stop
+
+implementationは次のreviewable sliceへ分ける。
+
+1. 八owned getter、private read-source wiring、instrumentation parity、success/performance test。
+2. witness captureのone-scope migrationとlocal/component mutable reborrow、denial-to-empty+Incomplete test。
+3. four scheme-compaction surfaceのone-scope migration、generalize/tail/analysis/check/yulang mutable-owner cascade、success/cache parity test。
+4. `PolyCheckOutput::has_proof_terminal_failure`と三final-output gate、attempt-isolation / user-facing suppression test。
+5. old `scheme_projectable_lowers` production caller census zero、full infer/yulang bounded regression、public API/doc audit。
+
+各sliceで次をgateする。
+
+- 八getterのactual read inventory、visibility、owned return、logical-read instrumentation、GWCB hot-path wall/RSSがblocked節のgateを満たす。
+- witness / compactionの各top-level callがfresh same-self round + scope oneで、round storage / forwarding / cross-self useがzeroである。
+- `with_legacy_projection_query`のproof-semantic Errがplaceholder生成より前にterminal latchをsetする。
+- checked lowering failureでは`BodyLowering` / compiled artifact / `SourceTextAnalysis`が生成・cacheされない。
+- post-check formatter failureでは三source boundaryが必ずterminal latchを再checkし、hover None、source completion empty、member emptyとなる。
+- final gateはformatter後にあり、gate check後に型format/queryを再開しない。
+- request cacheに保存されるのはgate後resultだけで、document versionを跨ぐAnalysisSession / compact / witness stateがzeroである。
+- normal hover/completion/member outputとscheme/witness semanticsがbyte-for-byte / structure-for-structureで不変である。
+- public check formatter二関数の`&Arena -> &mut Arena` API breakがrelease note / caller censusで明示され、未知のin-repo callerがzeroである。
+- unchecked single-file dumpとarbitrary unchecked lowering-to-artifact compositionに新しいin-repo production callerがzeroである。
+
+次のいずれかを検出した場合は実装を停止し、本節を再査読する。
+
+- `TerminalLatchBusy`がactual safe production pathからtyped denialとして返る。
+- row 1残りのsame-self immediate round localityが維持できず、`ForeignAttemptRoundState`がorganicに到達し得る。
+- terminal proof-semantic Errがgateway return前にlatchされないvariant / branchがある。
+- poisonがgate到達前にpanic、infinite loop、unbounded resource use、process-global semantic mutationを起こす。
+- `AnalysisSession`、generalize cache、scheme/witness/provenance、ConstraintMachine、またはungated poison-derived compiled surfaceが
+  later successful attemptへ再利用されるchannelが見つかる。
+- 三source gate以外にcurrent in-repo production hover/completion/member outputがあり、terminal checkを迂回する。
+- final gate後にformat/queryを行うため、checkとreturnの間に新しいterminal failureが発生し得る。
+- hard Result cascade、semantic fallbackの正当化、raw direct-read fallback、retry / pending stateが必要になる。
+- public API compatibility要件が`check.rs` formatterの`&mut Arena`化を許さず、別のauthority設計が必要になる。
+- external/public unchecked dumpまたはartifact compositionまで同じ保証範囲へ含める必要が生じる。
+
+本節が許可するのは、八owned getter、row 1残りpure-read migration、その必要最小限のmutable-owner cascade、boolean terminal accessor、
+三つのyulang final-output gateとそのprivate pure helperだけである。`CompactRoot::default()`の意味、proof failure分類、publication、
+write authority、cache lifetime、server error contract、row 2〜7の確定設計を変更しない。
+
+追記著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が独立査読予定
+
+追記状態: **draft・未承認（2026-08-15）**。第五案は、四案が失敗した「内部fallback値を正常な意味論値として証明する」問題を
+解こうとせず、attempt-local poisonをchecked attempt boundaryと三post-format terminal gateで外部から隔離する案である。
+独立reviewが上のattempt-isolation、same-self reachability、三gate completeness、public/unchecked residual scopeを全て確認するまで
+implementationへ進まない。
