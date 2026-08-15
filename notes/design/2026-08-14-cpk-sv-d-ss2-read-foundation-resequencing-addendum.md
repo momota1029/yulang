@@ -3057,10 +3057,11 @@ proof failure分類、publication、write authority、cache lifetime、server er
    section全体一貫性を確認し、finalizeを妨げるgapは見つからなかった。旧戦略（四案・NOT SOUND四連続）と新戦略（第五案・本節）を
    通じて、row 1残りsubrow問題で初めて到達した無条件SOUND判定である。
 
-追記著者: Codex gpt-5.6-sol（xhigh）が起案・五回の独立review findingを反映。Claude (Sonnet 5) が査読・本節を確定。
+追記著者: Codex gpt-5.6-sol（xhigh）が起案・五回の独立review findingを反映。Claude (Sonnet 5) が査読・本節を確定。ユーザ承認済み（2026-08-15）。
 
-追記状態: **設計レベル確定・SOUND（2026-08-15、第五回独立reviewで無条件SOUND）**。第五案は、四案が失敗した
+追記状態: **確定・ユーザ承認済み（2026-08-15、第五回独立reviewで無条件SOUND→ユーザ承認）**。第五案は、四案が失敗した
 「内部fallback値を正常な意味論値として証明する」問題を解こうとせず、attempt-local poisonをchecked attempt boundaryと三post-format
 terminal gateで外部から隔離する案である。5回の独立review（初回`SOUND WITH GAPS`から段階的にgapを閉じ、第五回で無条件`SOUND`）を
-経て、設計としての健全性は確定した。ただし本リポジトリの正本化規約（`~/CLAUDE.md`および`/CLAUDE.md`の「設計判断の優先順位と
-正本」）に従い、implementation着手にはユーザ承認が別途必要——本節はまだ「ユーザ承認済み」正本の署名を持たない。
+経て設計としての健全性が確定し、ユーザが承認した。本節はこれ以降、row 1残りsubrow（witness collection / scheme compaction）の
+実装指示として正本の一部を成す。implementationはCPK-SV-D SS2-P0の既定スライス手順（最小限のread、one commit per slice、
+review→fix→re-review、30分elapsed-time gate）に従って進める。
