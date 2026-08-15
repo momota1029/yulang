@@ -8,8 +8,8 @@ use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use super::proof::ProofOperation;
 use super::ProofFailure;
+use super::proof::ProofOperation;
 
 pub(crate) const CPK_SOAK_TELEMETRY_VERSION: u32 = 6;
 const CPK_SOAK_TELEMETRY_SCHEMA: &str = "cpk-only";
@@ -66,11 +66,17 @@ pub(crate) fn ensure_proof_soak_telemetry_header() {
 /// failed cannot inflate the organic soak census.
 pub(crate) fn record_proof_terminal_failure(operation: ProofOperation, failure: &ProofFailure) {
     let origin = current_event_origin();
-    PROOF_TERMINAL_FAILURES[proof_terminal_index(origin, operation)].fetch_add(1, Ordering::Relaxed);
+    PROOF_TERMINAL_FAILURES[proof_terminal_index(origin, operation)]
+        .fetch_add(1, Ordering::Relaxed);
     update_test_capture(|snapshot| {
         snapshot.proof_terminal_failures[proof_terminal_index(origin, operation)] += 1;
     });
-    emit_proof_event("proof_terminal_failure", origin, Some(operation), Some(failure));
+    emit_proof_event(
+        "proof_terminal_failure",
+        origin,
+        Some(operation),
+        Some(failure),
+    );
 }
 
 pub(crate) fn proof_soak_telemetry_snapshot() -> ProofSoakTelemetrySnapshot {
@@ -268,7 +274,11 @@ fn metadata(name: &str) -> String {
 }
 
 fn build_profile() -> &'static str {
-    if cfg!(debug_assertions) { "debug" } else { "release" }
+    if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    }
 }
 
 fn generalize_compact_cache_mode() -> &'static str {

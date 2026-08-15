@@ -79,12 +79,7 @@ fn row5_production_path_fixture() -> Row5ProductionPathFixture {
     let lower = machine.alloc_pos(Pos::Var(source));
     let upper = machine.alloc_neg(Neg::Var(target));
     let origin = OriginId::unknown_internal();
-    assert!(machine.enqueue_root_subtype(
-        lower,
-        ConstraintWeights::empty(),
-        upper,
-        origin,
-    ));
+    assert!(machine.enqueue_root_subtype(lower, ConstraintWeights::empty(), upper, origin,));
     let result = machine
         .constraint_record_id(lower, ConstraintWeights::empty(), upper)
         .expect("the row-5 fixture constraint must be canonical");
@@ -567,10 +562,11 @@ fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_three_tr
         1,
         "the authoritative replay-qualified-parent commit must happen exactly once",
     );
-    assert!(fixture
-        .dependents
-        .iter()
-        .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    assert!(fixture.dependents.iter().all(|record| {
+        fixture
+            .machine
+            .scheme_projection_record_is_included(*record)
+    }));
     assert_eq!(
         fixture.machine.row5_publication_trace_for_test(),
         (1, 1, 1),
@@ -579,14 +575,14 @@ fn cpk_sv_d_ss2_p0_row5_real_qualified_admission_commits_then_publishes_three_tr
     let after = row5_semantic_snapshot(&fixture.machine).publication;
     let transitions = &after.projectability_transitions[before.projectability_transitions.len()..];
     assert_eq!(transitions.len(), 3);
-    assert!(transitions
-        .iter()
-        .all(|transition| !transition.was_included && transition.is_included));
+    assert!(
+        transitions
+            .iter()
+            .all(|transition| !transition.was_included && transition.is_included)
+    );
     assert!(fixture.dependents.iter().all(|record| {
         transitions.iter().any(|transition| {
-            transition.lower_record == *record
-                && !transition.was_included
-                && transition.is_included
+            transition.lower_record == *record && !transition.was_included && transition.is_included
         })
     }));
     let invalidations = &after.owner_invalidations[before.owner_invalidations.len()..];
@@ -624,10 +620,11 @@ fn cpk_sv_d_ss2_p0_row5_real_snapshot_map_constructs_one_shared_lane() {
             fixture.parent_claim,
         );
 
-    assert!(fixture
-        .dependents
-        .iter()
-        .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    assert!(fixture.dependents.iter().all(|record| {
+        fixture
+            .machine
+            .scheme_projection_record_is_included(*record)
+    }));
     assert_eq!(
         fixture.machine.row5_publication_trace_for_test().0,
         1,
@@ -638,9 +635,7 @@ fn cpk_sv_d_ss2_p0_row5_real_snapshot_map_constructs_one_shared_lane() {
 #[test]
 fn cpk_sv_d_ss2_p0_row6_real_snapshot_producer_uses_one_precommit_lane() {
     let mut fixture = row5_production_path_fixture();
-    fixture
-        .machine
-        .reset_row6_publication_lane_trace_for_test();
+    fixture.machine.reset_row6_publication_lane_trace_for_test();
 
     fixture
         .machine
@@ -659,10 +654,11 @@ fn cpk_sv_d_ss2_p0_row6_real_snapshot_producer_uses_one_precommit_lane() {
         1,
         "the real qualified-parent commit must follow the row-6 snapshot",
     );
-    assert!(fixture
-        .dependents
-        .iter()
-        .all(|record| fixture.machine.scheme_projection_record_is_included(*record)));
+    assert!(fixture.dependents.iter().all(|record| {
+        fixture
+            .machine
+            .scheme_projection_record_is_included(*record)
+    }));
     let (lane_constructions, mut evaluated_records) =
         fixture.machine.row6_publication_lane_trace_for_test();
     evaluated_records.sort_unstable_by_key(|record| record.0);
@@ -682,9 +678,7 @@ fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
         foreign_publication_round_failure(),
     ] {
         let mut fixture = row5_production_path_fixture();
-        fixture
-            .machine
-            .reset_row6_publication_lane_trace_for_test();
+        fixture.machine.reset_row6_publication_lane_trace_for_test();
         fixture.machine.reset_row5_publication_trace_for_test();
         fixture
             .machine
@@ -716,9 +710,7 @@ fn cpk_sv_d_ss2_p0_row6_real_precommit_denial_blocks_qualified_parent_commit() {
     }
 
     let mut fixture = row5_production_path_fixture();
-    fixture
-        .machine
-        .reset_row6_publication_lane_trace_for_test();
+    fixture.machine.reset_row6_publication_lane_trace_for_test();
     fixture.machine.reset_row5_publication_trace_for_test();
     let failure = ProofFailure::ResourceExhausted {
         operation: ProofOperation::ProjectLowerEvaluation,
@@ -761,9 +753,7 @@ fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_add_lower_bound_commit() {
         let target = TypeVar(98_160);
         let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_161)));
         fixture.machine.register_type_var(target, TypeLevel::root());
-        fixture
-            .machine
-            .reset_row6_publication_lane_trace_for_test();
+        fixture.machine.reset_row6_publication_lane_trace_for_test();
         fixture
             .machine
             .proof_attempt
@@ -788,9 +778,7 @@ fn cpk_sv_d_ss2_p0_row6_precommit_denial_blocks_add_lower_bound_commit() {
     let target = TypeVar(98_162);
     let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(98_163)));
     fixture.machine.register_type_var(target, TypeLevel::root());
-    fixture
-        .machine
-        .reset_row6_publication_lane_trace_for_test();
+    fixture.machine.reset_row6_publication_lane_trace_for_test();
     let failure = ProofFailure::ResourceExhausted {
         operation: ProofOperation::ProjectLowerEvaluation,
     };
@@ -864,8 +852,7 @@ fn cpk_sv_d_ss2_p0_row7_add_lower_postcommit_snapshot_uses_one_lane_for_every_re
         })
         .collect::<Vec<_>>();
     expected_owners.sort_unstable_by_key(|owner| owner.0);
-    let mut invalidated_owners = after.owner_invalidations
-        [before.owner_invalidations.len()..]
+    let mut invalidated_owners = after.owner_invalidations[before.owner_invalidations.len()..]
         .iter()
         .map(|invalidation| invalidation.owner)
         .collect::<Vec<_>>();
@@ -884,9 +871,7 @@ fn cpk_sv_d_ss2_p0_row7_add_lower_postcommit_denials_publish_nothing() {
     {
         let mut fixture = row5_production_path_fixture();
         let target = TypeVar(98_166 + offset as u32 * 2);
-        let endpoint = fixture
-            .machine
-            .alloc_pos(Pos::Var(TypeVar(target.0 + 1)));
+        let endpoint = fixture.machine.alloc_pos(Pos::Var(TypeVar(target.0 + 1)));
         fixture.machine.register_type_var(target, TypeLevel::root());
         let before = row5_semantic_snapshot(&fixture.machine).publication;
         fixture
@@ -1037,10 +1022,7 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
             "the authoritative commit must precede the denied row-5 scope",
         );
         assert_eq!(fixture.machine.proof_terminal_failure(), None);
-        assert_eq!(
-            fixture.machine.row5_publication_trace_for_test(),
-            (0, 0, 0),
-        );
+        assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0),);
         let after = row5_semantic_snapshot(&fixture.machine).publication;
         assert_eq!(after.owner_invalidations, before.owner_invalidations);
         assert_eq!(
@@ -1075,10 +1057,7 @@ fn cpk_sv_d_ss2_p0_row5_real_postcommit_denials_preserve_commit_publication_boun
         1,
     );
     assert_eq!(fixture.machine.proof_terminal_failure(), Some(failure));
-    assert_eq!(
-        fixture.machine.row5_publication_trace_for_test(),
-        (0, 0, 0),
-    );
+    assert_eq!(fixture.machine.row5_publication_trace_for_test(), (0, 0, 0),);
     let after = row5_semantic_snapshot(&fixture.machine).publication;
     assert_eq!(after.owner_invalidations, before.owner_invalidations);
     assert_eq!(

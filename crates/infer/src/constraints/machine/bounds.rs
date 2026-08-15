@@ -159,9 +159,7 @@ impl ConstraintMachine {
     }
 
     #[cfg(test)]
-    pub(in crate::constraints) fn row5_publication_trace_for_test(
-        &self,
-    ) -> (usize, usize, usize) {
+    pub(in crate::constraints) fn row5_publication_trace_for_test(&self) -> (usize, usize, usize) {
         row5_publication_trace()
     }
 
@@ -659,9 +657,7 @@ impl ConstraintMachine {
             return;
         }
         let premise_inclusion_before = match producer
-            .map(|producer| {
-                self.projection_inclusion_snapshot(ProofPremise::Constraint(producer))
-            })
+            .map(|producer| self.projection_inclusion_snapshot(ProofPremise::Constraint(producer)))
             .transpose()
         {
             Ok(snapshot) => snapshot,
@@ -1817,8 +1813,8 @@ impl ConstraintMachine {
         Vec<proof::ExactQualifiedParent>,
         ClaimQualifiedParentAdmissionSnapshot,
     )> {
-        let inclusion_before = self
-            .projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()))?;
+        let inclusion_before =
+            self.projection_inclusion_snapshot(ProofPremise::Constraint(admission.result()))?;
         let accepted = admission.accepted().to_vec();
         self.proof_store
             .commit_qualified_parent_admission(admission);
@@ -1845,8 +1841,8 @@ impl ConstraintMachine {
         Vec<proof::ExactQualifiedParent>,
         ClaimQualifiedParentAdmissionSnapshot,
     )> {
-        let inclusion_before = self
-            .projection_inclusion_snapshot(ProofPremise::Constraint(transaction.result()))?;
+        let inclusion_before =
+            self.projection_inclusion_snapshot(ProofPremise::Constraint(transaction.result()))?;
         let accepted = transaction.accepted().to_vec();
         self.proof_store
             .commit_replay_qualified_parent_transaction(transaction);

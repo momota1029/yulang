@@ -71,8 +71,7 @@ fn record_row5_publication_lane_construction() {
         ROW6_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
     }
     if ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
-        ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS
-            .with(|count| count.set(count.get() + 1));
+        ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(count.get() + 1));
     }
 }
 
@@ -121,8 +120,7 @@ fn begin_row6_publication_lane_tracking() {
 #[cfg(test)]
 fn record_row6_publication_lane_evaluation(record: BoundRecordId) {
     if ROW6_PUBLICATION_LANE_TRACKING_ACTIVE.with(Cell::get) {
-        ROW6_PUBLICATION_LANE_EVALUATED_RECORDS
-            .with(|records| records.borrow_mut().push(record));
+        ROW6_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow_mut().push(record));
     }
 }
 
@@ -169,16 +167,14 @@ fn end_row7_snapshot_publication_lane_tracking() {
 fn reset_row7_snapshot_publication_lane_trace() {
     ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS.with(|count| count.set(0));
     ROW7_SNAPSHOT_PUBLICATION_LANE_TRACKING_ACTIVE.with(|active| active.set(false));
-    ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS
-        .with(|records| records.borrow_mut().clear());
+    ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow_mut().clear());
 }
 
 #[cfg(test)]
 fn row7_snapshot_publication_lane_trace() -> (usize, Vec<BoundRecordId>) {
     (
         ROW7_SNAPSHOT_PUBLICATION_LANE_CONSTRUCTIONS.with(Cell::get),
-        ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS
-            .with(|records| records.borrow().clone()),
+        ROW7_SNAPSHOT_PUBLICATION_LANE_EVALUATED_RECORDS.with(|records| records.borrow().clone()),
     )
 }
 
@@ -211,6 +207,8 @@ use poly::types::{
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(crate) use proof::ProofFailure;
+#[cfg(feature = "test-support")]
+pub(crate) use proof::ProofOperation;
 use proof_soak::ensure_proof_soak_telemetry_header;
 pub(crate) use proof_soak::record_proof_terminal_failure;
 #[cfg(any(test, feature = "test-support"))]
@@ -218,8 +216,6 @@ pub(crate) use proof_soak::{
     ProofSoakEventOrigin, ProofSoakTelemetrySnapshot, capture_proof_soak_test_events,
     with_intentional_proof_soak_test_injection,
 };
-#[cfg(feature = "test-support")]
-pub(crate) use proof::ProofOperation;
 
 #[cfg(test)]
 pub(crate) use mutation::MethodRoleMutation;

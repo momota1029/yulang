@@ -699,8 +699,8 @@ const CPK8G10_ACTUAL_SCOPE: &str =
 const CPK8G11_COMPLETED_SUBSLICES: &[&str] =
     &["8G-11a0", "8G-11a1", "8G-11a2", "8G-11b1", "8G-11b2"];
 const CPK8G_COMPLETED_PLAN_ITEMS: &[&str] = &[
-    "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a", "8G-4b",
-    "8G-5", "8G-6", "8G-7", "8G-8", "8G-9", "8G-10", "8G-11", "8G-12",
+    "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a", "8G-4b", "8G-5", "8G-6",
+    "8G-7", "8G-8", "8G-9", "8G-10", "8G-11", "8G-12",
 ];
 
 // Exact removed identifiers are split so this manifest can scan the whole infer crate without
@@ -2222,9 +2222,8 @@ fn cpk_8g_12_part_3_final_zero_reference_gate_closes_all_17_plan_items() {
     assert_eq!(
         CPK8G_COMPLETED_PLAN_ITEMS,
         &[
-            "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a",
-            "8G-4b", "8G-5", "8G-6", "8G-7", "8G-8", "8G-9", "8G-10", "8G-11",
-            "8G-12",
+            "8G-0", "8G-1", "8G-2a", "8G-2b", "8G-2c", "8G-2d", "8G-3", "8G-4a", "8G-4b", "8G-5",
+            "8G-6", "8G-7", "8G-8", "8G-9", "8G-10", "8G-11", "8G-12",
         ],
         "the final ledger must account for all 17 approved CPK-8G plan items",
     );
