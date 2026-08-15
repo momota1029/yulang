@@ -1,7 +1,9 @@
 //! Scope-bound immutable view shell. Production proof reads cut over in SS2; the remaining
 //! structural families follow in SS3--SS5.
 
-use poly::types::{Neg, NegId, Pos, PosId, TypeArena, TypeVar};
+use poly::roles::RoleConstraint;
+use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, TypeArena, TypeVar};
+use rustc_hash::FxHashSet;
 
 use super::gateway::StructuralData;
 
@@ -26,6 +28,41 @@ impl ImmutableTypeShapeView<'_> {
             Pos::Var(var) => Some(*var),
             _ => None,
         }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this shape read before slices 2 and 3 migrate its callers"
+    )]
+    pub(in crate::constraints::structural_kernel) fn pos_shape(self, id: PosId) -> Pos {
+        self.types.pos(id).clone()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this shape read before slices 2 and 3 migrate its callers"
+    )]
+    pub(in crate::constraints::structural_kernel) fn neg_shape(self, id: NegId) -> Neg {
+        self.types.neg(id).clone()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this shape read before slices 2 and 3 migrate its callers"
+    )]
+    pub(in crate::constraints::structural_kernel) fn neu_shape(self, id: NeuId) -> Neu {
+        self.types.neu(id).clone()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this shape read before slices 2 and 3 migrate its callers"
+    )]
+    pub(in crate::constraints::structural_kernel) fn role_constraint_raw_vars(
+        self,
+        constraint: &RoleConstraint,
+    ) -> FxHashSet<TypeVar> {
+        constraint.raw_vars(self.types)
     }
 
     pub(in crate::constraints::structural_kernel) fn neg_var(self, id: NegId) -> Option<TypeVar> {

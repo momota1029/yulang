@@ -2,7 +2,8 @@
 
 use std::collections::VecDeque;
 
-use poly::types::{PosId, Subtractability, TypeVar};
+use poly::roles::RoleConstraint;
+use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, Subtractability, TypeVar};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::super::read_view::ImmutableTypeShapeView;
@@ -12,13 +13,14 @@ use crate::constraints::proof::{
     SemanticRowReductionRecordRef,
 };
 use crate::constraints::{
-    BoundRecordId, BoundSemanticKey, ConstraintRecord, ConstraintRecordId, GeneralizedSchemeRecord,
-    GeneralizedSchemeWitness, LowerFilterRecord, LowerFilterRecordId, OriginRecord, ProofPremise,
-    ReplayDerivationBudget, ReplayDerivationStorage, ReplayDropRecord, ReplayDropRecordId,
-    RowDerivation, RowDerivationId, RowResidualKey, RowResidualRecord, RowResidualRecordId,
-    SchemeInstantiationId, SchemeInstantiationKey, SchemeInstantiationRecord, SourceBoundaryRecord,
-    SubtypeConstraintKey, TypeBounds, UnweightedRowReductionOwner, UnweightedRowReductionRecord,
-    UnweightedRowReductionRecordId, UpperReplayClaimId,
+    BoundRecordId, BoundSemanticKey, ConstraintEffectFamily, ConstraintRecord, ConstraintRecordId,
+    GeneralizedSchemeRecord, GeneralizedSchemeWitness, LowerFilterRecord, LowerFilterRecordId,
+    OriginRecord, ProofPremise, ReplayDerivationBudget, ReplayDerivationStorage, ReplayDropRecord,
+    ReplayDropRecordId, RowDerivation, RowDerivationId, RowResidualKey, RowResidualRecord,
+    RowResidualRecordId, SchemeInstantiationId, SchemeInstantiationKey, SchemeInstantiationRecord,
+    SourceBoundaryRecord, SubtractFact, SubtractTable, SubtypeConstraintKey, TypeBounds,
+    UnweightedRowReductionOwner, UnweightedRowReductionRecord, UnweightedRowReductionRecordId,
+    UpperReplayClaimId, WeightedUpperBound,
 };
 
 /// All production read authorities before any family has been sealed.
@@ -32,6 +34,9 @@ use crate::constraints::{
 pub(super) struct LegacyOnlyReadSources<'query> {
     proof: &'query ProofOccurrenceStore,
     bounds: &'query TypeBounds,
+    var_adjacency: &'query FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
+    subtracts: &'query SubtractTable,
+    pre_pop_effect_families: &'query FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
     constraints_replay: LegacyConstraintReplayReadSources<'query>,
     rows: LegacyRowReadSources<'query>,
     identities: LegacyIdentityReadSources<'query>,
@@ -93,6 +98,9 @@ impl<'query> LegacyOnlyReadSources<'query> {
     pub(super) fn new(
         proof: &'query ProofOccurrenceStore,
         bounds: &'query TypeBounds,
+        var_adjacency: &'query FxHashMap<TypeVar, FxHashMap<TypeVar, usize>>,
+        subtracts: &'query SubtractTable,
+        pre_pop_effect_families: &'query FxHashMap<TypeVar, Vec<ConstraintEffectFamily>>,
         constraints_replay: LegacyConstraintReplayReadSources<'query>,
         rows: LegacyRowReadSources<'query>,
         identities: LegacyIdentityReadSources<'query>,
@@ -100,6 +108,9 @@ impl<'query> LegacyOnlyReadSources<'query> {
         Self {
             proof,
             bounds,
+            var_adjacency,
+            subtracts,
+            pre_pop_effect_families,
             constraints_replay,
             rows,
             identities,
@@ -211,6 +222,23 @@ impl<'query> LegacyOnlyQueryView<'query> {
             .flat_map(crate::constraints::VarBounds::projection_lower_records)
     }
 
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn projection_upper_records(
+        &self,
+        var: TypeVar,
+    ) -> Vec<(BoundRecordId, WeightedUpperBound)> {
+        self.sources
+            .bounds
+            .of(var)
+            .into_iter()
+            .flat_map(crate::constraints::VarBounds::generalized_projection_uppers)
+            .map(|(record, bound)| (record, bound.clone()))
+            .collect()
+    }
+
     pub(super) fn project_lower<'a>(
         &'a self,
         record: BoundRecordId,
@@ -221,6 +249,85 @@ impl<'query> LegacyOnlyQueryView<'query> {
 
     pub(super) fn pos_var(&self, id: PosId) -> Option<TypeVar> {
         self.type_shapes.pos_var(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn pos_shape(&self, id: PosId) -> Pos {
+        self.type_shapes.pos_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn neg_shape(&self, id: NegId) -> Neg {
+        self.type_shapes.neg_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn neu_shape(&self, id: NeuId) -> Neu {
+        self.type_shapes.neu_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn role_constraint_raw_vars(
+        &self,
+        constraint: &RoleConstraint,
+    ) -> FxHashSet<TypeVar> {
+        self.type_shapes.role_constraint_raw_vars(constraint)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn var_neighbors(&self, var: TypeVar) -> Vec<TypeVar> {
+        #[cfg(test)]
+        crate::analysis::record_owner_neighbor_read(var);
+        self.sources
+            .var_adjacency
+            .get(&var)
+            .into_iter()
+            .flat_map(|neighbors| neighbors.keys().copied())
+            .collect()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn pre_pop_effect_families(&self, var: TypeVar) -> Vec<ConstraintEffectFamily> {
+        #[cfg(test)]
+        crate::analysis::record_owner_pre_pop_read(var);
+        self.sources
+            .pre_pop_effect_families
+            .get(&var)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 wires this source before slices 2 and 3 migrate its callers"
+    )]
+    pub(super) fn subtract_facts(&self, source: TypeVar) -> Vec<SubtractFact> {
+        #[cfg(test)]
+        crate::analysis::record_owner_subtract_read(source);
+        self.sources
+            .subtracts
+            .facts
+            .get(&source)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub(super) fn cpk_projection_evaluator(&self) -> CpkProjectionEvaluator<'_> {

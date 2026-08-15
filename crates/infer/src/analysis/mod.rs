@@ -128,14 +128,15 @@ pub(crate) use session::{
 };
 #[cfg(test)]
 pub(crate) use session::{OwnerPredictionReason, with_owner_dirty_scheduler_for_new_sessions};
+#[cfg(test)]
+pub(crate) use session::{
+    begin_owner_dependency_reads, record_owner_birth_level_read, record_owner_bound_read,
+    record_owner_level_read, record_owner_neighbor_read, record_owner_pre_pop_read,
+    record_owner_subtract_read,
+};
 pub(crate) use session::{
     record_owner_applied_resolution_read, record_owner_candidate_bucket_read,
     record_owner_dependency_read, record_owner_method_taint_read,
-};
-#[cfg(test)]
-pub(crate) use session::{
-    record_owner_birth_level_read, record_owner_bound_read, record_owner_level_read,
-    record_owner_neighbor_read, record_owner_pre_pop_read, record_owner_subtract_read,
 };
 pub use session::{
     with_generalize_role_snapshot_always_solve_for_new_sessions,

@@ -15,10 +15,13 @@ use super::read_view::ScopedQueryView;
 pub(in crate::constraints) use crate::constraints::proof::ProofAttemptNonce;
 use crate::constraints::proof::{self, ProofFailure, ProofOperation, mint_proof_attempt_nonce};
 use crate::constraints::{
-    ConstraintMachine, SchemeProjectableLower, SchemeProjectableLowerReason, UpperReplayClaimId,
+    ConstraintEffectFamily, ConstraintMachine, SchemeProjectableLower,
+    SchemeProjectableLowerReason, SubtractFact, UpperReplayClaimId, WeightedUpperBound,
     record_proof_terminal_failure,
 };
-use poly::types::{PosId, TypeArena, TypeVar};
+use crate::roles::RoleConstraint;
+use poly::types::{Neg, NegId, Neu, NeuId, Pos, PosId, TypeArena, TypeVar};
+use rustc_hash::FxHashSet;
 
 use sealing::RoundReuseSlot;
 
@@ -896,6 +899,79 @@ impl<'query> ScopedLegacyProjectionQuery<'query> {
         self.view.pos_var(pos)
     }
 
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn projection_upper_records_in_scope(
+        &self,
+        var: TypeVar,
+    ) -> Vec<(crate::constraints::BoundRecordId, WeightedUpperBound)> {
+        self.view.projection_upper_records(var)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn pos_shape_in_scope(&self, id: PosId) -> Pos {
+        self.view.pos_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn neg_shape_in_scope(&self, id: NegId) -> Neg {
+        self.view.neg_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn neu_shape_in_scope(&self, id: NeuId) -> Neu {
+        self.view.neu_shape(id)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn role_constraint_raw_vars_in_scope(
+        &self,
+        constraint: &RoleConstraint,
+    ) -> FxHashSet<TypeVar> {
+        self.view.role_constraint_raw_vars(constraint)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn var_neighbors_in_scope(&self, var: TypeVar) -> Vec<TypeVar> {
+        self.view.var_neighbors(var)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn pre_pop_effect_families_in_scope(
+        &self,
+        var: TypeVar,
+    ) -> Vec<ConstraintEffectFamily> {
+        self.view.pre_pop_effect_families(var)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "row 1 slice 1 publishes this getter before slices 2 and 3 migrate its callers"
+    )]
+    pub(crate) fn subtract_facts_in_scope(&self, source: TypeVar) -> Vec<SubtractFact> {
+        self.view.subtract_facts(source)
+    }
+
     #[cfg(test)]
     pub(super) fn legacy_storage_census(&self) -> legacy_read_view::LegacyStorageCensus {
         self.view.storage_census()
@@ -1055,6 +1131,8 @@ impl<'machine> LegacyQueryMachineFields<'machine> {
             bounds,
             proof_store,
             proof_attempt,
+            var_adjacency,
+            subtracts,
             row_residuals,
             row_residual_record_ids,
             row_residual_records,
@@ -1081,15 +1159,13 @@ impl<'machine> LegacyQueryMachineFields<'machine> {
             // Non-routed machine orchestration and diagnostic sidecars are explicit so a newly
             // added field makes this census non-exhaustive until its authority is classified.
             queue: _,
-            var_adjacency: _,
-            subtracts: _,
             levels: _,
             next_internal_type_var: _,
             bound_dispositions: _,
             declared_subtracts: _,
             effect_family_paths: _,
             row_tail_vars: _,
-            pre_pop_effect_families: _,
+            pre_pop_effect_families,
             effect_filter_violations: _,
             events: _,
             method_role_mutations: _,
@@ -1141,6 +1217,9 @@ impl<'machine> LegacyQueryMachineFields<'machine> {
             sources: LegacyOnlyReadSources::new(
                 proof_store,
                 bounds,
+                var_adjacency,
+                subtracts,
+                pre_pop_effect_families,
                 constraints_replay,
                 rows,
                 identities,

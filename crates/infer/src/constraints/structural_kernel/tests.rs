@@ -1,19 +1,24 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
+use std::time::{Duration, Instant};
 use std::{cell::Cell, rc::Rc};
 
 use poly::expr::DefId;
-use poly::types::{Neg, NegId, Pos, PosId, Subtractability, TypeVar};
+use poly::roles::{RoleConstraint, RoleConstraintArg};
+use poly::types::{Neg, NegId, Neu, Pos, PosId, SubtractId, Subtractability, TypeVar};
+use rustc_hash::FxHashSet;
 
 use super::commands::StructuralMutationIntent as I;
 use super::{ProofAccessError, ProofAttemptKernel};
+use crate::analysis::begin_owner_dependency_reads;
+use crate::constraints::mutation::DependencyKey;
 use crate::constraints::proof::{ProofFailure, ProofOperation};
 use crate::constraints::{
-    BoundDerivation, BoundRecordId, ConstraintMachine, ConstraintRecordId,
+    BoundDerivation, BoundRecordId, ConstraintEffectFamily, ConstraintMachine, ConstraintRecordId,
     ConstraintWeights, DerivedUnaryCarrier, GeneralizedSchemeRecordId, LowerFilterRecordId,
     OriginId, ProjectionProofCarrier, ProofPremise, ProvenanceCompleteness, RecordProofClause,
     RecordProofClauseLinkAdmission, RowDerivationId, SchemeProjectionProof,
-    SchemeProjectionProofSupport, StructuralDerivation, StructuralDerivationRule,
+    SchemeProjectionProofSupport, StructuralDerivation, StructuralDerivationRule, SubtractFact,
     TypeLevel, UnweightedRowReductionRecordId, UpperReplayClaimId, UpperReplayClaimKind,
 };
 
@@ -1294,6 +1299,163 @@ fn cpk_sv_d_ss2_p0_scope_local_projectable_lowers_match_legacy_helper() {
         .expect("scope-local projectable lowers remain available");
 
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn cpk_sv_d_ss2_p0_row1_owned_read_surface_matches_legacy_reads_and_is_bounded() {
+    let mut machine = ConstraintMachine::new();
+    let owner = TypeVar(81_000);
+    let lower_var = TypeVar(81_001);
+    let upper_var = TypeVar(81_002);
+    let neighbor_a = TypeVar(81_003);
+    let neighbor_b = TypeVar(81_004);
+    let lower = machine.alloc_pos(Pos::Var(lower_var));
+    let upper = machine.alloc_neg(Neg::Var(upper_var));
+    let neutral = machine.alloc_neu(Neu::Bounds(lower, upper));
+    let positive_shape = Pos::Con(vec!["row1_owned_pos".into()], vec![neutral]);
+    let negative_shape = Neg::Con(vec!["row1_owned_neg".into()], vec![neutral]);
+    let positive = machine.alloc_pos(positive_shape.clone());
+    let negative = machine.alloc_neg(negative_shape.clone());
+    let ordinary_negative = machine.alloc_neg(Neg::Var(TypeVar(81_005)));
+    let origin = OriginId::unknown_internal();
+    let evidence_record = machine
+        .bounds
+        .add_evidence_upper(
+            owner,
+            negative,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        )
+        .id;
+    let ordinary_record = machine
+        .bounds
+        .add_upper(
+            owner,
+            ordinary_negative,
+            ConstraintWeights::empty(),
+            BoundDerivation::Origin(origin),
+        )
+        .id;
+    machine
+        .var_adjacency
+        .entry(owner)
+        .or_default()
+        .extend([(neighbor_a, 1), (neighbor_b, 1)]);
+    let family = ConstraintEffectFamily {
+        path: vec!["row1_owned_effect".into()],
+        args: vec![neutral],
+    };
+    machine
+        .pre_pop_effect_families
+        .insert(owner, vec![family.clone()]);
+    let subtract = SubtractFact {
+        id: SubtractId(81_006),
+        subtractability: Subtractability::Set(vec!["row1_owned_subtract".into()], vec![neutral]),
+    };
+    machine.subtract_fact(owner, subtract.id, subtract.subtractability.clone());
+    let role = RoleConstraint {
+        role: vec!["row1_owned_role".into()],
+        inputs: vec![RoleConstraintArg {
+            lower: positive,
+            upper: negative,
+        }],
+        associated: Vec::new(),
+    };
+
+    // Unrelated keyed data must not affect the owned element count or turn a getter into a
+    // whole-map scan. Construction stays outside the timed query.
+    for index in 0..2_048 {
+        let unrelated = TypeVar(82_000 + index);
+        machine
+            .var_adjacency
+            .entry(unrelated)
+            .or_default()
+            .insert(TypeVar(85_000 + index), 1);
+        machine
+            .pre_pop_effect_families
+            .insert(unrelated, vec![family.clone()]);
+    }
+
+    let expected_upper_records = machine
+        .bounds()
+        .of(owner)
+        .expect("row-1 fixture has upper records")
+        .generalized_projection_uppers()
+        .map(|(record, bound)| (record, bound.clone()))
+        .collect::<Vec<_>>();
+    let expected_neighbors = machine.var_neighbors(owner).collect::<Vec<_>>();
+    let expected_pre_pop = machine.pre_pop_effect_families(owner).to_vec();
+    let expected_subtracts = machine.subtracts().facts(owner).to_vec();
+    let expected_role_vars = role.raw_vars(machine.types());
+
+    let legacy_guard = begin_owner_dependency_reads();
+    let _ = machine.bounds().of(owner);
+    let _ = machine.var_neighbors(owner).collect::<Vec<_>>();
+    let _ = machine.pre_pop_effect_families(owner);
+    let _ = machine.subtracts().facts(owner);
+    let legacy_read_keys = legacy_guard
+        .finish()
+        .constraint_dependency_keys()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+
+    machine.proof_attempt.reset_query_trace();
+    let scoped_guard = begin_owner_dependency_reads();
+    let started = Instant::now();
+    let mut round = machine.new_projection_evaluation_round();
+    let actual = machine
+        .with_legacy_projection_query(&mut round, |query| {
+            let output = (
+                query.projection_upper_records_in_scope(owner),
+                query.pos_shape_in_scope(positive),
+                query.neg_shape_in_scope(negative),
+                query.neu_shape_in_scope(neutral),
+                query.role_constraint_raw_vars_in_scope(&role),
+                query.var_neighbors_in_scope(owner),
+                query.pre_pop_effect_families_in_scope(owner),
+                query.subtract_facts_in_scope(owner),
+            );
+            Ok(query.complete(output))
+        })
+        .expect("all eight row-1 owned reads complete in one scope");
+    let elapsed = started.elapsed();
+    let scoped_read_keys = scoped_guard
+        .finish()
+        .constraint_dependency_keys()
+        .into_iter()
+        .collect::<FxHashSet<_>>();
+
+    assert_eq!(actual.0, expected_upper_records);
+    assert_eq!(actual.0[0].0, evidence_record);
+    assert_eq!(actual.0[1].0, ordinary_record);
+    assert_eq!(actual.1, positive_shape);
+    assert_eq!(actual.2, negative_shape);
+    assert_eq!(actual.3, Neu::Bounds(lower, upper));
+    assert_eq!(actual.4, expected_role_vars);
+    assert_eq!(actual.5, expected_neighbors);
+    assert_eq!(actual.6, expected_pre_pop);
+    assert_eq!(actual.7, expected_subtracts);
+    assert_eq!(actual.0.len(), 2);
+    assert_eq!(actual.5.len(), 2);
+    assert_eq!(actual.6.len(), 1);
+    assert_eq!(actual.7.len(), 1);
+    assert_eq!(scoped_read_keys, legacy_read_keys);
+    assert_eq!(
+        scoped_read_keys,
+        [
+            DependencyKey::ConstraintBounds(owner),
+            DependencyKey::ConstraintNeighbors(owner),
+            DependencyKey::ConstraintSubtractFacts(owner),
+            DependencyKey::ConstraintPrePopFamilies(owner),
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(machine.proof_attempt.query_trace(), (2, 2, 1, 1, 1));
+    assert!(
+        elapsed < Duration::from_millis(100),
+        "eight keyed owned reads exceeded the bounded unit-test budget: {elapsed:?}"
+    );
 }
 
 #[test]

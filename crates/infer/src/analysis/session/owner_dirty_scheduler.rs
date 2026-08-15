@@ -106,7 +106,7 @@ pub(crate) struct OwnerReadFrontier {
 
 impl OwnerReadFrontier {
     #[cfg(test)]
-    pub(super) fn constraint_dependency_keys(&self) -> Vec<DependencyKey> {
+    pub(crate) fn constraint_dependency_keys(&self) -> Vec<DependencyKey> {
         let mut keys = Vec::new();
         keys.extend(
             self.bound_vars
