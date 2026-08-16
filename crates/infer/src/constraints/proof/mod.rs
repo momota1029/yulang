@@ -6736,6 +6736,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
+        // Full-store reconstruction is reserved for the dedicated PCLF parity tests. Calling it
+        // implicitly from the ordinary commit path makes debug tests quadratic in formula size.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get)
             || CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(Cell::get)
             || CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(Cell::get)
@@ -8977,10 +8979,7 @@ impl ProofOccurrenceStore {
             );
         }
         #[cfg(test)]
-        {
-            self.debug_assert_pclf_a_read_model_matches_legacy();
-            self.debug_assert_projection_structural_certificate(prepared.lower_record);
-        }
+        self.debug_assert_projection_structural_certificate(prepared.lower_record);
         self.publish_structural_mutation_at(
             ProofStructuralMutationClass::ProjectionFormula,
             ProofStructuralMutationSite::ProjectionClauseAdmissionCommit,
@@ -12497,6 +12496,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_b_side_shadow_matches_legacy(&self, index: usize) {
+        // Sorting a complete legacy side is reserved for the dedicated QORF-B parity test. The
+        // ordinary commit path must not repeat this full-prefix oracle after every insertion.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
             return;
         }
@@ -12620,11 +12621,6 @@ impl ProofOccurrenceStore {
         if let Some(occurrence) = transaction.proof_occurrence.take() {
             debug_assert_eq!(occurrence.event, self.occurrences.len());
             self.occurrences.push(occurrence);
-        }
-        #[cfg(test)]
-        {
-            self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
-            self.debug_assert_qorf_d0_projections_match_legacy(transaction.qualified.result);
         }
         self.publish_structural_mutation_at(
             ProofStructuralMutationClass::ProofDependency,
@@ -12791,7 +12787,6 @@ impl ProofOccurrenceStore {
             );
         }
         self.rebuild_qorf_d0_projections_for_test(result);
-        self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::Replay(carrier),
@@ -13472,14 +13467,6 @@ impl ProofOccurrenceStore {
                 .expect("qualified-parent result capacity was prepared before commit");
             merge_qualified_parent_entries(entries, &admission.canonical);
         }
-        #[cfg(test)]
-        if admission
-            .accepted
-            .iter()
-            .all(|entry| !matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. }))
-        {
-            self.debug_assert_qorf_d0_projections_match_legacy(admission.result);
-        }
     }
 
     #[cfg(test)]
@@ -13752,6 +13739,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_d0_projections_match_legacy(&self, result: ConstraintRecordId) {
+        // Rebuilding every legacy projection is reserved for the dedicated QORF-D0 parity tests.
+        // Running it after each qualified-parent commit turns result-local growth quadratic.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
             return;
         }
