@@ -5163,8 +5163,9 @@ const LEGACY_PARITY_COMMIT_PERIOD: u64 = 1_024;
 /// Small fixtures retain the old after-every-commit coverage. Larger workloads keep a fixed
 /// upper bound of 1,023 successful commits between checkpoints instead of paying a growing full
 /// reconstruction on every commit. QORF's oracles are occurrence/result-local, so this bounds the
-/// distance between sampled mutations rather than guaranteeing detection of a divergence both
-/// introduced and repaired entirely inside one gap.
+/// distance between sampled mutations, not the reinspection interval for every record. A
+/// divergence can escape either when introduced and repaired entirely inside one unsampled gap,
+/// or when introduced by an unsampled commit for a record that is never revisited afterward.
 #[cfg(test)]
 fn legacy_parity_checkpoint_due(commit_ordinal: u64) -> bool {
     commit_ordinal > 0
@@ -15846,7 +15847,7 @@ mod tests {
         }));
         assert!(
             failure.is_err(),
-            "the 1,024th real commit must observe divergence introduced after checkpoint 1,023",
+            "the 1,024th real commit must observe divergence introduced after commit 1,023",
         );
 
         store
