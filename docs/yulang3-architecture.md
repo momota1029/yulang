@@ -409,11 +409,61 @@ Yulang3 の query / read API と certificate はすべて、`decisive one`、`bo
 
 ### 6.9 mutable-reference constraint fan-out
 
-**Status: FLAGGED OPEN RISK, NOT YET SOLVED.** 現行推論器の mutable-reference workload には、proof / claim layer の repeated revalidation とは別の structural scaling risk がある。調査では exhaustive type-candidate search、duplicate selection resolution、exact constraint の未 deduplicate が主因ではなかった。proof / claim の revalidation は `notes/design/2026-08-16-infer-proof-architecture-retrospective.md` が一般化済みであり、§3.8、§6.2、§6.3、§12.5 はその原則を反映する。新しい一般原則を重ねる必要はないが、それだけで次の mutable-reference 固有の mechanism が消えるとは仮定しない。
+**Status: DECIDED.** Yulang3 は Mechanism 2 を、`$a` / `&a = value` に generic な `Ref(effect, payload)` constructor と method-selection machinery を経由させず、intrinsic な state-slot HIR と専用 constraint relation を与えることで解く。compiler-generated mutable-reference slot は lexical lifetime の間 monomorphic / non-generalizable とし、use ごとに fresh な scheme instantiation を行わない。これにより、reciprocal な `Ref` subtype bound と lower × upper replay からなる generic invariant hub は、この path では最初から生成せず、最適化対象として残さない。
 
-各 mutable-reference read / write が fresh な invariant ref / effect / payload type variable を作り、それらを shared constraint hub の lower / upper 両側へ結ぶと、hub の次数に応じて lower × upper の pairwise consequence が増える。この volume は単なる表記上の duplicate ではなく、現行調査の alpha-equivalence census でも globally equivalent な accepted consequence は見つからなかった。したがって naive alpha-equivalence dedup、後段 cache、proof-authority の一本化をこの risk の解決策として数えない。
+`yu-hir` は少なくとも次の identity と node を持つ。
 
-`yu-solver` の初期 constraint schema は、mutable state の invariance を保ったまま shared ref / effect / payload relation を eager な pairwise expansion より fan-out の少ない形で表せるかを独立に検討する。少なくとも mutable read / write 数、hub ごとの lower / upper degree、pair attempt / accepted consequence、生成 constraint 数を scaling fixture で測り、ordinary subtyping / proof-revalidation counter と分けて報告する。既存の Yulang2 design document にこの mechanism の解法はなく、representation はまだ選ばれていないため、reference solver の設計前に model と complexity contract を置く必要がある。
+```text
+StateSlotId = originating declaration identity (carries through alias, generic-function calls, closure capture, and return/escape)
+
+StateSlotDecl { slot, initializer, annotation? }
+StateHandle   { slot }
+StateRead     { slot }
+StateWrite    { slot, input }
+```
+
+alias、generic-function call、closure capture、return / escape は、いずれも originating declaration の同じ `StateSlotId` を運ぶ派生 case であり、個別の identity rule を持たない。これは static reference identity に対して既に定めた「由来の identity を運ぶ」規則と同じである。
+
+normalized `ConstraintBatch` / `ConstraintStore` は、これらを generic subtyping constraint へ desugar せず、独立した relation family として保持する。
+
+```text
+StateSlot  { slot, payload_component, effect_atom, origin }
+StateRead  { occurrence, slot, effect_out, cause }
+StateWrite { occurrence, slot, input_component, effect_out, cause }
+```
+
+この family には次の invariant を置く。
+
+- unannotated initializer と slot payload は同じ component を使い、fresh copy を作らない。
+- read result 用の fresh type variable は作らず、read expression の type を slot の payload component へ直接 map する。
+- write は `input <: payload` constraint をちょうど一件だけ加える。read-modify-write では同じ component 上の self-constraint になるため、自明に成立するものとして admission 前に除く。
+- 同じ slot の read / write は、一つに intern された `StateEffect(slot, payload_component)` atom を共有し、access ごとの fresh effect variable を作らない。
+- この path は generic `.get` / `.set` method selection、generic invariant `Ref` constructor、reciprocal subtype bound を一切生成しない。
+- slot の payload component に届く lower / upper fact は slot-local membership として保持する。internal bounds summary は surface type ではない join / meet-style summary とし、committed delta から更新する。lower × upper pair set 自体は物理的に materialize しない。
+
+authority は §3.8、§6.2、§6.3、§12.5 に従って分ける。resolved `StateSlotId` の authority は `HirModule`、`StateSlot` と read / write occurrence の authority は normalized `ConstraintStore` とする。そこから作る slot index、bounds summary、diagnostic cursor はすべて derived view であり、committed-delta receipt だけから更新し、solve session とともに破棄する。state-slot diagnostic query は default では一回の query につき decisive な inconsistency 一件を返す。これは §5 が要求する独立 error の phase-wide collection を止める規則ではない。全 occurrence の export が必要になった場合も §6.8 の cardinality contract に従う明示的な `stream` / `bounded N` query とし、pair certificate を materialize しない。
+
+この representation に固有の collection / solving cost は `O(slots + reads + writes)` とする。これは payload type 自身の subtyping work が常に linear だという主張ではない。state-slot representation が `Θ(L×U)` の constraint materialization や pairwise replay を追加しないという contract である。
+
+`StateSlotId` は compile-time の origin identity に限る。heap address、runtime の activation ごとの cell identity、multi-shot branch identity、Perceus reuse identity のいずれでもない。それらは §8.3 と §14 の runtime design が担う別の責務であり、この HIR / constraint decision と混同しない。また、local mutable declaration から作られない general first-class `ref` value、たとえば `std::io::file::text` が返す値は related but distinct な問題であり、この decision の scope 外とする。この decision だけを根拠に、それらまで covered とも still-open とも扱わない。
+
+他の alternative は次の理由で採らない。
+
+- **Alternative 1 — indexed eager replay:** duplicate や trivial な pair attempt を減らす一般的な downstream optimization として ordinary subtyping には残せるが、実際に accepted となる consequence は除けず、worst case の `Θ(L×U)` を変えないため Mechanism 2 の解とは数えない。
+- **Alternative 3 — union-find / e-class canonical representative:** Yulang の invariant argument は exact equality ではなく `Neu::Bounds` interval として正当に残りうる。それを alias とみなして union すると principal type を over-constrain する危険がある。選択した設計のように最初から同じ component ID を使うことと、後から異なる variable を union することは別である。
+- **Alternative 5 — demand-driven / lazy hub solving:** read-modify-write 型の workload では hub のほぼ全体が demand されるため、laziness だけではこの case を改善しない。publication 後の query が semantic mutation を起こす設計も、§5 の total phase output と single-solve principle に反する。
+- **Alternative 7 — batch component condensation:** 選択した設計は generic invariant SCC 自体を生成しないため、post-processing で condense する対象がない。
+
+主な implementation risk は、generic / closure / alias boundary を越えて slot identity を運びながら、principal な payload / effect interval を正しく保てるかにある。次のいずれかが実装中に成立すると判明した場合、この design は単なる調整不足ではなく **falsified** と判定する。
+
+- soundness のために read × write pair の物理的な列挙が結局必要になる。
+- alias、generic call、escape の処理で slot payload を fresh な invariant `Ref` hub へ戻す必要が生じる。
+- monomorphic treatment が意図した monomorphic semantics を越えて public scheme を狭める、または distinct slot を誤って merge する。
+- RMW×N の accepted / recomputed work または allocation が、§9.2 の「doubling 時 2.5 倍未満」gate を繰り返し破る。
+- diagnostic completeness のために full pair certificate の常時 materialization が必要になる。
+- 専用 node が最終的に generic selection / `Ref` constraint へ再 desugar され、intrinsic representation が名目だけになる。
+
+falsified になった場合、Alternatives 1 / 3 / 7 による patch は行わない。scope を Alternative 2 の generalized factorized-relation approach へ広げ、state slot だけに閉じない first-class な `InvariantRefHub` 相当の relation として formal redesign する。一方、general first-class `ref` の扱いで related problem が見つかっただけでは、この compiler-generated-slot decision の falsification にはならない。
 
 ---
 
@@ -580,7 +630,21 @@ metric は machine-readable JSON でも出せるようにし、user-facing outpu
 - recursive SCC
 - repeated generic specialization
 - nested handler / multi-shot branch
-- mutable-reference shared hub の repeated read / write
+- compiler-generated state slot の RMW×N: N / 2N / 4N
+
+state-slot family は各 size で次を gate にする。
+
+- slot 数は N にかかわらず厳密に 1 とする。
+- logical fact は `reads = N + 1`、`writes = N`、合計 `2N + O(1)` とする。
+- slot payload / effect component 数を `O(1)` に保つ。
+- state access に起因する generic method selection を 0 件にする。
+- state access に起因する generic invariant `Ref` constraint を 0 件にする。
+- state-slot handling に起因する lower × upper pair attempt / materialization を 0 件にする。
+- N を 2 倍にしたとき、physical entry、accepted / recomputed work、allocation bytes の増加をそれぞれ 2.5 倍未満に収める。
+- logical-to-physical amplification に N 非依存の定数上界を置く。
+- state slot に起因する max fan-out に定数上界を置く。
+
+correctness は Yulang2 が意図する public type / effect と RMW execution result に対して比較する。metamorphic test では alias、generic-function call、closure capture、return / escape が同じ origin `StateSlotId` を保つことと、異なる declaration の slot が merge しないことを確認する。
 
 linear であるべき family では、入力を 2 倍にしたとき accepted work と allocation が原則 2.5 倍未満に収まることを gate にする。例外は design document に complexity と理由を書く。
 
@@ -1011,6 +1075,4 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 
 ## 18. 未決定事項
 
-今回の調査で architecture decision として閉じていない項目を、既決事項や移植 guidance と混ぜずに追跡する。
-
-1. **FLAGGED OPEN RISK — mutable-reference constraint representation:** §6.9 の lower × upper fan-out を、invariance を失わずにどう表現するかは未解決である。proof-authority architecture や alpha-equivalence dedup で解決済みとせず、reference solver 着手前に alternative representation、complexity bound、mutable-state scaling fixture を設計する。
+今回の調査で architecture decision として閉じていない項目はない。
