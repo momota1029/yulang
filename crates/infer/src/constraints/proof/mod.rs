@@ -5153,6 +5153,26 @@ impl ProofStructuralSnapshotState {
     }
 }
 
+#[cfg(test)]
+const LEGACY_PARITY_DENSE_COMMIT_PREFIX: u64 = 16;
+#[cfg(test)]
+const LEGACY_PARITY_COMMIT_PERIOD: u64 = 1_024;
+
+/// Bounded checkpoint schedule for expensive legacy-equivalence reconstruction.
+///
+/// Small fixtures retain the old after-every-commit coverage. Larger workloads keep a fixed
+/// upper bound of 1,023 successful commits between checkpoints instead of paying a growing full
+/// reconstruction on every commit. QORF's oracles are occurrence/result-local, so this bounds the
+/// distance between sampled mutations rather than guaranteeing detection of a divergence both
+/// introduced and repaired entirely inside one gap.
+#[cfg(test)]
+fn legacy_parity_checkpoint_due(commit_ordinal: u64) -> bool {
+    commit_ordinal > 0
+        && (commit_ordinal <= LEGACY_PARITY_DENSE_COMMIT_PREFIX
+            || commit_ordinal.is_power_of_two()
+            || commit_ordinal % LEGACY_PARITY_COMMIT_PERIOD == 0)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProofOccurrenceStore {
     structural_snapshot: ProofStructuralSnapshotState,
@@ -5407,6 +5427,17 @@ impl ProofOccurrenceStore {
             self.structural_snapshot.bumps_by_class,
             self.structural_snapshot.bumps_by_site,
         )
+    }
+
+    #[cfg(test)]
+    fn next_legacy_parity_checkpoint_for_sites(
+        &self,
+        sites: &[ProofStructuralMutationSite],
+    ) -> bool {
+        let completed = sites.iter().fold(0u64, |total, site| {
+            total.saturating_add(self.structural_snapshot.bumps_by_site[*site as usize])
+        });
+        legacy_parity_checkpoint_due(completed.saturating_add(1))
     }
 
     #[cfg(test)]
@@ -6736,8 +6767,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_pclf_a_read_model_matches_legacy(&self) {
-        // Full-store reconstruction is reserved for the dedicated PCLF parity tests. Calling it
-        // implicitly from the ordinary commit path makes debug tests quadratic in formula size.
+        // Dedicated parity tests call this directly; ordinary commits use the bounded checkpoint
+        // schedule because reconstructing the full store after every commit is quadratic.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get)
             || CPK_SV_A_FULL_STD_CERTIFICATE_ACTIVE.with(Cell::get)
             || CPK_SV_C_FULL_STD_ADJACENCY_ACTIVE.with(Cell::get)
@@ -8979,7 +9010,14 @@ impl ProofOccurrenceStore {
             );
         }
         #[cfg(test)]
-        self.debug_assert_projection_structural_certificate(prepared.lower_record);
+        {
+            if self.next_legacy_parity_checkpoint_for_sites(&[
+                ProofStructuralMutationSite::ProjectionClauseAdmissionCommit,
+            ]) {
+                self.debug_assert_pclf_a_read_model_matches_legacy();
+            }
+            self.debug_assert_projection_structural_certificate(prepared.lower_record);
+        }
         self.publish_structural_mutation_at(
             ProofStructuralMutationClass::ProjectionFormula,
             ProofStructuralMutationSite::ProjectionClauseAdmissionCommit,
@@ -12496,8 +12534,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_b_side_shadow_matches_legacy(&self, index: usize) {
-        // Sorting a complete legacy side is reserved for the dedicated QORF-B parity test. The
-        // ordinary commit path must not repeat this full-prefix oracle after every insertion.
+        // Dedicated parity tests call this directly; real-writer commits use bounded checkpoints
+        // rather than sorting a complete legacy side after every insertion.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
             return;
         }
@@ -12621,6 +12659,20 @@ impl ProofOccurrenceStore {
         if let Some(occurrence) = transaction.proof_occurrence.take() {
             debug_assert_eq!(occurrence.event, self.occurrences.len());
             self.occurrences.push(occurrence);
+        }
+        #[cfg(test)]
+        {
+            if self.next_legacy_parity_checkpoint_for_sites(&[
+                ProofStructuralMutationSite::ReplayQualifiedParentCommit,
+            ]) {
+                self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
+            }
+            if self.next_legacy_parity_checkpoint_for_sites(&[
+                ProofStructuralMutationSite::ReplayQualifiedParentCommit,
+                ProofStructuralMutationSite::QualifiedParentAdmissionCommit,
+            ]) {
+                self.debug_assert_qorf_d0_projections_match_legacy(transaction.qualified.result);
+            }
         }
         self.publish_structural_mutation_at(
             ProofStructuralMutationClass::ProofDependency,
@@ -12787,6 +12839,9 @@ impl ProofOccurrenceStore {
             );
         }
         self.rebuild_qorf_d0_projections_for_test(result);
+        // This compatibility writer exists only for small legacy fixtures; real lowering uses
+        // the unified transaction above, whose full-workload checks follow the bounded schedule.
+        self.debug_assert_qorf_b_side_shadow_matches_legacy(index);
         self.record_occurrence(
             ProofResult::Semantic(SemanticFactRef::Constraint(result)),
             ProofCause::Replay(carrier),
@@ -13376,6 +13431,18 @@ impl ProofOccurrenceStore {
             return;
         }
         self.commit_qualified_parent_admission_inner(admission);
+        #[cfg(test)]
+        if admission
+            .accepted
+            .iter()
+            .all(|entry| !matches!(entry.parent, ClaimQualifiedParent::ReplayConstraint { .. }))
+            && self.next_legacy_parity_checkpoint_for_sites(&[
+                ProofStructuralMutationSite::ReplayQualifiedParentCommit,
+                ProofStructuralMutationSite::QualifiedParentAdmissionCommit,
+            ])
+        {
+            self.debug_assert_qorf_d0_projections_match_legacy(admission.result);
+        }
         self.publish_structural_mutation_at(
             ProofStructuralMutationClass::ProofDependency,
             ProofStructuralMutationSite::QualifiedParentAdmissionCommit,
@@ -13739,8 +13806,8 @@ impl ProofOccurrenceStore {
 
     #[cfg(test)]
     fn debug_assert_qorf_d0_projections_match_legacy(&self, result: ConstraintRecordId) {
-        // Rebuilding every legacy projection is reserved for the dedicated QORF-D0 parity tests.
-        // Running it after each qualified-parent commit turns result-local growth quadratic.
+        // Dedicated parity tests call this directly; real-writer commits use bounded checkpoints
+        // because rebuilding every result-local legacy projection after each commit is quadratic.
         if QORF_C_FULL_STD_PARITY_ACTIVE.with(Cell::get) {
             return;
         }
@@ -15724,6 +15791,69 @@ mod tests {
         assert!(store.row_derivation_occurrence(row).is_some());
         assert_eq!(store.projection_carrier_occurrence_index.len(), 8);
         assert_eq!(store.row_derivation_occurrence_index.len(), 1);
+    }
+
+    #[test]
+    fn legacy_parity_checkpoint_schedule_has_a_dense_prefix_and_bounded_gaps() {
+        let checkpoints = (1..=LEGACY_PARITY_COMMIT_PERIOD * 4)
+            .filter(|ordinal| legacy_parity_checkpoint_due(*ordinal))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            &checkpoints[..LEGACY_PARITY_DENSE_COMMIT_PREFIX as usize],
+            &(1..=LEGACY_PARITY_DENSE_COMMIT_PREFIX).collect::<Vec<_>>(),
+        );
+        assert!(legacy_parity_checkpoint_due(32));
+        assert!(legacy_parity_checkpoint_due(512));
+        assert!(legacy_parity_checkpoint_due(1_024));
+        assert!(!legacy_parity_checkpoint_due(1_023));
+        assert!(!legacy_parity_checkpoint_due(1_025));
+        assert!(
+            checkpoints
+                .windows(2)
+                .all(|pair| { pair[1] - pair[0] <= LEGACY_PARITY_COMMIT_PERIOD })
+        );
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn pclf_sampled_checkpoint_catches_transient_divergence_before_later_repair() {
+        let mut store = ProofOccurrenceStore::default();
+        let admission = |ordinal| {
+            let support = SchemeProjectionProofSupport::Independent(
+                ProjectionProofCarrier::Origin(OriginId(130_000 + ordinal)),
+            );
+            RecordProofClauseLinkAdmission::independent(
+                support,
+                RecordProofClause::Standalone { support },
+            )
+        };
+        for ordinal in 0..LEGACY_PARITY_COMMIT_PERIOD - 1 {
+            store.record_projection_clause(
+                BoundRecordId(130_000 + ordinal as u32),
+                admission(ordinal as u32),
+            );
+        }
+
+        let corrupted_record = BoundRecordId(130_000);
+        let repaired_formula = store.projection_formulas[&corrupted_record].clone();
+        store
+            .projection_formulas
+            .get_mut(&corrupted_record)
+            .expect("the corruption target was committed")
+            .clear();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            store.record_projection_clause(BoundRecordId(131_023), admission(131_023));
+        }));
+        assert!(
+            failure.is_err(),
+            "the 1,024th real commit must observe divergence introduced after checkpoint 1,023",
+        );
+
+        store
+            .projection_formulas
+            .insert(corrupted_record, repaired_formula);
+        store.debug_assert_pclf_a_read_model_matches_legacy();
+        assert_eq!(store.projection_formulas.len(), 1_024);
     }
 
     #[test]
@@ -24310,6 +24440,175 @@ mod tests {
                 "QORF count summary must not publish at {point:?}",
             );
         }
+    }
+
+    fn commit_qorf_replay_parent_for_checkpoint_test(
+        machine: &mut ConstraintMachine,
+        result: ConstraintRecordId,
+        carrier: BinaryReplayDerivation,
+        claim: UpperReplayClaimId,
+        side: ReplayClaimParentSide,
+    ) {
+        let parent = ClaimQualifiedParent::ReplayConstraint {
+            parent_claim: claim,
+            parent_side: side,
+            replay: carrier,
+        };
+        let mut transaction = machine
+            .proof_store
+            .try_prepare_replay_qualified_parent_transaction(result, carrier, &[parent])
+            .expect("checkpoint replay parent must prepare");
+        assert_eq!(transaction.accepted().len(), 1);
+        machine
+            .proof_store
+            .commit_replay_qualified_parent_transaction(&mut transaction);
+    }
+
+    #[test]
+    fn qorf_b_sampled_checkpoint_catches_transient_side_divergence_before_repair() {
+        let mut machine = cpk_machine();
+        let (lower, lower_claim) = cpk_7_record_original_claim(&mut machine, 109_800);
+        let (upper, upper_claim) = cpk_7_record_original_claim(&mut machine, 109_801);
+        let result = ConstraintRecordId(109_802);
+        let carrier = BinaryReplayDerivation {
+            pivot: TypeVar(109_803),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        commit_qorf_replay_parent_for_checkpoint_test(
+            &mut machine,
+            result,
+            carrier,
+            upper_claim,
+            ReplayClaimParentSide::Upper,
+        );
+
+        let repaired_upper = machine.proof_store.replay_finite_map[0]
+            .upper_parents
+            .clone();
+        machine.proof_store.replay_finite_map[0]
+            .upper_parents
+            .clear();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            commit_qorf_replay_parent_for_checkpoint_test(
+                &mut machine,
+                result,
+                carrier,
+                lower_claim,
+                ReplayClaimParentSide::Lower,
+            );
+        }));
+        assert!(
+            failure.is_err(),
+            "the second real replay commit must observe the transient legacy-side divergence",
+        );
+
+        machine.proof_store.replay_finite_map[0].upper_parents = repaired_upper;
+        machine
+            .proof_store
+            .debug_assert_qorf_b_side_shadow_matches_legacy(0);
+        machine
+            .proof_store
+            .debug_assert_qorf_d0_projections_match_legacy(result);
+    }
+
+    #[test]
+    fn qorf_d0_sampled_replay_checkpoint_catches_transient_projection_divergence() {
+        let mut machine = cpk_machine();
+        let (lower, lower_claim) = cpk_7_record_original_claim(&mut machine, 109_810);
+        let (upper, upper_claim) = cpk_7_record_original_claim(&mut machine, 109_811);
+        let result = ConstraintRecordId(109_812);
+        let carrier = BinaryReplayDerivation {
+            pivot: TypeVar(109_813),
+            lower,
+            upper,
+            rule: ReplayRule::LowerBoundAdded,
+        };
+        commit_qorf_replay_parent_for_checkpoint_test(
+            &mut machine,
+            result,
+            carrier,
+            lower_claim,
+            ReplayClaimParentSide::Lower,
+        );
+
+        machine
+            .proof_store
+            .replay_qualified_arms
+            .by_result
+            .remove(&result);
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            commit_qorf_replay_parent_for_checkpoint_test(
+                &mut machine,
+                result,
+                carrier,
+                upper_claim,
+                ReplayClaimParentSide::Upper,
+            );
+        }));
+        assert!(
+            failure.is_err(),
+            "the second real replay commit must observe the missing canonical arm",
+        );
+
+        machine
+            .proof_store
+            .rebuild_qorf_d0_projections_for_test(result);
+        machine
+            .proof_store
+            .debug_assert_qorf_d0_projections_match_legacy(result);
+    }
+
+    #[test]
+    fn qorf_d0_sampled_non_replay_checkpoint_catches_transient_projection_divergence() {
+        let mut machine = cpk_machine();
+        let (_, first_claim) = cpk_7_record_original_claim(&mut machine, 109_820);
+        let (_, second_claim) = cpk_7_record_original_claim(&mut machine, 109_821);
+        let result = ConstraintRecordId(109_822);
+        let parent = |claim, ordinal| ClaimQualifiedParent::StructuralConstraint {
+            parent_claim: claim,
+            derivation: StructuralDerivation {
+                parent: ConstraintRecordId(ordinal),
+                rule: StructuralDerivationRule::FunctionReturn,
+            },
+        };
+        machine.admit_claim_qualified_parent(result, parent(first_claim, 109_823));
+
+        machine
+            .proof_store
+            .non_replay_qualified_parents
+            .by_result
+            .remove(&result);
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            machine.admit_claim_qualified_parent(result, parent(second_claim, 109_824));
+        }));
+        assert!(
+            failure.is_err(),
+            "the second non-replay commit must observe the missing result-local parent",
+        );
+
+        let repaired_ids = machine.proof_store.qualified_parents_by_result[&result]
+            .iter()
+            .map(|expected| {
+                let index = machine
+                    .proof_store
+                    .non_replay_qualified_parents
+                    .entries
+                    .iter()
+                    .position(|entry| entry == expected)
+                    .expect("every committed non-replay parent remains in the stable arena");
+                NonReplayQualifiedParentId(index as u32)
+            })
+            .collect();
+        machine
+            .proof_store
+            .non_replay_qualified_parents
+            .by_result
+            .insert(result, repaired_ids);
+        machine
+            .proof_store
+            .debug_assert_qorf_d0_projections_match_legacy(result);
     }
 
     #[test]
