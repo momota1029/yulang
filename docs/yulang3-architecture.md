@@ -319,13 +319,13 @@ formula、provenance edge、index が「現在の」location、live state、boun
 
 | field | semantic / provenance split の contract |
 | --- | --- |
-| source authority | `ConstraintStore` が current semantic state の authority であり、provenance update は `SolveTransaction` receipt の committed delta だけから導出する |
-| owner | provenance edge は一つの `ProvenanceRecorder` だけが書く |
+| source authority | `ConstraintStore` が current semantic state の authority であり、full explanation graph の source authority は frozen solve result の `Solution` と causal edge の provenance log である。provenance update は `SolveTransaction` receipt の committed delta だけから導出する |
+| owner | provenance edge は一つの `ProvenanceRecorder` だけが書く。lazy explanation graph は provenance log と `Solution` から on-demand で構築する `ExplanationGraphBuilder` が owner であり、derived view なので別の persistent writer は置かない |
 | update unit | committed fact ごとの event-local delta。full explanation graph は solve 後の明示的な query / batch でだけ構築する |
 | invalidation | graph は source solution と provenance log の content identity に bind し、revision またぎで暗黙に再利用しない |
-| readers / cardinality | diagnostic、explanation、export query ごとに decisive one / bounded N / full set / stream のいずれかを宣言する |
-| physical budget | edge 数、bytes、logical-to-physical amplification を測り、超過時は説明 detail を落としても semantic result は変えない |
-| retirement | provenance level が不要なら log を生成せず、lazy graph は query / snapshot lifetime の終了時に破棄する |
+| readers / cardinality | 単一 error の hover / diagnostic explanation は `decisive one`。`この bound に寄与した全 cause` export は configured / explicit cap `N` の `bounded N`。外部 tooling 向け portable-proof export は caller の contract が complete graph を要求する場合に限り `full set`。debug / trace dump は `stream` |
+| physical budget | provenance log は solve session ごとに constraint count に比例する edge / byte / logical-to-physical amplification cap 内に保つ。budget pressure では古い entry を drop または detail-reduce し、semantic result は変えない。exact multiplier は Phase 3 / 6 の profiling で定める |
+| retirement | provenance level が不要なら log を生成しない。生成した provenance log は frozen `Solution` に対応する causal authority として solve session / snapshot lifetime の間だけ保持し、その retirement とともに破棄する。lazy graph は query / snapshot lifetime の終了時に破棄する |
 
 ### 6.4 termination
 
