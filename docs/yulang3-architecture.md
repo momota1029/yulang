@@ -11,7 +11,7 @@ Yulang3 は、現行実装へ新しい世代を追加する形ではなく、**�
 設計の中心は次の七点とする。
 
 1. コンパイラ内部を一方向の依存グラフにする。
-2. 各 phase の出力を immutable な値として固定し、巨大な共有可変状態を持ち回らない。
+2. 各 logical fact の authority を一つに定め、各 phase の出力を immutable な値として固定し、巨大な共有可変状態を持ち回らない。
 3. solver の更新を `plan -> validate -> commit` の transaction にし、commit 後の fallible read を禁止する。
 4. incremental compilation は module / SCC 単位から始め、owner 単位の細粒度 scheduling は計測で必要になるまで導入しない。
 5. CLI、LSP、Wasm は compiler library に依存する leaf application とし、compiler 側から製品コードへ依存しない。
@@ -31,14 +31,13 @@ Yulang3 の目的は、現行 Yulang の機能を別の名前で写経するこ�
 | 症状 | 現行 repository での観測 | 結果 |
 | --- | --- | --- |
 | workspace の広域再ビルド | root `Cargo.toml` に 14 workspace member があり、frontend、複数 IR、複数 runtime、CLI、LSP、Wasm が同じ build graph に入る | 小さな変更でも広い compile/test が発生する |
-| test dependency の逆流 | `infer` の dev-dependency が `specialize`、`control-ir`、`evidence-vm` を引く | frontend の unit test が backend 全体を build する |
+| test dependency の逆流 | `infer` の dev-dependency が `specialize`、`control-ir`、`evidence-vm` を引く | `infer` の test 一件だけを filter しても、test 選択とは別にこれら三 crate を含む広い dependency graph が build される |
 | product と library の混線 | `yulang` が frontend、runtime、LSP を直接束ね、`wasm` は `yulang` へ通常依存と build-dependency の両方を持つ | CLI や Wasm の変更が compiler core の rebuild boundary を曖昧にする |
 | 巨大 module | `crates/infer/src/constraints/mod.rs` は約 166 KB、`proof_inventory.rs` は約 138 KB、`crates/yulang/src/cache.rs` は約 247 KB、`server.rs` は約 164 KB | 一つの変更が多くの invariant と test を巻き込む |
 | assurance scaffolding の常設化 | exact snapshot、shadow oracle、always-solve control、mutation contract、failure injection、publication audit が production module 周辺へ積層している | correctness を守るほど実装面積と test cost が増える |
-| CI の長時間化 | frontend test と yulang test に各 90 分の timeout、contract runner に 4 個の 45 分 shard が必要。単独で約 41 分かかる characterization test もある | feedback が遅く、timeout 引き上げが根本原因を隠す |
+| CI の長時間化 | frontend test と yulang test に各 90 分の timeout、contract runner に 4 個の 45 分 shard が必要。commit `4463af53` の message には characterization test 一件が当時約 41 分かかったと記録されているが、これは point-in-time の測定であり現在値ではない | feedback が遅く、timeout 引き上げが根本原因を隠す |
 | contract manifest の集中 | `tests/yulang/cases.toml` が約 130 KB に成長し、多数の tag と cross-field rule を一箇所で管理する | case 追加時の局所性が失われる |
-| persistent cache の多層化 | `.yucu`、`.yuir`、`.yumo`、`.yuvm`、`.yures` の五層があり、prefix merge と ID remap まで compiler core が担う | cache correctness が compiler architecture の大部分を占める |
-| 世代の同居 | 現行世代に加えて旧世代が `archive/` に残り、設計文書も dated addendum として蓄積する | 何が authoritative かを追う cost が上がる |
+| persistent cache の多層化 | `.yucu`、`.yuir`、`.yumo`、`.yuvm`、`.yures` に加えて `.yuskey` source-key index など、複数の persistent artifact kind が重なり、prefix merge と ID remap まで compiler core が担う | cache correctness が compiler architecture の大部分を占める |
 
 これらは個別には理解できる。問題は、巨大な `ConstraintMachine` / analysis session を中心に、optimization、incrementality、explanation、cache、LSP、安全性検査を後付けしているため、**新しい read 一つが mutation vocabulary、publication、scheduler、oracle、contract matrix、adversarial test の全更新を要求する**点にある。
 
@@ -62,7 +61,7 @@ owner-level dirty scheduling、snapshot reuse、prefix cache merge などが、m
 
 #### E. application が compiler core の leaf になっていない
 
-CLI、server、Wasm、cache、contract runner が一つの crate へ集まり、compiler API と product orchestration の境界が薄い。結果として、test filter 一つで std compilation、VM、mono、LSP の test が同時に走る。
+`yulang` crate が compiler frontend / runtime と CLI、server、cache、contract runner を直接束ね、compiler API と product orchestration の境界が薄い。Wasm は別 crate だが、`yulang` へ通常依存と build-dependency の両方を持つため、この広い build graph の外には出ていない。`cargo test` の filter 自体は一致した test だけを選ぶが、crate の test target と dev-dependency の compile scope は別であり、無関係な一件の test でも広い build を起こしうることが問題である。
 
 ---
 
@@ -128,6 +127,20 @@ CLI、LSP、Wasm、playground、contract runner は compiler library を呼ぶ�
 
 metrics、trace、proof explanation、debug dump は semantic mutation と分離する。観測を追加しても solver result や scheduling が変わらないことを API で保証する。
 
+### 3.8 fact family の single authority
+
+constraint、canonical type / effect node、provenance edge、cache entry、incremental query result など、主要な logical fact family は実装前に authority registry へ一行ずつ登録する。各行は少なくとも次を宣言しなければならない。
+
+| 必須 field | 宣言する内容 |
+| --- | --- |
+| identity key | 同じ logical fact を同定する stable key |
+| fact class | current value / append-only occurrence / historical provenance のいずれか |
+| authoritative writer | commit を行う唯一の transaction / component |
+| authoritative reader | current fact を読む唯一の query interface |
+| authority / derived | 他の map、vector、index、certificate が authority か derived view か |
+
+同じ logical tuple を複数の物理 store に置く必要があっても、同格の authority を二つ作らない。既存 authority から projection できる tuple を新しい store に複製する場合は、on-demand view では満たせない contract と、その view の lifecycle を先に文書化する。
+
 ---
 
 ## 4. 推奨 workspace 構成
@@ -158,14 +171,15 @@ apps/
 support/
   yu-test-support/ fixture builders used only by integration/nightly tests
 
- tests/
+tests/
   ui/
   contracts/
+  solver-model/
   differential/
   corpus/
   perf/
 
- tools/
+tools/
   xtask/
 ```
 
@@ -176,15 +190,17 @@ yu-syntax
     |
     v
 yu-hir -----> yu-types
-                  |
-                  v
-               yu-solver
-                  |
-                  v
-               yu-core
-                  |
-                  v
-            yu-backend-vm
+    |              |
+    +------+-------+
+           |
+           v
+       yu-solver
+           |
+           v
+        yu-core
+           |
+           v
+     yu-backend-vm
 
               yu-compiler
         depends on and orchestrates all phases
@@ -194,7 +210,7 @@ yu-hir -----> yu-types
          CLI     LSP      Wasm
 ```
 
-`yu-compiler` は orchestration layer であり、semantic type の定義場所にはしない。application は `yu-compiler` の public API だけを使う。
+`yu-solver` は `ConstraintBatch` の構築で `HirModule` を読むため `yu-hir` へ直接依存し、canonical type / effect 表現のため `yu-types` にも依存する。`yu-compiler` は orchestration layer であり、semantic type の定義場所にはしない。application は `yu-compiler` の public API だけを使う。
 
 ### 4.2 crate ごとの禁止事項
 
@@ -283,6 +299,8 @@ begin(snapshot)
 
 commit 後の publication planning や query failure を許さない。commit が始まった後に失敗しうるなら、その処理は plan phase に置く。
 
+通常の admission / commit path が処理してよいのは、新しく受理した fact と affected consumer の delta だけである。既存 prefix 全体の scan、sort、rebuild を ordinary commit ごとに起動することを禁止し、full rebuild は明示的な batch boundary または offline verifier に限定する。snapshot 単位の rebuild が必要な場合も、versioned snapshot に bind して同じ snapshot では一度だけ計算する。
+
 これにより、terminal latch、deferred publication fence、post-commit query denial、partial journal publication のような状態を architecture 上作れなくする。
 
 ### 6.3 semantic fact と provenance の分離
@@ -294,6 +312,20 @@ solver の correctness に必要な semantic state と、説明用 provenance �
 - full explanation graph は solve 後に lazy に構築する。
 - provenance budget を超えても semantic result は変えない。
 - release build では不要な provenance level を落とせるようにする。
+
+formula、provenance edge、index が「現在の」location、live state、bound などを参照するときは、その値を自身へ copy しない。`(stable fact ID, expected root)` のような stable obligation だけを保持し、query 時の immutable snapshot から semantic authority へ join して late-bind する。snapshot ID は cache validity には使えるが、複数 writer の ownership reconciliation や semantic conflict の代用にはしない。
+
+この split 自体が、semantic authority から provenance log、さらに full explanation graph への derived-view relation を新設する。したがって実装前に少なくとも次の contract を固定する。
+
+| field | semantic / provenance split の contract |
+| --- | --- |
+| source authority | `ConstraintStore` が current semantic state の authority であり、provenance update は `SolveTransaction` receipt の committed delta だけから導出する |
+| owner | provenance edge は一つの `ProvenanceRecorder` だけが書く |
+| update unit | committed fact ごとの event-local delta。full explanation graph は solve 後の明示的な query / batch でだけ構築する |
+| invalidation | graph は source solution と provenance log の content identity に bind し、revision またぎで暗黙に再利用しない |
+| readers / cardinality | diagnostic、explanation、export query ごとに decisive one / bounded N / full set / stream のいずれかを宣言する |
+| physical budget | edge 数、bytes、logical-to-physical amplification を測り、超過時は説明 detail を落としても semantic result は変えない |
+| retirement | provenance level が不要なら log を生成せず、lazy graph は query / snapshot lifetime の終了時に破棄する |
 
 ### 6.4 termination
 
@@ -335,6 +367,14 @@ optimized solver を追加する場合は次を守る。
 - production hot path で常時二重 solve しない。
 - optimization ごとに独立した kill switch と removal criterion を持つ。
 - mismatch が一件でも出たら optimized path を fail closed で無効化する。
+
+nightly differential の結果は release configuration gate の入力にする。mismatch は optimized-path enablement marker を無効にし、source を自動 revert せずに次の release candidate を reference solver へ戻す。owner が原因を修正し、対象 corpus を含む differential lane が再び通るまで marker を復帰できず、optimized path を有効にした release は blocking issue が解決するまで作れない。
+
+### 6.8 query / certificate の cardinality contract
+
+Yulang3 の query / read API と certificate はすべて、`decisive one`、`bounded N`、`full set`、`stream` のどれを返すかと worst-case output cardinality を interface contract に含める。bounded query は N の根拠を、stream は保持 memory と cancellation boundary を定める。
+
+「正しさの保険」として全 candidate、全 parent、全 trace を materialize することを default にしない。full set を返すのは caller の semantic contract が全件を必要とすると示せる場合に限り、それ以外は decisive result、summary、bounded result、または stream を選ぶ。
 
 ---
 
@@ -489,6 +529,8 @@ linear であるべき family では、入力を 2 倍にしたとき accepted w
 
 これは言語 semantics ではなく engineering budget である。budget を超えたら timeout を上げる前に、test class の誤り、fixture 再構築、重複 std compile、dependency graph、algorithmic regression を調べる。
 
+`required PR CI の p95` は各 job 単体ではなく、job dependency を含む critical path の wall time に適用する。したがって `contract-build -> contract-shards` では、`contract-build` と最長 shard の合計を 15 分以内に収めるよう、各 job の 10 分上限の内側で両者へ budget を配分する。並列 shard の時間は合算しないが、最長 shard は critical path に含める。
+
 ---
 
 ## 10. test architecture
@@ -630,6 +672,7 @@ nightly へ次を移す。
 - `pub use *` と大規模な compiled surface re-export を避ける。
 - phase output の constructor は crate-private にし、invalid combination を作れなくする。
 - public field を最小化し、query method は owned / immutable value を返す。
+- query / read method は section 6.8 の cardinality class と worst-case output を contract に持つ。
 - raw arena reference や mutable store guard を phase boundary から返さない。
 - error type は phase ごとに分け、fallback を `Any` / `Never` の semantic valueで表現しない。
 
@@ -642,11 +685,31 @@ nightly へ次を移す。
 
 ### 12.4 data layout
 
+logical relation の identity を consumer struct の field layout で定義しない。stable ID と normalized relation schema を先に定め、flat view、ordered cursor、portable export、diagnostic sequence はその schema からの projection とする。edge や tuple ごとに full payload を埋め込むことを default にせず、exact semantics の保持と payload の物理 copy を分離する。
+
 - frequently traversed node は contiguous arena と compact integer ID を使う。
 - small row / argument list は inline small storage を検討する。
 - canonical node は intern し、deep clone を避ける。
 - clone bytes と retained bytes を metric にする。
 - diagnostic string を hot semantic node に埋めず、span / symbol / cause ID を保持する。
+
+storage schema と read topology は同じ design review で決める。iterator の nesting、empty bucket の skip、ordered cursor の resume、result-local traversal、chunk locality を後付けにしない。point lookup、ordered traversal、result-local traversal、full export のそれぞれについて complexity、allocation、ordering contract を示し、normalized storage であることだけを hot-path cost の説明にしない。
+
+### 12.5 derived view registry
+
+index、cache、certificate、materialized query、shadow store などの derived view を追加する design は、authority registry と同じ review unit に次の表を置く。空欄のまま実装を始めない。
+
+| 項目 | 必須内容 |
+| --- | --- |
+| source authority | どの fact family と revision から導出するか |
+| owner | 更新できる唯一の component |
+| update unit | event-local delta / batch / snapshot rebuild のどれか |
+| invalidation | source mutation と view invalidation の対応 |
+| readers | production / test consumer と各 read contract |
+| physical budget | entry、bytes、logical-to-physical amplification の上限 |
+| removal | permanent である理由、または temporary view の削除 gate と期限 |
+
+registry は code census と同期させ、authority graph、実在 reader、retirement 状態を review できるようにする。section 6.3 の provenance store / explanation graph も例外ではなく、同節の具体的な表をこの registry の entry として管理する。
 
 ---
 
@@ -681,13 +744,18 @@ historical review log は architecture の source of truth にしない。必要
 
 old/new path を並存させる場合、導入 PR に次を書く。
 
+- owner。
 - authority はどちらか。
 - parity の判定方法。
 - removal condition。
 - removal issue / milestone。
 - 最大存続期間。
+- 最大 supported workload と memory budget。
+- production default から到達する期間。
+- deletion PR / migration slice。
+- rollback artifact の保存方法。
 
-期限なしの shadow path、legacy facade、test-only bridge を作らない。
+この要件は solver の dual path だけでなく、migration 中に導入するすべての shadow store、legacy facade、oracle、adapter、test-only bridge に適用する。authority cutover だけを完了条件にせず、old writer / reader の停止、old store / adapter / oracle の物理削除、legacy fixture の retirement、wall time / memory の再測定までを migration manifest の独立した追跡項目にする。期限なしの並存や、物理削除を未計画の follow-up にすることを認めない。
 
 ### 13.4 archive
 
@@ -710,6 +778,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 - 新 repository / workspace を作る。
 - dependency graph checker、format、core CI を最初に入れる。
+- `tools/xtask` を導入し、graph check と生成 task の入口を一つにする。
 - `yu-syntax`、`yu-hir`、`yu-types` の空 boundary を作る。
 - performance metric format を先に決める。
 
@@ -720,6 +789,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - grammar と parser fixture を選択的に移す。
 - stable file/module/definition identity を決める。
 - name resolution と source diagnostic を immutable `HirModule` にする。
+- cross-crate fixture が初めて必要になる時点で、test-only の `yu-test-support` を導入する。
 - full Yulang2 parser internals をコピーしない。
 
 **Gate:** representative stable-core source が deterministic HIR になる。
@@ -738,6 +808,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - typed core IR を定義する。
 - effect-free call、basic handler、single-shot、必要な multi-shot の順で VM を作る。
 - standard library は stable-core に必要な部分だけ移す。
+- stable-core の end-to-end 実行に必要な thin `yulang` CLI を application leaf として追加する。
 
 **Gate:** stable-core runtime contract が通る。
 
@@ -763,6 +834,8 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - Yulang2 corpus を feature group ごとに移す。
 - Yulang2 / Yulang3 differential は nightly で回す。
 - 差異を language change、Yulang2 bug、Yulang3 bug に分類する。
+- `yulang-wasm` browser adapter と Wasm playground を application leaf として追加する。
+- release contract を固定した後、その contract version を検査する installer を追加する。
 - public release 前に Yulang3 の contract version を明示する。
 
 **Gate:** 合意した contract subset、installer、Wasm playground、LSP smoke が通る。
@@ -785,13 +858,13 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - 現行 `ConstraintMachine` / `AnalysisSession` の field layout。
 - owner-level dirty scheduler。
 - permanent shadow oracle / always-solve production scaffolding。
-- five-layer persistent cache。
+- 複数の persistent artifact kind を同時に持つ cache layering。
 - compiled surface merge の current API。
 - thread-local / feature-gated fault injection seam。
 - CLI と LSP と cache と runtime を同じ crate に置く構成。
 - downstream backend を frontend unit test の dev-dependency にする構成。
 -巨大 central contract manifest。
-- active tree 内の旧世代 archive。
+- 旧世代の source copy を active build tree に置く運用。
 
 invariant は移植するが、その invariant を守るために現行実装が必要とした scaffolding は移植しない。
 
@@ -804,6 +877,8 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 - core dependency graph が一方向で、application dependency が逆流していない。
 - phase output が immutable type として分離されている。
 - solver commit 後に fallible semantic read がない。
+- major fact family の single authority と、derived view の owner / invalidation / retirement が registry で追える。
+- query / certificate の最大 cardinality が API contract にある。
 - reference solver と optimized path の authority が明確である。
 - clean / incremental / cached output の parity test がある。
 - module-level invalidation が interface hash で説明できる。
@@ -812,6 +887,7 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 - scaling fixture が machine-readable metric を出す。
 - public contract が一つの巨大 manifest に集中していない。
 - authoritative architecture / invariant / ADR の所在が明確である。
+- migration の完了条件に legacy store / adapter / oracle の物理削除が含まれる。
 - Yulang2 の内部最適化を移植しなくても stable-core が動く。
 
 ---
