@@ -8,7 +8,7 @@
 
 Yulang3 は、現行実装へ新しい世代を追加する形ではなく、**独立した workspace、できれば独立した repository** として始める。
 
-設計の中心は次の七点とする。
+設計の中心は次の八点とする。
 
 1. コンパイラ内部を一方向の依存グラフにする。
 2. 各 logical fact の authority を一つに定め、各 phase の出力を immutable な値として固定し、巨大な共有可変状態を持ち回らない。
@@ -17,6 +17,7 @@ Yulang3 は、現行実装へ新しい世代を追加する形ではなく、**�
 5. CLI、LSP、Wasm は compiler library に依存する leaf application とし、compiler 側から製品コードへ依存しない。
 6. PR ごとの必須 test と、夜間の differential / adversarial / performance test を分離する。
 7. 性能を「速そうな実装」ではなく、入力規模に対する work count、割当量、wall time の budget で管理する。
+8. runtime の end state は native compilation + generalized evidence passing + yield bubbling + Perceus とし、最小 reference VM の直後に falsifiable な gate で cutover を判定する。
 
 Yulang3 の目的は、現行 Yulang の機能を別の名前で写経することではない。言語仕様、公開 contract、代表的な regression corpus は引き継ぎつつ、現行の内部 state、cache layering、test hook、shadow oracle、crate 分割は原則として移植しない。
 
@@ -160,7 +161,8 @@ crates/
   yu-types/        canonical type/effect representation, schemes, public types
   yu-solver/       constraint collection, solve, generalize, role resolution
   yu-core/         typed core IR, specialization-neutral program representation
-  yu-backend-vm/   specialization, control lowering, verifier, VM/runtime
+  yu-backend-vm/   minimal reference VM, semantic oracle, portable runtime
+  yu-backend-native/ native codegen, yield bubbling, Perceus reuse analysis
   yu-compiler/     query database, phase orchestration, in-memory cache, API
 
 apps/
@@ -198,9 +200,9 @@ yu-hir -----> yu-types
            |
            v
         yu-core
-           |
-           v
-     yu-backend-vm
+        /     \
+       v       v
+yu-backend-vm  yu-backend-native
 
               yu-compiler
         depends on and orchestrates all phases
@@ -210,7 +212,7 @@ yu-hir -----> yu-types
          CLI     LSP      Wasm
 ```
 
-`yu-solver` は `ConstraintBatch` の構築で `HirModule` を読むため `yu-hir` へ直接依存し、canonical type / effect 表現のため `yu-types` にも依存する。`yu-compiler` は orchestration layer であり、semantic type の定義場所にはしない。application は `yu-compiler` の public API だけを使う。
+`yu-solver` は `ConstraintBatch` の構築で `HirModule` を読むため `yu-hir` へ直接依存し、canonical type / effect 表現のため `yu-types` にも依存する。reference VM と native backend は最初から別の leaf crate / target とし、backend-neutral な `CoreModule` だけを共有する。`yu-compiler` は orchestration layer であり、semantic type の定義場所にはしない。application は `yu-compiler` の public API だけを使う。
 
 ### 4.2 crate ごとの禁止事項
 
@@ -221,7 +223,8 @@ yu-hir -----> yu-types
 | `yu-types` | canonical type/effect node、scheme、public type | mutable solver queue、source CST |
 | `yu-solver` | solve session、constraint/provenance ID、solution | LSP、filesystem、persistent cache、runtime |
 | `yu-core` | frozen typed program、backend-neutral operation | solver arena、diagnostic session |
-| `yu-backend-vm` | specialization、verified image、VM state | parser、module loader、LSP |
+| `yu-backend-vm` | reference specialization、verified VM image、VM state | parser、module loader、LSP、native reuse metadata |
+| `yu-backend-native` | native codegen、yield-bubbling capture、precise RC、uniqueness / reuse analysis | parser、module loader、LSP、backend-neutral IR の ownership policy |
 | `yu-compiler` | query key、revision、phase cache、configuration | CLI parsing、terminal output、web API |
 | applications | protocol / UX / process orchestration | semantic state ownership |
 
@@ -352,7 +355,7 @@ formula、provenance edge、index が「現在の」location、live state、boun
 | update unit | committed fact ごとの event-local delta。full explanation graph は solve 後の明示的な query / batch でだけ構築する |
 | invalidation | graph は source solution と provenance log の content identity に bind し、revision またぎで暗黙に再利用しない |
 | readers / cardinality | 単一 error の hover / diagnostic explanation は `decisive one`。`この bound に寄与した全 cause` export は configured / explicit cap `N` の `bounded N`。外部 tooling 向け portable-proof export は caller の contract が complete graph を要求する場合に限り `full set`。debug / trace dump は `stream` |
-| physical budget | provenance log は solve session ごとに constraint count に比例する edge / byte / logical-to-physical amplification cap 内に保つ。budget pressure では古い entry を drop または detail-reduce し、semantic result は変えない。exact multiplier は Phase 3 / 6 の profiling で定める |
+| physical budget | provenance log は solve session ごとに constraint count に比例する edge / byte / logical-to-physical amplification cap 内に保つ。budget pressure では古い entry を drop または detail-reduce し、semantic result は変えない。exact multiplier は Phase 3 / 7 の profiling で定める |
 | retirement | provenance level が不要なら log を生成しない。生成した provenance log は frozen `Solution` に対応する causal authority として solve session / snapshot lifetime の間だけ保持し、その retirement とともに破棄する。lazy graph は query / snapshot lifetime の終了時に破棄する |
 
 ### 6.4 termination
@@ -497,24 +500,33 @@ Yulang は multi-shot continuation を必要とするため、すべてを単純
 - continuation capture で毎回全 stack を clone しない。
 - branch 数、capture bytes、resume count、clone bytes を metric にする。
 
-### 8.3 native compilation + Perceus の active open reconsideration
+### 8.3 native compilation + Perceus の end-state decision
 
-**Status: ACTIVELY RECONSIDERED, NOT YET DECIDED.** native compilation と Perceus（precise reference counting と compile-time reuse analysis / FBIP）を Yulang3 の runtime design として採用するかは、確定事項ではない。現時点の VM-first migration sequence を置き換える decision でもない。ただし、現行世代の native backend で挙がった hygiene incompatibility と slowdown は、どちらも再挑戦を原理的に閉ざす反証ではなかったため、候補を明示的に再検討対象へ戻す。
+**Status: DECIDED.** Yulang3 の formal end-state runtime target は、native compilation、generalized evidence passing、yield bubbling、Perceus（precise reference counting と compile-time reuse analysis / FBIP）の組合せとする。これは VM を default として後から再検討する方針ではない。Phase 4 で最小の reference VM を完成させ、その直後の Phase 5 で native + Perceus を実装し、falsifiable な acceptance gate を通過した時点で native を default backend へ cutover する。VM はその間の bootstrap、semantic oracle、gate 不通過時の rollback path であり、cutover 後は明示的な reference / debug / portable backend とする。
 
-runtime hygiene は消してよい scaffolding ではない。outer callback を通じて供給された effect を inner handler が奪わないため、activation ごとに fresh な guard / provider-scope ID を作り、closure、thunk、continuation に運び、resume 時に dynamic-wind に相当する再設置を行う。この semantics は、effect family と lexical handler expression だけで route を一度決める狭い evidence passing とは両立しない。一方、Xie と Leijen の *Generalized Evidence Passing for Effect Handlers* (ICFP 2021) に沿って、compile time には evidence slot を選び、その runtime value には activation-specific な guard / scope token を入れる形とは両立する。callback / delayed boundary のない区間だけ static direct route に昇格し、実際の hygiene barrier では generic routing へ戻す hybrid が必要である。
+この target の payoff は marginal な optimization ではない。native codegen は interpreter dispatch cost を除き、yield bubbling は continuation capture cost を実際に yield した区間へ限定し、Perceus は functional update の allocation churn を uniqueness 下の in-place reuse へ変えられる。Yulang の State effect では `&a = value` が真の in-place heap mutation ではなく、pure な continuation restart へ desugar されるため、「新しい値を allocate して古い値を捨てる」更新を reuse-under-uniqueness で安価にする Perceus と特に噛み合う。
 
-Perceus とも既知の原理的衝突はない。Yulang の load-bearing identity は heap address ではなく明示的な guard / scope ID なので、storage を再利用しても constructor が fresh logical ID を書けば hygiene は保たれる。multi-shot continuation は共有値を uniquely owned と証明できる範囲を狭め、reuse opportunity を減らすが、その場合に copy / allocate へ戻ることは correctness failure ではない。
+過去の「RC は allocation churn と相性が悪く、copying GC が有利」という評価は naive RC に対しては正しいが、その reuse pattern 自体を対象にする Perceus へそのまま適用できない。一方、multi-shot continuation と shared ownership は uniqueness が成立する範囲を狭める。その path では正しく copy / allocate へ fallback するため correctness は保てるが、期待できる reuse benefit は下がる。この制約は target を否定するものではなく、Phase 5 の acceptance gate で実 workload と allocation bytes を測る。
 
-現行世代の 2026-05-18〜20 の native backend attempt で支配的だったのは handler lookup ではなく、resumption capture ごとに mutable handler / guard / return-frame vector 全体を clone / replace する snapshot machinery だった。static evidence による lookup 改善が測定差を作らなかったことも、この局所化と整合する。再試行するなら、次を decision gate とする。
+runtime hygiene は消してよい scaffolding ではない。outer callback を通じて供給された effect を inner handler が奪わないため、activation ごとに fresh な guard / provider-scope ID を作り、closure、thunk、continuation に運び、resume 時に dynamic-wind に相当する再設置を行う。この semantics は、effect family と lexical handler expression だけで route を一度決める狭い evidence passing とは両立しない。一方、Xie と Leijen の *Generalized Evidence Passing for Effect Handlers* (ICFP 2021) に沿って、compile time には evidence slot を選び、その runtime value には activation-specific な guard / scope token を入れる形とは両立する。callback / delayed boundary のない区間だけ static direct route に昇格し、実際の hygiene barrier では generic routing へ戻す hybrid を採る。
 
-- evidence passing は lexical-only ではなく、activation-aware な generalized form にする。
-- continuation stack は captured prefix を structurally share し、Koka-style yield bubbling により Pure / no-actual-yield path の allocation を避け、実際の yield だけが incremental construction cost を払う形にする。旧 full-snapshot-clone representation を繰り返さない。
-- reuse 時にも fresh logical guard / scope identity を生成し、single-shot / multi-shot の ownership 差を verifier と runtime metric で検査する。
-- lookup cost だけでなく capture bytes、clone / replacement work、resume count、allocation を VM reference と同じ semantic corpus で比較する。
+Perceus とも既知の原理的衝突はない。Yulang の load-bearing identity は heap address ではなく明示的な guard / scope ID なので、storage を再利用しても constructor が fresh logical ID を書けば hygiene は保たれる。non-unique value と multi-shot-shared value は reuse せず、copy / allocate へ fallback する。
 
-この判断の evidence anchor は、language-level hygiene が `web/docs/reference/effects.md`、runtime identity invariant が `spec/2026-06-13-runtime-guard-markers.md`、既存 hybrid route が `notes/design/2026-07-02-static-route-promotion-plan.md`、旧 native attempt が `docs/native-backend.md` と 2026-05-18〜20 の project history である。将来の decision は narrow lexical evidence passing を前提に同じ incompatibility 調査を繰り返すのではなく、これらの invariant を prototype の acceptance test にする。
+現行世代の 2026-05-18〜20 の native backend attempt で支配的だったのは handler lookup ではなく、resumption capture ごとに mutable handler / guard / return-frame vector 全体を clone / replace する snapshot machinery だった。static evidence による lookup 改善が測定差を作らなかったことも、この局所化と整合する。Phase 5 では captured prefix を structurally share する Koka-style yield bubbling を使い、Pure / no-actual-yield path の allocation をゼロにし、実際の yield だけが newly-exposed segment の incremental construction cost を払う形にする。旧 full-snapshot-clone representation を繰り返さない。
 
-この prototype が handler hygiene と multi-shot contract を満たし、representative workload で capture representation の改善を示した後に、native + Perceus を primary backend とするかを ADR で決める。それまでは `yu-backend-vm` と Phase 4 の VM-first 方針を current plan とする。
+ただし、native codegen、yield-bubbling capture、Perceus の reuse-analysis pass はそれぞれ独立した大きな実装である。最初の end-to-end slice より前に三つを同時に入れると、frontend、Core IR、runtime semantics、ownership correctness を同時に debug することになる。この risk を critical path へ置かないため、Phase 4 は heavy optimization を持たない最小 reference VM に限定する。これは native target の先送りではない。working VM を先に持つことで Phase 5 を differential test でき、gate に届かなければ動く backend へ戻れる。一方、VM-only を長く続けて VM 固有の IR と optimization を蓄積する前に Phase 5 を置くことで、native migration の後払い cost も避ける。
+
+この判断の evidence anchor は、language-level hygiene が `web/docs/reference/effects.md`、runtime identity invariant が `spec/2026-06-13-runtime-guard-markers.md`、既存 hybrid route が `notes/design/2026-07-02-static-route-promotion-plan.md`、旧 native attempt が `docs/native-backend.md` と 2026-05-18〜20 の project history である。Phase 5 の順序、測定値、engineering budget、cutover / reversal rule は §14 に固定する。
+
+この decision を将来 VM-primary へ戻す根拠になりうるのは、次のいずれかである。
+
+- 正しく実装した yield bubbling + Perceus が §14 の performance gate を満たさない。
+- 実 workload が multi-shot / shared-ownership pattern に支配され、reuse が構造的に効かない。
+- native の要件により ownership concern が backend-neutral な `CoreModule` へ漏れる。
+- platform / FFI / debugging / build latency の maintenance cost が runtime gain を上回る。
+- logical identity または multi-shot fallback の correctness に、体系化できない ad-hoc special case が必要になる。
+
+unfinished work や early prototype の遅さだけでは reversal の根拠にしない。正しい representation と定めた implementation budget まで到達した後の measured failure が必要であり、gate を満たさない場合は indefinite polishing ではなく formal reversal ADR で VM-primary へ切り替える。
 
 ### 8.4 benchmark
 
@@ -830,10 +842,10 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 - Yulang2 の reference release を tag する。
 - stable-core、public type、diagnostic、runtime の contract subset を確定する。
-- current benchmark を固定 machine で採る。
+- runtime benchmark JSON、runner、workload set を確定し、固定 machine で Yulang2 baseline を採る。この比較基盤は Phase 5 の native / VM evaluation まで変更せず、gate に合わせて drift させない。
 - Yulang2 では correctness fix 以外の大規模 architecture change を止める。
 
-**Gate:** compatibility corpus と baseline JSON が repository にある。
+**Gate:** compatibility corpus、runtime benchmark JSON / runner / workload set、固定 machine の baseline が repository にある。
 
 ### Phase 1: 独立 skeleton
 
@@ -841,6 +853,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - dependency graph checker、format、core CI を最初に入れる。
 - `tools/xtask` を導入し、graph check と生成 task の入口を一つにする。
 - `yu-syntax`、`yu-hir`、`yu-types` の空 boundary を作る。
+- `yu-backend-vm` と `yu-backend-native` を、backend-neutral な `yu-core` だけに依存する別々の leaf crate / target として置く。
 - performance metric format を先に決める。
 
 **Gate:** application を含めず、core check が 1 分台で終わる。
@@ -864,16 +877,40 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 **Gate:** stable-core の public type corpus が通り、solver test が 90 秒以内に収まる。
 
-### Phase 4: core IR と最小 runtime
+### Phase 4: core IR と最小 reference VM
 
-- typed core IR を定義する。
-- effect-free call、basic handler、single-shot、必要な multi-shot の順で VM を作る。
+- typed で backend-neutral な Core / control IR を定義し、evidence slot、activation token、continuation boundary を明示する。
+- stable-core、basic handler、single-shot、language corpus に必要な multi-shot の順で最小 VM を作る。
+- Perceus 固有の uniqueness / reuse 情報は native backend 内に閉じ、`CoreModule` へ漏らさない。
+- heavy VM optimization と production-grade VM artifact design は対象外とする。VM の役割は working bootstrap と、Phase 5 の native / VM differential test に使う semantic oracle である。
 - standard library は stable-core に必要な部分だけ移す。
 - stable-core の end-to-end 実行に必要な thin `yulang` CLI を application leaf として追加する。
 
-**Gate:** stable-core runtime contract が通る。
+**Gate:** stable-core と必要な multi-shot の runtime contract が最小 reference VM で通り、Phase 5 の differential oracle として固定できる。
 
-### Phase 5: compiler database と LSP
+### Phase 5: native + Perceus runtime cutover
+
+次の五つの implementation slice を順に進める。
+
+1. reuse を入れず、安全な allocate / copy を行う native codegen baseline を作る。最初に correctness を確立する。
+2. Yulang の hygiene mechanism と両立する activation-aware generalized evidence passing を実装する。naive な lexical-only route は採らない。
+3. captured prefix を structurally share する Koka-style yield-bubbling continuation capture を実装する。Pure / no-yield path の allocation はゼロとし、実際の yield だけが incremental capture cost を払う。2026-05-20 の sealing を招いた旧 full-snapshot-clone representation は繰り返さない。
+4. precise RC insertion と uniqueness / reuse analysis を加え、Perceus を完成させる。
+5. acceptance gate を評価し、全項目を満たした場合に native を default backend へ cutover する。
+
+**Gate:** default を native へ切り替える前に、次の七項目をすべて満たす。
+
+1. **Semantics:** stable-core + adversarial corpus で VM との差分がゼロである。corpus には callback / delayed boundary、nested handler、abort / resume、multi-shot branch state を含める。
+2. **Evidence:** lexical-only route を一つも許さず、すべての route が activation-specific な guard / scope token を運ぶ。static route と generic dynamic-fallback route の shadow mismatch がゼロである。
+3. **Capture:** Pure / no-yield path の continuation allocation がゼロであり、capture ごとの full handler / guard / return-frame vector clone がゼロである。shared-prefix clone bytes はゼロで、capture work は captured history 全体ではなく newly-exposed segment だけに比例する。
+4. **Reuse:** physical address を再利用しても storage へ fresh logical guard / scope ID を書く。non-unique value と multi-shot-shared value は正しく copy / allocate へ fallback し、unsafe reuse がゼロである。
+5. **Perceus effectiveness:** unique-update fixture set で、reuse-disabled native baseline との A/B 比較により allocation bytes を 50% 以上削減する。
+6. **Overall performance:** Phase 0 で固定した benchmark corpus の steady-state runtime geometric mean が、Yulang2 / Yulang3 VM baseline のうち速い方より 1.5x 以上速く、effect / state-heavy subset では 2x 以上速い。個別 category のいずれかが VM baseline より 15% を超えて遅い場合、または peak memory が 25% を超えて増える場合は cutover を block する。
+7. **Engineering budget cap:** Phase 5 の実装 budget は上記五 slice と、profiling に基づく追加 bottleneck fix 最大一件までとする。それでも gate を満たさない場合は、理由を記録して VM-primary を正式に選ぶ reversal ADR を作る。indefinite polishing は行わない。この cap は、実際の stopping / reversal decision に到達しないまま起きた 2026-05-20 の native-backend sealing を繰り返さないために置く。
+
+cutover 後は、release、build、runtime-performance contract の default backend を native とする。VM は明示的な reference / debug / portable backend としてだけ残し、それ以降の optimization investment で native と競合させない。
+
+### Phase 6: compiler database と LSP
 
 - module-level query / in-memory cache を導入する。
 - clean / incremental parity を常時確認する。
@@ -881,7 +918,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 **Gate:** private body edit で dependent infer が 0 件、公開 interface change では dependency closure だけ再計算される。
 
-### Phase 6: persistent cache と optimization
+### Phase 7: persistent cache と optimization
 
 - profile で最大 bottleneck を一つ選ぶ。
 - optimization は一件ずつ追加し、reference output と比較する。
@@ -890,7 +927,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 **Gate:** required PR CI 15 分以内、scaling fixture に unexplained superlinear regression がない。
 
-### Phase 7: compatibility 拡大と cutover
+### Phase 8: compatibility 拡大と cutover
 
 - Yulang2 corpus を feature group ごとに移す。
 - Yulang2 / Yulang3 differential は nightly で回す。
@@ -951,6 +988,7 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 - authoritative architecture / invariant / ADR の所在が明確である。
 - migration の完了条件に legacy store / adapter / oracle の物理削除が含まれる。
 - Yulang2 の内部最適化を移植しなくても stable-core が動く。
+- native + generalized evidence passing + yield bubbling + Perceus が Phase 5 の七項目の gate を通り、native が default backend になっている。または、同じ implementation budget を使い切った measured failure に基づく formal reversal ADR が accepted になっている。
 
 ---
 
@@ -975,5 +1013,4 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 
 今回の調査で architecture decision として閉じていない項目を、既決事項や移植 guidance と混ぜずに追跡する。
 
-1. **ACTIVE RECONSIDERATION — native compilation + Perceus:** primary runtime/backend として採用するかは未決定である。§8.3 の通り、hygiene と過去の slowdown は再挑戦の hard blocker ではないが、activation-aware な generalized evidence passing、yield-bubbling / structurally-shared capture、fresh logical identity、multi-shot fallback を満たす prototype を VM reference と比較し、その結果を ADR にするまで VM-first plan を維持する。
-2. **FLAGGED OPEN RISK — mutable-reference constraint representation:** §6.9 の lower × upper fan-out を、invariance を失わずにどう表現するかは未解決である。proof-authority architecture や alpha-equivalence dedup で解決済みとせず、reference solver 着手前に alternative representation、complexity bound、mutable-state scaling fixture を設計する。
+1. **FLAGGED OPEN RISK — mutable-reference constraint representation:** §6.9 の lower × upper fan-out を、invariance を失わずにどう表現するかは未解決である。proof-authority architecture や alpha-equivalence dedup で解決済みとせず、reference solver 着手前に alternative representation、complexity bound、mutable-state scaling fixture を設計する。
