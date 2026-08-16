@@ -225,6 +225,22 @@ yu-hir -----> yu-types
 | `yu-compiler` | query key、revision、phase cache、configuration | CLI parsing、terminal output、web API |
 | applications | protocol / UX / process orchestration | semantic state ownership |
 
+#### 4.2.1 `yu-syntax` の porting guidance
+
+**Status: ACTIONABLE GUIDANCE, NOT YET IMPLEMENTED.** 現行 parser の core algorithm は捨てない。Yulang source の parser は、tagged predictive NUD / LED dispatch と Pratt / precedence climbing を使い、grammar-level の subtree backtracking を避ける。Chasa 相当の combinator による局所的な token-level backtracking は残してよい。この source parser と、言語機能としての `rule{}` / `~"..."` parser-combinator DSL は別 system であり、CST boundary で接続することを理由に implementation を混ぜない。
+
+移植時に整理するのは algorithm 固有の複雑さではなく、現行実装で偶発的に重複した responsibility である。
+
+- statement-start classification は一つの shared dispatch / classification table を authority とし、statement parse、block parse、recovery、header-mode の caller が同じ結果を使う。
+- indentation、stop set、header mode などの一時的な parser environment は、shared parse session の scoped API で push / restore する。grammar function が保存と復元を手書きしない。
+- invalid / missing token と node の生成、CST marker の balance、diagnostic collection、recovery の consume-or-stop guarantee は shared recovery layer が所有する。block / group variant はこの skeleton を再利用し、同じ missing-token helper を grammar family ごとに複製しない。
+- keyword、punctuation、operator token の lexical table は一箇所を authority とし、lexer、predictive dispatch、diagnostic が別々の一覧を持たない。
+- expression control、declaration、pattern、type、Yumark など異なる grammar family を一つの大きな file に混ぜない。public parse entrypoint と wiring は親 module に残し、family-specific grammar と recovery は用途名のある子 module に分ける。
+
+一方、dynamic user-defined operator、header-mode の dual parsing、grammatical indentation、lossless Rowan bookkeeping、recovery の consume-or-stop、embedded Yumark が別 language であることは inherent complexity として保持する。これらを共通 helper のために平らにしたり、discardable trivia や単一 grammar として扱ったりしない。
+
+`yu-syntax` が parse error を所有するという §4.2 の境界は、API としても実体化する。現行 parser のように bare CST だけを返し、error collection を side channel や caller の CST 再走査に委ねてはならない。§5 の total-phase-output rule に従い、`ParsedFile` 自体が lossless CST、structured `Missing` / `Error` node、exhaustive parse diagnostic を同じ immutable revision の結果として所有する。
+
 ### 4.3 graph rule
 
 CI で `cargo metadata` を読み、次を自動検査する。
@@ -263,6 +279,18 @@ PublicInterface
 CoreModule
 ProgramImage
 ```
+
+`ParsedFile`、`HirModule`、`SolvedModule` は、正しい source に対してだけ構築できる success payload ではなく、**local failure に対して total な phase output** とする。syntax error、未解決 name、lowering error、型矛盾があっても phase 全体を abort せず、その phase が入力から判定できる error を最初の一件で止めずにすべて収集し、immutable な構造化結果を返す。
+
+- `ParsedFile` は lossless CST と parse diagnostic の一覧を所有し、欠落 token / node と回復箇所を明示的な `Missing` / `Error` node で表す。
+- `HirModule` は解決または lowering できた declaration / expression を保持し、失敗した箇所を node / declaration 単位の error marker と phase diagnostic で表す。一つの declaration の失敗で残りの module を捨てない。
+- `SolvedModule` は解けた type / effect fact と未解決 fact を同時に保持し、solve error を構造化して列挙する。未解決 placeholder には `Unknown` を使い、`Any` / `Never` を error recovery や fallback に流用しない。
+
+error marker は後続 phase の cascade を抑えるために使ってよいが、同じ phase の独立した error の探索を止める理由にはしない。cancellation、I/O failure、compiler invariant violation のような phase-local semantic error ではない失敗は、total output 内の diagnostic と混ぜず、query の availability failure として別に扱う。
+
+error path には対話的 latency の独立 budget を置かない。LSP のためだけの fast / approximate partial-inference engine は作らず、production と同じ solver が error marker を越えて進み、diagnostic を尽くし、得られた partial fact を `SolvedModule` に凍結する。`yu-compiler` の query surface は phase ごとの immutable output を公開し、solve が未完了または availability failure でも、その revision ですでに ready な `ParsedFile` / `HirModule` を読めるようにする。
+
+`PublicInterface` / `CoreModule` / `ProgramImage` の生成には、用途に応じて executable eligibility の clean gate を置いてよい。その gate が閉じても total な `SolvedModule` と diagnostic を破棄せず、LSP query から読める状態を保つ。
 
 phase をまたぐ raw arena ID を禁止する。必要な ID は phase-specific newtype とし、serialized artifact には stable symbol key か明示的な remap table を保存する。
 
@@ -376,6 +404,14 @@ Yulang3 の query / read API と certificate はすべて、`decisive one`、`bo
 
 「正しさの保険」として全 candidate、全 parent、全 trace を materialize することを default にしない。full set を返すのは caller の semantic contract が全件を必要とすると示せる場合に限り、それ以外は decisive result、summary、bounded result、または stream を選ぶ。
 
+### 6.9 mutable-reference constraint fan-out
+
+**Status: FLAGGED OPEN RISK, NOT YET SOLVED.** 現行推論器の mutable-reference workload には、proof / claim layer の repeated revalidation とは別の structural scaling risk がある。調査では exhaustive type-candidate search、duplicate selection resolution、exact constraint の未 deduplicate が主因ではなかった。proof / claim の revalidation は `notes/design/2026-08-16-infer-proof-architecture-retrospective.md` が一般化済みであり、§3.8、§6.2、§6.3、§12.5 はその原則を反映する。新しい一般原則を重ねる必要はないが、それだけで次の mutable-reference 固有の mechanism が消えるとは仮定しない。
+
+各 mutable-reference read / write が fresh な invariant ref / effect / payload type variable を作り、それらを shared constraint hub の lower / upper 両側へ結ぶと、hub の次数に応じて lower × upper の pairwise consequence が増える。この volume は単なる表記上の duplicate ではなく、現行調査の alpha-equivalence census でも globally equivalent な accepted consequence は見つからなかった。したがって naive alpha-equivalence dedup、後段 cache、proof-authority の一本化をこの risk の解決策として数えない。
+
+`yu-solver` の初期 constraint schema は、mutable state の invariance を保ったまま shared ref / effect / payload relation を eager な pairwise expansion より fan-out の少ない形で表せるかを独立に検討する。少なくとも mutable read / write 数、hub ごとの lower / upper degree、pair attempt / accepted consequence、生成 constraint 数を scaling fixture で測り、ordinary subtyping / proof-revalidation counter と分けて報告する。既存の Yulang2 design document にこの mechanism の解法はなく、representation はまだ選ばれていないため、reference solver の設計前に model と complexity contract を置く必要がある。
+
 ---
 
 ## 7. incremental compilation
@@ -427,9 +463,14 @@ parse cache、namespace cache、typed arena cache、mono cache、VM cacheを別 
 
 LSP は compiler database の immutable revision snapshot を読む。
 
+現行 LSP の `.` completion、hover、diagnostics は、sentinel probe を差し込んだ buffer を作り、毎回 parse / lower / check の全 cycle を走らせる。未解決 method name があっても receiver の `TypeVar` という partial semantic fact は得られるが、これは incremental phase readiness ではない。この観測から引き継ぐのは partial fact を tooling に公開する contract であり、buffer rewrite と full-pass probe の実装ではない。
+
 - edit ごとに revision token を発行する。
 - 古い revision の computation は cancellation できる。
-- diagnostics / hover / completion は一つの completed revision からだけ publish する。
+- diagnostics / hover / completion の各 query は、`ParsedFile`、`HirModule`、`SolvedModule` のどこまでを必要とするかを phase-readiness contract として宣言する。
+- `completed revision` は module 全体が error なしの `SolvedModule` に到達したことではなく、**その query が必要とする phase output が同じ revision で immutable に publish 済みであること**を意味する。local error を含む total output も、その phase については completed とする。
+- query は異なる revision の phase output を混ぜない。一方、solve がまだ ready でない revision でも parse diagnostic は `ParsedFile`、構築済み HIR を使う query は `HirModule` から publish できる。
+- compiler-owned query surface は Missing / Error node、phase diagnostic、best-effort の partial type / effect fact をそのまま読み出せるようにする。LSP adapter が sentinel rewrite や独自 semantic fallback で同じ事実を再構築しない。
 - thread-local fault injection や process-wide environment mutationを使わず、明示的な `CompilerConfig` / test double を渡す。
 - LSP-specific fallback は semantic result を作らず、`Unavailable` として UI layer で扱う。
 
@@ -456,7 +497,26 @@ Yulang は multi-shot continuation を必要とするため、すべてを単純
 - continuation capture で毎回全 stack を clone しない。
 - branch 数、capture bytes、resume count、clone bytes を metric にする。
 
-### 8.3 benchmark
+### 8.3 native compilation + Perceus の active open reconsideration
+
+**Status: ACTIVELY RECONSIDERED, NOT YET DECIDED.** native compilation と Perceus（precise reference counting と compile-time reuse analysis / FBIP）を Yulang3 の runtime design として採用するかは、確定事項ではない。現時点の VM-first migration sequence を置き換える decision でもない。ただし、現行世代の native backend で挙がった hygiene incompatibility と slowdown は、どちらも再挑戦を原理的に閉ざす反証ではなかったため、候補を明示的に再検討対象へ戻す。
+
+runtime hygiene は消してよい scaffolding ではない。outer callback を通じて供給された effect を inner handler が奪わないため、activation ごとに fresh な guard / provider-scope ID を作り、closure、thunk、continuation に運び、resume 時に dynamic-wind に相当する再設置を行う。この semantics は、effect family と lexical handler expression だけで route を一度決める狭い evidence passing とは両立しない。一方、Xie と Leijen の *Generalized Evidence Passing for Effect Handlers* (ICFP 2021) に沿って、compile time には evidence slot を選び、その runtime value には activation-specific な guard / scope token を入れる形とは両立する。callback / delayed boundary のない区間だけ static direct route に昇格し、実際の hygiene barrier では generic routing へ戻す hybrid が必要である。
+
+Perceus とも既知の原理的衝突はない。Yulang の load-bearing identity は heap address ではなく明示的な guard / scope ID なので、storage を再利用しても constructor が fresh logical ID を書けば hygiene は保たれる。multi-shot continuation は共有値を uniquely owned と証明できる範囲を狭め、reuse opportunity を減らすが、その場合に copy / allocate へ戻ることは correctness failure ではない。
+
+現行世代の 2026-05-18〜20 の native backend attempt で支配的だったのは handler lookup ではなく、resumption capture ごとに mutable handler / guard / return-frame vector 全体を clone / replace する snapshot machinery だった。static evidence による lookup 改善が測定差を作らなかったことも、この局所化と整合する。再試行するなら、次を decision gate とする。
+
+- evidence passing は lexical-only ではなく、activation-aware な generalized form にする。
+- continuation stack は captured prefix を structurally share し、Koka-style yield bubbling により Pure / no-actual-yield path の allocation を避け、実際の yield だけが incremental construction cost を払う形にする。旧 full-snapshot-clone representation を繰り返さない。
+- reuse 時にも fresh logical guard / scope identity を生成し、single-shot / multi-shot の ownership 差を verifier と runtime metric で検査する。
+- lookup cost だけでなく capture bytes、clone / replacement work、resume count、allocation を VM reference と同じ semantic corpus で比較する。
+
+この判断の evidence anchor は、language-level hygiene が `web/docs/reference/effects.md`、runtime identity invariant が `spec/2026-06-13-runtime-guard-markers.md`、既存 hybrid route が `notes/design/2026-07-02-static-route-promotion-plan.md`、旧 native attempt が `docs/native-backend.md` と 2026-05-18〜20 の project history である。将来の decision は narrow lexical evidence passing を前提に同じ incompatibility 調査を繰り返すのではなく、これらの invariant を prototype の acceptance test にする。
+
+この prototype が handler hygiene と multi-shot contract を満たし、representative workload で capture representation の改善を示した後に、native + Perceus を primary backend とするかを ADR で決める。それまでは `yu-backend-vm` と Phase 4 の VM-first 方針を current plan とする。
+
+### 8.4 benchmark
 
 runtime benchmark は少なくとも次を分ける。
 
@@ -508,6 +568,7 @@ metric は machine-readable JSON でも出せるようにし、user-facing outpu
 - recursive SCC
 - repeated generic specialization
 - nested handler / multi-shot branch
+- mutable-reference shared hub の repeated read / write
 
 linear であるべき family では、入力を 2 倍にしたとき accepted work と allocation が原則 2.5 倍未満に収まることを gate にする。例外は design document に complexity と理由を書く。
 
@@ -876,6 +937,7 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 
 - core dependency graph が一方向で、application dependency が逆流していない。
 - phase output が immutable type として分離されている。
+- `ParsedFile`、`HirModule`、`SolvedModule` が local failure に対して total で、Missing / Error marker、phase ごとの exhaustive diagnostic、利用可能な partial fact を保持する。
 - solver commit 後に fallible semantic read がない。
 - major fact family の single authority と、derived view の owner / invalidation / retirement が registry で追える。
 - query / certificate の最大 cardinality が API contract にある。
@@ -899,10 +961,19 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 3. dependency direction を検査する CI を入れる。
 4. `SourceText -> ParsedFile -> HirModule` の immutable boundary を作る。
 5. stable `FileId` / `ModuleId` / `DefId` を決める。
-6. canonical type/effect arena と小さな reference solver を作る。
+6. canonical type/effect arena、mutable-reference fan-out model、小さな reference solver を作る。
 7. `ConstraintBatch -> SolvedModule -> PublicInterface` を確立する。
 8. clean / incremental parity harness を先に作る。
 9. stable-core の最小 runtime slice を一つ end-to-end で通す。
 10. baseline を超えた箇所だけを profile し、最初の optimization を選ぶ。
 
 最初の optimization を決める前に、最初の end-to-end slice を完成させる。Yulang3 で最も避けるべきなのは、実行できる小さな縦切りがないまま、solver、cache、LSP、runtime の高度な仕組みを並行して作り始めることである。
+
+---
+
+## 18. 未決定事項
+
+今回の調査で architecture decision として閉じていない項目を、既決事項や移植 guidance と混ぜずに追跡する。
+
+1. **ACTIVE RECONSIDERATION — native compilation + Perceus:** primary runtime/backend として採用するかは未決定である。§8.3 の通り、hygiene と過去の slowdown は再挑戦の hard blocker ではないが、activation-aware な generalized evidence passing、yield-bubbling / structurally-shared capture、fresh logical identity、multi-shot fallback を満たす prototype を VM reference と比較し、その結果を ADR にするまで VM-first plan を維持する。
+2. **FLAGGED OPEN RISK — mutable-reference constraint representation:** §6.9 の lower × upper fan-out を、invariance を失わずにどう表現するかは未解決である。proof-authority architecture や alpha-equivalence dedup で解決済みとせず、reference solver 着手前に alternative representation、complexity bound、mutable-state scaling fixture を設計する。
