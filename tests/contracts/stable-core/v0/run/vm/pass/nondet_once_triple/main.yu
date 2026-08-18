@@ -1,0 +1,12 @@
+// P0 public regression: nondet once should find the first Pythagorean triple.
+
+use std::control::nondet::*
+
+once:
+    my a = each 1..
+    my b = each a<..
+    my c = each b<..
+
+    guard: a * a + b * b == c * c
+
+    (a, b, c)

@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "(() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> (() -> [std::text::parse::parse 'a 'b 'c 'd] 'e) -> () -> [std::text::parse::parse 'a 'b 'c 'd] 'e where 'b: std::text::parse::ParseError(item = 'f, pos = 'g)"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"module" = "std.text.parse"
+"symbol" = "std.text.parse.choice"

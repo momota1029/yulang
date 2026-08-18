@@ -1,0 +1,1 @@
+run roots [(result::ok(7), result::err(small_err::nope(3)))]

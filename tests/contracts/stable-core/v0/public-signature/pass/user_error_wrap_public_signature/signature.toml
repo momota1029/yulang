@@ -1,0 +1,6 @@
+"std" = "repo"
+"expected_type" = "'a [small_err; 'b] -> ['b] std::data::result::result('a, 'c | small_err)"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"symbol" = "small_err.wrap"

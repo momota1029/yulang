@@ -1,0 +1,5 @@
+use std::text::str::*
+
+my item = { starts_with: "record-field", other: "abc".starts_with "a" }
+
+(item.starts_with, item.other)

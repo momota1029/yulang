@@ -1,0 +1,6 @@
+"std" = "none"
+"expected_type" = "box('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+"deny_contains" = ["#", "AllExcept", "tick"]
+
+["selector"]
+"symbol" = "box.handle"

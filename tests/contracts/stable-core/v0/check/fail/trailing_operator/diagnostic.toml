@@ -1,0 +1,13 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.syntax]: syntax error: unexpected token", "--> line 1, column 10"]
+"code" = "yulang.syntax"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 9
+"end" = 10
+
+["related"]
+"count" = 0

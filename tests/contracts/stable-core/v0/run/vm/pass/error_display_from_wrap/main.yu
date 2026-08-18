@@ -1,0 +1,15 @@
+pub error fs_err:
+    not_found str
+
+pub error io_err:
+    fs from fs_err
+
+my read path =
+    case path:
+        "/ok" -> "data"
+        _ -> fail fs_err::not_found path
+
+my res: result str io_err = io_err::wrap: read "/missing"
+case res:
+    ok text -> "ok: " + text
+    err e -> "err: " + e.show

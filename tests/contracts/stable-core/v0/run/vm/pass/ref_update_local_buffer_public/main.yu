@@ -1,0 +1,13 @@
+use std::control::var::*
+
+my update_local_ref(backing) = {
+    my $buffer = backing
+    my r: std::control::var::ref _ str = ref {
+        get: \() -> $buffer,
+        update_effect: \() -> &buffer = ref_update::update $buffer
+    }
+    r.update (\old -> old + "!")
+    r.get()
+}
+
+update_local_ref "start"

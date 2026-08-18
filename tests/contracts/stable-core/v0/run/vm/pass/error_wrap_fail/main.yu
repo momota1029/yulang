@@ -1,0 +1,9 @@
+pub error small_err:
+    nope int
+
+my boom n = fail (small_err::nope n)
+
+my ok_value = small_err::wrap: 7
+my err_value = small_err::wrap: boom 3
+
+(ok_value, err_value)

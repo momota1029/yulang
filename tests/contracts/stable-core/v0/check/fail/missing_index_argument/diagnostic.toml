@@ -1,0 +1,13 @@
+"std" = "repo"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.missing-index-argument]: index expression is missing an argument", "hint: write an index expression inside the brackets"]
+"code" = "yulang.missing-index-argument"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 32
+"end" = 34
+
+["related"]
+"count" = 0

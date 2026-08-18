@@ -1,0 +1,1 @@
+run roots [(result::err("bad"), result::err("bad"), 5)]

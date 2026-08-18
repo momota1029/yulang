@@ -1,0 +1,2 @@
+my path = std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-path")
+(path.show, std::text::bytes::to_utf8_lossy path.to_bytes)

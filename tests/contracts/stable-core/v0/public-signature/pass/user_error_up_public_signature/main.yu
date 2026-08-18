@@ -1,0 +1,9 @@
+pub error fs_err:
+    not_found str
+
+pub error io_err:
+    fs from fs_err
+
+my read_or_throw path = fail (fs_err::not_found path)
+
+io_err::wrap: read_or_throw "missing"

@@ -1,0 +1,14 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.unresolved-type]: x: unresolved type name: missing_type", "hint: define type `missing_type` before this annotation, or import it"]
+"code" = "yulang.unresolved-type"
+"severity" = "error"
+"count" = 1
+"label" = "x"
+
+["primary"]
+"start" = 6
+"end" = 18
+
+["related"]
+"count" = 0

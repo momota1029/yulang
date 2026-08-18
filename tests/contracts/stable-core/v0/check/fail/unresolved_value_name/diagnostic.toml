@@ -1,0 +1,14 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.unresolved-value]: result: unresolved value name: missing", "hint: define `missing` before this use, or import the module that provides it"]
+"code" = "yulang.unresolved-value"
+"severity" = "error"
+"count" = 1
+"label" = "result"
+
+["primary"]
+"start" = 12
+"end" = 19
+
+["related"]
+"count" = 0

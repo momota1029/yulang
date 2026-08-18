@@ -1,0 +1,14 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.unsupported-type-syntax]: x: unsupported type annotation syntax: record type annotation", "hint: use a supported type annotation form and keep effect rows in effect position"]
+"code" = "yulang.unsupported-type-syntax"
+"severity" = "error"
+"count" = 1
+"label" = "x"
+
+["primary"]
+"start" = 6
+"end" = 25
+
+["related"]
+"count" = 0

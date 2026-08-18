@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "'a [std::control::nondet::nondet; 'b] -> ['b] std::data::list::list 'a"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"module" = "std.control.nondet.nondet"
+"symbol_contains" = "#act-method:list"

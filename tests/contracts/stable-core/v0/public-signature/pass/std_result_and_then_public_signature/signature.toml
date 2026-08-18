@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "std::data::result::result 'a 'b -> ('a -> ['c] std::data::result::result 'd 'b) -> ['c] std::data::result::result 'd 'b"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"module" = "std.data.result"
+"symbol" = "std.data.result.and_then"

@@ -1,0 +1,13 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.missing-catch-arm-pattern]: catch arm is missing a value pattern or effect operation", "hint: write a value pattern or effect operation before `->`"]
+"code" = "yulang.missing-catch-arm-pattern"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 13
+"end" = 15
+
+["related"]
+"count" = 0

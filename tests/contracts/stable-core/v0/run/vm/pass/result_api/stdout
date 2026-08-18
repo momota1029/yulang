@@ -1,0 +1,1 @@
+run roots [(result::ok(11), result::err("odd"), 42)]

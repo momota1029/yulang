@@ -1,0 +1,7 @@
+// `any` and `all` let boolean conditions branch through junction effects.
+
+if all [1, 2, 3] < any [2, 3, 4]:
+    1
+else:
+    0
+

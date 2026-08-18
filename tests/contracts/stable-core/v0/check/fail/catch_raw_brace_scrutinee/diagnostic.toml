@@ -1,0 +1,13 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.missing-catch-scrutinee]: catch expression is missing the computation to handle", "hint: write `catch <expr>:` before the handler arms"]
+"code" = "yulang.missing-catch-scrutinee"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 0
+"end" = 5
+
+["related"]
+"count" = 0

@@ -1,0 +1,15 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.type-mismatch]: x: type mismatch: bool is not int", "note: expected type comes from this type annotation: int", "note: actual type comes from this expression: bool"]
+"code" = "yulang.type-mismatch"
+"severity" = "error"
+"count" = 1
+"label" = "x"
+
+["primary"]
+"start" = 3
+"end" = 4
+
+["related"]
+"count" = 2
+"origins" = ["type-annotation", "expression"]

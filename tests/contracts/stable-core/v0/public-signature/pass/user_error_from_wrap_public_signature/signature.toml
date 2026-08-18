@@ -1,0 +1,6 @@
+"std" = "repo"
+"expected_type" = "'a [fs_err, io_err; 'b] -> ['b] std::data::result::result('a, 'c | io_err)"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"symbol" = "io_err.wrap"

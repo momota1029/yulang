@@ -1,0 +1,6 @@
+"std" = "none"
+"expected_type" = "demo::cell('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+"deny_contains" = ["#", "AllExcept", "pulse"]
+
+["selector"]
+"symbol" = "demo.cell.apply"

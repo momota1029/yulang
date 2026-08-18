@@ -1,0 +1,6 @@
+"std" = "repo"
+"expected_type" = "'a [fs_err; 'b] -> [io_err, 'b] 'a"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"symbol" = "io_err.up"

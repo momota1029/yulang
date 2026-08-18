@@ -1,0 +1,8 @@
+// `for` works with effectful loop control.
+// `last` breaks out of the loop.
+
+{
+    for x in 0..:
+        if x == 5: last
+    5
+}

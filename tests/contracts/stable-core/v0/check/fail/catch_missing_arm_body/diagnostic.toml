@@ -1,0 +1,13 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.missing-catch-arm-body]: catch arm is missing a body expression", "hint: write an expression after `->`"]
+"code" = "yulang.missing-catch-arm-body"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 19
+"end" = 21
+
+["related"]
+"count" = 0

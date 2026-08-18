@@ -1,0 +1,11 @@
+// Optional record fields make compact named arguments.
+
+my area({width = 1, height = 2}) = width * height
+
+area { width: 3 }
+area {}
+area { width: 3, height: 4 }
+
+my next_area({width = 2, height = width + 1}) = width * height
+
+next_area { width: 3 }

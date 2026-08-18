@@ -1,0 +1,13 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.missing-case-arm-pattern]: case arm is missing a pattern", "hint: write a pattern before `->`"]
+"code" = "yulang.missing-case-arm-pattern"
+"severity" = "error"
+"count" = 1
+
+["primary"]
+"start" = 10
+"end" = 12
+
+["related"]
+"count" = 0

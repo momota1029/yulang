@@ -1,0 +1,3 @@
+"std" = "repo"
+"expect_stdout" = ""
+"expect_stderr_contains" = ["compile error [yulang.lowering]: source has lowering errors", "detail: effect filter mismatch: fs_err is not allowed by [io_err]"]

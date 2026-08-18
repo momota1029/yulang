@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "std::control::var::ref('a & 'b, 'c) -> ('c -> ['b] 'c) -> ['b, 'a] ()"
+"deny_contains" = ["#", "AllExcept", "std::control::var::ref_update"]
+
+["selector"]
+"module" = "std.control.var.ref"
+"symbol" = "std.control.var.ref.update"

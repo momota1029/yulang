@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "'a -> ('b -> [std::control::flow::loop; 'c] any) -> ['c] () where 'a: std::data::fold::Fold(item = 'b)"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"module" = "std.control.flow.loop"
+"symbol" = "std.control.flow.loop.for_in"

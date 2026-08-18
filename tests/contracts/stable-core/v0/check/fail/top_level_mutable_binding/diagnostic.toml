@@ -1,0 +1,14 @@
+"std" = "none"
+"expect_stderr" = ""
+"expect_stdout_contains" = ["error [yulang.top-level-mutable-binding]: $x: top-level mutable binding $x is not supported; move it into a block or function body", "hint: move the mutable binding into a block or function body"]
+"code" = "yulang.top-level-mutable-binding"
+"severity" = "error"
+"count" = 1
+"label" = "$x"
+
+["primary"]
+"start" = 3
+"end" = 5
+
+["related"]
+"count" = 0

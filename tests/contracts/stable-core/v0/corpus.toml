@@ -1,0 +1,19 @@
+"schema_version" = 1
+"contract" = "stable-core"
+"contract_version" = 0
+"corpus_revision" = 1
+"frozen_at" = "2026-08-18"
+"case_count" = 73
+
+["kinds"]
+"run" = 38
+"check" = 19
+"public-signature" = 16
+
+["oracle"]
+"tag" = "yulang2-oracle"
+"tag_object" = "1ec55fdfd33df836ffc216b7075f11ffe260cef4"
+"commit" = "a58eefc31e22141574b6f20c6a5748151c6d79f1"
+"manifest_path" = "tests/yulang/cases.toml"
+"manifest_blob" = "aec6496e569f5fc98fa580d7b8f04d1ff9a89443"
+"fixture_tree" = "e20a8b5b30af0c2c2a0700176e23be8eefe24ec7"

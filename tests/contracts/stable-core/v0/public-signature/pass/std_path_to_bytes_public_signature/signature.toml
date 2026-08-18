@@ -1,0 +1,7 @@
+"std" = "repo"
+"expected_type" = "std::text::path::path -> std::text::bytes::bytes"
+"deny_contains" = ["#", "AllExcept"]
+
+["selector"]
+"module" = "std.text.path"
+"symbol" = "std.text.path.to_bytes"
