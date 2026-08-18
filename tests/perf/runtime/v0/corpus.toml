@@ -1,0 +1,45 @@
+"schema_version" = 1
+"benchmark" = "runtime"
+"benchmark_version" = 0
+"corpus_revision" = 1
+"frozen_at" = "2026-08-18"
+"workload_count" = 10
+
+["categories"]
+"direct_recursion" = 1
+"effect_operation" = 1
+"multi_shot_nondeterministic_branch" = 1
+"mutable_state_effect" = 1
+"ordinary_function_call" = 1
+"representative_showcase" = 1
+"single_shot_capture_resume" = 1
+"startup" = 1
+"text_list_allocation" = 2
+
+["subsets"]
+"allocation" = 3
+"continuation" = 1
+"effect" = 5
+"multi_shot" = 1
+"mutable_state" = 1
+"pure" = 4
+"representative" = 1
+"startup" = 1
+"steady_state" = 9
+
+["source_sha256"]
+"direct_recursion/tail_sum_100000" = "2c4f0305bc6c0a2db25d9bf3349fce99ced6c8c5e4d4f75be501113907b323ac"
+"effect_operation/shallow_tick_10000" = "b687aca026ada5718a8c1749cf05312ba857992fdcd04739d3e5bf8d46dda1d4"
+"multi_shot_nondeterministic_branch/cartesian_20" = "6c07a81f6a238f735a6e77851ac2cd1daaac5359de34ff03de22945fa7586f3b"
+"mutable_state_effect/ref_sum_100000" = "20a4d34ff7a1fb96d78e91d78a97f563bcfff13159933ff14bcab0fbca3c324f"
+"ordinary_function_call/leaf_call_100000" = "c82b003290bd7a18188e72235252b4ff968615fa7e431db151971287afd5dd4a"
+"representative_showcase/showcase_no_io" = "4b3a40211d3f86d78d725893a83dd65cdc7b6f08723190ba5a333b367364913d"
+"single_shot_capture_resume/depth_64_repeat_1000" = "71d10afcc66779d03e28905501594bfa48e3ea4566bf650020f13092ecc8a677"
+"startup/startup_minimal" = "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0"
+"text_list_allocation/list_append_4096" = "d4a45fb006a7ffcf21b7082c4616a4badf9848fe4fd73142ae3936a8878e6d59"
+"text_list_allocation/text_join_4096" = "4fc6d6006ecd24629d620e648f8c754bb324808c9726ade3244393e1a3baaa5f"
+
+["oracle"]
+"tag" = "yulang2-oracle"
+"tag_object" = "1ec55fdfd33df836ffc216b7075f11ffe260cef4"
+"commit" = "a58eefc31e22141574b6f20c6a5748151c6d79f1"
