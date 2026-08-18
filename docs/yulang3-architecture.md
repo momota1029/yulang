@@ -1,6 +1,6 @@
 # Yulang3 エンジニアリング設計案
 
-- Status: Proposal
+- Status: Authoritative（正本、ユーザ承認済み: 2026-08-18）
 - Date: 2026-08-16
 - Scope: コンパイラ、型推論、実行系、LSP、WebAssembly、テスト、CI、永続キャッシュ
 
@@ -1087,3 +1087,13 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 ## 18. 未決定事項
 
 今回の調査で architecture decision として閉じていない項目はない。
+
+---
+
+著者: 外部 PR として起案、Claude (Sonnet 5) が fact-check・マージ。Fable 5 が独立レビューし、
+no blockers で endorsed（2026-08-16。Fable の 2 件の must-resolve 項目はユーザー決定で解消済み）。
+ユーザ承認済み（2026-08-18）。
+
+本書は他の正本文書（`notes/design/` / `spec/`）と異なり、外部 PR 起案・Fable 独立レビューという
+経緯を持つため、著者欄の書式もそれに合わせている。内容面の検証プロセス自体は本文の各節・
+Fable のレビューで既に完了しており、本節はその手続きを正式な署名として記録するものである。

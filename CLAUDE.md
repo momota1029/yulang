@@ -792,7 +792,20 @@ Routing reason:
 
 現在の正本:
 
-- `docs/yulang3-architecture.md`（yulang3のアーキテクチャ提案。現時点では `Status: Proposal` のままで、末尾に署名や「ユーザ承認済み」の記載を持たない。正本として確定させる作業（Status 更新・署名追加）は、まだ行われていない。）
+- `docs/yulang3-architecture.md`
+  （yulang3のエンジニアリング設計案・ユーザ承認済み（2026-08-18）。著者は外部PRとして起案、
+  Claude (Sonnet 5) がfact-check・マージ、Fable 5が独立レビューしno blockersでendorsed
+  （2026-08-16）——正本文書の通常の起案経路（Fable 5起案／Fable不在時Sol代筆+Sonnet5査読）
+  とは異なる第三の来歴として、署名欄にその旨を明記している。一方向依存・immutable phase
+  handoff・solverのplan→validate→commit・module/SCC単位incremental compilation・
+  applicationのleaf化・native compilation+Perceus end state（§8.3）・mutable-reference
+  constraint fan-outのstate-slot HIR設計（§6.9）を含む8つの基本原則とPhase 0〜8の移行計画が
+  正本内容。§6.9と§8.3は文書内でもADR相当のdecision recordとして扱われる。
+  なお、承認と同時にユーザーから「文法・型推論の結果・診断表示等のユーザー向け挙動は
+  yulang2からできるだけ変えたくない、必要なものは実装が進んでから個別にサルベージする」
+  という運用方針の表明があった——これは§15「引き継ぐもの、引き継がないもの」の実装レベルの
+  区分（session layout・cache・shadow oracle等の内部実装は引き継がない）とは別軸の、
+  ユーザー向け出力面の維持方針であり、文書本体にはまだ反映していない）
 
 ## 日報・タスク管理
 
