@@ -1,0 +1,4941 @@
+{
+  "run": {
+    "id": "20260818T032244.669601353Z-3",
+    "started_at": "2026-08-18T03:22:44.669601353Z",
+    "finished_at": "2026-08-18T03:25:31.054594764Z",
+    "status": "complete"
+  },
+  "suite": {
+    "result_schema_version": 1,
+    "benchmark": "runtime",
+    "benchmark_version": 0,
+    "corpus_revision": 1,
+    "frozen_at": "2026-08-18",
+    "corpus_path": "/home/momota1029/rust/yulang/tests/perf/runtime/v0",
+    "corpus_sha256": "bc4b2673afba77af5d4997fbbe36f5b5afbd5bb3473b8e117ce2e7e9c3fb0726",
+    "corpus_hash_algorithm": "sha256(length-prefixed relative path and bytes, lexicographic)",
+    "workload_count": 10,
+    "selected_workload_count": 10,
+    "oracle": {
+      "tag": "yulang2-oracle",
+      "tag_object": "1ec55fdfd33df836ffc216b7075f11ffe260cef4",
+      "commit": "a58eefc31e22141574b6f20c6a5748151c6d79f1"
+    }
+  },
+  "runner": {
+    "name": "bench-runner",
+    "version": "0.1.0",
+    "binary_path": {
+      "status": "available",
+      "value": "/home/momota1029/rust/yulang/target/release/bench-runner",
+      "reason": null
+    },
+    "binary_sha256": {
+      "status": "available",
+      "value": "e9370f04727dfd9d6e3b8da1908b879b75f01ccd2addf380ba3a778564a76846",
+      "reason": null
+    },
+    "git_commit": {
+      "status": "available",
+      "value": "41338c62e8c8d97e4905db7d82f6714b4e858c6a",
+      "reason": null
+    }
+  },
+  "subject": {
+    "kind": "yulang_cli",
+    "binary_path": "/tmp/yulang2-oracle-worktree/target/release/yulang",
+    "binary_sha256": "f6fcbce58bb53266bb090dccebd1a5ea860b201b1ad69904997535e34525e36e",
+    "binary_size_bytes": 22350560,
+    "std_root": {
+      "status": "available",
+      "value": "/tmp/yulang2-oracle-worktree/lib",
+      "reason": null
+    }
+  },
+  "machine": {
+    "collected_at": "2026-08-18T03:22:44.746118880Z",
+    "hostname": {
+      "status": "available",
+      "value": "HNO3",
+      "reason": null
+    },
+    "operating_system": {
+      "status": "available",
+      "value": "Linux",
+      "reason": null
+    },
+    "kernel_release": {
+      "status": "available",
+      "value": "6.6.87.2-microsoft-standard-WSL2",
+      "reason": null
+    },
+    "architecture": {
+      "status": "available",
+      "value": "x86_64",
+      "reason": null
+    },
+    "cpu_model": {
+      "status": "available",
+      "value": "12th Gen Intel(R) Core(TM) i7-12700",
+      "reason": null
+    },
+    "logical_cpus": {
+      "status": "available",
+      "value": 20,
+      "reason": null
+    },
+    "memory_total_bytes": {
+      "status": "available",
+      "value": 33503219712,
+      "reason": null
+    },
+    "rustc_version": {
+      "status": "available",
+      "value": "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\ncommit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860\ncommit-date: 2026-04-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\nLLVM version: 22.1.2",
+      "reason": null
+    }
+  },
+  "protocol": {
+    "correctness_preflight_iterations": 1,
+    "warmup_iterations": 3,
+    "measurement_iterations": 20,
+    "process_isolation": "fresh subject process per iteration",
+    "workload_order": "lexicographic workload_id",
+    "stdout_comparison": "UTF-8 lossy decode, strip `run roots [...]` envelope, trim, exact match",
+    "subject_cache": "isolated per runner invocation; preflight and warmup populate cache",
+    "subject_command": [
+      "<subject-binary>",
+      "<--no-prelude | --std-root PATH>",
+      "run",
+      "--print-roots",
+      "<main.yu>"
+    ],
+    "working_directory": {
+      "status": "available",
+      "value": "/home/momota1029/rust/yulang",
+      "reason": null
+    }
+  },
+  "results": [
+    {
+      "workload_id": "direct_recursion/tail_sum_100000",
+      "category": "direct_recursion",
+      "subsets": [
+        "steady_state",
+        "pure"
+      ],
+      "std": "none",
+      "parameters": {
+        "initial_accumulator": 0,
+        "n": 100000
+      },
+      "source": {
+        "path": "direct_recursion/tail_sum_100000/main.yu",
+        "sha256": "2c4f0305bc6c0a2db25d9bf3349fce99ced6c8c5e4d4f75be501113907b323ac",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "5000050000",
+        "actual_root": "5000050000"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 34570203,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 34046000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 34266774,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35440000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 35660985,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 33077000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4134000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 34714617,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 33471000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 36329104,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 30952000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3869000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 35926786,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 30553000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3819000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 37491894,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 34810000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3867000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 34841568,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 32799000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 34721197,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 30215000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3776000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 34562135,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35392000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 34955978,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 32661000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 35033269,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 33689000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 35145437,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 30860000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3857000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 34844365,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35444000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 34920607,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 28902000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3612000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 35105042,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 33436000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 35302292,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 30627000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3828000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 35890915,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35177000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 34548054,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35289000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 34773367,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 32583000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 34266774,
+          "median": 34938292.5,
+          "mad": 293837.5,
+          "p95": 36329104,
+          "max": 37491894
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 28902000,
+            "median": 33256500.0,
+            "mad": 1976500.0,
+            "p95": 35440000,
+            "max": 35444000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 3869000,
+            "max": 4134000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "effect_operation/shallow_tick_10000",
+      "category": "effect_operation",
+      "subsets": [
+        "steady_state",
+        "effect"
+      ],
+      "std": "none",
+      "parameters": {
+        "operations": 1000,
+        "requested_operations": 10000
+      },
+      "source": {
+        "path": "effect_operation/shallow_tick_10000/main.yu",
+        "sha256": "b687aca026ada5718a8c1749cf05312ba857992fdcd04739d3e5bf8d46dda1d4",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "(1000, 1000)",
+        "actual_root": "(1000, 1000)"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 1203501380,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1010342000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 252585000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 1194819020,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 997329000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 255617000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 1203694056,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 994283000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 273849000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 573112320,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 1076517504,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 918717000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 241540000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 573112320,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 1109448408,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 947241000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 245421000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 1090964875,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 951070000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 224798000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 1230124533,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1103555000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 224159000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 1151155083,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 993042000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 250419000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 1158610100,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 971246000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 281834000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 1093815620,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 923211000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 253346000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 1093967013,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 916319000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 241806000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572784640,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 1248077079,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1091626000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 233616000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572456960,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 1197773820,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1033626000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 232038000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 1197500756,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1041694000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 229598000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 1242810340,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1086327000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 228255000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 1220226800,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1040523000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 249556000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 573112320,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 1257013595,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1079050000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 244472000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572456960,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 1194738733,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1053522000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 196490000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 573112320,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 1268434571,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1065236000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 253825000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 572948480,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 1278875183,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1140941000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 191544000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 573112320,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 1076517504,
+          "median": 1197637288.0,
+          "mad": 45827628.5,
+          "p95": 1268434571,
+          "max": 1278875183
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 916319000,
+            "median": 1021984000.0,
+            "mad": 53902000.0,
+            "p95": 1103555000,
+            "max": 1140941000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 191544000,
+            "median": 243139000.0,
+            "mad": 10893500.0,
+            "p95": 273849000,
+            "max": 281834000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 572456960,
+            "median": 572948480.0,
+            "mad": 163840.0,
+            "p95": 573112320,
+            "max": 573112320
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "multi_shot_nondeterministic_branch/cartesian_20",
+      "category": "multi_shot_nondeterministic_branch",
+      "subsets": [
+        "steady_state",
+        "effect",
+        "multi_shot"
+      ],
+      "std": "none",
+      "parameters": {
+        "branches": 400,
+        "left_choices": 20,
+        "right_choices": 20
+      },
+      "source": {
+        "path": "multi_shot_nondeterministic_branch/cartesian_20/main.yu",
+        "sha256": "6c07a81f6a238f735a6e77851ac2cd1daaac5359de34ff03de22945fa7586f3b",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "(400, 8400)",
+        "actual_root": "(400, 8400)"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 20991765,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 21020000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 21324538,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 15994000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3998000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 21049534,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18565000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 21227169,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12134000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 6067000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 20966589,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 20349000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 21127395,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 19336000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 21896285,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18595000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3719000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 21276696,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12194000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 8129000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 21518088,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18998000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 22207883,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 17685000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3537000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 21125322,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 15289000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3822000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 21282535,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 14762000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 7381000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 21726945,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 16650000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4162000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 21185109,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18971000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 21138544,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18271000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3654000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 21343495,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 16542000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4135000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 21703390,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18863000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 20975454,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 18056000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3611000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 21624000,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 16515000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4128000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 21165643,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 19043000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 20966589,
+          "median": 21251932.5,
+          "mad": 164504.5,
+          "p95": 21896285,
+          "max": 22207883
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 12134000,
+            "median": 18163500.0,
+            "mad": 1343000.0,
+            "p95": 20349000,
+            "max": 21020000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 3632500.0,
+            "mad": 3033500.0,
+            "p95": 7381000,
+            "max": 8129000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "mutable_state_effect/ref_sum_100000",
+      "category": "mutable_state_effect",
+      "subsets": [
+        "steady_state",
+        "effect",
+        "mutable_state"
+      ],
+      "std": "repo",
+      "parameters": {
+        "initial_value": 0,
+        "n": 100000
+      },
+      "source": {
+        "path": "mutable_state_effect/ref_sum_100000/main.yu",
+        "sha256": "20a4d34ff7a1fb96d78e91d78a97f563bcfff13159933ff14bcab0fbca3c324f",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "5000050000",
+        "actual_root": "5000050000"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 1672738202,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1788743000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 1699881058,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1813274000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4276000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 1716614297,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1791687000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 1697184066,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1765821000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4174000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 1744296642,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1814756000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4171000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 1734930699,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1805966000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4170000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 1722187159,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1751952000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4083000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 1792570150,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1759848000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 1797419046,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1807444000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 1668104815,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1749232000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4204000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 1670985491,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1749212000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 8409000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 1679151847,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1807050000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 1650598499,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1789202000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 1637451379,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1777671000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 1635571338,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1776066000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 1651138846,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1789679000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 1656684572,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1765281000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4274000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 1663031903,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1773210000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 1706781360,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1816976000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4265000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 1683604325,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1796853000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 1635571338,
+          "median": 1681378086.0,
+          "mad": 27821257.0,
+          "p95": 1792570150,
+          "max": 1797419046
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 1749212000,
+            "median": 1788972500.0,
+            "mad": 18274500.0,
+            "p95": 1814756000,
+            "max": 1816976000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 4276000,
+            "max": 8409000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "ordinary_function_call/leaf_call_100000",
+      "category": "ordinary_function_call",
+      "subsets": [
+        "steady_state",
+        "pure"
+      ],
+      "std": "none",
+      "parameters": {
+        "calls": 100000,
+        "initial_value": 0
+      },
+      "source": {
+        "path": "ordinary_function_call/leaf_call_100000/main.yu",
+        "sha256": "c82b003290bd7a18188e72235252b4ff968615fa7e431db151971287afd5dd4a",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "100000",
+        "actual_root": "100000"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 40545560,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 40270000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 39974482,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35605000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3956000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 40229012,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 35733000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3970000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 39489682,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 39366000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 42173596,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 44099000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 42985524,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 38085000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3808000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 42585728,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 42932000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 41296585,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 36445000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3644000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 40592528,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 42983000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 40167445,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 42351000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 40781043,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 42113000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 40337590,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41285000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 39402972,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 40904000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 39664219,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41533000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 40779066,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41831000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 39863324,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41016000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 39211360,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41073000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 40210743,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41813000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 40133760,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41536000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 40052965,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 41418000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 39211360,
+          "median": 40219877.5,
+          "mad": 464154.5,
+          "p95": 42585728,
+          "max": 42985524
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 35605000,
+            "median": 41351500.0,
+            "mad": 880500.0,
+            "p95": 42983000,
+            "max": 44099000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 3956000,
+            "max": 3970000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "representative_showcase/showcase_no_io",
+      "category": "representative_showcase",
+      "subsets": [
+        "steady_state",
+        "representative",
+        "effect",
+        "allocation"
+      ],
+      "std": "none",
+      "parameters": {
+        "custom_multi_shot_branches": 4,
+        "nondet_branches": 4,
+        "record_x": 3,
+        "record_y": 4
+      },
+      "source": {
+        "path": "representative_showcase/showcase_no_io/main.yu",
+        "sha256": "4b3a40211d3f86d78d725893a83dd65cdc7b6f08723190ba5a333b367364913d",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "(25, 4, 48, [11, 10, 1, 0], 22)",
+        "actual_root": "(25, 4, 48, [11, 10, 1, 0], 22)"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 4271421,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3927000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 4255162,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3929000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 4381164,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4042000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 4330794,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3906000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 4255589,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4341000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 4150771,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3783000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 4154471,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3551000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 4321697,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3778000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 4136473,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3570000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 4773748,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4254000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 4141386,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3580000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 4168479,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3610000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 4212147,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3941000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 4207258,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3641000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 4203321,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3863000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 4264714,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3894000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 4583514,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 2077000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2077000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 4836852,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4492000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 4615668,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4253000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 4454415,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4154000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 4136473,
+          "median": 4260151.5,
+          "mad": 98676.5,
+          "p95": 4773748,
+          "max": 4836852
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 3878500.0,
+            "mad": 287000.0,
+            "p95": 4341000,
+            "max": 4492000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 3783000,
+            "max": 3906000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "single_shot_capture_resume/depth_64_repeat_1000",
+      "category": "single_shot_capture_resume",
+      "subsets": [
+        "steady_state",
+        "effect",
+        "continuation"
+      ],
+      "std": "none",
+      "parameters": {
+        "depth": 64,
+        "repeats": 1000
+      },
+      "source": {
+        "path": "single_shot_capture_resume/depth_64_repeat_1000/main.yu",
+        "sha256": "71d10afcc66779d03e28905501594bfa48e3ea4566bf650020f13092ecc8a677",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "64000",
+        "actual_root": "64000"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 138112083,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 143234000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 140919146,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 139357000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4098000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 140854386,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 140009000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4117000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 136838873,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 131067000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 7943000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 142100012,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 146403000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 136108077,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 140082000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 141785572,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 140119000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4003000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 140659102,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 146459000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 140215905,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 145635000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 139802062,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 145348000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 138324454,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 141324000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 145142775,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 143201000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 8182000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 137033802,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 141845000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 138208907,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 136078000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4123000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 138916299,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 138394000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4070000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 137714126,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 139472000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4102000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 138888065,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 141734000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 134587968,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 138753000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 141512770,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 144326000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 141830554,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 142715000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4077000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 134587968,
+          "median": 139359180.5,
+          "mad": 1602510.0,
+          "p95": 142100012,
+          "max": 145142775
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 131067000,
+            "median": 141529000.0,
+            "mad": 2114500.0,
+            "p95": 146403000,
+            "max": 146459000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 7943000,
+            "max": 8182000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "startup/startup_minimal",
+      "category": "startup",
+      "subsets": [
+        "startup"
+      ],
+      "std": "none",
+      "parameters": {},
+      "source": {
+        "path": "startup/startup_minimal/main.yu",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "42",
+        "actual_root": "42"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 1448020,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 974000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 1479067,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 1265000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 1462103,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1218000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 1456320,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1226000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 1464299,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1248000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 1356709,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1160000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 1429799,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1206000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 1358736,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 1172000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 1313330,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1117000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 1391788,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1165000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 1538732,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1306000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 1606809,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1275000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 1510064,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1002000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 1763235,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1135000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 1335050,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1157000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 1407594,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 1186000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 1322494,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1139000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 1313663,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1140000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 1336694,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 1128000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 1359104,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 1175000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 1313330,
+          "median": 1418696.5,
+          "mad": 61179.0,
+          "p95": 1606809,
+          "max": 1763235
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 1148500.0,
+            "mad": 73500.0,
+            "p95": 1275000,
+            "max": 1306000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 1186000,
+            "max": 1265000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "text_list_allocation/list_append_4096",
+      "category": "text_list_allocation",
+      "subsets": [
+        "steady_state",
+        "allocation",
+        "pure"
+      ],
+      "std": "none",
+      "parameters": {
+        "elements": 4096,
+        "first_value": 1
+      },
+      "source": {
+        "path": "text_list_allocation/list_append_4096/main.yu",
+        "sha256": "d4a45fb006a7ffcf21b7082c4616a4badf9848fe4fd73142ae3936a8878e6d59",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "(4096, 8390656)",
+        "actual_root": "(4096, 8390656)"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 13757681,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 13013000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 13814903,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 11119000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 13854531,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 13299000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 14038798,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 11393000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 14025999,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 9633000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3211000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 13599145,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 11306000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 13828944,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 10282000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3427000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 13703302,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 3937000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 7875000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 13831831,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 13626000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 13300367,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12258000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 12962120,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 10855000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 13407824,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4800000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 4800000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 14196503,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12512000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 13573985,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 7526000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2508000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 13194141,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12219000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 13195526,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 7276000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3638000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 13440894,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 7564000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2521000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 14398311,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 4294000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 8589000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 13511656,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 7729000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2576000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 13403309,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 12398000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 12962120,
+          "median": 13651223.5,
+          "mad": 226864.5,
+          "p95": 14196503,
+          "max": 14398311
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 3937000,
+            "median": 10987000.0,
+            "mad": 1775500.0,
+            "p95": 13299000,
+            "max": 13626000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 0.0,
+            "mad": 0.0,
+            "p95": 7875000,
+            "max": 8589000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    },
+    {
+      "workload_id": "text_list_allocation/text_join_4096",
+      "category": "text_list_allocation",
+      "subsets": [
+        "steady_state",
+        "allocation",
+        "pure"
+      ],
+      "std": "none",
+      "parameters": {
+        "element": "x",
+        "elements": 4096,
+        "separator": ""
+      },
+      "source": {
+        "path": "text_list_allocation/text_join_4096/main.yu",
+        "sha256": "4fc6d6006ecd24629d620e648f8c754bb324808c9726ade3244393e1a3baaa5f",
+        "verification": "matched corpus.toml source_sha256"
+      },
+      "correctness": {
+        "status": "passed",
+        "expected_root": "4096",
+        "actual_root": "4096"
+      },
+      "samples": [
+        {
+          "iteration": 1,
+          "wall_time_ns": 11830420,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 11719000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 2,
+          "wall_time_ns": 11540974,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 11438000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 3,
+          "wall_time_ns": 11779826,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5241000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2620000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 4,
+          "wall_time_ns": 11756415,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5550000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2775000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 5,
+          "wall_time_ns": 11956010,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5773000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2886000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 6,
+          "wall_time_ns": 11827674,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8611000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 7,
+          "wall_time_ns": 11716921,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8781000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 8,
+          "wall_time_ns": 11528398,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8641000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 9,
+          "wall_time_ns": 12506282,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 6034000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 3017000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 10,
+          "wall_time_ns": 11866259,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 2812000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 5624000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 11,
+          "wall_time_ns": 12267413,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5704000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2852000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 12,
+          "wall_time_ns": 11773254,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8677000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 13,
+          "wall_time_ns": 11954914,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 2960000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 5920000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 14,
+          "wall_time_ns": 12426587,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 2162000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 6487000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 15,
+          "wall_time_ns": 11841234,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5640000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2820000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 16,
+          "wall_time_ns": 11736875,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8567000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 17,
+          "wall_time_ns": 11915634,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5620000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2810000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 18,
+          "wall_time_ns": 11975524,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 8399000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 0,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 19,
+          "wall_time_ns": 11934123,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5631000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2815000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        },
+        {
+          "iteration": 20,
+          "wall_time_ns": 11929371,
+          "user_cpu_time_ns": {
+            "status": "available",
+            "value": 5943000,
+            "reason": null
+          },
+          "system_cpu_time_ns": {
+            "status": "available",
+            "value": 2971000,
+            "reason": null
+          },
+          "peak_rss_bytes": {
+            "status": "available",
+            "value": 25960448,
+            "reason": null
+          }
+        }
+      ],
+      "summary": {
+        "wall_time_ns": {
+          "sample_count": 20,
+          "min": 11528398,
+          "median": 11853746.5,
+          "mad": 99249.5,
+          "p95": 12426587,
+          "max": 12506282
+        },
+        "user_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 2162000,
+            "median": 5858000.0,
+            "mad": 2625000.0,
+            "p95": 11438000,
+            "max": 11719000
+          },
+          "reason": null
+        },
+        "system_cpu_time_ns": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 0,
+            "median": 2792500.0,
+            "mad": 2792500.0,
+            "p95": 5920000,
+            "max": 6487000
+          },
+          "reason": null
+        },
+        "peak_rss_bytes": {
+          "status": "available",
+          "value": {
+            "sample_count": 20,
+            "min": 25960448,
+            "median": 25960448.0,
+            "mad": 0.0,
+            "p95": 25960448,
+            "max": 25960448
+          },
+          "reason": null
+        }
+      },
+      "work_counts": {
+        "canonical_instructions": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "allocation_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_capture_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        },
+        "continuation_clone_bytes": {
+          "status": "unsupported",
+          "value": null,
+          "reason": "yulang2 does not expose a canonical instruction/allocation counter"
+        }
+      }
+    }
+  ],
+  "aggregates": {
+    "workload_count": 10,
+    "wall_time": {
+      "median_of_workload_medians_ns": 28095112.5,
+      "geometric_mean_of_workload_medians_ns": 39026615.32452968
+    },
+    "categories": {
+      "direct_recursion": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 34938292.49999998
+      },
+      "effect_operation": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 1197637287.999998
+      },
+      "multi_shot_nondeterministic_branch": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 21251932.49999997
+      },
+      "mutable_state_effect": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 1681378086.0
+      },
+      "ordinary_function_call": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 40219877.50000001
+      },
+      "representative_showcase": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 4260151.499999999
+      },
+      "single_shot_capture_resume": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 139359180.5
+      },
+      "startup": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 1418696.499999999
+      },
+      "text_list_allocation": {
+        "workload_count": 2,
+        "geometric_mean_of_medians_ns": 12720776.029151808
+      }
+    },
+    "subsets": {
+      "allocation": {
+        "workload_count": 3,
+        "geometric_mean_of_medians_ns": 8833864.878438221
+      },
+      "continuation": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 139359180.5
+      },
+      "effect": {
+        "workload_count": 5,
+        "geometric_mean_of_medians_ns": 120500805.35422115
+      },
+      "multi_shot": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 21251932.49999997
+      },
+      "mutable_state": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 1681378086.0
+      },
+      "pure": {
+        "workload_count": 4,
+        "geometric_mean_of_medians_ns": 21836971.53909243
+      },
+      "representative": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 4260151.499999999
+      },
+      "startup": {
+        "workload_count": 1,
+        "geometric_mean_of_medians_ns": 1418696.499999999
+      },
+      "steady_state": {
+        "workload_count": 9,
+        "geometric_mean_of_medians_ns": 56402993.397074446
+      }
+    }
+  }
+}
