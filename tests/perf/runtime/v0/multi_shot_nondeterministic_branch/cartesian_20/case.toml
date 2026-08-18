@@ -1,0 +1,10 @@
+workload_id = "multi_shot_nondeterministic_branch/cartesian_20"
+category = "multi_shot_nondeterministic_branch"
+subsets = ["steady_state", "effect", "multi_shot"]
+std = "none"
+expected_root = "(400, 8400)"
+
+[parameters]
+left_choices = 20
+right_choices = 20
+branches = 400

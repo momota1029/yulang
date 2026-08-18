@@ -1,0 +1,23 @@
+mod std:
+    pub mod data:
+        pub mod list:
+            pub type list 'a
+            pub enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
+
+use std::data::list::*
+
+my append_values(i, end, values) = case builtin_op::int_le i end:
+    true ->
+        append_values(
+            builtin_op::int_add i 1,
+            end,
+            builtin_op::list_merge values [i])
+    false -> values
+
+my sum(values, acc) = case builtin_op::list_view_raw values:
+    list_view::empty -> acc
+    list_view::leaf value -> builtin_op::int_add acc value
+    list_view::node(left, right) -> sum(right, sum(left, acc))
+
+my values = append_values(1, 4096, [])
+(builtin_op::list_len values, sum(values, 0))

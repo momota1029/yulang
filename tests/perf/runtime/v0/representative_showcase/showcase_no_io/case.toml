@@ -1,0 +1,11 @@
+workload_id = "representative_showcase/showcase_no_io"
+category = "representative_showcase"
+subsets = ["steady_state", "representative", "effect", "allocation"]
+std = "none"
+expected_root = "(25, 4, 48, [11, 10, 1, 0], 22)"
+
+[parameters]
+record_x = 3
+record_y = 4
+nondet_branches = 4
+custom_multi_shot_branches = 4

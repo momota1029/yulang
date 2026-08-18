@@ -1,0 +1,15 @@
+act tick:
+    our next: () -> int
+
+my tick_repeatedly(n: int, acc: int): [tick] int = case n:
+    0 -> acc
+    _ ->
+        tick_repeatedly(
+            builtin_op::int_sub n 1,
+            builtin_op::int_add acc (tick::next()))
+
+my count_ticks(action: [tick] int, count: int): (int, int) = catch action:
+    tick::next(), k -> count_ticks(k 1, builtin_op::int_add count 1)
+    value -> (value, count)
+
+count_ticks(tick_repeatedly(1000, 0), 0)

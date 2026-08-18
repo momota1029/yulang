@@ -1,0 +1,5 @@
+my sum_to(n, acc) = case n:
+    0 -> acc
+    _ -> sum_to(builtin_op::int_sub n 1, builtin_op::int_add acc n)
+
+sum_to(100000, 0)

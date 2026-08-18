@@ -1,0 +1,6 @@
+{
+    my $total = 0
+    for i in 1..100000:
+        &total = $total + i
+    $total
+}

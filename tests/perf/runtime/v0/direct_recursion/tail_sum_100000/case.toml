@@ -1,0 +1,9 @@
+workload_id = "direct_recursion/tail_sum_100000"
+category = "direct_recursion"
+subsets = ["steady_state", "pure"]
+std = "none"
+expected_root = "5000050000"
+
+[parameters]
+n = 100000
+initial_accumulator = 0

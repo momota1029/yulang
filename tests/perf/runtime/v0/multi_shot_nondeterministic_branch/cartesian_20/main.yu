@@ -1,0 +1,31 @@
+mod std:
+    pub mod data:
+        pub mod list:
+            pub type list 'a
+            pub enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
+
+use std::data::list::*
+
+act nondet:
+    our branch: () -> bool
+
+my collect(action: [nondet] int): list int = catch action:
+    nondet::branch(), k ->
+        builtin_op::list_merge (collect(k true)) (collect(k false))
+    value -> [value]
+
+my each(value: int): [nondet] int = case value:
+    20 -> value
+    _ -> case nondet::branch():
+        true -> value
+        false -> each(builtin_op::int_add value 1)
+
+my sum(values, acc) = case builtin_op::list_view_raw values:
+    list_view::empty -> acc
+    list_view::leaf value -> builtin_op::int_add acc value
+    list_view::node(left, right) -> sum(right, sum(left, acc))
+
+my branches = collect:
+    builtin_op::int_add (each 1) (each 1)
+
+(builtin_op::list_len branches, sum(branches, 0))

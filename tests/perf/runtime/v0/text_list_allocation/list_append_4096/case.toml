@@ -1,0 +1,9 @@
+workload_id = "text_list_allocation/list_append_4096"
+category = "text_list_allocation"
+subsets = ["steady_state", "allocation", "pure"]
+std = "none"
+expected_root = "(4096, 8390656)"
+
+[parameters]
+elements = 4096
+first_value = 1

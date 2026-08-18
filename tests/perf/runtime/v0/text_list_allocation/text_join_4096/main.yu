@@ -1,0 +1,28 @@
+mod std:
+    pub mod data:
+        pub mod list:
+            pub type list 'a
+            pub enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
+    pub mod text:
+        pub mod str:
+            pub type str
+
+use std::data::list::*
+use std::text::str::str
+
+my append_text(i, end, parts) = case builtin_op::int_le i end:
+    true ->
+        append_text(
+            builtin_op::int_add i 1,
+            end,
+            builtin_op::list_merge parts ["x"])
+    false -> parts
+
+my join(parts): str = case builtin_op::list_view_raw parts:
+    list_view::empty -> ""
+    list_view::leaf part -> part
+    list_view::node(left, right) -> builtin_op::string_concat (join left) (join right)
+
+my parts = append_text(1, 4096, [])
+my joined = join parts
+builtin_op::string_len joined

@@ -1,0 +1,19 @@
+act capture:
+    our take: () -> int
+
+my descend(depth: int): [capture] int = case depth:
+    0 -> capture::take()
+    _ -> builtin_op::int_add 1 (descend(builtin_op::int_sub depth 1))
+
+my resume_once(action: [capture] int): int = catch action:
+    capture::take(), k -> k 0
+    value -> value
+
+my capture_repeatedly(n, acc) = case n:
+    0 -> acc
+    _ ->
+        capture_repeatedly(
+            builtin_op::int_sub n 1,
+            builtin_op::int_add acc (resume_once(descend 64)))
+
+capture_repeatedly(1000, 0)

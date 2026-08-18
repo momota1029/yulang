@@ -1,0 +1,9 @@
+workload_id = "mutable_state_effect/ref_sum_100000"
+category = "mutable_state_effect"
+subsets = ["steady_state", "effect", "mutable_state"]
+std = "repo"
+expected_root = "5000050000"
+
+[parameters]
+n = 100000
+initial_value = 0

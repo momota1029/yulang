@@ -1,0 +1,9 @@
+workload_id = "ordinary_function_call/leaf_call_100000"
+category = "ordinary_function_call"
+subsets = ["steady_state", "pure"]
+std = "none"
+expected_root = "100000"
+
+[parameters]
+calls = 100000
+initial_value = 0

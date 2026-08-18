@@ -1,0 +1,7 @@
+my leaf(x) = builtin_op::int_add x 1
+
+my call_repeatedly(n, acc) = case n:
+    0 -> acc
+    _ -> call_repeatedly(builtin_op::int_sub n 1, leaf acc)
+
+call_repeatedly(100000, 0)

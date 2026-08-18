@@ -1,0 +1,9 @@
+workload_id = "effect_operation/shallow_tick_10000"
+category = "effect_operation"
+subsets = ["steady_state", "effect"]
+std = "none"
+expected_root = "(1000, 1000)"
+
+[parameters]
+operations = 1000
+requested_operations = 10000

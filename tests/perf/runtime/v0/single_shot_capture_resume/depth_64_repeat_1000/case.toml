@@ -1,0 +1,9 @@
+workload_id = "single_shot_capture_resume/depth_64_repeat_1000"
+category = "single_shot_capture_resume"
+subsets = ["steady_state", "effect", "continuation"]
+std = "none"
+expected_root = "64000"
+
+[parameters]
+depth = 64
+repeats = 1000

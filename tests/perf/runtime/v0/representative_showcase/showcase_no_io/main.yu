@@ -1,0 +1,51 @@
+mod std:
+    pub mod data:
+        pub mod list:
+            pub type list 'a
+            pub enum list_view 'a = empty | leaf 'a | node(list 'a, list 'a)
+
+use std::data::list::*
+
+struct point { x: int, y: int } with:
+    our p.norm2 =
+        builtin_op::int_add
+            (builtin_op::int_mul p.x p.x)
+            (builtin_op::int_mul p.y p.y)
+
+act nondet:
+    our each: int -> int
+
+my collect(action: [nondet] int): list int = catch action:
+    nondet::each base, k ->
+        builtin_op::list_merge
+            (collect(k base))
+            (collect(k(builtin_op::int_add base 1)))
+    value -> [value]
+
+act flip:
+    our coin: () -> bool
+
+my all_paths(action: [flip] int): list int = catch action:
+    flip::coin(), k -> builtin_op::list_merge (all_paths(k true)) (all_paths(k false))
+    value -> [value]
+
+my sum(values, acc) = case builtin_op::list_view_raw values:
+    list_view::empty -> acc
+    list_view::leaf value -> builtin_op::int_add acc value
+    list_view::node(left, right) -> sum(right, sum(left, acc))
+
+my point_value = point { x: 3, y: 4 } .norm2
+my cartesian = collect:
+    builtin_op::int_add (nondet::each 1) (nondet::each 10)
+my paths = all_paths:
+    my tens = case flip::coin(): true -> 10, false -> 0
+    my ones = case flip::coin(): true -> 1, false -> 0
+    builtin_op::int_add tens ones
+
+(
+    point_value,
+    builtin_op::list_len cartesian,
+    sum(cartesian, 0),
+    paths,
+    sum(paths, 0),
+)

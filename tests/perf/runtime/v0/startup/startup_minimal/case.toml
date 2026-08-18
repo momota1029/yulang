@@ -1,0 +1,7 @@
+workload_id = "startup/startup_minimal"
+category = "startup"
+subsets = ["startup"]
+std = "none"
+expected_root = "42"
+
+[parameters]

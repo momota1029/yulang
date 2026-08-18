@@ -1,0 +1,10 @@
+workload_id = "text_list_allocation/text_join_4096"
+category = "text_list_allocation"
+subsets = ["steady_state", "allocation", "pure"]
+std = "none"
+expected_root = "4096"
+
+[parameters]
+elements = 4096
+element = "x"
+separator = ""
