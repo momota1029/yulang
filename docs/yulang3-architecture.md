@@ -4,6 +4,10 @@
 - Date: 2026-08-16
 - Scope: コンパイラ、型推論、実行系、LSP、WebAssembly、テスト、CI、永続キャッシュ
 
+本書は凍結した署名付き corpus note ではなく、Yulang3 repository の成立後に §13.1 の `docs/architecture.md` へ移行し、
+現在の全体像を保つ living document として運用する。これは historical review log を source of truth にしない §13.1 の方針と一致する。
+現時点で、本書に含まれる §6.9 の Mechanism 2 decision と §8.3 の native + Perceus decision を、二つの ADR 相当 decision record として扱う。
+
 ## 0. 結論
 
 Yulang3 は、現行実装へ新しい世代を追加する形ではなく、**独立した workspace、できれば独立した repository** として始める。
@@ -414,7 +418,7 @@ Yulang3 の query / read API と certificate はすべて、`decisive one`、`bo
 `yu-hir` は少なくとも次の identity と node を持つ。
 
 ```text
-StateSlotId = originating declaration identity (carries through alias, generic-function calls, closure capture, and return/escape)
+StateSlotId = originating declaration identity (carried by visible aliases/captures/escapes and by StateEffect atoms across generic calls)
 
 StateSlotDecl { slot, initializer, annotation? }
 StateHandle   { slot }
@@ -422,7 +426,7 @@ StateRead     { slot }
 StateWrite    { slot, input }
 ```
 
-alias、generic-function call、closure capture、return / escape は、いずれも originating declaration の同じ `StateSlotId` を運ぶ派生 case であり、個別の identity rule を持たない。これは static reference identity に対して既に定めた「由来の identity を運ぶ」規則と同じである。
+alias、closure capture、return / escape のうち slot identity が可視な派生 case は、originating declaration の同じ `StateSlotId` を運び、個別の identity rule を持たない。これは static reference identity に対して既に定めた「由来の identity を運ぶ」規則と同じである。generic-function boundary について「`StateSlotId` を運ぶ」とは、generic call の effect row に、その identity を含む `StateEffect(slot, payload_component)` atom が載ることを指す。slot を見通せない code へ first-class handle value を opaque に渡すことではない。handle が opaque な first-class `ref` value として slot の見えない code に渡される場合は、後述する general first-class `ref` の問題であり、この generic-call 規則の対象ではない。
 
 normalized `ConstraintBatch` / `ConstraintStore` は、これらを generic subtyping constraint へ desugar せず、独立した relation family として保持する。
 
@@ -441,11 +445,15 @@ StateWrite { occurrence, slot, input_component, effect_out, cause }
 - この path は generic `.get` / `.set` method selection、generic invariant `Ref` constructor、reciprocal subtype bound を一切生成しない。
 - slot の payload component に届く lower / upper fact は slot-local membership として保持する。internal bounds summary は surface type ではない join / meet-style summary とし、committed delta から更新する。lower × upper pair set 自体は物理的に materialize しない。
 
+`StateSlotDecl` を所有する lexical scope から退出するとき、その scope 内に閉じた `StateEffect(slot, payload_component)` atom は、通常の local effect と同じ row 処理で外向きの effect row から discharge する。closure がその scope から escape し、その closure の effect row に atom が残る場合は宣言境界で消さず、ordinary effect-row handling と同様に escaping closure の row へ載せたまま運ぶ。その間も atom は originating `StateSlotId` へ帰属し、外側で正当に discharge されるまで別 slot の effect へ merge しない。
+
 authority は §3.8、§6.2、§6.3、§12.5 に従って分ける。resolved `StateSlotId` の authority は `HirModule`、`StateSlot` と read / write occurrence の authority は normalized `ConstraintStore` とする。そこから作る slot index、bounds summary、diagnostic cursor はすべて derived view であり、committed-delta receipt だけから更新し、solve session とともに破棄する。state-slot diagnostic query は default では一回の query につき decisive な inconsistency 一件を返す。これは §5 が要求する独立 error の phase-wide collection を止める規則ではない。全 occurrence の export が必要になった場合も §6.8 の cardinality contract に従う明示的な `stream` / `bounded N` query とし、pair certificate を materialize しない。
 
 この representation に固有の collection / solving cost は `O(slots + reads + writes)` とする。これは payload type 自身の subtyping work が常に linear だという主張ではない。state-slot representation が `Θ(L×U)` の constraint materialization や pairwise replay を追加しないという contract である。
 
 `StateSlotId` は compile-time の origin identity に限る。heap address、runtime の activation ごとの cell identity、multi-shot branch identity、Perceus reuse identity のいずれでもない。それらは §8.3 と §14 の runtime design が担う別の責務であり、この HIR / constraint decision と混同しない。また、local mutable declaration から作られない general first-class `ref` value、たとえば `std::io::file::text` が返す値は related but distinct な問題であり、この decision の scope 外とする。この decision だけを根拠に、それらまで covered とも still-open とも扱わない。
+
+同じ scope-out は、`&x` 形式の reference parameter を受け取る generic helper の内部で行う read-modify-write にも適用する。helper body が対象を自身に見える state slot として扱えない場合、その操作は general first-class `ref` path へ進み、この decision の `O(slots + reads + writes)` benefit を受けない。本 decision が閉じるのは、今回の調査を動機づけた loop-local な `&a = $a` の連鎖であり、Yulang のあらゆる mutable-reference performance pattern が解決済みだとは主張しない。
 
 他の alternative は次の理由で採らない。
 
@@ -707,6 +715,7 @@ metadata が必要な case だけ sidecar file を持つ。case 名、kind、def
 ### 10.3 test rule
 
 - bug 一件につき最小 reproducer 一件を基本とする。
+- 大規模な redesign / refactor の前に、動機となる fixture が valid であり、synthetic / invalid な counterexample ではなく実際の production code path から到達可能であることを確認する。症状と root cause の layer も先に局所化する。
 - implementation path の call count より、immutable phase output と invariant を検査する。
 - source text の substring で architecture を検査しない。
 - wall-clock scaling test より、probe / work / allocation counter を優先する。
@@ -906,8 +915,8 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 - Yulang2 の reference release を tag する。
 - stable-core、public type、diagnostic、runtime の contract subset を確定する。
-- runtime benchmark JSON、runner、workload set を確定し、固定 machine で Yulang2 baseline を採る。この比較基盤は Phase 5 の native / VM evaluation まで変更せず、gate に合わせて drift させない。
-- Yulang2 では correctness fix 以外の大規模 architecture change を止める。
+- runtime benchmark JSON、runner、workload set を確定し、固定 machine で Yulang2 baseline を採る。この比較基盤は Phase 5 の native / VM evaluation まで変更せず、gate に合わせて drift させない。corpus の workload mix は Yulang での `nondet` / multi-shot idiom の実際の使用率を反映させ、過少にも過大にも代表させない。`nondet each` は file-editing の core idiom であり、multi-shot / shared-ownership path で Perceus の reuse benefit が構造的に下がるため、この比重が Phase 5 gate 6 の effect / state-heavy subset 評価を直接左右する。
+- Yulang2 では correctness fix 以外の大規模 architecture change を止める。この freeze には、Yulang2 の未解決な mutable-reference constraint fan-out（Mechanism 2）を backport で修正せず、Yulang3 Phase 3 の state-slot design へ工数を振り向ける、2026-08-16 にユーザ確認済みの意識的 tradeoff を含む（`notes/design/2026-08-16-infer-proof-architecture-retrospective.md` §11）。
 
 **Gate:** compatibility corpus、runtime benchmark JSON / runner / workload set、固定 machine の baseline が repository にある。
 
@@ -970,9 +979,11 @@ old/new path を並存させる場合、導入 PR に次を書く。
 4. **Reuse:** physical address を再利用しても storage へ fresh logical guard / scope ID を書く。non-unique value と multi-shot-shared value は正しく copy / allocate へ fallback し、unsafe reuse がゼロである。
 5. **Perceus effectiveness:** unique-update fixture set で、reuse-disabled native baseline との A/B 比較により allocation bytes を 50% 以上削減する。
 6. **Overall performance:** Phase 0 で固定した benchmark corpus の steady-state runtime geometric mean が、Yulang2 / Yulang3 VM baseline のうち速い方より 1.5x 以上速く、effect / state-heavy subset では 2x 以上速い。個別 category のいずれかが VM baseline より 15% を超えて遅い場合、または peak memory が 25% を超えて増える場合は cutover を block する。
-7. **Engineering budget cap:** Phase 5 の実装 budget は上記五 slice と、profiling に基づく追加 bottleneck fix 最大一件までとする。それでも gate を満たさない場合は、理由を記録して VM-primary を正式に選ぶ reversal ADR を作る。indefinite polishing は行わない。この cap は、実際の stopping / reversal decision に到達しないまま起きた 2026-05-20 の native-backend sealing を繰り返さないために置く。
+7. **Engineering budget cap:** Phase 5 の実装 budget は上記五 slice と、profiling に基づく追加 bottleneck fix 最大一件までとする。scope cap に加えて slice ごとの time checkpoint を置き、各 slice の着手時に予定時間を固定する。個別 slice が予定の概ね 2 倍など materially longer になった時点で中間 reassessment を行い、continue / descope / Claude とユーザへの escalation のいずれかを明示的に選ぶ。それでも gate を満たさない場合は、理由を記録して VM-primary を正式に選ぶ reversal ADR を作る。indefinite polishing は行わない。この cap は、実際の stopping / reversal decision に到達しないまま起きた 2026-05-20 の native-backend sealing を繰り返さないために置く。
 
 cutover 後は、release、build、runtime-performance contract の default backend を native とする。VM は明示的な reference / debug / portable backend としてだけ残し、それ以降の optimization investment で native と競合させない。
+
+Phase 番号は strict serial な依存を意味しない。`yu-backend-native` と `yu-compiler` / LSP は dependency graph 上ほとんど交わらないため、schedule を決める際は Phase 5 と並行して Phase 6 の一部を進める余地を検討する。特に partial type information を LSP へ公開する作業は、Phase 5 gate の決着を必須の待ち条件にしない。これは phase numbering を組み替える必須要件ではなく、優先度と担当可能性に応じた scheduling 上の選択肢である。
 
 ### Phase 6: compiler database と LSP
 

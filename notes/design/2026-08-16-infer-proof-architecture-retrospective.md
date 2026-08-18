@@ -735,3 +735,22 @@ authority cutoverだけではdebtが消えず、physical removalとtest retireme
 ground-up successorかretrofitかは、まだ決めない。ただし、同じ形の第六・第七のcrisisを局所factorizationだけで待つことも選ばない。
 次の一手は、proof relation registry、performance constitution、bounded pilotによって、どちらのpathが実際に小さいriskでこの原則を
 成立させられるかを測ることである。
+
+## 11. 2026-08-16 追記: successor直行の決定によるsupersede
+
+本書の承認後、2026-08-16にユーザは、本書が提案したproof relation registry census、bounded pilot、successor / retrofitの
+decision gateという順序を採らず、ground-upなYulang3 successorへ直接進むことを明示的に決定した。repositoryの優先順位では
+明示的なユーザ指示が署名・承認済みの先行文書より上位にあるため、この決定により§9の未決定事項2（redesignの対象範囲）と
+10（retrofit pilotからsuccessorへ昇格するdecision gate）は解決済みとなる。両項目は、本書が提案したpilot processによってではなく、
+ユーザの直接決定によって解決された。
+
+この二つのdecision pointについて、以後のauthoritativeな方向は`docs/yulang3-architecture.md`をsuccessor documentとして扱う。
+ただし、本書の13 episodeの履歴、P1〜P16、architecture patternの分析を含む診断内容はsupersedeされない。supersedeされるのは、
+successorとretrofitのどちらへ進むかを決めるために§6.4、§7、§9が提案したprocessだけである。
+
+同日、ユーザは、`notes/design/2026-08-04-mutable-reference-performance-investigation.md`に記録され、
+`docs/yulang3-architecture.md` §6.9のYulang3側design decisionからも参照される、Yulang2の未解決なMechanism 2
+mutable-reference constraint fan-out性能問題をYulang2へbackportして修正しないことも明示的に確認した。これは意図しないfreezeの
+副作用ではなく、Yulang2をpatchする代わりに、state-slot designで問題を根本から解くYulang3 Phase 3のreference solverへ工数を
+振り向ける、明示的かつ意識的なtradeoffである。そのため、Yulang2のmutable-reference RMWに現在見られるsuperlinearなslowdown
+patternはYulang3の初期開発期間を通して残る。この継続は見落としではなく、受容された結果である。
