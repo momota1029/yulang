@@ -39,8 +39,6 @@ test.ym
 /.temp/
 /.zed/
 .rules
-AGENTS.md
-CLAUDE.md
 GEMINI.md
 web/dist/
 web/docs/node_modules/
