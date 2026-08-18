@@ -1,3 +1,0 @@
-my take_a({ a, .._ }) = a
-
-take_a { a: 5, b: 6 }

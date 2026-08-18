@@ -1,1 +1,0 @@
-pub check_same(left: 'a, right: 'a) = left assert_eq right

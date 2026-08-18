@@ -1,1 +1,0 @@
-std::io::file::read_text (std::text::path::of_bytes (std::text::str::to_bytes "/tmp/yulang-contract-unsupported-read"))

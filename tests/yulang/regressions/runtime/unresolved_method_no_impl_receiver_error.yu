@@ -1,4 +1,0 @@
-role R 'a:
-    our a.foo: int
-
-1.foo

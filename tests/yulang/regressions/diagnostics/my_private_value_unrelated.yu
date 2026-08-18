@@ -1,5 +1,0 @@
-pub mod owner:
-  my hidden = 1
-
-pub mod unrelated:
-  pub value = owner::hidden

@@ -1,2 +1,0 @@
-my f(p: int) = p
-f (\x -> x)

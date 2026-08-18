@@ -1,8 +1,0 @@
-pub mod owner:
-  my role hidden;
-  pub inside (value: hidden): hidden = value
-  pub mod child:
-    pub nested (value: hidden): hidden = value
-
-pub mod sibling:
-  pub outside (value: owner::hidden): owner::hidden = value

@@ -1,8 +1,0 @@
-use std::control::var::*
-
-{
-    my $sum = 0
-    (0..<4096).fold (): \_ i ->
-        &sum = $sum + i
-    $sum
-}

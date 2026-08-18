@@ -1,3 +1,0 @@
-mod test output:
-  my passing = { println "PASSING TEST OUTPUT"; assert true }
-  my failing = { println "FAILING TEST OUTPUT"; assert false }

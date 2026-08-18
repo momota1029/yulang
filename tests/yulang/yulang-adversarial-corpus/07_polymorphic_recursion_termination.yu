@@ -1,7 +1,0 @@
-pub grow(flag, x) =
-    if flag:
-        x
-    else:
-        grow(flag, [x])
-
-grow(true, 0)

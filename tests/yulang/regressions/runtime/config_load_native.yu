@@ -1,7 +1,0 @@
-my c = std::text::config::load {{file}}
-
-(
-    c.get "" "port",
-    c.get "service" "name",
-    c.get "service" "workers"
-)

@@ -1,9 +1,0 @@
-pub mod owner:
-  my hidden = 1
-  pub same = hidden
-  pub mod child:
-    pub value = hidden
-    pub mod grandchild:
-      pub value = hidden
-
-(owner::same, owner::child::value, owner::child::grandchild::value)

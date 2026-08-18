@@ -1,3 +1,0 @@
-mod consts;
-
-pub x = 42

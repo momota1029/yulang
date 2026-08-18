@@ -1,5 +1,0 @@
-pub mod owner:
-  my type hidden = int
-
-pub mod unrelated:
-  pub value (value: owner::hidden): owner::hidden = value

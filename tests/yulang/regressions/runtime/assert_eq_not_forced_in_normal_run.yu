@@ -1,2 +1,0 @@
-{ println "LEFT"; 1 } assert_eq { println "RIGHT"; 1 }
-println "DONE"

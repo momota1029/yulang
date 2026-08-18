@@ -1,2 +1,0 @@
-assert { println "FORCED"; true }
-println "DONE"

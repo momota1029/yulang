@@ -1,3 +1,0 @@
-pub role Index 'container 'key:
-    type value
-    pub container.index: 'key -> value

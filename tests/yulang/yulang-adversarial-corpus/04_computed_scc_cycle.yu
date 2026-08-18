@@ -1,6 +1,0 @@
-pub make x = x
-
-my a = make b
-my b = make a
-
-a

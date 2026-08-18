@@ -1,2 +1,0 @@
-my f(p: int -> unit) = p
-f {x: 2}

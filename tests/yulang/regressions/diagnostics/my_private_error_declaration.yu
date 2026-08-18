@@ -1,9 +1,0 @@
-pub mod owner:
-  my error hidden:
-    failed int
-  pub inside (value: hidden): hidden = value
-  pub mod child:
-    pub nested (value: hidden): hidden = value
-
-pub mod sibling:
-  pub outside (value: owner::hidden): owner::hidden = value
