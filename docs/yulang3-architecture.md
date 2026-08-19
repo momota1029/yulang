@@ -258,6 +258,13 @@ CI で `cargo metadata` を読み、次を自動検査する。
 - `yu-test-support` を production dependency にすることを禁止する。
 - feature によって dependency direction が反転する構成を禁止する。
 
+Phase 1 の checker は `cargo xtask check-graph` として提供する。既知の compiler
+crate は `yu-syntax` から application までの一方向の段階に割り当て、通常依存、
+build-dependency、dev-dependency、optional dependency を含む全 edge が upstream 側だけを
+指すことを検査する。これにより feature を有効にした時だけ方向が反転する構成も防ぐ。
+同じ backend 段階の `yu-backend-vm` と `yu-backend-native` は互いに依存してはならない。
+checker はこの段階表とは別に、workspace 全体の dependency cycle も報告する。
+
 ---
 
 ## 5. phase model
@@ -924,7 +931,7 @@ old/new path を並存させる場合、導入 PR に次を書く。
 
 - 新 repository / workspace を作る。
 - dependency graph checker、format、core CI を最初に入れる。
-- `tools/xtask` を導入し、graph check と生成 task の入口を一つにする。
+- `tools/xtask` を導入し、`cargo xtask check-graph` と生成 task の入口を一つにする。
 - `yu-syntax`、`yu-hir`、`yu-types` の空 boundary を作る。
 - `yu-backend-vm` と `yu-backend-native` を、backend-neutral な `yu-core` だけに依存する別々の leaf crate / target として置く。
 - performance metric format を先に決める。
