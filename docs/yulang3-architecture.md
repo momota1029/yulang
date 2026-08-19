@@ -936,6 +936,16 @@ old/new path を並存させる場合、導入 PR に次を書く。
 - `yu-backend-vm` と `yu-backend-native` を、backend-neutral な `yu-core` だけに依存する別々の leaf crate / target として置く。
 - performance metric format を先に決める。
 
+Phase 1 の performance metric format は、Phase 0 で freeze した `tools/bench-runner`
+の runtime-v0 JSON（`suite.result_schema_version = 1`）をそのまま正式形式として採用する。
+report は suite / runner / subject / machine / protocol の provenance、workload ごとの correctness、
+iteration sample、summary、work count、category / subset aggregate を持つ。時間は ns、RSS と
+allocation / continuation の count は bytes とし、計測できない値は `Availability` の
+`available` / `unavailable` / `unsupported` で表す。runtime の比較は同一 corpus hash、
+protocol、fixed machine を持つ report 同士で行い、wall time は workload median と category /
+subset の geometric mean を使う。Phase 1 では新たな許容誤差、regression threshold、CI gate を
+定義しない。Phase 5 の acceptance gate はこの freeze した format と baseline を入力に使う。
+
 **Gate:** application を含めず、core check が 1 分台で終わる。
 
 ### Phase 2: syntax と HIR
