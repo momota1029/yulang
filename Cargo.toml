@@ -1,4 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["tools/bench-runner"]
-
+members = [
+    "crates/yu-syntax",
+    "crates/yu-hir",
+    "crates/yu-types",
+    "crates/yu-core",
+    "crates/yu-backend-vm",
+    "crates/yu-backend-native",
+    "tools/bench-runner",
+]

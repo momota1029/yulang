@@ -620,6 +620,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "yu-backend-native"
+version = "0.1.0"
+dependencies = [
+ "yu-core",
+]
+
+[[package]]
+name = "yu-backend-vm"
+version = "0.1.0"
+dependencies = [
+ "yu-core",
+]
+
+[[package]]
+name = "yu-core"
+version = "0.1.0"
+
+[[package]]
+name = "yu-hir"
+version = "0.1.0"
+
+[[package]]
+name = "yu-syntax"
+version = "0.1.0"
+
+[[package]]
+name = "yu-types"
+version = "0.1.0"
+
+[[package]]
 name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
