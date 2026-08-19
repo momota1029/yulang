@@ -6,7 +6,7 @@
 
 本書は凍結した署名付き corpus note ではなく、Yulang3 repository の成立後に §13.1 の `docs/architecture.md` へ移行し、
 現在の全体像を保つ living document として運用する。これは historical review log を source of truth にしない §13.1 の方針と一致する。
-現時点で、本書に含まれる §6.9 の Mechanism 2 decision と §8.3 の native + Perceus decision を、二つの ADR 相当 decision record として扱う。
+現時点で、本書に含まれる §6.9 の Mechanism 2 decision、§8.3 の native + Perceus decision、§4.2.2 の parser recovery / header discovery decision を、三つの ADR 相当 decision record として扱う。
 
 ## 0. 結論
 
@@ -248,6 +248,125 @@ yu-backend-vm  yu-backend-native
 
 `yu-syntax` が parse error を所有するという §4.2 の境界は、API としても実体化する。現行 parser のように bare CST だけを返し、error collection を side channel や caller の CST 再走査に委ねてはならない。§5 の total-phase-output rule に従い、`ParsedFile` 自体が lossless CST、structured `Missing` / `Error` node、exhaustive parse diagnostic を同じ immutable revision の結果として所有する。
 
+#### 4.2.2 parser recovery policy、diagnostic completeness contract、header discovery
+
+**Status: DECIDED.** Yulang2 の `parse_header_to_green` は、leading `use` と dynamic operator header だけを読む軽量 prepass であり、`mod` や本文中の `use` を含む全 semantic dependency の authority ではない。しかも header 段階の diagnostic は現在破棄され、full CST の再走査でしか見えない。Yulang3 では、`yu-syntax` の `SourceText -> ParsedFile` を単一の transition にせず、次の四段階を明示的な phase product として持つ。
+
+```text
+Header discovery
+    SourceText
+      -> HeaderInfo
+
+Syntax planning
+    HeaderInfo 群 + resolved syntax dependency
+      -> SyntaxInterface + SyntaxEnvironment
+
+Full parse
+    SourceText + HeaderInfo + SyntaxEnvironment
+      -> ParsedFile
+
+Resolve / Lower
+    ParsedFile + semantic imported interface
+      -> HirModule
+```
+
+`HeaderInfo` は source 先頭の syntax preamble (leading `use`、dynamic operator header) だけを表し、全 semantic dependency の authority ではない。dependency は次の二種類に分ける。
+
+| 種類 | authority | 用途 |
+| --- | --- | --- |
+| syntax dependency | `HeaderInfo` から解決した header graph | imported / reexported operator、full parse の `SyntaxEnvironment` |
+| semantic dependency | `ParsedFile` / `HirModule` | name resolution、`direct_interface_hashes`、infer invalidation |
+
+この分離により、operator syntax だけが変わった変更、public type/value interface だけが変わった変更、private body だけが変わった変更を、それぞれ異なる invalidation scope で扱える。`yu-syntax` は module resolution を所有しないため、`HeaderInfo` には source-level path、visibility、span、operator signature だけを保存し、`ModuleId` への解決と graph 構築は compiler / module-resolution 側が担う。
+
+**recovery authority.** invalid / missing token と node の生成、CST marker の balance、diagnostic collection、recovery の consume-or-stop guarantee は、header parse と full parse が共有する一つの shared recovery layer が所有する。header 専用 grammar を full grammar の copy として持たず、header parser は shared declaration grammar を restricted mode で呼ぶ。
+
+recovery synchronization は狭い境界から順に次を使う。
+
+1. grammar-local な expected token。
+2. 現在の group / block の closing delimiter。
+3. 現在の statement の separator / newline。
+4. 現在の indentation 以下の statement boundary。
+5. shared statement-start table が認識する次の declaration / statement。
+6. EOF。
+
+内側の grammar が外側の delimiter を越えて skip してはならない。header recovery では、`use` group の delimiter、operator header の `)` / binding-power 境界 / `=`、次の header starter、最初の非 header statement starter を追加の safe point とする。最初の body statement は error ではなく header の正常な stop boundary である。
+
+token 消費は次の方針で選ぶ。孤立した一 token で直後の構造が明確なら、その token だけを `Error` として消費する。複数 token が同じ壊れた構造に属する場合は、対応する safe point までを一つの `Error` region として consume する。closing delimiter は、それ自体が不正で現在の construct に属さない場合を除き、caller / 現在の construct へ残す。operator body の header-mode skip は recovery `Error` ではなく、balanced delimiter と indentation で範囲を求める intentional な opaque scan であり、body diagnostic を生成しない。
+
+**`Missing` / `Error`.** `Missing` は必須要素が存在しない zero-width recovery node で、source byte を所有しない。`Error` は source に存在する不正な token / region を所有し、一 byte 以上を消費する。空の `Error` と source byte を持つ `Missing` を禁止する。期待 token が欠落し、同時に予期しない token がある場合は、必要に応じて `Missing(expected)` と `Error(consumed)` を兄弟として生成してよい。header fact は `Missing` / `Error` node の存在だけで決めず、dependency / operator を決定する必須 field が一意に確定した時点で transaction 的に commit する。group import では、独立して完全な item だけを commit してよい。
+
+**header と full parse の不整合.** header parse と full parse のどちらかを機械的に優先する設計にはせず、両者の共通範囲は同じ grammar authority を使い、矛盾自体を compiler invariant violation として扱う。operator header は正しいが body が不正、import target は完全だが無関係な末尾 token が不正、といったケースは矛盾ではなく、header fact を保持しつつ full parse が別途 diagnostic を追加する。import target が欠落・曖昧、operator name / fixity / binding power が確定しない場合は、header fact を commit しない。full parse が同じ source range について異なる dependency target や operator signature を得た場合、graph を full parse 結果で黙って作り直さず、shared grammar / parity invariant の破損として扱う。
+
+**diagnostic collection.** diagnostic は `(primary range の start, end, recovery event sequence, diagnostic code)` で決定的に順序付ける。一つの recovery event は原則として一つの primary diagnostic を生成し、同じ `Error` region 内の各 token から重複 diagnostic を作らない。同期後の sibling error は独立 episode として収集する。EOF での `Missing` は `source.len()..source.len()` を使い、最後の token へ span を広げない。
+
+header 段階で発見した diagnostic は捨てず、`HeaderInfo` が cause authority として保持する。full parse は同じ header error を再生成せず、同一 `DiagnosticId` の record を `ParsedFile` へ一度だけ取り込む。`ParsedFile::diagnostics()` は header と body を統合した exhaustive whole-file list を返し、caller は CST を再走査して diagnostic を追加しない。full parse が ready になる前に header discovery が失敗した場合、LSP や CLI は `HeaderInfo` の diagnostic を early-ready result として公開してよいが、full parse 完了後は同じ `DiagnosticId` で `ParsedFile` の一覧へ切り替え、重複表示しない。移行初期は presentation adapter によって、Yulang2 の `yulang.syntax` code、表示文言、range 補正を維持する。
+
+**diagnostic completeness contract.** 「exhaustive」とは、選択した recovery path のもとで、同一 phase が独立に判定できる causal error site をすべて報告することを意味し、考えうる全修正候補や、壊れた一 token から派生する全 grammar failure を列挙することではない。次を満たすことで観測可能に定義する。
+
+- recovery を要した local parse failure に silent recovery がない。
+- recovery node と diagnostic が 1 対 1 対応する。
+- 同期後の独立 error を最後まで収集する。
+- output が deterministic である。
+- CST が lossless かつ balanced である。
+- header fact と full CST 上の対応宣言が同じ range、path、visibility、operator shape を持つ (header/full parity)。
+
+fixture family は、declaration 必須 token の欠落、unexpected token、nested group の missing close、block の dedent / close mismatch、EOF zero-width `Missing`、同一 file 中の複数独立 error、Yumark 境界、leading `use` の path / group / alias error、malformed operator header の後の valid header、valid operator header と malformed body、header 後の late `use`、header / full fact parity、syntax reexport cycle、body-only edit と header edit の incremental parity を最低限含む。prefix truncation / fuzz test では、すべての byte prefix について panic しないこと、停止すること、full parse の source byte conservation を検査する。
+
+**API.** 代表的な shape は次の通り。
+
+```rust
+pub struct HeaderInfo {
+    revision: SourceRevision,
+    coverage: HeaderCoverage,
+    imports: Arc<[HeaderImport]>,
+    operators: Arc<[HeaderOperator]>,
+    diagnostics: Arc<[SyntaxDiagnostic]>,
+    hashes: HeaderHashes,
+}
+
+pub struct SyntaxEnvironment {
+    key: SyntaxEnvironmentKey,
+    operators: Arc<OperatorTable>,
+    provenance: Arc<[SyntaxDependencyProvenance]>,
+}
+
+pub struct ParsedFile {
+    source: Arc<SourceText>,
+    revision: SourceRevision,
+    header: Arc<HeaderInfo>,
+    syntax_environment: SyntaxEnvironmentKey,
+    green: GreenNode,
+    diagnostics: Arc<[SyntaxDiagnostic]>,
+}
+
+pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo;
+
+pub fn parse_file(
+    source: Arc<SourceText>,
+    header: Arc<HeaderInfo>,
+    syntax: Arc<SyntaxEnvironment>,
+) -> ParsedFile;
+```
+
+local syntax error に対して `Result::Err` を返さない。I/O failure、cancellation、compiler invariant violation だけを query availability failure として別に扱う。`HeaderInfo` は partial Rowan CST を public product として保持しなくてよく、full lossless CST の authority は `ParsedFile` に一本化する。diagnostic の重複排除は message / range 比較ではなく、共有する `DiagnosticId` で行う。
+
+Yulang2 互換のため、`parse_module_to_green(...) -> GreenNode` を `parse_file(...).green().clone()` の期限付き facade として残してよいが、production の diagnostic caller はこの facade の `GreenNode` を再走査しない。
+
+この decision が §7.1 の incremental query graph に与える影響は §7.1 に反映する。
+
+**移植順序.** full Yulang2 parser internals、compiled-unit cache 全体、全 grammar family を最初から移植しない。
+
+1. compatibility fixture (leading use/operator、`use mod`、realm/band import、late `use`、malformed header 後の valid header、header/full diagnostic 重複なし、Yulang2 の diagnostic code・文言・range) を先に固定する。
+2. `HeaderInfo` / `ParsedFile` / shared recovery event の最小核を作る。leading `use` 一種、operator header 一種、full statement 一種だけで end-to-end に通す。
+3. header fact commit と header/full parity (shared `use` grammar、shared operator-header grammar、operator body の opaque skip、header recovery、valid fact だけの commit) を実装する。
+4. syntax dependency planning (`SyntaxInterface`、file 別 `SyntaxEnvironment`、正規化 hash) を実装する。
+5. module / statement boundary recovery、block / group close recovery を実装する。
+6. `crates/yulang/src/source/mod.rs` 相当の CST 再走査を除去し、全 module の diagnostic を直接 publish する構造へ移行する。
+7. full `use` / `mod` から semantic dependency を確定し、`direct_interface_hashes` を resolve query へ接続し、representative stable-core source を deterministic HIR へ lower する。
+
+この decision の scope 外の論点は §18 に記録する。
+
 ### 4.3 graph rule
 
 CI で `cargo metadata` を読み、次を自動検査する。
@@ -486,18 +605,33 @@ falsified になった場合、Alternatives 1 / 3 / 7 による patch は行わ�
 
 ### 7.1 最初の query graph
 
-最初は次の粗い query で十分である。
+最初は次の粗い query で十分である。§4.2.2 の header discovery / syntax dependency 分離により、`parse` の前段に header 系の query を置く。
 
 ```text
-parse(FileId, source_hash)
-resolve(ModuleId, source_hash, direct_interface_hashes)
+header(FileId, source_hash)
+header_graph(WorkspaceRevision, header_dependency_hashes, module_index_hash)
+syntax_interface(SyntaxSccId, member_local_syntax_export_hashes, incoming_syntax_interface_hashes)
+syntax_environment(FileId, header_dependency_hash, direct_syntax_interface_hashes)
+parse(FileId, source_hash, syntax_environment_hash)
+resolve(ModuleId, parsed_file_hash, direct_interface_hashes)
 infer(ModuleId, hir_hash, direct_interface_hashes)
 interface(ModuleId, solved_hash)
 core(ModuleId, solved_hash)
 backend(RootId, transitive_core_hash, backend_config_hash)
 ```
 
-private body の変更で `PublicInterface` hash が変わらなければ、dependent module の infer を無効化しない。
+private body の変更で `PublicInterface` hash が変わらなければ、dependent module の infer を無効化しない。header/syntax 側も同様に scope を分ける。
+
+| 変更 | 必要な invalidation |
+| --- | --- |
+| header 後の private body | 編集 file の full parse 以降。dependent file は維持する |
+| operator body のみ | 編集 file の full parse / HIR。syntax interface と dependent parse は維持する |
+| operator name / fixity / binding power / visibility | syntax interface と影響する importer の parse を無効化する |
+| leading `use` の target / filter / visibility | header graph、syntax SCC、影響する environment / parse を無効化する |
+| dependency の semantic `PublicInterface` のみ | dependent resolve / infer を無効化する。parse は維持する |
+| header diagnostic だけが変化し fact が同じ | dependent query は維持する |
+
+syntax error を持つ `HeaderInfo` も exact source hash に対して cache 可能とし、error があること自体を cache miss 理由にしない。`SyntaxInterface` は semantic body が不正でも生成可能とし、downstream parser が必要とするのは operator の spelling / fixity / binding power であり、operator value body の lowering 成功ではない。`direct_interface_hashes` は full parse 後に確定した semantic dependency から作り、header-only fact をそのまま semantic dependency graph の最終 authority にしない。
 
 ### 7.2 stable identity
 
@@ -1103,7 +1237,12 @@ Yulang3 を「新しい実装」と呼ぶ最低条件を次とする。
 
 ## 18. 未決定事項
 
-今回の調査で architecture decision として閉じていない項目はない。
+§4.2.2 (parser recovery policy / header discovery) の decision は、次の二点を scope 外として残す。実装 (Phase 2) を進めながら、該当する担当領域の設計で確定する。
+
+- late `use` (header 範囲より後にある `use`) を semantic dependency としてどう明文化するかは、言語仕様側の記述が薄いままである。§4.2.2 の header/syntax dependency 分離は、この明文化を前提にしていない。
+- non-header `mod` および本文中の late `use` による source-set 拡張を、iterative な full parse で発見するか、operator-independent な structural discovery product を別途置くかは未決定であり、source-loader 設計 (Phase 8 相当) で確定する。
+
+上記以外に、今回の調査で architecture decision として閉じていない項目はない。
 
 ---
 
@@ -1114,3 +1253,14 @@ no blockers で endorsed（2026-08-16。Fable の 2 件の must-resolve 項目�
 本書は他の正本文書（`notes/design/` / `spec/`）と異なり、外部 PR 起案・Fable 独立レビューという
 経緯を持つため、著者欄の書式もそれに合わせている。内容面の検証プロセス自体は本文の各節・
 Fable のレビューで既に完了しており、本節はその手続きを正式な署名として記録するものである。
+
+### 追補（2026-08-19）: §4.2.2 / §7.1 / §18
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定。ユーザ承認済み（2026-08-19）。
+
+§4.2.2 の parser recovery policy、diagnostic completeness contract、header discovery decision と、
+それに伴う §7.1 query graph の拡張、§18 未決定事項の追記は、本書の元の起案・レビュー経緯とは別に
+2026-08-19 に追加した。Fable 5 が一時的に利用できない状況での代替手順（Codex gpt-5.6-sol xhigh が
+`main` ブランチの現行 yulang2 parser を調査し、recovery policy・diagnostic completeness contract・
+header discovery の設計案と草稿を起案し、Claude (Sonnet 5) が既存の正本群 (§4.2.1、§5、§7、§16) との
+整合性を査読し、体裁を §6.9 / §8.3 の decision record 形式に統一した上で確定）に基づく。
