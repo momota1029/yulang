@@ -8,7 +8,11 @@ use chasa::{
     prelude::{In, from_fn, many_skip, one_of},
 };
 
-use crate::{input::SourceInput, scan::word::{WordSpan, scan_word}, session::ParseLocal};
+use crate::{
+    input::SourceInput,
+    scan::word::{WordSpan, scan_word},
+    session::ParseLocal,
+};
 
 /// One expression accepted before dynamic operators are enabled.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -35,6 +39,10 @@ pub(crate) struct IntegerLiteral<'source> {
 }
 
 impl<'source> IntegerLiteral<'source> {
+    pub(crate) fn text(self) -> &'source str {
+        self.text
+    }
+
     pub(crate) fn range(self) -> Range<usize> {
         self.start..self.end
     }
@@ -51,7 +59,7 @@ where
 {
     input.choice((
         from_fn(|input| parse_identifier(input).map(Expression::Identifier)),
-        from_fn(|input| parse_integer(input).map(Expression::Integer)),
+        from_fn(|input| parse_integer_literal(input).map(Expression::Integer)),
     ))
 }
 
@@ -65,7 +73,7 @@ where
     input.run(from_fn(scan_word))
 }
 
-fn parse_integer<'source, E>(
+pub(crate) fn parse_integer_literal<'source, E>(
     mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<IntegerLiteral<'source>>
 where
@@ -74,7 +82,9 @@ where
 {
     let start = input.pos();
     input.skip(one_of(|character: char| character.is_ascii_digit()))?;
-    input.skip(many_skip(one_of(|character: char| character.is_ascii_digit())))?;
+    input.skip(many_skip(one_of(|character: char| {
+        character.is_ascii_digit()
+    })))?;
     let end = input.pos();
 
     Some(IntegerLiteral {

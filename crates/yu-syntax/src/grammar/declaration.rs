@@ -3,20 +3,20 @@
 use std::ops::Range;
 
 use chasa::{
-    ErrorSink,
+    ErrorSink, Input as _,
     error::std::{Unexpected, UnexpectedEndOfInput},
     prelude::{In, from_fn},
 };
 
 use crate::{
+    grammar::expression::{Expression, IntegerLiteral, parse_expression, parse_integer_literal},
     input::SourceInput,
-    grammar::expression::{Expression, parse_expression},
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::scan_trivia,
         word::{WordSpan, scan_word},
     },
-    session::ParseLocal,
+    session::{Delimiter, ParseLocal},
 };
 
 /// One parsed source-leading declaration.
@@ -24,6 +24,7 @@ use crate::{
 pub(crate) enum Declaration<'source> {
     Use(UseDeclaration<'source>),
     Binding(BindingDeclaration<'source>),
+    OperatorHeader(OperatorHeaderDeclaration<'source>),
 }
 
 /// A `my name = value` declaration with a minimal expression value.
@@ -45,6 +46,33 @@ impl<'source> BindingDeclaration<'source> {
 
     pub(crate) fn value(&self) -> &Expression<'source> {
         &self.value
+    }
+}
+
+/// An infix operator signature before its opaque header body.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OperatorHeaderDeclaration<'source> {
+    range: Range<usize>,
+    name: &'source str,
+    left_binding_power: IntegerLiteral<'source>,
+    right_binding_power: IntegerLiteral<'source>,
+}
+
+impl<'source> OperatorHeaderDeclaration<'source> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+
+    pub(crate) fn name(&self) -> &'source str {
+        self.name
+    }
+
+    pub(crate) fn left_binding_power(&self) -> IntegerLiteral<'source> {
+        self.left_binding_power
+    }
+
+    pub(crate) fn right_binding_power(&self) -> IntegerLiteral<'source> {
+        self.right_binding_power
     }
 }
 
@@ -77,7 +105,56 @@ where
     input.choice((
         from_fn(|input| parse_use_declaration(input).map(Declaration::Use)),
         from_fn(|input| parse_binding_declaration(input).map(Declaration::Binding)),
+        from_fn(|input| parse_operator_header(input).map(Declaration::OperatorHeader)),
     ))
+}
+
+fn parse_operator_header<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<OperatorHeaderDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = input.pos();
+    let keyword = input.run(from_fn(scan_word))?;
+    (keyword.text() == "infix").then_some(())?;
+    inline_trivia(&mut input)?;
+    let open = input.run(from_fn(scan_punctuation))?;
+    (open.kind() == PunctuationKind::Open(Delimiter::Parenthesis)).then_some(())?;
+    let name = parse_operator_name(&mut input)?;
+    let close = input.run(from_fn(scan_punctuation))?;
+    (close.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())?;
+    inline_trivia(&mut input)?;
+    let left_binding_power = input.run(from_fn(parse_integer_literal))?;
+    inline_trivia(&mut input)?;
+    let right_binding_power = input.run(from_fn(parse_integer_literal))?;
+    inline_trivia(&mut input)?;
+    input.skip(chasa::prelude::item('='))?;
+    let end = input.pos();
+
+    Some(OperatorHeaderDeclaration {
+        range: start..end,
+        name,
+        left_binding_power,
+        right_binding_power,
+    })
+}
+
+fn parse_operator_name<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<&'source str>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let start = input.pos();
+    while !input.input.remainder().starts_with(')') {
+        input.input.next()?;
+    }
+    let end = input.pos();
+    (start < end).then_some(&input.input.source()[start..end])
 }
 
 fn parse_binding_declaration<'source, E>(
@@ -152,6 +229,10 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/leading-use-plain/main.yu"
     ));
+    const INFIX_OPERATOR_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/infix-operator-header/main.yu"
+    ));
 
     #[test]
     fn parses_leading_use_fixture_from_chasa_input() {
@@ -211,5 +292,33 @@ mod tests {
         assert_eq!(binding.name().text(), "value");
         assert_eq!(binding.value().range(), 11..14);
         assert_eq!(input.input.remainder(), "\n");
+    }
+
+    #[test]
+    fn parses_infix_operator_header_fixture_from_chasa_input() {
+        let source = std::str::from_utf8(INFIX_OPERATOR_SOURCE).expect("fixture is UTF-8");
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let declaration = input
+            .run(from_fn(parse_declaration))
+            .expect("operator header should parse");
+
+        let Declaration::OperatorHeader(header) = declaration else {
+            panic!("expected operator header declaration");
+        };
+        assert_eq!(header.range(), 0..19);
+        assert_eq!(header.name(), "<+>");
+        assert_eq!(header.left_binding_power().text(), "50");
+        assert_eq!(header.right_binding_power().text(), "51");
+        assert_eq!(input.input.remainder(), " left\nmy value = 1\n");
     }
 }
