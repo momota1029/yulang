@@ -419,6 +419,16 @@ pub(crate) struct UseVersion<'source> {
     text: &'source str,
 }
 
+impl<'source> UseVersion<'source> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+
+    pub(crate) fn text(&self) -> &'source str {
+        self.text
+    }
+}
+
 /// An exclusion pattern attached to a glob terminal.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum UseExclusion<'source> {
@@ -557,16 +567,18 @@ where
     if input.maybe(from_fn(parse_open_brace))?.is_some() {
         let (terminal, terminal_end) = parse_use_group_terminal(input, None)?;
         let aliases = parse_use_aliases(input)?;
-        let end = aliases
+        let alias_end = aliases
             .last()
             .map_or(terminal_end, |alias| alias.range().end);
+        let (qualifiers, qualifier_end) = parse_use_qualifiers(input)?;
+        let end = qualifier_end.unwrap_or(alias_end);
         return Some(UseTree {
             range: start..end,
             form: HeaderImportForm::Plain,
             prefix: empty_use_path(),
             terminal,
             aliases,
-            qualifiers: UseQualifiers::default(),
+            qualifiers,
         });
     }
 
@@ -615,7 +627,9 @@ where
     } else {
         None
     };
-    let end = without_end.unwrap_or(tail_end);
+    let qualifier_input_end = without_end.unwrap_or(tail_end);
+    let (qualifiers, qualifier_end) = parse_use_qualifiers(input)?;
+    let end = qualifier_end.unwrap_or(qualifier_input_end);
 
     Some(UseTree {
         range: start..end,
@@ -623,7 +637,7 @@ where
         prefix,
         terminal,
         aliases,
-        qualifiers: UseQualifiers::default(),
+        qualifiers,
     })
 }
 
@@ -756,6 +770,125 @@ where
     (keyword.text() == "as").then_some(())?;
     inline_trivia(&mut input)?;
     input.run(from_fn(scan_word))
+}
+
+fn parse_use_qualifiers<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<(UseQualifiers<'source>, Option<usize>)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let version = input.maybe(from_fn(parse_use_version_suffix))?;
+    let anchor = parse_use_anchor(input)?;
+    let end = anchor
+        .as_ref()
+        .and_then(use_path_end)
+        .or_else(|| version.as_ref().map(|version| version.range.end));
+
+    Some((UseQualifiers { version, anchor }, end))
+}
+
+fn parse_use_version_suffix<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<UseVersion<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    inline_trivia(&mut input)?;
+    input.run(from_fn(scan_use_version))
+}
+
+fn scan_use_version<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<UseVersion<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let start = input.pos();
+    input.skip(chasa::prelude::item('v'))?;
+    input
+        .input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_digit())
+        .then_some(())?;
+    input.input.next()?;
+
+    while input
+        .input
+        .remainder()
+        .chars()
+        .next()
+        .is_some_and(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '+')
+        })
+    {
+        input.input.next()?;
+    }
+
+    let end = input.pos();
+    let mut line = input.local.line();
+    line.at_line_start = false;
+    input.local.set_line(line);
+
+    Some(UseVersion {
+        range: start..end,
+        text: &input.input.source()[start..end],
+    })
+}
+
+fn parse_use_anchor<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<Option<UsePath<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some(()) = input.maybe(from_fn(parse_with_keyword))? else {
+        return Some(None);
+    };
+    inline_trivia(input)?;
+
+    let first = input.run(from_fn(scan_word))?;
+    let mut path = UsePath {
+        segments: vec![UseSegment::Word(first)],
+        separators: Vec::new(),
+    };
+
+    while let Some(separator) = input.maybe(from_fn(parse_use_separator))? {
+        path.separators.push(separator);
+        path.segments
+            .push(UseSegment::Word(input.run(from_fn(scan_word))?));
+    }
+
+    debug_assert_eq!(
+        path.separators.len(),
+        path.segments.len().saturating_sub(1),
+        "an anchor path has one separator between each identifier segment"
+    );
+    Some(Some(path))
+}
+
+fn parse_with_keyword<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    inline_trivia(&mut input)?;
+    let keyword = input.run(from_fn(scan_word))?;
+    (keyword.text() == "with").then_some(())
+}
+
+fn use_path_end(path: &UsePath<'_>) -> Option<usize> {
+    path.segments().last().map(|segment| segment.range().end)
 }
 
 fn parse_use_without<'source, E>(
@@ -1294,6 +1427,112 @@ mod tests {
             panic!("expected parenthesized star to remain an operator segment: {without:#?}");
         };
         assert_eq!(*text, "*");
+    }
+
+    #[test]
+    fn parses_a_typed_version_suffix() {
+        let (declaration, remainder) = parse_use("use std::data v1.2.3");
+        let qualifiers = declaration.tree().qualifiers();
+        let version = qualifiers.version().expect("version suffix should parse");
+
+        assert_eq!(version.text(), "v1.2.3");
+        assert_eq!(version.range(), 14..20);
+        assert!(qualifiers.anchor().is_none());
+        assert_eq!(declaration.range(), 0..20);
+        assert_eq!(remainder, "");
+        assert_eq!(
+            declaration.project_single_import(),
+            Err(UseSingleProjectionError::Qualifiers)
+        );
+        assert!(matches!(
+            declaration.expand_header_imports().as_slice(),
+            [Err(UseExpansionError::Qualifiers { .. })]
+        ));
+    }
+
+    #[test]
+    fn preserves_the_full_version_token_spelling() {
+        let (declaration, _) = parse_use("use std::data v1-alpha+build.2");
+
+        assert_eq!(
+            declaration
+                .tree()
+                .qualifiers()
+                .version()
+                .map(UseVersion::text),
+            Some("v1-alpha+build.2")
+        );
+    }
+
+    #[test]
+    fn parses_an_identifier_path_anchor() {
+        let (declaration, remainder) = parse_use("use std::data with program::ui");
+        let qualifiers = declaration.tree().qualifiers();
+        let anchor = qualifiers.anchor().expect("anchor should parse");
+
+        assert!(qualifiers.version().is_none());
+        assert_eq!(path_texts(anchor), ["program", "ui"]);
+        assert_eq!(anchor.separators(), [UseSeparator::ColonColon]);
+        assert_eq!(declaration.range(), 0..30);
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    fn parses_version_then_anchor_in_source_order() {
+        let (declaration, remainder) = parse_use("use std::data v1.2.3 with program::ui");
+        let qualifiers = declaration.tree().qualifiers();
+
+        assert_eq!(qualifiers.version().map(UseVersion::text), Some("v1.2.3"));
+        assert_eq!(
+            path_texts(qualifiers.anchor().expect("anchor should parse")),
+            ["program", "ui"]
+        );
+        assert_eq!(declaration.range(), 0..37);
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    fn parses_qualifiers_on_group_items_and_glob_tails() {
+        let (group, _) = parse_use("use std::{read v1, write with program::ui}");
+        let (_, items) = group_parts(group.tree());
+        assert_eq!(
+            items[0].qualifiers().version().map(UseVersion::text),
+            Some("v1")
+        );
+        assert_eq!(
+            path_texts(items[1].qualifiers().anchor().expect("anchor should parse")),
+            ["program", "ui"]
+        );
+        assert_eq!(items[0].range(), 10..17);
+        assert_eq!(items[1].range(), 19..41);
+
+        let (glob, _) = parse_use("use std::* without foo v1.2.3 with program::ui");
+        let (_, without) = glob_parts(glob.tree());
+        assert_eq!(exclusion_segment_text(&without[0]), Some("foo"));
+        assert_eq!(
+            glob.tree().qualifiers().version().map(UseVersion::text),
+            Some("v1.2.3")
+        );
+        assert_eq!(
+            path_texts(
+                glob.tree()
+                    .qualifiers()
+                    .anchor()
+                    .expect("anchor should parse")
+            ),
+            ["program", "ui"]
+        );
+    }
+
+    #[test]
+    fn rejects_non_identifier_anchor_targets() {
+        for source in [
+            "use std::data with {program}",
+            "use std::data with *",
+            "use std::data with (*)",
+        ] {
+            assert!(!parses_declaration(source), "{source}");
+        }
     }
 
     #[test]
