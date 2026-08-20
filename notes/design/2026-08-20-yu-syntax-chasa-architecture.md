@@ -6,6 +6,9 @@ Revision note: 2026-08-20 のユーザー（chasa 作者かつ Yulang 言語設�
 反映した。chasa の workspace への取り込み方、operator table の構築時期、full fixity、oracle の
 judge table、Rowan CST 構築方法を decision として確定した。
 
+Revision note (broader grammar survey): scanner/layout state の rollback ownership と、header mode の
+opaque body scan が operator-independent lexical region を追跡する必要を設計へ反映した。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -38,8 +41,9 @@ local operator fact と imported `SyntaxEnvironment` から、full parse 開始�
 
 CST event buffer と parse 後の replay は置かない。speculative branch には Rowan sink を渡さず、
 branch decision が commit された後だけ `GreenNodeBuilder` へ node / token を直接書く。
-`longest_match_then` の operator-candidate 探索は input と軽量な local bookkeeping だけを戻し、
-CST を一度も書かないため、Rowan structure の rollback は不要である。
+`longest_match_then` の operator-candidate 探索は input、expectation、軽量な local bookkeeping、
+rollback-aware な scanner/layout state を同じ checkpoint で戻す。CST を一度も書かないため、Rowan
+structure の rollback は不要である。
 
 ## Problem statement
 
@@ -401,14 +405,42 @@ chasa の `env` と `local` を意図的に分ける。
 - full parse が照合する `HeaderInfo`
 - immutable lexical/statement-start authority
 
-`ParseLocal` は rollback される mutable state を持ち、cheap checkpoint を実装する。
+`ParseLocal` は rollback される mutable state を持ち、cheap checkpoint を実装する。ここで ownership は
+例示ではなく、次の binding rule で決める。
 
-- scoped indentation / stop set / delimiter context
-- staged header fact transaction
-- operator candidate probe に必要な一時的 bookkeeping
+> scanner または layout decision が読む値のうち、speculative な input consumption の結果として
+> 変化し得るものは、必ず `ParseLocal`、または `ParseLocal::Checkpoint` と同じ checkpoint / rollback に
+> 参加する明示的に scoped な substate が所有する。`ParseEnv` の interior mutation や committed sink に
+> 逃がしてはならない。expression 固有に見える state も例外にしない。
+
+現在分かっている scanner/layout-affecting state の完全な inventory は次である。今後 grammar に
+scanner/layout decision を追加するときも、名前をこの list に当てはめるのではなく、上の rule で
+rollback ownership を判定する。
+
+- 直近に消費した physical newline と current line の indentation を表す `line_indent` / line-start state。
+  oracle の `scan_trivia` は trailing trivia の消費だけで `line_indent` を更新する
+  (`yulang2-oracle@a58eefc3:crates/parser/src/scan/trivia.rs:13-48`)。したがって trivia を読んだ probe が
+  failure した場合、この値も input position と同時に戻らなければならない。
+- active block と `:` / `=` などの introducer が定める indentation baseline。単一 scalar へ場当たり的に
+  上書きせず、nested scope を表す baseline stack / scoped frame として所有する。
+- expression と type の tail continuation を変える `inline` / `ml_arg` mode flag
+  (`expr/tail.rs:21-45,273-319`, `typ/parse.rs:194-205,320-338`)。
+- grammar の stop-set stack と、`()` / `[]` / `{}` の delimiter stack。outer stop の suspend を含む
+  scope change は、失敗 branch の外へ漏らさない。
+- Yumark の inline / quoted / block mode、quote depth、line-document continuation、fence kind と
+  continuation state (`mark/scan.rs:76-201`)。
+- embedded lexical mode stack。少なくとも line comment、nested block comment、normal string、opening
+  quote count を sentinel とする heredoc、string interpolation とその local delimiter depth、`~"..."`
+  rule literal、quoted / block Yumark、raw / Yulang fence body、および各 region の terminator / nesting
+  state を含む。この state は full scanner だけでなく header-mode opaque body scanner も共有する。
+
+scanner/layout state 以外では、staged header fact transaction と operator candidate probe の一時的な
+bookkeeping も `ParseLocal` が所有する。
 
 `ParseLocal::Checkpoint` は大きな structure の clone ではなく、scope stack depth と header fact
-transaction の length のような小さな snapshot を保存する。rollback は truncate / restore で行う。
+transaction の length、scalar mode の旧値のような小さな snapshot を保存する。stop / delimiter /
+lexical-mode stack は depth の truncate、top frame の mutation は value restore で正確に戻す。
+rollback は input position とこれらすべてを一つの operation で restore する。
 operator table は `ParseLocal` に置かず、overlay checkpoint も持たない。§4.2.2 の
 `HeaderInfo` は source-leading syntax preamble の operator fact をすべて header discovery で確定する。
 full parser はそれらを parse 中に追加せず、immutable table を参照するだけである。
@@ -496,10 +528,39 @@ Header mode:
 1. source 先頭から trivia と header starter を読む。
 2. shared `use` / operator-header grammar を restricted mode で呼ぶ。
 3. mandatory field が一意に確定した declaration fact だけを transaction commit する。
-4. operator body は expression parse せず、delimiter と indentation を使う shared opaque scanner で
-   次の top-level boundary まで進める。
+4. operator body は expression parse せず、operator-independent lexical region、delimiter、indentation を
+   追跡する shared opaque scanner で次の top-level boundary まで進める。
 5. 最初の non-header starter は normal stop とし、error にしない。
 6. `HeaderInfo` に coverage、facts、header-origin diagnostics を凍結する。partial GreenNode は返さない。
+
+ここで `opaque` は lexical structure まで無視するという意味ではない。tagged oracle の
+`skip_op_def_body` は `scan_stmt_lex` を繰り返しながら `()` / `[]` / `{}` の単一 depth と indentation
+だけを追跡する (`stmt/op_def.rs:216-242`)。しかし `scan_stmt_lex` の choice は string、rule literal、
+Yumark を独立 lexical region として認識しない (`stmt/common.rs:14-27`)。この形をそのまま port しては
+ならない。
+
+shared opaque scanner は direct character stream 上で、外側の delimiter / layout boundary より先に
+次の operator-independent lexical region を認識し、region stack と mode-specific terminator を追跡する。
+
+- line comment と nested block comment。block comment の `/* ... */` depth は独立に追跡する
+  (`scan/trivia.rs:117-190`)。
+- normal string と heredoc。heredoc は opening quote count を保持し、同じ count の quote sequence だけを
+  terminator とする (`string/scan.rs:10-17,31-98`)。
+- `%{...}` interpolation。outer operator body の brace depth とは別に interpolation-local delimiter を
+  balance し、その中で始まる nested lexical region も同じ stack で扱う。
+- `~"..."` rule literal。
+- quoted / block Yumark と、その quote depth / document continuation。
+- raw fence body と Yulang fence body、および各 fence 固有の closing sentinel。
+
+lexical region 内では、region 自身の terminator / nesting を見つける処理を除き、outer body の
+delimiter depth と indentation-based boundary detection を suspend する。region stack が空のときだけ
+`()` / `[]` / `{}` の outer depth を更新し、depth 0 かつ base indentation 以下の newline を次の
+top-level boundary 候補にする。これにより heredoc 内の newline や、ordinary string、interpolation、
+rule literal、Yumark、fence body 内の brace を declaration boundary と誤認しない。
+
+この scanner は region の中身を expression として parse せず、dynamic operator spelling / fixity も
+判定しない。operator-independent な lexical terminator と nesting だけを boundary detection のために
+読むので、header mode を軽量に保つ原則と direct-character-stream architecture の両方を維持する。
 
 Full mode:
 
@@ -539,9 +600,10 @@ decision が確定した後だけ、専用 direct sink を通じて `GreenNodeBu
   accept した scanner result を caller へ返す。caller が commit した後に初めて CST を emit する。
 
 特に operator-candidate 探索中は `builder.start_node` / `builder.token` を一度も呼ばない。探索は
-input position、expectation、candidate range などの軽量 bookkeeping だけを checkpoint / rollback
-する。definite spelling と fixity が選ばれた後、その operator token と構文 node を direct sink へ
-一度だけ書く。rollback 前に CST structure が存在しないため、CST rollback や buffer/replay は不要である。
+input position、expectation、candidate range、および scanner/layout に影響する `ParseLocal` state を
+checkpoint / rollback する。definite spelling と fixity が選ばれた後、その operator token と構文 node を
+direct sink へ一度だけ書く。rollback 前に CST structure が存在しないため、CST rollback や
+buffer/replay は不要である。
 
 Pratt parser が出力済みの left operand を後から infix / suffix node で包むときは、left operand を
 書く直前に `GreenNodeBuilder::checkpoint` を取得し、LED candidate の採用後に
@@ -584,8 +646,8 @@ final list は §4.2.2 の ordering key で一度だけ sort / freeze する。
 | `ParsedFile` and `parse_file` API shape | keep | `green: GreenNode`、diagnostics ownership、syntax key は正本と一致する |
 | `SyntaxEnvironment` boundary | keep and implement | imported operator と committed local header fact から immutable full-parse table を作る入力になる |
 | trivia/content distinction | keep as a concept | lossless CST と indentation grammar に必要。chasa scanner output へ移す |
-| delimiter stack | keep as a concept | opaque body scan と recovery safe point に必要。lightweight `ParseLocal` へ移す |
-| indentation / line-start tracking | keep as a concept | layout に必要。session の byte-positioned state へ移す |
+| delimiter stack | keep as a concept | lexical-region stack と分離した outer boundary / recovery safe point に必要。rollback-aware `ParseLocal` へ移す |
+| indentation / line-start tracking | keep/evolve | physical/current-line indentation、block/introducer baseline、continuation mode を rollback-aware `ParseLocal` へ移す |
 | `newline_len`, indentation predicates | port selectively | shared scanner の char/byte helper へ移す |
 | `GreenNodeBuilder` start/token/finish bridge | keep | commit 後だけ使える dedicated direct sink へ移す |
 | `HeaderCursor` as token-producing cursor | replace | operator boundary を grammar 前に確定するため foundation にはできない |
@@ -620,7 +682,9 @@ header grammar が残り、parity failure を隠すためである。移行中�
    binding power を明記し、`+!a` が `+ (! a)`、`a+!b` が `a +! b` になる。judge table は
    oracle の `contains(PREFIX | NULLFIX)` semantics のまま使う。
 2. longer trie candidate が current site で無効なとき、shorter candidate の末尾へ input、
-   lightweight local state、expectation error がすべて rollback する。candidate exploration 中は
+   `line_indent` を含む scanner/layout local state、expectation error がすべて rollback する。trailing
+   trivia の newline を消費した後に failure する probe でも、次 branch の indentation decision が
+   fresh parse と一致する。candidate exploration 中は
    direct CST sink の call count が変わらず、accepted result の commit 後にだけ増える。
 3. prefix / infix / suffix / nullfix の全 capability と binding power を `HeaderInfo` から immutable
    `OperatorTable` まで保持し、同じ spelling に複数 fixity がある case を parse できる。infix-only
@@ -633,10 +697,14 @@ header grammar が残り、parity failure を隠すためである。移行中�
 7. valid operator header + malformed body で header fact は残り、body diagnostic だけが増える。
 8. malformed header 後の valid header を recovery が発見し、fact transaction が partial field を
    commit しない。
-9. all current fixtures で `green.to_string() == source`、direct builder の node balance、range
+9. operator body に heredoc、`%{...}` interpolation、`~"..."` rule literal、quoted / block Yumark を
+   それぞれ含め、各 region 内に top-level boundary に見える newline / brace を置いた後へ valid header を
+   続ける case family で、その header を早期分割も飲み込みもせず発見する。normal string、nested block
+   comment、raw / Yulang fence body も同じ boundary contract で覆う。
+10. all current fixtures で `green.to_string() == source`、direct builder の node balance、range
    conservation が成立する。
-10. every byte prefix fuzz test が panic / hang せず、`Missing` / `Error` contract を守る。
-11. current narrow `scan_header` compatibility fixtures の range / fact output を意図せず変えない。
+11. every byte prefix fuzz test が panic / hang せず、`Missing` / `Error` contract を守る。
+12. current narrow `scan_header` compatibility fixtures の range / fact output を意図せず変えない。
 
 oracle differential test は operator declaration を省略・簡略化しない。特に `+!a` の
 value-start lookahead が調べる spelling の prefix / nullfix capability を canonical fixture と一致させる。
@@ -651,11 +719,12 @@ judge table と user-confirmed language semantics を authority にする。
   overlay update や再構築を行わない。
 - `longest_match_then` の rollback は同じ operator run 内の candidate boundary に限定する。
 - speculative parser は CST を emit せず、local checkpoint は collection 全体の clone ではなく
-  length/depth snapshot にする。
+  length/depth と scalar value の snapshot にし、scanner/layout-affecting state を漏れなく戻す。
 - parse-event buffer と final Rowan replay を作らず、commit 後の token / node を direct sink へ
   一度だけ書く。
-- header discovery は body を full expression parse せず opaque scan し、syntax planning のための
-  軽量 phase という性質を維持する。
+- header discovery は body を full expression parse せず、operator-independent lexical region を
+  delimiter / indentation とともに追跡する opaque scan を行い、syntax planning のための軽量 phase
+  という性質を維持する。
 - full parse 中に HeaderInfo ranges を使った source 再走査や CST 再走査を追加しない。
 - token text は source range から borrow する。
 
@@ -724,7 +793,8 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
 - `yulang2-oracle@a58eefc3`: `crates/parser/src/context.rs`、`lib.rs`、`lex.rs`、
   `sink.rs`、`op.rs`、`scan/mod.rs`、`scan/trivia.rs`、`expr/core.rs`、
   `expr/tail.rs`、`expr/scan.rs`、`expr/scan/op/{scan,judge,boundary}.rs`、
-  `stmt/op_def.rs`、`stmt/mod.rs`、`tests/expr_grammar.rs`、Cargo manifest / lock。
+  `typ/parse.rs`、`mark/scan.rs`、`string/{scan,parse}.rs`、`stmt/{op_def,common}.rs`、
+  `stmt/mod.rs`、`tests/expr_grammar.rs`、Cargo manifest / lock。
 - Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
   `crates/yu-syntax/src/{lib,parse,syntax_kind}.rs`、phase 2 parser fixtures、
   commit `e1737368` と `7022ed27`。
@@ -741,6 +811,12 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
   の観測であり、採用する semantics ではない。
 - `docs/yulang3-architecture.md` §4.2.2 / §18 を再照合し、operator の header 外 declaration point が
   記載されていないことを確認した。
+- broader grammar survey の指摘箇所を tagged source で再確認した。`scan_trivia` の `line_indent`
+  mutation と expression/type/Yumark scanner の layout/mode dependency から、scanner/layout state の
+  rollback ownership を binding rule とした。
+- tagged `skip_op_def_body` と `scan_stmt_lex`、string/trivia/Yumark scanner を再照合し、header-mode
+  opaque scan が delimiter / indentation に加えて operator-independent lexical region を追跡する必要を
+  確認した。
 - この revision は本 design document だけを変更し、source、manifest、fixture、正本 architecture
   document は変更していない。
 
