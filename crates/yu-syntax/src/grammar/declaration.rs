@@ -198,7 +198,7 @@ where
 
     let mut path = vec![input.run(from_fn(scan_word))?];
     while let Some(punctuation) = input.maybe(from_fn(scan_punctuation))? {
-        (punctuation.kind() == PunctuationKind::Dot).then_some(())?;
+        (punctuation.kind() == PunctuationKind::ColonColon).then_some(())?;
         path.push(input.run(from_fn(scan_word))?);
     }
 
@@ -255,7 +255,7 @@ mod tests {
         let Declaration::Use(declaration) = declaration else {
             panic!("expected use declaration");
         };
-        assert_eq!(declaration.range(), 0..12);
+        assert_eq!(declaration.range(), 0..13);
         assert_eq!(
             declaration
                 .path()
