@@ -8,6 +8,8 @@ mod input;
 mod operator;
 mod parse;
 #[allow(dead_code)]
+mod scan;
+#[allow(dead_code)]
 mod session;
 #[allow(dead_code)]
 mod sink;
