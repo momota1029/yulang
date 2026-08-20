@@ -2,6 +2,10 @@
 
 Status: Proposal。実装、dependency 追加、grammar の拡張はこの文書の scope 外とする。
 
+Revision note: 2026-08-20 のユーザー（chasa 作者かつ Yulang 言語設計者）からの直接 feedback を
+反映した。chasa の workspace への取り込み方、operator table の構築時期、full fixity、oracle の
+judge table、Rowan CST 構築方法を decision として確定した。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -15,7 +19,7 @@ grammar が直接消費する構成へ置き換える。
 
 expression parser は Yulang2 の tagged predictive NUD / LED dispatch と Pratt /
 precedence climbing を維持する。ただし operator token は独立 lexer が確定せず、現在の
-grammar position（NUD または LED）と live `OperatorTable` を渡された operator scanner が、
+grammar position（NUD または LED）と immutable session `OperatorTable` を渡された operator scanner が、
 character stream 上で spelling、fixity、boundary、後続条件を同時に判定する。
 
 header discovery の現在の二 pattern は context-dependent operator tokenization を必要とせず、
@@ -23,10 +27,19 @@ header discovery の現在の二 pattern は context-dependent operator tokeniza
 header/full parity を満たすため、`scan_header` も同じ chasa-based scanner と declaration
 grammar を restricted mode で呼ぶ構成へ移す。
 
-chasa から Rowan を直接呼ぶのではなく、grammar は source range を持つ rollback 可能な
-parse event を生成する。parse が終わった後、専用 Rowan sink が event と元 source を
-`GreenNodeBuilder` へ replay し、`ParsedFile.green: GreenNode` を構築する。これにより、
-operator probe や recovery branch の rollback が CST event にも適用される。
+chasa は crates.io の exact pin ではなく、local / vendored workspace crate として同じ workspace に
+取り込む。通常の grammar alternation は `choice` / `or` で表し、明示的な checkpoint / rollback は、
+追加 input を読むまで構造的に候補を確定できない場合だけに限定する。
+
+operator declaration は source-leading header に限定される。header discovery が commit した
+local operator fact と imported `SyntaxEnvironment` から、full parse 開始前に full-fixity の
+`OperatorTable` を一度だけ構築し、parse 中は immutable に参照する。表現は最初の vertical slice
+から Yulang2 の `BpVec` と同等の prefix / infix / suffix / nullfix 全 capability を持つ。
+
+CST event buffer と parse 後の replay は置かない。speculative branch には Rowan sink を渡さず、
+branch decision が commit された後だけ `GreenNodeBuilder` へ node / token を直接書く。
+`longest_match_then` の operator-candidate 探索は input と軽量な local bookkeeping だけを戻し、
+CST を一度も書かないため、Rowan structure の rollback は不要である。
 
 ## Problem statement
 
@@ -34,7 +47,7 @@ dynamic operator table に次を登録する。
 
 - infix operator `+!`
 - prefix operator `+`
-- prefix operator `!`
+- prefix / nullfix capability を持つ operator `!`
 
 このとき、同じ character run `+!` は grammar position により異なる token boundary を持つ。
 
@@ -64,7 +77,7 @@ run を常に greedy に一つの `TokenKind::Symbol` とする。さらに
 
 この proposal が決めるものは次である。
 
-- chasa を使う input、scanner、grammar、event、Rowan sink の責務境界。
+- chasa を使う input、scanner、grammar、committed recovery record、direct Rowan sink の責務境界。
 - dynamic operator spelling を NUD / LED position で解決する経路。
 - header discovery と full parse が shared declaration grammar を使う経路。
 - 現在の `HeaderCursor`、`lex`、`FullCstBuilder` のうち残す概念と廃止する実装。
@@ -114,8 +127,9 @@ token vector を作らず character stream を直接 parse できる。
 | `is_cut` | commit propagation | capture scope ごとに制御 |
 
 `In::checkpoint` が保存するのは input checkpoint と `local: RbBack` の checkpoint であり、
-`env` ではない。この差は CST builder、scope、diagnostic、header fact を置く場所の design に
-直結する。rollback されるべき mutation を `env` に置いてはならない。
+`env` ではない。この差は scope、diagnostic、header fact を置く場所の design に直結する。
+rollback されるべき mutation を `env` に置いてはならない。一方、direct CST sink は rollback
+対象にせず、speculative parser から型/API 上アクセスできないようにする。
 
 `with_seq` は parse 前後の input checkpoint を使い、実際に消費した source slice を返す。
 Yulang2 scanner は identifier、number、operator、punctuation、trivia の text をこの方法で
@@ -146,6 +160,18 @@ chasa の choice/repetition policy は「cut されていない failure なら c
 operator candidate を探索している途中では cut してはならない。長い spelling が現在の
 fixity で無効だったとき、短い candidate へ戻る必要があるからである。declaration keyword と
 必須 introducer を確定し、別 branch ではあり得ない地点に達してから cut する。
+
+### Implementation discipline: `choice` / `or` を通常経路にする
+
+通常の構文上の選択は chasa の `choice` / `or` combinator で表す。手書き checkpoint / rollback を
+alternation の標準手段にしてはならず、`choice` / `or` を避けるために独自 dispatcher や rollback
+wrapper を増やしてはならない。
+
+明示的な checkpoint / rollback を使ってよいのは、追加 input を読むまで構造的に候補を確定できず、
+長い候補を試した後で短い候補の末尾へ戻る必要がある場合だけである。この proposal では
+`longest_match_then` による operator-candidate 探索が該当する。これは rollback を他の grammar
+branch に広く使ってよいという許可ではない。新しい明示的 rollback を追加する implementation は、
+なぜ `choice` / `or` では表せず、どの有限な曖昧区間だけを戻すのかを code review で説明する。
 
 ### Trie matching
 
@@ -235,46 +261,29 @@ Pratt entrypoint `parse_expr_bp` は operand 前に `scan_expr_nud` を呼ぶ
 2. trie は `+` より長い `+!` まで進む。
 3. `+!` の infix capability と後続 `b` が LED 条件を満たすため、最長 candidate を採用する。
 
-### Confirmed discrepancy in the tagged oracle
+### Tagged oracle の judge table と調査 fixture
 
-この exact example は `yulang2-oracle@a58eefc3` の現状では両方とも成功するわけではない。
-tag を `/tmp` へ展開し、infix `+!` と prefix-only `+` / `!` を `OpTable` に登録した test を
-追加して実行した結果は次だった。
-
-| source | tagged oracle result |
-| --- | --- |
-| `a+!b` | `Infix "+!"` として成功 |
-| `+!a` | 先頭 `+` が `Unknown` / `InvalidToken` へ落ちる |
-
-原因は `expr/scan/op/scan.rs:153-167` の `op_value_start_inner` にある。line 160 の
+`yulang2-oracle@a58eefc3:crates/parser/src/expr/scan/op/scan.rs:153-167` の
+`op_value_start_inner` は、次の predicate を使う。
 
 ```rust
 kinds.contains(OpKindSet::PREFIX | OpKindSet::NULLFIX)
 ```
 
-は、この `OpKindSet::contains` の定義上「PREFIX または NULLFIX」ではなく「PREFIX と
-NULLFIX の両方」を要求する。したがって prefix-only の `!` は、短い `+` candidate の RHS
-value start と認識されない。
+この `contains` は `PREFIX` と `NULLFIX` の両 capability があることを要求する。これは oracle で
+確定済みの judge-table semantics であり、Yulang3 は experimental な OR variant へ変えず、
+whitespace/fixity judge table とともにこの logic をそのまま採用する。
 
-一時 copy だけで条件を
+先の調査では、infix `+!` と prefix-only `+` / `!` を一時 `OpTable` に登録したため、`a+!b` は
+`Infix "+!"` として成功した一方、`+!a` の先頭 `+` は `Unknown` / `InvalidToken` へ落ちた。
+predicate を `PREFIX || NULLFIX` に変えると両方が成功したが、この結果は oracle の bug を示さない。
+調査側が oracle の judge table と異なる fixity 集合を fixture に与えた artifact と考えるべきである。
 
-```rust
-kinds.contains(OpKindSet::PREFIX) || kinds.contains(OpKindSet::NULLFIX)
-```
-
-へ変えると、同じ test で `+!a` は二重 `PrefixNode`、`a+!b` は一つの `InfixNode` として
-両方成功した。これは repository への修正ではなく、chasa の rollback mechanism と oracle
-側 continuation predicate の責務を切り分けるための実験である。
-
-結論は次の二点に分かれる。
-
-- chasa の character input + `longest_match_then` + uncut rollback は、この曖昧性を解く
-  mechanism を実際に提供している。
-- tagged oracle はその mechanism を使う構造だが、exact prefix-only chain には一行の
-  predicate bug があり、現状をそのまま correctness oracle としてコピーしてはならない。
-
-Yulang3 の implementation fixture には、この二 source を最初から同じ operator table で入れ、
-この bug を port しない。
+したがって eventual `+!a` / `a+!b` fixture では、operator spelling ごとの declaration を先に
+canonical に固定し、value-start 判定対象の operator が prefix と nullfix のどちらを、または両方を
+持つかを明記する。fixture の宣言を確認せずに parse result だけから judge predicate を変更しては
+ならない。chasa の character input + `longest_match_then` + uncut rollback が候補境界を戻せることと、
+どの fixity 集合を value start と認めるかは別の論点である。
 
 ## Rowan CST bridge in `yulang2-oracle`
 
@@ -295,11 +304,10 @@ Rowan token として出す。file 先頭の trivia は entrypoint が一度だ�
 (`crates/parser/src/lib.rs:77-91`)。これが direct char parser でも source text を lossless に
 保つ concrete precedent である。
 
-ただし oracle の `State.sink` は chasa の `env` 内にあり、`In::checkpoint` の rollback 対象では
-ない。oracle は scanner choice を CST emission 前に終わらせ、grammar-level subtree
-backtracking を避ける predictive parser なので、この制約を運用で守っている。Yulang3 の
-shared recovery と diagnostic transaction まで含めるなら、`GreenNodeBuilder` へ speculative
-branch から直接書く構成は脆い。
+oracle の `State.sink` は chasa の `env` 内にあり、`In::checkpoint` の rollback 対象ではない。
+oracle は scanner choice を CST emission 前に終わらせ、grammar-level subtree backtracking を
+避ける predictive parser なので、CST を戻す必要がない。Yulang3 もこの sequencing を採用し、
+さらに speculative parser から direct sink への access を型/API で除く。
 
 ## Current `scan_header` exposure
 
@@ -324,6 +332,14 @@ full fixity set、group import、comment/trivia、balanced multiline opaque body
 
 ## Proposed `yu-syntax` architecture
 
+### Workspace integration
+
+implementation change では、採用する chasa source を Yulang repository 内へ local / vendored
+workspace crate として置き、workspace member への path dependency で `yu-syntax` から参照する。
+crates.io `0.5.0` の exact pin や caret dependency を source authority にしない。workspace に置いた
+copy が Yulang と同じ review / revision boundary に属する。この design-document revision では
+workspace member と dependency をまだ追加しない。
+
 ### Module and responsibility layout
 
 public entrypoint と主役の product は見つけやすい位置に残し、implementation を次の責務へ分ける。
@@ -334,10 +350,9 @@ src/
   header.rs              scan_header orchestration
   parse.rs               parse_file orchestration
   input.rs               byte-positioned chasa source input
-  session.rs             ParseEnv, rollback-aware ParseLocal, scoped context
+  session.rs             ParseEnv, lightweight ParseLocal, committed CST capability
   operator.rs            OperatorTable and chasa TrieState adapter
-  event.rs               markers, tokens, recovery events, checkpoints
-  sink.rs                validated event stream -> Rowan GreenNode
+  sink.rs                direct GreenNodeBuilder bridge and range validation
   scan/
     mod.rs               shared scanner entrypoints and lexical authority
     trivia.rs
@@ -371,9 +386,9 @@ remainder と byte offset の小さな copy であり、source text を clone �
 - `seq(start, end)` は元 source の contiguous slice。
 - rollback は input と byte offset を同時に戻す。
 - full parse は source 全体を一つの `Vec<LexedToken>` へ変換しない。
-- token event は copied `Box<str>` より source `Range<usize>` を保持する。
+- scanner result と direct sink は copied `Box<str>` より source `Range<usize>` を受け渡す。
 
-### Parse environment and rollback-aware local state
+### Parse environment and non-emitting speculative state
 
 chasa の `env` と `local` を意図的に分ける。
 
@@ -382,24 +397,30 @@ chasa の `env` と `local` を意図的に分ける。
 - original source
 - `ParseMode::{Header, Full}`
 - selected `SyntaxEnvironment`
+- full mode では、header discovery 後、full parse 開始前に一度だけ構築した immutable `OperatorTable`
 - full parse が照合する `HeaderInfo`
 - immutable lexical/statement-start authority
 
 `ParseLocal` は rollback される mutable state を持ち、cheap checkpoint を実装する。
 
-- event log と open marker state
 - scoped indentation / stop set / delimiter context
 - staged header fact transaction
-- staged recovery event sequence と full-origin diagnostic staging
-- parse 中に追加される local operator definitions、またはその rollback-aware overlay
+- operator candidate probe に必要な一時的 bookkeeping
 
-`ParseLocal::Checkpoint` は大きな structure の clone ではなく、各 append-only log の length、
-scope stack depth、operator overlay checkpoint を保存する。rollback は truncate / restore で行う。
-これにより §4.2.1 が禁止する grammar function ごとの手書き save/restore を、session の
-scoped API と chasa checkpoint に集約する。
+`ParseLocal::Checkpoint` は大きな structure の clone ではなく、scope stack depth と header fact
+transaction の length のような小さな snapshot を保存する。rollback は truncate / restore で行う。
+operator table は `ParseLocal` に置かず、overlay checkpoint も持たない。§4.2.2 の
+`HeaderInfo` は source-leading syntax preamble の operator fact をすべて header discovery で確定する。
+full parser はそれらを parse 中に追加せず、immutable table を参照するだけである。
+
+direct Rowan sink と committed recovery/diagnostic log は rollback 対象にしない。speculative parser
+には input、`ParseLocal`、expectation sink だけを渡す `Probe` capability を与え、CST emission API を
+与えない。branch introducer と token boundary が確定した後の parser だけが `CommittedCst` capability
+を受け取り、direct sink と committed recovery record を更新できる。この分離により、rollback は
+input と軽量 local state だけを戻し、すでに書いた CST や public diagnostic を戻す経路を作らない。
 
 chasa の `ErrorSink` には speculative expectation を置く。recovery が path を確定した時だけ、
-期待情報を `ParseLocal` の recovery event へ変換する。branch failure の expectation を
+期待情報を committed recovery record へ変換する。branch failure の expectation を
 `SyntaxDiagnostic` として直接 publish しない。
 
 ### Scanner and grammar boundary
@@ -425,17 +446,25 @@ fn scan_operator(
 ) -> Option<ScannedOperator>;
 ```
 
-実際の generic signature は chasa / reborrow 制約に合わせる。重要なのは `site` と live table が
-token boundary 決定前に渡ることである。
+実際の generic signature は chasa / reborrow 制約に合わせる。重要なのは `site` と session table が
+token boundary 決定前に渡ることである。ここでいう session table は parse 中に mutate する table では
+なく、その file の imported operator と committed header operator を反映して full parse 前に
+完成した immutable table である。
+
+`OperatorTable` と `HeaderOperator` は最初の vertical slice から Yulang2 の `BpVec` と同等の
+full-fixity representation を持つ。同じ spelling に prefix、infix、suffix、nullfix の capability と
+binding power を同時に保持できなければならない。infix + `u16` pair だけの暫定 representation を
+作って後で拡張する経路は採らない。
 
 `scan_operator` は `OperatorTable::state().longest_match_then(...)` を使い、candidate callback で
 boundary、fixity、whitespace、value-start lookahead を検査する。NUD callback は prefix /
 nullfix だけ、LED callback は infix / suffix と grammar が許す argument form だけを認める。
-value-start operator 判定は `PREFIX || NULLFIX` であり、両方を要求しない。
+value-start operator 判定を含む whitespace/fixity judge table は oracle の logic をそのまま採用する。
+特に `op_value_start_inner` の `contains(PREFIX | NULLFIX)` を OR 条件へ書き換えない。
 
-candidate が確定するまで event を emit せず、cut もしない。確定後に token range と trailing
-trivia を `ScannedOperator` として返す。caller の predictive branch が operator use を採用した後、
-必要ならその branch の introducer に cut を置く。
+candidate が確定するまで CST node / token を emit せず、cut もしない。確定後に token range と
+trailing trivia を `ScannedOperator` として返す。caller の predictive branch が operator use を
+採用した後にだけ direct sink へ書き、必要ならその branch の introducer に cut を置く。
 
 ### Expression parser
 
@@ -450,9 +479,10 @@ Yulang2 の algorithm は維持する。
 この「NUD scanner を呼んでいるか、LED scanner を呼んでいるか」が operator tokenization の
 parser state そのものである。別 lexer state machine を追加しない。
 
-grammar-level subtree backtracking は避け、chasa rollback は operator spelling、keyword /
-punctuation overlap、lookahead のような局所 token-level decision に限定する。これにより source
-全体を暗黙に二度 parse せず、operator run の長さに比例する局所 probe だけを行う。
+grammar-level subtree backtracking は避ける。通常の keyword / punctuation / statement alternation は
+`choice` / `or` で構成し、明示的な chasa rollback は `longest_match_then` のように追加 input まで
+候補境界が確定しない局所 token-level decision に限定する。これにより source 全体を暗黙に二度
+parse せず、operator run の長さに比例する局所 probe だけを行う。
 
 ### Header discovery and full parse
 
@@ -473,57 +503,64 @@ Header mode:
 
 Full mode:
 
-1. imported syntax environment から parse-session operator table を作る。
-2. source 先頭の header declaration を同じ shared grammar で再度読む。
-3. local operator header を順に live table へ反映する。
-4. shared grammar が独立に得た full header projection を `HeaderInfo` と range / path / visibility /
+1. `HeaderInfo` の committed local operator fact と imported `SyntaxEnvironment` から、full-fixity の
+   parse-session `OperatorTable` を一度だけ構築する。partial / uncommitted header fact は含めない。
+2. immutable table を `ParseEnv` に置いてから、source 先頭の header declaration を同じ shared
+   grammar で再度読む。full parse 中に operator table を更新しない。
+3. shared grammar が独立に得た full header projection を `HeaderInfo` と range / path / visibility /
    operator shape で照合する。不一致を silent overwrite しない。
-5. body を integrated scanner + grammar で最後まで parse し、recovery event と diagnostics を集める。
-6. header-origin diagnostic は同じ `DiagnosticId` を一度だけ final list に取り込む。
+4. body を integrated scanner + grammar で最後まで parse し、committed recovery record と
+   diagnostics を集める。
+5. header-origin diagnostic は同じ `DiagnosticId` を一度だけ final list に取り込む。
+
+この構築順は §4.2.2 / §18 と照合済みである。§4.2.2 は `HeaderInfo` を source 先頭の syntax
+preamble（leading `use` と dynamic operator header）に限定し、§18 が本文側に残す未決定事項は
+late `use` / `mod` による semantic dependency と source-set expansion だけである。operator の
+別 declaration point は記載されていない。したがって operator declaration は header-scoped とし、
+full parse 中の rollback-aware mutable overlay は設計に含めない。
 
 full parse は `HeaderInfo` の range を使って pre-tokenized source を node で包むのではない。
 `HeaderInfo` は expected parity input と syntax planning product であり、full CST grammar の代替ではない。
 
-### Parse events and Rowan sink
+### Direct Rowan sink without parse-event buffering
 
-grammar は rollback 可能な event buffer に概念的に次を出す。
+`ParseEvent` enum、event buffer、parse 後の Rowan replay layer は作らない。full grammar は branch
+decision が確定した後だけ、専用 direct sink を通じて `GreenNodeBuilder::start_node`、`token`、
+`finish_node` を呼ぶ。token text は scanner が返した source `Range<usize>` から
+`&source[range]` を取り、別の token text buffer を作らない。
 
-```rust
-enum ParseEvent {
-    StartNode(SyntaxKind),
-    Token { kind: SyntaxKind, range: Range<usize> },
-    FinishNode,
-    // Marker/forward-parent metadata may be separate fields.
-}
-```
+この制約は運用上の注意だけにせず、型/API で分ける。
 
-`Missing` は zero-width `Missing` node の start/finish event と対応 recovery record を生成する。
-`Error` は `Error` node の中に一 byte 以上を覆う token event を入れる。trivia も独立 token kind と
-range を持ち、source byte を捨てない。
+- `Probe` parser は input、rollback-aware な軽量 `ParseLocal`、expectation sink だけへ access でき、
+  `GreenNodeBuilder` や recovery emission API を持たない。
+- `CommittedCst` parser は branch introducer、operator spelling/fixity、または recovery path が
+  確定した後にだけ作られ、direct sink を更新できる。
+- `choice` / `or` の speculative arm と `longest_match_then` callback は `Probe` capability で走り、
+  accept した scanner result を caller へ返す。caller が commit した後に初めて CST を emit する。
 
-Pratt parser がすでに出した left operand を後から node で包む必要があるため、event layer は
-`Marker` / `CompletedMarker` と forward-parent、または同等の `start_node_at` ordering を提供する。
-この bookkeeping は grammar function から Rowan API を隠す。
+特に operator-candidate 探索中は `builder.start_node` / `builder.token` を一度も呼ばない。探索は
+input position、expectation、candidate range などの軽量 bookkeeping だけを checkpoint / rollback
+する。definite spelling と fixity が選ばれた後、その operator token と構文 node を direct sink へ
+一度だけ書く。rollback 前に CST structure が存在しないため、CST rollback や buffer/replay は不要である。
 
-`ParseLocal` の checkpoint は event length と marker state を含む。uncut failure では tentative
-token、node、recovery event、fact staging をまとめて rollback する。これは oracle の direct
-`GreenSink` より一段明示的だが、§4.2.2 の recovery transaction に必要である。
+Pratt parser が出力済みの left operand を後から infix / suffix node で包むときは、left operand を
+書く直前に `GreenNodeBuilder::checkpoint` を取得し、LED candidate の採用後に
+`start_node_at(checkpoint, kind)` を呼ぶ。この Rowan checkpoint は既存 child を親で包む位置を示す
+handle であり、speculative CST を巻き戻す marker ではない。従来案の `Marker` / `CompletedMarker`、
+forward-parent event は置かない。
 
-parse 完了後、`RowanSink` は event stream を検証して `GreenNodeBuilder` へ replay する。
+direct sink は emission ごとに次を検査する。
 
-- marker が balanced。
-- token range が source order で重ならない。
-- full parse の token/trivia range が `0..source.len()` を gap なく一度ずつ覆う。
+- node の start / finish が balanced である。
+- token range が source order で重ならず、直前の emitted end と一致する。
 - token text は必ず `&source[range]` から取る。
-- `Missing` は byte を持たず、`Error` は一 byte 以上を持つ。
+- `Missing` は commit 済み recovery path で zero-width node として直接書き、source byte を持たない。
+- `Error` は commit 済み recovery path で直接書き、一 byte 以上を消費する。
 
-検証後に `builder.start_node`、`builder.token(kind, source_slice)`、`builder.finish_node` を呼び、
+parse 終了時に emitted token / trivia range が `0..source.len()` を gap なく一度ずつ覆うことを確認し、
 `builder.finish()` を `ParsedFile.green` に格納する。`ParsedFile.green: GreenNode` と
-`green.to_string() == source` は architecture contract のまま維持される。
-
-event buffer の一回の replay は source の再 tokenization / 再 parsing ではない。grammar が確定した
-構造を immutable Rowan storage へ materialize する sink phase である。event に source range を
-置くことで、oracle の `Box<str>` per token より copy を減らせる。
+`green.to_string() == source` は architecture contract のまま維持される。recovery record と
+diagnostic は CST event ではなく、recovery path の commit 後に一度だけ記録する。
 
 ### Recovery and diagnostic ownership
 
@@ -532,8 +569,8 @@ consume-or-stop guarantee を所有する。operator scanner の「candidate が
 通常の backtracking failure であり、直ちに diagnostic にしない。候補を尽くし、grammar が
 recovery path を commit した地点だけが recovery episode になる。
 
-header discovery で作った recovery event は deterministic `DiagnosticId` を持つ。full mode で
-同じ shared header grammar が同じ site に到達したときは、`HeaderInfo` の event identity を照合・
+header discovery で作った recovery record は deterministic `DiagnosticId` を持つ。full mode で
+同じ shared header grammar が同じ site に到達したときは、`HeaderInfo` の record identity を照合・
 再利用し、新しい diagnostic を発行しない。body recovery は full-origin の新しい ID を持つ。
 final list は §4.2.2 の ordering key で一度だけ sort / freeze する。
 
@@ -543,28 +580,28 @@ final list は §4.2.2 の ordering key で一度だけ sort / freeze する。
 
 | current element | decision | reason / destination |
 | --- | --- | --- |
-| `HeaderInfo`, `HeaderImport`, `HeaderOperator` | keep/evolve | diagnostics/hash と full fixity を追加する |
+| `HeaderInfo`, `HeaderImport`, `HeaderOperator` | keep/evolve | diagnostics/hash と `BpVec` 相当の full fixity を最初の slice で追加する |
 | `ParsedFile` and `parse_file` API shape | keep | `green: GreenNode`、diagnostics ownership、syntax key は正本と一致する |
-| `SyntaxEnvironment` boundary | keep and implement | imported/live operator table の入力になる |
+| `SyntaxEnvironment` boundary | keep and implement | imported operator と committed local header fact から immutable full-parse table を作る入力になる |
 | trivia/content distinction | keep as a concept | lossless CST と indentation grammar に必要。chasa scanner output へ移す |
-| delimiter stack | keep as a concept | opaque body scan と recovery safe point に必要。rollback-aware local state へ移す |
+| delimiter stack | keep as a concept | opaque body scan と recovery safe point に必要。lightweight `ParseLocal` へ移す |
 | indentation / line-start tracking | keep as a concept | layout に必要。session の byte-positioned state へ移す |
 | `newline_len`, indentation predicates | port selectively | shared scanner の char/byte helper へ移す |
-| `GreenNodeBuilder` start/token/finish bridge | keep | dedicated `RowanSink` へ移す |
+| `GreenNodeBuilder` start/token/finish bridge | keep | commit 後だけ使える dedicated direct sink へ移す |
 | `HeaderCursor` as token-producing cursor | replace | operator boundary を grammar 前に確定するため foundation にはできない |
 | `HeaderCursor::next` / `scan_token` | replace | source char input と context-specific scanner に分解する |
 | `scan_symbol_end` / `starts_distinct_item` | delete | context-free maximal munch が confirmed root problem |
 | `TokenKind::Symbol` as preclassified run | delete | spelling/fixity/site を operator scanner が同時に決める |
 | `lex() -> Vec<LexedToken>` | delete | architecture correction の中心 |
-| `LexedToken`, `token_index` | delete | streaming char parse + event range に不要 |
-| `FullCstBuilder` orchestration | replace | grammar session と final `RowanSink` に責務分割する |
+| `LexedToken`, `token_index` | delete | streaming char parse + direct range emission に不要 |
+| `FullCstBuilder` orchestration | replace | grammar session と direct Rowan sink に責務分割する |
 | `HeaderNode` / header ranges で CST を包む処理 | delete | shared declaration grammar と parity projection へ置き換える |
 | `syntax_kind(TokenKind, text)` | replace | shared lexical authority と grammar-site classification に統合する |
 
 ### Rewrite strategy
 
 既存 `lib.rs` と `parse.rs` の中で巨大な replacement を続けず、新しい named module に
-character input、session、event、sink、shared declaration grammar の vertical slice を作る。
+character input、session、direct sink、shared declaration grammar の vertical slice を作る。
 最小 slice が leading `use`、一つの operator header、`my <ident> = <expr>`、二つの `+!` case を
 end-to-end に通した時点で、old `HeaderCursor` / `lex` / `FullCstBuilder` path を同じ change で削除する。
 
@@ -572,79 +609,109 @@ old/new parser を feature flag や fallback として長期間並存させな�
 header grammar が残り、parity failure を隠すためである。移行中も public entrypoint は
 `scan_header` / `parse_file` の一つだけに保つ。
 
+この rewrite strategy は元 proposal から変更しない。`HeaderCursor` / `lex` / `FullCstBuilder` は
+新 vertical slice が成立する同じ change で削除し、long-lived feature-flagged fallback を残さない。
+
 ## Required implementation tests
 
 最初の implementation slice で少なくとも次を固定する。
 
-1. 同じ table に infix `+!`、prefix `+`、prefix `!` を入れ、`+!a` が `+ (! a)`、
-   `a+!b` が `a +! b` になる。
+1. canonical fixture の同じ table に infix `+!`、prefix `+`、prefix / nullfix `!` とそれぞれの
+   binding power を明記し、`+!a` が `+ (! a)`、`a+!b` が `a +! b` になる。judge table は
+   oracle の `contains(PREFIX | NULLFIX)` semantics のまま使う。
 2. longer trie candidate が current site で無効なとき、shorter candidate の末尾へ input、
-   local event、expectation error がすべて rollback する。
-3. accepted candidate の後では unrelated grammar branch へ戻らない cut placement を確認する。
-4. ASCII と multi-byte operator / identifier の diagnostic と header range が UTF-8 byte offset になる。
-5. leading `use` と operator header の header/full projection が一致する。
-6. valid operator header + malformed body で header fact は残り、body diagnostic だけが増える。
-7. malformed header 後の valid header を recovery が発見し、fact transaction が partial field を
+   lightweight local state、expectation error がすべて rollback する。candidate exploration 中は
+   direct CST sink の call count が変わらず、accepted result の commit 後にだけ増える。
+3. prefix / infix / suffix / nullfix の全 capability と binding power を `HeaderInfo` から immutable
+   `OperatorTable` まで保持し、同じ spelling に複数 fixity がある case を parse できる。infix-only
+   temporary representation を許さない。
+4. accepted candidate の後では unrelated grammar branch へ戻らない cut placement と、通常の
+   alternation が手書き rollback ではなく `choice` / `or` を使うことを確認する。
+5. ASCII と multi-byte operator / identifier の diagnostic と header range が UTF-8 byte offset になる。
+6. leading `use` と operator header の header/full projection が一致し、full parse 中に
+   `OperatorTable` が更新されない。
+7. valid operator header + malformed body で header fact は残り、body diagnostic だけが増える。
+8. malformed header 後の valid header を recovery が発見し、fact transaction が partial field を
    commit しない。
-8. all current fixtures で `green.to_string() == source`、event balance、range conservation が成立する。
-9. every byte prefix fuzz test が panic / hang せず、`Missing` / `Error` contract を守る。
-10. current narrow `scan_header` compatibility fixtures の range / fact output を意図せず変えない。
+9. all current fixtures で `green.to_string() == source`、direct builder の node balance、range
+   conservation が成立する。
+10. every byte prefix fuzz test が panic / hang せず、`Missing` / `Error` contract を守る。
+11. current narrow `scan_header` compatibility fixtures の range / fact output を意図せず変えない。
 
-oracle differential test は tagged oracle の `+!a` result を期待値にしない。この case は今回
-確認した oracle predicate bug を明示する Yulang3 architecture test とし、user-confirmed language
-semantics を authority にする。
+oracle differential test は operator declaration を省略・簡略化しない。特に `+!a` の
+value-start lookahead が調べる spelling の prefix / nullfix capability を canonical fixture と一致させる。
+一時調査の prefix-only fixture で得た失敗を oracle predicate bug の期待値として固定せず、oracle の
+judge table と user-confirmed language semantics を authority にする。
 
 ## Performance constraints
 
 - source 全体の token vector と token text copy を作らない。
 - operator lookup は prebuilt trie を一 character ずつ進み、run 全体の再走査を避ける。
+- full parse の `OperatorTable` は `HeaderInfo` と imported syntax から一度だけ構築し、parse 中に
+  overlay update や再構築を行わない。
 - `longest_match_then` の rollback は同じ operator run 内の candidate boundary に限定する。
-- event/local checkpoint は collection 全体の clone ではなく length/depth snapshot にする。
+- speculative parser は CST を emit せず、local checkpoint は collection 全体の clone ではなく
+  length/depth snapshot にする。
+- parse-event buffer と final Rowan replay を作らず、commit 後の token / node を direct sink へ
+  一度だけ書く。
 - header discovery は body を full expression parse せず opaque scan し、syntax planning のための
   軽量 phase という性質を維持する。
 - full parse 中に HeaderInfo ranges を使った source 再走査や CST 再走査を追加しない。
-- Rowan replay は一回だけ行い、token text は source range から borrow する。
+- token text は source range から borrow する。
 
-benchmark では少なくとも parse elapsed、operator trie probe count / rollback count、event count、
-token bytes、peak event capacity を測り、current fixture と Yulang2 representative corpus の
-regression を見る。
+benchmark では少なくとも parse elapsed、operator trie probe count / rollback count、direct sink
+emission count、token bytes、peak parser-local capacity を測り、current fixture と Yulang2
+representative corpus の regression を見る。
 
-## Open questions for Claude / user
+## Resolved decisions and remaining open questions
 
-1. `chasa` は crates.io `0.5.0` を exact pin するか、同 repository の workspace crate として
-   source authority を戻すか。0.5.0 README は API を experimental としているため、caret range の
-   無言 upgrade は避けたい。
-2. dynamic operator trie の storage は oracle と同じ `qp-trie` を使うか、syntax planning が
-   immutable に compile する専用 trie を置くか。chasa は traversal trait だけを提供する。
-3. full operator grammar の canonical fixity set と binding-power representation を、Yulang2 の
-   `BpVec` まで移植するか。current `HeaderOperator` は infix + `u16` pair だけであり、prefix /
-   suffix / nullfix を表せない。
-4. oracle の whitespace/fixity `judge` table をそのまま language rule として採用するか。
-   `+!` example の position rule は確定しているが、prefix/nullfix/suffix が同じ spelling に重なる
-   全 combination の rule は別途 fixture で固定する必要がある。
-5. rollback-safe CST construction は、この proposal の event-buffer + final Rowan replay を採用するか。
-   direct `GreenSink` を使うなら「speculative parser は一 event も emit しない」を型/API で
-   強制する別 design が必要である。
-6. local operator declaration の table update を rollback-aware overlay にするか、shared
-   declaration parser が fact commit 後だけ immutable table を差し替えるか。header recovery 中の
-   partial operator を live table に見せてはならない。
+元の question 番号を残して decision の由来を追跡できるようにする。
+
+### Resolved
+
+1. `chasa` は crates.io の exact-pinned dependency にせず、Yulang workspace 内の local / vendored
+   workspace crate として取り込む。実装時は workspace member への path dependency を使い、同じ
+   repository の source を authority にする。この proposal 自体ではまだ追加しない。
+2. dynamic operator trie は `HeaderInfo` の committed local fact と imported syntax から full parse
+   前に一度だけ compile し、immutable に使う。`qp-trie` か専用 trie かは observable architecture
+   decision ではなく、`TrieState` contract と benchmark を満たす範囲の implementation detail とする。
+3. canonical representation は最初の vertical slice から Yulang2 の `BpVec` と同等の prefix /
+   infix / suffix / nullfix 全 fixity と binding power を持つ。
+4. oracle の whitespace/fixity judge table は、`contains(PREFIX | NULLFIX)` を含めてそのまま採用する。
+   full-fixity combination は canonical declaration を明記した fixture で固定する。
+5. event buffer + final Rowan replay は採用しない。speculative parser が CST を emit できないことを
+   型/API で強制し、commit 後だけ direct `GreenNodeBuilder` sink を使う。
+6. operator declaration は header-scoped である。header discovery 完了後に table を構築するため、
+   full parse 中の table update と rollback-aware overlay は置かない。
+9. full fixity API extension は architecture replacement の最初の vertical slice に含める。
+   infix-only compatibility representation を中間段階として残さない。
+
+### Still open
+
 7. chasa expectation error と public `SyntaxDiagnostic` の bridge で、どの expectation merge を
    user-facing primary message に採用するか。`LatestSink` を exhaustive diagnostic authority に
    しない点は確定する。
-8. full parse の header replay が existing `DiagnosticId` を照合する key を、shared recovery event
+8. full parse の header reparse が existing `DiagnosticId` を照合する key を、shared recovery record
    sequence だけで作るか、grammar role + range も含む typed key にするか。
-9. HeaderInfo/current fixture compatibility を保つ migration commit と、full fixity API extension を
-   同じ slice にするか分けるか。architecture replacement と public schema expansion の review を
-   分離する方が追跡しやすい。
 
 ## Implementation gates
 
-implementation 着手前に open question 1-5 を決める。最初の vertical slice の完了条件は次とする。
+architecture-level gate は上の resolved decision で閉じた。question 7 / 8 の diagnostic detail は、
+対応する public diagnostic fixture を実装する前に固定する。最初の vertical slice の完了条件は
+次とする。
 
+- `chasa` が local / vendored workspace crate として入り、crates.io exact pin に依存しない。
 - `chasa` input から shared declaration grammar と最小 Pratt expression grammar が直接 source を読む。
+- 通常の alternation は `choice` / `or` を使い、明示的 rollback は構造的に必要な operator-candidate
+  区間へ限定される。
 - `lex() -> Vec<LexedToken>` と `scan_symbol_end` を production path から除去する。
-- `+!a` / `a+!b` が user-confirmed tree shape を持つ。
+- `HeaderInfo` と immutable `OperatorTable` が `BpVec` 相当の prefix / infix / suffix / nullfix を
+  最初から持ち、full parse 中に table mutation がない。
+- canonical full-fixity fixture の `+!a` / `a+!b` が oracle judge table のまま user-confirmed tree
+  shape を持つ。
 - `scan_header` と full parse が同じ declaration grammar を使い、fixture で parity が成立する。
+- speculative branch は direct sink を呼べず、commit 後だけ Rowan node / token を書く。parse-event
+  buffer と final replay layer がない。
 - `ParsedFile.green` が lossless Rowan root で、structured diagnostic product と同じ revision に属する。
 - old path への fallback がない。
 
@@ -658,16 +725,23 @@ implementation 着手前に open question 1-5 を決める。最初の vertical 
   `sink.rs`、`op.rs`、`scan/mod.rs`、`scan/trivia.rs`、`expr/core.rs`、
   `expr/tail.rs`、`expr/scan.rs`、`expr/scan/op/{scan,judge,boundary}.rs`、
   `stmt/op_def.rs`、`stmt/mod.rs`、`tests/expr_grammar.rs`、Cargo manifest / lock。
-- Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2、
+- Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
   `crates/yu-syntax/src/{lib,parse,syntax_kind}.rs`、phase 2 parser fixtures、
   commit `e1737368` と `7022ed27`。
+- local Cargo registry `rowan-0.15.17`: `src/green/builder.rs` と `examples/math.rs` の
+  `GreenNodeBuilder::checkpoint` / `start_node_at`。
 
 ## Verification performed during investigation
 
 - `chasa 0.5.0`: 12 unit tests と 124 doctests が offline で成功した。
-- `yulang2-oracle` temporary copy: exact `+!` test により tagged behavior の差異を再現した。
+- `yulang2-oracle` temporary copy: prefix-only declaration を使った `+!` test により tagged behavior の
+  差異を再現した。この結果は fixture の fixity 集合に依存し、oracle の bug 判定には使わない。
 - 同 temporary copy: `op_value_start_inner` の prefix/nullfix condition だけを OR にした実験で、
-  `+!a` と `a+!b` の両方が expected tree になることを確認した。
-- repository の tracked source、manifest、fixture、architecture document は変更していない。
+  `+!a` と `a+!b` の両方が expected tree になることを確認した。ただしこれは experimental variant
+  の観測であり、採用する semantics ではない。
+- `docs/yulang3-architecture.md` §4.2.2 / §18 を再照合し、operator の header 外 declaration point が
+  記載されていないことを確認した。
+- この revision は本 design document だけを変更し、source、manifest、fixture、正本 architecture
+  document は変更していない。
 
 著者: Codex gpt-5.6-sol xhigh（2026-08-20）
