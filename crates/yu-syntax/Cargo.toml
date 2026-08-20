@@ -7,3 +7,4 @@ publish = false
 [dependencies]
 chasa = "=0.5.0"
 rowan = "0.15"
+unicode-ident = "1.0"
