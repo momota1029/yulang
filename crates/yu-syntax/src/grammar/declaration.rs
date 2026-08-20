@@ -198,7 +198,11 @@ where
 
     let mut path = vec![input.run(from_fn(scan_word))?];
     while let Some(punctuation) = input.maybe(from_fn(scan_punctuation))? {
-        (punctuation.kind() == PunctuationKind::ColonColon).then_some(())?;
+        matches!(
+            punctuation.kind(),
+            PunctuationKind::ColonColon | PunctuationKind::Slash
+        )
+        .then_some(())?;
         path.push(input.run(from_fn(scan_word))?);
     }
 
@@ -228,6 +232,10 @@ mod tests {
     const LEADING_USE_SOURCE: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/leading-use-plain/main.yu"
+    ));
+    const LEADING_REALM_USE_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/leading-use-realm/main.yu"
     ));
     const INFIX_OPERATOR_SOURCE: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -263,6 +271,39 @@ mod tests {
                 .map(|component| component.text())
                 .collect::<Vec<_>>(),
             ["std", "data"]
+        );
+        assert_eq!(input.input.remainder(), "\nmy value = 1\n");
+    }
+
+    #[test]
+    fn parses_leading_realm_use_fixture_from_chasa_input() {
+        let source = std::str::from_utf8(LEADING_REALM_USE_SOURCE).expect("fixture is UTF-8");
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let declaration = input
+            .run(from_fn(parse_declaration))
+            .expect("leading realm use declaration should parse");
+
+        let Declaration::Use(declaration) = declaration else {
+            panic!("expected use declaration");
+        };
+        assert_eq!(declaration.range(), 0..23);
+        assert_eq!(
+            declaration
+                .path()
+                .iter()
+                .map(|component| component.text())
+                .collect::<Vec<_>>(),
+            ["realm", "tools", "format"]
         );
         assert_eq!(input.input.remainder(), "\nmy value = 1\n");
     }
