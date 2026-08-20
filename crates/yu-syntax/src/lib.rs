@@ -2,6 +2,15 @@
 
 use std::{ops::Range, sync::Arc};
 
+mod parse;
+mod syntax_kind;
+
+pub use parse::{
+    OperatorTable, ParsedFile, SourceRevision, SyntaxDependencyProvenance, SyntaxDiagnostic,
+    SyntaxEnvironment, SyntaxEnvironmentKey, parse_file,
+};
+pub use syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken, YulangLanguage};
+
 /// Source text consumed by syntax phase entrypoints.
 pub type SourceText = str;
 
@@ -624,6 +633,116 @@ mod tests {
         assert_eq!(operator.visibility(), Visibility::Private);
         assert_eq!(operator.binding_power().left(), Some(50));
         assert_eq!(operator.binding_power().right(), Some(51));
+    }
+
+    #[test]
+    fn parses_leading_plain_use_fixture_losslessly() {
+        let source = fixture_source(LEADING_USE_SOURCE);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert!(parsed.diagnostics().is_empty());
+        assert_eq!(parsed.revision(), SourceRevision::UNTRACKED);
+        assert_eq!(parsed.syntax_environment(), SyntaxEnvironmentKey::EMPTY);
+
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let use_declaration = node_of_kind(&root, SyntaxKind::UseDeclaration);
+        let [import] = header.imports() else {
+            panic!("expected exactly one header import: {header:#?}");
+        };
+        assert_eq!(node_range(&use_declaration), import.range().clone());
+        assert_eq!(
+            token_texts(&use_declaration, SyntaxKind::Identifier),
+            import.path()
+        );
+        assert_eq!(token_texts(&use_declaration, SyntaxKind::UseKw), ["use"]);
+        assert_eq!(token_texts(&use_declaration, SyntaxKind::Dot), ["."]);
+        assert_eq!(import.form(), HeaderImportForm::Plain);
+        assert_eq!(import.visibility(), Visibility::Private);
+        assert_eq!(import.alias(), None);
+
+        let binding = node_of_kind(&root, SyntaxKind::BindingStatement);
+        assert_eq!(binding.to_string(), "my value = 1");
+        assert_eq!(
+            node_of_kind(&binding, SyntaxKind::IntegerLiteral).to_string(),
+            "1"
+        );
+    }
+
+    #[test]
+    fn parses_infix_operator_header_fixture_losslessly() {
+        let source = fixture_source(INFIX_OPERATOR_SOURCE);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        assert!(parsed.diagnostics().is_empty());
+
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let operator_header = node_of_kind(&root, SyntaxKind::OperatorHeader);
+        let [operator] = header.operators() else {
+            panic!("expected exactly one header operator: {header:#?}");
+        };
+        assert_eq!(node_range(&operator_header), operator.range().clone());
+        assert_eq!(
+            token_texts(&operator_header, SyntaxKind::InfixKw),
+            ["infix"]
+        );
+        assert_eq!(
+            token_texts(&operator_header, SyntaxKind::Operator),
+            [operator.name()]
+        );
+        let binding_powers = token_texts(&operator_header, SyntaxKind::Integer)
+            .into_iter()
+            .map(|text| {
+                text.parse::<u16>()
+                    .expect("fixture binding power must fit u16")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            binding_powers,
+            [
+                operator.binding_power().left().unwrap(),
+                operator.binding_power().right().unwrap(),
+            ]
+        );
+        assert_eq!(operator.fixity(), OperatorFixity::Infix);
+        assert_eq!(operator.visibility(), Visibility::Private);
+
+        let binding = node_of_kind(&root, SyntaxKind::BindingStatement);
+        assert_eq!(binding.to_string(), "my value = 1");
+        assert_eq!(
+            node_of_kind(&binding, SyntaxKind::IntegerLiteral).to_string(),
+            "1"
+        );
+    }
+
+    fn node_of_kind(root: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
+        root.descendants()
+            .find(|node| node.kind() == kind)
+            .unwrap_or_else(|| panic!("expected {kind:?} in CST:\n{root:#?}"))
+    }
+
+    fn node_range(node: &SyntaxNode) -> Range<usize> {
+        let range = node.text_range();
+        u32::from(range.start()) as usize..u32::from(range.end()) as usize
+    }
+
+    fn token_texts(node: &SyntaxNode, kind: SyntaxKind) -> Vec<String> {
+        node.descendants_with_tokens()
+            .filter_map(rowan::NodeOrToken::into_token)
+            .filter(|token| token.kind() == kind)
+            .map(|token| token.text().to_owned())
+            .collect()
     }
 
     fn fixture_source(bytes: &'static [u8]) -> Arc<SourceText> {
