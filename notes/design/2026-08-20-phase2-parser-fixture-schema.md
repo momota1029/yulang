@@ -1,6 +1,6 @@
-# Phase 2 parser compatibility fixture schema（draft）
+# Phase 2 parser compatibility fixture schema
 
-Status: Claude とユーザーのレビュー待ち。これは正本ではない。
+Status: Authoritative。実 fixture case の投入と population 前の Open questions の解消は、次スライス以降で進める。
 
 ## Problem statement
 
@@ -447,3 +447,15 @@ production diagnostic caller に CST 再走査を戻さない。
 8. **parity staging:** この draft は known-divergent escape hatch を拒否する。Phase 2 実装途中の
    workflow に一時的な選別が必要なら、contract data の期待値ではなく test target / worklist 側で
    管理する方針でよいか、レビューで確認したい。
+
+---
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が `docs/yulang3-architecture.md` §4.2.2
+（parser recovery policy / diagnostic completeness contract / header discovery）および §18（未決定事項）
+の原文と本 schema を突き合わせ、矛盾がないことを確認した上で査読・確定。ユーザ承認済み（2026-08-20）。
+
+scenario 系（syntax reexport cycle・body-only/header edit の incremental parity）を atomic fixture
+schema の直接表現対象から外し、将来の scenario descriptor 側の orchestration に委ねる判断、および
+header/full parity に known-divergent の逃げ道を設けず常に compiler invariant violation として扱う
+判断は、ユーザー承認時に明示的に確認済み。Open questions に残る 8 項目は、fixture population スライス
+で個別に解消する。
