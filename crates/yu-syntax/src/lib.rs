@@ -76,7 +76,7 @@ pub enum HeaderStop {
 pub struct HeaderImport {
     range: Range<usize>,
     form: HeaderImportForm,
-    path: Vec<String>,
+    route: HeaderImportRoute,
     visibility: Visibility,
     alias: Option<String>,
 }
@@ -91,7 +91,12 @@ impl HeaderImport {
     }
 
     pub fn path(&self) -> &[String] {
-        &self.path
+        self.route.segments()
+    }
+
+    /// The source route, preserving the separators between path segments.
+    pub fn route(&self) -> &HeaderImportRoute {
+        &self.route
     }
 
     pub fn visibility(&self) -> Visibility {
@@ -101,6 +106,58 @@ impl HeaderImport {
     pub fn alias(&self) -> Option<&str> {
         self.alias.as_deref()
     }
+
+    pub(crate) fn new(
+        range: Range<usize>,
+        form: HeaderImportForm,
+        route: HeaderImportRoute,
+        visibility: Visibility,
+        alias: Option<String>,
+    ) -> Self {
+        Self {
+            range,
+            form,
+            route,
+            visibility,
+            alias,
+        }
+    }
+}
+
+/// A separator-preserving source route for an unresolved import.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HeaderImportRoute {
+    segments: Vec<String>,
+    separators: Vec<HeaderImportRouteSeparator>,
+}
+
+impl HeaderImportRoute {
+    pub fn segments(&self) -> &[String] {
+        &self.segments
+    }
+
+    pub fn separators(&self) -> &[HeaderImportRouteSeparator] {
+        &self.separators
+    }
+
+    pub(crate) fn new(segments: Vec<String>, separators: Vec<HeaderImportRouteSeparator>) -> Self {
+        debug_assert_eq!(
+            separators.len(),
+            segments.len().saturating_sub(1),
+            "an import route has one separator between each path segment"
+        );
+        Self {
+            segments,
+            separators,
+        }
+    }
+}
+
+/// A separator in a source-level import route.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HeaderImportRouteSeparator {
+    ColonColon,
+    Slash,
 }
 
 /// Source-level import form, before module resolution.
@@ -256,13 +313,15 @@ fn scan_plain_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<H
         }
     }
 
-    Some(HeaderImport {
-        range: range_start..range_end,
-        form: HeaderImportForm::Plain,
-        path,
-        visibility: Visibility::Private,
-        alias: None,
-    })
+    let separators =
+        std::iter::repeat_n(HeaderImportRouteSeparator::ColonColon, path.len() - 1).collect();
+    Some(HeaderImport::new(
+        range_start..range_end,
+        HeaderImportForm::Plain,
+        HeaderImportRoute::new(path, separators),
+        Visibility::Private,
+        None,
+    ))
 }
 
 fn scan_infix_operator(

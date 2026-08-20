@@ -9,7 +9,7 @@ use chasa::{
 };
 
 use crate::{
-    HeaderImportForm, Visibility,
+    HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator, Visibility,
     grammar::expression::{Expression, IntegerLiteral, parse_expression, parse_integer_literal},
     input::SourceInput,
     scan::{
@@ -97,6 +97,37 @@ impl<'source> UseDeclaration<'source> {
     pub(crate) fn tree(&self) -> &UseTree<'source> {
         &self.tree
     }
+
+    /// Projects one qualifier-free single-target use declaration to a header fact.
+    pub(crate) fn project_single_import(&self) -> Result<HeaderImport, UseSingleProjectionError> {
+        if !matches!(self.tree.terminal, UseTerminal::Single) {
+            return Err(UseSingleProjectionError::NonSingleTerminal);
+        }
+        if !self.tree.qualifiers.is_empty() {
+            return Err(UseSingleProjectionError::Qualifiers);
+        }
+        let alias = match self.tree.aliases.as_slice() {
+            [] => None,
+            [alias] => Some(alias.text().to_owned()),
+            _ => return Err(UseSingleProjectionError::MultipleAliases),
+        };
+
+        Ok(HeaderImport::new(
+            self.range(),
+            self.tree.form,
+            project_use_route(&self.tree.prefix),
+            self.visibility,
+            alias,
+        ))
+    }
+}
+
+/// Why a use declaration cannot yet project to one header import fact.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum UseSingleProjectionError {
+    NonSingleTerminal,
+    MultipleAliases,
+    Qualifiers,
 }
 
 /// One recursively composable `use` specification.
@@ -172,6 +203,27 @@ impl<'source> UseSegment<'source> {
     }
 }
 
+fn project_use_route(path: &UsePath<'_>) -> HeaderImportRoute {
+    let segments = path
+        .segments()
+        .iter()
+        .map(|segment| match segment {
+            UseSegment::Word(word) => word.text().to_owned(),
+            UseSegment::Operator { text, .. } => (*text).to_owned(),
+        })
+        .collect();
+    let separators = path
+        .separators()
+        .iter()
+        .map(|separator| match separator {
+            UseSeparator::ColonColon => HeaderImportRouteSeparator::ColonColon,
+            UseSeparator::Slash => HeaderImportRouteSeparator::Slash,
+        })
+        .collect();
+
+    HeaderImportRoute::new(segments, separators)
+}
+
 /// A route separator between two stored path segments.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UseSeparator {
@@ -207,6 +259,10 @@ impl<'source> UseQualifiers<'source> {
 
     pub(crate) fn anchor(&self) -> Option<&UsePath<'source>> {
         self.anchor.as_ref()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.version.is_none() && self.anchor.is_none()
     }
 }
 
@@ -675,6 +731,15 @@ mod tests {
             assert_eq!(declaration.tree().form(), form, "{source:?}");
             assert_eq!(path_texts(declaration.tree().prefix()), path, "{source:?}");
             assert_eq!(remainder, "\nmy value = 1\n", "{source:?}");
+
+            let import = declaration
+                .project_single_import()
+                .expect("fixture use declaration should project");
+            assert_eq!(import.range(), &range, "{source:?}");
+            assert_eq!(import.form(), form, "{source:?}");
+            assert_eq!(import.path(), path, "{source:?}");
+            assert_eq!(import.visibility(), Visibility::Private, "{source:?}");
+            assert_eq!(import.alias(), None, "{source:?}");
         }
     }
 
@@ -710,6 +775,77 @@ mod tests {
             );
             assert_eq!(remainder, "", "{source}");
         }
+    }
+
+    #[test]
+    fn projects_a_single_explicit_alias() {
+        let (declaration, remainder) = parse_use("use std::data as collection");
+        let import = declaration
+            .project_single_import()
+            .expect("one alias should project");
+
+        assert_eq!(import.range(), &(0..27));
+        assert_eq!(import.path(), ["std", "data"]);
+        assert_eq!(import.alias(), Some("collection"));
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    fn projects_operator_segments_by_their_canonical_spelling() {
+        let declaration = UseDeclaration {
+            range: 0..8,
+            visibility: Visibility::Private,
+            tree: UseTree {
+                range: 4..8,
+                form: HeaderImportForm::Plain,
+                prefix: UsePath {
+                    segments: vec![UseSegment::Operator {
+                        range: 5..7,
+                        text: "+!",
+                    }],
+                    separators: Vec::new(),
+                },
+                terminal: UseTerminal::Single,
+                aliases: Vec::new(),
+                qualifiers: UseQualifiers::default(),
+            },
+        };
+
+        let import = declaration
+            .project_single_import()
+            .expect("single operator segment should project");
+
+        assert_eq!(import.path(), ["+!"]);
+        assert!(import.route().separators().is_empty());
+    }
+
+    #[test]
+    fn preserves_distinct_plain_routes_during_projection() {
+        let (slash, _) = parse_use("use a/b::c");
+        let (colon_colon, _) = parse_use("use a::b::c");
+        let slash = slash
+            .project_single_import()
+            .expect("slash route should project");
+        let colon_colon = colon_colon
+            .project_single_import()
+            .expect("double-colon route should project");
+
+        assert_eq!(slash.path(), colon_colon.path());
+        assert_eq!(
+            slash.route().separators(),
+            [
+                HeaderImportRouteSeparator::Slash,
+                HeaderImportRouteSeparator::ColonColon,
+            ]
+        );
+        assert_eq!(
+            colon_colon.route().separators(),
+            [
+                HeaderImportRouteSeparator::ColonColon,
+                HeaderImportRouteSeparator::ColonColon,
+            ]
+        );
+        assert_ne!(slash.route(), colon_colon.route());
     }
 
     #[test]
