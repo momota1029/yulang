@@ -4,6 +4,7 @@ use std::{ops::Range, sync::Arc};
 
 #[allow(dead_code)]
 mod input;
+mod grammar;
 #[allow(dead_code)]
 mod operator;
 mod parse;
