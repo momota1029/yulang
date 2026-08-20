@@ -349,12 +349,12 @@ fn syntax_kind(kind: TokenKind, text: &str) -> SyntaxKind {
         TokenKind::Keyword(HeaderKeyword::Infix) => SyntaxKind::InfixKw,
         TokenKind::Number => SyntaxKind::Integer,
         TokenKind::Dot => SyntaxKind::Dot,
+        TokenKind::ColonColon => SyntaxKind::ColonColon,
         TokenKind::Open(Delimiter::Parenthesis) => SyntaxKind::LParen,
         TokenKind::Close(Delimiter::Parenthesis) => SyntaxKind::RParen,
         TokenKind::Equals => SyntaxKind::Equals,
         TokenKind::Symbol => SyntaxKind::Operator,
-        TokenKind::ColonColon
-        | TokenKind::Open(Delimiter::Brace | Delimiter::Bracket)
+        TokenKind::Open(Delimiter::Brace | Delimiter::Bracket)
         | TokenKind::Close(Delimiter::Brace | Delimiter::Bracket) => SyntaxKind::Unknown,
     }
 }

@@ -672,7 +672,10 @@ mod tests {
             import.path()
         );
         assert_eq!(token_texts(&use_declaration, SyntaxKind::UseKw), ["use"]);
-        assert_eq!(token_texts(&use_declaration, SyntaxKind::Unknown), ["::"]);
+        assert_eq!(
+            token_texts(&use_declaration, SyntaxKind::ColonColon),
+            ["::"]
+        );
         assert_eq!(import.form(), HeaderImportForm::Plain);
         assert_eq!(import.visibility(), Visibility::Private);
         assert_eq!(import.alias(), None);
