@@ -14,6 +14,11 @@ grammar role + parser-native byte range の exact key に固定した。speculat
 typed union を committed recovery record と `SyntaxDiagnostic` に保持し、主表示だけを grammar-role
 priority で一件選ぶ。
 
+Revision note (use declaration closure): `yulang2-oracle` の use 専用 scanner / parser と source-level
+projection を再照合し、Plain / Mod / Realm / Band の分類、再帰 group、alias、glob、`without` を
+表せる Use AST、および group から `HeaderImport` への投影を確定した。version suffix と `with`
+anchor は typed syntax として保持するが、source-provider / version resolution の意味は future scope とする。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -59,6 +64,13 @@ recovery commit 時には、`LatestSink` が保持する最遠 active expectatio
 typed union として全件凍結する。public diagnostic もその union を保持し、主メッセージだけを committed
 site との role affinity、明示的な stable tie-break key の順に一件選ぶ。parser branch order や表示文言は
 選択規則に含めない。
+
+use declaration は、先頭 word だけを path へ積む flat loop ではなく、use 専用の predictive state
+machine で読む。`mod` は use grammar 内の contextual keyword、`realm` / `band` は一般 identifier であり、
+それぞれ `realm` + `/`、`band` + `::` の先頭 pattern のときだけ form marker とする。再帰 group は
+structured `UseTree` のまま保持し、header fact commit 時に source order で独立した import record へ
+展開する。`use mod` は syntax 層では form を保持するだけで、module declaration や source set を
+その場で合成しない。
 
 ## Problem statement
 
@@ -875,6 +887,323 @@ header diagnostic を作り直したり候補を追加したりしない。early
 full group は debug/parity assertion に使ってよいが、public record の authority にはしない。key が一致せず
 full-origin record を新規発行する場合だけ、その full group から独立の union と主メッセージを作る。
 
+## Complete `use` declaration grammar and projection
+
+この章は、現行 `UseDeclaration { range, path }` を置き換える use grammar / AST と、そこから
+`HeaderImport` を作る規則を定める。parser implementation 自体はこの revision の対象外である。
+
+### Oracle token vocabulary and recognition order
+
+`yulang2-oracle@a58eefc3` の `stmt/use_scan.rs` は、trivia を消費した後の一 token を次の順で
+分類する。
+
+1. `::`、`*`、`/`、`,`、`{`、`}`、`;`、`(`、`)`、`[`、`]` を punctuation として試す。
+   `;` と bracket は use grammar では `Stop` になる。
+2. `v` + ASCII digit で始まり、その後に ASCII alphanumeric、`.`、`-`、`+` が零個以上続く
+   spelling を `Version` として試す。
+3. Unicode XID identifier（先頭 `_` も可、末尾 `?` / `!` も可）を読み、`mod`、`as`、`with`、
+   `without` だけを use 専用 tag にする。
+4. use operator-name character run を `Op` として試し、それ以外の一文字を `Stop` にする。
+
+`mod` は `UseTag::Mod` かつ CST 上も `SyntaxKind::Mod` になる use 専用 contextual keyword である。
+`as` も専用 tag / kind である。`with` と `without` は専用 `UseTag` だが CST kind は一般
+`Ident` のままである。`realm` と `band` はどちらも専用 tag ではなく、一般 `Ident` である。
+`Realm` / `Band` という scanner tag は存在しない。したがって form marker の語彙は、scanner が
+直接確定する `mod` と、projection が spelling + separator で確定する `realm` / `band` の三つで
+網羅される。`as`、`with`、`without`、`Version` は suffix/control であり form marker ではない。
+
+newline を含む trailing trivia は次 token の `leading_info` になる。通常の use spec はそこで停止する。
+brace group の list machine だけは newline を implicit separator として受理し、次 item の先頭では
+`Space` 相当に変換する。このため path 自体は physical newline をまたがず、group item は comma または
+newline で区切れる。empty group と trailing comma は closing `}` を次 item の stop として受理する。
+
+### Oracle state machine
+
+`stmt/use_decl.rs` の recognition rule は次の state table と等価である。ここで
+`operator-name` は `(`、`Ident | Op | Glob`、`)` の三 token、`sep` は `/ | ::` である。
+declaration-level visibility は caller が先に解析して `parse_use_decl` へ渡すため、use 専用 token
+vocabulary と state table には含まれない。
+
+| state | accepted token and transition |
+| --- | --- |
+| spec start | `{` -> recursive group tail、`mod` -> ident-required state、`Ident` / `operator-name` -> segment tail |
+| after `mod` | `Ident` だけを受理して segment tail |
+| segment tail | `sep` -> separator target、`as Ident` -> group/alias tail、`Version` -> version tail、`with` -> anchor、または stop |
+| separator target | `Ident` / `operator-name` -> segment tail、`{` -> recursive group tail、`*` -> glob tail |
+| group/alias tail | `as Ident` を反復可、`Version` -> version tail、`with` -> anchor、または stop |
+| glob tail | `as Ident`、`without` list、`Version`、`with`、または stop |
+| `without` list | `Ident` / `*` / `operator-name`、または recursive brace group。simple item は comma で反復し、その後 `Version` / `with` も可 |
+| version tail | `with` または stop |
+| anchor | `Ident (sep Ident)*` の後で stop |
+
+group item は同じ spec-start function を再帰的に呼ぶ。このため group は nested group、path、alias、
+glob、item-local `mod` を構文上表せる。group の明示 separator は comma、暗黙 separator は indentation に
+依存しない newline、terminator は `}` である。glob は必ず separator の後に現れ、`without` は glob
+tail からだけ到達する。anchor は identifier path に限定され、group、glob、operator-name を含まない。
+
+この table は oracle の認識範囲を記録するものであり、すべての認識可能な並びに有効な import 意味を
+与えるという意味ではない。たとえば parser state は group / glob の後の alias と alias の反復を
+認識できるが、一つの alias を複数 target に投影する規則は持たない。Yulang3 は後述の semantic
+validation でこのような曖昧な tail を diagnostic にし、silent に最後の alias を採用しない。
+
+### Form classification
+
+form は path 全体を先に `Vec<WordSpan>` へ潰した後で推測せず、各 recursive use spec の先頭を
+読んだ時点で次の順序により一度だけ確定する。
+
+```text
+classify_use_form(first, following_separator):
+    if first.tag == Mod:
+        consume `mod`
+        require an Ident as the first stored path segment
+        return (Mod, path_without_mod)
+
+    require first to be Ident or parenthesized operator-name
+
+    if first is Ident("realm") and following_separator == Slash:
+        consume both as a marker
+        return (Realm, path_after_marker)
+
+    if first is Ident("band") and following_separator == ColonColon:
+        consume both as a marker
+        return (Band, path_after_marker)
+
+    return (Plain, path_including_first_and_all_separators)
+```
+
+`mod` の判定を先に置くのは `use_scan.rs` が spelling `mod` を `Ident` より先に専用 tag にするためである。
+したがって `use mod::x` を Plain path として読み直さず、`mod` 後の必須 `Ident` が欠けた invalid spec と
+する。`realm` / `band` は spelling だけでは marker にならない。具体的には `realm::x`、`band/x`、
+`other/x` はすべて Plain で、最初の segment も path に残る。`realm/x` と `band::x` だけが marker と
+separator を path から除く。
+
+各 group item でも同じ classifier を使う。親から既に non-empty prefix または non-Plain form を
+継承した branch に、子が別の non-Plain marker を置くと absolute origin が二つになるため、その branch は
+semantic error とし fact を commit しない。prefix のない Plain root group では、各 item が Plain / Mod /
+Realm / Band を独立に選べる。Plain child は親の effective form を継承する。
+
+4 fixture はこの rule の直接例になる。
+
+| source | form | normalized path | declaration range |
+| --- | --- | --- | --- |
+| `use std::data` | Plain | `std`, `data` | `0..13` |
+| `use mod math::value` | Mod | `math`, `value` | `0..19` |
+| `use realm/tools::format` | Realm | `tools`, `format` | `0..23` |
+| `use band::support::value` | Band | `support`, `value` | `0..24` |
+
+これは fixture の `header.imports` と `full.header_projection.imports` の form / path / range に一致する。
+oracle の source collector も `band` + `::`、`realm` + `/` の順に分類し、この二 form だけ先頭 segment を
+除く。slash を含むそれ以外の path は別の slash-qualified route として全 segment を保持しており、
+Realm marker へ一般化しない。
+
+implementation は use 用の独立した global lexer を作らない。shared word / punctuation scanner の
+range を使い、use grammar position で上記 tag を付ける。最初の atom と直後の separator を一度読み、
+`PendingUseHead` のような小さい local value で分類してから committed CST / AST を一度だけ出力する。
+`realm` と `band` のために source や CST を再走査しない。通常の start alternative は chasa の
+`choice` / `or`、separator と suffix の遷移は token 一個の predictive dispatch で表し、manual
+checkpoint / rollback を declaration 全体へ広げない。
+
+### Structured Use AST
+
+現行の `UseDeclaration { range, path: Vec<WordSpan> }` は次の概念 shape に置き換える。これは public
+field layout の固定ではなく、実装が失ってはならない情報と責務の境界を示す。
+
+```rust
+struct UseDeclaration<'source> {
+    range: Range<usize>,
+    visibility: Visibility,
+    tree: UseTree<'source>,
+}
+
+struct UseTree<'source> {
+    range: Range<usize>,
+    form: HeaderImportForm,
+    prefix: UsePath<'source>,
+    terminal: UseTerminal<'source>,
+    aliases: Vec<WordSpan<'source>>,
+    qualifiers: UseQualifiers<'source>,
+}
+
+enum UseTerminal<'source> {
+    Single,
+    Group {
+        join: Option<UseSeparator>,
+        items: Vec<UseTree<'source>>,
+    },
+    Glob {
+        join: Option<UseSeparator>,
+        without: Vec<UseExclusion<'source>>,
+    },
+}
+
+struct UsePath<'source> {
+    segments: Vec<UseSegment<'source>>,
+    separators: Vec<UseSeparator>,
+}
+
+enum UseSegment<'source> {
+    Word(WordSpan<'source>),
+    Operator { range: Range<usize>, text: &'source str },
+}
+
+enum UseSeparator {
+    ColonColon,
+    Slash,
+}
+
+struct UseQualifiers<'source> {
+    version: Option<UseVersion<'source>>,
+    anchor: Option<UsePath<'source>>,
+}
+
+struct UseVersion<'source> {
+    range: Range<usize>,
+    text: &'source str,
+}
+
+enum UseExclusion<'source> {
+    Segment(UseSegment<'source>),
+    Glob { range: Range<usize> },
+    Group {
+        range: Range<usize>,
+        items: Vec<UseTree<'source>>,
+    },
+}
+```
+
+`UsePath` は `separators.len() == segments.len().saturating_sub(1)` を保つ。group / glob の直前にある
+separator は path 内の separator ではなく terminal の `join` に置く。先頭 group では `join = None`、
+`std::io::{...}` では prefix が `std::io`、`join = Some(ColonColon)` になる。Realm / Band marker が
+separator ごと除かれ、直後が group / glob だった場合も `join = None` になり、先頭に架空の空 segment を
+作らない。
+
+parenthesized operator-name は source range と内側の canonical spelling を一 segment として保持する。
+glob の `*` と operator spelling `(*)` を同じ variant にしない。`UseExclusion` は name、operator、glob、
+および brace 内の recursive exclusion tree を区別し、group と同じ prefix flattening を再利用する。
+exclusion は import record を追加せず、glob selection から候補を引く pattern になる。
+
+`aliases` が vector なのは oracle recognition が `as Ident` を反復でき、invalid source でも各 token の
+range を CST 再走査なしで diagnostic に渡すためである。semantic import で許す explicit alias は
+`Single` の零個または一個だけとする。複数 alias、group alias、glob alias は曖昧な binding shape として
+diagnostic を生成し、その subtree の fact は commit しない。oracle recognition の反復可能性を、最後の
+alias を silent に勝たせる互換性 contract にしないためである。
+
+`without` は glob が選ぶ binding set を変えるため、この AST と意味論に含める。brace group 内の
+exclusion は common prefix を展開し、source order の exclusion pattern にする。重複 exclusion の除去や
+存在しない name の扱いは resolver policy であり parser は決めないが、構造を捨てたり単なる token text に
+戻したりしない。
+
+version suffix と `with` anchor は oracle scanner / parser が明確な構文を持ち、後から CST を再走査して
+復元すべきではないため `UseQualifiers` に typed syntax として入れる。一方、その version の canonical
+validation、manifest / lock との対応、anchor が source provider selection に与える意味、inner item と
+group-wide qualifier が競合した場合の precedence は source-loader / resolution 設計に依存する。
+これらの resolution semantics と `HeaderImport` への最終 qualifier projection は future scope とする。
+実装は qualifier を無視した `HeaderImport` を commit して別 dependency と同一視してはならない。
+
+### Group expansion to `HeaderImport`
+
+header/full の shared declaration grammar は同じ `UseTree` を作り、次の一回の depth-first projection で
+fact を得る。CST や source を projection のために再走査しない。
+
+```text
+expand(tree, inherited_form, inherited_path, pending_join):
+    effective_form =
+        inherited_form                    if tree.form == Plain
+        tree.form                          if inherited_form == Plain
+                                             and inherited_path is empty
+        semantic error                     otherwise
+
+    path = concatenate(inherited_path, pending_join, tree.prefix)
+
+    match tree.terminal:
+        Single:
+            validate one target and zero-or-one alias
+            emit one record(effective_form, path, alias)
+        Glob { without }:
+            validate no alias
+            emit one glob record(effective_form, path, expanded without)
+        Group { join, items }:
+            validate no alias
+            for item in source order:
+                expand(item, effective_form, path, join)
+```
+
+empty group は record を作らない。nested group は同じ algorithm を再帰し、完成した leaf だけを
+left-to-right source order で commit する。一 item の missing target、form conflict、曖昧な alias は
+その branch だけを不完全にし、delimiter recovery で同期できた sibling の complete fact を捨てない。
+一つの `UseTree` から出た fact は transaction buffer に staging し、各 leaf の mandatory field が一意に
+確定してから commit する。この規則は既決の committed recovery record と diagnostic の一対一原則を
+変更しない。fact の個数と recovery event の個数を対応させる必要もない。
+
+各 projected `HeaderImport` field は次のように決める。
+
+- `form`: 上の `effective_form`。marker text は normalized path に入れない。
+- `path`: common prefix と leaf path を結合した segment spelling。operator segment は括弧を除いた
+  canonical spelling とする。separator shape は Use AST に残し、resolution 前に必要な route 情報を
+  捨てない。`HeaderImport` も最終的には structured path / route を所有し、既存 `path()` はその segment
+  projection として維持する。Plain の `a/b::c` と `a::b::c` を同じ fact に潰してはならない。
+- `alias`: `Single` leaf に source 上の `as name` が一つある場合だけその spelling。alias がない場合は
+  last path segment から暗黙 alias を合成せず `None` のままにする。
+- `visibility`: shared declaration prefix が正規化した declaration-level visibility を全 leaf に
+  コピーする。group item は visibility を上書きしない。現在の4 fixtureでは無指定を `Private` とする。
+- `range`: root が Single / Glob なら newline を除く `UseDeclaration.range`。group から展開した record
+  は、その record を最終的に生んだ innermost leaf `UseTree.range` とする。common prefix と leaf は
+  source 上で不連続になり得るため、一つの range へ無理に合成しない。declaration 全体の range は AST に
+  別途残る。`UseDeclaration.range` は visibility があればその先頭から最後の use suffix までで、newline、
+  semicolon など caller が所有する statement separator は含めない。
+- `key`: production field ではなく fixture-local join label のままとする。parser は path 文字列から key を
+  生成しない。fixture author / harness は source-order の record shape に key を対応づけ、header/full の
+  同じ leaf に同じ key を使う。重複 path は ordinal を含む別 key で区別できる。
+
+glob と `without` を losslessly public fact にするには、`HeaderImport` を
+`selection: Single | Glob { without }` 相当で evolve させる必要がある。version / anchor を実装する時も
+raw source qualifier を区別できる field が必要になり、non-marker slash path には structured separator /
+route field が必要になる。Phase 2 fixture schema v0 の import record は
+`form/path/visibility/alias/range` だけを固定しており、current four fixture はすべて qualifier-free
+Single なので矛盾しない。v0 が表せない glob selection、exclusion、version、anchor の fixture を
+closed-world contract に追加する前、および separator shape の異なる Plain path を同じ case family で
+区別する前に、schema の additive revision または contract-version bump を行う。
+それまでは path の末尾へ `*` を偽 segment として足したり、qualifier を落とした record を期待値に
+書いたりしない。
+
+### `use mod` sugar responsibility
+
+oracle parser のコメントは `use mod path` を `mod path_head; use path` の sugar と説明する。しかし
+`yu-syntax` は source file discovery、module declaration の合成、source-set mutation を所有しない。
+したがって syntax 層の責務は次で閉じる。
+
+- CST は source に存在する一つの use declaration を lossless に保持する。
+- Use AST / `HeaderImport` は `form = Mod` と normalized path を保持する。
+- parser は synthetic `ModDeclaration` を作らず、`HeaderInfo.imports` 以外の source-set fact をその場で
+  追加しない。
+- downstream source-loader / module-resolution は Mod record を見て、少なくとも path head の module
+  load と通常 import の二効果を実現する責任を持つ。
+
+この分担自体は確定とする。一方、§18 が未決定としている non-header `mod` / late `use` を含む
+source-set expansion を iterative full parse で発見するか、operator-independent structural discovery
+product で発見するかは、この章でも決めない。leading `use mod` の raw syntax fact を正確に作ることと、
+source-loader が全 file の source set をどう固定点へ到達させるかは別 decision である。
+
+### Still open
+
+- version suffix の canonical validation、manifest / lock / source provider との対応。
+- `with` anchor の resolution semantics と、item-local qualifier と group-wide qualifier が競合した時の
+  precedence。AST 上の source scope は保持するが、ここでは勝者を決めない。
+- glob selection、`without`、version、anchor、Plain slash route を fixture の closed-world projection で
+  固定する schema revision の具体的 field shape。現 schema v0 と current four fixture は変更しない。
+- §18 の non-header `mod` / late `use` を含む source-set expansion の discovery mechanism。
+
+### Use-specific implementation gates
+
+- four leading-use fixture の header/full form、normalized path、visibility、range が一致する。
+- `realm::x`、`band/x`、arbitrary `a/b::c` が Realm / Band marker に誤分類されない。
+- recursive group は source-order に独立 fact を作り、malformed item 後の complete sibling を commit する。
+- simple alias、operator segment、glob、glob + `without` を Use AST が区別し、CST 再走査を要求しない。
+- group/glob alias と repeated alias は silent overwrite せず committed recovery record を持つ。
+- version / `with` は typed syntax に残り、意味未確定のまま qualifier を落とした HeaderImport を作らない。
+- use grammar の header/full parity failure は既決通り compiler invariant violation とし、full value で
+  header value を上書きしない。
+
 ## Fate of the committed code
 
 ### Reuse assessment
@@ -1051,7 +1380,8 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
   `sink.rs`、`op.rs`、`scan/mod.rs`、`scan/trivia.rs`、`expr/core.rs`、
   `expr/tail.rs`、`expr/scan.rs`、`expr/scan/op/{scan,judge,boundary}.rs`、
   `typ/parse.rs`、`mark/scan.rs`、`string/{scan,parse}.rs`、`stmt/{op_def,common}.rs`、
-  `stmt/mod.rs`、`tests/expr_grammar.rs`、Cargo manifest / lock。
+  `stmt/{mod,use_scan,use_decl}.rs`、`parse/mod.rs`、`tests/{expr_grammar,stmt_grammar}.rs`、
+  `crates/sources/src/lib.rs`、Cargo manifest / lock。
 - Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
   `crates/yu-syntax/src/{lib,parse,input,session,sink,syntax_kind}.rs`、
   `notes/design/2026-08-20-phase2-parser-fixture-schema.md`、phase 2 parser fixtures、
@@ -1079,6 +1409,15 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
 - tagged `skip_op_def_body` と `scan_stmt_lex`、string/trivia/Yumark scanner を再照合し、header-mode
   opaque scan が delimiter / indentation に加えて operator-independent lexical region を追跡する必要を
   確認した。
+- tagged `stmt/use_scan.rs` と `stmt/use_decl.rs` を通読し、use 専用 tag の全 vocabulary、version を
+  identifier より先に試す scan 順序、各 predictive state、recursive group、glob 後だけの `without`、
+  comma / newline group separator を確認した。`crates/sources/src/lib.rs` の route classifier と collector
+  も照合し、`realm` + `/` と `band` + `::` だけが marker になり、group suffix が複数 import に作用する
+  current behavior を確認した。
+- four leading-use fixture の source と header/full record を再照合し、新しい form classifier が
+  Plain / Mod / Realm / Band の form、marker を除いた path、declaration range、Private visibility を
+  そのまま再現することを確認した。fixture schema v0 は recursive group の independent committed item
+  projection と整合する一方、glob / exclusion / version / anchor の field をまだ持たないことを明記した。
 - この revision は本 design document だけを変更し、source、manifest、fixture、正本 architecture
   document は変更していない。
 
