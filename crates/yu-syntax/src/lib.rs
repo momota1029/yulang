@@ -157,25 +157,37 @@ impl BindingPower {
 /// Discover leading plain imports and infix operator signatures.
 pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
     let source = source.as_ref();
+    let mut cursor = HeaderCursor::new(source);
     let mut imports = Vec::new();
     let mut operators = Vec::new();
-    let mut offset = 0;
+    let mut coverage_end = 0;
 
-    while offset < source.len() {
-        let line = source_line(source, offset);
-
-        if let Some(import) = scan_plain_use(line.text, offset) {
-            imports.push(import);
-        } else if let Some(operator) = scan_infix_operator(line.text, offset) {
-            operators.push(operator);
-        } else {
+    while cursor.is_at_header_start() {
+        let declaration_start = cursor.position();
+        let Some(ScanItem::Token(starter)) = cursor.next() else {
             break;
+        };
+
+        let declaration = match starter.kind {
+            TokenKind::Keyword(HeaderKeyword::Use) => {
+                scan_plain_use(&mut cursor, declaration_start).map(HeaderDeclaration::Import)
+            }
+            TokenKind::Keyword(HeaderKeyword::Infix) => {
+                scan_infix_operator(&mut cursor, declaration_start).map(HeaderDeclaration::Operator)
+            }
+            _ => None,
+        };
+
+        match declaration {
+            Some(HeaderDeclaration::Import(import)) => imports.push(import),
+            Some(HeaderDeclaration::Operator(operator)) => operators.push(operator),
+            None => break,
         }
 
-        offset = line.next_offset;
+        coverage_end = cursor.position();
     }
 
-    let stop = if offset == source.len() {
+    let stop = if coverage_end == source.len() {
         HeaderStop::Eof
     } else {
         HeaderStop::FirstNonHeader
@@ -183,7 +195,7 @@ pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
 
     HeaderInfo {
         coverage: HeaderCoverage {
-            range: 0..offset,
+            range: 0..coverage_end,
             stop,
         },
         imports: imports.into(),
@@ -191,41 +203,41 @@ pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
     }
 }
 
-struct SourceLine<'source> {
-    text: &'source str,
-    next_offset: usize,
+enum HeaderDeclaration {
+    Import(HeaderImport),
+    Operator(HeaderOperator),
 }
 
-fn source_line(source: &str, offset: usize) -> SourceLine<'_> {
-    let remainder = &source[offset..];
+fn scan_plain_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<HeaderImport> {
+    cursor.consume_exact_space()?;
+    let first_component = cursor.consume_path_component()?;
+    let mut range_end = first_component.range.end;
+    let mut path = vec![first_component.text.to_owned()];
 
-    match remainder.find('\n') {
-        Some(relative_end) => {
-            let line_end = offset + relative_end;
-            let text_end = if source[..line_end].ends_with('\r') {
-                line_end - 1
-            } else {
-                line_end
-            };
-
-            SourceLine {
-                text: &source[offset..text_end],
-                next_offset: line_end + 1,
+    loop {
+        match cursor.next() {
+            Some(ScanItem::Token(Token {
+                kind: TokenKind::Dot,
+                ..
+            })) => {
+                let component = cursor.consume_path_component()?;
+                range_end = component.range.end;
+                path.push(component.text.to_owned());
             }
+            Some(ScanItem::Trivia(Trivia {
+                kind: TriviaKind::Newline { indentation },
+                ..
+            })) => {
+                debug_assert_eq!(cursor.indentation(), indentation);
+                break;
+            }
+            None => break,
+            _ => return None,
         }
-        None => SourceLine {
-            text: remainder,
-            next_offset: source.len(),
-        },
     }
-}
-
-fn scan_plain_use(line: &str, offset: usize) -> Option<HeaderImport> {
-    let path = line.strip_prefix("use ")?;
-    let path = parse_plain_path(path)?;
 
     Some(HeaderImport {
-        range: offset..offset + line.len(),
+        range: range_start..range_end,
         form: HeaderImportForm::Plain,
         path,
         visibility: Visibility::Private,
@@ -233,45 +245,25 @@ fn scan_plain_use(line: &str, offset: usize) -> Option<HeaderImport> {
     })
 }
 
-fn parse_plain_path(path: &str) -> Option<Vec<String>> {
-    path.split('.')
-        .map(|component| {
-            let mut chars = component.chars();
-            let first = chars.next()?;
-
-            if !(first.is_ascii_alphabetic() || first == '_')
-                || !chars.all(|character| character.is_ascii_alphanumeric() || character == '_')
-            {
-                return None;
-            }
-
-            Some(component.to_owned())
-        })
-        .collect()
-}
-
-fn scan_infix_operator(line: &str, offset: usize) -> Option<HeaderOperator> {
-    let remainder = line.strip_prefix("infix ")?;
-    let remainder = remainder.strip_prefix('(')?;
-    let closing_parenthesis = remainder.find(')')?;
-    let name = &remainder[..closing_parenthesis];
-
-    if name.is_empty() {
-        return None;
-    }
-
-    let remainder = &remainder[closing_parenthesis + 1..];
-    let remainder = strip_required_space(remainder)?;
-    let (left, remainder) = parse_u16(remainder)?;
-    let remainder = strip_required_space(remainder)?;
-    let (right, remainder) = parse_u16(remainder)?;
-    let remainder = strip_required_space(remainder)?;
-    let remainder_offset = line.len() - remainder.len();
-    let _body = remainder.strip_prefix('=')?;
+fn scan_infix_operator(
+    cursor: &mut HeaderCursor<'_>,
+    range_start: usize,
+) -> Option<HeaderOperator> {
+    cursor.consume_exact_space()?;
+    cursor.consume_token(TokenKind::Open(Delimiter::Parenthesis))?;
+    let parenthesis_depth = cursor.delimiter_depth();
+    let name = cursor.consume_operator_name(parenthesis_depth)?.to_owned();
+    cursor.consume_spaces()?;
+    let left = cursor.consume_u16()?;
+    cursor.consume_spaces()?;
+    let right = cursor.consume_u16()?;
+    cursor.consume_spaces()?;
+    let equals = cursor.consume_token(TokenKind::Equals)?;
+    cursor.consume_line_remainder();
 
     Some(HeaderOperator {
-        range: offset..offset + remainder_offset + 1,
-        name: name.to_owned(),
+        range: range_start..equals.range.end,
+        name,
         fixity: OperatorFixity::Infix,
         visibility: Visibility::Private,
         binding_power: BindingPower {
@@ -281,23 +273,307 @@ fn scan_infix_operator(line: &str, offset: usize) -> Option<HeaderOperator> {
     })
 }
 
-fn strip_required_space(text: &str) -> Option<&str> {
-    let remainder = text.strip_prefix(' ')?;
-    Some(remainder.trim_start_matches(' '))
+/// Minimal lexical state shared by header declaration discovery.
+///
+/// Trivia stays separate from content tokens, while delimiter and indentation
+/// state remain available for later recovery and opaque-scan policies.
+struct HeaderCursor<'source> {
+    source: &'source str,
+    position: usize,
+    line_start: usize,
+    indentation: usize,
+    delimiters: Vec<Delimiter>,
 }
 
-fn parse_u16(text: &str) -> Option<(u16, &str)> {
-    let digit_count = text
-        .bytes()
-        .take_while(|byte| byte.is_ascii_digit())
-        .count();
-
-    if digit_count == 0 {
-        return None;
+impl<'source> HeaderCursor<'source> {
+    fn new(source: &'source str) -> Self {
+        Self {
+            source,
+            position: 0,
+            line_start: 0,
+            indentation: indentation_at(source, 0),
+            delimiters: Vec::new(),
+        }
     }
 
-    let (digits, remainder) = text.split_at(digit_count);
-    Some((digits.parse().ok()?, remainder))
+    fn position(&self) -> usize {
+        self.position
+    }
+
+    fn indentation(&self) -> usize {
+        self.indentation
+    }
+
+    fn delimiter_depth(&self) -> usize {
+        self.delimiters.len()
+    }
+
+    fn is_at_header_start(&self) -> bool {
+        self.position == self.line_start && self.indentation == 0 && self.delimiters.is_empty()
+    }
+
+    fn next(&mut self) -> Option<ScanItem<'source>> {
+        if self.position == self.source.len() {
+            return None;
+        }
+
+        let start = self.position;
+        let remainder = &self.source[start..];
+
+        if remainder.starts_with([' ', '\t']) {
+            self.position += remainder
+                .bytes()
+                .take_while(|byte| matches!(byte, b' ' | b'\t'))
+                .count();
+            return Some(ScanItem::Trivia(Trivia {
+                kind: TriviaKind::Space,
+                range: start..self.position,
+            }));
+        }
+
+        if let Some(newline_len) = newline_len(remainder) {
+            self.position += newline_len;
+            self.line_start = self.position;
+            self.indentation = indentation_at(self.source, self.position);
+            return Some(ScanItem::Trivia(Trivia {
+                kind: TriviaKind::Newline {
+                    indentation: self.indentation,
+                },
+                range: start..self.position,
+            }));
+        }
+
+        let (kind, end) = scan_token(self.source, start);
+        self.position = end;
+        self.update_delimiters(kind);
+
+        Some(ScanItem::Token(Token {
+            kind,
+            text: &self.source[start..end],
+            range: start..end,
+        }))
+    }
+
+    fn consume_exact_space(&mut self) -> Option<()> {
+        let ScanItem::Trivia(trivia) = self.next()? else {
+            return None;
+        };
+
+        (trivia.kind == TriviaKind::Space && self.source[trivia.range] == *" ").then_some(())
+    }
+
+    fn consume_spaces(&mut self) -> Option<()> {
+        let ScanItem::Trivia(trivia) = self.next()? else {
+            return None;
+        };
+
+        (trivia.kind == TriviaKind::Space
+            && self.source[trivia.range].bytes().all(|byte| byte == b' '))
+        .then_some(())
+    }
+
+    fn consume_path_component(&mut self) -> Option<Token<'source>> {
+        let ScanItem::Token(token) = self.next()? else {
+            return None;
+        };
+
+        token.kind.is_word().then_some(token)
+    }
+
+    fn consume_token(&mut self, expected: TokenKind) -> Option<Token<'source>> {
+        let ScanItem::Token(token) = self.next()? else {
+            return None;
+        };
+
+        (token.kind == expected).then_some(token)
+    }
+
+    fn consume_operator_name(&mut self, parenthesis_depth: usize) -> Option<&'source str> {
+        let name_start = self.position;
+
+        loop {
+            let ScanItem::Token(token) = self.next()? else {
+                return None;
+            };
+
+            if token.kind == TokenKind::Close(Delimiter::Parenthesis)
+                && self.delimiter_depth() + 1 == parenthesis_depth
+            {
+                return (name_start < token.range.start)
+                    .then_some(&self.source[name_start..token.range.start]);
+            }
+        }
+    }
+
+    fn consume_u16(&mut self) -> Option<u16> {
+        let token = self.consume_token(TokenKind::Number)?;
+        token.text.parse().ok()
+    }
+
+    fn consume_line_remainder(&mut self) {
+        // Operator bodies remain single-line in this slice. Delimiter state is
+        // still updated so a later balanced opaque scan can extend this point.
+        while let Some(item) = self.next() {
+            if let ScanItem::Trivia(Trivia {
+                kind: TriviaKind::Newline { indentation },
+                ..
+            }) = item
+            {
+                debug_assert_eq!(self.indentation, indentation);
+                break;
+            }
+        }
+    }
+
+    fn update_delimiters(&mut self, token: TokenKind) {
+        match token {
+            TokenKind::Open(delimiter) => self.delimiters.push(delimiter),
+            TokenKind::Close(delimiter) if self.delimiters.last() == Some(&delimiter) => {
+                self.delimiters.pop();
+            }
+            _ => {}
+        }
+    }
+}
+
+enum ScanItem<'source> {
+    Token(Token<'source>),
+    Trivia(Trivia),
+}
+
+struct Token<'source> {
+    kind: TokenKind,
+    text: &'source str,
+    range: Range<usize>,
+}
+
+struct Trivia {
+    kind: TriviaKind,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum TriviaKind {
+    Space,
+    Newline { indentation: usize },
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum TokenKind {
+    Identifier,
+    Keyword(HeaderKeyword),
+    Number,
+    Dot,
+    ColonColon,
+    Open(Delimiter),
+    Close(Delimiter),
+    Equals,
+    Symbol,
+}
+
+impl TokenKind {
+    fn is_word(self) -> bool {
+        matches!(self, Self::Identifier | Self::Keyword(_))
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum HeaderKeyword {
+    Use,
+    Infix,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Delimiter {
+    Parenthesis,
+    Brace,
+    Bracket,
+}
+
+fn scan_token(source: &str, start: usize) -> (TokenKind, usize) {
+    let remainder = &source[start..];
+    let first = remainder.as_bytes()[0];
+
+    if first.is_ascii_alphabetic() || first == b'_' {
+        let length = remainder
+            .bytes()
+            .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            .count();
+        let end = start + length;
+        let kind = match &source[start..end] {
+            "use" => TokenKind::Keyword(HeaderKeyword::Use),
+            "infix" => TokenKind::Keyword(HeaderKeyword::Infix),
+            _ => TokenKind::Identifier,
+        };
+        return (kind, end);
+    }
+
+    if first.is_ascii_digit() {
+        let length = remainder.bytes().take_while(u8::is_ascii_digit).count();
+        return (TokenKind::Number, start + length);
+    }
+
+    if remainder.starts_with("::") {
+        return (TokenKind::ColonColon, start + 2);
+    }
+
+    let single_byte = match first {
+        b'.' => Some(TokenKind::Dot),
+        b'(' => Some(TokenKind::Open(Delimiter::Parenthesis)),
+        b')' => Some(TokenKind::Close(Delimiter::Parenthesis)),
+        b'{' => Some(TokenKind::Open(Delimiter::Brace)),
+        b'}' => Some(TokenKind::Close(Delimiter::Brace)),
+        b'[' => Some(TokenKind::Open(Delimiter::Bracket)),
+        b']' => Some(TokenKind::Close(Delimiter::Bracket)),
+        b'=' => Some(TokenKind::Equals),
+        _ => None,
+    };
+
+    if let Some(kind) = single_byte {
+        return (kind, start + 1);
+    }
+
+    (TokenKind::Symbol, scan_symbol_end(source, start))
+}
+
+fn scan_symbol_end(source: &str, start: usize) -> usize {
+    let mut end = start;
+
+    for (relative, character) in source[start..].char_indices() {
+        let position = start + relative;
+        if position > start && starts_distinct_item(source, position, character) {
+            break;
+        }
+        end = position + character.len_utf8();
+    }
+
+    end
+}
+
+fn starts_distinct_item(source: &str, position: usize, character: char) -> bool {
+    character.is_ascii_alphanumeric()
+        || matches!(
+            character,
+            '_' | ' ' | '\t' | '\r' | '\n' | '.' | '(' | ')' | '{' | '}' | '[' | ']' | '='
+        )
+        || source[position..].starts_with("::")
+}
+
+fn newline_len(source: &str) -> Option<usize> {
+    if source.starts_with("\r\n") {
+        Some(2)
+    } else if source.starts_with(['\r', '\n']) {
+        Some(1)
+    } else {
+        None
+    }
+}
+
+fn indentation_at(source: &str, position: usize) -> usize {
+    source[position..]
+        .bytes()
+        .take_while(|byte| matches!(byte, b' ' | b'\t'))
+        .count()
 }
 
 #[cfg(test)]
