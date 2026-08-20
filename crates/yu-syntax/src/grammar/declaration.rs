@@ -120,6 +120,18 @@ impl<'source> UseDeclaration<'source> {
             alias,
         ))
     }
+
+    /// Expands every complete single-target leaf in source order.
+    pub(crate) fn expand_header_imports(&self) -> Vec<Result<HeaderImport, UseExpansionError>> {
+        expand_use_tree(
+            &self.tree,
+            HeaderImportForm::Plain,
+            &HeaderImportRoute::new(Vec::new(), Vec::new()),
+            None,
+            self.visibility,
+            Some(self.range()),
+        )
+    }
 }
 
 /// Why a use declaration cannot yet project to one header import fact.
@@ -128,6 +140,34 @@ pub(crate) enum UseSingleProjectionError {
     NonSingleTerminal,
     MultipleAliases,
     Qualifiers,
+}
+
+/// Why one use-tree branch cannot produce a complete header import fact.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum UseExpansionError {
+    FormConflict {
+        range: Range<usize>,
+        inherited_form: HeaderImportForm,
+        form: HeaderImportForm,
+    },
+    GroupAlias {
+        range: Range<usize>,
+    },
+    MultipleAliases {
+        range: Range<usize>,
+    },
+    Qualifiers {
+        range: Range<usize>,
+    },
+    UnsupportedGlob {
+        range: Range<usize>,
+    },
+    MissingRouteJoin {
+        range: Range<usize>,
+    },
+    MissingTarget {
+        range: Range<usize>,
+    },
 }
 
 /// One recursively composable `use` specification.
@@ -222,6 +262,112 @@ fn project_use_route(path: &UsePath<'_>) -> HeaderImportRoute {
         .collect();
 
     HeaderImportRoute::new(segments, separators)
+}
+
+fn expand_use_tree(
+    tree: &UseTree<'_>,
+    inherited_form: HeaderImportForm,
+    inherited_route: &HeaderImportRoute,
+    pending_join: Option<UseSeparator>,
+    visibility: Visibility,
+    root_range: Option<Range<usize>>,
+) -> Vec<Result<HeaderImport, UseExpansionError>> {
+    let effective_form = if tree.form == HeaderImportForm::Plain {
+        inherited_form
+    } else if inherited_route.segments().is_empty() {
+        tree.form
+    } else {
+        return vec![Err(UseExpansionError::FormConflict {
+            range: tree.range(),
+            inherited_form,
+            form: tree.form,
+        })];
+    };
+    if !tree.qualifiers.is_empty() {
+        return vec![Err(UseExpansionError::Qualifiers {
+            range: tree.range(),
+        })];
+    }
+
+    let route = match concatenate_use_route(inherited_route, pending_join, &tree.prefix) {
+        Ok(route) => route,
+        Err(error) => return vec![Err(error)],
+    };
+
+    match &tree.terminal {
+        UseTerminal::Single => {
+            if route.segments().is_empty() {
+                return vec![Err(UseExpansionError::MissingTarget {
+                    range: tree.range(),
+                })];
+            }
+            let alias = match tree.aliases.as_slice() {
+                [] => None,
+                [alias] => Some(alias.text().to_owned()),
+                _ => {
+                    return vec![Err(UseExpansionError::MultipleAliases {
+                        range: tree.range(),
+                    })];
+                }
+            };
+            let range = root_range.unwrap_or_else(|| tree.range());
+            vec![Ok(HeaderImport::new(
+                range,
+                effective_form,
+                route,
+                visibility,
+                alias,
+            ))]
+        }
+        UseTerminal::Group { join, items } => {
+            if !tree.aliases.is_empty() {
+                return vec![Err(UseExpansionError::GroupAlias {
+                    range: tree.range(),
+                })];
+            }
+            items
+                .iter()
+                .flat_map(|item| {
+                    expand_use_tree(item, effective_form, &route, *join, visibility, None)
+                })
+                .collect()
+        }
+        UseTerminal::Glob { .. } => vec![Err(UseExpansionError::UnsupportedGlob {
+            range: tree.range(),
+        })],
+    }
+}
+
+fn concatenate_use_route(
+    inherited: &HeaderImportRoute,
+    pending_join: Option<UseSeparator>,
+    suffix: &UsePath<'_>,
+) -> Result<HeaderImportRoute, UseExpansionError> {
+    let mut segments = inherited.segments().to_vec();
+    let mut separators = inherited.separators().to_vec();
+
+    if !suffix.segments().is_empty() {
+        if !segments.is_empty() {
+            let Some(join) = pending_join else {
+                return Err(UseExpansionError::MissingRouteJoin {
+                    range: suffix.segments()[0].range(),
+                });
+            };
+            separators.push(project_use_separator(join));
+        }
+        let suffix_route = project_use_route(suffix);
+        segments.extend_from_slice(suffix_route.segments());
+        separators.extend_from_slice(suffix_route.separators());
+    }
+
+    Ok(HeaderImportRoute::new(segments, separators))
+}
+
+fn project_use_separator(separator: UseSeparator) -> HeaderImportRouteSeparator {
+    match separator {
+        UseSeparator::ColonColon => HeaderImportRouteSeparator::ColonColon,
+        UseSeparator::Slash => HeaderImportRouteSeparator::Slash,
+    }
 }
 
 /// A route separator between two stored path segments.
@@ -849,6 +995,144 @@ mod tests {
     }
 
     #[test]
+    fn expands_a_common_prefix_group_into_independent_imports() {
+        let (declaration, remainder) = parse_use("use std::io::{read, write}");
+        let imports = complete_expansions(&declaration);
+
+        assert_eq!(imports.len(), 2);
+        assert_eq!(imports[0].range(), &(14..18));
+        assert_eq!(imports[1].range(), &(20..25));
+        assert_eq!(imports[0].path(), ["std", "io", "read"]);
+        assert_eq!(imports[1].path(), ["std", "io", "write"]);
+        assert!(imports.iter().all(|import| {
+            import.route().separators()
+                == [
+                    HeaderImportRouteSeparator::ColonColon,
+                    HeaderImportRouteSeparator::ColonColon,
+                ]
+        }));
+        assert!(imports.iter().all(|import| import.alias().is_none()));
+        assert!(
+            imports
+                .iter()
+                .all(|import| import.visibility() == Visibility::Private)
+        );
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    fn expands_nested_groups_in_depth_first_source_order() {
+        let (declaration, _) = parse_use("use std::{io::{read, write}, fs}");
+        let imports = complete_expansions(&declaration);
+
+        assert_eq!(
+            imports.iter().map(HeaderImport::path).collect::<Vec<_>>(),
+            [
+                &["std".to_owned(), "io".to_owned(), "read".to_owned()][..],
+                &["std".to_owned(), "io".to_owned(), "write".to_owned()][..],
+                &["std".to_owned(), "fs".to_owned()][..],
+            ]
+        );
+    }
+
+    #[test]
+    fn does_not_emit_records_for_an_empty_group() {
+        let (declaration, remainder) = parse_use("use std::io::{}");
+
+        assert!(declaration.expand_header_imports().is_empty());
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    fn keeps_complete_siblings_when_one_group_item_has_a_form_conflict() {
+        let (declaration, _) = parse_use("use std::{realm/tools, plain}");
+        let results = declaration.expand_header_imports();
+
+        assert!(matches!(
+            results[0],
+            Err(UseExpansionError::FormConflict {
+                inherited_form: HeaderImportForm::Plain,
+                form: HeaderImportForm::Realm,
+                ..
+            })
+        ));
+        let import = results[1]
+            .as_ref()
+            .expect("the complete sibling should still expand");
+        assert_eq!(import.path(), ["std", "plain"]);
+        assert_eq!(import.form(), HeaderImportForm::Plain);
+    }
+
+    #[test]
+    fn rejects_an_alias_on_a_group_without_expanding_its_children() {
+        let (declaration, _) = parse_use("use std::{read} as selected");
+
+        assert_eq!(
+            declaration.expand_header_imports(),
+            vec![Err(UseExpansionError::GroupAlias { range: 4..27 })]
+        );
+    }
+
+    #[test]
+    fn rejects_repeated_aliases_on_a_single_branch() {
+        let (declaration, _) = parse_use("use std::data as first as second");
+
+        assert_eq!(
+            declaration.expand_header_imports(),
+            vec![Err(UseExpansionError::MultipleAliases { range: 4..32 })]
+        );
+    }
+
+    #[test]
+    fn keeps_complete_siblings_when_a_recovered_item_has_no_target() {
+        let (mut declaration, _) = parse_use("use {missing, complete}");
+        let UseTerminal::Group { items, .. } = &mut declaration.tree.terminal else {
+            panic!("expected root group");
+        };
+        items[0].prefix = empty_use_path();
+
+        let results = declaration.expand_header_imports();
+
+        assert!(matches!(
+            results[0],
+            Err(UseExpansionError::MissingTarget { .. })
+        ));
+        assert_eq!(
+            results[1]
+                .as_ref()
+                .expect("complete sibling should still expand")
+                .path(),
+            ["complete"]
+        );
+    }
+
+    #[test]
+    fn keeps_complete_siblings_when_a_group_item_is_a_glob() {
+        let (mut declaration, _) = parse_use("use std::{glob, complete}");
+        let UseTerminal::Group { items, .. } = &mut declaration.tree.terminal else {
+            panic!("expected group terminal");
+        };
+        items[0].terminal = UseTerminal::Glob {
+            join: None,
+            without: Vec::new(),
+        };
+
+        let results = declaration.expand_header_imports();
+
+        assert!(matches!(
+            results[0],
+            Err(UseExpansionError::UnsupportedGlob { .. })
+        ));
+        assert_eq!(
+            results[1]
+                .as_ref()
+                .expect("complete sibling should still expand")
+                .path(),
+            ["std", "complete"]
+        );
+    }
+
+    #[test]
     fn parses_a_simple_group_after_a_common_prefix() {
         let (declaration, remainder) = parse_use("use std::io::{read, write}");
 
@@ -987,6 +1271,14 @@ mod tests {
             panic!("expected use group terminal: {tree:#?}");
         };
         (*join, items)
+    }
+
+    fn complete_expansions(declaration: &UseDeclaration<'_>) -> Vec<HeaderImport> {
+        declaration
+            .expand_header_imports()
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .expect("all tested branches should expand")
     }
 
     #[test]
