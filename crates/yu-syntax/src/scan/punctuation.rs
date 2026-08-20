@@ -47,13 +47,14 @@ pub(crate) enum PunctuationKind {
     Comma,
     Semicolon,
     Dot,
+    Slash,
     ColonColon,
     Colon,
 }
 
 /// Consumes one fixed punctuation token at the current byte position.
 ///
-/// `=`, `..`, `...`, `->`, `|`, `*`, and `/` remain dynamic-operator
+/// `=`, `..`, `...`, `->`, `|`, and `*` remain dynamic-operator
 /// territory. Delimiter stack changes also remain grammar-owned: recognizing
 /// an opening or closing spelling does not establish a structural group.
 pub(crate) fn scan_punctuation<'source, E>(
@@ -76,6 +77,7 @@ where
         item('\'').to(PunctuationKind::Apostrophe),
         item(',').to(PunctuationKind::Comma),
         item(';').to(PunctuationKind::Semicolon),
+        item('/').to(PunctuationKind::Slash),
         item(':').to(PunctuationKind::Colon),
         from_fn(scan_dot),
     ));
@@ -127,6 +129,7 @@ mod tests {
             (",", PunctuationKind::Comma),
             (";", PunctuationKind::Semicolon),
             (".", PunctuationKind::Dot),
+            ("/", PunctuationKind::Slash),
             ("::", PunctuationKind::ColonColon),
             (":", PunctuationKind::Colon),
         ];
@@ -156,7 +159,7 @@ mod tests {
 
     #[test]
     fn dynamic_operator_spellings_are_not_fixed_punctuation() {
-        for source in ["=", "..", "...", "->", "|", "*", "/"] {
+        for source in ["=", "..", "...", "->", "|", "*"] {
             let result = scan(source, ParseLocal::new());
 
             assert_eq!(result.punctuation, None, "dynamic operator {source:?}");
