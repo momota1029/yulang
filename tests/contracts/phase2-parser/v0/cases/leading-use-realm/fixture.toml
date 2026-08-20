@@ -1,0 +1,31 @@
+[case]
+source = "main.yu"
+description = "a well-formed leading current-realm import is discovered before the body"
+tags = ["leading-use", "realm-import", "header-discovery", "header-full-parity"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 24 }
+stop = "first_non_header"
+
+[[header.imports]]
+key = "realm-tools-format"
+range = { start = 0, end = 23 }
+form = "realm"
+path = ["tools", "format"]
+visibility = "private"
+
+[full]
+diagnostics = []
+
+[[full.header_projection.imports]]
+key = "realm-tools-format"
+range = { start = 0, end = 23 }
+form = "realm"
+path = ["tools", "format"]
+visibility = "private"

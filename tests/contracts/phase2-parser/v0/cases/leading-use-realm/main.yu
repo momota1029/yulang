@@ -1,0 +1,2 @@
+use realm/tools::format
+my value = 1

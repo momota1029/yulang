@@ -1,0 +1,31 @@
+[case]
+source = "main.yu"
+description = "a well-formed leading use mod import is discovered before the body"
+tags = ["leading-use", "use-mod", "header-discovery", "header-full-parity"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 20 }
+stop = "first_non_header"
+
+[[header.imports]]
+key = "math-value"
+range = { start = 0, end = 19 }
+form = "mod"
+path = ["math", "value"]
+visibility = "private"
+
+[full]
+diagnostics = []
+
+[[full.header_projection.imports]]
+key = "math-value"
+range = { start = 0, end = 19 }
+form = "mod"
+path = ["math", "value"]
+visibility = "private"

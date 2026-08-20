@@ -1,0 +1,2 @@
+use mod math::value
+my value = 1

@@ -1,0 +1,2 @@
+use band::support::value
+my value = 1
