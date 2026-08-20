@@ -1,2 +1,2 @@
-use std.data
+use std::data
 my value = 1
