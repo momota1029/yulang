@@ -572,7 +572,7 @@ where
 
     let first = input.run(from_fn(scan_word))?;
 
-    let (form, prefix, terminal, terminal_end) = if classify_use_form(first, None)
+    let (form, prefix, mut terminal, terminal_end) = if classify_use_form(first, None)
         == HeaderImportForm::Mod
     {
         inline_trivia(input)?;
@@ -604,9 +604,18 @@ where
         }
     };
     let aliases = parse_use_aliases(input)?;
-    let end = aliases
+    let tail_end = aliases
         .last()
         .map_or(terminal_end, |alias| alias.range().end);
+    let without_end = if let UseTerminal::Glob { without, .. } = &mut terminal {
+        parse_use_without(input)?.map(|(parsed_without, end)| {
+            *without = parsed_without;
+            end
+        })
+    } else {
+        None
+    };
+    let end = without_end.unwrap_or(tail_end);
 
     Some(UseTree {
         range: start..end,
@@ -659,6 +668,16 @@ where
         if input.maybe(from_fn(parse_open_brace))?.is_some() {
             let (terminal, terminal_end) = parse_use_group_terminal(input, Some(current))?;
             return Some((path, terminal, terminal_end));
+        }
+        if let Some(range) = input.maybe(from_fn(parse_use_glob))? {
+            return Some((
+                path,
+                UseTerminal::Glob {
+                    join: Some(current),
+                    without: Vec::new(),
+                },
+                range.end,
+            ));
         }
         path.separators.push(current);
         path.segments
@@ -739,6 +758,171 @@ where
     input.run(from_fn(scan_word))
 }
 
+fn parse_use_without<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<Option<(Vec<UseExclusion<'source>>, usize)>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    input.maybe(from_fn(parse_use_without_clause))
+}
+
+fn parse_use_without_clause<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<(Vec<UseExclusion<'source>>, usize)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    inline_trivia(&mut input)?;
+    let keyword = input.run(from_fn(scan_word))?;
+    (keyword.text() == "without").then_some(())?;
+    inline_trivia(&mut input)?;
+
+    let mut exclusions = vec![parse_use_exclusion(&mut input)?];
+    while input.maybe(from_fn(parse_comma))?.is_some() {
+        input.run(from_fn(scan_trivia))?;
+        exclusions.push(parse_use_exclusion(&mut input)?);
+    }
+    let end = exclusion_range(exclusions.last().expect("without has one exclusion")).end;
+
+    Some((exclusions, end))
+}
+
+fn parse_use_exclusion<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<UseExclusion<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(segment) = input.maybe(from_fn(parse_parenthesized_use_operator))? {
+        return Some(UseExclusion::Segment(segment));
+    }
+    if let Some(group) = input.maybe(from_fn(parse_use_exclusion_group))? {
+        return Some(group);
+    }
+    if let Some(range) = input.maybe(from_fn(parse_use_glob))? {
+        return Some(UseExclusion::Glob { range });
+    }
+
+    input
+        .run(from_fn(scan_word))
+        .map(|word| UseExclusion::Segment(UseSegment::Word(word)))
+}
+
+fn parse_parenthesized_use_operator<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<UseSegment<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let open = input.run(from_fn(scan_open_parenthesis))?;
+    let start = input.pos();
+
+    while let Some(character) = input.input.remainder().chars().next() {
+        if character == ')' {
+            break;
+        }
+        is_use_operator_character(character).then_some(())?;
+        input.input.next()?;
+    }
+
+    let end = input.pos();
+    (start < end).then_some(())?;
+    input.run(from_fn(scan_close_parenthesis))?;
+    Some(UseSegment::Operator {
+        range: open.start..input.pos(),
+        text: &input.input.source()[start..end],
+    })
+}
+
+fn is_use_operator_character(character: char) -> bool {
+    !character.is_whitespace()
+        && character != '_'
+        && !unicode_ident::is_xid_continue(character)
+        && !matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';'
+        )
+}
+
+fn parse_use_exclusion_group<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<UseExclusion<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let open = input.run(from_fn(scan_punctuation))?;
+    let delimiter = match open.kind() {
+        PunctuationKind::Open(Delimiter::Parenthesis) => Delimiter::Parenthesis,
+        PunctuationKind::Open(Delimiter::Brace) => Delimiter::Brace,
+        _ => return None,
+    };
+    let start = open.range().start;
+    let mut items = Vec::new();
+
+    loop {
+        consume_group_trivia(&mut input)?;
+        if let Some(close) =
+            input.maybe(from_fn(|input| parse_close_delimiter(delimiter, input)))?
+        {
+            return Some(UseExclusion::Group {
+                range: start..close.end,
+                items,
+            });
+        }
+
+        items.push(parse_use_tree(&mut input)?);
+
+        let separator_has_newline = consume_group_trivia(&mut input)?;
+        if let Some(close) =
+            input.maybe(from_fn(|input| parse_close_delimiter(delimiter, input)))?
+        {
+            return Some(UseExclusion::Group {
+                range: start..close.end,
+                items,
+            });
+        }
+        if input.maybe(from_fn(parse_comma))?.is_some() || separator_has_newline {
+            continue;
+        }
+        return None;
+    }
+}
+
+fn parse_use_glob<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let start = input.pos();
+    input.skip(chasa::prelude::item('*'))?;
+    let end = input.pos();
+
+    let mut line = input.local.line();
+    line.at_line_start = false;
+    input.local.set_line(line);
+
+    Some(start..end)
+}
+
+fn exclusion_range(exclusion: &UseExclusion<'_>) -> Range<usize> {
+    match exclusion {
+        UseExclusion::Segment(segment) => segment.range(),
+        UseExclusion::Glob { range } | UseExclusion::Group { range, .. } => range.clone(),
+    }
+}
+
 fn empty_use_path<'source>() -> UsePath<'source> {
     UsePath {
         segments: Vec::new(),
@@ -765,6 +949,41 @@ where
 {
     let punctuation = input.run(from_fn(scan_punctuation))?;
     (punctuation.kind() == PunctuationKind::Open(Delimiter::Brace)).then_some(())
+}
+
+fn scan_open_parenthesis<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let punctuation = input.run(from_fn(scan_punctuation))?;
+    (punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis))
+        .then(|| punctuation.range())
+}
+
+fn scan_close_parenthesis<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<()>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let punctuation = input.run(from_fn(scan_punctuation))?;
+    (punctuation.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())
+}
+
+fn parse_close_delimiter<E>(
+    delimiter: Delimiter,
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let punctuation = input.run(from_fn(scan_punctuation))?;
+    (punctuation.kind() == PunctuationKind::Close(delimiter)).then(|| punctuation.range())
 }
 
 fn parse_close_brace<E>(
@@ -992,6 +1211,89 @@ mod tests {
             ]
         );
         assert_ne!(slash.route(), colon_colon.route());
+    }
+
+    #[test]
+    fn parses_a_glob_only_after_a_path_separator() {
+        let (declaration, remainder) = parse_use("use std::*");
+
+        assert_eq!(path_texts(declaration.tree().prefix()), ["std"]);
+        let (join, without) = glob_parts(declaration.tree());
+        assert_eq!(join, Some(UseSeparator::ColonColon));
+        assert!(without.is_empty());
+        assert_eq!(remainder, "");
+        assert!(!parses_declaration("use *"));
+    }
+
+    #[test]
+    fn parses_name_and_glob_exclusions_after_without() {
+        let (name_declaration, _) = parse_use("use std::* without foo");
+        let (_, name_without) = glob_parts(name_declaration.tree());
+        assert_eq!(name_without.len(), 1);
+        assert_eq!(exclusion_segment_text(&name_without[0]), Some("foo"));
+
+        let (glob_declaration, _) = parse_use("use std::* without *");
+        let (_, glob_without) = glob_parts(glob_declaration.tree());
+        assert_eq!(glob_without.len(), 1);
+        assert!(matches!(glob_without[0], UseExclusion::Glob { .. }));
+    }
+
+    #[test]
+    fn retains_glob_aliases_before_parsing_without() {
+        let (declaration, _) = parse_use("use std::* as all without foo");
+        let (_, without) = glob_parts(declaration.tree());
+
+        assert_eq!(
+            declaration
+                .tree()
+                .aliases()
+                .iter()
+                .map(|alias| alias.text())
+                .collect::<Vec<_>>(),
+            ["all"]
+        );
+        assert_eq!(exclusion_segment_text(&without[0]), Some("foo"));
+    }
+
+    #[test]
+    fn parses_parenthesized_exclusion_groups() {
+        let (declaration, _) = parse_use("use std::* without (a, b)");
+        let (_, without) = glob_parts(declaration.tree());
+
+        let [UseExclusion::Group { items, .. }] = without else {
+            panic!("expected one parenthesized exclusion group: {without:#?}");
+        };
+        assert_eq!(items.len(), 2);
+        assert_eq!(path_texts(items[0].prefix()), ["a"]);
+        assert_eq!(path_texts(items[1].prefix()), ["b"]);
+    }
+
+    #[test]
+    fn parses_brace_exclusion_groups() {
+        let (declaration, _) = parse_use("use std::* without {a, b}");
+        let (_, without) = glob_parts(declaration.tree());
+
+        let [UseExclusion::Group { items, .. }] = without else {
+            panic!("expected one brace exclusion group: {without:#?}");
+        };
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| path_texts(item.prefix()))
+                .collect::<Vec<_>>(),
+            [vec!["a"], vec!["b"]]
+        );
+    }
+
+    #[test]
+    fn keeps_parenthesized_operator_names_distinct_from_glob_exclusions() {
+        let (declaration, _) = parse_use("use std::* without (*)");
+        let (_, without) = glob_parts(declaration.tree());
+
+        let [UseExclusion::Segment(UseSegment::Operator { text, .. })] = without else {
+            panic!("expected parenthesized star to remain an operator segment: {without:#?}");
+        };
+        assert_eq!(*text, "*");
     }
 
     #[test]
@@ -1271,6 +1573,37 @@ mod tests {
             panic!("expected use group terminal: {tree:#?}");
         };
         (*join, items)
+    }
+
+    fn glob_parts<'tree, 'source>(
+        tree: &'tree UseTree<'source>,
+    ) -> (Option<UseSeparator>, &'tree [UseExclusion<'source>]) {
+        let UseTerminal::Glob { join, without } = tree.terminal() else {
+            panic!("expected use glob terminal: {tree:#?}");
+        };
+        (*join, without)
+    }
+
+    fn exclusion_segment_text<'source>(exclusion: &UseExclusion<'source>) -> Option<&'source str> {
+        let UseExclusion::Segment(UseSegment::Word(word)) = exclusion else {
+            return None;
+        };
+        Some(word.text())
+    }
+
+    fn parses_declaration(source: &str) -> bool {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        input.run(from_fn(parse_declaration)).is_some()
     }
 
     fn complete_expansions(declaration: &UseDeclaration<'_>) -> Vec<HeaderImport> {
