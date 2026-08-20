@@ -9,6 +9,8 @@ mod operator;
 mod parse;
 #[allow(dead_code)]
 mod session;
+#[allow(dead_code)]
+mod sink;
 mod syntax_kind;
 
 pub use parse::{
