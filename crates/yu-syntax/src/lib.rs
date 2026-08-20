@@ -2,9 +2,9 @@
 
 use std::{ops::Range, sync::Arc};
 
+mod grammar;
 #[allow(dead_code)]
 mod input;
-mod grammar;
 #[allow(dead_code)]
 mod operator;
 mod parse;
