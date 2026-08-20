@@ -1,8 +1,12 @@
 //! Immutable full-fixity operator definitions and chasa trie traversal.
 
-use std::{cmp::Ordering, collections::BTreeMap};
+use std::{cmp::Ordering, collections::BTreeMap, ops::Range};
 
 use chasa::parser::trie::TrieState as ChasaTrieState;
+
+use crate::{BindingPower as HeaderBindingPower, HeaderOperator};
+
+pub(crate) use crate::OperatorFixity;
 
 /// A parse-session operator table compiled before full parsing starts.
 #[derive(Debug)]
@@ -22,32 +26,43 @@ impl OperatorTable {
     pub(crate) fn from_declarations(
         declarations: impl IntoIterator<Item = OperatorDeclaration>,
     ) -> Result<Self, OperatorTableBuildError> {
-        let mut definitions = BTreeMap::<Box<str>, OperatorFixities>::new();
+        let mut definitions = BTreeMap::<Box<str>, AccumulatedOperator>::new();
 
         for declaration in declarations {
             if declaration.spelling.is_empty() {
-                return Err(OperatorTableBuildError::EmptySpelling);
+                return Err(OperatorTableBuildError::EmptySpelling {
+                    range: declaration.range,
+                });
             }
 
-            if let Some(existing) = definitions.get_mut(&declaration.spelling) {
-                existing.merge(&declaration.fixities).map_err(|fixity| {
-                    OperatorTableBuildError::ConflictingFixity {
-                        spelling: declaration.spelling.clone(),
-                        fixity,
-                    }
-                })?;
-            } else {
-                definitions.insert(declaration.spelling, declaration.fixities);
-            }
+            let spelling = declaration.spelling.clone();
+            definitions
+                .entry(spelling)
+                .or_default()
+                .merge(&declaration)?;
         }
 
         let mut table = Self::empty();
-        for (spelling, fixities) in definitions {
+        for (spelling, definition) in definitions {
             let entry_index = table.entries.len();
             table.trie.insert(&spelling, entry_index);
-            table.entries.push(OperatorEntry { spelling, fixities });
+            table.entries.push(OperatorEntry {
+                spelling,
+                fixities: definition.fixities,
+            });
         }
         Ok(table)
+    }
+
+    /// Compiles declaration-local header facts into spelling-level fixities.
+    pub(crate) fn from_header_operators(
+        operators: impl IntoIterator<Item = HeaderOperator>,
+    ) -> Result<Self, OperatorTableBuildError> {
+        Self::from_declarations(
+            operators
+                .into_iter()
+                .map(OperatorDeclaration::from_header_operator),
+        )
     }
 
     pub(crate) fn get(&self, spelling: &str) -> Option<&OperatorEntry> {
@@ -78,15 +93,70 @@ impl Default for OperatorTable {
 pub(crate) struct OperatorDeclaration {
     spelling: Box<str>,
     fixities: OperatorFixities,
+    range: Range<usize>,
 }
 
 impl OperatorDeclaration {
     pub(crate) fn new(spelling: impl Into<Box<str>>, fixities: OperatorFixities) -> Self {
+        Self::at_range(spelling, fixities, 0..0)
+    }
+
+    pub(crate) fn at_range(
+        spelling: impl Into<Box<str>>,
+        fixities: OperatorFixities,
+        range: Range<usize>,
+    ) -> Self {
         Self {
             spelling: spelling.into(),
             fixities,
+            range,
         }
     }
+
+    fn from_header_operator(header: HeaderOperator) -> Self {
+        let fixities = match header.fixity() {
+            OperatorFixity::Prefix => {
+                OperatorFixities::new().with_prefix(binding_power_from_header(
+                    header
+                        .binding_power()
+                        .right()
+                        .expect("prefix header facts require a right binding power"),
+                ))
+            }
+            OperatorFixity::Infix => OperatorFixities::new().with_infix(
+                binding_power_from_header(
+                    header
+                        .binding_power()
+                        .left()
+                        .expect("infix header facts require a left binding power"),
+                ),
+                binding_power_from_header(
+                    header
+                        .binding_power()
+                        .right()
+                        .expect("infix header facts require a right binding power"),
+                ),
+            ),
+            OperatorFixity::Suffix => {
+                OperatorFixities::new().with_suffix(binding_power_from_header(
+                    header
+                        .binding_power()
+                        .left()
+                        .expect("suffix header facts require a left binding power"),
+                ))
+            }
+            OperatorFixity::Nullfix => OperatorFixities::new().with_nullfix(),
+        };
+        Self::at_range(header.name(), fixities, header.range().clone())
+    }
+}
+
+fn binding_power_from_header(power: &HeaderBindingPower) -> BindingPower {
+    let (first, rest) = power
+        .components()
+        .split_first()
+        .expect("header binding powers are never empty");
+    BindingPower::new(*first, rest.iter().copied())
 }
 
 /// One spelling and every fixity capability declared for it.
@@ -171,29 +241,6 @@ impl OperatorFixities {
             kinds.insert(OperatorKindSet::NULLFIX);
         }
         kinds
-    }
-
-    fn merge(&mut self, other: &Self) -> Result<(), OperatorFixity> {
-        merge_capability(&mut self.prefix, &other.prefix, OperatorFixity::Prefix)?;
-        merge_capability(&mut self.infix, &other.infix, OperatorFixity::Infix)?;
-        merge_capability(&mut self.suffix, &other.suffix, OperatorFixity::Suffix)?;
-        self.nullfix |= other.nullfix;
-        Ok(())
-    }
-}
-
-fn merge_capability<T: Clone + Eq>(
-    current: &mut Option<T>,
-    incoming: &Option<T>,
-    fixity: OperatorFixity,
-) -> Result<(), OperatorFixity> {
-    match (current.as_ref(), incoming.as_ref()) {
-        (Some(current), Some(incoming)) if current != incoming => Err(fixity),
-        (None, Some(incoming)) => {
-            *current = Some(incoming.clone());
-            Ok(())
-        }
-        _ => Ok(()),
     }
 }
 
@@ -283,14 +330,6 @@ impl PartialEq for BindingPower {
 
 impl Eq for BindingPower {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum OperatorFixity {
-    Prefix,
-    Infix,
-    Suffix,
-    Nullfix,
-}
-
 /// Compact full-fixity flags used by the future NUD/LED judge table.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct OperatorKindSet(u8);
@@ -324,11 +363,90 @@ impl std::ops::BitOr for OperatorKindSet {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum OperatorTableBuildError {
-    EmptySpelling,
+    EmptySpelling {
+        range: Range<usize>,
+    },
     ConflictingFixity {
         spelling: Box<str>,
         fixity: OperatorFixity,
+        first_range: Range<usize>,
+        second_range: Range<usize>,
     },
+}
+
+#[derive(Default)]
+struct AccumulatedOperator {
+    fixities: OperatorFixities,
+    prefix_range: Option<Range<usize>>,
+    infix_range: Option<Range<usize>>,
+    suffix_range: Option<Range<usize>>,
+    nullfix_range: Option<Range<usize>>,
+}
+
+impl AccumulatedOperator {
+    fn merge(&mut self, declaration: &OperatorDeclaration) -> Result<(), OperatorTableBuildError> {
+        merge_capability(
+            &mut self.fixities.prefix,
+            &declaration.fixities.prefix,
+            &mut self.prefix_range,
+            &declaration.spelling,
+            OperatorFixity::Prefix,
+            &declaration.range,
+        )?;
+        merge_capability(
+            &mut self.fixities.infix,
+            &declaration.fixities.infix,
+            &mut self.infix_range,
+            &declaration.spelling,
+            OperatorFixity::Infix,
+            &declaration.range,
+        )?;
+        merge_capability(
+            &mut self.fixities.suffix,
+            &declaration.fixities.suffix,
+            &mut self.suffix_range,
+            &declaration.spelling,
+            OperatorFixity::Suffix,
+            &declaration.range,
+        )?;
+        if declaration.fixities.nullfix {
+            if let Some(first_range) = &self.nullfix_range {
+                return Err(OperatorTableBuildError::ConflictingFixity {
+                    spelling: declaration.spelling.clone(),
+                    fixity: OperatorFixity::Nullfix,
+                    first_range: first_range.clone(),
+                    second_range: declaration.range.clone(),
+                });
+            }
+            self.fixities.nullfix = true;
+            self.nullfix_range = Some(declaration.range.clone());
+        }
+        Ok(())
+    }
+}
+
+fn merge_capability<T: Clone>(
+    current: &mut Option<T>,
+    incoming: &Option<T>,
+    first_range: &mut Option<Range<usize>>,
+    spelling: &str,
+    fixity: OperatorFixity,
+    second_range: &Range<usize>,
+) -> Result<(), OperatorTableBuildError> {
+    let Some(incoming) = incoming else {
+        return Ok(());
+    };
+    if let Some(first_range) = first_range {
+        return Err(OperatorTableBuildError::ConflictingFixity {
+            spelling: spelling.into(),
+            fixity,
+            first_range: first_range.clone(),
+            second_range: second_range.clone(),
+        });
+    }
+    *current = Some(incoming.clone());
+    *first_range = Some(second_range.clone());
+    Ok(())
 }
 
 /// Borrowing traversal state consumed directly by chasa's trie parser.
@@ -405,7 +523,10 @@ struct OperatorTrieNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::SourceInput;
+    use crate::{
+        BindingPower as HeaderBindingPower, BindingPowers, HeaderOperator, Visibility,
+        input::SourceInput,
+    };
     use chasa::Input;
 
     #[test]
@@ -466,6 +587,93 @@ mod tests {
         );
         assert!(definition.fixities().is_nullfix());
         assert_eq!(BindingPower::scalar(40), BindingPower::new(40, [0]));
+    }
+
+    #[test]
+    fn compiles_separate_header_declarations_into_one_full_fixity_entry() {
+        let headers = [
+            HeaderOperator::new(
+                0..20,
+                "..".to_owned(),
+                OperatorFixity::Nullfix,
+                Visibility::Public,
+                false,
+                BindingPowers::nullfix(),
+            ),
+            HeaderOperator::new(
+                21..48,
+                "..".to_owned(),
+                OperatorFixity::Prefix,
+                Visibility::Public,
+                false,
+                BindingPowers::prefix(HeaderBindingPower::from_components([8, 0, 0])),
+            ),
+            HeaderOperator::new(
+                49..76,
+                "..".to_owned(),
+                OperatorFixity::Suffix,
+                Visibility::Public,
+                false,
+                BindingPowers::suffix(HeaderBindingPower::from_components([8, 0, 0])),
+            ),
+            HeaderOperator::new(
+                77..112,
+                "..".to_owned(),
+                OperatorFixity::Infix,
+                Visibility::Public,
+                false,
+                BindingPowers::infix(
+                    HeaderBindingPower::from_components([4, 0, 0]),
+                    HeaderBindingPower::from_components([4, 0, 1]),
+                ),
+            ),
+        ];
+
+        let table = OperatorTable::from_header_operators(headers)
+            .expect("distinct fixities for one spelling should aggregate");
+        let entry = table.get("..").expect("aggregated spelling should exist");
+        assert!(entry.fixities().kinds().contains(
+            OperatorKindSet::PREFIX
+                | OperatorKindSet::INFIX
+                | OperatorKindSet::SUFFIX
+                | OperatorKindSet::NULLFIX
+        ));
+        assert_eq!(
+            entry
+                .fixities()
+                .infix()
+                .expect("infix capability")
+                .right_binding_power()
+                .components(),
+            &[4, 0, 1]
+        );
+    }
+
+    #[test]
+    fn rejects_redeclaring_the_same_fixity_with_both_source_ranges() {
+        let error = OperatorTable::from_declarations([
+            OperatorDeclaration::at_range(
+                "+",
+                OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                3..18,
+            ),
+            OperatorDeclaration::at_range(
+                "+",
+                OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                42..57,
+            ),
+        ])
+        .expect_err("a repeated prefix declaration must not silently overwrite");
+
+        assert_eq!(
+            error,
+            OperatorTableBuildError::ConflictingFixity {
+                spelling: "+".into(),
+                fixity: OperatorFixity::Prefix,
+                first_range: 3..18,
+                second_range: 42..57,
+            }
+        );
     }
 
     #[test]

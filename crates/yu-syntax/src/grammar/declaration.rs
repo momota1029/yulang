@@ -9,9 +9,11 @@ use chasa::{
 };
 
 use crate::{
-    HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator, Visibility,
-    grammar::expression::{Expression, IntegerLiteral, parse_expression, parse_integer_literal},
+    BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
+    HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
+    grammar::expression::{Expression, parse_expression},
     input::SourceInput,
+    operator::{BindingPower, OperatorFixity},
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::scan_trivia,
@@ -50,13 +52,16 @@ impl<'source> BindingDeclaration<'source> {
     }
 }
 
-/// An infix operator signature before its opaque header body.
+/// An operator signature before its opaque header body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct OperatorHeaderDeclaration<'source> {
     range: Range<usize>,
     name: &'source str,
-    left_binding_power: IntegerLiteral<'source>,
-    right_binding_power: IntegerLiteral<'source>,
+    visibility: Visibility,
+    lazy: bool,
+    fixity: OperatorFixity,
+    left_binding_power: Option<BindingPower>,
+    right_binding_power: Option<BindingPower>,
 }
 
 impl<'source> OperatorHeaderDeclaration<'source> {
@@ -68,13 +73,65 @@ impl<'source> OperatorHeaderDeclaration<'source> {
         self.name
     }
 
-    pub(crate) fn left_binding_power(&self) -> IntegerLiteral<'source> {
-        self.left_binding_power
+    pub(crate) fn visibility(&self) -> Visibility {
+        self.visibility
     }
 
-    pub(crate) fn right_binding_power(&self) -> IntegerLiteral<'source> {
-        self.right_binding_power
+    pub(crate) fn is_lazy(&self) -> bool {
+        self.lazy
     }
+
+    pub(crate) fn fixity(&self) -> OperatorFixity {
+        self.fixity
+    }
+
+    pub(crate) fn left_binding_power(&self) -> Option<&BindingPower> {
+        self.left_binding_power.as_ref()
+    }
+
+    pub(crate) fn right_binding_power(&self) -> Option<&BindingPower> {
+        self.right_binding_power.as_ref()
+    }
+
+    pub(crate) fn to_header_operator(&self) -> HeaderOperator {
+        let binding_power = match self.fixity {
+            OperatorFixity::Prefix => BindingPowers::prefix(header_binding_power(
+                self.right_binding_power
+                    .as_ref()
+                    .expect("prefix headers require a right binding power"),
+            )),
+            OperatorFixity::Infix => BindingPowers::infix(
+                header_binding_power(
+                    self.left_binding_power
+                        .as_ref()
+                        .expect("infix headers require a left binding power"),
+                ),
+                header_binding_power(
+                    self.right_binding_power
+                        .as_ref()
+                        .expect("infix headers require a right binding power"),
+                ),
+            ),
+            OperatorFixity::Suffix => BindingPowers::suffix(header_binding_power(
+                self.left_binding_power
+                    .as_ref()
+                    .expect("suffix headers require a left binding power"),
+            )),
+            OperatorFixity::Nullfix => BindingPowers::nullfix(),
+        };
+        HeaderOperator::new(
+            self.range(),
+            self.name.to_owned(),
+            self.fixity,
+            self.visibility,
+            self.lazy,
+            binding_power,
+        )
+    }
+}
+
+fn header_binding_power(binding_power: &BindingPower) -> HeaderBindingPower {
+    HeaderBindingPower::from_components(binding_power.components().to_vec())
 }
 
 /// A parsed `use` declaration before syntax planning resolves it.
@@ -467,28 +524,89 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = input.pos();
-    let keyword = input.run(from_fn(scan_word))?;
-    (keyword.text() == "infix").then_some(())?;
-    inline_trivia(&mut input)?;
+    let first = input.run(from_fn(scan_word))?;
+    let (visibility, fixity_keyword) = match first.text() {
+        "pub" => (
+            Visibility::Public,
+            parse_operator_header_word_after_trivia(&mut input)?,
+        ),
+        "my" => (
+            Visibility::Private,
+            parse_operator_header_word_after_trivia(&mut input)?,
+        ),
+        "our" => (
+            Visibility::Our,
+            parse_operator_header_word_after_trivia(&mut input)?,
+        ),
+        _ => (Visibility::Private, first),
+    };
+    let (lazy, fixity_keyword) = if fixity_keyword.text() == "lazy" {
+        (true, parse_operator_header_word_after_trivia(&mut input)?)
+    } else {
+        (false, fixity_keyword)
+    };
+    let fixity = parse_operator_fixity(fixity_keyword)?;
+
+    optional_inline_trivia(&mut input)?;
     let open = input.run(from_fn(scan_punctuation))?;
     (open.kind() == PunctuationKind::Open(Delimiter::Parenthesis)).then_some(())?;
     let name = parse_operator_name(&mut input)?;
     let close = input.run(from_fn(scan_punctuation))?;
     (close.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())?;
-    inline_trivia(&mut input)?;
-    let left_binding_power = input.run(from_fn(parse_integer_literal))?;
-    inline_trivia(&mut input)?;
-    let right_binding_power = input.run(from_fn(parse_integer_literal))?;
-    inline_trivia(&mut input)?;
+
+    let (left_binding_power, right_binding_power) = match fixity {
+        OperatorFixity::Nullfix => (None, None),
+        OperatorFixity::Prefix => {
+            optional_inline_trivia(&mut input)?;
+            (None, Some(input.run(from_fn(parse_binding_power))?))
+        }
+        OperatorFixity::Suffix => {
+            optional_inline_trivia(&mut input)?;
+            (Some(input.run(from_fn(parse_binding_power))?), None)
+        }
+        OperatorFixity::Infix => {
+            optional_inline_trivia(&mut input)?;
+            let left = input.run(from_fn(parse_binding_power))?;
+            optional_inline_trivia(&mut input)?;
+            let right = input.run(from_fn(parse_binding_power))?;
+            (Some(left), Some(right))
+        }
+    };
+    optional_inline_trivia(&mut input)?;
     input.skip(chasa::prelude::item('='))?;
     let end = input.pos();
 
     Some(OperatorHeaderDeclaration {
         range: start..end,
         name,
+        visibility,
+        lazy,
+        fixity,
         left_binding_power,
         right_binding_power,
     })
+}
+
+fn parse_operator_header_word_after_trivia<'source, E>(
+    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<WordSpan<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    inline_trivia(input)?;
+    input.run(from_fn(scan_word))
+}
+
+fn parse_operator_fixity(word: WordSpan<'_>) -> Option<OperatorFixity> {
+    match word.text() {
+        "prefix" => Some(OperatorFixity::Prefix),
+        "infix" => Some(OperatorFixity::Infix),
+        "suffix" => Some(OperatorFixity::Suffix),
+        "nullfix" => Some(OperatorFixity::Nullfix),
+        _ => None,
+    }
 }
 
 fn parse_operator_name<'source, E>(
@@ -499,11 +617,60 @@ where
     Unexpected<char>: Into<E::Error>,
 {
     let start = input.pos();
-    while !input.input.remainder().starts_with(')') {
+    while let Some(character) = input.input.remainder().chars().next() {
+        if character == ')' {
+            break;
+        }
+        (!character.is_whitespace()
+            && !matches!(
+                character,
+                '(' | '[' | ']' | '{' | '}' | '\\' | ',' | ';' | '"' | '\''
+            ))
+        .then_some(())?;
         input.input.next()?;
     }
     let end = input.pos();
     (start < end).then_some(&input.input.source()[start..end])
+}
+
+/// Parses the dot-separated binding-power vector used by operator headers.
+fn parse_binding_power<E>(
+    input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<BindingPower>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut components = Vec::new();
+
+    loop {
+        let start = input.pos();
+        while input
+            .input
+            .remainder()
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_ascii_digit())
+        {
+            input.input.next()?;
+        }
+        let end = input.pos();
+        (start < end).then_some(())?;
+        components.push(input.input.source()[start..end].parse::<i8>().ok()?);
+
+        if !input.input.remainder().starts_with('.') {
+            break;
+        }
+        input.input.next()?;
+    }
+
+    let mut line = input.local.line();
+    line.at_line_start = false;
+    input.local.set_line(line);
+
+    let (first, rest) = components.split_first()?;
+    Some(BindingPower::new(*first, rest.iter().copied()))
 }
 
 fn parse_binding_declaration<'source, E>(
@@ -1165,6 +1332,18 @@ where
     (!text.is_empty() && !text.contains(['\r', '\n'])).then_some(())
 }
 
+fn optional_inline_trivia<E>(
+    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<()>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = input.run(from_fn(scan_trivia))?;
+    (!input.input.source()[trivia.range()].contains(['\r', '\n'])).then_some(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1190,6 +1369,89 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/infix-operator-header/main.yu"
     ));
+
+    #[test]
+    fn parses_scalar_and_vector_operator_binding_powers() {
+        for (source, expected) in [("50", &[50][..]), ("5.0.1", &[5, 0, 1][..])] {
+            let (binding_power, remainder) = parse_operator_binding_power(source);
+
+            assert_eq!(binding_power.components(), expected, "{source}");
+            assert_eq!(remainder, "", "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_every_operator_header_fixity_with_its_binding_power_shape() {
+        let cases = [
+            ("nullfix (+) = body", OperatorFixity::Nullfix, None, None),
+            (
+                "prefix (not) 7.0 = body",
+                OperatorFixity::Prefix,
+                None,
+                Some(&[7, 0][..]),
+            ),
+            (
+                "suffix (!) 8 = body",
+                OperatorFixity::Suffix,
+                Some(&[8][..]),
+                None,
+            ),
+            (
+                "infix (+) 5.0.0 5.0.1 = body",
+                OperatorFixity::Infix,
+                Some(&[5, 0, 0][..]),
+                Some(&[5, 0, 1][..]),
+            ),
+        ];
+
+        for (source, fixity, left, right) in cases {
+            let (header, remainder) = parse_operator_header_declaration(source);
+
+            assert_eq!(header.fixity(), fixity, "{source}");
+            assert_eq!(
+                header.left_binding_power().map(BindingPower::components),
+                left,
+                "{source}"
+            );
+            assert_eq!(
+                header.right_binding_power().map(BindingPower::components),
+                right,
+                "{source}"
+            );
+            assert_eq!(remainder, " body", "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_operator_header_visibility_and_lazy_modifier() {
+        let (public, public_remainder) =
+            parse_operator_header_declaration("pub lazy infix(and) 2.0.0 2.0.1 = body");
+        let (private, private_remainder) =
+            parse_operator_header_declaration("my prefix (-) 8 = body");
+        let (our, our_remainder) = parse_operator_header_declaration("our suffix (!) 8 = body");
+
+        assert_eq!(public.visibility(), Visibility::Public);
+        assert!(public.is_lazy());
+        assert_eq!(private.visibility(), Visibility::Private);
+        assert!(!private.is_lazy());
+        assert_eq!(our.visibility(), Visibility::Our);
+        assert_eq!(public_remainder, " body");
+        assert_eq!(private_remainder, " body");
+        assert_eq!(our_remainder, " body");
+
+        let projected = public.to_header_operator();
+        assert_eq!(projected.range(), &(0..33));
+        assert_eq!(projected.name(), "and");
+        assert_eq!(projected.visibility(), Visibility::Public);
+        assert!(projected.is_lazy());
+        assert_eq!(
+            projected
+                .binding_power()
+                .right()
+                .map(HeaderBindingPower::components),
+            Some(&[2, 0, 1][..])
+        );
+    }
 
     #[test]
     fn classifies_all_leading_use_fixtures() {
@@ -1795,6 +2057,45 @@ mod tests {
         (declaration, input.input.remainder())
     }
 
+    fn parse_operator_binding_power(source: &str) -> (BindingPower, &str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let binding_power = input
+            .run(from_fn(parse_binding_power))
+            .expect("operator binding power should parse");
+        (binding_power, input.input.remainder())
+    }
+
+    fn parse_operator_header_declaration(source: &str) -> (OperatorHeaderDeclaration<'_>, &str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let declaration = input
+            .run(from_fn(parse_declaration))
+            .expect("operator header should parse");
+        let Declaration::OperatorHeader(header) = declaration else {
+            panic!("expected operator header");
+        };
+        (header, input.input.remainder())
+    }
+
     fn path_texts<'source>(path: &UsePath<'source>) -> Vec<&'source str> {
         path.segments()
             .iter()
@@ -1903,8 +2204,15 @@ mod tests {
         };
         assert_eq!(header.range(), 0..19);
         assert_eq!(header.name(), "<+>");
-        assert_eq!(header.left_binding_power().text(), "50");
-        assert_eq!(header.right_binding_power().text(), "51");
+        assert_eq!(header.fixity(), OperatorFixity::Infix);
+        assert_eq!(
+            header.left_binding_power().map(BindingPower::components),
+            Some(&[50][..])
+        );
+        assert_eq!(
+            header.right_binding_power().map(BindingPower::components),
+            Some(&[51][..])
+        );
         assert_eq!(input.input.remainder(), " left\nmy value = 1\n");
     }
 }

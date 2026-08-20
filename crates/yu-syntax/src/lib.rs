@@ -173,6 +173,7 @@ pub enum HeaderImportForm {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Visibility {
     Private,
+    Our,
     Public,
 }
 
@@ -183,7 +184,8 @@ pub struct HeaderOperator {
     name: String,
     fixity: OperatorFixity,
     visibility: Visibility,
-    binding_power: BindingPower,
+    lazy: bool,
+    binding_power: BindingPowers,
 }
 
 impl HeaderOperator {
@@ -203,31 +205,102 @@ impl HeaderOperator {
         self.visibility
     }
 
-    pub fn binding_power(&self) -> BindingPower {
-        self.binding_power
+    pub fn is_lazy(&self) -> bool {
+        self.lazy
+    }
+
+    pub fn binding_power(&self) -> &BindingPowers {
+        &self.binding_power
+    }
+
+    pub(crate) fn new(
+        range: Range<usize>,
+        name: String,
+        fixity: OperatorFixity,
+        visibility: Visibility,
+        lazy: bool,
+        binding_power: BindingPowers,
+    ) -> Self {
+        Self {
+            range,
+            name,
+            fixity,
+            visibility,
+            lazy,
+            binding_power,
+        }
     }
 }
 
 /// Canonical operator fixity.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperatorFixity {
+    Prefix,
     Infix,
+    Suffix,
+    Nullfix,
 }
 
-/// Binding-power sides applicable to an operator signature.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Binding-power sides applicable to one operator declaration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BindingPowers {
+    left: Option<BindingPower>,
+    right: Option<BindingPower>,
+}
+
+impl BindingPowers {
+    pub fn left(&self) -> Option<&BindingPower> {
+        self.left.as_ref()
+    }
+
+    pub fn right(&self) -> Option<&BindingPower> {
+        self.right.as_ref()
+    }
+
+    pub(crate) fn prefix(right: BindingPower) -> Self {
+        Self {
+            left: None,
+            right: Some(right),
+        }
+    }
+
+    pub(crate) fn infix(left: BindingPower, right: BindingPower) -> Self {
+        Self {
+            left: Some(left),
+            right: Some(right),
+        }
+    }
+
+    pub(crate) fn suffix(left: BindingPower) -> Self {
+        Self {
+            left: Some(left),
+            right: None,
+        }
+    }
+
+    pub(crate) fn nullfix() -> Self {
+        Self {
+            left: None,
+            right: None,
+        }
+    }
+}
+
+/// One `BpVec`-equivalent binding-power vector in a header fact.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BindingPower {
-    left: Option<u16>,
-    right: Option<u16>,
+    components: Box<[i8]>,
 }
 
 impl BindingPower {
-    pub fn left(self) -> Option<u16> {
-        self.left
+    pub fn components(&self) -> &[i8] {
+        &self.components
     }
 
-    pub fn right(self) -> Option<u16> {
-        self.right
+    pub(crate) fn from_components(components: impl Into<Box<[i8]>>) -> Self {
+        Self {
+            components: components.into(),
+        }
     }
 }
 
@@ -345,10 +418,11 @@ fn scan_infix_operator(
         name,
         fixity: OperatorFixity::Infix,
         visibility: Visibility::Private,
-        binding_power: BindingPower {
-            left: Some(left),
-            right: Some(right),
-        },
+        lazy: false,
+        binding_power: BindingPowers::infix(
+            BindingPower::from_components(Box::from([i8::try_from(left).ok()?])),
+            BindingPower::from_components(Box::from([i8::try_from(right).ok()?])),
+        ),
     })
 }
 
@@ -701,8 +775,20 @@ mod tests {
         assert_eq!(operator.name(), "<+>");
         assert_eq!(operator.fixity(), OperatorFixity::Infix);
         assert_eq!(operator.visibility(), Visibility::Private);
-        assert_eq!(operator.binding_power().left(), Some(50));
-        assert_eq!(operator.binding_power().right(), Some(51));
+        assert_eq!(
+            operator
+                .binding_power()
+                .left()
+                .map(BindingPower::components),
+            Some(&[50][..])
+        );
+        assert_eq!(
+            operator
+                .binding_power()
+                .right()
+                .map(BindingPower::components),
+            Some(&[51][..])
+        );
     }
 
     #[test]
@@ -777,15 +863,15 @@ mod tests {
         let binding_powers = token_texts(&operator_header, SyntaxKind::Integer)
             .into_iter()
             .map(|text| {
-                text.parse::<u16>()
-                    .expect("fixture binding power must fit u16")
+                text.parse::<i8>()
+                    .expect("fixture binding power must fit i8")
             })
             .collect::<Vec<_>>();
         assert_eq!(
             binding_powers,
             [
-                operator.binding_power().left().unwrap(),
-                operator.binding_power().right().unwrap(),
+                operator.binding_power().left().unwrap().components()[0],
+                operator.binding_power().right().unwrap().components()[0],
             ]
         );
         assert_eq!(operator.fixity(), OperatorFixity::Infix);
