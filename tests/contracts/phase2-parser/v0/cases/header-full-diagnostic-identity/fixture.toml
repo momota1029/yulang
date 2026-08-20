@@ -65,3 +65,13 @@ severity = "error"
 message = "expected ')'"
 primary = { start = 26, end = 26 }
 recovery = "missing-closing-paren"
+
+[yulang2]
+command = "check"
+std = "none"
+
+[[yulang2.diagnostics]]
+key = "full-missing-closing-paren"
+code = "yulang.syntax"
+message = "syntax error: unexpected end of input"
+primary = { start = 25, end = 25 }
