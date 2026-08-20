@@ -30,9 +30,10 @@ header discovery の現在の二 pattern は context-dependent operator tokeniza
 header/full parity を満たすため、`scan_header` も同じ chasa-based scanner と declaration
 grammar を restricted mode で呼ぶ構成へ移す。
 
-chasa は crates.io の exact pin ではなく、local / vendored workspace crate として同じ workspace に
-取り込む。通常の grammar alternation は `choice` / `or` で表し、明示的な checkpoint / rollback は、
-追加 input を読むまで構造的に候補を確定できない場合だけに限定する。
+chasa は crates.io の normal dependency として `=0.5.0` に exact pin する。README が experimental と
+している API が通常の `cargo update` で暗黙に更新されないようにしつつ、source を repository に
+vendor / copy しない。通常の grammar alternation は `choice` / `or` で表し、明示的な checkpoint /
+rollback は、追加 input を読むまで構造的に候補を確定できない場合だけに限定する。
 
 operator declaration は source-leading header に限定される。header discovery が commit した
 local operator fact と imported `SyntaxEnvironment` から、full parse 開始前に full-fixity の
@@ -338,11 +339,10 @@ full fixity set、group import、comment/trivia、balanced multiline opaque body
 
 ### Workspace integration
 
-implementation change では、採用する chasa source を Yulang repository 内へ local / vendored
-workspace crate として置き、workspace member への path dependency で `yu-syntax` から参照する。
-crates.io `0.5.0` の exact pin や caret dependency を source authority にしない。workspace に置いた
-copy が Yulang と同じ review / revision boundary に属する。この design-document revision では
-workspace member と dependency をまだ追加しない。
+implementation change では、`yu-syntax` から crates.io の normal dependency として chasa `=0.5.0` を
+参照する。ユーザーの直接確認（2026-08-20）により、chasa source を Yulang repository に vendor / copy
+せず、workspace member や path dependency にもしない。exact pin により experimental API が通常の
+`cargo update` で暗黙に更新されることを防ぐ。
 
 ### Module and responsibility layout
 
@@ -738,9 +738,10 @@ representative corpus の regression を見る。
 
 ### Resolved
 
-1. `chasa` は crates.io の exact-pinned dependency にせず、Yulang workspace 内の local / vendored
-   workspace crate として取り込む。実装時は workspace member への path dependency を使い、同じ
-   repository の source を authority にする。この proposal 自体ではまだ追加しない。
+1. `chasa` は crates.io の normal dependency として `=0.5.0` に exact pin する。ユーザーの直接確認
+   （2026-08-20）により、source を Yulang repository に vendor / copy せず、workspace member や path
+   dependency にもしない。exact pin により experimental API の通常の `cargo update` による暗黙の更新を
+   防ぐ。
 2. dynamic operator trie は `HeaderInfo` の committed local fact と imported syntax から full parse
    前に一度だけ compile し、immutable に使う。`qp-trie` か専用 trie かは observable architecture
    decision ではなく、`TrieState` contract と benchmark を満たす範囲の implementation detail とする。
@@ -769,7 +770,8 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
 対応する public diagnostic fixture を実装する前に固定する。最初の vertical slice の完了条件は
 次とする。
 
-- `chasa` が local / vendored workspace crate として入り、crates.io exact pin に依存しない。
+- `chasa` が crates.io の normal dependency として `=0.5.0` に exact pin され、source の vendor / copy
+  や workspace member / path dependency を使わない。
 - `chasa` input から shared declaration grammar と最小 Pratt expression grammar が直接 source を読む。
 - 通常の alternation は `choice` / `or` を使い、明示的 rollback は構造的に必要な operator-candidate
   区間へ限定される。
