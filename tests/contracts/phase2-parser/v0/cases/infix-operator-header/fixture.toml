@@ -1,0 +1,33 @@
+[case]
+source = "main.yu"
+description = "a well-formed infix operator header is discovered before the body statement"
+tags = ["operator-header", "infix", "header-discovery", "header-full-parity"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 25 }
+stop = "first_non_header"
+
+[[header.operators]]
+key = "infix-plus"
+range = { start = 0, end = 19 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 50, right = 51 }
+
+[full]
+diagnostics = []
+
+[[full.header_projection.operators]]
+key = "infix-plus"
+range = { start = 0, end = 19 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 50, right = 51 }

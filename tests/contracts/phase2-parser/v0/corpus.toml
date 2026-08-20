@@ -1,0 +1,15 @@
+schema_version = 1
+contract = "phase2-parser"
+contract_version = 0
+corpus_revision = 1
+frozen_at = "2026-08-20"
+case_count = 4
+offset_encoding = "utf-8-bytes"
+case_root = "cases"
+
+[files]
+source = "main.yu"
+expectation = "fixture.toml"
+
+[defaults]
+syntax_environment = "empty"

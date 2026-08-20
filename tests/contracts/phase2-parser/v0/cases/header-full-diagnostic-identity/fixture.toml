@@ -1,0 +1,67 @@
+[case]
+source = "main.yu"
+description = "a header diagnostic keeps its identity when a malformed operator body adds a full diagnostic"
+tags = ["diagnostic-identity", "diagnostic-completeness", "header-recovery", "operator-header"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = ["header-missing-import-path"]
+
+[header.coverage]
+range = { start = 0, end = 26 }
+stop = "eof"
+
+[[header.operators]]
+key = "infix-plus"
+range = { start = 4, end = 23 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 50, right = 51 }
+
+[full]
+diagnostics = ["header-missing-import-path", "full-missing-closing-paren"]
+
+[[full.header_projection.operators]]
+key = "infix-plus"
+range = { start = 4, end = 23 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 50, right = 51 }
+
+[[full.recovery]]
+key = "missing-import-path"
+kind = "missing"
+range = { start = 3, end = 3 }
+role = "import_path"
+expected = "path"
+diagnostic = "header-missing-import-path"
+
+[[full.recovery]]
+key = "missing-closing-paren"
+kind = "missing"
+range = { start = 26, end = 26 }
+role = "closing_delimiter"
+expected = ")"
+diagnostic = "full-missing-closing-paren"
+
+[[diagnostics]]
+key = "header-missing-import-path"
+id = { origin = "header", event = 0 }
+code = "yulang.syntax"
+severity = "error"
+message = "expected import path"
+primary = { start = 3, end = 3 }
+recovery = "missing-import-path"
+
+[[diagnostics]]
+key = "full-missing-closing-paren"
+id = { origin = "full", event = 1 }
+code = "yulang.syntax"
+severity = "error"
+message = "expected ')'"
+primary = { start = 26, end = 26 }
+recovery = "missing-closing-paren"

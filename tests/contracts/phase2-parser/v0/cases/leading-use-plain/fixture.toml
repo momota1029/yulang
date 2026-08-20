@@ -1,0 +1,31 @@
+[case]
+source = "main.yu"
+description = "a well-formed leading plain use is discovered before the body"
+tags = ["leading-use", "header-discovery", "header-full-parity"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 13 }
+stop = "first_non_header"
+
+[[header.imports]]
+key = "std-data"
+range = { start = 0, end = 12 }
+form = "plain"
+path = ["std", "data"]
+visibility = "private"
+
+[full]
+diagnostics = []
+
+[[full.header_projection.imports]]
+key = "std-data"
+range = { start = 0, end = 12 }
+form = "plain"
+path = ["std", "data"]
+visibility = "private"
