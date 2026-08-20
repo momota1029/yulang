@@ -237,7 +237,7 @@ fn scan_plain_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<H
     loop {
         match cursor.next() {
             Some(ScanItem::Token(Token {
-                kind: TokenKind::Dot,
+                kind: TokenKind::ColonColon,
                 ..
             })) => {
                 let component = cursor.consume_path_component()?;
@@ -613,14 +613,14 @@ mod tests {
     fn discovers_leading_plain_use_fixture() {
         let header = scan_header(fixture_source(LEADING_USE_SOURCE));
 
-        assert_eq!(header.coverage().range(), &(0..13));
+        assert_eq!(header.coverage().range(), &(0..14));
         assert_eq!(header.coverage().stop(), HeaderStop::FirstNonHeader);
         assert!(header.operators().is_empty());
 
         let [import] = header.imports() else {
             panic!("expected exactly one header import: {header:#?}");
         };
-        assert_eq!(import.range(), &(0..12));
+        assert_eq!(import.range(), &(0..13));
         assert_eq!(import.form(), HeaderImportForm::Plain);
         assert_eq!(import.path(), ["std".to_owned(), "data".to_owned()]);
         assert_eq!(import.visibility(), Visibility::Private);
@@ -672,7 +672,7 @@ mod tests {
             import.path()
         );
         assert_eq!(token_texts(&use_declaration, SyntaxKind::UseKw), ["use"]);
-        assert_eq!(token_texts(&use_declaration, SyntaxKind::Dot), ["."]);
+        assert_eq!(token_texts(&use_declaration, SyntaxKind::Unknown), ["::"]);
         assert_eq!(import.form(), HeaderImportForm::Plain);
         assert_eq!(import.visibility(), Visibility::Private);
         assert_eq!(import.alias(), None);
