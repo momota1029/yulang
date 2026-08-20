@@ -9,6 +9,11 @@ judge table、Rowan CST 構築方法を decision として確定した。
 Revision note (broader grammar survey): scanner/layout state の rollback ownership と、header mode の
 opaque body scan が operator-independent lexical region を追跡する必要を設計へ反映した。
 
+Revision note (diagnostic closure): header/full reparse の `DiagnosticId` reconciliation を typed
+grammar role + parser-native byte range の exact key に固定した。speculative expectation は最遠 group の
+typed union を committed recovery record と `SyntaxDiagnostic` に保持し、主表示だけを grammar-role
+priority で一件選ぶ。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -45,6 +50,15 @@ branch decision が commit された後だけ `GreenNodeBuilder` へ node / toke
 `longest_match_then` の operator-candidate 探索は input、expectation、軽量な local bookkeeping、
 rollback-aware な scanner/layout state を同じ checkpoint で戻す。CST を一度も書かないため、Rowan
 structure の rollback は不要である。
+
+header/full の diagnostic identity は、同じ `SourceRevision` 内の typed `GrammarRole` と parser-native
+UTF-8 byte range の exact match で照合する。exact match した committed header record は ID と表示内容を
+そのまま再利用し、role/range が異なる record は message が同じでも full-origin の新しい ID とする。
+
+recovery commit 時には、`LatestSink` が保持する最遠 active expectation group の distinct candidate を
+typed union として全件凍結する。public diagnostic もその union を保持し、主メッセージだけを committed
+site との role affinity、明示的な stable tie-break key の順に一件選ぶ。parser branch order や表示文言は
+選択規則に含めない。
 
 ## Problem statement
 
@@ -631,10 +645,235 @@ consume-or-stop guarantee を所有する。operator scanner の「candidate が
 通常の backtracking failure であり、直ちに diagnostic にしない。候補を尽くし、grammar が
 recovery path を commit した地点だけが recovery episode になる。
 
-header discovery で作った recovery record は deterministic `DiagnosticId` を持つ。full mode で
-同じ shared header grammar が同じ site に到達したときは、`HeaderInfo` の record identity を照合・
-再利用し、新しい diagnostic を発行しない。body recovery は full-origin の新しい ID を持つ。
-final list は §4.2.2 の ordering key で一度だけ sort / freeze する。
+#### Typed recovery-site identity and header/full reconciliation
+
+header discovery と full parse の照合には、message、presentation range、parser branch の通過順ではなく、
+同じ shared grammar が commit した recovery site を表す typed key を使う。概念上の型は次とする。
+
+```rust
+pub struct DiagnosticId(DiagnosticIdentity);
+
+struct DiagnosticIdentity {
+    revision: SourceRevision,
+    origin: DiagnosticOrigin,
+    event: RecoveryEventSequence,
+    site: RecoverySiteKey,
+}
+
+struct RecoverySiteKey {
+    role: GrammarRole,
+    range: ByteRange,
+}
+
+struct ByteRange {
+    start: usize,
+    end: usize,
+}
+```
+
+`DiagnosticId` は public には opaque newtype のままにし、hash した `u64` や message/range から作る
+文字列にはしない。private inner value は source revision、cause authority、revision 内の recovery event
+sequence、typed site key を構造的に保持する。hash collision や表示文言の変更で identity が変わらない
+ことを優先する。`RecoverySiteKey` の照合 scope は一つの `SourceRevision` に限定されるため、index 自体は
+`HeaderInfo` の revision-scoped committed recovery record table が所有する。
+
+`GrammarRole` は自由文字列ではなく、grammar-owned の closed enum family とする。最初の shared
+declaration grammar では少なくとも次の vocabulary を持つ。
+
+```rust
+enum GrammarRole {
+    Declaration(DeclarationRole),
+    ClosingDelimiter {
+        owner: ConstructRole,
+        delimiter: DelimiterKind,
+    },
+    Statement(StatementRole),
+    Expression(ExpressionRole),
+    Pattern(PatternRole),
+    Type(TypeRole),
+    Layout(LayoutRole),
+    Embedded(EmbeddedRole),
+    Token(TokenRole),
+}
+
+enum DeclarationRole {
+    Import(ImportRole),
+    OperatorHeader(OperatorHeaderRole),
+}
+
+enum ImportRole {
+    Path,
+    GroupEntry,
+    Alias,
+}
+
+enum OperatorHeaderRole {
+    Name,
+    Fixity,
+    LeftBindingPower,
+    RightBindingPower,
+    DefinitionIntroducer,
+}
+```
+
+`ConstructRole` は `ImportGroup`、`OperatorName`、`ExpressionGroup`、`ArgumentList` のように
+delimiter を所有する construct を区別する。同じ byte position の `)` でも、import group と
+expression group の recovery を同じ role に潰さないためである。`StatementRole` 以下は各 grammar
+family の実装時に同じ原則で closed enum を追加する。任意の `String`、raw Rowan kind、表示用 label を
+受ける `Other` variant は置かない。新しい recovery call site は既存 variant を意味が違うまま流用せず、
+最も狭い owner/slot variant を追加する。これにより vocabulary の拡張は compile-time に明示され、
+同じ role/range へ異なる causal site を誤って集約しない。
+
+range は recovery node が所有する UTF-8 byte range そのものを使う。`Missing` は insertion point の
+`p..p`、`Error` は実際に consume した `start..end` である。diagnostic presentation adapter が range を
+補正しても、site key は補正前の parser-native range を維持する。header/full の両 phase は同じ
+`Arc<SourceText>` と `SourceRevision`、byte-positioned `SourceInput`、shared declaration grammar を使う。
+`parse_file` は渡された `HeaderInfo` の revision が source snapshot と一致することを入口で検査し、
+一致しない product の照合を compiler invariant violation とする。したがって同じ source の同じ
+recovery call site は両 phase で同じ byte range を指す。
+
+周辺コードが編集された snapshot 間で offset を shift したり、role/range を fuzzy に anchor し直すことは
+この key の責務ではない。edit 後は新しい `SourceRevision` に対して `scan_header` からやり直し、旧 revision
+の `DiagnosticId` と照合しない。cross-revision diagnostic tracking は LSP/presentation layer の別設計とし、
+この proposal の scope 外とする。
+
+header discovery は recovery path を commit した順に `event = 0, 1, ...` を割り当て、record と
+`RecoverySiteKey -> DiagnosticId` index を `HeaderInfo` に凍結する。full parse の allocator は header が
+割り当てた次の event から始める。shared header grammar の reparse が site を commit した時の手順は
+次とする。
+
+1. full phase が自身の parser-native role/range から `RecoverySiteKey` を作る。
+2. header record table に exact key が一件あれば、その record の recovery kind と expected/consumed
+   shape も一致することを parity invariant として検査し、header-origin の `DiagnosticId` と frozen
+   diagnostic をそのまま再利用する。full phase の event は新たに消費しない。
+3. exact key がなければ message/range の類似度や record sequence で近い header record を探さず、
+   full-origin の新しい event と `DiagnosticId` を発行する。role または parser-native range が異なる
+   record は、文言が同じでも別 recovery event である。
+4. header table の同じ key が複数 record を返す場合は vocabulary が causal site を区別できていない
+   compiler invariant violation とし、どれか一件を任意に選ばない。
+
+exact key がなかった場合も、既存の header-origin diagnostic は final list に一度だけ残り、新しい
+full-origin diagnostic も独立に残る。shared header grammar の fixture が両者を同一 site と期待していた
+場合、この差は header/full recovery parity failure として可視化されるが、fuzzy deduplicate で隠さない。
+body recovery は常に full-origin の新しい ID を持つ。final list は §4.2.2 の ordering key で一度だけ
+sort / freeze する。
+
+fixture schema の `id = { origin, event }` は `DiagnosticIdentity` の cause authority と event sequence の
+test projection であり、production `DiagnosticId` の serialization ではない。`origin = "header"` の ID は
+full list へ移っても header のままである。fixture の `full.recovery.role` / `range` は site key の
+人間可読な coarse projection で、たとえば `Declaration(Import(Path))` は `import_path`、
+`ClosingDelimiter { .. }` は `closing_delimiter`、`Declaration(OperatorHeader(_))` は
+`operator_header_entry` と表す。owner、delimiter、operator slot を fixture の `role` 文字列へすべて
+直列化しなくても、harness は header で得た opaque 実 ID と full list の実 ID の値同一性を比較するため、
+schema の観測モデルと production key の typed precision は矛盾しない。
+
+#### Expectation union and primary message selection
+
+`LatestSink` は speculative parser failure のうち、range の `(start, end)` が最も大きい active group
+だけを残す。この range selection と rollback semantics はそのまま使うが、`StdErr` の表示 label を
+直接 public diagnostic にしない。`ParseErrorSink` は `LatestSink<usize, ParseExpectation>` を包み、
+各 expectation を少なくとも次の typed data として保持する。
+
+```rust
+struct SyntaxExpectation {
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+    range: ByteRange,
+    sources: ExpectationSources,
+}
+
+struct CommittedRecoveryRecord {
+    id: DiagnosticId,
+    site: RecoverySiteKey,
+    kind: RecoveryKind,
+    unexpected: Arc<[UnexpectedSyntax]>,
+    expectations: Arc<[SyntaxExpectation]>,
+    primary_expectation: usize,
+}
+```
+
+`ExpectationSources` は `Speculative` / `CommittedRecoveryRule` の二 bit を持ち、同じ semantic
+candidate が両方から来た場合も一 record で provenance を失わない。
+`ExpectedSyntax` は identifier/path/expression のような grammar element、keyword、punctuation、delimiter
+kind を typed variant と payload で表す。localized message や `Debug` string は入れない。
+`UnexpectedSyntax` は EOF または parser-native byte range と token/category を保持する。candidate の
+`range` は expectation が発生した位置であり、diagnostic の primary range ではない。primary range、
+`Missing` / `Error` kind、consume range、`DiagnosticId` は committed recovery record が authority の
+ままにする。
+
+`ParseExpectation::MergeErrors` は `LatestSink` が渡した同一最遠 group の全 entry を上の typed union へ
+変換し、`StdSummary` の追加 `max_start` filter や label-string deduplicate は使わない。primitive parser の
+expectation も grammar wrapper が `GrammarRole::Token` などの typed role を付けてから sink へ送り、
+untyped label だけが union に入る経路を作らない。
+
+recovery path を commit した瞬間、recovery が token を挿入・consume する前に active expectation group を
+一度だけ `take_merged` し、次の手順で record を凍結する。
+
+1. `LatestSink` の最遠 active group にある distinct expectation をすべて取り出す。rollback 済み branch、
+   より手前の group、別 recovery episode の expectation は含めない。「全候補」はこの一 group 内の
+   semantic union を意味する。
+2. `(role, expected, range)` が同じ candidate は一件へ deduplicate し、source provenance は bitset 相当で
+   union する。branch ごとの出現回数と挿入順は parser implementation detail として捨てるが、role、
+   expected element、range が異なる candidate は落とさない。
+3. committed recovery rule が必須要素を知っている場合、その typed candidate も
+   `CommittedRecoveryRule` として union する。sink が空、または speculative branch が causal role を
+   残さなかった場合でも、`Missing(expected)` や同期した construct の説明が generic
+   `syntax error` へ退化しないためである。
+4. unexpected token / EOF は candidate list と混ぜず、distinct な structured evidence をすべて
+   canonical sort して `Arc<[UnexpectedSyntax]>` に保持する。主メッセージに使う一件は最遠 range、
+   typed token order の順で先頭に置く。branch order と debug build の有無で evidence を落とさない。
+5. union を下の stable order で canonical sort し、先頭 candidate の index を
+   `primary_expectation` とする。candidate が一件もない recovery call は API contract violation とし、
+   grammar-owned fallback role/element を追加してから commit する。
+
+全候補の保持先は debug-only side table ではない。committed recovery record が
+`Arc<[SyntaxExpectation]>` を所有し、そこから作る public `SyntaxDiagnostic` も同じ `Arc` と selected index
+を保持し、`expectations()` / `primary_expectation()` 相当の typed accessor で観測可能にする。release build、
+LSP、fixture harness でも候補が失われない。複数候補は一つの diagnostic の structured context であり、
+候補ごとに diagnostic や recovery event を増やさないため、1 recovery event = 1 primary diagnostic と
+recovery node / diagnostic の 1 対 1 contract は維持される。
+
+primary candidate は parser branch order ではなく、committed `GrammarRole` との関係で選ぶ。優先順位は
+次の通りである。上の tier が常に下の tier より優先する。
+
+| tier | candidate role | 根拠 |
+| --- | --- | --- |
+| 0 | committed site の `GrammarRole` と exact match | 実際に選んだ recovery path の causal slot であり、speculative alternative より authority が強い |
+| 1 | 同じ owner/construct の declaration-specific required slot (`Import(Path)`、`OperatorHeader(Fixity)` など) | `expected path` のようにユーザーが直すべき宣言 field を直接示せる |
+| 2 | 同じ owner の structural boundary (`ClosingDelimiter`、separator、`Layout`) | construct を閉じるための局所的で安全な修正を示す。site 自体が delimiter なら tier 0 になる |
+| 3 | 同じ grammar family の form (`Statement`、`Expression`、`Pattern`、`Type`、`Embedded`) | declaration slot / boundary より広いが、generic token class より意味がある |
+| 4 | lexical `Token` role | keyword/identifier/punctuation choice の branch noise が上位の grammar intent を隠さないようにする |
+| 5 | owner または grammar family が committed site と異なる candidate | 最遠 speculative group の情報として保持するが、causal role がある限り主表示には選ばない |
+
+同じ tier では次の key を順に適用する。
+
+1. `CommittedRecoveryRule` bit を持つ candidate を `Speculative` bit だけの candidate より先にする。
+2. owner と slot の両方を持つ狭い role を family-level role より先にする。
+3. `ExpectedSyntax::stable_order_key()` を使う。kind rank は `Path` < `OperatorName` < `Fixity` <
+   `BindingPower` < `Delimiter` < `Keyword` < `Punctuation` < `Identifier` < `Literal` < `Operator` <
+   `Expression` < `Pattern` < `Type` < `Statement` < `EndOfInput` と固定する。同じ kind では delimiter を
+   round / square / curly、literal を integer / float / character / string の順にし、keyword、punctuation、
+   operator とその他 payload は canonical source spelling の byte order で並べる。この順序は enum declaration
+   order や locale から導出せず、変更時は diagnostic presentation contract の変更として fixture review を行う。
+4. expectation range の `(start, end)`、最後に typed role の stable key を使う。
+
+localized message、English message、hash-map iteration order、`choice` / `or` の arm order、同じ candidate の
+出現回数は tie-break に使わない。grammar refactor で branch order が変わっても primary message が変わらず、
+role vocabulary または explicit stable key を変更した時だけ intentional な presentation change になる。
+
+`SyntaxDiagnostic` の主メッセージは selected candidate 一件と optional な unexpected evidence から
+presentation key を作る。たとえば `Declaration(Import(Path)) + ExpectedSyntax::Path` は
+`expected import path`、`ClosingDelimiter { delimiter: Round, .. } + ExpectedSyntax::Delimiter(Round)` は
+`expected ')'` を選ぶ。残りの候補は structured context として保持し、UI が secondary note の
+`also expected ...` を表示するために使ってよいが、primary message に全候補を連結しない。移行期の
+Yulang2 presentation adapter はこの presentation key の wording/range を変えてよいが、candidate union、
+selected index、site key、`DiagnosticId` を変えてはならない。
+
+full reparse で exact `RecoverySiteKey` が header record に一致した場合は、full phase の expectation group で
+header diagnostic を作り直したり候補を追加したりしない。early-ready result と full-ready result で同じ ID の
+主メッセージが変わることを避けるため、header が凍結した candidate union と selected index をそのまま再利用する。
+full group は debug/parity assertion に使ってよいが、public record の authority にはしない。key が一致せず
+full-origin record を新規発行する場合だけ、その full group から独立の union と主メッセージを作る。
 
 ## Fate of the committed code
 
@@ -643,6 +882,7 @@ final list は §4.2.2 の ordering key で一度だけ sort / freeze する。
 | current element | decision | reason / destination |
 | --- | --- | --- |
 | `HeaderInfo`, `HeaderImport`, `HeaderOperator` | keep/evolve | diagnostics/hash と `BpVec` 相当の full fixity を最初の slice で追加する |
+| `SyntaxDiagnostic`, `DiagnosticId` | define/evolve | committed record の typed site key、全 expectation union、selected primary を保持する public product にする |
 | `ParsedFile` and `parse_file` API shape | keep | `green: GreenNode`、diagnostics ownership、syntax key は正本と一致する |
 | `SyntaxEnvironment` boundary | keep and implement | imported operator と committed local header fact から immutable full-parse table を作る入力になる |
 | trivia/content distinction | keep as a concept | lossless CST と indentation grammar に必要。chasa scanner output へ移す |
@@ -705,6 +945,17 @@ header grammar が残り、parity failure を隠すためである。移行中�
    conservation が成立する。
 11. every byte prefix fuzz test が panic / hang せず、`Missing` / `Error` contract を守る。
 12. current narrow `scan_header` compatibility fixtures の range / fact output を意図せず変えない。
+13. header/full が同じ declaration recovery を `GrammarRole + ByteRange` の exact key で照合し、同じ
+    `DiagnosticId`、candidate union、主メッセージを再利用する。message が同じでも role または
+    parser-native range が異なる record は新しい full-origin ID になり、presentation range 補正では
+    identity が変わらない。同じ key の header record 重複と、exact key 一致後の recovery shape 不一致は
+    invariant violation になる。
+14. 同じ最遠 expectation group に declaration slot、closing delimiter、expression、token candidate を
+    混在させても全 distinct candidate が `SyntaxDiagnostic` に残り、committed site と role が一致する
+    一件だけが主表示になる。`choice` arm の順序と hash insertion order を逆にしても selected candidate と
+    message が変わらず、exact tie は explicit stable key で決着する。
+15. source を編集して新しい `SourceRevision` にした case は旧 header record を照合せず、同じ role と
+    shifted range に見えても新しい revision の ID を発行する。
 
 oracle differential test は operator declaration を省略・簡略化しない。特に `+!a` の
 value-start lookahead が調べる spelling の prefix / nullfix capability を canonical fixture と一致させる。
@@ -722,6 +973,8 @@ judge table と user-confirmed language semantics を authority にする。
   length/depth と scalar value の snapshot にし、scanner/layout-affecting state を漏れなく戻す。
 - parse-event buffer と final Rowan replay を作らず、commit 後の token / node を direct sink へ
   一度だけ書く。
+- expectation union と canonical sort は recovery commit ごとに最遠 active group 一件へだけ行い、
+  speculative step ごとや表示ごとに再計算しない。header/full exact match では header の `Arc` を再利用する。
 - header discovery は body を full expression parse せず、operator-independent lexical region を
   delimiter / indentation とともに追跡する opaque scan を行い、syntax planning のための軽量 phase
   という性質を維持する。
@@ -732,7 +985,7 @@ benchmark では少なくとも parse elapsed、operator trie probe count / roll
 emission count、token bytes、peak parser-local capacity を測り、current fixture と Yulang2
 representative corpus の regression を見る。
 
-## Resolved decisions and remaining open questions
+## Resolved decisions
 
 元の question 番号を残して decision の由来を追跡できるようにする。
 
@@ -753,22 +1006,20 @@ representative corpus の regression を見る。
    型/API で強制し、commit 後だけ direct `GreenNodeBuilder` sink を使う。
 6. operator declaration は header-scoped である。header discovery 完了後に table を構築するため、
    full parse 中の table update と rollback-aware overlay は置かない。
+7. chasa expectation bridge は、`LatestSink` の最遠 active group にある distinct typed candidate と
+   committed recovery rule の candidate を union し、committed record と public `SyntaxDiagnostic` の
+   両方に全件保持する。主メッセージは committed site との grammar-role affinity と明示 stable key で
+   一件選び、branch order や message text では決めない。
+8. header/full reparse の `DiagnosticId` reconciliation は、同じ `SourceRevision` 内の typed
+   `GrammarRole + parser-native ByteRange` exact key を使う。一致時は header record をそのまま再利用し、
+   role/range 不一致時は fuzzy deduplicate せず full-origin の新しい ID を発行する。
 9. full fixity API extension は architecture replacement の最初の vertical slice に含める。
    infix-only compatibility representation を中間段階として残さない。
 
-### Still open
-
-7. chasa expectation error と public `SyntaxDiagnostic` の bridge で、どの expectation merge を
-   user-facing primary message に採用するか。`LatestSink` を exhaustive diagnostic authority に
-   しない点は確定する。
-8. full parse の header reparse が existing `DiagnosticId` を照合する key を、shared recovery record
-   sequence だけで作るか、grammar role + range も含む typed key にするか。
-
 ## Implementation gates
 
-architecture-level gate は上の resolved decision で閉じた。question 7 / 8 の diagnostic detail は、
-対応する public diagnostic fixture を実装する前に固定する。最初の vertical slice の完了条件は
-次とする。
+architecture-level gate と question 7 / 8 の diagnostic detail は上の resolved decision で閉じた。
+最初の vertical slice の完了条件は次とする。
 
 - `chasa` が crates.io の normal dependency として `=0.5.0` に exact pin され、source の vendor / copy
   や workspace member / path dependency を使わない。
@@ -783,13 +1034,17 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
 - `scan_header` と full parse が同じ declaration grammar を使い、fixture で parity が成立する。
 - speculative branch は direct sink を呼べず、commit 後だけ Rowan node / token を書く。parse-event
   buffer と final replay layer がない。
+- committed recovery record が最遠 expectation group の全 distinct typed candidate を保持し、
+  grammar-role priority と stable tie-break で主表示を一件選ぶ。
+- header/full の shared recovery site が typed role + parser-native byte range で同じ header-origin ID を
+  再利用し、不一致 record を message/range で deduplicate しない。
 - `ParsedFile.green` が lossless Rowan root で、structured diagnostic product と同じ revision に属する。
 - old path への fallback がない。
 
 ## Sources inspected
 
 - local Cargo registry `chasa-0.5.0`: `README.md`、`src/lib.rs`、`src/back.rs`、
-  `src/input/*`、`src/error.rs`、`src/parser.rs`、`src/parser/choice.rs`、
+  `src/input/*`、`src/error.rs`、`src/error/std.rs`、`src/parser.rs`、`src/parser/choice.rs`、
   `src/parser/prim.rs`、`src/parser/token.rs`、`src/parser/str.rs`、
   `src/parser/trie.rs`、`src/parser/memo.rs`。
 - `yulang2-oracle@a58eefc3`: `crates/parser/src/context.rs`、`lib.rs`、`lex.rs`、
@@ -798,7 +1053,8 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
   `typ/parse.rs`、`mark/scan.rs`、`string/{scan,parse}.rs`、`stmt/{op_def,common}.rs`、
   `stmt/mod.rs`、`tests/expr_grammar.rs`、Cargo manifest / lock。
 - Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
-  `crates/yu-syntax/src/{lib,parse,syntax_kind}.rs`、phase 2 parser fixtures、
+  `crates/yu-syntax/src/{lib,parse,input,session,sink,syntax_kind}.rs`、
+  `notes/design/2026-08-20-phase2-parser-fixture-schema.md`、phase 2 parser fixtures、
   commit `e1737368` と `7022ed27`。
 - local Cargo registry `rowan-0.15.17`: `src/green/builder.rs` と `examples/math.rs` の
   `GreenNodeBuilder::checkpoint` / `start_node_at`。
@@ -813,6 +1069,10 @@ architecture-level gate は上の resolved decision で閉じた。question 7 / 
   の観測であり、採用する semantics ではない。
 - `docs/yulang3-architecture.md` §4.2.2 / §18 を再照合し、operator の header 外 declaration point が
   記載されていないことを確認した。
+- Phase 2 fixture schema と `header-full-diagnostic-identity` / `malformed-header-followed-by-valid-header`
+  fixture を再照合した。production key の role/range は `full.recovery` の観測へ、cause authority と
+  event sequence は `id.origin` / `id.event` へ対応し、header-origin の実 ID を full list で値比較する
+  contract と矛盾しないことを確認した。fixture schema 自体は変更していない。
 - broader grammar survey の指摘箇所を tagged source で再確認した。`scan_trivia` の `line_indent`
   mutation と expression/type/Yumark scanner の layout/mode dependency から、scanner/layout state の
   rollback ownership を binding rule とした。
