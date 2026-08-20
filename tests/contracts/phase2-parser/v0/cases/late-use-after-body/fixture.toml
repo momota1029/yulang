@@ -10,18 +10,18 @@ syntax_environment = "empty"
 header_info = "raw_observation_only"
 semantic_dependency = "not_asserted"
 source_set_expansion = "not_asserted"
-note = "The late use at byte 26 parses as an ordinary body statement outside HeaderInfo coverage and both header projections; no syntax-, semantic-, or source-set-dependency conclusion is asserted."
+note = "The late use at byte 27 parses as an ordinary body statement outside HeaderInfo coverage and both header projections; no syntax-, semantic-, or source-set-dependency conclusion is asserted."
 
 [header]
 diagnostics = []
 
 [header.coverage]
-range = { start = 0, end = 13 }
+range = { start = 0, end = 14 }
 stop = "first_non_header"
 
 [[header.imports]]
 key = "std-data"
-range = { start = 0, end = 12 }
+range = { start = 0, end = 13 }
 form = "plain"
 path = ["std", "data"]
 visibility = "private"
@@ -31,7 +31,7 @@ diagnostics = []
 
 [[full.header_projection.imports]]
 key = "std-data"
-range = { start = 0, end = 12 }
+range = { start = 0, end = 13 }
 form = "plain"
 path = ["std", "data"]
 visibility = "private"

@@ -10,12 +10,12 @@ syntax_environment = "empty"
 diagnostics = ["header-missing-import-path"]
 
 [header.coverage]
-range = { start = 0, end = 17 }
+range = { start = 0, end = 18 }
 stop = "first_non_header"
 
 [[header.imports]]
 key = "std-data"
-range = { start = 4, end = 16 }
+range = { start = 4, end = 17 }
 form = "plain"
 path = ["std", "data"]
 visibility = "private"
@@ -25,7 +25,7 @@ diagnostics = ["header-missing-import-path"]
 
 [[full.header_projection.imports]]
 key = "std-data"
-range = { start = 4, end = 16 }
+range = { start = 4, end = 17 }
 form = "plain"
 path = ["std", "data"]
 visibility = "private"
