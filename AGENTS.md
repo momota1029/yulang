@@ -63,6 +63,16 @@ Yulang の実装では、次を大切にする。
 実装の見た目を小さくするために、意味のある境界、名前、説明的なデータ構造を潰さない。
 ただし、説明のためだけの過剰な抽象化は避ける。
 
+## chasa parser combinator idioms
+
+`crates/yu-syntax` は `chasa` を使う。次を守る。
+
+- 既にchasaの`Parser`を返す関数を`from_fn(|i| f(i).map(...))`のようにクロージャで包み直さない。
+  `f`が既に`Parser`なら`f.map(...)`で十分。
+- `i.run(from_fn(some_fn))`のように、ただの関数を`from_fn`で包んでから`.run`で走らせない。
+  `some_fn`が直接`Parser`として呼べる関数なら`some_fn(i)`と書く。
+- chasaの`In<...>`状態を表すパラメータ・束縛名は`input`ではなく`i`にする（chasaの推奨命名）。
+
 ## ファイル構成
 
 ファイルは「一番メインを先に書く」構成を優先する。
