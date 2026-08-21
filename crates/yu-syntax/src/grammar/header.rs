@@ -64,8 +64,8 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
         IsCut::new(&mut is_cut),
     )
     .set_local(&mut local);
-    let imports = Vec::new();
-    let operators = Vec::new();
+    let mut imports = Vec::new();
+    let mut operators = Vec::new();
 
     let stop = loop {
         input
@@ -84,8 +84,21 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
             break HeaderStop::FirstNonHeader;
         };
         match declaration {
-            HeaderDeclaration::Use(_) => {}
-            HeaderDeclaration::OperatorHeader(_) => {}
+            HeaderDeclaration::Use(declaration) => {
+                // Header facts are immutable planning input. Until diagnostics
+                // can represent a branch-local expansion failure, do not
+                // silently freeze a partial projection from one declaration.
+                if let Ok(expanded) = declaration
+                    .expand_header_imports()
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()
+                {
+                    imports.extend(expanded);
+                }
+            }
+            HeaderDeclaration::OperatorHeader(declaration) => {
+                operators.push(declaration.to_header_operator());
+            }
         }
     };
 
@@ -114,15 +127,44 @@ mod tests {
 
         assert_eq!(use_only.stop(), HeaderStop::Eof);
         assert_eq!(use_only.coverage(), &(0..14));
-        assert!(use_only.imports().is_empty());
+        assert_eq!(use_only.imports().len(), 1);
         assert!(use_only.operators().is_empty());
         assert_eq!(operator_only.stop(), HeaderStop::Eof);
         assert_eq!(operator_only.coverage(), &(0..19));
         assert!(operator_only.imports().is_empty());
-        assert!(operator_only.operators().is_empty());
+        assert_eq!(operator_only.operators().len(), 1);
         assert_eq!(mixed.stop(), HeaderStop::Eof);
         assert_eq!(mixed.coverage(), &(0..33));
         assert_eq!(binding.stop(), HeaderStop::FirstNonHeader);
         assert_eq!(binding.coverage(), &(0..0));
+    }
+
+    #[test]
+    fn expands_complete_use_declarations_and_skips_an_invalid_one() {
+        let source = "use std::io::{read, write}\nuse std::fmt::debug as log\nuse std::fs::{read as one as two}\nuse core::fmt\n";
+        let header = discover_header(source);
+
+        assert_eq!(header.stop(), HeaderStop::Eof);
+        assert_eq!(header.coverage(), &(0..source.len()));
+        assert_eq!(
+            header
+                .imports()
+                .iter()
+                .map(|import| import.path().join("::"))
+                .collect::<Vec<_>>(),
+            [
+                "std::io::read",
+                "std::io::write",
+                "std::fmt::debug",
+                "core::fmt",
+            ]
+        );
+        assert_eq!(header.imports()[2].alias(), Some("log"));
+        assert!(
+            header
+                .imports()
+                .iter()
+                .all(|import| import.path().join("::") != "std::fs::read")
+        );
     }
 }
