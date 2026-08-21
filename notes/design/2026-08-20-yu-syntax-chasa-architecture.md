@@ -3587,3 +3587,435 @@ sub-slice 6追補案）。
 「`GrammarRole` familyは既存」という記述——現行`.rs`実装には存在せず、design note冒頭近くの
 先行section（`enum GrammarRole { ..., Statement(StatementRole), ... }`）で導入済みの
 design上の概念であることを明記した。
+
+## 追補案: parenthesized grouped expression `(<expression>)`
+
+この節は、`grammar::expression`のNUDにparenthesized grouped expressionを追加する
+designを固定する。対象はAST / direct CSTの形、shared sink-free NUD recognition、
+Pratt binding power、group内trivia所有、inner expressionとclosing `)`のmandatory recoveryである。
+
+既決のshared recognition core + commit-aware continuation、`Recovered<T>`によるtotal continuation、
+mandatory slotの共通rule、one committed recovery node = one recovery diagnosticは変更しない。
+特に、groupのinner expressionには上の表の`atomic value`行、closing `)`には
+`closing delimiter`行をそのまま適用する。expression専用の別recovery mechanismは作らない。
+
+### Decision summary
+
+- semantic ASTに`Expression::Grouped { inner, range }`を追加する。`range`はopening `(`から
+  matching `)`までを含み、両delimiterの個別rangeはlossless CSTが所有する。
+- CSTに`SyntaxKind::GroupedExpression`を一つ追加する。valid sourceのordered childrenは
+  `LParen`, inner-leading trivia, inner expression subtree, inner-trailing trivia, `RParen`である。
+- `NudRecognition`はopening punctuationのrangeだけを持つ`Group` caseを追加する。
+  recognition中にinner expressionをparseせず、CSTもrecovery recordも書かない。
+- `(`がaccepted NUDになった後にcutし、inner expressionは
+  `BindingPower::scalar(i8::MIN)`で再帰parseする。groupを閉じた後のLED loopはcallerが
+  渡したoriginal `minimum`で続行する。
+- inner expressionのabsence / invalid bytesは既決の`atomic value`行、closing `)`の
+  matching / mismatched / safe-point / EOFは既決の`closing delimiter`行に従う。
+- `(`をacceptedしたgroup continuationはtotalである。recovery後もgroup nodeを必ず閉じ、
+  direct Pratt controlへ`ParsedExpression`を返す。outer operator body / binding valueが同じsource位置に
+  別の`Missing(expression)`を追加しない。
+
+### 現行grammarのgapと既存authority
+
+現行`Expression` enumはidentifier、integer、prefix / nullfix / suffix / infix applicationを持つが、
+grouped expressionを持たない。`recognize_nud` も次の三armだけである。
+
+1. `scan_operator(OperatorSite::Nud, ...)`からprefix / nullfix。
+2. `parse_identifier`。
+3. `parse_integer_literal`。
+
+そのため`(`はvalid expression starterであるにもかかわらず、
+`direct_expression_nud_candidate`にもAST-producing `parse_expression_bp`にも
+direct-CST `parse_direct_expression_bp`にも見えない。これはdirect-parse cutoverで導入された
+regressionではなく、両pathが共有するNUD vocabularyにある長期的なgapである。
+
+一方、必要なbuilding blockはすでに存在する。
+
+- `scan::punctuation::scan_punctuation`は`(` / `)`を
+  `PunctuationKind::{Open, Close}(Delimiter::Parenthesis)`とUTF-8 byte rangeで返す。
+- `SyntaxKind::LParen` / `RParen`は`OperatorName`で使用済みである。
+- `ConstructRole::ExpressionGroup`、`ExpressionRole::Nud`、`Delimiter::Parenthesis`、
+  `ExpectedSyntax::Expression`はtyped recovery vocabularyに存在する。
+- `parse_expression_with_operators` / `parse_direct_expression_with_operators`はともに
+  `BindingPower::scalar(i8::MIN)`をtop-level minimumとして使う。
+- `commit_use_group` / `commit_use_exclusion_group`はmatching close、mismatched closeの
+  non-empty `Error`、EOFのzero-width `Missing`を実装している。
+- `commit_operator_name`はopening `(`をacceptした後にowner nodeを閉じるtotal continuationと、
+  absent `)`のclosing-delimiter `Missing`の形を持つ。
+
+したがって新規syntaxに必要なのは、group自身のAST / CST kindとNUD branch、および
+これら既存primitiveをexpression continuationへwiringする局所helperだけである。
+
+### Semantic AST shape
+
+`Expression`に次を追加する。field名とrange contractは固定する。
+
+```rust
+pub(crate) enum Expression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Grouped {
+        inner: Box<Expression<'source>>,
+        range: Range<usize>,
+    },
+    PrefixApplication { /* existing fields */ },
+    NullfixApplication { /* existing fields */ },
+    SuffixApplication { /* existing fields */ },
+    InfixApplication { /* existing fields */ },
+}
+```
+
+valid groupの`range` は`open.start..close.end`である。`Expression::range()`はこのfieldを
+cloneして返す。`open_range` / `close_range`をsemantic ASTに重複保持しない。両punctuationの
+kind、raw text、個別range、間のtriviaはCSTからlosslessに観測でき、AST consumerが
+group全体のsource extentとinner semantic expressionを持てば足りるためである。
+
+AST-producing pathはvalid groupでのみ`Expression::Grouped`を作る。innerがrecoveryで
+`Incomplete`になるmalformed groupは、direct CST / committed recoveryがsource shapeを保持し、
+存在しないinner semantic valueを架空のASTで合成しない。
+
+### Direct CST shapeとtrivia所有
+
+`SyntaxKind`に新しいnode variant `GroupedExpression`を追加する。現行のexpression nodeが
+`IdentifierExpression` / `PrefixExpression` / `InfixExpression` / `SuffixExpression` /
+`NullfixExpression`という「form + `Expression`」順の名前なので、`ExpressionGroup`ではなく
+`GroupedExpression`とする。typed recovery ownerの`ConstructRole::ExpressionGroup`は「delimiterを
+所有するconstruct」の名であり、Rowan node namingと語順を同じにする必要はない。
+
+valid sourceのcanonical child listは次である。
+
+```text
+GroupedExpression :=
+    LParen G*
+    DirectExpression
+    G* RParen
+```
+
+ここの`G*`はgroup内の一回のmaximal `TriviaRun`で、emptyでもよく、
+`Whitespace` / `Newline` / `LineComment` / `BlockComment`を含められる。各partは
+`GroupedExpression`の直下にsource orderでemitし、trivia用wrapper nodeは作らない。
+parenthesis内ではouter root newline stopをsuspendし、matching `)`またはowner safe pointを
+group continuationが所有する。
+
+opening `(`後の`G*`は「次のaccepted slotと一緒にtriviaをcommitする」という
+先行追補のleading-trivia conventionに従う。direct pathはこのrunをemitした後、
+empty / non-emptyを`LeadingTrivia::{None, Present}`へ写してinner NUD judgeへ渡す。
+inner expression後の`G*`は、failed LED probeがinput / `ParseLocal`とともにrollbackした
+runをgroup continuationが一度だけscan / emitする。これによりoperator scannerの
+trailing triviaとgroup-owned triviaの二重emitを作らない。
+
+recovery sourceではmandatory slotの位置に既決の`Missing`または`Error > Unknown`を置き、
+正常childの順序を変えない。`Missing`はzero-widthでcoverageを進めず、`Error`は
+実際にconsumeしたnon-empty source rangeを一度だけ所有する。
+
+### Shared NUD recognitionへの統合
+
+`NudRecognition`に次のcaseを追加する。
+
+```rust
+enum NudRecognition<'source> {
+    Group {
+        open: Range<usize>,
+    },
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Prefix(ScannedOperator<'source>),
+    Nullfix(ScannedOperator<'source>),
+}
+```
+
+group armは`scan_punctuation`を呼び、kindが
+`PunctuationKind::Open(Delimiter::Parenthesis)`のときだけ`open` rangeを返す小さな
+sink-free recognizerとする。raw `item('(')`をexpression内に別authorityとして増やさない。
+
+conceptual dispatchは次の形である。
+
+```rust
+i.choice((
+    recognize_group_open.map(|open| NudRecognition::Group { open }),
+    recognize_nud_operator(table, leading),
+    parse_identifier.map(NudRecognition::Identifier),
+    parse_integer_literal.map(NudRecognition::Integer),
+))
+```
+
+`(`はfixed punctuation、operator armはsession tableでacceptedされたprefix / nullfix spelling、
+identifier / integerはそれぞれword / ASCII digit startであり、first characterで互いに交わらない。
+そのためgroup armの順序はsemanticsを変えない。fixed construct starterを先頭に置くのは
+NUD vocabularyを読みやすくするためであり、prefix / nullfixのlongest-candidate fallbackや
+identifier / integer recognitionをshadowしない。
+
+`direct_expression_nud_candidate`は引き続き`recognize_nud`を唯一のauthorityとする。
+そのためこの一armを追加すれば、declaration recoveryのNUD lookaheadも`(`をvalid candidateと
+判定し、別のstarter listを更新する必要はない。
+
+### Commit continuationとbinding power
+
+groupはopening `(`がacceptedされた時点で他NUD formに戻れない。
+AST pathの`parse_expression_bp`とdirect pathの`parse_direct_expression_bp`はともにこの時点で
+cutする。現行direct pathの「`Prefix`だけcut」という条件は、
+`Prefix | Group`をacceptedした場合のcutへ拡張する。
+
+inner expressionのminimumは常に次である。
+
+```rust
+let inner_minimum = BindingPower::scalar(i8::MIN);
+```
+
+AST pathは`parse_expression_bp(table, &inner_minimum, ...)`、direct pathは
+`parse_direct_expression_bp(table, &inner_minimum, inner_leading, ...)`を呼ぶ。prefix operandがoperatorの
+right binding powerをminimumにするのと対称的に、groupは内側でprecedenceを完全に
+resetするconstructなのでtop-levelと同じminimumを使う。これにより`(a + b)`の
+inner LEDはouter callerのmore restrictive minimumに打ち切られない。
+
+groupを閉じた後は、callerの`parse_expression_bp` /
+`parse_direct_expression_bp`に既にあるLED loopへ、一つのcompleted left expressionとして戻る。
+LED probeが比較するのはinner minimumではなくcallerが受け取ったoriginal `minimum`である。
+したがって`(a + b) * c`ではparenthesis内が先に完了した後、`*`はgroup全体を
+left operandとする普通のLEDとして解析される。special-case LEDは追加しない。
+
+direct CST continuationのcontrol flowは次で固定する。
+
+```text
+accept Group { open }; cut
+start GroupedExpression at the NUD checkpoint
+emit LParen(open)
+push ExpressionGroup delimiter / RightParenthesis stop scope
+scan and emit inner-leading TriviaRun
+parse or recover the inner expression at scalar(i8::MIN)
+scan and emit inner-trailing TriviaRun
+commit or recover the closing RParen
+pop the group scope on every Complete / Incomplete path
+finish GroupedExpression
+return one ParsedExpression to the caller's original LED loop
+```
+
+`ParsedExpression.range` はmatching closeがあれば`open.start..close.end`、closeが`Missing`なら
+`open.start..current_position`である。後者のcurrent positionはboundaryをconsumeしていないため、
+trailing group triviaまでは含むが次statement / outer delimiterは含まない。
+
+malformed groupでinner semantic valueが得られなくても、accepted `(`が表すouter NUDは
+成立している。direct pathはrecovery済み`GroupedExpression`のrange / checkpointを返し、
+outer mandatory value helperが同じsiteにbody/value `Missing`を連鎖させない。AST valueの
+complete / incompleteとPratt control上の「NUDをconsumeした」は別の事実である。
+
+### Mandatory inner expression recovery
+
+inner slotのrecovery siteは次のtyped roleを使う。
+
+```rust
+GrammarRole::Expression(ExpressionRole::Nud)
+ExpectedSyntax::Expression
+```
+
+既決の`atomic value`行の適用は次である。
+
+| current position | recoveryとcontinuation |
+| --- | --- |
+| `recognize_nud` / `direct_expression_nud_candidate`がcandidateを返す | normal commit。inner minimumで再帰parseする |
+| matching `)`、outer/root safe point、またはEOFでinner candidateがない | sourceをconsumeせず`Missing(ExpectedSyntax::Expression)`をそのpositionに置き、innerを`Incomplete`とする |
+| invalid sourceがslotを占有し、後ろにNUD candidateがある | そのcandidateの直前までのnon-empty rangeを一の`Error` `Unknown`としてconsume / emitし、同じinner slotをretryする |
+| invalid sourceからowner safe pointまでcandidateがない | invalid rangeを一のnon-empty `Error`にし、safe pointでinnerを`Incomplete`としてclosing continuationへ移る |
+
+candidate探索はshared `recognize_nud`だけをsink-freeで呼び、identifier spellingやoperator-like
+characterをraw searchしない。group内のinvalid byteをouter operator-body recoveryへ返さず、
+`ExpressionRole::Nud`のowner-local episodeとしてcommitする。
+
+matching `)`がcurrent positionにあるempty group `()`は、inner `Missing(expression)`を一件作った後、
+`)`をnormal commitしてgroup nodeを閉じる。matching closeはinner recoveryがconsumeしないため、
+closing slotが同じtokenを一度だけ所有できる。
+
+### Mandatory closing `)` recovery
+
+closing slotのrecovery siteは既存vocabularyだけで表す。
+
+```rust
+GrammarRole::ClosingDelimiter {
+    owner: ConstructRole::ExpressionGroup,
+    delimiter: Delimiter::Parenthesis,
+}
+ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+    Delimiter::Parenthesis,
+))
+```
+
+既決の`closing delimiter`行の適用は次である。
+
+| current position | recoveryとcontinuation |
+| --- | --- |
+| matching `)` | `RParen`をnormal commitし、group scope / nodeを閉じる |
+| mismatched `]` / `}` | delimiter一tokenのnon-empty rangeを一の`Error`にし、matching `)`の探索を続ける |
+| outer/root safe pointまたはEOF | boundaryをconsumeせずzero-width `Missing(')')`を置き、group scope / nodeを閉じる |
+
+mismatched closeのunexpected evidenceはactual delimiterを持ち、recovery site / expectationはexpected
+parenthesisを持つ。このrecord shapeは`emit_import_group_mismatched_close`と同じである。
+arbitrary invalid runがinner completion後とmatching closeの間にある場合は、既決の
+fixed-punctuation invalid-source行に従ってnon-empty `Error`にし、`)`またはsafe pointでretryする。
+
+matching / missingのどのpathでもdelimiter / stop scopeは一度だけpopし、
+`GroupedExpression`は必ずfinishする。close helperが`Option::None`をouter NUD choiceへ返すpathは
+作らない。
+
+### 同一owner boundaryでinnerとcloseがともに欠ける場合
+
+`(`の後のtriviaを読んだ位置がEOFまたはouter/root safe pointで、inner expressionも
+matching `)`もない場合、二つのmandatory slotは同じzero-width owner boundaryで同時に
+stopする。この場合は`Missing(expression)`と`Missing(')')`を連続して二件作らず、
+一のcausal absenceを一のcommitted recovery episodeへ集約する。
+
+これは新しいslot recovery ruleではない。先行追補がrequired separationと後続contentの
+同一absenceをsemantic slotの一recordへ集約するのと同じ「一つのcausal absenceから
+diagnosticを連鎖生成しない」適用である。innerの`atomic value`とcloseの
+`closing delimiter`のexpectationはどちらも失わず、一つのrecordのstructured unionに入れる。
+
+recordは次のshapeにする。
+
+```text
+site:
+  ClosingDelimiter {
+    owner: ExpressionGroup,
+    delimiter: Parenthesis,
+  } @ p..p
+kind:
+  Missing
+expectations:
+  - ClosingDelimiter(ExpressionGroup, Parenthesis) -> expected `)`
+  - Expression(Nud) -> expected expression
+primary:
+  expected `)`
+```
+
+siteとexact matchするclosing-delimiter candidateが既決のprimary selection tier 0になり、
+inner expression candidateはstructured secondary contextとして残る。CSTにはclosing slotの
+zero-width `Missing`を一nodeだけ置く。groupのinner semantic valueは`Incomplete`だが、
+accepted group NUDのdirect `ParsedExpression`は返す。
+
+matching `)`が存在する`()`はこの集約caseではない。innerのみが欠け、
+closeはsource tokenとしてnormal commitできるため、前節のinner `Missing(expression)`一件になる。
+innerが存在しcloseだけが欠ける`(value` も集約caseではなく、closing
+`Missing(')')`一件になる。
+
+### `header-full-diagnostic-identity` acceptance target
+
+fixture sourceは26 bytesである。関連rangeは次の通りである。
+
+```text
+0..3    `use`
+3..3    missing import path
+4..23   `infix (<+>) 50 51 =` operator header
+23..24  body-leading whitespace
+24..25  `(`
+25..26  newline owned by GroupedExpression
+26..26  EOF insertion point for missing `)`
+```
+
+grouped-expression support後のfull continuationは次の順序で進む。
+
+1. header phaseの`missing import path @ 3..3`をfull phaseがexact siteで再利用する。
+   これが`id = { origin = "header", event = 0 }`である。
+2. operator headerは`Equals` byteの直後で23で完了し、23..24のrequired body triviaを
+   root / body continuationがemitする。
+3. `recognize_nud`は24..25の`(`を`NudRecognition::Group`としてacceptする。
+   したがってこのbyteはinvalid body byteの`Error`にならない。
+4. `GroupedExpression`は`LParen` と25..26の`Newline`を所有し、EOF 26へ到達する。
+5. innerとcloseの同一boundary absenceを一のclosing-delimiter `Missing @ 26..26`へ集約し、
+   group nodeを閉じて`ParsedExpression`をbody continuationへ返す。これが
+   `id = { origin = "full", event = 1 }`で、primary messageは`expected ')'`である。
+6. operator bodyはaccepted group NUDを得ているため、
+   `StatementRole::OperatorDefinitionBody`の別`Missing(expression)`を作らない。
+
+したがってfile全体のcommitted recovery / diagnosticは次の **2件だけ** になる。
+
+| order | kind / range | role | diagnostic |
+| --- | --- | --- | --- |
+| 0 | `Missing @ 3..3` | `Declaration(Import(Path))` | header-origin `expected import path` |
+| 1 | `Missing @ 26..26` | `ClosingDelimiter { owner: ExpressionGroup, delimiter: Parenthesis }` | full-origin `expected ')'` |
+
+現状の`(`をinvalid byteとするspurious `Error @ 24..25`は消える。その`Error`の後に
+body NUDを再試行して生じていたspurious
+`Missing(StatementRole::OperatorDefinitionBody)`も、group continuationが`ParsedExpression`を返すため消える。
+代わりに期待値どおりexpression-group ownerのclosing `Missing`が一件だけ残る。
+
+### Non-obvious choicesの根拠
+
+- ASTにparenthesis token rangeを個別保持しないのは、ASTはinner semantic valueとgroup全体の
+  extentを必要とし、punctuation / triviaのlossless authorityはCSTだからである。
+- `GroupedExpression`を新nodeにするのは、parenthesisがprecedenceを変えるsource-visible
+  expression formであり、`IdentifierExpression`やinner applicationの単なるtrivia parentへ潰せないためである。
+- inner minimumを`i8::MIN`にするのは、groupがouter precedenceの制限を内側へ持ち込まない
+  ことが役割そのものだからである。prefix RHSのbinding powerを流用しない。
+- group内triviaをgroup nodeの直下に置くのは、`(` / inner / `)`の間にあるsourceであり、
+  failed NUD / LED probeに所有させるとrollback後のemit authorityが消えるからである。
+- accepted `(`後のcontinuationをtotalにするのは、direct sinkがrollbackできず、
+  open nodeのまま`None`をouter choiceへ返せないという既決の`Recovered<T>` contractによる。
+- EOFでinner / closeの二`Missing`を作らないのは、同じowner boundaryの一absenceから
+  diagnosticを連鎖させず、既決のexpectation unionで両方の文脈を保持できるからである。
+- `(`をoperator-body専用starterに追加しない。shared `recognize_nud`に入れることでAST / direct CST /
+  declaration recoveryの全consumerが同じgrammar authorityを使い、fixture path名やstatement ownerによる
+  special caseを避けられる。
+
+### Open questions
+
+この追補のgrouped-expression AST / CST shape、binding-power integration、trivia ownership、
+mandatory recovery、fixtureの2-recovery acceptance targetについて、既存code / design / fixtureから
+解けずに残るquestionは **ない**。
+
+既存のversion / `with` resolution、late `use` / non-header `mod`、syntax-environment key、
+reexport presentation、`TriviaParts` inline capacityはこの追補で変更しない。
+
+### Ready for implementation checklist
+
+Terra-tier implementation sessionは次を順に機械的に確認する。
+
+- [ ] `Expression::Grouped { inner, range }`を追加し、valid AST testでinner treeと
+      parenthesisを含むrangeを固定する。
+- [ ] `SyntaxKind::GroupedExpression`と`YulangLanguage::kind_from_raw`の対応armを追加する。
+      `LParen` / `RParen`は既存token kindを使う。
+- [ ] `NudRecognition::Group { open }`と`scan_punctuation`を使うsink-free group-open recognizerを
+      `recognize_nud`の`choice`へ追加する。operator / identifier / integer armを別dispatchへ複製しない。
+- [ ] AST pathとdirect pathの両方でaccepted `Group`後にcutし、continuation failureを
+      他NUD armへrollbackさせない。
+- [ ] opening `(`後にexpression-group delimiter / right-parenthesis stop scopeをpushし、
+      matching / missing / incompleteの全pathで一度だけpopする。
+- [ ] inner-leading `TriviaRun`を`GroupedExpression`直下へemitし、presenceを
+      `LeadingTrivia`へ写し、inner parseを`BindingPower::scalar(i8::MIN)`で呼ぶ。
+- [ ] inner後のfailed LED probeがtriviaをrollbackした後、group continuationが
+      trailing `TriviaRun`を一度だけemitする。
+- [ ] direct continuationは`GroupedExpression` nodeを必ずfinishし、innerが`Incomplete`でも
+      Pratt control用`ParsedExpression`を返す。AST pathは存在しないinner valueを合成しない。
+- [ ] inner mandatory slotは`ExpressionRole::Nud` + `ExpectedSyntax::Expression`を使い、
+      safe point / EOFの`Missing`、invalid non-empty `Error`、later shared NUD candidateへのretryを
+      mandatory-slot表どおり実装する。
+- [ ] close mandatory slotは`ConstructRole::ExpressionGroup` + `Delimiter::Parenthesis`を使い、
+      matching `)`、mismatched `]` / `}` Error、outer/root safe point / EOFのzero-width Missingを
+      `commit_use_group` / `commit_operator_name`と同じshapeで実装する。
+- [ ] `()`はinner Missing一件 + normal `RParen`、`(value`はclose Missing一件、
+      `(…]` はmismatched-close Error後にclose探索継続というgeneralized recovery testを置く。
+- [ ] innerとcloseが同じEOF / outer boundaryで欠けるcaseは一のclose-owned Missingに集約し、
+      expectations unionにcloseとexpressionを保持、closeをprimaryにする。
+- [ ] direct AST / CST Pratt testに`(a)`、nested `((a))`、trivia / comment / newlineを含むgroup、
+      `(a + b) * c`相当のbinding-power reset、group後のouter suffix / infix LEDを追加する。
+- [ ] accepted groupのprobe中はsink call countが0、commit後は各source rangeが一度だけemitされ、
+      node balance / contiguous coverage / `green.to_string() == source`が成立することを固定する。
+- [ ] `header-full-diagnostic-identity` fixtureでcommitted recovery / diagnosticがexactly 2件になることを
+      acceptance gateにする。内訳はheader-origin `Missing import path @ 3..3`と
+      full-origin `Missing ')' @ 26..26`だけで、`Error @ 24..25`やoperator-body
+      `Missing(expression)`を許さない。
+- [ ] implementationで`.rs`の変更を行う際は、この追補と無関係なexpression form /
+      recovery refactorを同じdiffへ広げない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認（2026-08-21、parenthesized
+grouped-expression grammar追補案）。
+査読はCodex gpt-5.6-terra（high）による事実クロスチェックに基づく: 現行`recognize_nud`が
+prefix/nullfix・identifier・integerの3 armのみで`(`を扱わないこと、`scan_punctuation`が
+`(`/`)`を`PunctuationKind::{Open, Close}(Delimiter::Parenthesis)`とbyte rangeで返すこと、
+`SyntaxKind::LParen`/`RParen`が`OperatorName`で既に使われていること、
+`ConstructRole::ExpressionGroup`/`ExpressionRole::Nud`/`Delimiter::Parenthesis`/
+`ExpectedSyntax::Expression`が既存のtyped recovery vocabularyに存在すること、top-level
+minimumが両path(`parse_expression_with_operators`/`parse_direct_expression_with_operators`)で
+`BindingPower::scalar(i8::MIN)`であること、`commit_use_group`/`commit_use_exclusion_group`/
+`commit_operator_name`が主張通りのmatching/mismatched/EOF close recovery shapeを持つこと、
+fixture`header-full-diagnostic-identity`(26 bytes)の実byte内容とmetadataが追補の
+2-recovery acceptance target(`Missing @ 3..3`、`Missing @ 26..26`)と一致すること、
+以上すべてを現行コードと突き合わせ不一致なし。
