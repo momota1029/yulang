@@ -4569,7 +4569,8 @@ mod tests {
         SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxNode,
         input::SourceInput,
         session::{
-            CommitOutput, CommittedRecoveryRecord, FullCstOutput, HeaderOutput, ParseLocal, Probe,
+            CommitOutput, CommittedRecoveryRecord, ExpectedSyntax, FullCstOutput, HeaderOutput,
+            ParseLocal, Probe,
         },
     };
 
@@ -5216,16 +5217,31 @@ mod tests {
                 );
             };
             let parsed_operator = declaration.to_header_operator();
-            assert_eq!(parsed_operator.range(), &(0..declaration_source.len()), "{}", fixture.name);
+            assert_eq!(
+                parsed_operator.range(),
+                &(0..declaration_source.len()),
+                "{}",
+                fixture.name
+            );
             assert_eq!(parsed_operator.name(), operator.name(), "{}", fixture.name);
-            assert_eq!(parsed_operator.fixity(), operator.fixity(), "{}", fixture.name);
+            assert_eq!(
+                parsed_operator.fixity(),
+                operator.fixity(),
+                "{}",
+                fixture.name
+            );
             assert_eq!(
                 parsed_operator.visibility(),
                 operator.visibility(),
                 "{}",
                 fixture.name
             );
-            assert_eq!(parsed_operator.is_lazy(), operator.is_lazy(), "{}", fixture.name);
+            assert_eq!(
+                parsed_operator.is_lazy(),
+                operator.is_lazy(),
+                "{}",
+                fixture.name
+            );
             assert_eq!(
                 parsed_operator.binding_power(),
                 operator.binding_power(),
@@ -5268,8 +5284,7 @@ mod tests {
             assert_eq!(
                 direct_count, parsed_count,
                 "{} public parse diverged from direct candidate for {:?}: parsed {parsed_count}, direct {direct_count}",
-                fixture.name,
-                kind,
+                fixture.name, kind,
             );
         }
     }
@@ -5501,7 +5516,7 @@ mod tests {
 
     #[test]
     fn direct_root_candidate_handles_representative_malformed_sources_without_invalid_recovery_shapes()
-    {
+     {
         for source in [
             "garbage; use std::io",
             "use",
@@ -5578,6 +5593,39 @@ mod tests {
             assert_complete_root_tree(fixture, source, &direct_root);
             assert_parse_file_matches_direct_candidate(fixture, &parsed_root, &direct_root);
         }
+    }
+
+    #[test]
+    fn header_full_diagnostic_identity_keeps_only_closing_expectation_after_empty_parentheses() {
+        let source =
+            std::str::from_utf8(HEADER_FULL_DIAGNOSTIC_IDENTITY_SOURCE).expect("fixture is UTF-8");
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+        let header_recoveries = parse_recovered_direct_header("use")
+            .committed_recoveries()
+            .to_vec();
+        let output = parse_phase2_direct_root(source, header.as_ref(), &header_recoveries);
+
+        let [import_path, closing_parenthesis] = output.committed_recoveries() else {
+            panic!("fixture must produce exactly the header and closing recoveries");
+        };
+        assert_eq!(import_path.site.range, 3..3);
+        assert_eq!(closing_parenthesis.kind, RecoveryKind::Missing);
+        assert_eq!(closing_parenthesis.site.range, 26..26);
+        assert_eq!(
+            closing_parenthesis.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ExpressionGroup,
+                delimiter: Delimiter::Parenthesis,
+            }
+        );
+        assert_eq!(closing_parenthesis.expectations.len(), 1);
+        assert_eq!(
+            closing_parenthesis.expectations[0].expected,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                Delimiter::Parenthesis,
+            ))
+        );
     }
 
     #[test]
@@ -5694,8 +5742,7 @@ mod tests {
                 .filter_map(|element| element.into_token())
                 .any(|token| {
                     token.kind() == SyntaxKind::Operator
-                        && syntax_range(token.text_range())
-                            == (late_use_start..late_use_start + 3)
+                        && syntax_range(token.text_range()) == (late_use_start..late_use_start + 3)
                 })
         );
 

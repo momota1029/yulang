@@ -24,7 +24,7 @@ pub enum SyntaxKind {
     BindingStatement,
     IntegerLiteral,
     IdentifierExpression,
-    GroupedExpression,
+    ParenthesizedExpression,
     PrefixExpression,
     InfixExpression,
     SuffixExpression,
@@ -108,7 +108,9 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::IdentifierExpression as u16 => {
                 SyntaxKind::IdentifierExpression
             }
-            value if value == SyntaxKind::GroupedExpression as u16 => SyntaxKind::GroupedExpression,
+            value if value == SyntaxKind::ParenthesizedExpression as u16 => {
+                SyntaxKind::ParenthesizedExpression
+            }
             value if value == SyntaxKind::PrefixExpression as u16 => SyntaxKind::PrefixExpression,
             value if value == SyntaxKind::InfixExpression as u16 => SyntaxKind::InfixExpression,
             value if value == SyntaxKind::SuffixExpression as u16 => SyntaxKind::SuffixExpression,

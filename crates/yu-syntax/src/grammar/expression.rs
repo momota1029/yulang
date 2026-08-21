@@ -31,8 +31,9 @@ use crate::{
 pub(crate) enum Expression<'source> {
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
-    Grouped {
-        inner: Box<Expression<'source>>,
+    Parenthesized {
+        elements: Vec<Expression<'source>>,
+        trailing_comma: Option<Range<usize>>,
         range: Range<usize>,
     },
     PrefixApplication {
@@ -58,7 +59,7 @@ impl Expression<'_> {
         match self {
             Self::Identifier(identifier) => identifier.range(),
             Self::Integer(integer) => integer.range(),
-            Self::Grouped { range, .. } => range.clone(),
+            Self::Parenthesized { range, .. } => range.clone(),
             Self::PrefixApplication { operator, operand } => {
                 operator.range.start..operand.range().end
             }
@@ -186,28 +187,49 @@ where
     let leading = leading_trivia(&consume_trivia(&mut i)?);
     let nud = i.run(from_fn(|i| recognize_nud(table, leading, i)))?;
     let mut left = match nud {
-        NudRecognition::Group { open } => {
+        NudRecognition::Parenthesized { open } => {
             i.cut();
-            push_expression_group_scope(&mut i);
+            push_parenthesized_expression_scope(&mut i);
             let inner_minimum = BindingPower::scalar(i8::MIN);
-            let inner = match i.run(from_fn(|i| parse_expression_bp(table, &inner_minimum, i))) {
-                Some(inner) => inner,
-                None => {
-                    pop_expression_group_scope(&mut i);
-                    return None;
-                }
-            };
             consume_trivia(&mut i).expect("trivia scanning is total");
-            let close = match i.run(recognize_group_close) {
-                Some(close) => close,
-                None => {
-                    pop_expression_group_scope(&mut i);
-                    return None;
+
+            let mut elements = Vec::new();
+            let mut trailing_comma = None;
+            let close = if let Some(close) = i.run(recognize_parenthesized_close) {
+                close
+            } else {
+                loop {
+                    let element =
+                        match i.run(from_fn(|i| parse_expression_bp(table, &inner_minimum, i))) {
+                            Some(element) => element,
+                            None => {
+                                pop_parenthesized_expression_scope(&mut i);
+                                return None;
+                            }
+                        };
+                    elements.push(element);
+                    consume_trivia(&mut i).expect("trivia scanning is total");
+
+                    let Some(comma) = i.run(recognize_parenthesized_comma) else {
+                        break match i.run(recognize_parenthesized_close) {
+                            Some(close) => close,
+                            None => {
+                                pop_parenthesized_expression_scope(&mut i);
+                                return None;
+                            }
+                        };
+                    };
+                    consume_trivia(&mut i).expect("trivia scanning is total");
+                    if let Some(close) = i.run(recognize_parenthesized_close) {
+                        trailing_comma = Some(comma);
+                        break close;
+                    }
                 }
             };
-            pop_expression_group_scope(&mut i);
-            Expression::Grouped {
-                inner: Box::new(inner),
+            pop_parenthesized_expression_scope(&mut i);
+            Expression::Parenthesized {
+                elements,
+                trailing_comma,
                 range: open.start..close.end,
             }
         }
@@ -256,7 +278,7 @@ where
 /// Sink-free NUD result shared by AST tests and the direct continuation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum NudRecognition<'source> {
-    Group { open: Range<usize> },
+    Parenthesized { open: Range<usize> },
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
     Prefix(ScannedOperator<'source>),
@@ -290,7 +312,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     i.choice((
-        recognize_group_open.map(|open| NudRecognition::Group { open }),
+        recognize_parenthesized_open.map(|open| NudRecognition::Parenthesized { open }),
         from_fn(|i| {
             let scanned = scan_operator(OperatorSite::Nud, leading, table, i)?;
             match scanned.fixity() {
@@ -304,7 +326,9 @@ where
     ))
 }
 
-fn recognize_group_open<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+fn recognize_parenthesized_open<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -317,7 +341,9 @@ where
     .then(|| punctuation.range())
 }
 
-fn recognize_group_close<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+fn recognize_parenthesized_close<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -333,6 +359,23 @@ where
         i.rollback(checkpoint);
     }
     close
+}
+
+fn recognize_parenthesized_comma<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let comma = (punctuation.kind() == PunctuationKind::Comma).then(|| punctuation.range());
+    if comma.is_none() {
+        i.rollback(checkpoint);
+    }
+    comma
 }
 
 fn recognize_led<'source, E>(
@@ -432,7 +475,7 @@ where
     let nud = committed.probe(|probe| probe_nud(table, leading, probe))?;
     if matches!(
         &nud,
-        NudRecognition::Prefix(_) | NudRecognition::Group { .. }
+        NudRecognition::Prefix(_) | NudRecognition::Parenthesized { .. }
     ) {
         cut_after_acceptance(committed);
     }
@@ -523,7 +566,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match accepted {
-        NudRecognition::Group { open } => commit_group_nud(table, open, checkpoint, committed),
+        NudRecognition::Parenthesized { open } => {
+            commit_parenthesized_nud(table, open, checkpoint, committed)
+        }
         NudRecognition::Identifier(identifier) => {
             let range = identifier.range();
             committed.start_node(SyntaxKind::IdentifierExpression);
@@ -560,10 +605,10 @@ where
     }
 }
 
-/// Completes an accepted group without returning to the NUD choice.  The
-/// group remains a Pratt operand even if its inner semantic value is absent:
-/// the committed CST node and its recovery records own that source shape.
-fn commit_group_nud<'parse, 'source, 'local, E, O>(
+/// Completes an accepted parenthesized expression without returning to the
+/// NUD choice. The committed CST node owns the complete delimiter and list
+/// shape, including recovery for a mandatory element after a comma.
+fn commit_parenthesized_nud<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     open: Range<usize>,
     checkpoint: O::Checkpoint,
@@ -575,56 +620,66 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.start_node_at(checkpoint, SyntaxKind::GroupedExpression);
+    committed.start_node_at(checkpoint, SyntaxKind::ParenthesizedExpression);
     committed.token(SyntaxKind::LParen, open.clone());
-    push_direct_expression_group_scope(committed);
+    push_direct_parenthesized_expression_scope(committed);
 
-    let inner_leading = commit_group_trivia(committed).expect("trivia scanning is total");
-    committed.emit_trivia(&inner_leading);
-    let inner_minimum = BindingPower::scalar(i8::MIN);
-    let inner = commit_group_inner(
-        table,
-        &inner_minimum,
-        leading_trivia(&inner_leading),
-        committed,
-    );
-    let inner_missing_at = inner.is_none().then(|| committed_position(committed));
+    let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+    committed.emit_trivia(&leading);
+    let minimum = BindingPower::scalar(i8::MIN);
+    let mut delayed_initial_element_missing = None;
 
-    let inner_trailing = commit_group_trivia(committed).expect("trivia scanning is total");
-    committed.emit_trivia(&inner_trailing);
+    if !parenthesized_close_pending(committed) && !parenthesized_close_absent_boundary(committed) {
+        let element_start = committed_position(committed);
+        let element =
+            commit_parenthesized_element(table, &minimum, leading_trivia(&leading), committed);
+        if element.is_none() {
+            let at = committed_position(committed);
+            if element_start < at && parenthesized_close_absent_boundary(committed) {
+                delayed_initial_element_missing = Some(at);
+            } else {
+                emit_parenthesized_element_missing(committed);
+            }
+        }
 
-    // A missing inner slot can collapse with a missing close only at the same
-    // unconsumed owner boundary.  At any token that the closing continuation
-    // will own, emit the inner absence before that later source child.
-    let delay_inner_missing = inner_missing_at.is_some_and(|at| {
-        at == committed_position(committed) && group_close_absent_boundary(committed)
-    });
-    if inner_missing_at.is_some() && !delay_inner_missing {
-        emit_group_inner_missing(committed);
+        while let Some(comma) = commit_parenthesized_comma(committed) {
+            committed.token(SyntaxKind::Comma, comma);
+            let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+            committed.emit_trivia(&leading);
+            if parenthesized_close_pending(committed) {
+                break;
+            }
+
+            let element =
+                commit_parenthesized_element(table, &minimum, leading_trivia(&leading), committed);
+            if element.is_none() {
+                emit_parenthesized_element_missing(committed);
+            }
+        }
     }
 
-    let close = commit_group_close(committed);
+    let close = commit_parenthesized_close(committed);
     match close {
-        GroupClose::Matched(range) => {
+        ParenthesizedClose::Matched(range) => {
             committed.token(SyntaxKind::RParen, range.clone());
-            pop_direct_expression_group_scope(committed);
+            pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
             Some(ParsedExpression::new(checkpoint, open.start..range.end))
         }
-        GroupClose::Missing { at } => {
-            if delay_inner_missing {
-                emit_group_inner_and_close_missing(committed, at);
+        ParenthesizedClose::Missing { at } => {
+            if delayed_initial_element_missing == Some(at) {
+                emit_parenthesized_element_and_close_missing(committed, at);
             } else {
-                emit_group_close_missing(committed, at);
+                emit_parenthesized_close_missing(committed, at);
             }
-            pop_direct_expression_group_scope(committed);
+            pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
             Some(ParsedExpression::new(checkpoint, open.start..at))
         }
     }
 }
 
-fn commit_group_inner<'parse, 'source, 'local, E, O>(
+fn commit_parenthesized_element<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     minimum: &BindingPower,
     leading: LeadingTrivia,
@@ -637,17 +692,17 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     parse_direct_expression_bp(table, minimum, leading, committed).or_else(|| {
-        group_inner_error_retry(table, committed).then(|| {
+        parenthesized_element_error_retry(table, committed).then(|| {
             parse_direct_expression_bp(table, minimum, LeadingTrivia::None, committed)
-                .expect("a retried group inner slot must commit its shared NUD candidate")
+                .expect("a retried parenthesized element must commit its shared NUD candidate")
         })
     })
 }
 
-/// The inner mandatory slot follows the atomic-value rule.  It owns invalid
-/// bytes only until a shared NUD candidate or a group boundary; it never
-/// hands those bytes back to an outer declaration body recovery.
-fn group_inner_error_retry<'parse, 'source, 'local, E, O>(
+/// A mandatory list element owns invalid bytes only until a shared NUD
+/// candidate or a parenthesized-list boundary; it never hands them back to
+/// an outer declaration body recovery.
+fn parenthesized_element_error_retry<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
@@ -687,7 +742,7 @@ where
     let Some((range, retry)) = recovered else {
         return false;
     };
-    emit_group_error(
+    emit_parenthesized_error(
         committed,
         GrammarRole::Expression(ExpressionRole::Nud),
         range,
@@ -695,17 +750,17 @@ where
     retry
 }
 
-enum GroupClose {
+enum ParenthesizedClose {
     Matched(Range<usize>),
     Missing { at: usize },
 }
 
-/// The closing mandatory slot follows the closing-delimiter rule.  A wrong
+/// The closing mandatory slot follows the closing-delimiter rule. A wrong
 /// close is emitted as its own non-empty episode, then the same close slot
 /// keeps searching rather than returning failure to the NUD dispatcher.
-fn commit_group_close<'parse, 'source, 'local, E, O>(
+fn commit_parenthesized_close<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> GroupClose
+) -> ParenthesizedClose
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -713,8 +768,8 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
-        if group_close_absent_boundary(committed) {
-            return GroupClose::Missing {
+        if parenthesized_close_absent_boundary(committed) {
+            return ParenthesizedClose::Missing {
                 at: committed_position(committed),
             };
         }
@@ -723,12 +778,16 @@ where
         if let Some(punctuation) = punctuation {
             match punctuation.kind() {
                 PunctuationKind::Close(Delimiter::Parenthesis) => {
-                    return GroupClose::Matched(punctuation.range());
+                    return ParenthesizedClose::Matched(punctuation.range());
                 }
                 PunctuationKind::Close(actual @ (Delimiter::Bracket | Delimiter::Brace)) => {
-                    emit_group_close_error(committed, punctuation.range(), actual);
+                    emit_parenthesized_close_error(committed, punctuation.range(), actual);
                 }
-                _ => emit_group_error(committed, group_close_role(), punctuation.range()),
+                _ => emit_parenthesized_error(
+                    committed,
+                    parenthesized_close_role(),
+                    punctuation.range(),
+                ),
             }
             continue;
         }
@@ -742,22 +801,24 @@ where
                     let Some(character) = i.input.remainder().chars().next() else {
                         return (start < end).then_some(start..end);
                     };
-                    if matches!(character, ')' | ']' | '}' | ';' | ',') {
+                    if matches!(character, ')' | ']' | '}' | ';') {
                         return (start < end).then_some(start..end);
                     }
-                    i.input.next().expect("the scanned group-close byte exists");
+                    i.input
+                        .next()
+                        .expect("the scanned parenthesized-close byte exists");
                     end = i.pos();
                     let mut line = i.local.line();
                     line.at_line_start = false;
                     i.local.set_line(line);
                 }
             })
-            .expect("a non-boundary group-close position must consume invalid source");
-        emit_group_error(committed, group_close_role(), range);
+            .expect("a non-boundary parenthesized-close position must consume invalid source");
+        emit_parenthesized_error(committed, parenthesized_close_role(), range);
     }
 }
 
-fn commit_group_trivia<'parse, 'source, 'local, E, O>(
+fn commit_parenthesized_trivia<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<TriviaRun>
 where
@@ -769,7 +830,37 @@ where
     committed.probe(|probe| probe.input().run(scan_trivia))
 }
 
-fn group_close_absent_boundary<'parse, 'source, 'local, E, O>(
+fn parenthesized_close_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let pending = i.run(recognize_parenthesized_close).is_some();
+        i.rollback(checkpoint);
+        pending
+    })
+}
+
+fn commit_parenthesized_comma<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| probe.input().run(recognize_parenthesized_comma))
+}
+
+fn parenthesized_close_absent_boundary<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -778,21 +869,18 @@ where
 {
     committed.probe(|probe| {
         probe.input().input.remainder().is_empty()
-            || matches!(
-                probe.input().input.remainder().chars().next(),
-                Some(';' | ',')
-            )
+            || matches!(probe.input().input.remainder().chars().next(), Some(';'))
     })
 }
 
-fn group_close_role() -> GrammarRole {
+fn parenthesized_close_role() -> GrammarRole {
     GrammarRole::ClosingDelimiter {
         owner: ConstructRole::ExpressionGroup,
         delimiter: Delimiter::Parenthesis,
     }
 }
 
-fn emit_group_inner_missing<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_element_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -822,15 +910,15 @@ fn emit_group_inner_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_group_close_missing<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_close_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     at: usize,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = group_close_role();
-    emit_group_missing(
+    let role = parenthesized_close_role();
+    emit_parenthesized_missing(
         committed,
         role,
         at,
@@ -845,16 +933,16 @@ fn emit_group_close_missing<'parse, 'source, 'local, E, O>(
     );
 }
 
-fn emit_group_inner_and_close_missing<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_element_and_close_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     at: usize,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let close_role = group_close_role();
-    let expression_role = GrammarRole::Expression(ExpressionRole::Nud);
-    emit_group_missing(
+    let close_role = parenthesized_close_role();
+    let element_role = GrammarRole::Expression(ExpressionRole::Nud);
+    emit_parenthesized_missing(
         committed,
         close_role,
         at,
@@ -868,7 +956,7 @@ fn emit_group_inner_and_close_missing<'parse, 'source, 'local, E, O>(
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             },
             SyntaxExpectation {
-                role: expression_role,
+                role: element_role,
                 expected: ExpectedSyntax::Expression,
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
@@ -877,7 +965,7 @@ fn emit_group_inner_and_close_missing<'parse, 'source, 'local, E, O>(
     );
 }
 
-fn emit_group_missing<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: GrammarRole,
     at: usize,
@@ -903,7 +991,7 @@ fn emit_group_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_group_close_error<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_close_error<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     range: Range<usize>,
     actual: Delimiter,
@@ -911,7 +999,7 @@ fn emit_group_close_error<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = group_close_role();
+    let role = parenthesized_close_role();
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
@@ -941,7 +1029,7 @@ fn emit_group_close_error<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-fn emit_group_error<'parse, 'source, 'local, E, O>(
+fn emit_parenthesized_error<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: GrammarRole,
     range: Range<usize>,
@@ -954,7 +1042,7 @@ fn emit_group_error<'parse, 'source, 'local, E, O>(
         GrammarRole::ClosingDelimiter { .. } => ExpectedSyntax::Punctuation(
             crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis),
         ),
-        _ => unreachable!("group recovery only emits inner or close roles"),
+        _ => unreachable!("parenthesized recovery only emits element or close roles"),
     };
     let record = committed.probe(|probe| {
         let i = probe.input();
@@ -991,42 +1079,47 @@ where
     committed.probe(|probe| probe.input().pos())
 }
 
-fn push_expression_group_scope<E>(i: &mut SynIn<E>)
+fn parenthesized_expression_stop_set() -> StopSet {
+    StopSet::default()
+        .with(StopKind::Comma)
+        .with(StopKind::RightParenthesis)
+}
+
+fn push_parenthesized_expression_scope<E>(i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
 {
     i.local.push_delimiter(Delimiter::Parenthesis);
-    i.local
-        .push_stop_set(StopSet::default().with(StopKind::RightParenthesis));
+    i.local.push_stop_set(parenthesized_expression_stop_set());
 }
 
-fn pop_expression_group_scope<E>(i: &mut SynIn<E>)
+fn pop_parenthesized_expression_scope<E>(i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
 {
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
     assert_eq!(
         i.local.pop_stop_set(),
-        Some(StopSet::default().with(StopKind::RightParenthesis))
+        Some(parenthesized_expression_stop_set())
     );
 }
 
-fn push_direct_expression_group_scope<'parse, 'source, 'local, E, O>(
+fn push_direct_parenthesized_expression_scope<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    committed.probe(|probe| push_expression_group_scope(probe.input()));
+    committed.probe(|probe| push_parenthesized_expression_scope(probe.input()));
 }
 
-fn pop_direct_expression_group_scope<'parse, 'source, 'local, E, O>(
+fn pop_direct_parenthesized_expression_scope<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    committed.probe(|probe| pop_expression_group_scope(probe.input()));
+    committed.probe(|probe| pop_parenthesized_expression_scope(probe.input()));
 }
 
 /// Emits one accepted LED after its probe has committed.
@@ -1130,33 +1223,59 @@ mod tests {
     };
 
     #[test]
-    fn pratt_ast_builds_a_grouped_expression_with_its_full_range() {
-        let expression = parse("(a)", &canonical_operator_table());
+    fn pratt_ast_preserves_parenthesized_element_counts_and_trailing_commas() {
+        let cases = [
+            ("()", 0, None, 0..2),
+            ("(a)", 1, None, 0..3),
+            ("(a,)", 1, Some(2..3), 0..4),
+            ("(a,b)", 2, None, 0..5),
+            ("(a,b,)", 2, Some(4..5), 0..6),
+        ];
 
-        let Expression::Grouped { inner, range } = expression else {
-            panic!("expected grouped expression");
-        };
-        assert_eq!(range, 0..3);
-        let Expression::Identifier(inner) = *inner else {
-            panic!("expected identifier inside group");
-        };
-        assert_eq!(inner.text(), "a");
-        assert_eq!(inner.range(), 1..2);
+        for (source, expected_element_count, expected_trailing_comma, expected_range) in cases {
+            let expression = parse(source, &canonical_operator_table());
+            let Expression::Parenthesized {
+                elements,
+                trailing_comma,
+                range,
+            } = expression
+            else {
+                panic!("expected parenthesized expression for {source:?}");
+            };
+
+            assert_eq!(elements.len(), expected_element_count, "{source:?}");
+            assert_eq!(trailing_comma, expected_trailing_comma, "{source:?}");
+            assert_eq!(range, expected_range, "{source:?}");
+        }
     }
 
     #[test]
-    fn pratt_ast_builds_nested_grouped_expressions() {
+    fn pratt_ast_builds_nested_parenthesized_expressions() {
         let expression = parse("((a))", &canonical_operator_table());
 
-        let Expression::Grouped { inner, range } = expression else {
-            panic!("expected outer group");
+        let Expression::Parenthesized {
+            elements,
+            trailing_comma,
+            range,
+        } = expression
+        else {
+            panic!("expected outer parenthesized expression");
         };
         assert_eq!(range, 0..5);
-        let Expression::Grouped { inner, range } = *inner else {
-            panic!("expected inner group");
+        assert_eq!(trailing_comma, None);
+        let [
+            Expression::Parenthesized {
+                elements,
+                trailing_comma,
+                range,
+            },
+        ] = elements.as_slice()
+        else {
+            panic!("expected one nested parenthesized element");
         };
-        assert_eq!(range, 1..4);
-        assert!(matches!(*inner, Expression::Identifier(_)));
+        assert_eq!(*range, 1..4);
+        assert_eq!(*trailing_comma, None);
+        assert!(matches!(elements.as_slice(), [Expression::Identifier(_)]));
     }
 
     #[test]
@@ -1327,14 +1446,14 @@ mod tests {
     }
 
     #[test]
-    fn direct_pratt_emits_group_owned_trivia_and_nested_groups_losslessly() {
-        let source = "(\n/* note */ ((a)) \n)";
+    fn direct_pratt_emits_parenthesized_trivia_and_nested_nodes_losslessly() {
+        let source = "(\n/* note */ (a), b, \n)";
         let root = parse_direct(source, &canonical_operator_table());
-        let group = only_child(&root, SyntaxKind::GroupedExpression);
+        let parenthesized = only_child(&root, SyntaxKind::ParenthesizedExpression);
 
-        assert_eq!(group.to_string(), source);
+        assert_eq!(parenthesized.to_string(), source);
         assert_eq!(
-            group
+            parenthesized
                 .children_with_tokens()
                 .map(|child| child.kind())
                 .collect::<Vec<_>>(),
@@ -1343,20 +1462,87 @@ mod tests {
                 SyntaxKind::Newline,
                 SyntaxKind::BlockComment,
                 SyntaxKind::Whitespace,
-                SyntaxKind::GroupedExpression,
+                SyntaxKind::ParenthesizedExpression,
+                SyntaxKind::Comma,
+                SyntaxKind::Whitespace,
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::Comma,
                 SyntaxKind::Whitespace,
                 SyntaxKind::Newline,
                 SyntaxKind::RParen,
             ]
         );
         assert_eq!(
-            group.children().next().expect("nested group").kind(),
-            SyntaxKind::GroupedExpression
+            parenthesized
+                .children()
+                .next()
+                .expect("nested parenthesized expression")
+                .kind(),
+            SyntaxKind::ParenthesizedExpression
         );
     }
 
     #[test]
-    fn group_resets_binding_power_and_returns_to_the_outer_led_loop() {
+    fn direct_pratt_uses_one_parenthesized_node_for_every_valid_list_shape() {
+        let cases = [
+            ("()", vec![SyntaxKind::LParen, SyntaxKind::RParen]),
+            (
+                "(a)",
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::RParen,
+                ],
+            ),
+            (
+                "(a,)",
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::Comma,
+                    SyntaxKind::RParen,
+                ],
+            ),
+            (
+                "(a,b)",
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::Comma,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::RParen,
+                ],
+            ),
+            (
+                "(a,b,)",
+                vec![
+                    SyntaxKind::LParen,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::Comma,
+                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::Comma,
+                    SyntaxKind::RParen,
+                ],
+            ),
+        ];
+
+        for (source, expected_children) in cases {
+            let root = parse_direct(source, &canonical_operator_table());
+            let parenthesized = only_child(&root, SyntaxKind::ParenthesizedExpression);
+            assert_eq!(parenthesized.to_string(), source, "{source:?}");
+            assert_eq!(
+                parenthesized
+                    .children_with_tokens()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                expected_children,
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn parenthesized_expression_resets_binding_power_and_returns_to_the_outer_led_loop() {
         let expression = parse("(a+!b)*c", &canonical_operator_table());
 
         let Expression::InfixApplication {
@@ -1368,33 +1554,40 @@ mod tests {
             panic!("expected outer infix application");
         };
         assert_eq!(operator.text(), "*");
-        let Expression::Grouped { inner, .. } = *left else {
-            panic!("expected grouped left operand");
+        let Expression::Parenthesized { elements, .. } = *left else {
+            panic!("expected parenthesized left operand");
         };
-        assert!(matches!(*inner, Expression::InfixApplication { .. }));
+        assert!(matches!(
+            elements.as_slice(),
+            [Expression::InfixApplication { .. }]
+        ));
         assert!(matches!(*right, Expression::Identifier(_)));
 
         let root = parse_direct("(a+!b)*c", &canonical_operator_table());
         let outer = only_child(&root, SyntaxKind::InfixExpression);
         assert_eq!(
             outer.children().next().expect("left operand").kind(),
-            SyntaxKind::GroupedExpression
+            SyntaxKind::ParenthesizedExpression
         );
         assert_eq!(outer.to_string(), "(a+!b)*c");
 
         let suffix = parse_direct("(a)++", &canonical_operator_table());
         let suffix = only_child(&suffix, SyntaxKind::SuffixExpression);
         assert_eq!(
-            suffix.children().next().expect("grouped operand").kind(),
-            SyntaxKind::GroupedExpression
+            suffix
+                .children()
+                .next()
+                .expect("parenthesized operand")
+                .kind(),
+            SyntaxKind::ParenthesizedExpression
         );
         assert_eq!(suffix.to_string(), "(a)++");
     }
 
     #[test]
-    fn direct_group_recovers_its_mandatory_slots_without_duplicate_absences() {
+    fn direct_parenthesized_expression_recovers_mandatory_slots_without_duplicate_absences() {
         let cases = [
-            ("()", vec![(RecoveryKind::Missing, 1..1)]),
+            ("()", Vec::new()),
             ("(value", vec![(RecoveryKind::Missing, 6..6)]),
             (
                 "(a]",
@@ -1405,6 +1598,11 @@ mod tests {
             (
                 "(@",
                 vec![(RecoveryKind::Error, 1..2), (RecoveryKind::Missing, 2..2)],
+            ),
+            ("(a,,b)", vec![(RecoveryKind::Missing, 3..3)]),
+            (
+                "(a,",
+                vec![(RecoveryKind::Missing, 3..3), (RecoveryKind::Missing, 3..3)],
             ),
         ];
 
@@ -1422,16 +1620,13 @@ mod tests {
         }
 
         let (_, empty) = parse_direct_recovered("()", &canonical_operator_table());
-        assert_eq!(
-            empty[0].site.role,
-            GrammarRole::Expression(ExpressionRole::Nud)
-        );
+        assert!(empty.is_empty());
 
         let (_, missing_close) = parse_direct_recovered("(value", &canonical_operator_table());
-        assert_eq!(missing_close[0].site.role, group_close_role());
+        assert_eq!(missing_close[0].site.role, parenthesized_close_role());
 
         let (_, mismatched) = parse_direct_recovered("(a]", &canonical_operator_table());
-        assert_eq!(mismatched[0].site.role, group_close_role());
+        assert_eq!(mismatched[0].site.role, parenthesized_close_role());
         assert_eq!(
             mismatched[0].unexpected,
             Arc::from([UnexpectedSyntax::Token {
@@ -1443,21 +1638,16 @@ mod tests {
         );
 
         let (_, collapsed) = parse_direct_recovered("(", &canonical_operator_table());
-        assert_eq!(collapsed[0].site.role, group_close_role());
-        assert_eq!(collapsed[0].expectations.len(), 2);
-        assert_eq!(collapsed[0].primary_expectation, 0);
-        assert_eq!(
-            collapsed[0].expectations[1].role,
-            GrammarRole::Expression(ExpressionRole::Nud)
-        );
+        assert_eq!(collapsed[0].site.role, parenthesized_close_role());
+        assert_eq!(collapsed[0].expectations.len(), 1);
 
         let (_, invalid_at_eof) = parse_direct_recovered("(@", &canonical_operator_table());
-        assert_eq!(invalid_at_eof[1].site.role, group_close_role());
+        assert_eq!(invalid_at_eof[1].site.role, parenthesized_close_role());
         assert_eq!(invalid_at_eof[1].expectations.len(), 2);
     }
 
     #[test]
-    fn group_probe_is_sink_free_and_committed_group_preserves_lossless_invariants() {
+    fn parenthesized_probe_is_sink_free_and_committed_node_preserves_lossless_invariants() {
         let source = "(a+!b)*c";
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
