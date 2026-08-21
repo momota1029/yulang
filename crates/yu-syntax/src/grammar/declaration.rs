@@ -4589,6 +4589,77 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/infix-operator-header/main.yu"
     ));
+    const LATE_USE_AFTER_BODY_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/late-use-after-body/main.yu"
+    ));
+    const MALFORMED_HEADER_FOLLOWED_BY_VALID_HEADER_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/malformed-header-followed-by-valid-header/main.yu"
+    ));
+    const HEADER_FULL_DIAGNOSTIC_IDENTITY_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/header-full-diagnostic-identity/main.yu"
+    ));
+
+    #[derive(Clone, Copy)]
+    struct Phase2ParserFixture {
+        name: &'static str,
+        source: &'static [u8],
+        reuses_header_recovery: bool,
+        recovery_count: usize,
+    }
+
+    const PHASE2_PARSER_FIXTURES: [Phase2ParserFixture; 8] = [
+        Phase2ParserFixture {
+            name: "leading-use-plain",
+            source: LEADING_USE_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "leading-use-mod",
+            source: LEADING_MOD_USE_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "leading-use-realm",
+            source: LEADING_REALM_USE_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "leading-use-band",
+            source: LEADING_BAND_USE_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "infix-operator-header",
+            source: INFIX_OPERATOR_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "late-use-after-body",
+            source: LATE_USE_AFTER_BODY_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "malformed-header-followed-by-valid-header",
+            source: MALFORMED_HEADER_FOLLOWED_BY_VALID_HEADER_SOURCE,
+            reuses_header_recovery: true,
+            recovery_count: 1,
+        },
+        Phase2ParserFixture {
+            name: "header-full-diagnostic-identity",
+            source: HEADER_FULL_DIAGNOSTIC_IDENTITY_SOURCE,
+            reuses_header_recovery: true,
+            recovery_count: 2,
+        },
+    ];
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     enum OutputCall {
@@ -4894,6 +4965,256 @@ mod tests {
         committed.into_output()
     }
 
+    fn phase2_fixture_source(fixture: Phase2ParserFixture) -> &'static str {
+        std::str::from_utf8(fixture.source).expect("phase-2 parser fixtures are UTF-8")
+    }
+
+    fn phase2_fixture_header_recoveries(
+        fixture: Phase2ParserFixture,
+        source: &str,
+    ) -> Vec<CommittedRecoveryRecord> {
+        if !fixture.reuses_header_recovery {
+            return Vec::new();
+        }
+
+        let header_source = source
+            .lines()
+            .next()
+            .expect("recovery fixture has a header line");
+        parse_recovered_direct_header(header_source)
+            .committed_recoveries()
+            .to_vec()
+    }
+
+    fn parse_phase2_direct_root(
+        source: &str,
+        header: &crate::HeaderInfo,
+        header_recoveries: &[CommittedRecoveryRecord],
+    ) -> DirectRootCandidateOutput {
+        let imported = crate::operator::OperatorTable::empty();
+        let compilation =
+            crate::operator::compile_full_parse_operators_recovering(&imported, header.operators())
+                .expect("phase-2 parser fixtures have valid operator spellings");
+        parse_direct_root_candidate(source, &compilation.table, header_recoveries)
+    }
+
+    fn syntax_range(range: rowan::TextRange) -> Range<usize> {
+        u32::from(range.start()) as usize..u32::from(range.end()) as usize
+    }
+
+    fn assert_complete_root_tree(fixture: Phase2ParserFixture, source: &str, root: &SyntaxNode) {
+        // `parse_direct_root_candidate` can only return after
+        // `RowanSink::finish_complete`, which checks its open-node counter.
+        // The parent walk makes the resulting closed Rowan tree explicit at
+        // the corpus boundary as well.
+        assert_eq!(root.kind(), SyntaxKind::Root, "{}", fixture.name);
+        assert!(root.parent().is_none(), "{}", fixture.name);
+        for node in root.descendants() {
+            assert_eq!(
+                node.ancestors().last().map(|ancestor| ancestor.kind()),
+                Some(SyntaxKind::Root),
+                "{} has a detached CST node: {:?}",
+                fixture.name,
+                node.kind(),
+            );
+        }
+
+        let mut next_start = 0;
+        for token in root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+        {
+            let range = syntax_range(token.text_range());
+            assert_eq!(
+                range.start,
+                next_start,
+                "{} has a token coverage gap or overlap before {:?}",
+                fixture.name,
+                token.kind(),
+            );
+            assert_eq!(
+                token.text(),
+                &source[range.clone()],
+                "{} token text must retain its source range",
+                fixture.name,
+            );
+            next_start = range.end;
+        }
+        assert_eq!(
+            next_start,
+            source.len(),
+            "{} token coverage must reach EOF",
+            fixture.name,
+        );
+        assert_eq!(root.to_string(), source, "{}", fixture.name);
+    }
+
+    fn assert_recovery_diagnostic_identity(
+        fixture: Phase2ParserFixture,
+        output: &DirectRootCandidateOutput,
+        root: &SyntaxNode,
+        header_recoveries: &[CommittedRecoveryRecord],
+    ) {
+        let recoveries = output.committed_recoveries();
+        assert_eq!(recoveries.len(), fixture.recovery_count, "{}", fixture.name,);
+
+        let cst_recoveries = root
+            .descendants()
+            .filter_map(|node| match node.kind() {
+                SyntaxKind::Missing => {
+                    Some((RecoveryKind::Missing, syntax_range(node.text_range())))
+                }
+                SyntaxKind::Error => Some((RecoveryKind::Error, syntax_range(node.text_range()))),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let committed_recoveries = recoveries
+            .iter()
+            .map(|recovery| (recovery.kind, recovery.site.range.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(cst_recoveries, committed_recoveries, "{}", fixture.name);
+
+        let diagnostics = recoveries
+            .iter()
+            .cloned()
+            .map(SyntaxDiagnostic::recovery)
+            .collect::<Vec<_>>();
+        assert_eq!(diagnostics.len(), recoveries.len(), "{}", fixture.name);
+        for (diagnostic, recovery) in diagnostics.iter().zip(recoveries) {
+            let SyntaxDiagnosticCause::Recovery(diagnostic_recovery) = diagnostic.cause() else {
+                panic!("{} produced a non-recovery diagnostic", fixture.name);
+            };
+            assert_eq!(diagnostic.id(), recovery.id.0, "{}", fixture.name);
+            assert_eq!(
+                diagnostic.primary(),
+                &recovery.site.range,
+                "{}",
+                fixture.name
+            );
+            assert_eq!(diagnostic_recovery.record(), recovery, "{}", fixture.name);
+        }
+
+        for header_recovery in header_recoveries {
+            let reused = recoveries
+                .iter()
+                .find(|recovery| recovery.id == header_recovery.id)
+                .expect("full candidate must retain every matching header recovery");
+            assert_eq!(reused, header_recovery, "{}", fixture.name);
+        }
+    }
+
+    fn assert_header_fact_range_parity(
+        fixture: Phase2ParserFixture,
+        source: &str,
+        header: &crate::HeaderInfo,
+        root: &SyntaxNode,
+    ) {
+        for import in header.imports() {
+            let range = import.range().clone();
+            let declaration_source = &source[range.clone()];
+            let (header_declaration, _) =
+                parse_direct_header_with_output(declaration_source, HeaderOutput::new());
+            let (full_declaration, full_output) = parse_direct_header_with_output(
+                declaration_source,
+                FullCstOutput::new(declaration_source),
+            );
+            assert_eq!(header_declaration, full_declaration, "{}", fixture.name);
+            assert_eq!(
+                full_output.finish_complete().to_string(),
+                declaration_source,
+                "{}",
+                fixture.name,
+            );
+            let HeaderDeclaration::Use(declaration) = header_declaration else {
+                panic!("{} import range did not parse as use", fixture.name);
+            };
+            let expanded = declaration
+                .expand_header_imports()
+                .into_iter()
+                .collect::<Result<Vec<_>, _>>()
+                .expect("fixture import is a complete header fact");
+            assert_eq!(expanded, [import.clone()], "{}", fixture.name);
+            assert!(
+                root.descendants().any(|node| {
+                    node.kind() == SyntaxKind::UseDeclaration
+                        && syntax_range(node.text_range()) == range
+                }),
+                "{} full candidate lost header import range {:?}",
+                fixture.name,
+                import.range(),
+            );
+        }
+
+        for operator in header.operators() {
+            let range = operator.range().clone();
+            let declaration_source = &source[range.clone()];
+            let (header_declaration, _) =
+                parse_direct_header_with_output(declaration_source, HeaderOutput::new());
+            let (full_declaration, full_output) = parse_direct_header_with_output(
+                declaration_source,
+                FullCstOutput::new(declaration_source),
+            );
+            assert_eq!(header_declaration, full_declaration, "{}", fixture.name);
+            assert_eq!(
+                full_output.finish_complete().to_string(),
+                declaration_source,
+                "{}",
+                fixture.name,
+            );
+            let HeaderDeclaration::OperatorHeader(declaration) = header_declaration else {
+                panic!(
+                    "{} operator range did not parse as an operator header",
+                    fixture.name
+                );
+            };
+            assert_eq!(
+                declaration.to_header_operator(),
+                *operator,
+                "{}",
+                fixture.name
+            );
+            assert!(
+                root.descendants().any(|node| {
+                    node.kind() == SyntaxKind::OperatorHeader
+                        && syntax_range(node.text_range()) == range
+                }),
+                "{} full candidate lost header operator range {:?}",
+                fixture.name,
+                operator.range(),
+            );
+        }
+    }
+
+    fn assert_old_typed_projection_is_preserved(
+        fixture: Phase2ParserFixture,
+        old_root: &SyntaxNode,
+        new_root: &SyntaxNode,
+    ) {
+        let mut old_kinds = old_root
+            .descendants()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>();
+        old_kinds.sort_unstable();
+        old_kinds.dedup();
+
+        for kind in old_kinds {
+            let old_count = old_root
+                .descendants()
+                .filter(|node| node.kind() == kind)
+                .count();
+            let new_count = new_root
+                .descendants()
+                .filter(|node| node.kind() == kind)
+                .count();
+            assert!(
+                new_count >= old_count,
+                "{} regressed {:?}: old {old_count}, new {new_count}",
+                fixture.name,
+                kind,
+            );
+        }
+    }
+
     #[test]
     fn direct_root_candidate_parses_use_operator_and_binding_in_source_order() {
         let source = "use std::io\ninfix (<+>) 50 51 = left\nmy value = left";
@@ -5159,6 +5480,44 @@ mod tests {
         for kind in [SyntaxKind::BindingStatement, SyntaxKind::IntegerLiteral] {
             assert!(old_root.descendants().any(|node| node.kind() == kind));
             assert!(new_root.descendants().any(|node| node.kind() == kind));
+        }
+    }
+
+    #[test]
+    fn direct_root_candidate_meets_gate_8_for_every_phase2_parser_fixture() {
+        for fixture in PHASE2_PARSER_FIXTURES {
+            let source = phase2_fixture_source(fixture);
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let header_recoveries = phase2_fixture_header_recoveries(fixture, source);
+            let output = parse_phase2_direct_root(source, header.as_ref(), &header_recoveries);
+            let root = SyntaxNode::new_root(output.green().clone());
+
+            assert_complete_root_tree(fixture, source, &root);
+            assert_header_fact_range_parity(fixture, source, header.as_ref(), &root);
+            assert_recovery_diagnostic_identity(fixture, &output, &root, &header_recoveries);
+        }
+    }
+
+    #[test]
+    fn direct_root_candidate_preserves_old_typed_projection_for_every_phase2_parser_fixture() {
+        for fixture in PHASE2_PARSER_FIXTURES {
+            let source = phase2_fixture_source(fixture);
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let old = crate::parse_file(
+                Arc::clone(&source_text),
+                Arc::clone(&header),
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let header_recoveries = phase2_fixture_header_recoveries(fixture, source);
+            let output = parse_phase2_direct_root(source, header.as_ref(), &header_recoveries);
+            let old_root = SyntaxNode::new_root(old.green().clone());
+            let new_root = SyntaxNode::new_root(output.green().clone());
+
+            assert_eq!(old_root.to_string(), source, "{}", fixture.name);
+            assert_complete_root_tree(fixture, source, &new_root);
+            assert_old_typed_projection_is_preserved(fixture, &old_root, &new_root);
         }
     }
 
