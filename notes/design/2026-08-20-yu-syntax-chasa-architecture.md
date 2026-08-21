@@ -3590,6 +3590,15 @@ design上の概念であることを明記した。
 
 ## 追補案: parenthesized grouped expression `(<expression>)`
 
+> **Status: 2026-08-22 superseded.**
+> この節はcommit `8551f356`で設計し、commit `0e3459e9`で実装した
+> Phase 2.2.2のsingle-expression sliceを記録するhistorical sectionである。
+> `Expression::Grouped`、`SyntaxKind::GroupedExpression`、inner一個を必須とするgrammar、
+> および`()`をmissing innerとして扱う決定は、直後の
+> 「parenthesized expression-listのsurface CSTと推論境界」追補がsupersedeする。
+> opening `(`後のcut、binding-power reset、direct sink、total continuation、trivia所有、
+> closing-delimiter recoveryについては、後続追補で明示的に変更する箇所以外を引き継ぐ。
+
 この節は、`grammar::expression`のNUDにparenthesized grouped expressionを追加する
 designを固定する。対象はAST / direct CSTの形、shared sink-free NUD recognition、
 Pratt binding power、group内trivia所有、inner expressionとclosing `)`のmandatory recoveryである。
@@ -3957,9 +3966,11 @@ body NUDを再試行して生じていたspurious
 
 ### Open questions
 
-この追補のgrouped-expression AST / CST shape、binding-power integration、trivia ownership、
-mandatory recovery、fixtureの2-recovery acceptance targetについて、既存code / design / fixtureから
-解けずに残るquestionは **ない**。
+この節を書いた時点では、single-expression slice内部のgrouped-expression AST / CST shape、
+binding-power integration、trivia ownership、mandatory recovery、fixtureの2-recovery acceptance
+targetについて、既存code / design / fixtureから解けずに残るquestionはないと判断した。
+これはparenthesis全体のcurrent designを閉じる判断ではない。tuple / unitを含むsurface shapeは
+後続のsuperseding追補で固定する。
 
 既存のversion / `with` resolution、late `use` / non-header `mod`、syntax-environment key、
 reexport presentation、`TriviaParts` inline capacityはこの追補で変更しない。
@@ -4019,6 +4030,253 @@ minimumが両path(`parse_expression_with_operators`/`parse_direct_expression_wit
 fixture`header-full-diagnostic-identity`(26 bytes)の実byte内容とmetadataが追補の
 2-recovery acceptance target(`Missing @ 3..3`、`Missing @ 26..26`)と一致すること、
 以上すべてを現行コードと突き合わせ不一致なし。
+
+## 追補案: parenthesized expression-listのsurface CSTと推論境界
+
+この節は、直前のhistoricalなparenthesized grouped-expression追補のうち、
+single inner expressionを前提とするAST / CST shapeとrecoveryをsupersedeする。
+Yulang3のparenthesis NUDは、grouping、unit、tupleというsemantic formをparse時に選ばず、
+sourceに書かれたparenthesis、expression列、comma、triviaを一つのuniformなsurface formとして保持する。
+
+直前の追補から次は維持する。
+
+- opening `(`はshared sink-free `recognize_nud`が認識し、accept後にcutする。
+- parenthesis内の各expressionは`BindingPower::scalar(i8::MIN)`でparseし、outer precedenceを
+  内側へ持ち込まない。
+- closing `)`後はcallerのoriginal `minimum`を使うLED loopへ、一つのcompleted left expressionとして戻る。
+- speculative branchはRowan sinkへ書かず、commit後だけdirect CSTを一度emitする。
+- parenthesis内trivia、delimiter scope、closing-delimiter recovery、`Recovered<T>`によるtotal continuation、
+  one committed recovery node = one recovery diagnosticの原則を維持する。
+
+変更するのは、parenthesis内部のcardinality、comma所有、surface node名、parser-side AST、
+empty formのvalidity、およびそれらからsemantic formを決めるphase boundaryである。
+この追補はdesignだけを固定する。現行`crates/yu-syntax`の`Expression::Grouped` /
+`SyntaxKind::GroupedExpression`実装はまだこのshapeへ移行しておらず、source / testの変更は別sliceとする。
+
+### Core invariant
+
+parenthesized expressionのCSTは、内側のsemantic contentからouter node kindを決めない。
+parserが決めてよいのは、sourceにliteralに存在する次のsyntax factだけである。
+
+- opening / closing parenthesisの有無とrange。
+- expression elementの個数と各subtree。
+- element間のcommaとterminal trailing commaの有無。
+- それらの間にあるtrivia。
+- malformed sourceに対する`Missing` / `Error`とrecovery boundary。
+
+parserは「これはgroupingかtupleか」を判定しない。elementが0個、1個、2個以上のどれでも、
+trailing commaがあってもなくても、outer CSTは常に
+`SyntaxKind::ParenthesizedExpression`一種である。child countとterminal `Comma`の有無は
+sourceに書かれた差であり、semantic node kindの選択ではない。
+
+unit / grouping / tupleの解釈は、将来のtype inference / infer-side loweringだけが所有する。
+`yu-syntax`はtype、tuple value、identity semanticsを所有せず、後段が判定に必要な
+element列とtrailing-comma markerを欠落なく渡す。Yulang3のその後段はまだ実装されておらず、
+本追補のimplementation scopeにも含めない。
+
+### Grammar
+
+valid sourceのgrammarを次で固定する。
+
+```text
+ParenthesizedExpression :=
+    LParen G*
+    [
+        DirectExpression G*
+        { Comma G* DirectExpression G* }
+        [ Comma G* ]
+    ]
+    RParen
+```
+
+`G*`はemptyでもよい一回のmaximal `TriviaRun`で、`Whitespace` / `Newline` /
+`LineComment` / `BlockComment`を含む。triviaと`Comma`は
+`ParenthesizedExpression`直下へsource orderでemitし、list用またはtrivia用のwrapper nodeは作らない。
+
+separatorとして認めるのはfixed punctuationの`Comma`だけである。newlineは`G*`としてdelimiter、
+element、commaの間に存在できるが、newline自体を次elementのseparatorとは解釈しない。
+
+### Parser-side ASTとCST shape
+
+parser-side ASTはsemanticな`Grouped`をやめ、surface syntaxをそのまま表す。
+
+```rust
+pub(crate) enum Expression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Parenthesized {
+        elements: Vec<Expression<'source>>,
+        trailing_comma: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+    PrefixApplication { /* existing fields */ },
+    NullfixApplication { /* existing fields */ },
+    SuffixApplication { /* existing fields */ },
+    InfixApplication { /* existing fields */ },
+}
+```
+
+`range`はopening `(`のstartからmatching `)`のendまでを持つ。
+`trailing_comma`はterminal commaがsourceに存在するときだけそのexact rangeを`Some`で持ち、
+存在しなければ`None`とする。lossless CST側では同じfactのauthorityはclosing `RParen`直前の
+terminal `Comma` tokenである。AST fieldはsemantic tuple判定の結果ではなく、そのliteral tokenを
+後段へ渡すsurface markerである。
+
+CSTには`SyntaxKind::ParenthesizedExpression`を一つだけ置く。
+`SyntaxKind::GroupedExpression`と、将来の`SyntaxKind::TupleExpression`をarityやtrailing commaで
+選び分ける構成は禁止する。valid formの分類は次になる。
+
+| source | `elements.len()` | `trailing_comma` | infer-side interpretation |
+| --- | ---: | --- | --- |
+| `()` | 0 | `None` | unit |
+| `(a)` | 1 | `None` | grouping / identity |
+| `(a,)` | 1 | `Some(comma_range)` | one-tuple |
+| `(a,b)` | 2 | `None` | two-tuple |
+| `(a,b,)` | 2 | `Some(comma_range)` | two-tuple |
+
+表の右端はparser outputではない。parser / CSTは左三列のsurface factだけを作り、
+type inference / infer-side loweringが次のruleを一箇所で適用する。
+
+```text
+elements.len() == 0
+    => unit
+elements.len() == 1 && trailing_comma.is_none()
+    => grouping / identity
+otherwise
+    => tuple
+```
+
+したがって、`(a,)`はone-tupleであり、`(a)`と同じidentity expressionへcollapseしてはならない。
+
+### Yulang2からの意図的なsemantic correction
+
+Yulang2のparser自体は、このsurface invariantを保っていた。
+`yulang2-oracle@a58eefc3:crates/parser/src/expr/core.rs:102-105`はprefix `(`を常に
+`SyntaxKind::Paren`へ送り、`crates/parser/src/expr/group.rs:48-79`は同じnode内を
+`ExprListMachine`でparseした。generic list loopはseparatorを`Separator > Comma`として保持し、
+separator直後のclosing tokenも受理した
+(`crates/parser/src/parse/mod.rs:25-77`)。したがって`(a)`と`(a,)`は同じouter `Paren`を持ち、
+後者だけがliteralなterminal `Separator > Comma`を持っていた。
+
+一方、Yulang2のinfer-side `lower_paren`は`Expr` childだけを収集し、0個をunit、1個をidentity、
+2個以上をtupleへlowerした
+(`yulang2-oracle@a58eefc3:crates/infer/src/lowering/expr/block_local.rs:7-26`)。
+`Separator`を見なかったため、`(a,)`も`(a)`と同じ1-child identity caseへcollapseした。
+これはYulang3が維持するcompatibilityではなく、surfaceに保存済みのtrailing commaをsemantic phaseが
+捨てたYulang2のbugとして扱う。
+
+Yulang3はこの点を意図的に修正する。parserはterminal commaを
+`trailing_comma: Some(comma_range)`として後段へ伝え、infer-side interpretationは
+「1 element + trailing commaあり」をone-tupleにする。この差は偶発的な出力変更ではなく、
+`(a)`と`(a,)`のliteralなsource差をsemantic interpretationへ正しく接続するlanguage correctionである。
+
+### Comma-only separator scope
+
+Yulang2の`ExprListMachine::is_group_sep`は`Comma | Semicolon`を受け入れ、generic
+`DelimitedListMachine`はindent条件を満たすnewlineもimplicit separatorとして扱った
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/group.rs:72-79`、
+`crates/parser/src/parse/mod.rs:21-23,41-49`)。
+
+Yulang3の`ParenthesizedExpression`は、この挙動をそのまま移植しない。本追補でelement separatorとして
+受理するのはcommaだけである。semicolon-separated formとimplicit-newline-separated formは
+意図的にscope外とし、未対応をoversightやtemporary parser gapとして扱わない。
+それらを将来追加する場合は、newlineがelement内trivia / ML application / outer statement boundaryの
+どれに属するかを含め、別のdesign decisionとして明示する。本追補のcomma loopへ暗黙に混ぜない。
+
+### Commit continuationとstop scope
+
+direct CST continuationは次のcontrol flowを持つ。
+
+```text
+accept parenthesis NUD { open }; cut
+start ParenthesizedExpression at the NUD checkpoint
+emit LParen(open)
+push ParenthesizedExpression delimiter scope
+push StopSet { Comma, RightParenthesis }
+scan and emit leading TriviaRun
+if the next token is RParen:
+    commit the valid zero-element form
+else:
+    parse or recover one element at scalar(i8::MIN)
+    loop:
+        scan and emit TriviaRun
+        if the next token is Comma:
+            emit Comma
+            scan and emit TriviaRun
+            if the next token is RParen:
+                record this Comma as trailing_comma and leave the loop
+            parse or recover the next element at scalar(i8::MIN)
+            continue
+        leave the loop
+commit or recover RParen
+pop the stop / delimiter scope on every Complete / Incomplete path
+finish ParenthesizedExpression
+return one ParsedExpression to the caller's original LED loop
+```
+
+`StopKind::Comma`は既存のstop vocabularyとoperator scannerの
+`next_is_expression_stop`に存在する。parenthesized scopeは現在の
+`RightParenthesis`だけのstop setを`Comma | RightParenthesis`へ広げる。
+これにより各elementのPratt parserはcurrent-depth commaをconsumeせずlist continuationへ返す。
+
+commaはaccepted `(`後のcommitted list continuationが所有するfixed punctuationである。
+commaの後ろがmatching `)`か次elementかという判定に、semantic ASTやsubtree rollbackは使わない。
+matching closeのsink-free punctuation probeとshared NUD candidate probeだけで次のmandatory slotを決め、
+commit済みCSTを巻き戻さない。
+
+### Empty formとrecoveryの変更
+
+element listはoptionalなので、`()`はvalid zero-element formであり、
+`Missing(ExpectedSyntax::Expression)`を作らない。この点は直前のhistorical sectionの
+mandatory-inner ruleと、そのruleを固定したcurrent test expectationをsupersedeする。
+
+同じ理由により、`(`または`(`の後のtriviaでEOF / owner safe pointへ達した場合、欠けているmandatory
+slotはclosing `)`だけである。zero-width `Missing(')')`を一件置き、expected expressionを同じrecordへ
+unionしない。`header-full-diagnostic-identity`のopening parenthesis後にnewlineを挟んでEOFへ至るcaseは
+引き続き`Missing @ 26..26`を一件だけ持つが、そのexpectationはclosing parenthesisだけになる。
+
+一個以上のelementを開始した後のinvalid source、comma後のmissing element、mismatched close、
+missing closeは、既決のmandatory-slot / closing-delimiter recoveryをlist ownershipへ適用する。
+recovery後もaccepted parenthesis NUDはtotal continuationとしてnodeを必ずfinishし、outer body/valueが
+同じsource positionへduplicate `Missing(expression)`を追加しない。
+
+comma / `)`をboundaryとして見るのは、active embedded lexical regionがなく、current
+`ParenthesizedExpression` delimiter depthにいるときだけである。string、heredoc、interpolation、
+rule literal、quoted / block Yumark、comment、fence内のcommaやparenthesisをraw character searchで
+separator / closeと判定しない。既決のoperator-independent lexical-region authorityとrollback対象の
+`ParseLocal` scopeを共有し、parenthesized recovery専用の簡易quote counterを作らない。
+
+### 既存architecture principleとの整合
+
+- **rollback discipline:** opening `(`のrecognitionはsink-free、accept後はcut、list continuationは
+  committedなfixed-punctuation loopとする。grammar subtreeの試行emit / rollbackを導入しない。
+- **immutable operator table:** full parse前に一度構築した`OperatorTable`を全element parseで共有する。
+  element境界ごとにtable / mapを作り直さず、commaをoperator entryとして追加しない。
+- **BpVec-equivalent binding power:** 全elementをtop-levelと同じ
+  `BindingPower::scalar(i8::MIN)`でparseする。BpVec相当のfull-fixity capabilityとjudge tableは変更せず、
+  comma stopはbinding powerではなくdelimiter-local stop setで表す。
+- **oracle judge table:** prefix / nullfix / infix / suffixのcandidate selection、whitespace judge、
+  longest-match fallbackは各elementで既存authorityをそのまま使う。element countやtrailing commaを
+  operator judgeへ入力しない。
+- **direct CST / no event buffer:** branch decision前にRowanへ書かず、commit後は
+  `ParenthesizedExpression`一nodeへsource順で一度だけemitする。element列をCST event bufferへ貯めて
+  grouping / tuple判定後にreplayする構成は禁止する。
+- **lexical-region-aware recovery:** stop / delimiter / lexical-mode stackはinput checkpointと同時に
+  rollbackされる`ParseLocal`が所有する。comma / close探索をgrammar-localなraw scanへ複製しない。
+
+### Implementation boundary
+
+この追補を実装するyu-syntax sliceは、parser-side AST / CST、comma loop、stop scope、recovery、
+lossless fixtureだけを変更する。unit / grouping / tupleのHIRまたはconstraint生成、one-tupleのruntime表現、
+formatter policyは変更しない。後続のinfer-side sliceは
+`elements`と`trailing_comma`を受け取り、上で固定したsemantic ruleを一箇所で実装する。
+
+semicolon / implicit newline separator、record / list literal、call argument list、pattern / typeの
+parenthesized formは本追補へ含めない。それぞれが同じsurface invariantを必要とする場合も、
+このexpression nodeへ無名で統合せず、各grammar ownerのdesignとして扱う。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定（2026-08-22、
+parenthesized expression-list CST / inference boundary追補案）。
 
 ## 追補: body内の未宣言 operator-shaped token
 
