@@ -35,24 +35,24 @@ impl<'source> WordSpan<'source> {
 /// Keyword interpretation is deliberately absent: the oracle classifies the
 /// same spelling differently by grammar position and active stop set.
 pub(crate) fn scan_word<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    input.maybe(one_of(is_word_start))??;
-    input.skip(many_skip(one_of(is_xid_continue)))?;
-    input.skip(one_of("?!").or_not())?;
-    let end = input.pos();
+    let start = i.pos();
+    i.maybe(one_of(is_word_start))??;
+    i.skip(many_skip(one_of(is_xid_continue)))?;
+    i.skip(one_of("?!").or_not())?;
+    let end = i.pos();
 
-    let mut line = input.local.line();
+    let mut line = i.local.line();
     line.at_line_start = false;
-    input.local.set_line(line);
+    i.local.set_line(line);
 
     Some(WordSpan {
-        text: &input.input.source()[start..end],
+        text: &i.input.source()[start..end],
         start,
         end,
     })
@@ -138,17 +138,17 @@ mod tests {
         local.set_line(line);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let word = input
-            .run(chasa::prelude::from_fn(scan_word))
+        let word = i
+            .run(scan_word)
             .map(|word| (word.range(), word.text()));
 
-        (word, input.input.remainder(), input.local.line())
+        (word, i.input.remainder(), i.local.line())
     }
 }

@@ -58,13 +58,13 @@ pub(crate) enum PunctuationKind {
 /// territory. Delimiter stack changes also remain grammar-owned: recognizing
 /// an opening or closing spelling does not establish a structural group.
 pub(crate) fn scan_punctuation<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<PunctuationSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
+    let start = i.pos();
     let punctuation = choice((
         tag("::").to(PunctuationKind::ColonColon),
         item('(').to(PunctuationKind::Open(Delimiter::Parenthesis)),
@@ -81,30 +81,30 @@ where
         item(':').to(PunctuationKind::Colon),
         from_fn(scan_dot),
     ));
-    let kind = input.maybe(punctuation)??;
-    let end = input.pos();
+    let kind = i.maybe(punctuation)??;
+    let end = i.pos();
 
-    let mut line = input.local.line();
+    let mut line = i.local.line();
     line.at_line_start = false;
-    input.local.set_line(line);
+    i.local.set_line(line);
 
     Some(PunctuationSpan {
         kind,
-        text: &input.input.source()[start..end],
+        text: &i.input.source()[start..end],
         start,
         end,
     })
 }
 
 fn scan_dot<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<PunctuationKind>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    input.skip(item('.'))?;
-    input.not(item('.'))?;
+    i.skip(item('.'))?;
+    i.not(item('.'))?;
     Some(PunctuationKind::Dot)
 }
 
@@ -193,22 +193,22 @@ mod tests {
         let mut source_input = SourceInput::new(source);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let punctuation = input
-            .run(chasa::prelude::from_fn(scan_punctuation))
+        let punctuation = i
+            .run(scan_punctuation)
             .map(|punctuation| (punctuation.kind(), punctuation.range(), punctuation.text()));
 
         ScanResult {
             punctuation,
-            remainder: input.input.remainder(),
-            delimiter: input.local.delimiter(),
-            line: input.local.line(),
+            remainder: i.input.remainder(),
+            delimiter: i.local.delimiter(),
+            line: i.local.line(),
         }
     }
 }

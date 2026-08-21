@@ -9,7 +9,7 @@ use std::ops::Range;
 use chasa::{
     Back as _,
     input::IsCut,
-    prelude::{In, from_fn},
+    prelude::In,
 };
 
 use crate::{
@@ -58,7 +58,7 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
     });
     let mut expectations = chasa::LatestSink::new();
     let mut is_cut = false;
-    let mut input = In::new(
+    let mut i = In::new(
         &mut source_input,
         &mut expectations,
         IsCut::new(&mut is_cut),
@@ -68,19 +68,17 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
     let mut operators = Vec::new();
 
     let stop = loop {
-        input
-            .run(from_fn(scan_trivia))
-            .expect("trivia scanning is total");
-        if input.input.remainder().is_empty() {
+        i.run(scan_trivia).expect("trivia scanning is total");
+        if i.input.remainder().is_empty() {
             break HeaderStop::Eof;
         }
-        if !at_header_statement_start(input.local.line()) {
+        if !at_header_statement_start(i.local.line()) {
             break HeaderStop::FirstNonHeader;
         }
 
-        let statement_start = input.checkpoint();
-        let Some(declaration) = input.run(from_fn(parse_header_declaration)) else {
-            input.rollback(statement_start);
+        let statement_start = i.checkpoint();
+        let Some(declaration) = i.run(parse_header_declaration) else {
+            i.rollback(statement_start);
             break HeaderStop::FirstNonHeader;
         };
         match declaration {
@@ -98,15 +96,14 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
             }
             HeaderDeclaration::OperatorHeader(declaration) => {
                 operators.push(declaration.to_header_operator());
-                input
-                    .run(from_fn(scan_opaque_body))
+                i.run(scan_opaque_body)
                     .expect("opaque body scanning is total");
             }
         }
     };
 
     HeaderDiscovery {
-        coverage: 0..input.pos(),
+        coverage: 0..i.pos(),
         stop,
         imports,
         operators,

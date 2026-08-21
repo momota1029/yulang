@@ -100,14 +100,14 @@ pub(crate) fn scan_operator<'source, E>(
     site: OperatorSite,
     leading: LeadingTrivia,
     table: &OperatorTable,
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<ScannedOperator<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
+    let start = i.pos();
     let parser = table.state().longest_match_then(
         |last_character, entry: &OperatorEntry, mut candidate_input| {
             operator_boundary(last_character, &mut candidate_input)?;
@@ -117,7 +117,7 @@ where
             line.at_line_start = false;
             candidate_input.local.set_line(line);
 
-            let trailing_trivia = candidate_input.run(from_fn(scan_trivia))?;
+            let trailing_trivia = candidate_input.run(scan_trivia)?;
             let trailing = trailing_info(&trailing_trivia, candidate_input.local.line());
             let kinds = entry.fixities().kinds();
 
@@ -161,10 +161,10 @@ where
             })
         },
     );
-    let accepted = input.maybe(parser)??;
+    let accepted = i.maybe(parser)??;
 
     Some(ScannedOperator {
-        text: &input.input.source()[start..accepted.end],
+        text: &i.input.source()[start..accepted.end],
         start,
         end: accepted.end,
         fixity: accepted.fixity,
@@ -204,14 +204,14 @@ fn trailing_info(run: &TriviaRun, line: crate::session::LineState) -> TrailingIn
 
 fn operator_boundary<E>(
     last_character: char,
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
     if is_xid_continue(last_character) {
-        input.not(one_of(is_xid_continue))
+        i.not(one_of(is_xid_continue))
     } else {
         Some(())
     }
@@ -220,21 +220,21 @@ where
 fn value_start<E>(
     table: &OperatorTable,
     trailing: TrailingInfo,
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
     if let TrailingInfo::Newline { indentation } = trailing {
-        let baseline = input
+        let baseline = i
             .local
             .indentation_baseline()
             .map_or(0, |baseline| baseline.column);
         (baseline < indentation).then_some(())?;
     }
 
-    input.choice((
+    i.choice((
         one_of("\"([{$\\").to(()),
         one_of("$%_'").to(()),
         one_of(is_xid_start).to(()),
@@ -246,7 +246,7 @@ where
 
 fn operator_value_start<E>(
     table: &OperatorTable,
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -262,17 +262,17 @@ where
                 .then_some(())
         },
     );
-    input.run(parser)
+    i.run(parser)
 }
 
-fn next_is_expression_stop<E>(input: &In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> bool
+fn next_is_expression_stop<E>(i: &In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> bool
 where
     E: ErrorSink<usize>,
 {
-    let Some(stops) = input.local.stop_set() else {
+    let Some(stops) = i.local.stop_set() else {
         return false;
     };
-    match input.input.remainder().chars().next() {
+    match i.input.remainder().chars().next() {
         Some(',') => stops.contains(StopKind::Comma),
         Some(')') => stops.contains(StopKind::RightParenthesis),
         Some(']') => stops.contains(StopKind::RightBracket),
@@ -464,8 +464,8 @@ mod tests {
         .set_local(&mut nud_local);
 
         let plus = nud_input
-            .run(from_fn(|input| {
-                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, input)
+            .run(from_fn(|i| {
+                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, i)
             }))
             .expect("NUD should fall back to the short plus");
         assert_eq!(plus.text(), "+");
@@ -479,8 +479,8 @@ mod tests {
         assert_eq!(nud_input.input.remainder(), "!a");
 
         let bang = nud_input
-            .run(from_fn(|input| {
-                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, input)
+            .run(from_fn(|i| {
+                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, i)
             }))
             .expect("recursive NUD should accept bang as prefix");
         assert_eq!(bang.text(), "!");
@@ -506,8 +506,8 @@ mod tests {
         .set_local(&mut led_local);
 
         let long = led_input
-            .run(from_fn(|input| {
-                scan_operator(OperatorSite::Led, LeadingTrivia::None, &table, input)
+            .run(from_fn(|i| {
+                scan_operator(OperatorSite::Led, LeadingTrivia::None, &table, i)
             }))
             .expect("LED should accept the longest infix candidate");
         assert_eq!(long.text(), "+!");
@@ -543,20 +543,20 @@ mod tests {
         local.push_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: 2 });
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input =
+        let mut i =
             In::new(&mut source, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
 
-        let scanned = input.run(from_fn(|input| {
-            scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, input)
+        let scanned = i.run(from_fn(|i| {
+            scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, i)
         }));
 
         assert_eq!(scanned, None);
-        assert_eq!(input.pos(), 0);
-        assert_eq!(input.input.remainder(), "@value");
-        assert_eq!(input.local.line(), original_line);
-        assert_eq!(input.local.delimiter(), Some(Delimiter::Parenthesis));
+        assert_eq!(i.pos(), 0);
+        assert_eq!(i.input.remainder(), "@value");
+        assert_eq!(i.local.line(), original_line);
+        assert_eq!(i.local.delimiter(), Some(Delimiter::Parenthesis));
         assert_eq!(
-            input.local.lexical_mode(),
+            i.local.lexical_mode(),
             Some(EmbeddedLexicalMode::BlockComment { depth: 2 })
         );
     }
@@ -578,16 +578,16 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input =
+        let mut i =
             In::new(&mut source, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
 
-        let scanned = input.run(from_fn(|input| {
-            scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, input)
+        let scanned = i.run(from_fn(|i| {
+            scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, i)
         }));
 
         assert_eq!(scanned, None);
-        assert_eq!(input.pos(), 0);
-        assert_eq!(input.input.remainder(), "+!a");
+        assert_eq!(i.pos(), 0);
+        assert_eq!(i.input.remainder(), "+!a");
     }
 
     #[test]
@@ -621,20 +621,20 @@ mod tests {
         local.set_line(original_line);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input =
+        let mut i =
             In::new(&mut source, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
 
-        let plus = input
-            .run(from_fn(|input| {
-                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, input)
+        let plus = i
+            .run(from_fn(|i| {
+                scan_operator(OperatorSite::Nud, LeadingTrivia::None, &table, i)
             }))
             .expect("short prefix should survive rejected long candidate");
 
         assert_eq!(plus.text(), "+");
         assert_eq!(plus.trailing_trivia().range(), 1..1);
-        assert_eq!(input.input.remainder(), "!\n  a");
+        assert_eq!(i.input.remainder(), "!\n  a");
         assert_eq!(
-            input.local.line(),
+            i.local.line(),
             LineState {
                 at_line_start: false,
                 ..original_line

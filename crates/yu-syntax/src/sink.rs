@@ -180,7 +180,7 @@ impl DirectCstSink for RowanSink<'_> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::{input::IsCut, prelude::from_fn};
+    use chasa::input::IsCut;
 
     use crate::{
         SyntaxNode,
@@ -194,16 +194,14 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = chasa::prelude::In::new(
+        let i = chasa::prelude::In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        input
-            .run(from_fn(scan_trivia))
-            .expect("trivia scanning is total")
+        scan_trivia(i).expect("trivia scanning is total")
     }
 
     #[test]
