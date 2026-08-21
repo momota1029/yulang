@@ -1,19 +1,14 @@
 //! Internal candidate for source-leading header discovery.
 //!
 //! This module deliberately shares declaration parsing with full mode while
-//! keeping its result private until it replaces the legacy `HeaderCursor`
-//! entrypoint in a later vertical slice.
+//! feeding the public header-discovery entrypoint.
 
 use std::ops::Range;
 
-use chasa::{
-    Back as _,
-    input::IsCut,
-    prelude::In,
-};
+use chasa::{Back as _, input::IsCut, prelude::In};
 
 use crate::{
-    HeaderImport, HeaderImportForm, HeaderOperator, HeaderStop,
+    HeaderCoverage, HeaderImport, HeaderInfo, HeaderOperator, HeaderStop,
     input::SourceInput,
     scan::{opaque_body::scan_opaque_body, trivia::scan_trivia},
     session::{LineState, ParseLocal},
@@ -31,6 +26,17 @@ pub(crate) struct HeaderDiscovery {
 }
 
 impl HeaderDiscovery {
+    pub(crate) fn into_header_info(self) -> HeaderInfo {
+        HeaderInfo {
+            coverage: HeaderCoverage {
+                range: self.coverage,
+                stop: self.stop,
+            },
+            imports: self.imports.into(),
+            operators: self.operators.into(),
+        }
+    }
+
     pub(crate) fn coverage(&self) -> &Range<usize> {
         &self.coverage
     }
@@ -117,6 +123,7 @@ fn at_header_statement_start(line: LineState) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HeaderImportForm;
 
     const LEADING_USE_FIXTURES: [(&[u8], HeaderImportForm, &[&str]); 4] = [
         (

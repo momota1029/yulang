@@ -1,13 +1,12 @@
 use std::{ops::Range, sync::Arc};
 
-use rowan::{GreenNode, GreenNodeBuilder};
+use rowan::GreenNode;
 
 use crate::{
-    Delimiter, HeaderCursor, HeaderInfo, HeaderKeyword, OperatorFixity, ScanItem, SourceText,
-    TokenKind, TriviaKind,
+    HeaderInfo, OperatorFixity, SourceText,
+    grammar::declaration::parse_direct_root_candidate,
     operator::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
     session::CommittedRecoveryRecord,
-    syntax_kind::SyntaxKind,
 };
 
 /// Syntax facts selected for one full parse.
@@ -142,20 +141,35 @@ pub fn parse_file(
     header: Arc<HeaderInfo>,
     syntax: Arc<SyntaxEnvironment>,
 ) -> ParsedFile {
-    // Construction is deliberately separate from the old CST entrypoint.  The
-    // accepted table is prepared once so duplicate capabilities produce their
-    // construction diagnostics without replacing this parser authority.
-    let operator_compilation = compile_full_parse_operators_recovering(
-        syntax.operators(),
-        header.operators(),
-    )
-    .expect("complete header operators and validated imports never have empty spellings");
-    let green = FullCstBuilder::new(source.as_ref(), header.as_ref()).build();
-    let diagnostics = operator_compilation
-        .rejected_conflicts
+    // The accepted table is prepared once before the direct root loop. Duplicate
+    // capabilities produce construction diagnostics without replacing this
+    // parser authority or mutating the table while parsing.
+    let operator_compilation =
+        compile_full_parse_operators_recovering(syntax.operators(), header.operators())
+            .expect("complete header operators and validated imports never have empty spellings");
+    let (green, recoveries) =
+        parse_direct_root_candidate(source.as_ref(), &operator_compilation.table, &[]).into_parts();
+    let next_construction_event = recoveries
+        .iter()
+        .map(|record| record.id.0)
+        .max()
+        .map_or(0, |id| id.checked_add(1).expect("diagnostic ID space exhausted"));
+    let diagnostics = recoveries
         .into_iter()
-        .enumerate()
-        .map(|(event, conflict)| SyntaxDiagnostic::conflicting_operator_fixity(event as u32, conflict))
+        .map(SyntaxDiagnostic::recovery)
+        .chain(
+            operator_compilation
+                .rejected_conflicts
+                .into_iter()
+                .enumerate()
+                .map(|(event, conflict)| {
+                    let event = u32::try_from(event).expect("diagnostic ID space exhausted");
+                    let id = next_construction_event
+                        .checked_add(event)
+                        .expect("diagnostic ID space exhausted");
+                    SyntaxDiagnostic::conflicting_operator_fixity(id, conflict)
+                }),
+        )
         .collect();
 
     ParsedFile {
@@ -349,233 +363,6 @@ impl OperatorConflictDiagnostic {
     }
 }
 
-struct FullCstBuilder<'source, 'header> {
-    source: &'source str,
-    header: &'header HeaderInfo,
-    tokens: Vec<LexedToken>,
-    token_index: usize,
-    builder: GreenNodeBuilder<'static>,
-}
-
-impl<'source, 'header> FullCstBuilder<'source, 'header> {
-    fn new(source: &'source str, header: &'header HeaderInfo) -> Self {
-        Self {
-            source,
-            header,
-            tokens: lex(source),
-            token_index: 0,
-            builder: GreenNodeBuilder::new(),
-        }
-    }
-
-    fn build(mut self) -> GreenNode {
-        self.start_node(SyntaxKind::Root);
-        self.emit_header();
-        self.emit_binding_statement();
-        self.emit_remaining();
-        self.finish_node();
-        self.builder.finish()
-    }
-
-    fn emit_header(&mut self) {
-        let mut import_index = 0;
-        let mut operator_index = 0;
-
-        // HeaderInfo owns the committed declaration facts. The full CST uses
-        // those ranges as node boundaries instead of creating a second header
-        // grammar authority, while all bytes still come from the shared lexer.
-        while let Some(declaration) = self.next_header_node(&mut import_index, &mut operator_index)
-        {
-            self.emit_until(declaration.range.start);
-            self.start_node(declaration.kind);
-            self.emit_until(declaration.range.end);
-            self.finish_node();
-        }
-
-        self.emit_until(self.header.coverage().range().end);
-    }
-
-    fn next_header_node(
-        &self,
-        import_index: &mut usize,
-        operator_index: &mut usize,
-    ) -> Option<HeaderNode> {
-        let import = self.header.imports().get(*import_index);
-        let operator = self.header.operators().get(*operator_index);
-
-        match (import, operator) {
-            (Some(import), Some(operator)) if import.range().start <= operator.range().start => {
-                *import_index += 1;
-                Some(HeaderNode {
-                    kind: SyntaxKind::UseDeclaration,
-                    range: import.range().clone(),
-                })
-            }
-            (Some(_), Some(operator)) => {
-                *operator_index += 1;
-                Some(HeaderNode {
-                    kind: SyntaxKind::OperatorHeader,
-                    range: operator.range().clone(),
-                })
-            }
-            (Some(import), None) => {
-                *import_index += 1;
-                Some(HeaderNode {
-                    kind: SyntaxKind::UseDeclaration,
-                    range: import.range().clone(),
-                })
-            }
-            (None, Some(operator)) => {
-                *operator_index += 1;
-                Some(HeaderNode {
-                    kind: SyntaxKind::OperatorHeader,
-                    range: operator.range().clone(),
-                })
-            }
-            (None, None) => None,
-        }
-    }
-
-    fn emit_binding_statement(&mut self) {
-        const BINDING_SHAPE: [SyntaxKind; 7] = [
-            SyntaxKind::MyKw,
-            SyntaxKind::Whitespace,
-            SyntaxKind::Identifier,
-            SyntaxKind::Whitespace,
-            SyntaxKind::Equals,
-            SyntaxKind::Whitespace,
-            SyntaxKind::Integer,
-        ];
-
-        let Some(candidate) = self
-            .tokens
-            .get(self.token_index..self.token_index + BINDING_SHAPE.len())
-        else {
-            return;
-        };
-        if !candidate.iter().map(|token| token.kind).eq(BINDING_SHAPE) {
-            return;
-        }
-        if self
-            .tokens
-            .get(self.token_index + BINDING_SHAPE.len())
-            .is_some_and(|token| token.kind != SyntaxKind::Newline)
-        {
-            return;
-        }
-
-        self.start_node(SyntaxKind::BindingStatement);
-        for _ in 0..BINDING_SHAPE.len() - 1 {
-            self.emit_token();
-        }
-        self.start_node(SyntaxKind::IntegerLiteral);
-        self.emit_token();
-        self.finish_node();
-        self.finish_node();
-    }
-
-    fn emit_until(&mut self, end: usize) {
-        assert!(
-            end <= self.source.len(),
-            "header range {end} exceeds source length {}",
-            self.source.len()
-        );
-
-        while self
-            .tokens
-            .get(self.token_index)
-            .is_some_and(|token| token.range.end <= end)
-        {
-            self.emit_token();
-        }
-
-        assert_eq!(
-            self.current_offset(),
-            end,
-            "header range boundary must coincide with a shared token boundary"
-        );
-    }
-
-    fn emit_remaining(&mut self) {
-        while self.token_index < self.tokens.len() {
-            self.emit_token();
-        }
-    }
-
-    fn emit_token(&mut self) {
-        let token = &self.tokens[self.token_index];
-        self.builder
-            .token(token.kind.into(), &self.source[token.range.clone()]);
-        self.token_index += 1;
-    }
-
-    fn current_offset(&self) -> usize {
-        self.tokens
-            .get(self.token_index)
-            .map_or(self.source.len(), |token| token.range.start)
-    }
-
-    fn start_node(&mut self, kind: SyntaxKind) {
-        self.builder.start_node(kind.into());
-    }
-
-    fn finish_node(&mut self) {
-        self.builder.finish_node();
-    }
-}
-
-struct HeaderNode {
-    kind: SyntaxKind,
-    range: Range<usize>,
-}
-
-struct LexedToken {
-    kind: SyntaxKind,
-    range: Range<usize>,
-}
-
-fn lex(source: &str) -> Vec<LexedToken> {
-    let mut cursor = HeaderCursor::new(source);
-    let mut tokens = Vec::new();
-
-    while let Some(item) = cursor.next() {
-        let token = match item {
-            ScanItem::Token(token) => LexedToken {
-                kind: syntax_kind(token.kind, token.text),
-                range: token.range,
-            },
-            ScanItem::Trivia(trivia) => LexedToken {
-                kind: match trivia.kind {
-                    TriviaKind::Space => SyntaxKind::Whitespace,
-                    TriviaKind::Newline { .. } => SyntaxKind::Newline,
-                },
-                range: trivia.range,
-            },
-        };
-        tokens.push(token);
-    }
-
-    tokens
-}
-
-fn syntax_kind(kind: TokenKind, text: &str) -> SyntaxKind {
-    match kind {
-        TokenKind::Identifier if text == "my" => SyntaxKind::MyKw,
-        TokenKind::Identifier => SyntaxKind::Identifier,
-        TokenKind::Keyword(HeaderKeyword::Use) => SyntaxKind::UseKw,
-        TokenKind::Keyword(HeaderKeyword::Infix) => SyntaxKind::InfixKw,
-        TokenKind::Number => SyntaxKind::Integer,
-        TokenKind::Dot => SyntaxKind::Dot,
-        TokenKind::ColonColon => SyntaxKind::ColonColon,
-        TokenKind::Open(Delimiter::Parenthesis) => SyntaxKind::LParen,
-        TokenKind::Close(Delimiter::Parenthesis) => SyntaxKind::RParen,
-        TokenKind::Equals => SyntaxKind::Equals,
-        TokenKind::Symbol => SyntaxKind::Operator,
-        TokenKind::Open(Delimiter::Brace | Delimiter::Bracket)
-        | TokenKind::Close(Delimiter::Brace | Delimiter::Bracket) => SyntaxKind::Unknown,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -614,6 +401,34 @@ mod tests {
         assert_eq!(conflict.second_origin(), OperatorOrigin::Local);
         assert_eq!(conflict.first_range(), header.operators()[0].range());
         assert_eq!(conflict.second_range(), header.operators()[1].range());
+    }
+
+    #[test]
+    fn parse_file_preserves_recovery_diagnostics_before_construction_diagnostics() {
+        let source: Arc<SourceText> = Arc::from(
+            "infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\ngarbage\n",
+        );
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let [recovery, conflict] = parsed.diagnostics() else {
+            panic!("the root recovery and duplicate fixity must both be diagnosed");
+        };
+        assert!(matches!(
+            recovery.cause(),
+            SyntaxDiagnosticCause::Recovery(_)
+        ));
+        assert!(matches!(
+            conflict.cause(),
+            SyntaxDiagnosticCause::ConflictingOperatorFixity(_)
+        ));
+        assert_ne!(recovery.id(), conflict.id());
+        assert!(recovery.id() < conflict.id());
     }
 
     #[test]

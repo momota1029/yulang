@@ -148,6 +148,10 @@ impl DirectRootCandidateOutput {
     pub(crate) fn committed_recoveries(&self) -> &[CommittedRecoveryRecord] {
         &self.committed_recoveries
     }
+
+    pub(crate) fn into_parts(self) -> (rowan::GreenNode, Vec<CommittedRecoveryRecord>) {
+        (self.green, self.committed_recoveries)
+    }
 }
 
 pub(crate) fn parse_direct_root_candidate(
@@ -5185,30 +5189,30 @@ mod tests {
         }
     }
 
-    fn assert_old_typed_projection_is_preserved(
+    fn assert_parse_file_matches_direct_candidate(
         fixture: Phase2ParserFixture,
-        old_root: &SyntaxNode,
-        new_root: &SyntaxNode,
+        parsed_root: &SyntaxNode,
+        direct_root: &SyntaxNode,
     ) {
-        let mut old_kinds = old_root
+        let mut parsed_kinds = parsed_root
             .descendants()
             .map(|node| node.kind())
             .collect::<Vec<_>>();
-        old_kinds.sort_unstable();
-        old_kinds.dedup();
+        parsed_kinds.sort_unstable();
+        parsed_kinds.dedup();
 
-        for kind in old_kinds {
-            let old_count = old_root
+        for kind in parsed_kinds {
+            let parsed_count = parsed_root
                 .descendants()
                 .filter(|node| node.kind() == kind)
                 .count();
-            let new_count = new_root
+            let direct_count = direct_root
                 .descendants()
                 .filter(|node| node.kind() == kind)
                 .count();
-            assert!(
-                new_count >= old_count,
-                "{} regressed {:?}: old {old_count}, new {new_count}",
+            assert_eq!(
+                direct_count, parsed_count,
+                "{} public parse diverged from direct candidate for {:?}: parsed {parsed_count}, direct {direct_count}",
                 fixture.name,
                 kind,
             );
@@ -5456,16 +5460,16 @@ mod tests {
     }
 
     #[test]
-    fn direct_root_candidate_preserves_old_binding_and_integer_projection() {
+    fn parse_file_matches_direct_candidate_for_binding_and_integer_projection() {
         let source: Arc<crate::SourceText> = Arc::from("use std::io\nmy value = 123\n");
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
-        let old = crate::parse_file(
+        let parsed = crate::parse_file(
             Arc::clone(&source),
             header,
             Arc::new(crate::SyntaxEnvironment::empty()),
         );
-        let old_root = SyntaxNode::new_root(old.green().clone());
-        let new_root = SyntaxNode::new_root(
+        let parsed_root = SyntaxNode::new_root(parsed.green().clone());
+        let direct_root = SyntaxNode::new_root(
             parse_direct_root_candidate(
                 source.as_ref(),
                 &crate::operator::OperatorTable::empty(),
@@ -5475,11 +5479,11 @@ mod tests {
             .clone(),
         );
 
-        assert_eq!(old_root.to_string(), source.as_ref());
-        assert_eq!(new_root.to_string(), source.as_ref());
+        assert_eq!(parsed_root.to_string(), source.as_ref());
+        assert_eq!(direct_root.to_string(), source.as_ref());
         for kind in [SyntaxKind::BindingStatement, SyntaxKind::IntegerLiteral] {
-            assert!(old_root.descendants().any(|node| node.kind() == kind));
-            assert!(new_root.descendants().any(|node| node.kind() == kind));
+            assert!(parsed_root.descendants().any(|node| node.kind() == kind));
+            assert!(direct_root.descendants().any(|node| node.kind() == kind));
         }
     }
 
@@ -5500,24 +5504,24 @@ mod tests {
     }
 
     #[test]
-    fn direct_root_candidate_preserves_old_typed_projection_for_every_phase2_parser_fixture() {
+    fn parse_file_matches_direct_root_candidate_for_every_phase2_parser_fixture() {
         for fixture in PHASE2_PARSER_FIXTURES {
             let source = phase2_fixture_source(fixture);
             let source_text: Arc<crate::SourceText> = Arc::from(source);
             let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
-            let old = crate::parse_file(
+            let parsed = crate::parse_file(
                 Arc::clone(&source_text),
                 Arc::clone(&header),
                 Arc::new(crate::SyntaxEnvironment::empty()),
             );
             let header_recoveries = phase2_fixture_header_recoveries(fixture, source);
             let output = parse_phase2_direct_root(source, header.as_ref(), &header_recoveries);
-            let old_root = SyntaxNode::new_root(old.green().clone());
-            let new_root = SyntaxNode::new_root(output.green().clone());
+            let parsed_root = SyntaxNode::new_root(parsed.green().clone());
+            let direct_root = SyntaxNode::new_root(output.green().clone());
 
-            assert_eq!(old_root.to_string(), source, "{}", fixture.name);
-            assert_complete_root_tree(fixture, source, &new_root);
-            assert_old_typed_projection_is_preserved(fixture, &old_root, &new_root);
+            assert_complete_root_tree(fixture, source, &parsed_root);
+            assert_complete_root_tree(fixture, source, &direct_root);
+            assert_parse_file_matches_direct_candidate(fixture, &parsed_root, &direct_root);
         }
     }
 
