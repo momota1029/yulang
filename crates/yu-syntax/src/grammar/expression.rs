@@ -136,6 +136,10 @@ impl<C> ParsedExpression<C> {
     fn new(checkpoint: C, range: Range<usize>) -> Self {
         Self { checkpoint, range }
     }
+
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
 }
 
 /// Parses one expression into a committed direct-CST output.

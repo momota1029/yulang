@@ -520,6 +520,109 @@ pub(crate) fn compile_full_parse_operators(
     Ok(builder.build())
 }
 
+/// The deterministic, degraded full-parse table and every rejected duplicate
+/// capability encountered while building it.
+pub(crate) struct FullParseOperatorCompilation {
+    pub(crate) table: OperatorTable,
+    pub(crate) rejected_conflicts: Vec<RejectedOperatorFixity>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RejectedOperatorFixity {
+    pub(crate) spelling: Box<str>,
+    pub(crate) fixity: OperatorFixity,
+    pub(crate) first_origin: OperatorOrigin,
+    pub(crate) first_range: Range<usize>,
+    pub(crate) second_origin: OperatorOrigin,
+    pub(crate) second_range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum FullParseOperatorConstructionError {
+    EmptySpelling {
+        origin: OperatorOrigin,
+        range: Range<usize>,
+    },
+}
+
+/// Compiles the full-parse table in one builder pass, retaining the first
+/// accepted capability for a duplicate fixity and recording the rejected one.
+pub(crate) fn compile_full_parse_operators_recovering(
+    imported: &OperatorTable,
+    local: &[HeaderOperator],
+) -> Result<FullParseOperatorCompilation, FullParseOperatorConstructionError> {
+    let mut builder = OperatorTableBuilder::default();
+    let mut rejected_conflicts = Vec::new();
+
+    for (entry, sites) in imported.entries_with_sites() {
+        for fixity in [
+            OperatorFixity::Prefix,
+            OperatorFixity::Infix,
+            OperatorFixity::Suffix,
+            OperatorFixity::Nullfix,
+        ] {
+            let Some(site) = sites.site(fixity) else {
+                continue;
+            };
+            merge_full_parse_operator_recovering(
+                &mut builder,
+                OperatorDeclaration {
+                    spelling: entry.spelling.clone(),
+                    fixities: fixities_for(entry.fixities(), fixity),
+                    origin: site.origin,
+                    range: site.range.clone(),
+                },
+                &mut rejected_conflicts,
+            )?;
+        }
+    }
+    for header in local.iter().cloned() {
+        merge_full_parse_operator_recovering(
+            &mut builder,
+            OperatorDeclaration::from_header_operator(header),
+            &mut rejected_conflicts,
+        )?;
+    }
+
+    Ok(FullParseOperatorCompilation {
+        table: builder.build(),
+        rejected_conflicts,
+    })
+}
+
+fn merge_full_parse_operator_recovering(
+    builder: &mut OperatorTableBuilder,
+    declaration: OperatorDeclaration,
+    rejected_conflicts: &mut Vec<RejectedOperatorFixity>,
+) -> Result<(), FullParseOperatorConstructionError> {
+    let origin = declaration.origin;
+    let range = declaration.range.clone();
+    match builder.merge(declaration) {
+        Ok(()) => Ok(()),
+        Err(OperatorTableBuildError::ConflictingFixity {
+            spelling,
+            fixity,
+            first_origin,
+            first_range,
+            second_origin,
+            second_range,
+        }) => {
+            rejected_conflicts.push(RejectedOperatorFixity {
+                spelling,
+                fixity,
+                first_origin,
+                first_range,
+                second_origin,
+                second_range,
+            });
+            Ok(())
+        }
+        Err(OperatorTableBuildError::EmptySpelling { .. }) => {
+            Err(FullParseOperatorConstructionError::EmptySpelling { origin, range })
+        }
+    }
+}
+
 #[derive(Default)]
 struct OperatorTableBuilder {
     definitions: BTreeMap<Box<str>, AccumulatedOperator>,
@@ -969,6 +1072,92 @@ mod tests {
                 second_range: 30..47,
             }
         );
+    }
+
+    #[test]
+    fn recovering_full_parse_merge_retains_first_local_fixity_and_later_capabilities() {
+        let local = [
+            HeaderOperator::new(
+                0..15,
+                "+".to_owned(),
+                OperatorFixity::Prefix,
+                Visibility::Private,
+                false,
+                BindingPowers::prefix(HeaderBindingPower::from_components([70])),
+            ),
+            HeaderOperator::new(
+                16..31,
+                "+".to_owned(),
+                OperatorFixity::Prefix,
+                Visibility::Private,
+                false,
+                BindingPowers::prefix(HeaderBindingPower::from_components([71])),
+            ),
+            HeaderOperator::new(
+                32..49,
+                "+".to_owned(),
+                OperatorFixity::Infix,
+                Visibility::Private,
+                false,
+                BindingPowers::infix(
+                    HeaderBindingPower::from_components([40]),
+                    HeaderBindingPower::from_components([41]),
+                ),
+            ),
+        ];
+
+        let compilation = compile_full_parse_operators_recovering(&OperatorTable::empty(), &local)
+            .expect("duplicate fixity is recoverable");
+        let entry = compilation.table.get("+").expect("accepted spelling");
+        assert_eq!(
+            entry
+                .fixities()
+                .prefix()
+                .expect("first prefix remains accepted")
+                .right_binding_power(),
+            &BindingPower::scalar(70)
+        );
+        assert!(entry.fixities().infix().is_some());
+        assert_eq!(
+            compilation.rejected_conflicts,
+            [RejectedOperatorFixity {
+                spelling: "+".into(),
+                fixity: OperatorFixity::Prefix,
+                first_origin: OperatorOrigin::Local,
+                first_range: 0..15,
+                second_origin: OperatorOrigin::Local,
+                second_range: 16..31,
+            }]
+        );
+    }
+
+    #[test]
+    fn recovering_full_parse_merge_retains_imported_first_fixity() {
+        let dependency = SyntaxDependencySlot::from_index(0).expect("slot fits");
+        let imported = OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
+            "+",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+            dependency,
+            4..18,
+        )])
+        .expect("imported table");
+        let local = [HeaderOperator::new(
+            20..35,
+            "+".to_owned(),
+            OperatorFixity::Prefix,
+            Visibility::Private,
+            false,
+            BindingPowers::prefix(HeaderBindingPower::from_components([71])),
+        )];
+
+        let compilation = compile_full_parse_operators_recovering(&imported, &local)
+            .expect("duplicate fixity is recoverable");
+        assert_eq!(
+            compilation.rejected_conflicts[0].first_origin,
+            OperatorOrigin::Imported(dependency)
+        );
+        assert_eq!(compilation.rejected_conflicts[0].first_range, 4..18);
+        assert_eq!(compilation.rejected_conflicts[0].second_range, 20..35);
     }
 
     #[test]

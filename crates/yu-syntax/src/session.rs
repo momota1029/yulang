@@ -1,6 +1,6 @@
 //! Immutable parse context and rollback-owned scanner/layout state.
 
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use chasa::{Back, ErrorSink, prelude::In};
 
@@ -308,7 +308,7 @@ pub(crate) enum StopKind {
     RightBrace,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Delimiter {
     Parenthesis,
     Bracket,
@@ -405,14 +405,274 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>> Probe<'parse, 'source, 'local
     }
 }
 
-/// Recovery data is committed only after a recovery path has been selected.
+/// The grammar-owned identity of a recovery site.
 ///
-/// Slice 5 gives this record its typed site, expectation, and unexpected-token
-/// fields. Keeping it opaque here lets the output boundary exist without
-/// pre-empting that recovery design.
+/// This vocabulary deliberately has no string or raw-syntax-kind escape hatch:
+/// adding a recovery site must make its causal grammar role explicit.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum GrammarRole {
+    Declaration(DeclarationRole),
+    ClosingDelimiter {
+        owner: ConstructRole,
+        delimiter: Delimiter,
+    },
+    Statement(StatementRole),
+    Expression(ExpressionRole),
+    Pattern(PatternRole),
+    Type(TypeRole),
+    Layout(LayoutRole),
+    Embedded(EmbeddedRole),
+    Token(TokenRole),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum DeclarationRole {
+    Import(ImportRole),
+    OperatorHeader(OperatorHeaderRole),
+    Binding(BindingRole),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ImportRole {
+    Path,
+    GroupEntry,
+    Alias,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum OperatorHeaderRole {
+    Name,
+    Fixity,
+    LeftBindingPower,
+    RightBindingPower,
+    DefinitionIntroducer,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum StatementKind {
+    UseDeclaration,
+    OperatorDefinition,
+    BindingDeclaration,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum StatementRole {
+    Starter,
+    Separator,
+    TrailingInput { owner: StatementKind },
+    OperatorDefinitionBody,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum BindingRole {
+    Name,
+    DefinitionIntroducer,
+    Value,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ConstructRole {
+    ImportGroup,
+    OperatorName,
+    ExpressionGroup,
+    ArgumentList,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ExpressionRole {
+    Nud,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum PatternRole {
+    Pattern,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum TypeRole {
+    Type,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum LayoutRole {
+    InlineTrivia,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum EmbeddedRole {
+    Body,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum TokenRole {
+    Punctuation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum RecoveryKind {
+    Missing,
+    Error,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum UnexpectedSyntax {
+    EndOfInput { at: usize },
+    Token {
+        range: Range<usize>,
+        category: UnexpectedCategory,
+    },
+    Root(RootUnexpected),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum UnexpectedCategory {
+    Word,
+    DecimalInteger,
+    OperatorLike,
+    Punctuation(PunctuationEvidence),
+    OtherCharacter,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum PunctuationEvidence {
+    Open(Delimiter),
+    Close(Delimiter),
+    Comma,
+    Semicolon,
+    Dot,
+    Slash,
+    Colon,
+    ColonColon,
+    Equals,
+    Star,
+    Apostrophe,
+    Backslash,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RootUnexpected {
+    UnrecognizedStarter {
+        range: Range<usize>,
+        head: RootUnexpectedHead,
+    },
+    TrailingInput {
+        owner: StatementKind,
+        range: Range<usize>,
+        head: RootUnexpectedHead,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum RootUnexpectedHead {
+    Word,
+    DecimalInteger,
+    OperatorLike,
+    Punctuation(PunctuationEvidence),
+    OtherCharacter,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ExpectedSyntax {
+    Identifier,
+    Path,
+    Expression,
+    OperatorName,
+    BindingPower,
+    InlineTrivia,
+    Keyword(KeywordEvidence),
+    Punctuation(PunctuationEvidence),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum KeywordEvidence {
+    Use,
+    Mod,
+    As,
+    Without,
+    With,
+    Lazy,
+    Prefix,
+    Infix,
+    Suffix,
+    Nullfix,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub(crate) struct ExpectationSources(u8);
+
+impl ExpectationSources {
+    pub(crate) const SPECULATIVE: Self = Self(1);
+    pub(crate) const COMMITTED_RECOVERY_RULE: Self = Self(1 << 1);
+
+    pub(crate) fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct SyntaxExpectation {
+    pub(crate) role: GrammarRole,
+    pub(crate) expected: ExpectedSyntax,
+    pub(crate) range: Range<usize>,
+    pub(crate) sources: ExpectationSources,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct RecoverySiteKey {
+    pub(crate) role: GrammarRole,
+    pub(crate) range: Range<usize>,
+}
+
+/// Revision-local recovery identity. Allocation remains session-owned.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DiagnosticId(pub(crate) u32);
+
+/// Recovery data is committed only after a recovery path has been selected.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CommittedRecoveryRecord {
-    _private: (),
+    pub(crate) id: DiagnosticId,
+    pub(crate) site: RecoverySiteKey,
+    pub(crate) kind: RecoveryKind,
+    pub(crate) unexpected: Arc<[UnexpectedSyntax]>,
+    pub(crate) expectations: Arc<[SyntaxExpectation]>,
+    pub(crate) primary_expectation: usize,
+}
+
+impl CommittedRecoveryRecord {
+    pub(crate) fn new(
+        id: DiagnosticId,
+        site: RecoverySiteKey,
+        kind: RecoveryKind,
+        unexpected: Arc<[UnexpectedSyntax]>,
+        expectations: Arc<[SyntaxExpectation]>,
+        primary_expectation: usize,
+    ) -> Self {
+        assert!(
+            !expectations.is_empty(),
+            "a committed recovery requires an expectation union"
+        );
+        assert!(
+            primary_expectation < expectations.len(),
+            "the primary expectation must index the expectation union"
+        );
+        match kind {
+            RecoveryKind::Missing => assert_eq!(site.range.start, site.range.end),
+            RecoveryKind::Error => {
+                assert!(site.range.start < site.range.end);
+                assert!(unexpected.iter().any(|unexpected| {
+                    !matches!(unexpected, UnexpectedSyntax::EndOfInput { .. })
+                }));
+            }
+        }
+        Self {
+            id,
+            site,
+            kind,
+            unexpected,
+            expectations,
+            primary_expectation,
+        }
+    }
 }
 
 /// Operations available to a continuation after its grammar branch commits.
@@ -429,6 +689,8 @@ pub(crate) trait CommitOutput<'source> {
     fn emit_trivia(&mut self, trivia: &TriviaRun);
     fn finish_node(&mut self);
     fn commit_recovery(&mut self, record: CommittedRecoveryRecord);
+    fn emit_missing(&mut self, record: CommittedRecoveryRecord);
+    fn emit_error(&mut self, record: CommittedRecoveryRecord);
 }
 
 mod direct_cst_sink {
@@ -493,6 +755,10 @@ impl<'source> FullCstOutput<'source> {
     pub(crate) fn finish_complete(self) -> rowan::GreenNode {
         self.sink.finish_complete()
     }
+
+    pub(crate) fn committed_recoveries(&self) -> &[CommittedRecoveryRecord] {
+        &self.committed_recoveries
+    }
 }
 
 impl<'source> CommitOutput<'source> for FullCstOutput<'source> {
@@ -524,6 +790,22 @@ impl<'source> CommitOutput<'source> for FullCstOutput<'source> {
 
     fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
         self.committed_recoveries.push(record);
+    }
+
+    fn emit_missing(&mut self, record: CommittedRecoveryRecord) {
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        DirectCstSink::start_node(&mut self.sink, SyntaxKind::Missing);
+        DirectCstSink::finish_node(&mut self.sink);
+        self.commit_recovery(record);
+    }
+
+    fn emit_error(&mut self, record: CommittedRecoveryRecord) {
+        assert_eq!(record.kind, RecoveryKind::Error);
+        let range = record.site.range.clone();
+        DirectCstSink::start_node(&mut self.sink, SyntaxKind::Error);
+        DirectCstSink::token(&mut self.sink, SyntaxKind::Unknown, range);
+        DirectCstSink::finish_node(&mut self.sink);
+        self.commit_recovery(record);
     }
 }
 
@@ -557,6 +839,16 @@ impl<'source> CommitOutput<'source> for HeaderOutput {
 
     fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
         self.committed_recoveries.push(record);
+    }
+
+    fn emit_missing(&mut self, record: CommittedRecoveryRecord) {
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        self.commit_recovery(record);
+    }
+
+    fn emit_error(&mut self, record: CommittedRecoveryRecord) {
+        assert_eq!(record.kind, RecoveryKind::Error);
+        self.commit_recovery(record);
     }
 }
 
@@ -607,6 +899,14 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
 
     pub(crate) fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
         self.output.commit_recovery(record);
+    }
+
+    pub(crate) fn emit_missing(&mut self, record: CommittedRecoveryRecord) {
+        self.output.emit_missing(record);
+    }
+
+    pub(crate) fn emit_error(&mut self, record: CommittedRecoveryRecord) {
+        self.output.emit_error(record);
     }
 
     pub(crate) fn into_output(self) -> O {
@@ -698,6 +998,67 @@ mod tests {
     use crate::input::SourceInput;
     use chasa::Input;
     use std::sync::Arc;
+
+    fn recovery_record(kind: RecoveryKind, range: Range<usize>) -> CommittedRecoveryRecord {
+        let unexpected = match kind {
+            RecoveryKind::Missing => Arc::from([]),
+            RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+        };
+        CommittedRecoveryRecord::new(
+            DiagnosticId(0),
+            RecoverySiteKey {
+                role: GrammarRole::Statement(StatementRole::Starter),
+                range,
+            },
+            kind,
+            unexpected,
+            Arc::from([SyntaxExpectation {
+                role: GrammarRole::Statement(StatementRole::Starter),
+                expected: ExpectedSyntax::Expression,
+                range: 0..0,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    }
+
+    #[test]
+    fn full_output_emits_recovery_node_shapes_and_commits_their_records() {
+        let mut missing = FullCstOutput::new("");
+        missing.start_node(SyntaxKind::Root);
+        missing.emit_missing(recovery_record(RecoveryKind::Missing, 0..0));
+        missing.finish_node();
+        assert_eq!(missing.committed_recoveries().len(), 1);
+        let green = missing.finish_complete();
+        let missing_node = green.children().next().expect("missing child node");
+        assert_eq!(missing_node.kind(), SyntaxKind::Missing.into());
+
+        let mut error = FullCstOutput::new("?");
+        error.start_node(SyntaxKind::Root);
+        error.emit_error(recovery_record(RecoveryKind::Error, 0..1));
+        error.finish_node();
+        assert_eq!(error.committed_recoveries().len(), 1);
+        assert_eq!(error.finish_complete().to_string(), "?");
+    }
+
+    #[test]
+    #[should_panic(expected = "a committed recovery requires an expectation union")]
+    fn recovery_records_reject_an_empty_expectation_union() {
+        let _ = CommittedRecoveryRecord::new(
+            DiagnosticId(0),
+            RecoverySiteKey {
+                role: GrammarRole::Statement(StatementRole::Starter),
+                range: 0..0,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([]),
+            0,
+        );
+    }
 
     #[test]
     fn parse_environment_separates_header_and_full_mode_inputs() {
@@ -874,6 +1235,10 @@ mod tests {
             }
 
             fn commit_recovery(&mut self, _: CommittedRecoveryRecord) {}
+
+            fn emit_missing(&mut self, _: CommittedRecoveryRecord) {}
+
+            fn emit_error(&mut self, _: CommittedRecoveryRecord) {}
         }
 
         let mut input = SourceInput::new("x");
