@@ -1,8 +1,16 @@
 //! Immutable parse context and rollback-owned scanner/layout state.
 
-use chasa::Back;
+use chasa::{prelude::In, Back};
 
-use crate::{HeaderInfo, operator::OperatorTable, parse::SyntaxEnvironment};
+use crate::{
+    HeaderInfo,
+    input::SourceInput,
+    operator::OperatorTable,
+    parse::SyntaxEnvironment,
+};
+
+pub(crate) type SynIn<'a, 'source, 'b, E> =
+    In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
 
 /// Data selected before parsing and never mutated by speculative branches.
 pub(crate) struct ParseEnv<'source, 'context> {

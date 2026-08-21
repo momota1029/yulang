@@ -6,18 +6,17 @@ use chasa::{
     ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::Parser,
-    prelude::{In, from_fn, many_skip, one_of},
+    prelude::{from_fn, many_skip, one_of},
 };
 
 use crate::{
-    input::SourceInput,
     operator::{BindingPower, OperatorTable},
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, scan_operator},
         trivia::scan_trivia,
         word::{WordSpan, scan_word},
     },
-    session::ParseLocal,
+    session::SynIn,
 };
 
 /// One expression accepted by the shared minimal and Pratt grammars.
@@ -90,7 +89,7 @@ impl<'source> IntegerLiteral<'source> {
 
 /// Parses an identifier or decimal integer expression without operators.
 pub(crate) fn parse_expression<'source, E>(
-    i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -103,7 +102,7 @@ where
 /// Parses an expression with site-aware dynamic operator resolution.
 pub(crate) fn parse_expression_with_operators<'source, E>(
     table: &OperatorTable,
-    i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -117,7 +116,7 @@ where
 fn parse_expression_bp<'source, E>(
     table: &OperatorTable,
     minimum: &BindingPower,
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -144,7 +143,7 @@ where
 fn parse_prefix_or_nullfix<'source, E>(
     table: &OperatorTable,
     leading: LeadingTrivia,
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -176,7 +175,7 @@ where
 fn parse_infix_tail<'source, E>(
     table: &OperatorTable,
     minimum: &BindingPower,
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<InfixTail<'source>>
 where
     E: ErrorSink<usize>,
@@ -202,7 +201,7 @@ where
 }
 
 fn consume_trivia<E>(
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
 ) -> Option<LeadingTrivia>
 where
     E: ErrorSink<usize>,
@@ -223,7 +222,7 @@ struct InfixTail<'source> {
 }
 
 fn parse_atom<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -237,7 +236,7 @@ where
 }
 
 fn parse_identifier<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -247,7 +246,7 @@ where
 }
 
 pub(crate) fn parse_integer_literal<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<IntegerLiteral<'source>>
 where
     E: ErrorSink<usize>,
@@ -270,9 +269,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
 
-    use crate::operator::{OperatorDeclaration, OperatorFixities};
+    use crate::{
+        input::SourceInput,
+        operator::{OperatorDeclaration, OperatorFixities},
+        session::ParseLocal,
+    };
 
     #[test]
     fn pratt_nud_splits_long_infix_into_prefix_nullfix_chain() {

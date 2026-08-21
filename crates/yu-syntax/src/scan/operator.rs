@@ -6,17 +6,16 @@ use chasa::{
     ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::{SkipParserOnce as _, trie::TrieState as _},
-    prelude::{In, from_fn, one_of},
+    prelude::{from_fn, one_of},
 };
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
-    input::SourceInput,
     operator::{
         BindingPower, OperatorEntry, OperatorFixities, OperatorFixity, OperatorKindSet,
         OperatorTable,
     },
-    session::{ParseLocal, StopKind},
+    session::{StopKind, SynIn},
 };
 
 use super::trivia::{TriviaRun, scan_trivia};
@@ -100,7 +99,7 @@ pub(crate) fn scan_operator<'source, E>(
     site: OperatorSite,
     leading: LeadingTrivia,
     table: &OperatorTable,
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ScannedOperator<'source>>
 where
     E: ErrorSink<usize>,
@@ -204,7 +203,7 @@ fn trailing_info(run: &TriviaRun, line: crate::session::LineState) -> TrailingIn
 
 fn operator_boundary<E>(
     last_character: char,
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -220,7 +219,7 @@ where
 fn value_start<E>(
     table: &OperatorTable,
     trailing: TrailingInfo,
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -246,7 +245,7 @@ where
 
 fn operator_value_start<E>(
     table: &OperatorTable,
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -265,7 +264,7 @@ where
     i.run(parser)
 }
 
-fn next_is_expression_stop<E>(i: &In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> bool
+fn next_is_expression_stop<E>(i: &SynIn<'_, '_, '_, E>) -> bool
 where
     E: ErrorSink<usize>,
 {
@@ -416,11 +415,12 @@ fn judge_table(kinds: u8, pre_whitespace: bool, post_whitespace: bool) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
 
     use crate::{
+        input::SourceInput,
         operator::{OperatorDeclaration, OperatorFixities},
-        session::{Delimiter, EmbeddedLexicalMode, LineState},
+        session::{Delimiter, EmbeddedLexicalMode, LineState, ParseLocal},
     };
 
     #[test]

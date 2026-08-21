@@ -6,12 +6,11 @@ use chasa::{
     ErrorSink,
     error::std::Unexpected,
     parser::SkipParserOnce as _,
-    prelude::{In, choice, from_fn, item, tag},
+    prelude::{choice, from_fn, item, tag},
 };
 
 use crate::{
-    input::SourceInput,
-    session::{Delimiter, ParseLocal},
+    session::{Delimiter, SynIn},
 };
 
 /// The scanner-layer kind and source extent of one fixed punctuation token.
@@ -58,7 +57,7 @@ pub(crate) enum PunctuationKind {
 /// territory. Delimiter stack changes also remain grammar-owned: recognizing
 /// an opening or closing spelling does not establish a structural group.
 pub(crate) fn scan_punctuation<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<PunctuationSpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -97,7 +96,7 @@ where
 }
 
 fn scan_dot<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<PunctuationKind>
 where
     E: ErrorSink<usize>,
@@ -111,9 +110,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
 
-    use crate::session::LineState;
+    use crate::{input::SourceInput, session::{LineState, ParseLocal}};
 
     #[test]
     fn recognizes_the_complete_fixed_punctuation_set() {

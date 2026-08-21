@@ -6,11 +6,11 @@ use chasa::{
     ErrorSink,
     error::std::Unexpected,
     parser::SkipParserOnce as _,
-    prelude::{In, many_skip, one_of},
+    prelude::{many_skip, one_of},
 };
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::{input::SourceInput, session::ParseLocal};
+use crate::session::SynIn;
 
 /// The source text and byte range consumed by one maximal word scan.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -35,7 +35,7 @@ impl<'source> WordSpan<'source> {
 /// Keyword interpretation is deliberately absent: the oracle classifies the
 /// same spelling differently by grammar position and active stop set.
 pub(crate) fn scan_word<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -65,9 +65,9 @@ fn is_word_start(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
 
-    use crate::session::LineState;
+    use crate::{input::SourceInput, session::{LineState, ParseLocal}};
 
     #[test]
     fn scans_plain_ascii_identifier() {

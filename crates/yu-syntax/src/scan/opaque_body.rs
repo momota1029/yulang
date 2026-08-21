@@ -15,12 +15,11 @@ use chasa::{
     ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::SkipParserOnce as _,
-    prelude::{In, any, from_fn, item},
+    prelude::{any, from_fn, item},
 };
 
 use crate::{
-    input::SourceInput,
-    session::{EmbeddedLexicalMode, FenceKind, ParseLocal, YumarkMode},
+    session::{EmbeddedLexicalMode, FenceKind, ParseLocal, SynIn, YumarkMode},
 };
 
 use super::trivia::scan_trivia;
@@ -50,7 +49,7 @@ impl<'source> OpaqueBodySpan<'source> {
 /// the first character of the following declaration. Delimiter depth is local
 /// because this opaque scan does not establish grammar-owned structural groups.
 pub(crate) fn scan_opaque_body<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<OpaqueBodySpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -132,7 +131,7 @@ where
 }
 
 fn scan_string_region<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -199,7 +198,7 @@ where
 /// are tracked locally. Yumark text is not Yulang string syntax, so quotes and
 /// escapes remain ordinary text here.
 fn scan_quoted_yumark_region<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -289,7 +288,7 @@ where
 /// Consumes a structural Yumark code fence, retaining its kind and logical
 /// line-continuation state until the matching closing fence or EOF.
 fn scan_yumark_fence_region<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -350,7 +349,7 @@ where
 /// Raw fences only inspect structural line starts. Everything else, including
 /// braces and other lexical openers, is plain fence text.
 fn scan_raw_yumark_fence_body<E>(
-    mut i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: &mut SynIn<'_, '_, '_, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -382,7 +381,7 @@ where
 /// string, comment, interpolation, rule literal, or nested Yumark literal is
 /// not mistaken for the statement-level fence stop.
 fn scan_yulang_fence_body<E>(
-    mut i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: &mut SynIn<'_, '_, '_, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -448,7 +447,7 @@ where
 }
 
 fn consume_yumark_fence_line_prefix<E>(
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
     quote_depth: usize,
 ) -> Option<bool>
 where
@@ -485,7 +484,7 @@ fn yumark_quote_prefix_len(remainder: &str, quote_depth: usize) -> Option<usize>
     Some(index)
 }
 
-fn consume_fence_sigil<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn consume_fence_sigil<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -499,7 +498,7 @@ where
 }
 
 fn replace_fence_mode<E>(
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
     kind: FenceKind,
     continuation: bool,
 ) where
@@ -511,7 +510,7 @@ fn replace_fence_mode<E>(
 }
 
 fn scan_yumark_quote_prefix<E>(
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
 ) -> Option<usize>
 where
     E: ErrorSink<usize>,
@@ -532,7 +531,7 @@ where
 }
 
 fn replace_yumark_mode<E>(
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
     mode: YumarkMode,
     quote_depth: usize,
     line_document_continuation: bool,
@@ -563,7 +562,7 @@ fn matching_delimiter(character: char) -> Option<char> {
 /// terminator. Its only nested structure is `{...}` rule interpolation, whose
 /// delimiters must remain opaque to the surrounding operator body.
 fn scan_rule_literal_region<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -607,7 +606,7 @@ where
 /// syntax. Capture and lazy-capture spellings do not change the lexical
 /// boundary; only nested delimiters, comments, and normal strings do.
 fn scan_rule_literal_interpolation<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -655,7 +654,7 @@ where
 /// is deliberately scanned byte-for-byte so quotes, escapes, and newlines do
 /// not terminate the enclosing string before the interpolation body begins.
 fn scan_string_interpolation_region<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -731,7 +730,7 @@ where
 fn update_region_character<E>(
     character: char,
     start: usize,
-    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, '_, '_, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -748,7 +747,7 @@ where
     Some(())
 }
 
-fn consume_indentation<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn consume_indentation<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -806,7 +805,7 @@ fn mark_non_trivia(local: &mut ParseLocal) {
 
 fn body_span<'source, E>(
     start: usize,
-    i: &In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &SynIn<'_, 'source, '_, E>,
 ) -> OpaqueBodySpan<'source>
 where
     E: ErrorSink<usize>,
@@ -828,9 +827,12 @@ enum RegionEnd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
 
-    use crate::session::{Delimiter, IndentationBaseline, IndentationBaselineKind, LineState};
+    use crate::{
+        input::SourceInput,
+        session::{Delimiter, IndentationBaseline, IndentationBaselineKind, LineState, ParseLocal},
+    };
 
     #[test]
     fn balanced_delimiters_suspend_layout_boundaries() {

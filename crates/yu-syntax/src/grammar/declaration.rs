@@ -6,21 +6,20 @@ use chasa::{
     ErrorSink, Input as _,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::Parser as _,
-    prelude::{In, from_fn},
+    prelude::from_fn,
 };
 
 use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{Expression, parse_expression},
-    input::SourceInput,
     operator::{BindingPower, OperatorFixity},
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::scan_trivia,
         word::{WordSpan, scan_word},
     },
-    session::{Delimiter, ParseLocal},
+    session::{Delimiter, SynIn},
 };
 
 /// One parsed source-leading declaration.
@@ -509,7 +508,7 @@ pub(crate) enum UseExclusion<'source> {
 
 /// Parses one leading `use` declaration from the shared character stream.
 pub(crate) fn parse_declaration<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Declaration<'source>>
 where
     E: ErrorSink<usize>,
@@ -528,7 +527,7 @@ where
 /// Binding declarations intentionally remain absent: encountering one ends
 /// header discovery without making it a syntax error.
 pub(crate) fn parse_header_declaration<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<HeaderDeclaration<'source>>
 where
     E: ErrorSink<usize>,
@@ -542,7 +541,7 @@ where
 }
 
 fn parse_operator_header<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<OperatorHeaderDeclaration<'source>>
 where
     E: ErrorSink<usize>,
@@ -614,7 +613,7 @@ where
 }
 
 fn parse_operator_header_word_after_trivia<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -636,7 +635,7 @@ fn parse_operator_fixity(word: WordSpan<'_>) -> Option<OperatorFixity> {
 }
 
 fn parse_operator_name<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<&'source str>
 where
     E: ErrorSink<usize>,
@@ -661,7 +660,7 @@ where
 
 /// Parses the dot-separated binding-power vector used by operator headers.
 fn parse_binding_power<E>(
-    i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: SynIn<'_, '_, '_, E>,
 ) -> Option<BindingPower>
 where
     E: ErrorSink<usize>,
@@ -700,7 +699,7 @@ where
 }
 
 fn parse_binding_declaration<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<BindingDeclaration<'source>>
 where
     E: ErrorSink<usize>,
@@ -726,7 +725,7 @@ where
 }
 
 fn parse_use_declaration<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseDeclaration<'source>>
 where
     E: ErrorSink<usize>,
@@ -749,7 +748,7 @@ where
 }
 
 fn parse_use_tree<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<UseTree<'source>>
 where
     E: ErrorSink<usize>,
@@ -849,7 +848,7 @@ fn classify_use_form(
 }
 
 fn parse_use_path_and_terminal<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
     first: WordSpan<'source>,
     first_separator: Option<UseSeparator>,
 ) -> Option<(UsePath<'source>, UseTerminal<'source>, usize)>
@@ -904,7 +903,7 @@ where
 }
 
 fn parse_use_group_terminal<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
     join: Option<UseSeparator>,
 ) -> Option<(UseTerminal<'source>, usize)>
 where
@@ -934,7 +933,7 @@ where
 }
 
 fn parse_use_aliases<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<Vec<WordSpan<'source>>>
 where
     E: ErrorSink<usize>,
@@ -949,7 +948,7 @@ where
 }
 
 fn parse_use_alias<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
@@ -964,7 +963,7 @@ where
 }
 
 fn parse_use_qualifiers<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<(UseQualifiers<'source>, Option<usize>)>
 where
     E: ErrorSink<usize>,
@@ -982,7 +981,7 @@ where
 }
 
 fn parse_use_version_suffix<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseVersion<'source>>
 where
     E: ErrorSink<usize>,
@@ -994,7 +993,7 @@ where
 }
 
 fn scan_use_version<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseVersion<'source>>
 where
     E: ErrorSink<usize>,
@@ -1028,7 +1027,7 @@ where
 }
 
 fn parse_use_anchor<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<Option<UsePath<'source>>>
 where
     E: ErrorSink<usize>,
@@ -1059,7 +1058,7 @@ where
     Some(Some(path))
 }
 
-fn parse_with_keyword<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_with_keyword<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1075,7 +1074,7 @@ fn use_path_end(path: &UsePath<'_>) -> Option<usize> {
 }
 
 fn parse_use_without<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<Option<(Vec<UseExclusion<'source>>, usize)>>
 where
     E: ErrorSink<usize>,
@@ -1086,7 +1085,7 @@ where
 }
 
 fn parse_use_without_clause<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<(Vec<UseExclusion<'source>>, usize)>
 where
     E: ErrorSink<usize>,
@@ -1109,7 +1108,7 @@ where
 }
 
 fn parse_use_exclusion<'source, E>(
-    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
@@ -1131,7 +1130,7 @@ where
 }
 
 fn parse_parenthesized_use_operator<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseSegment<'source>>
 where
     E: ErrorSink<usize>,
@@ -1168,7 +1167,7 @@ fn is_use_operator_character(character: char) -> bool {
 }
 
 fn parse_use_exclusion_group<'source, E>(
-    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
@@ -1209,7 +1208,7 @@ where
     }
 }
 
-fn parse_use_glob<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<Range<usize>>
+fn parse_use_glob<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1239,7 +1238,7 @@ fn empty_use_path<'source>() -> UsePath<'source> {
     }
 }
 
-fn consume_group_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<bool>
+fn consume_group_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<bool>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1249,7 +1248,7 @@ where
     Some(i.input.source()[trivia.range()].contains(['\r', '\n']))
 }
 
-fn parse_open_brace<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_open_brace<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1259,7 +1258,7 @@ where
 }
 
 fn scan_open_parenthesis<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1270,7 +1269,7 @@ where
         .then(|| punctuation.range())
 }
 
-fn scan_close_parenthesis<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn scan_close_parenthesis<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1281,7 +1280,7 @@ where
 
 fn parse_close_delimiter<E>(
     delimiter: Delimiter,
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1292,7 +1291,7 @@ where
 }
 
 fn parse_close_brace<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1302,7 +1301,7 @@ where
     (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace)).then(|| punctuation.range())
 }
 
-fn parse_comma<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_comma<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1312,7 +1311,7 @@ where
 }
 
 fn parse_use_separator<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<UseSeparator>
 where
     E: ErrorSink<usize>,
@@ -1326,7 +1325,7 @@ where
     }
 }
 
-fn inline_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn inline_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1337,7 +1336,7 @@ where
     (!text.is_empty() && !text.contains(['\r', '\n'])).then_some(())
 }
 
-fn optional_inline_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn optional_inline_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1350,7 +1349,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::input::IsCut;
+    use chasa::{input::IsCut, prelude::In};
+
+    use crate::{input::SourceInput, session::ParseLocal};
 
     const LEADING_USE_SOURCE: &[u8] = include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),

@@ -6,12 +6,11 @@ use chasa::{
     ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::SkipParserOnce as _,
-    prelude::{In, any, choice, from_fn, item, many_skip, none_of, one_of, tag},
+    prelude::{any, choice, from_fn, item, many_skip, none_of, one_of, tag},
 };
 
 use crate::{
-    input::SourceInput,
-    session::{EmbeddedLexicalMode, LineState, ParseLocal},
+    session::{EmbeddedLexicalMode, LineState, SynIn},
 };
 
 /// The typed, contiguous source range consumed by one maximal trivia scan.
@@ -130,7 +129,7 @@ pub(crate) enum CommentTermination {
 /// the oracle grammar. Document recognition therefore stays outside this
 /// shared trivia scanner; only `//` is an ordinary line comment here.
 pub(crate) fn scan_trivia<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
@@ -160,7 +159,7 @@ where
 }
 
 fn scan_whitespace<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<Vec<TriviaPart>>
 where
     E: ErrorSink<usize>,
@@ -233,7 +232,7 @@ where
 }
 
 fn scan_line_comment<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
@@ -256,7 +255,7 @@ where
 }
 
 fn scan_block_comment<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
@@ -331,7 +330,7 @@ where
 }
 
 fn scan_block_slash<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
@@ -349,7 +348,7 @@ where
 }
 
 fn scan_block_star<E>(
-    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: SynIn<'_, '_, '_, E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
@@ -383,7 +382,9 @@ enum BlockCommentUnit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::{input::IsCut, prelude::from_fn_once, prelude::item};
+    use chasa::{input::IsCut, prelude::{In, from_fn_once, item}};
+
+    use crate::{input::SourceInput, session::ParseLocal};
 
     #[test]
     fn typed_parts_are_contiguous_and_cover_the_maximal_run() {
