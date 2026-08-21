@@ -2436,3 +2436,420 @@ Terra-tier implementation session は次を順に機械的に確認する。
 現状`parse_use_exclusion`経由のみであること、`UseTerminal`/`UseSegment`/`UseQualifiers`/`UseExclusion`/
 `OperatorHeaderDeclaration`/`BindingPower`のfield・variant shape、以上すべてを現行コードと突き合わせ、
 不一致なし。
+
+## 追補案: cross-module operator provenance と canonical `SyntaxEnvironment` construction boundary
+
+この節は、`Direct Rowan full-parse session` の実装 sub-slice 4 で行う canonical
+`OperatorTable` merge を、cross-module origin と constructor boundary まで具体化する。既決の
+「imported table を先にコピーし、local header operator を source order で merge する」規則、
+同 spelling / 異 fixity の集約、同 fixity 再宣言の `ConflictingFixity`、full parse 中の immutable table
+という decision は変更しない。
+
+ここで追加するのは、現在の実装が build 中だけ持って完成 table から捨てている declaration range を
+fixity ごとに残す表現、range がどの source に属するかを示す origin、imported table と provenance を
+一つの valid な `SyntaxEnvironment` にする入口である。module graph、`ModuleId` allocation、syntax
+reexport resolution 自体は `yu-syntax` に移さない。
+
+### Decision summary
+
+- operator declaration origin は、現在 full parse している file を表す `Local` と、file-specific
+  `SyntaxEnvironment` の provenance slot を指す `Imported(SyntaxDependencySlot)` の二形にする。
+- 完成した `OperatorTable` は、既存 `entries: Vec<OperatorEntry>` と index を共有する cold side table
+  `sites: Vec<OperatorFixitySites>` を持つ。prefix / infix / suffix / nullfix の各 capability は、それを
+  導入した origin と declaration range を一件ずつ保持する。
+- `SyntaxDependencyProvenance` は、resolver / syntax planner が与える diagnostic 用 module label と、
+  imported declaration range が属する `SourceRevision` を持つ。slice 内の ordinal である
+  `SyntaxDependencySlot` が operator site と provenance record の join key になる。
+- non-empty environment の canonical constructor は、caller が確定済みの
+  `SyntaxEnvironmentKey`、pre-merged imported `Arc<OperatorTable>`、canonical order の provenance slice を
+  一度に渡す `SyntaxEnvironment::from_imported` とする。constructor は origin/slot の referential
+  integrity を検査し、受け取った `Arc` をコピーしない。
+- full-parse table は imported table の各 fixity と site を一度コピーした後、local
+  `HeaderInfo.operators` を source order で merge し、最後に trie を一度だけ構築する。imported table の
+  mutation、overlay、parse 中の rebuild は行わない。
+
+### 現行 shape と blocker
+
+現行 `operator.rs` の `AccumulatedOperator` は `prefix_range` / `infix_range` / `suffix_range` /
+`nullfix_range` を持つ。しかし `OperatorTable::from_declarations` が完成した `OperatorEntry` へ移すのは
+`spelling` と `fixities` だけで、range は全て失われる。したがって imported table を次の builder へ
+渡しても、各 fixity をどの declaration が導入したかを復元できない。
+
+`OperatorTableBuildError::ConflictingFixity` も `first_range` / `second_range` だけを持つ。この二 range が
+別 source に属する cross-module conflict では、数値だけを見てもどちらの module を指すか分からない。
+range を current file の offset へ写し替えると元 declaration location を失うため、range 自体は元 source
+relative のまま保持し、source owner を origin で別に運ぶ必要がある。
+
+現行 `SyntaxEnvironment` は `operators: Arc<parse::OperatorTable>` と
+`provenance: Arc<[SyntaxDependencyProvenance]>` を持つが、前者は空 unit struct、後者は
+`_private: ()` だけである。`empty()` 以外の constructor もない。上位 architecture が future type として
+挙げる `FileId` / `ModuleId` はこの branch にまだ実装されておらず、`HeaderImportRoute` は resolution 前の
+source route である。したがって raw import route を resolved module identity として固定してはならない。
+
+### Operator origin と per-fixity declaration site
+
+conceptual production shape は次とする。visibility は canonical `OperatorTable` の public re-export と
+syntax-planning API の実装位置に合わせて調整してよいが、field の意味と一対一関係は固定する。
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum OperatorOrigin {
+    Local,
+    Imported(SyntaxDependencySlot),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct OperatorDeclarationSite {
+    origin: OperatorOrigin,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct OperatorFixitySites {
+    prefix: Option<OperatorDeclarationSite>,
+    infix: Option<OperatorDeclarationSite>,
+    suffix: Option<OperatorDeclarationSite>,
+    nullfix: Option<OperatorDeclarationSite>,
+}
+
+pub struct OperatorTable {
+    entries: Vec<OperatorEntry>,
+    sites: Vec<OperatorFixitySites>,
+    trie: OperatorTrie,
+}
+```
+
+`entries.len() == sites.len()` を table construction invariant とし、同じ index の `OperatorEntry` と
+`OperatorFixitySites` が一つの logical spelling entry を構成する。
+`OperatorEntry` 自体の `spelling` / `fixities` layout と、`OperatorTrieState::Value = &OperatorEntry` は変えない。
+
+各 `sites[index]` は `entries[index].fixities` と同じ presence invariant を持つ。
+
+- `fixities.prefix.is_some() == sites.prefix.is_some()`
+- `fixities.infix.is_some() == sites.infix.is_some()`
+- `fixities.suffix.is_some() == sites.suffix.is_some()`
+- `fixities.is_nullfix() == sites.nullfix.is_some()`
+
+`OperatorFixities` の `PrefixFixity` / `InfixFixity` / `SuffixFixity` を origin wrapper で包み直さない。
+NUD / LED scanner と Pratt parser が読む hot `OperatorEntry` は現在の shape のままにし、build error と
+diagnostic だけが読む metadata を `OperatorTable` の parallel side table に置くためである。既存
+`AccumulatedOperator` の四つの `*_range` は `OperatorFixitySites` へ置き換え、build 完了時に
+`entries` と同じ order の `sites` vector へ移す。
+
+一個の source-level `HeaderOperator` は一 fixity だけを宣言するため、現在の `OperatorDeclaration` は
+次の最小拡張で足りる。
+
+```rust
+pub(crate) struct OperatorDeclaration {
+    spelling: Box<str>,
+    fixities: OperatorFixities,
+    origin: OperatorOrigin,
+    range: Range<usize>,
+}
+```
+
+`OperatorDeclaration::from_header_operator` と existing test convenience constructor は
+`origin = OperatorOrigin::Local` を使う。imported `OperatorEntry` をコピーするときは、entry 全体を一個の
+declaration に戻さない。一 spelling の prefix と infix が別 module 由来であり得るため、各 present fixity
+を一 capability ずつ、その fixity に対応する `OperatorDeclarationSite` とともに builder へ seed する。
+
+`OperatorTableBuildError` は現在の first/second naming を維持し、origin field を対称に追加する。
+
+```rust
+pub enum OperatorTableBuildError {
+    EmptySpelling {
+        range: Range<usize>,
+    },
+    ConflictingFixity {
+        spelling: Box<str>,
+        fixity: OperatorFixity,
+        first_origin: OperatorOrigin,
+        first_range: Range<usize>,
+        second_origin: OperatorOrigin,
+        second_range: Range<usize>,
+    },
+}
+```
+
+`first_*` は accumulator に先に採用済みの declaration、`second_*` は現在 merge しようとした
+declaration である。full-parse builder では imported site が常に local より先に入るため、imported/local
+conflict は first=imported、second=local になる。local/local conflict は両方 `Local` で、二 range が
+source order の declaration を指す。binding power が同じでも、同 fixity の二回目は現行 decision 通り
+conflict であり、deduplicate しない。
+
+range の座標系は origin ごとに決まる。
+
+- `Local` の range は現在 `parse_file` に渡された source revision 内の UTF-8 byte range。
+- `Imported(slot)` の range は `provenance[slot]` が示す dependency source revision 内の UTF-8 byte
+  range。
+
+異なる origin の range 数値を大小比較したり、一つの current-file range へ合成したりしない。error の
+deterministic な「最初」は global range sort ではなく、下記 merge order で定義する。
+
+### `SyntaxDependencyProvenance` の concrete content
+
+`SyntaxDependencySlot` は一つの `SyntaxEnvironment` 内でだけ有効な typed ordinal とする。
+global module identity、persistent cache key、syntax-interface hash には使わない。
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SyntaxDependencySlot(u32);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SyntaxDependencyProvenance {
+    module_label: Arc<str>,
+    revision: SourceRevision,
+}
+
+impl SyntaxDependencyProvenance {
+    pub fn new(module_label: Arc<str>, revision: SourceRevision) -> Self;
+    pub fn module_label(&self) -> &str;
+    pub fn revision(&self) -> SourceRevision;
+}
+
+impl SyntaxDependencySlot {
+    pub fn from_index(index: usize) -> Option<Self>;
+    pub fn index(self) -> usize;
+}
+```
+
+`module_label` は syntax planner が resolution 後に選ぶ non-empty、人間可読かつ同 environment 内で
+unambiguous な label である。これは diagnostic の「operator was declared in ...」へ使う presentation
+data であり、equality join や module resolution の authority ではない。operator site は label 文字列を
+複製せず slot だけを持ち、`SyntaxEnvironment` が slot から record を引く。
+
+`revision` は imported declaration の range が属する immutable source snapshot を示す。current code では
+`SourceRevision::UNTRACKED` しか割り当てていないが、上位 architecture の `HeaderInfo.revision` と
+compiler query revision が接続された後も field shape を変えずに range owner を特定できる。
+
+provenance slice は caller が canonical order で凍結する。slot の value はその slice index であり、
+`u32` に収まらない dependency count は environment construction failure とする。順序を変える場合は
+operator table 内の全 imported slot も同時に rebase し、`SyntaxEnvironmentKey` も変えなければならない。
+
+この record に `HeaderImportRoute`、current file の `use` range、alias、direct/reexport chain は入れない。
+`HeaderImportRoute` は unresolved source-level route であり、group expansion 後の一 record が必ず一つの
+resolved source module identityになるとはまだ決まっていない。また transitive reexport の operator range は
+original declaring module に属し、consumer の direct `use` range と同じ provenance axis ではない。
+今回必要なのは declaration range の source owner までであり、import chain note は syntax-planning
+diagnostic の別 data とする。
+
+### Canonical `SyntaxEnvironment` constructor boundary
+
+non-empty environment は次の一入口から作る。
+
+```rust
+impl SyntaxEnvironment {
+    pub fn from_imported(
+        key: SyntaxEnvironmentKey,
+        operators: Arc<OperatorTable>,
+        provenance: Arc<[SyntaxDependencyProvenance]>,
+    ) -> Result<Self, SyntaxEnvironmentBuildError>;
+
+    pub fn dependency(
+        &self,
+        slot: SyntaxDependencySlot,
+    ) -> Option<&SyntaxDependencyProvenance>;
+}
+
+pub enum SyntaxEnvironmentBuildError {
+    ImportedTableContainsLocalOrigin {
+        spelling: Box<str>,
+        fixity: OperatorFixity,
+        range: Range<usize>,
+    },
+    MissingDependencyProvenance {
+        spelling: Box<str>,
+        fixity: OperatorFixity,
+        dependency: SyntaxDependencySlot,
+        range: Range<usize>,
+    },
+}
+```
+
+constructor は `operators` の全 present fixity site を一度走査し、次を検査する。
+
+1. 全 site が `OperatorOrigin::Imported(slot)` である。
+2. 全 slot が `provenance` slice の有効 index である。
+3. `OperatorFixities` と `OperatorFixitySites` の presence invariant が一致する。
+
+presence mismatch は public source error ではなく `OperatorTable` 自身の construction invariant violation
+であるため、safe constructor / debug assertion で table 作成時に防ぐ。上の public environment error は、
+caller が consumer-relative origin を誤って渡した場合と provenance を欠かした場合だけを表す。
+
+provenance record は operator を一件も供給しない selected syntax dependency を含んでよい。したがって
+constructor は「全 record が table から参照されること」を要求せず、「table が参照する全 slot に record が
+あること」だけを要求する。
+
+`SyntaxEnvironment::empty()` / `Default` は既存の `SyntaxEnvironmentKey::EMPTY`、
+`Arc::new(OperatorTable::empty())`、空 provenance slice を使う。non-empty constructor は受け取った二つの
+`Arc` を clone-on-write せずそのまま environment に格納し、`operators() -> &OperatorTable` と
+`provenance() -> &[SyntaxDependencyProvenance]` の accessor shape は維持する。
+
+`SyntaxEnvironment` が持つ table は **consumer file 用に pre-merged / rebased 済みの imported-only
+table** である。他 file の full-parse table は、その file の local declaration site を
+`OperatorOrigin::Local` のまま持つため、その `Arc` を別 file の `SyntaxEnvironment` へ直接渡してはならない。
+syntax planner は syntax interface から consumer 用 table を作る際、各 exported fixity site を実際の
+originating module に対応する `Imported(slot)` へ rebase する。constructor の
+`ImportedTableContainsLocalOrigin` がこの relative-origin 取り違えを入口で止める。
+
+`SyntaxEnvironmentKey` は constructor が table から再計算しない。syntax planning query が、operator
+semantic content、canonical provenance-slot mapping、dependency revision/hash を含む既決の environment
+identity を一度計算して渡す。hash algorithm と public key allocator は `yu-syntax` の parser session
+boundary では決めないが、同じ key で異なる slot mapping を渡すことは caller invariant violation である。
+
+### Single-builder merge algorithm
+
+既存章の conceptual signature は維持する。
+
+```rust
+fn compile_full_parse_operators(
+    imported: &OperatorTable,
+    local: &[HeaderOperator],
+) -> Result<OperatorTable, OperatorTableBuildError>;
+```
+
+この function は `SyntaxEnvironment::from_imported` を通過した table に対してだけ呼ぶ。caller は同じ
+`SyntaxEnvironment` を保持しているため、返った `OperatorOrigin::Imported(slot)` を environment の
+provenance record へ解決できる。
+
+algorithm は次で固定する。
+
+```text
+builder = empty OperatorTableBuilder
+
+for imported entry in canonical spelling order:
+    for fixity in [Prefix, Infix, Suffix, Nullfix]:
+        if entry has the fixity:
+            copy exactly that fixity's binding power/capability
+            copy exactly that fixity's OperatorDeclarationSite
+            seed builder with the one-fixity value and site
+
+for header operator in HeaderInfo.operators source order:
+    convert the one HeaderOperator fixity and binding power once
+    site = { origin: Local, range: header.range }
+    merge spelling + one fixity + site into builder
+    on occupied same-fixity slot, return ConflictingFixity immediately
+
+freeze the spelling map in canonical spelling order
+build one OperatorEntry { spelling, fixities } and one matching OperatorFixitySites per spelling
+insert every spelling into one new trie
+return the immutable OperatorTable
+```
+
+imported table はすでに conflict-free なので seed 中に origin を上書きしたり conflict winner を選んだり
+しない。同じ spelling に複数 imported fixity があれば一 accumulator entry に集約するが、各 site は
+元 fixity のものを保つ。`HeaderInfo.operators` は shared header grammar が declaration source order で
+commit した slice をそのまま渡し、range sort や spelling sort を挟まない。
+
+local merge の結果は次の通りである。
+
+| existing imported/local capability | incoming local capability | result |
+| --- | --- | --- |
+| spelling なし | 任意 fixity | new spelling entry |
+| 同 spelling、異 fixity | fixity と BP を追加 | one full-fixity entry、両 site を保持 |
+| 同 spelling、同 fixity | BP が同じでも異なっても | first conflict で `ConflictingFixity` |
+
+`OperatorTableBuilder` はこの一 merge の mutable accumulator に限る。完成 table に public mutation API を
+追加せず、`SyntaxEnvironment.operators` の trie を cloneして後からpatchする経路も作らない。
+`OperatorTable::from_header_operators` は empty imported table + local declarations という同じ builder path
+へ委譲し、別の conflict rule を持たない。
+
+build 成功後、full parse session が完成 table を所有するか `Arc` で固定し、`ParseEnv::full`、operator
+scanner、Pratt parser はその一 reference だけを見る。header declaration continuation は full parse 中に
+table insert を行わない。
+
+### Non-obvious choices の根拠
+
+- `Local` に current module label / revision を埋めない。current source、`HeaderInfo`、revision は
+  `parse_file` / full session がすでに一つに固定しており、全 local fixity site に同じ owner を複製する
+  必要がない。imported range だけが別 owner を必要とする。
+- provenance pointer に `Arc<SyntaxDependencyProvenance>` や module label を直接入れず slot にする。
+  同 module の複数 operator / fixity で cold metadata を複製せず、environment の side table を authority に
+  できる。scanner hot path は label や revisionへ触れない。
+- per-fixity site を `OperatorEntry` inline field にしない。operator trie traversal が返す hot value の
+  size/layoutを維持し、diagnostic/buildだけがentry indexでparallel `sites` vectorを読む。logical entryと
+  siteの対応はsingle builderが同時にfreezeするため、二つのauthorityにはならない。
+- slot を `ModuleId` と呼ばない。上位 architecture は `ModuleId` を module-resolution 側の stable
+  structural key としているが、現 branch に型も allocator もない。environment-local ordinal はその decision
+  を先取りせず、future planner が本物の `ModuleId` から slot table を作れる。
+- `HeaderImport` を origin にしない。一つの import source route と一つの declaration source は同じ概念で
+  なく、reexport を通ると一致しない。operator conflict が必要とするのは、まず actual declaration module と
+  range である。
+- first/second field を old/new へ rename しない。現在の `OperatorTableBuildError` と test shape を最小に
+  evolve しつつ、first=accepted、second=incoming という insertion-order semantics を明文化すれば曖昧さは
+  ない。
+
+### Open questions
+
+この追補で sub-slice 4 の type storage、constructor invariant、merge order は確定する。次は別 layer の
+未決定事項として残し、今回の implementation で推測しない。
+
+1. compiler / module-resolution 側の stable `FileId` / `ModuleId` concrete type、
+   `SyntaxEnvironmentKey` の hash/allocator API、およびそれらから canonical provenance order と
+   `module_label` を作る規則。上位 architecture は ownership と stable-key requirement を決めているが、
+   current branch に concrete type はない。sub-slice 4 は environment-local slot と caller-supplied key/label
+   までを boundary とする。
+2. imported declaration module から consumer の direct `use` site までの reexport chain を diagnostic note に
+   どう載せるか。今回の provenance は actual declaration module + revision + range を失わないが、import
+   edge chain は保持しない。
+3. `OperatorTableBuildError::ConflictingFixity` をどの syntax-planning recovery site / `DiagnosticId` へ写し、
+   `parse_file` が table build failure 後にどの lossless CST と diagnostic ordering を返すか。これは既存章の
+   `Still open` を維持し、recovery/diagnostic wiring slice で決める。
+4. syntax planner が複数 `SyntaxInterface` から imported-only `OperatorTable` を materialize / rebase する
+   public builder API。`yu-syntax` 側の受け入れ shape と validation は本節で決めるが、syntax graph / cycle /
+   reexport visibility を所有する producer API は sub-slice 4 に含めない。
+
+1 と 4 は external syntax-planning integration の open question であり、current `yu-syntax` 内の
+per-fixity site storage、validated constructor、empty/imported tableを使う merge unit testを妨げない。
+3 は public `parse_file` へのfailure wiringを妨げるため、sub-slice 4ではtyped build errorを握りつぶさず、
+internal full-session construction boundaryの`Result`として保持する。
+
+### Ready for implementation checklist
+
+Terra-tier implementation session は次を順に機械的に確認する。
+
+- [ ] `parse.rs` の unit `OperatorTable` placeholder を削除し、`operator::OperatorTable` を public canonical
+      name として `lib.rs` から re-export する。`OperatorTable::empty()` / `Default` を empty table の
+      authority にする。
+- [ ] `OperatorOrigin::{Local, Imported(SyntaxDependencySlot)}`、`OperatorDeclarationSite`、
+      `OperatorFixitySites` を追加し、`OperatorTable` の parallel `sites` vector が全 present fixity の site を
+      build 後も保持する。`entries` / `sites` の length/order invariantをsingle builderで固定する。
+- [ ] `OperatorFixities` 自体と NUD / LED 用 accessor は現 shape を維持し、origin lookup を scanner hot path
+      に追加しない。
+- [ ] `OperatorDeclaration` に origin を追加し、local `HeaderOperator` conversion と既存 unit-test helper は
+      `Local` を使う。
+- [ ] `ConflictingFixity` に `first_origin` / `second_origin` を追加し、既存 `first_range` /
+      `second_range` と同じ accepted/incoming declaration から四 fieldを作る。
+- [ ] imported entry copy は entry 全体を一 declaration に潰さず、Prefix / Infix / Suffix / Nullfix の
+      stable order で一 capability + corresponding siteずつ seedする。
+- [ ] `SyntaxDependencyProvenance` に module label / source revision を実装し、slot lookup accessorを置く。
+- [ ] `SyntaxEnvironment::from_imported` が imported-only origin とslot boundsを一度検査し、受け取った
+      `Arc<OperatorTable>` / provenance sliceをそのまま保持する。operatorを持たない provenance recordは
+      受理する。
+- [ ] another fileの`Local` siteを含むfull tableをimported environmentとして渡したcaseと、out-of-range
+      slotのcaseを`SyntaxEnvironmentBuildError`にする。
+- [ ] `compile_full_parse_operators` が importedを先にcopyし、local `HeaderInfo.operators`をslice orderのまま
+      mergeし、一つのnew trieだけをfinish時に作る。
+- [ ] imported prefix + local infixの同 spellingが一 entryへ集約され、各binding powerとorigin/rangeが
+      保持されるtestを置く。
+- [ ] imported prefix + local prefixが、spelling/fixity、first=Imported(slot)+dependency range、
+      second=Local+current rangeを持つ最初の`ConflictingFixity`になるtestを置く。
+- [ ] local/local same-fixity conflictと、同 spellingの4 distinct fixity集約に既存 semanticsの回帰がない
+      ことを確認する。
+- [ ] merge前後で`SyntaxEnvironment.operators`のentry/siteが変わらず、full session中のtable mutation /
+      lazy rebuildがないことをtestまたはAPI shapeで固定する。
+- [ ] public `parse_file`でbuild errorをpanic、empty table fallback、silent overwriteへ変換しない。
+      diagnostic wiring未決定の間はinternal session constructorのtyped `Result`として残す。
+- [ ] このsub-sliceでmodule path文字列から`ModuleId`を合成せず、`HeaderImportRoute`をresolved identityや
+      operator declaration originに流用しない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認（2026-08-21、cross-module operator
+provenance / environment boundary追補案）。
+査読はCodex gpt-5.6-terra（high）による事実クロスチェックに基づく: `AccumulatedOperator`の`*_range`が
+`from_declarations`完成時に失われること、`OperatorTableBuildError::ConflictingFixity`の現行フィールドが
+`spelling`/`fixity`/`first_range`/`second_range`のみでorigin情報がないこと、`SyntaxEnvironment`が
+`operators: Arc<parse::OperatorTable>`（空unit struct、`operator::OperatorTable`とは別型）と
+`provenance: Arc<[SyntaxDependencyProvenance]>`（`_private: ()`のみ）を持ち`empty()`以外の
+constructorがないこと、`HeaderOperator`が単一fixityしか持たないこと、`compile_full_parse_operators`が
+本追補より前の節に既存のconceptual signatureとして存在すること、以上すべてを現行コードと突き合わせ、
+不一致なし。
