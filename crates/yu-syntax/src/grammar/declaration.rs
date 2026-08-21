@@ -5,6 +5,7 @@ use std::ops::Range;
 use chasa::{
     ErrorSink, Input as _,
     error::std::{Unexpected, UnexpectedEndOfInput},
+    parser::Parser as _,
     prelude::{In, from_fn},
 };
 
@@ -508,17 +509,17 @@ pub(crate) enum UseExclusion<'source> {
 
 /// Parses one leading `use` declaration from the shared character stream.
 pub(crate) fn parse_declaration<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Declaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.choice((
-        from_fn(|input| parse_use_declaration(input).map(Declaration::Use)),
-        from_fn(|input| parse_binding_declaration(input).map(Declaration::Binding)),
-        from_fn(|input| parse_operator_header(input).map(Declaration::OperatorHeader)),
+    i.choice((
+        parse_use_declaration.map(Declaration::Use),
+        parse_binding_declaration.map(Declaration::Binding),
+        parse_operator_header.map(Declaration::OperatorHeader),
     ))
 }
 
@@ -527,79 +528,79 @@ where
 /// Binding declarations intentionally remain absent: encountering one ends
 /// header discovery without making it a syntax error.
 pub(crate) fn parse_header_declaration<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<HeaderDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.choice((
-        from_fn(|input| parse_use_declaration(input).map(HeaderDeclaration::Use)),
-        from_fn(|input| parse_operator_header(input).map(HeaderDeclaration::OperatorHeader)),
+    i.choice((
+        parse_use_declaration.map(HeaderDeclaration::Use),
+        parse_operator_header.map(HeaderDeclaration::OperatorHeader),
     ))
 }
 
 fn parse_operator_header<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<OperatorHeaderDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    let first = input.run(from_fn(scan_word))?;
+    let start = i.pos();
+    let first = i.run(scan_word)?;
     let (visibility, fixity_keyword) = match first.text() {
         "pub" => (
             Visibility::Public,
-            parse_operator_header_word_after_trivia(&mut input)?,
+            parse_operator_header_word_after_trivia(&mut i)?,
         ),
         "my" => (
             Visibility::Private,
-            parse_operator_header_word_after_trivia(&mut input)?,
+            parse_operator_header_word_after_trivia(&mut i)?,
         ),
         "our" => (
             Visibility::Our,
-            parse_operator_header_word_after_trivia(&mut input)?,
+            parse_operator_header_word_after_trivia(&mut i)?,
         ),
         _ => (Visibility::Private, first),
     };
     let (lazy, fixity_keyword) = if fixity_keyword.text() == "lazy" {
-        (true, parse_operator_header_word_after_trivia(&mut input)?)
+        (true, parse_operator_header_word_after_trivia(&mut i)?)
     } else {
         (false, fixity_keyword)
     };
     let fixity = parse_operator_fixity(fixity_keyword)?;
 
-    optional_inline_trivia(&mut input)?;
-    let open = input.run(from_fn(scan_punctuation))?;
+    optional_inline_trivia(&mut i)?;
+    let open = i.run(scan_punctuation)?;
     (open.kind() == PunctuationKind::Open(Delimiter::Parenthesis)).then_some(())?;
-    let name = parse_operator_name(&mut input)?;
-    let close = input.run(from_fn(scan_punctuation))?;
+    let name = parse_operator_name(&mut i)?;
+    let close = i.run(scan_punctuation)?;
     (close.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())?;
 
     let (left_binding_power, right_binding_power) = match fixity {
         OperatorFixity::Nullfix => (None, None),
         OperatorFixity::Prefix => {
-            optional_inline_trivia(&mut input)?;
-            (None, Some(input.run(from_fn(parse_binding_power))?))
+            optional_inline_trivia(&mut i)?;
+            (None, Some(i.run(parse_binding_power)?))
         }
         OperatorFixity::Suffix => {
-            optional_inline_trivia(&mut input)?;
-            (Some(input.run(from_fn(parse_binding_power))?), None)
+            optional_inline_trivia(&mut i)?;
+            (Some(i.run(parse_binding_power)?), None)
         }
         OperatorFixity::Infix => {
-            optional_inline_trivia(&mut input)?;
-            let left = input.run(from_fn(parse_binding_power))?;
-            optional_inline_trivia(&mut input)?;
-            let right = input.run(from_fn(parse_binding_power))?;
+            optional_inline_trivia(&mut i)?;
+            let left = i.run(parse_binding_power)?;
+            optional_inline_trivia(&mut i)?;
+            let right = i.run(parse_binding_power)?;
             (Some(left), Some(right))
         }
     };
-    optional_inline_trivia(&mut input)?;
-    input.skip(chasa::prelude::item('='))?;
-    let end = input.pos();
+    optional_inline_trivia(&mut i)?;
+    i.skip(chasa::prelude::item('='))?;
+    let end = i.pos();
 
     Some(OperatorHeaderDeclaration {
         range: start..end,
@@ -613,15 +614,15 @@ where
 }
 
 fn parse_operator_header_word_after_trivia<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    inline_trivia(input)?;
-    input.run(from_fn(scan_word))
+    inline_trivia(i)?;
+    i.run(scan_word)
 }
 
 fn parse_operator_fixity(word: WordSpan<'_>) -> Option<OperatorFixity> {
@@ -635,14 +636,14 @@ fn parse_operator_fixity(word: WordSpan<'_>) -> Option<OperatorFixity> {
 }
 
 fn parse_operator_name<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<&'source str>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    while let Some(character) = input.input.remainder().chars().next() {
+    let start = i.pos();
+    while let Some(character) = i.input.remainder().chars().next() {
         if character == ')' {
             break;
         }
@@ -652,15 +653,15 @@ where
                 '(' | '[' | ']' | '{' | '}' | '\\' | ',' | ';' | '"' | '\''
             ))
         .then_some(())?;
-        input.input.next()?;
+        i.input.next()?;
     }
-    let end = input.pos();
-    (start < end).then_some(&input.input.source()[start..end])
+    let end = i.pos();
+    (start < end).then_some(&i.input.source()[start..end])
 }
 
 /// Parses the dot-separated binding-power vector used by operator headers.
 fn parse_binding_power<E>(
-    input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<BindingPower>
 where
     E: ErrorSink<usize>,
@@ -670,51 +671,51 @@ where
     let mut components = Vec::new();
 
     loop {
-        let start = input.pos();
-        while input
+        let start = i.pos();
+        while i
             .input
             .remainder()
             .chars()
             .next()
             .is_some_and(|character| character.is_ascii_digit())
         {
-            input.input.next()?;
+            i.input.next()?;
         }
-        let end = input.pos();
+        let end = i.pos();
         (start < end).then_some(())?;
-        components.push(input.input.source()[start..end].parse::<i8>().ok()?);
+        components.push(i.input.source()[start..end].parse::<i8>().ok()?);
 
-        if !input.input.remainder().starts_with('.') {
+        if !i.input.remainder().starts_with('.') {
             break;
         }
-        input.input.next()?;
+        i.input.next()?;
     }
 
-    let mut line = input.local.line();
+    let mut line = i.local.line();
     line.at_line_start = false;
-    input.local.set_line(line);
+    i.local.set_line(line);
 
     let (first, rest) = components.split_first()?;
     Some(BindingPower::new(*first, rest.iter().copied()))
 }
 
 fn parse_binding_declaration<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<BindingDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    let keyword = input.run(from_fn(scan_word))?;
+    let start = i.pos();
+    let keyword = i.run(scan_word)?;
     (keyword.text() == "my").then_some(())?;
-    inline_trivia(&mut input)?;
-    let name = input.run(from_fn(scan_word))?;
-    inline_trivia(&mut input)?;
-    input.skip(chasa::prelude::item('='))?;
-    inline_trivia(&mut input)?;
-    let value = input.run(from_fn(parse_expression))?;
+    inline_trivia(&mut i)?;
+    let name = i.run(scan_word)?;
+    inline_trivia(&mut i)?;
+    i.skip(chasa::prelude::item('='))?;
+    inline_trivia(&mut i)?;
+    let value = i.run(parse_expression)?;
     let end = value.range().end;
 
     Some(BindingDeclaration {
@@ -725,19 +726,19 @@ where
 }
 
 fn parse_use_declaration<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    let keyword = input.run(from_fn(scan_word))?;
+    let start = i.pos();
+    let keyword = i.run(scan_word)?;
     (keyword.text() == "use").then_some(())?;
-    inline_trivia(&mut input)?;
+    inline_trivia(&mut i)?;
 
-    let tree = parse_use_tree(&mut input)?;
+    let tree = parse_use_tree(&mut i)?;
     let end = tree.range().end;
 
     Some(UseDeclaration {
@@ -748,21 +749,21 @@ where
 }
 
 fn parse_use_tree<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseTree<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    if input.maybe(from_fn(parse_open_brace))?.is_some() {
-        let (terminal, terminal_end) = parse_use_group_terminal(input, None)?;
-        let aliases = parse_use_aliases(input)?;
+    let start = i.pos();
+    if i.maybe(from_fn(parse_open_brace))?.is_some() {
+        let (terminal, terminal_end) = parse_use_group_terminal(i, None)?;
+        let aliases = parse_use_aliases(i)?;
         let alias_end = aliases
             .last()
             .map_or(terminal_end, |alias| alias.range().end);
-        let (qualifiers, qualifier_end) = parse_use_qualifiers(input)?;
+        let (qualifiers, qualifier_end) = parse_use_qualifiers(i)?;
         let end = qualifier_end.unwrap_or(alias_end);
         return Some(UseTree {
             range: start..end,
@@ -774,45 +775,44 @@ where
         });
     }
 
-    let first = input.run(from_fn(scan_word))?;
+    let first = i.run(scan_word)?;
 
     let (form, prefix, mut terminal, terminal_end) = if classify_use_form(first, None)
         == HeaderImportForm::Mod
     {
-        inline_trivia(input)?;
-        let first_segment = input.run(from_fn(scan_word))?;
-        let (prefix, terminal, terminal_end) =
-            parse_use_path_and_terminal(input, first_segment, None)?;
+        inline_trivia(i)?;
+        let first_segment = i.run(scan_word)?;
+        let (prefix, terminal, terminal_end) = parse_use_path_and_terminal(i, first_segment, None)?;
         (HeaderImportForm::Mod, prefix, terminal, terminal_end)
     } else {
-        let following_separator = input.maybe(from_fn(parse_use_separator))?;
+        let following_separator = i.maybe(from_fn(parse_use_separator))?;
         match classify_use_form(first, following_separator) {
             HeaderImportForm::Realm | HeaderImportForm::Band => {
                 let form = classify_use_form(first, following_separator);
-                if input.maybe(from_fn(parse_open_brace))?.is_some() {
-                    let (terminal, terminal_end) = parse_use_group_terminal(input, None)?;
+                if i.maybe(from_fn(parse_open_brace))?.is_some() {
+                    let (terminal, terminal_end) = parse_use_group_terminal(i, None)?;
                     (form, empty_use_path(), terminal, terminal_end)
                 } else {
-                    let first_segment = input.run(from_fn(scan_word))?;
+                    let first_segment = i.run(scan_word)?;
                     let (prefix, terminal, terminal_end) =
-                        parse_use_path_and_terminal(input, first_segment, None)?;
+                        parse_use_path_and_terminal(i, first_segment, None)?;
                     (form, prefix, terminal, terminal_end)
                 }
             }
             HeaderImportForm::Plain => {
                 let (prefix, terminal, terminal_end) =
-                    parse_use_path_and_terminal(input, first, following_separator)?;
+                    parse_use_path_and_terminal(i, first, following_separator)?;
                 (HeaderImportForm::Plain, prefix, terminal, terminal_end)
             }
             HeaderImportForm::Mod => unreachable!("mod is handled before separator classification"),
         }
     };
-    let aliases = parse_use_aliases(input)?;
+    let aliases = parse_use_aliases(i)?;
     let tail_end = aliases
         .last()
         .map_or(terminal_end, |alias| alias.range().end);
     let without_end = if let UseTerminal::Glob { without, .. } = &mut terminal {
-        parse_use_without(input)?.map(|(parsed_without, end)| {
+        parse_use_without(i)?.map(|(parsed_without, end)| {
             *without = parsed_without;
             end
         })
@@ -820,7 +820,7 @@ where
         None
     };
     let qualifier_input_end = without_end.unwrap_or(tail_end);
-    let (qualifiers, qualifier_end) = parse_use_qualifiers(input)?;
+    let (qualifiers, qualifier_end) = parse_use_qualifiers(i)?;
     let end = qualifier_end.unwrap_or(qualifier_input_end);
 
     Some(UseTree {
@@ -849,7 +849,7 @@ fn classify_use_form(
 }
 
 fn parse_use_path_and_terminal<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
     first: WordSpan<'source>,
     first_separator: Option<UseSeparator>,
 ) -> Option<(UsePath<'source>, UseTerminal<'source>, usize)>
@@ -867,15 +867,15 @@ where
     loop {
         let Some(current) = pending_separator
             .take()
-            .or(input.maybe(from_fn(parse_use_separator))?)
+            .or(i.maybe(from_fn(parse_use_separator))?)
         else {
             break;
         };
-        if input.maybe(from_fn(parse_open_brace))?.is_some() {
-            let (terminal, terminal_end) = parse_use_group_terminal(input, Some(current))?;
+        if i.maybe(from_fn(parse_open_brace))?.is_some() {
+            let (terminal, terminal_end) = parse_use_group_terminal(i, Some(current))?;
             return Some((path, terminal, terminal_end));
         }
-        if let Some(range) = input.maybe(from_fn(parse_use_glob))? {
+        if let Some(range) = i.maybe(from_fn(parse_use_glob))? {
             return Some((
                 path,
                 UseTerminal::Glob {
@@ -886,8 +886,7 @@ where
             ));
         }
         path.separators.push(current);
-        path.segments
-            .push(UseSegment::Word(input.run(from_fn(scan_word))?));
+        path.segments.push(UseSegment::Word(i.run(scan_word)?));
     }
 
     debug_assert_eq!(
@@ -905,7 +904,7 @@ where
 }
 
 fn parse_use_group_terminal<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
     join: Option<UseSeparator>,
 ) -> Option<(UseTerminal<'source>, usize)>
 where
@@ -916,18 +915,18 @@ where
     let mut items = Vec::new();
 
     loop {
-        consume_group_trivia(input)?;
-        if let Some(close) = input.maybe(from_fn(parse_close_brace))? {
+        consume_group_trivia(i)?;
+        if let Some(close) = i.maybe(from_fn(parse_close_brace))? {
             return Some((UseTerminal::Group { join, items }, close.end));
         }
 
-        items.push(parse_use_tree(input)?);
+        items.push(parse_use_tree(i)?);
 
-        let separator_has_newline = consume_group_trivia(input)?;
-        if let Some(close) = input.maybe(from_fn(parse_close_brace))? {
+        let separator_has_newline = consume_group_trivia(i)?;
+        if let Some(close) = i.maybe(from_fn(parse_close_brace))? {
             return Some((UseTerminal::Group { join, items }, close.end));
         }
-        if input.maybe(from_fn(parse_comma))?.is_some() || separator_has_newline {
+        if i.maybe(from_fn(parse_comma))?.is_some() || separator_has_newline {
             continue;
         }
         return None;
@@ -935,7 +934,7 @@ where
 }
 
 fn parse_use_aliases<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Vec<WordSpan<'source>>>
 where
     E: ErrorSink<usize>,
@@ -943,37 +942,37 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut aliases = Vec::new();
-    while let Some(alias) = input.maybe(from_fn(parse_use_alias))? {
+    while let Some(alias) = i.maybe(from_fn(parse_use_alias))? {
         aliases.push(alias);
     }
     Some(aliases)
 }
 
 fn parse_use_alias<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    inline_trivia(&mut input)?;
-    let keyword = input.run(from_fn(scan_word))?;
+    inline_trivia(&mut i)?;
+    let keyword = i.run(scan_word)?;
     (keyword.text() == "as").then_some(())?;
-    inline_trivia(&mut input)?;
-    input.run(from_fn(scan_word))
+    inline_trivia(&mut i)?;
+    i.run(scan_word)
 }
 
 fn parse_use_qualifiers<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<(UseQualifiers<'source>, Option<usize>)>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let version = input.maybe(from_fn(parse_use_version_suffix))?;
-    let anchor = parse_use_anchor(input)?;
+    let version = i.maybe(from_fn(parse_use_version_suffix))?;
+    let anchor = parse_use_anchor(i)?;
     let end = anchor
         .as_ref()
         .and_then(use_path_end)
@@ -983,81 +982,73 @@ where
 }
 
 fn parse_use_version_suffix<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseVersion<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    inline_trivia(&mut input)?;
-    input.run(from_fn(scan_use_version))
+    inline_trivia(&mut i)?;
+    i.run(scan_use_version)
 }
 
 fn scan_use_version<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseVersion<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    input.skip(chasa::prelude::item('v'))?;
-    input
-        .input
+    let start = i.pos();
+    i.skip(chasa::prelude::item('v'))?;
+    i.input
         .remainder()
         .chars()
         .next()
         .is_some_and(|character| character.is_ascii_digit())
         .then_some(())?;
-    input.input.next()?;
+    i.input.next()?;
 
-    while input
-        .input
-        .remainder()
-        .chars()
-        .next()
-        .is_some_and(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '+')
-        })
-    {
-        input.input.next()?;
+    while i.input.remainder().chars().next().is_some_and(|character| {
+        character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '+')
+    }) {
+        i.input.next()?;
     }
 
-    let end = input.pos();
-    let mut line = input.local.line();
+    let end = i.pos();
+    let mut line = i.local.line();
     line.at_line_start = false;
-    input.local.set_line(line);
+    i.local.set_line(line);
 
     Some(UseVersion {
         range: start..end,
-        text: &input.input.source()[start..end],
+        text: &i.input.source()[start..end],
     })
 }
 
 fn parse_use_anchor<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Option<UsePath<'source>>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let Some(()) = input.maybe(from_fn(parse_with_keyword))? else {
+    let Some(()) = i.maybe(from_fn(parse_with_keyword))? else {
         return Some(None);
     };
-    inline_trivia(input)?;
+    inline_trivia(i)?;
 
-    let first = input.run(from_fn(scan_word))?;
+    let first = i.run(scan_word)?;
     let mut path = UsePath {
         segments: vec![UseSegment::Word(first)],
         separators: Vec::new(),
     };
 
-    while let Some(separator) = input.maybe(from_fn(parse_use_separator))? {
+    while let Some(separator) = i.maybe(from_fn(parse_use_separator))? {
         path.separators.push(separator);
-        path.segments
-            .push(UseSegment::Word(input.run(from_fn(scan_word))?));
+        path.segments.push(UseSegment::Word(i.run(scan_word)?));
     }
 
     debug_assert_eq!(
@@ -1068,14 +1059,14 @@ where
     Some(Some(path))
 }
 
-fn parse_with_keyword<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_with_keyword<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    inline_trivia(&mut input)?;
-    let keyword = input.run(from_fn(scan_word))?;
+    inline_trivia(&mut i)?;
+    let keyword = i.run(scan_word)?;
     (keyword.text() == "with").then_some(())
 }
 
@@ -1084,33 +1075,33 @@ fn use_path_end(path: &UsePath<'_>) -> Option<usize> {
 }
 
 fn parse_use_without<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Option<(Vec<UseExclusion<'source>>, usize)>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.maybe(from_fn(parse_use_without_clause))
+    i.maybe(from_fn(parse_use_without_clause))
 }
 
 fn parse_use_without_clause<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<(Vec<UseExclusion<'source>>, usize)>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    inline_trivia(&mut input)?;
-    let keyword = input.run(from_fn(scan_word))?;
+    inline_trivia(&mut i)?;
+    let keyword = i.run(scan_word)?;
     (keyword.text() == "without").then_some(())?;
-    inline_trivia(&mut input)?;
+    inline_trivia(&mut i)?;
 
-    let mut exclusions = vec![parse_use_exclusion(&mut input)?];
-    while input.maybe(from_fn(parse_comma))?.is_some() {
-        input.run(from_fn(scan_trivia))?;
-        exclusions.push(parse_use_exclusion(&mut input)?);
+    let mut exclusions = vec![parse_use_exclusion(&mut i)?];
+    while i.maybe(from_fn(parse_comma))?.is_some() {
+        i.run(scan_trivia)?;
+        exclusions.push(parse_use_exclusion(&mut i)?);
     }
     let end = exclusion_range(exclusions.last().expect("without has one exclusion")).end;
 
@@ -1118,52 +1109,51 @@ where
 }
 
 fn parse_use_exclusion<'source, E>(
-    input: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if let Some(segment) = input.maybe(from_fn(parse_parenthesized_use_operator))? {
+    if let Some(segment) = i.maybe(from_fn(parse_parenthesized_use_operator))? {
         return Some(UseExclusion::Segment(segment));
     }
-    if let Some(group) = input.maybe(from_fn(parse_use_exclusion_group))? {
+    if let Some(group) = i.maybe(from_fn(parse_use_exclusion_group))? {
         return Some(group);
     }
-    if let Some(range) = input.maybe(from_fn(parse_use_glob))? {
+    if let Some(range) = i.maybe(from_fn(parse_use_glob))? {
         return Some(UseExclusion::Glob { range });
     }
 
-    input
-        .run(from_fn(scan_word))
+    i.run(scan_word)
         .map(|word| UseExclusion::Segment(UseSegment::Word(word)))
 }
 
 fn parse_parenthesized_use_operator<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseSegment<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let open = input.run(from_fn(scan_open_parenthesis))?;
-    let start = input.pos();
+    let open = i.run(scan_open_parenthesis)?;
+    let start = i.pos();
 
-    while let Some(character) = input.input.remainder().chars().next() {
+    while let Some(character) = i.input.remainder().chars().next() {
         if character == ')' {
             break;
         }
         is_use_operator_character(character).then_some(())?;
-        input.input.next()?;
+        i.input.next()?;
     }
 
-    let end = input.pos();
+    let end = i.pos();
     (start < end).then_some(())?;
-    input.run(from_fn(scan_close_parenthesis))?;
+    i.run(scan_close_parenthesis)?;
     Some(UseSegment::Operator {
-        range: open.start..input.pos(),
-        text: &input.input.source()[start..end],
+        range: open.start..i.pos(),
+        text: &i.input.source()[start..end],
     })
 }
 
@@ -1178,14 +1168,14 @@ fn is_use_operator_character(character: char) -> bool {
 }
 
 fn parse_use_exclusion_group<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let open = input.run(from_fn(scan_punctuation))?;
+    let open = i.run(scan_punctuation)?;
     let delimiter = match open.kind() {
         PunctuationKind::Open(Delimiter::Parenthesis) => Delimiter::Parenthesis,
         PunctuationKind::Open(Delimiter::Brace) => Delimiter::Brace,
@@ -1195,48 +1185,42 @@ where
     let mut items = Vec::new();
 
     loop {
-        consume_group_trivia(&mut input)?;
-        if let Some(close) =
-            input.maybe(from_fn(|input| parse_close_delimiter(delimiter, input)))?
-        {
+        consume_group_trivia(&mut i)?;
+        if let Some(close) = i.maybe(from_fn(|i| parse_close_delimiter(delimiter, i)))? {
             return Some(UseExclusion::Group {
                 range: start..close.end,
                 items,
             });
         }
 
-        items.push(parse_use_tree(&mut input)?);
+        items.push(parse_use_tree(&mut i)?);
 
-        let separator_has_newline = consume_group_trivia(&mut input)?;
-        if let Some(close) =
-            input.maybe(from_fn(|input| parse_close_delimiter(delimiter, input)))?
-        {
+        let separator_has_newline = consume_group_trivia(&mut i)?;
+        if let Some(close) = i.maybe(from_fn(|i| parse_close_delimiter(delimiter, i)))? {
             return Some(UseExclusion::Group {
                 range: start..close.end,
                 items,
             });
         }
-        if input.maybe(from_fn(parse_comma))?.is_some() || separator_has_newline {
+        if i.maybe(from_fn(parse_comma))?.is_some() || separator_has_newline {
             continue;
         }
         return None;
     }
 }
 
-fn parse_use_glob<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
-) -> Option<Range<usize>>
+fn parse_use_glob<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    input.skip(chasa::prelude::item('*'))?;
-    let end = input.pos();
+    let start = i.pos();
+    i.skip(chasa::prelude::item('*'))?;
+    let end = i.pos();
 
-    let mut line = input.local.line();
+    let mut line = i.local.line();
     line.at_line_start = false;
-    input.local.set_line(line);
+    i.local.set_line(line);
 
     Some(start..end)
 }
@@ -1255,90 +1239,86 @@ fn empty_use_path<'source>() -> UsePath<'source> {
     }
 }
 
-fn consume_group_trivia<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
-) -> Option<bool>
+fn consume_group_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<bool>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = input.run(from_fn(scan_trivia))?;
-    Some(input.input.source()[trivia.range()].contains(['\r', '\n']))
+    let trivia = i.run(scan_trivia)?;
+    Some(i.input.source()[trivia.range()].contains(['\r', '\n']))
 }
 
-fn parse_open_brace<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_open_brace<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Open(Delimiter::Brace)).then_some(())
 }
 
 fn scan_open_parenthesis<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis))
         .then(|| punctuation.range())
 }
 
-fn scan_close_parenthesis<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
-) -> Option<()>
+fn scan_close_parenthesis<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())
 }
 
 fn parse_close_delimiter<E>(
     delimiter: Delimiter,
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Close(delimiter)).then(|| punctuation.range())
 }
 
 fn parse_close_brace<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace)).then(|| punctuation.range())
 }
 
-fn parse_comma<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn parse_comma<E>(mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     (punctuation.kind() == PunctuationKind::Comma).then_some(())
 }
 
 fn parse_use_separator<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<UseSeparator>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let punctuation = input.run(from_fn(scan_punctuation))?;
+    let punctuation = i.run(scan_punctuation)?;
     match punctuation.kind() {
         PunctuationKind::ColonColon => Some(UseSeparator::ColonColon),
         PunctuationKind::Slash => Some(UseSeparator::Slash),
@@ -1346,27 +1326,25 @@ where
     }
 }
 
-fn inline_trivia<E>(input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn inline_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = input.run(from_fn(scan_trivia))?;
-    let text = &input.input.source()[trivia.range()];
+    let trivia = i.run(scan_trivia)?;
+    let text = &i.input.source()[trivia.range()];
     (!text.is_empty() && !text.contains(['\r', '\n'])).then_some(())
 }
 
-fn optional_inline_trivia<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
-) -> Option<()>
+fn optional_inline_trivia<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = input.run(from_fn(scan_trivia))?;
-    (!input.input.source()[trivia.range()].contains(['\r', '\n'])).then_some(())
+    let trivia = i.run(scan_trivia)?;
+    (!i.input.source()[trivia.range()].contains(['\r', '\n'])).then_some(())
 }
 
 #[cfg(test)]
@@ -2065,21 +2043,21 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let declaration = input
-            .run(from_fn(parse_declaration))
+        let declaration = i
+            .run(parse_declaration)
             .expect("leading use declaration should parse");
 
         let Declaration::Use(declaration) = declaration else {
             panic!("expected use declaration");
         };
-        (declaration, input.input.remainder())
+        (declaration, i.input.remainder())
     }
 
     fn parse_operator_binding_power(source: &str) -> (BindingPower, &str) {
@@ -2087,17 +2065,17 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let binding_power = input
-            .run(from_fn(parse_binding_power))
+        let binding_power = i
+            .run(parse_binding_power)
             .expect("operator binding power should parse");
-        (binding_power, input.input.remainder())
+        (binding_power, i.input.remainder())
     }
 
     fn parse_operator_header_declaration(source: &str) -> (OperatorHeaderDeclaration<'_>, &str) {
@@ -2105,20 +2083,20 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let declaration = input
-            .run(from_fn(parse_declaration))
+        let declaration = i
+            .run(parse_declaration)
             .expect("operator header should parse");
         let Declaration::OperatorHeader(header) = declaration else {
             panic!("expected operator header");
         };
-        (header, input.input.remainder())
+        (header, i.input.remainder())
     }
 
     fn path_texts<'source>(path: &UsePath<'source>) -> Vec<&'source str> {
@@ -2161,14 +2139,14 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        input.run(from_fn(parse_declaration)).is_some()
+        i.run(parse_declaration).is_some()
     }
 
     fn complete_expansions(declaration: &UseDeclaration<'_>) -> Vec<HeaderImport> {
@@ -2186,15 +2164,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let declaration = input
-            .run(from_fn(parse_declaration))
+        let declaration = i
+            .run(parse_declaration)
             .expect("binding declaration should parse");
 
         let Declaration::Binding(binding) = declaration else {
@@ -2203,7 +2181,7 @@ mod tests {
         assert_eq!(binding.range(), 0..14);
         assert_eq!(binding.name().text(), "value");
         assert_eq!(binding.value().range(), 11..14);
-        assert_eq!(input.input.remainder(), "\n");
+        assert_eq!(i.input.remainder(), "\n");
     }
 
     #[test]
@@ -2213,15 +2191,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let declaration = input
-            .run(from_fn(parse_declaration))
+        let declaration = i
+            .run(parse_declaration)
             .expect("operator header should parse");
 
         let Declaration::OperatorHeader(header) = declaration else {
@@ -2238,6 +2216,6 @@ mod tests {
             header.right_binding_power().map(BindingPower::components),
             Some(&[51][..])
         );
-        assert_eq!(input.input.remainder(), " left\nmy value = 1\n");
+        assert_eq!(i.input.remainder(), " left\nmy value = 1\n");
     }
 }
