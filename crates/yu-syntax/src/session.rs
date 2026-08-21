@@ -90,6 +90,8 @@ pub(crate) struct ParseLocal {
     lexical_modes: RollbackStack<EmbeddedLexicalMode>,
     staged_header_facts: Vec<StagedHeaderFact>,
     operator_probes: Vec<OperatorCandidateProbe>,
+    reusable_recoveries: Vec<CommittedRecoveryRecord>,
+    reused_recovery_indices: Vec<usize>,
     next_diagnostic_id: u32,
 }
 
@@ -105,8 +107,23 @@ impl ParseLocal {
             lexical_modes: RollbackStack::new(),
             staged_header_facts: Vec::new(),
             operator_probes: Vec::new(),
+            reusable_recoveries: Vec::new(),
+            reused_recovery_indices: Vec::new(),
             next_diagnostic_id: 0,
         }
+    }
+
+    /// Starts a full parse after header discovery, preserving the identities
+    /// already committed for header-owned recovery sites.
+    pub(crate) fn with_reusable_recoveries(recoveries: &[CommittedRecoveryRecord]) -> Self {
+        let mut local = Self::new();
+        local.next_diagnostic_id = recoveries
+            .iter()
+            .map(|record| record.id.0)
+            .max()
+            .map_or(0, |id| id + 1);
+        local.reusable_recoveries.extend_from_slice(recoveries);
+        local
     }
 
     pub(crate) fn checkpoint(&self) -> ParseLocalCheckpoint {
@@ -120,6 +137,7 @@ impl ParseLocal {
             lexical_modes: self.lexical_modes.checkpoint(),
             staged_header_facts_len: self.staged_header_facts.len(),
             operator_probes_len: self.operator_probes.len(),
+            reused_recovery_indices_len: self.reused_recovery_indices.len(),
             next_diagnostic_id: self.next_diagnostic_id,
         }
     }
@@ -137,6 +155,8 @@ impl ParseLocal {
             .truncate(checkpoint.staged_header_facts_len);
         self.operator_probes
             .truncate(checkpoint.operator_probes_len);
+        self.reused_recovery_indices
+            .truncate(checkpoint.reused_recovery_indices_len);
         self.next_diagnostic_id = checkpoint.next_diagnostic_id;
     }
 
@@ -238,6 +258,25 @@ impl ParseLocal {
         self.next_diagnostic_id += 1;
         id
     }
+
+    fn take_reusable_recovery(
+        &mut self,
+        site: &RecoverySiteKey,
+        kind: RecoveryKind,
+    ) -> Option<CommittedRecoveryRecord> {
+        let index = self
+            .reusable_recoveries
+            .iter()
+            .enumerate()
+            .find_map(|(index, record)| {
+                (!self.reused_recovery_indices.contains(&index)
+                    && record.site == *site
+                    && record.kind == kind)
+                    .then_some(index)
+            })?;
+        self.reused_recovery_indices.push(index);
+        Some(self.reusable_recoveries[index].clone())
+    }
 }
 
 impl Default for ParseLocal {
@@ -270,6 +309,7 @@ pub(crate) struct ParseLocalCheckpoint {
     lexical_modes: StackCheckpoint,
     staged_header_facts_len: usize,
     operator_probes_len: usize,
+    reused_recovery_indices_len: usize,
     next_diagnostic_id: u32,
 }
 
@@ -652,7 +692,7 @@ pub(crate) struct CommittedRecoveryRecord {
 
 impl CommittedRecoveryRecord {
     pub(crate) fn new(
-        id: DiagnosticId,
+        local: &mut ParseLocal,
         site: RecoverySiteKey,
         kind: RecoveryKind,
         unexpected: Arc<[UnexpectedSyntax]>,
@@ -676,8 +716,17 @@ impl CommittedRecoveryRecord {
                 }));
             }
         }
+        if let Some(reused) = local.take_reusable_recovery(&site, kind) {
+            // A matching header-origin site owns its diagnostic identity and
+            // frozen expectation union. Recheck the full parse's evidence,
+            // then carry that record forward unchanged.
+            assert_eq!(reused.unexpected, unexpected);
+            assert_eq!(reused.expectations, expectations);
+            assert_eq!(reused.primary_expectation, primary_expectation);
+            return reused;
+        }
         Self {
-            id,
+            id: local.next_diagnostic_id(),
             site,
             kind,
             unexpected,
@@ -831,6 +880,10 @@ impl HeaderOutput {
         Self {
             committed_recoveries: Vec::new(),
         }
+    }
+
+    pub(crate) fn committed_recoveries(&self) -> &[CommittedRecoveryRecord] {
+        &self.committed_recoveries
     }
 }
 
@@ -1012,6 +1065,7 @@ mod tests {
     use std::sync::Arc;
 
     fn recovery_record(kind: RecoveryKind, range: Range<usize>) -> CommittedRecoveryRecord {
+        let mut local = ParseLocal::new();
         let unexpected = match kind {
             RecoveryKind::Missing => Arc::from([]),
             RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
@@ -1020,7 +1074,7 @@ mod tests {
             }]),
         };
         CommittedRecoveryRecord::new(
-            DiagnosticId(0),
+            &mut local,
             RecoverySiteKey {
                 role: GrammarRole::Statement(StatementRole::Starter),
                 range,
@@ -1059,8 +1113,9 @@ mod tests {
     #[test]
     #[should_panic(expected = "a committed recovery requires an expectation union")]
     fn recovery_records_reject_an_empty_expectation_union() {
+        let mut local = ParseLocal::new();
         let _ = CommittedRecoveryRecord::new(
-            DiagnosticId(0),
+            &mut local,
             RecoverySiteKey {
                 role: GrammarRole::Statement(StatementRole::Starter),
                 range: 0..0,

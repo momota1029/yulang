@@ -619,12 +619,16 @@ mod tests {
     #[test]
     fn recovery_diagnostic_keeps_the_committed_record_distinct_from_construction() {
         use crate::session::{
-            DiagnosticId, ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
+            ExpectationSources, ExpectedSyntax, GrammarRole, ParseLocal, RecoveryKind,
             RecoverySiteKey, StatementRole, SyntaxExpectation,
         };
 
+        let mut local = ParseLocal::new();
+        for _ in 0..9 {
+            local.next_diagnostic_id();
+        }
         let record = CommittedRecoveryRecord::new(
-            DiagnosticId(9),
+            &mut local,
             RecoverySiteKey {
                 role: GrammarRole::Statement(StatementRole::Starter),
                 range: 4..4,

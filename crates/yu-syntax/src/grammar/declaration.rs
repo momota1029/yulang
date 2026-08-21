@@ -135,12 +135,28 @@ impl<'source, C> ParsedBindingDeclaration<'source, C> {
 ///
 /// The immutable operator table is supplied by the caller's session setup;
 /// this candidate neither rebuilds it nor mutates it while parsing.
+pub(crate) struct DirectRootCandidateOutput {
+    green: rowan::GreenNode,
+    committed_recoveries: Vec<CommittedRecoveryRecord>,
+}
+
+impl DirectRootCandidateOutput {
+    pub(crate) fn green(&self) -> &rowan::GreenNode {
+        &self.green
+    }
+
+    pub(crate) fn committed_recoveries(&self) -> &[CommittedRecoveryRecord] {
+        &self.committed_recoveries
+    }
+}
+
 pub(crate) fn parse_direct_root_candidate(
     source: &str,
     operators: &crate::operator::OperatorTable,
-) -> rowan::GreenNode {
+    header_recoveries: &[CommittedRecoveryRecord],
+) -> DirectRootCandidateOutput {
     let mut source_input = SourceInput::new(source);
-    let mut local = crate::session::ParseLocal::new();
+    let mut local = crate::session::ParseLocal::with_reusable_recoveries(header_recoveries);
     let mut expectations = chasa::LatestSink::new();
     let mut is_cut = false;
     let i = In::new(
@@ -223,7 +239,12 @@ pub(crate) fn parse_direct_root_candidate(
     }
 
     committed.finish_node();
-    committed.into_output().finish_complete()
+    let output = committed.into_output();
+    let committed_recoveries = output.committed_recoveries().to_vec();
+    DirectRootCandidateOutput {
+        green: output.finish_complete(),
+        committed_recoveries,
+    }
 }
 
 fn emit_root_error<'parse, 'source, 'local, E>(
@@ -258,7 +279,7 @@ fn emit_root_error<'parse, 'source, 'local, E>(
             },
         );
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role: GrammarRole::Statement(role),
                 range: range.clone(),
@@ -733,7 +754,7 @@ fn emit_layout_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         let role = GrammarRole::Layout(LayoutRole::InlineTrivia);
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -841,7 +862,7 @@ where
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: range.clone(),
@@ -893,7 +914,7 @@ fn emit_binding_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         let grammar_role = GrammarRole::Declaration(DeclarationRole::Binding(role));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role: grammar_role,
                 range: at..at,
@@ -928,7 +949,7 @@ fn emit_import_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         let grammar_role = GrammarRole::Declaration(DeclarationRole::Import(role));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role: grammar_role,
                 range: at..at,
@@ -962,7 +983,7 @@ fn emit_import_group_close_missing<'parse, 'source, 'local, E, O>(
             delimiter,
         };
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -999,7 +1020,7 @@ fn emit_import_group_mismatched_close<'parse, 'source, 'local, E, O>(
             delimiter: expected,
         };
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: range.clone(),
@@ -1039,7 +1060,7 @@ fn emit_import_operator_close_missing<'parse, 'source, 'local, E, O>(
             delimiter: Delimiter::Parenthesis,
         };
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -1224,7 +1245,7 @@ fn emit_operator_definition_body_missing<'parse, 'source, 'local, E>(
         let at = i.pos();
         let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -1358,7 +1379,7 @@ fn emit_operator_missing<'parse, 'source, 'local, E, O>(
         let at = i.pos();
         let grammar_role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role: grammar_role,
                 range: at..at,
@@ -1389,7 +1410,7 @@ fn emit_operator_fixity_missing<'parse, 'source, 'local, E, O>(
         let role =
             GrammarRole::Declaration(DeclarationRole::OperatorHeader(OperatorHeaderRole::Fixity));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -1442,7 +1463,7 @@ fn emit_operator_error<'parse, 'source, 'local, E, O>(
         let i = probe.input();
         let grammar_role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role: grammar_role,
                 range: range.clone(),
@@ -1478,7 +1499,7 @@ fn emit_operator_name_close_missing<'parse, 'source, 'local, E, O>(
             delimiter: Delimiter::Parenthesis,
         };
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: at..at,
@@ -3055,7 +3076,7 @@ where
         let i = probe.input();
         let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
         CommittedRecoveryRecord::new(
-            i.local.next_diagnostic_id(),
+            i.local,
             RecoverySiteKey {
                 role,
                 range: range.clone(),
@@ -4541,7 +4562,7 @@ mod tests {
     };
 
     use crate::{
-        SyntaxNode,
+        SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxNode,
         input::SourceInput,
         session::{
             CommitOutput, CommittedRecoveryRecord, FullCstOutput, HeaderOutput, ParseLocal, Probe,
@@ -4849,11 +4870,36 @@ mod tests {
             .expect("source has a direct header declaration")
     }
 
+    fn parse_recovered_direct_header(source: &str) -> HeaderOutput {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let (intro, mut committed) = commit_header_statement(Probe::new(i), HeaderOutput::new())
+            .expect("source has a direct header declaration introduction");
+        match intro {
+            HeaderStatementIntro::Use(intro) => {
+                let _ = commit_use_declaration(&mut committed, intro);
+            }
+            HeaderStatementIntro::Operator(intro) => {
+                let _ = commit_operator_header(&mut committed, intro);
+            }
+        }
+        committed.into_output()
+    }
+
     #[test]
     fn direct_root_candidate_parses_use_operator_and_binding_in_source_order() {
         let source = "use std::io\ninfix (<+>) 50 51 = left\nmy value = left";
-        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
-        let root = SyntaxNode::new_root(green);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
 
         assert_eq!(root.kind(), SyntaxKind::Root);
         assert_eq!(root.to_string(), source);
@@ -4883,8 +4929,8 @@ mod tests {
             "infix (+!) 50 51 = a+!b\n",
             "my value = a+!b",
         );
-        let green = parse_direct_root_candidate(source, &root_candidate_operator_table());
-        let root = SyntaxNode::new_root(green);
+        let output = parse_direct_root_candidate(source, &root_candidate_operator_table(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
 
         assert_eq!(root.to_string(), source);
         assert_eq!(
@@ -4914,8 +4960,9 @@ mod tests {
     #[test]
     fn direct_root_candidate_recovers_one_unknown_line_then_continues() {
         let source = "unknown words\nuse std::io";
-        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
-        let root = SyntaxNode::new_root(green);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
 
         assert_eq!(root.to_string(), source);
         let errors = root
@@ -4931,14 +4978,84 @@ mod tests {
     }
 
     #[test]
+    fn direct_root_recovery_records_become_one_diagnostic_per_cst_node_and_reuse_header_records() {
+        let source = "use";
+        let header_output = parse_recovered_direct_header(source);
+        let header_recoveries = header_output.committed_recoveries();
+        let [header_recovery] = header_recoveries else {
+            panic!("the incomplete header declaration must commit one recovery");
+        };
+
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            header_recoveries,
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        let full_recoveries = output.committed_recoveries();
+        let diagnostics = full_recoveries
+            .iter()
+            .cloned()
+            .map(SyntaxDiagnostic::recovery)
+            .collect::<Vec<_>>();
+
+        let cst_recovery_nodes = root
+            .descendants()
+            .filter_map(|node| match node.kind() {
+                SyntaxKind::Missing => Some((RecoveryKind::Missing, node.text_range())),
+                SyntaxKind::Error => Some((RecoveryKind::Error, node.text_range())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let committed_nodes = full_recoveries
+            .iter()
+            .map(|record| {
+                (
+                    record.kind,
+                    rowan::TextRange::new(
+                        (record.site.range.start as u32).into(),
+                        (record.site.range.end as u32).into(),
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(cst_recovery_nodes, committed_nodes);
+        assert_eq!(diagnostics.len(), full_recoveries.len());
+        for (diagnostic, record) in diagnostics.iter().zip(full_recoveries) {
+            let SyntaxDiagnosticCause::Recovery(recovery) = diagnostic.cause() else {
+                panic!("every committed recovery must produce a recovery diagnostic");
+            };
+            assert_eq!(recovery.record(), record);
+        }
+
+        let [full_recovery] = full_recoveries else {
+            panic!("the full root candidate must preserve the header recovery");
+        };
+        assert_eq!(full_recovery.id, header_recovery.id);
+        assert_eq!(full_recovery.site, header_recovery.site);
+        assert_eq!(full_recovery.expectations, header_recovery.expectations);
+        assert!(Arc::ptr_eq(
+            &full_recovery.expectations,
+            &header_recovery.expectations
+        ));
+        assert_eq!(
+            full_recovery.primary_expectation,
+            header_recovery.primary_expectation
+        );
+    }
+
+    #[test]
     fn direct_root_candidate_keeps_embedded_fake_boundaries_in_one_error_episode() {
         let source = concat!(
             "garbage \"string;\nuse hidden\" /* comment;\nuse hidden */ ",
             "'[yumark;\nuse hidden] '{\n```raw\nfence;\nuse hidden\n```\n}\n",
             "use std::io",
         );
-        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
-        let root = SyntaxNode::new_root(green);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
 
         assert_eq!(root.to_string(), source);
         let errors = root
@@ -4961,8 +5078,9 @@ mod tests {
             "~\"rule;\nuse hidden\"\n",
             "use std::io",
         );
-        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
-        let root = SyntaxNode::new_root(green);
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
         let errors = root
             .children()
             .filter(|node| node.kind() == SyntaxKind::Error)
@@ -5026,10 +5144,15 @@ mod tests {
             Arc::new(crate::SyntaxEnvironment::empty()),
         );
         let old_root = SyntaxNode::new_root(old.green().clone());
-        let new_root = SyntaxNode::new_root(parse_direct_root_candidate(
-            source.as_ref(),
-            &crate::operator::OperatorTable::empty(),
-        ));
+        let new_root = SyntaxNode::new_root(
+            parse_direct_root_candidate(
+                source.as_ref(),
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            )
+            .green()
+            .clone(),
+        );
 
         assert_eq!(old_root.to_string(), source.as_ref());
         assert_eq!(new_root.to_string(), source.as_ref());
@@ -5072,10 +5195,11 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let handle = thread::spawn(move || {
             let result = std::panic::catch_unwind(|| {
-                let root = SyntaxNode::new_root(parse_direct_root_candidate(
-                    &source,
-                    &root_candidate_operator_table(),
-                ));
+                let root = SyntaxNode::new_root(
+                    parse_direct_root_candidate(&source, &root_candidate_operator_table(), &[])
+                        .green()
+                        .clone(),
+                );
                 assert_eq!(root.to_string(), source);
                 for node in root.descendants() {
                     match node.kind() {
