@@ -774,13 +774,25 @@ where
         });
     }
 
+    if let Some(first) = i.maybe(from_fn(parse_parenthesized_use_operator))? {
+        let (prefix, terminal, terminal_end) = parse_use_path_and_terminal(i, first, None)?;
+        return finish_use_tree(
+            i,
+            start,
+            HeaderImportForm::Plain,
+            prefix,
+            terminal,
+            terminal_end,
+        );
+    }
+
     let first = i.run(scan_word)?;
 
     let (form, prefix, mut terminal, terminal_end) = if classify_use_form(first, None)
         == HeaderImportForm::Mod
     {
         inline_trivia(i)?;
-        let first_segment = i.run(scan_word)?;
+        let first_segment = parse_use_path_segment(i)?;
         let (prefix, terminal, terminal_end) = parse_use_path_and_terminal(i, first_segment, None)?;
         (HeaderImportForm::Mod, prefix, terminal, terminal_end)
     } else {
@@ -792,7 +804,7 @@ where
                     let (terminal, terminal_end) = parse_use_group_terminal(i, None)?;
                     (form, empty_use_path(), terminal, terminal_end)
                 } else {
-                    let first_segment = i.run(scan_word)?;
+                    let first_segment = parse_use_path_segment(i)?;
                     let (prefix, terminal, terminal_end) =
                         parse_use_path_and_terminal(i, first_segment, None)?;
                     (form, prefix, terminal, terminal_end)
@@ -800,12 +812,28 @@ where
             }
             HeaderImportForm::Plain => {
                 let (prefix, terminal, terminal_end) =
-                    parse_use_path_and_terminal(i, first, following_separator)?;
+                    parse_use_path_and_terminal(i, UseSegment::Word(first), following_separator)?;
                 (HeaderImportForm::Plain, prefix, terminal, terminal_end)
             }
             HeaderImportForm::Mod => unreachable!("mod is handled before separator classification"),
         }
     };
+    finish_use_tree(i, start, form, prefix, terminal, terminal_end)
+}
+
+fn finish_use_tree<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    start: usize,
+    form: HeaderImportForm,
+    prefix: UsePath<'source>,
+    mut terminal: UseTerminal<'source>,
+    terminal_end: usize,
+) -> Option<UseTree<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let aliases = parse_use_aliases(i)?;
     let tail_end = aliases
         .last()
@@ -849,7 +877,7 @@ fn classify_use_form(
 
 fn parse_use_path_and_terminal<'source, E>(
     i: &mut SynIn<'_, 'source, '_, E>,
-    first: WordSpan<'source>,
+    first: UseSegment<'source>,
     first_separator: Option<UseSeparator>,
 ) -> Option<(UsePath<'source>, UseTerminal<'source>, usize)>
 where
@@ -858,7 +886,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut path = UsePath {
-        segments: vec![UseSegment::Word(first)],
+        segments: vec![first],
         separators: Vec::new(),
     };
     let mut pending_separator = first_separator;
@@ -885,7 +913,7 @@ where
             ));
         }
         path.separators.push(current);
-        path.segments.push(UseSegment::Word(i.run(scan_word)?));
+        path.segments.push(parse_use_path_segment(i)?);
     }
 
     debug_assert_eq!(
@@ -1154,6 +1182,26 @@ where
         range: open.start..i.pos(),
         text: &i.input.source()[start..end],
     })
+}
+
+/// Recognizes either spelling permitted in normal use-path segment slots.
+///
+/// Parenthesized operators are deliberately tried before words so `(+)` is
+/// retained as one operator segment rather than being left to a terminal
+/// group branch. Both the spec-start and separator-target callers use this
+/// shared recognizer.
+fn parse_use_path_segment<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<UseSegment<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(segment) = i.maybe(from_fn(parse_parenthesized_use_operator))? {
+        return Some(segment);
+    }
+    i.run(scan_word).map(UseSegment::Word)
 }
 
 fn is_use_operator_character(character: char) -> bool {
@@ -1693,6 +1741,33 @@ mod tests {
             panic!("expected parenthesized star to remain an operator segment: {without:#?}");
         };
         assert_eq!(*text, "*");
+    }
+
+    #[test]
+    fn accepts_parenthesized_operator_segments_at_normal_path_positions() {
+        let (at_spec_start, remainder) = parse_use("use (+)::value");
+        assert_eq!(remainder, "");
+        let [
+            UseSegment::Operator { range, text },
+            UseSegment::Word(word),
+        ] = at_spec_start.tree().prefix().segments()
+        else {
+            panic!("expected an operator followed by a word path segment");
+        };
+        assert_eq!(range, &(4..7));
+        assert_eq!(*text, "+");
+        assert_eq!(word.text(), "value");
+
+        let (at_separator_target, remainder) = parse_use("use std::(+)::value");
+        assert_eq!(remainder, "");
+        assert_eq!(
+            path_texts(at_separator_target.tree().prefix()),
+            ["std", "+", "value"]
+        );
+        assert_eq!(
+            at_separator_target.tree().prefix().separators(),
+            [UseSeparator::ColonColon, UseSeparator::ColonColon]
+        );
     }
 
     #[test]

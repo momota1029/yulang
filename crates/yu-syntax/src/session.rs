@@ -6,7 +6,7 @@ use chasa::{Back, ErrorSink, prelude::In};
 
 use crate::{
     HeaderInfo, input::SourceInput, operator::OperatorTable, parse::SyntaxEnvironment,
-    sink::RowanSink, syntax_kind::SyntaxKind,
+    scan::trivia::TriviaRun, sink::RowanSink, syntax_kind::SyntaxKind,
 };
 
 pub(crate) type SynIn<'a, 'source, 'b, E> = In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
@@ -426,6 +426,7 @@ pub(crate) trait CommitOutput<'source> {
     fn start_node(&mut self, kind: SyntaxKind);
     fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind);
     fn token(&mut self, kind: SyntaxKind, range: Range<usize>);
+    fn emit_trivia(&mut self, trivia: &TriviaRun);
     fn finish_node(&mut self);
     fn commit_recovery(&mut self, record: CommittedRecoveryRecord);
 }
@@ -509,6 +510,10 @@ impl<'source> CommitOutput<'source> for FullCstOutput<'source> {
         DirectCstSink::token(&mut self.sink, kind, range);
     }
 
+    fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.sink.emit_trivia(trivia);
+    }
+
     fn finish_node(&mut self) {
         DirectCstSink::finish_node(&mut self.sink);
     }
@@ -541,6 +546,8 @@ impl<'source> CommitOutput<'source> for HeaderOutput {
     fn start_node_at(&mut self, _: Self::Checkpoint, _: SyntaxKind) {}
 
     fn token(&mut self, _: SyntaxKind, _: Range<usize>) {}
+
+    fn emit_trivia(&mut self, _: &TriviaRun) {}
 
     fn finish_node(&mut self) {}
 
@@ -584,6 +591,10 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
 
     pub(crate) fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
         self.output.token(kind, range);
+    }
+
+    pub(crate) fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.output.emit_trivia(trivia);
     }
 
     pub(crate) fn finish_node(&mut self) {
@@ -847,6 +858,8 @@ mod tests {
             fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
                 self.calls.borrow_mut().push(OutputCall::Token(kind, range));
             }
+
+            fn emit_trivia(&mut self, _: &TriviaRun) {}
 
             fn finish_node(&mut self) {
                 self.calls.borrow_mut().push(OutputCall::Finish);
