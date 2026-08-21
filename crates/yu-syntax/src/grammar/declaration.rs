@@ -4529,7 +4529,13 @@ where
 mod tests {
     use super::*;
     use chasa::{input::IsCut, prelude::In};
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        cell::RefCell,
+        rc::Rc,
+        sync::{Arc, mpsc},
+        thread,
+        time::Duration,
+    };
 
     use crate::{
         SyntaxNode,
@@ -4865,6 +4871,44 @@ mod tests {
     }
 
     #[test]
+    fn direct_root_candidate_parses_all_fixities_and_operator_aware_bindings_to_eof() {
+        let source = concat!(
+            "use std::io\n",
+            "nullfix (!) = !\n",
+            "prefix (+) 70 = +!a\n",
+            "suffix (++) 90 = a++\n",
+            "infix (+!) 50 51 = a+!b\n",
+            "my value = a+!b",
+        );
+        let green = parse_direct_root_candidate(source, &root_candidate_operator_table());
+        let root = SyntaxNode::new_root(green);
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            Vec::<String>::new(),
+        );
+        for kind in [
+            SyntaxKind::UseDeclaration,
+            SyntaxKind::OperatorHeader,
+            SyntaxKind::BindingStatement,
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::PrefixExpression,
+            SyntaxKind::NullfixExpression,
+            SyntaxKind::SuffixExpression,
+            SyntaxKind::InfixExpression,
+        ] {
+            assert!(
+                root.descendants().any(|node| node.kind() == kind),
+                "missing {kind:?} in direct root candidate output",
+            );
+        }
+    }
+
+    #[test]
     fn direct_root_candidate_recovers_one_unknown_line_then_continues() {
         let source = "unknown words\nuse std::io";
         let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
@@ -4904,6 +4948,148 @@ mod tests {
             root.children()
                 .any(|node| node.kind() == SyntaxKind::UseDeclaration)
         );
+    }
+
+    #[test]
+    fn direct_root_candidate_keeps_heredoc_interpolation_and_rule_boundaries_in_one_error() {
+        let source = concat!(
+            "garbage \"\"\"heredoc;\nuse hidden\"\"\" ",
+            "\"string %{interpolation;\nuse hidden}\" ",
+            "~\"rule;\nuse hidden\"\n",
+            "use std::io",
+        );
+        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(green);
+        let errors = root
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0]
+                .text()
+                .to_string()
+                .contains("interpolation;\nuse hidden")
+        );
+        assert!(errors[0].text().to_string().contains("rule;\nuse hidden"));
+        assert!(
+            root.children()
+                .any(|node| node.kind() == SyntaxKind::UseDeclaration)
+        );
+    }
+
+    #[test]
+    fn direct_root_candidate_handles_every_byte_prefix_without_invalid_recovery_shapes() {
+        let valid_sources = [
+            "use std::io\nmy value = 1",
+            "prefix (+) 70 = +!a\ninfix (+!) 50 51 = a+!b\nmy value = a+!b",
+            "nullfix (!) = !\nsuffix (++) 90 = a++",
+        ];
+
+        for source in valid_sources {
+            assert!(source.is_ascii(), "prefix corpus must be byte-sliceable");
+            for prefix_len in 0..=source.len() {
+                assert_direct_root_terminates_with_valid_recovery_shapes(
+                    source[..prefix_len].to_owned(),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn direct_root_candidate_handles_representative_malformed_sources_without_invalid_recovery_shapes()
+    {
+        for source in [
+            "garbage; use std::io",
+            "use",
+            "prefix (+) 70",
+            "my value =",
+            "infix (<+>) 50 51 = @@\nmy value = 1",
+            "garbage \"unterminated",
+        ] {
+            assert_direct_root_terminates_with_valid_recovery_shapes(source.to_owned());
+        }
+    }
+
+    #[test]
+    fn direct_root_candidate_preserves_old_binding_and_integer_projection() {
+        let source: Arc<crate::SourceText> = Arc::from("use std::io\nmy value = 123\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        let old = crate::parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        let old_root = SyntaxNode::new_root(old.green().clone());
+        let new_root = SyntaxNode::new_root(parse_direct_root_candidate(
+            source.as_ref(),
+            &crate::operator::OperatorTable::empty(),
+        ));
+
+        assert_eq!(old_root.to_string(), source.as_ref());
+        assert_eq!(new_root.to_string(), source.as_ref());
+        for kind in [SyntaxKind::BindingStatement, SyntaxKind::IntegerLiteral] {
+            assert!(old_root.descendants().any(|node| node.kind() == kind));
+            assert!(new_root.descendants().any(|node| node.kind() == kind));
+        }
+    }
+
+    fn root_candidate_operator_table() -> crate::operator::OperatorTable {
+        crate::operator::OperatorTable::from_declarations([
+            crate::operator::OperatorDeclaration::new(
+                "+!",
+                crate::operator::OperatorFixities::new().with_infix(
+                    crate::operator::BindingPower::scalar(50),
+                    crate::operator::BindingPower::scalar(51),
+                ),
+            ),
+            crate::operator::OperatorDeclaration::new(
+                "+",
+                crate::operator::OperatorFixities::new()
+                    .with_prefix(crate::operator::BindingPower::scalar(70)),
+            ),
+            crate::operator::OperatorDeclaration::new(
+                "!",
+                crate::operator::OperatorFixities::new()
+                    .with_prefix(crate::operator::BindingPower::scalar(80))
+                    .with_nullfix(),
+            ),
+            crate::operator::OperatorDeclaration::new(
+                "++",
+                crate::operator::OperatorFixities::new()
+                    .with_suffix(crate::operator::BindingPower::scalar(90)),
+            ),
+        ])
+        .expect("root candidate operator table")
+    }
+
+    fn assert_direct_root_terminates_with_valid_recovery_shapes(source: String) {
+        let (sender, receiver) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let result = std::panic::catch_unwind(|| {
+                let root = SyntaxNode::new_root(parse_direct_root_candidate(
+                    &source,
+                    &root_candidate_operator_table(),
+                ));
+                assert_eq!(root.to_string(), source);
+                for node in root.descendants() {
+                    match node.kind() {
+                        SyntaxKind::Missing => assert!(node.text_range().is_empty()),
+                        SyntaxKind::Error => assert!(!node.text_range().is_empty()),
+                        _ => {}
+                    }
+                }
+            });
+            let _ = sender.send(result.map_err(|_| "candidate panicked".to_owned()));
+        });
+
+        let result = receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("direct root candidate exceeded the one-second prefix step bound");
+        handle.join().expect("candidate worker thread panicked");
+        result.expect("direct root candidate violated a lossless recovery invariant");
     }
 
     #[test]
@@ -5042,6 +5228,44 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn direct_binding_and_operator_body_emit_all_canonical_pratt_shapes() {
+        let operators = root_candidate_operator_table();
+        let cases = [
+            ("value", SyntaxKind::IdentifierExpression),
+            ("123", SyntaxKind::IntegerLiteral),
+            ("+!a", SyntaxKind::PrefixExpression),
+            ("!", SyntaxKind::NullfixExpression),
+            ("a++", SyntaxKind::SuffixExpression),
+            ("a+!b", SyntaxKind::InfixExpression),
+        ];
+
+        for (value, kind) in cases {
+            let binding_source = format!("my value = {value}");
+            let (_, binding_output) = parse_direct_binding_with_output(&binding_source, &operators);
+            let binding_root = SyntaxNode::new_root(binding_output.finish_complete());
+            assert_eq!(binding_root.to_string(), binding_source);
+            assert!(
+                binding_root.descendants().any(|node| node.kind() == kind),
+                "binding value {value:?} did not emit {kind:?}",
+            );
+
+            let operator_source = format!("infix (<+>) 50 51 = {value}");
+            let (_, body, operator_output) =
+                parse_operator_definition_body(&operator_source, &operators);
+            assert!(
+                matches!(body, Recovered::Complete(_)),
+                "{operator_source:?}"
+            );
+            let operator_root = SyntaxNode::new_root(operator_output.finish_complete());
+            assert_eq!(operator_root.to_string(), operator_source);
+            assert!(
+                operator_root.descendants().any(|node| node.kind() == kind),
+                "operator body {value:?} did not emit {kind:?}",
+            );
+        }
     }
 
     #[test]
