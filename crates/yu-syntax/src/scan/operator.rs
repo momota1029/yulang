@@ -203,7 +203,7 @@ fn trailing_info(run: &TriviaRun, line: crate::session::LineState) -> TrailingIn
 
 fn operator_boundary<E>(
     last_character: char,
-    i: &mut SynIn<'_, '_, '_, E>,
+    i: &mut SynIn<E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -219,7 +219,7 @@ where
 fn value_start<E>(
     table: &OperatorTable,
     trailing: TrailingInfo,
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -245,7 +245,7 @@ where
 
 fn operator_value_start<E>(
     table: &OperatorTable,
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
@@ -264,7 +264,7 @@ where
     i.run(parser)
 }
 
-fn next_is_expression_stop<E>(i: &SynIn<'_, '_, '_, E>) -> bool
+fn next_is_expression_stop<E>(i: &SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
 {

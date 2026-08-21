@@ -96,7 +96,7 @@ where
 }
 
 fn scan_dot<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<PunctuationKind>
 where
     E: ErrorSink<usize>,

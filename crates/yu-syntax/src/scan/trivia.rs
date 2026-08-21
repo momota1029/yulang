@@ -129,7 +129,7 @@ pub(crate) enum CommentTermination {
 /// the oracle grammar. Document recognition therefore stays outside this
 /// shared trivia scanner; only `//` is an ordinary line comment here.
 pub(crate) fn scan_trivia<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
@@ -159,7 +159,7 @@ where
 }
 
 fn scan_whitespace<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<Vec<TriviaPart>>
 where
     E: ErrorSink<usize>,
@@ -232,7 +232,7 @@ where
 }
 
 fn scan_line_comment<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
@@ -255,7 +255,7 @@ where
 }
 
 fn scan_block_comment<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
@@ -330,7 +330,7 @@ where
 }
 
 fn scan_block_slash<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
@@ -348,7 +348,7 @@ where
 }
 
 fn scan_block_star<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,

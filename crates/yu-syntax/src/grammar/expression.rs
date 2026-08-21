@@ -201,7 +201,7 @@ where
 }
 
 fn consume_trivia<E>(
-    i: &mut SynIn<'_, '_, '_, E>,
+    i: &mut SynIn<E>,
 ) -> Option<LeadingTrivia>
 where
     E: ErrorSink<usize>,

@@ -660,7 +660,7 @@ where
 
 /// Parses the dot-separated binding-power vector used by operator headers.
 fn parse_binding_power<E>(
-    i: SynIn<'_, '_, '_, E>,
+    i: SynIn<E>,
 ) -> Option<BindingPower>
 where
     E: ErrorSink<usize>,
@@ -1058,7 +1058,7 @@ where
     Some(Some(path))
 }
 
-fn parse_with_keyword<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
+fn parse_with_keyword<E>(mut i: SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1208,7 +1208,7 @@ where
     }
 }
 
-fn parse_use_glob<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<Range<usize>>
+fn parse_use_glob<E>(mut i: SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1238,7 +1238,7 @@ fn empty_use_path<'source>() -> UsePath<'source> {
     }
 }
 
-fn consume_group_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<bool>
+fn consume_group_trivia<E>(i: &mut SynIn<E>) -> Option<bool>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1248,7 +1248,7 @@ where
     Some(i.input.source()[trivia.range()].contains(['\r', '\n']))
 }
 
-fn parse_open_brace<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
+fn parse_open_brace<E>(mut i: SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1258,7 +1258,7 @@ where
 }
 
 fn scan_open_parenthesis<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1269,7 +1269,7 @@ where
         .then(|| punctuation.range())
 }
 
-fn scan_close_parenthesis<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
+fn scan_close_parenthesis<E>(mut i: SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1280,7 +1280,7 @@ where
 
 fn parse_close_delimiter<E>(
     delimiter: Delimiter,
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1291,7 +1291,7 @@ where
 }
 
 fn parse_close_brace<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
@@ -1301,7 +1301,7 @@ where
     (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace)).then(|| punctuation.range())
 }
 
-fn parse_comma<E>(mut i: SynIn<'_, '_, '_, E>) -> Option<()>
+fn parse_comma<E>(mut i: SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1311,7 +1311,7 @@ where
 }
 
 fn parse_use_separator<E>(
-    mut i: SynIn<'_, '_, '_, E>,
+    mut i: SynIn<E>,
 ) -> Option<UseSeparator>
 where
     E: ErrorSink<usize>,
@@ -1325,7 +1325,7 @@ where
     }
 }
 
-fn inline_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
+fn inline_trivia<E>(i: &mut SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1336,7 +1336,7 @@ where
     (!text.is_empty() && !text.contains(['\r', '\n'])).then_some(())
 }
 
-fn optional_inline_trivia<E>(i: &mut SynIn<'_, '_, '_, E>) -> Option<()>
+fn optional_inline_trivia<E>(i: &mut SynIn<E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
