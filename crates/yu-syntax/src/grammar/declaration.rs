@@ -30,6 +30,13 @@ pub(crate) enum Declaration<'source> {
     OperatorHeader(OperatorHeaderDeclaration<'source>),
 }
 
+/// A declaration shape that can contribute a source-leading header fact.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum HeaderDeclaration<'source> {
+    Use(UseDeclaration<'source>),
+    OperatorHeader(OperatorHeaderDeclaration<'source>),
+}
+
 /// A `my name = value` declaration with a minimal expression value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BindingDeclaration<'source> {
@@ -512,6 +519,24 @@ where
         from_fn(|input| parse_use_declaration(input).map(Declaration::Use)),
         from_fn(|input| parse_binding_declaration(input).map(Declaration::Binding)),
         from_fn(|input| parse_operator_header(input).map(Declaration::OperatorHeader)),
+    ))
+}
+
+/// Parses only declaration forms that are valid in the source-leading header.
+///
+/// Binding declarations intentionally remain absent: encountering one ends
+/// header discovery without making it a syntax error.
+pub(crate) fn parse_header_declaration<'source, E>(
+    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+) -> Option<HeaderDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    input.choice((
+        from_fn(|input| parse_use_declaration(input).map(HeaderDeclaration::Use)),
+        from_fn(|input| parse_operator_header(input).map(HeaderDeclaration::OperatorHeader)),
     ))
 }
 
