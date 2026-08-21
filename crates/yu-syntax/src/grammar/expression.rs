@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use chasa::{
-    ErrorSink,
+    Back as _, ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::Parser,
     prelude::{from_fn, many_skip, one_of},
@@ -388,6 +388,27 @@ where
     probe
         .input()
         .run(from_fn(|i| recognize_nud(table, leading, i)))
+}
+
+/// Tests whether the current position can begin a direct expression without
+/// granting a continuation access to its output sink. Declaration recovery
+/// uses this to decide whether an invalid occupying byte can be skipped and
+/// the same mandatory value slot retried.
+pub(crate) fn direct_expression_nud_candidate<'parse, 'source, 'local, E>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(from_fn(|i| recognize_nud(table, leading, i))).is_some();
+    i.rollback(checkpoint);
+    candidate
 }
 
 /// Probes a LED candidate and rolls back its trivia with every rejection.

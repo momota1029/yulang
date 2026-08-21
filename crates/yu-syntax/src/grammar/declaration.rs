@@ -23,7 +23,7 @@ use crate::{
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, DeclarationRole,
         ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, Delimiter, Probe, SynIn,
+        RecoverySiteKey, SyntaxExpectation, Delimiter, LayoutRole, Probe, SynIn,
     },
     syntax_kind::SyntaxKind,
 };
@@ -364,6 +364,8 @@ where
 
     if let Some(after_my) = commit_required_inline_trivia(committed) {
         committed.emit_trivia(&after_my);
+    } else if commit_word_candidate(committed) {
+        emit_layout_missing(committed);
     }
     let Some(name) = commit_word(committed) else {
         emit_binding_missing(committed, BindingRole::Name, ExpectedSyntax::Identifier);
@@ -374,6 +376,8 @@ where
 
     if let Some(after_name) = commit_required_inline_trivia(committed) {
         committed.emit_trivia(&after_name);
+    } else if commit_character_candidate(committed, '=') {
+        emit_layout_missing(committed);
     }
     if let Some(equals) = commit_character(committed, '=') {
         committed.token(SyntaxKind::Equals, equals);
@@ -394,7 +398,23 @@ where
     if let Some(after_equals) = &after_equals {
         committed.emit_trivia(after_equals);
     }
-    let Some(value) = parse_direct_expression_with_operators(operators, leading, committed) else {
+    if after_equals.as_ref().is_none_or(TriviaRun::is_empty)
+        && binding_value_candidate(operators, leading, committed)
+    {
+        emit_layout_missing(committed);
+    }
+    let value = if let Some(value) = parse_direct_expression_with_operators(operators, leading, committed) {
+        value
+    } else if binding_value_error_retry(operators, committed) {
+        match parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed) {
+            Some(value) => value,
+            None => {
+                emit_binding_missing(committed, BindingRole::Value, ExpectedSyntax::Expression);
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        }
+    } else {
         emit_binding_missing(committed, BindingRole::Value, ExpectedSyntax::Expression);
         committed.finish_node();
         return Recovered::Incomplete;
@@ -403,6 +423,161 @@ where
     committed.finish_node();
 
     Recovered::Complete(ParsedBindingDeclaration { range, name, value })
+}
+
+/// Emits the recovery record shared by every missing inline separator. The
+/// following slot remains at the current source position; no synthetic trivia
+/// token is introduced.
+fn emit_layout_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Layout(LayoutRole::InlineTrivia);
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::InlineTrivia,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn commit_word_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(scan_word).is_some();
+        i.rollback(checkpoint);
+        candidate
+    })
+}
+
+fn commit_character_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expected: char,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let candidate = scan_character(i, expected).is_some();
+        i.rollback(checkpoint);
+        candidate
+    })
+}
+
+/// The direct Pratt parser leaves a non-NUD byte untouched on rejection. For
+/// binding recovery, consume the invalid run as one Error episode and retry
+/// the same value slot only when a later local NUD candidate is found. Newline,
+/// semicolon, and EOF remain owner boundaries and are never consumed here.
+fn binding_value_error_retry<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let range = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let boundary = {
+                let i = probe.input();
+                let Some(character) = i.input.remainder().chars().next() else {
+                    return (start < end).then_some((start..end, false));
+                };
+                matches!(character, '\r' | '\n' | ';')
+            };
+            if boundary {
+                return (start < end).then_some((start..end, false));
+            }
+            {
+                let i = probe.input();
+                i.input.next()?;
+                end = i.pos();
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_expression_nud_candidate(
+                operators,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = range else {
+        return false;
+    };
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+    retry
+}
+
+fn binding_value_candidate<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    leading: LeadingTrivia,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        crate::grammar::expression::direct_expression_nud_candidate(operators, leading, probe)
+    })
 }
 
 fn emit_binding_missing<'parse, 'source, 'local, E, O>(
@@ -2961,6 +3136,30 @@ mod tests {
         (declaration, committed.into_output())
     }
 
+    fn parse_recovered_binding<'source>(
+        source: &'source str,
+        operators: &crate::operator::OperatorTable,
+    ) -> (Recovered<ParsedBindingDeclaration<'source, rowan::Checkpoint>>, FullCstOutput<'source>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_binding_statement_intro)
+            .expect("binding prefix");
+        let mut committed = probe.commit(FullCstOutput::new(source));
+        let outcome = commit_binding_declaration(operators, &mut committed, intro);
+        (outcome, committed.into_output())
+    }
+
     fn parse_direct_header_with_output<'source, O>(
         source: &'source str,
         output: O,
@@ -3151,6 +3350,63 @@ mod tests {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn direct_binding_recovers_missing_inline_separation_without_synthetic_trivia() {
+        let source = "my value=result";
+        let (binding, output) = parse_direct_binding_with_output(
+            source,
+            &crate::operator::OperatorTable::empty(),
+        );
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(binding.range(), 0..source.len());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            2,
+        );
+    }
+
+    #[test]
+    fn direct_binding_value_error_retries_a_later_nud_candidate() {
+        let source = "my value = @@result";
+        let (outcome, output) = parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Complete(_)));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_binding_value_error_stops_at_its_safe_point_without_a_candidate() {
+        let source = "my value = @@";
+        let (outcome, output) = parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
         );
     }
 
