@@ -16,9 +16,10 @@ mod session;
 mod sink;
 mod syntax_kind;
 
+pub use operator::OperatorTable;
 pub use parse::{
-    OperatorTable, ParsedFile, SourceRevision, SyntaxDependencyProvenance, SyntaxDiagnostic,
-    SyntaxEnvironment, SyntaxEnvironmentKey, parse_file,
+    ParsedFile, SourceRevision, SyntaxDependencyProvenance, SyntaxDependencySlot, SyntaxDiagnostic,
+    SyntaxEnvironment, SyntaxEnvironmentBuildError, SyntaxEnvironmentKey, parse_file,
 };
 pub use syntax_kind::{SyntaxKind, SyntaxNode, SyntaxToken, YulangLanguage};
 
