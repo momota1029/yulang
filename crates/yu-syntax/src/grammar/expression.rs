@@ -5,6 +5,7 @@ use std::ops::Range;
 use chasa::{
     ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
+    parser::Parser,
     prelude::{In, from_fn, many_skip, one_of},
 };
 
@@ -89,20 +90,20 @@ impl<'source> IntegerLiteral<'source> {
 
 /// Parses an identifier or decimal integer expression without operators.
 pub(crate) fn parse_expression<'source, E>(
-    input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_atom(input)
+    parse_atom(i)
 }
 
 /// Parses an expression with site-aware dynamic operator resolution.
 pub(crate) fn parse_expression_with_operators<'source, E>(
     table: &OperatorTable,
-    input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -110,26 +111,26 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let minimum = BindingPower::scalar(i8::MIN);
-    parse_expression_bp(table, &minimum, input)
+    parse_expression_bp(table, &minimum, i)
 }
 
 fn parse_expression_bp<'source, E>(
     table: &OperatorTable,
     minimum: &BindingPower,
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let leading = consume_trivia(&mut input)?;
-    let mut left = input.choice((
-        from_fn(|input| parse_prefix_or_nullfix(table, leading, input)),
+    let leading = consume_trivia(&mut i)?;
+    let mut left = i.choice((
+        from_fn(|i| parse_prefix_or_nullfix(table, leading, i)),
         from_fn(parse_atom),
     ))?;
 
-    while let Some(tail) = input.maybe(from_fn(|input| parse_infix_tail(table, minimum, input)))? {
+    while let Some(tail) = i.maybe(from_fn(|i| parse_infix_tail(table, minimum, i)))? {
         left = Expression::InfixApplication {
             left: Box::new(left),
             operator: tail.operator,
@@ -143,15 +144,15 @@ where
 fn parse_prefix_or_nullfix<'source, E>(
     table: &OperatorTable,
     leading: LeadingTrivia,
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let scanned = input.run(from_fn(|input| {
-        scan_operator(OperatorSite::Nud, leading, table, input)
+    let scanned = i.run(from_fn(|i| {
+        scan_operator(OperatorSite::Nud, leading, table, i)
     }))?;
     let operator = OperatorApplication {
         text: scanned.text(),
@@ -160,8 +161,8 @@ where
 
     match scanned.fixity().clone() {
         ScannedFixity::Prefix { right } => {
-            input.cut();
-            let operand = parse_expression_bp(table, &right, input)?;
+            i.cut();
+            let operand = parse_expression_bp(table, &right, i)?;
             Some(Expression::PrefixApplication {
                 operator,
                 operand: Box::new(operand),
@@ -175,40 +176,40 @@ where
 fn parse_infix_tail<'source, E>(
     table: &OperatorTable,
     minimum: &BindingPower,
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<InfixTail<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let leading = consume_trivia(&mut input)?;
-    let scanned = input.run(from_fn(|input| {
-        scan_operator(OperatorSite::Led, leading, table, input)
+    let leading = consume_trivia(&mut i)?;
+    let scanned = i.run(from_fn(|i| {
+        scan_operator(OperatorSite::Led, leading, table, i)
     }))?;
     let ScannedFixity::Infix { left, right } = scanned.fixity().clone() else {
         return None;
     };
     (left >= *minimum).then_some(())?;
-    input.cut();
+    i.cut();
     let operator = OperatorApplication {
         text: scanned.text(),
         range: scanned.range(),
     };
-    let right = parse_expression_bp(table, &right, input)?;
+    let right = parse_expression_bp(table, &right, i)?;
 
     Some(InfixTail { operator, right })
 }
 
 fn consume_trivia<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<LeadingTrivia>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = input.run(from_fn(scan_trivia))?;
+    let trivia = i.run(scan_trivia)?;
     if trivia.is_empty() {
         Some(LeadingTrivia::None)
     } else {
@@ -222,45 +223,45 @@ struct InfixTail<'source> {
 }
 
 fn parse_atom<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.choice((
-        from_fn(|input| parse_identifier(input).map(Expression::Identifier)),
-        from_fn(|input| parse_integer_literal(input).map(Expression::Integer)),
+    i.choice((
+        parse_identifier.map(Expression::Identifier),
+        parse_integer_literal.map(Expression::Integer),
     ))
 }
 
 fn parse_identifier<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    input.run(from_fn(scan_word))
+    i.run(scan_word)
 }
 
 pub(crate) fn parse_integer_literal<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<IntegerLiteral<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    input.skip(one_of(|character: char| character.is_ascii_digit()))?;
-    input.skip(many_skip(one_of(|character: char| {
+    let start = i.pos();
+    i.skip(one_of(|character: char| character.is_ascii_digit()))?;
+    i.skip(many_skip(one_of(|character: char| {
         character.is_ascii_digit()
     })))?;
-    let end = input.pos();
+    let end = i.pos();
 
     Some(IntegerLiteral {
-        text: &input.input.source()[start..end],
+        text: &i.input.source()[start..end],
         start,
         end,
     })
@@ -380,19 +381,19 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let expression = input
-            .run(from_fn(|input| {
-                parse_expression_with_operators(table, input)
+        let expression = i
+            .run(from_fn(|i| {
+                parse_expression_with_operators(table, i)
             }))
             .expect("expression should parse");
-        assert_eq!(input.input.remainder(), "");
+        assert_eq!(i.input.remainder(), "");
         expression
     }
 }
