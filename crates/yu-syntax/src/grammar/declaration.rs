@@ -12,7 +12,9 @@ use chasa::{
 use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
-    grammar::expression::{Expression, ParsedExpression, parse_direct_expression_with_operators, parse_expression},
+    grammar::expression::{
+        Expression, ParsedExpression, parse_direct_expression_with_operators, parse_expression,
+    },
     operator::{BindingPower, OperatorFixity},
     scan::{
         operator::LeadingTrivia,
@@ -22,9 +24,9 @@ use crate::{
     },
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
-        DeclarationRole, ImportRole,
-        ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, Delimiter, LayoutRole, Probe, SynIn,
+        DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ImportRole,
+        LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey, SynIn,
+        SyntaxExpectation,
     },
     syntax_kind::SyntaxKind,
 };
@@ -81,9 +83,10 @@ pub(crate) struct OperatorStatementIntro<'source> {
     lazy_keyword: Option<WordSpan<'source>>,
     after_visibility: Option<TriviaRun>,
     after_lazy: Option<TriviaRun>,
-    fixity_keyword: WordSpan<'source>,
-    after_fixity: TriviaRun,
-    fixity: OperatorFixity,
+    /// A fixity recognized before commitment.  `lazy` deliberately leaves
+    /// this slot to the continuation so a missing discriminator can recover.
+    fixity_keyword: Option<WordSpan<'source>>,
+    after_fixity: Option<TriviaRun>,
 }
 
 /// The committed prefix of a direct binding declaration.
@@ -185,7 +188,10 @@ where
             Recovered::Incomplete => return None,
         },
         HeaderStatementIntro::Operator(intro) => {
-            HeaderDeclaration::OperatorHeader(commit_operator_header(&mut committed, intro)?)
+            match commit_operator_header(&mut committed, intro) {
+                Recovered::Complete(declaration) => HeaderDeclaration::OperatorHeader(declaration),
+                Recovered::Incomplete => return None,
+            }
         }
     };
     Some((declaration, committed.into_output()))
@@ -200,7 +206,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if binding_statement_selected(&mut i) {
-        return i.run(recognize_binding_statement_intro).map(StatementIntro::Binding);
+        return i
+            .run(recognize_binding_statement_intro)
+            .map(StatementIntro::Binding);
     }
 
     let start = i.pos();
@@ -227,13 +235,30 @@ where
     }
 
     let (lazy_keyword, after_lazy, fixity_keyword) = if keyword.text() == "lazy" {
-        let trivia = scan_required_inline_trivia(&mut i)?;
-        (Some(keyword), Some(trivia), i.run(scan_word)?)
+        // `lazy` alone is enough to select the committed operator
+        // continuation.  Its required separator and fixity discriminator are
+        // mandatory slots owned by that continuation.
+        let after_lazy = scan_maybe_required_inline_trivia(&mut i);
+        let fixity_keyword = after_lazy.as_ref().and_then(|_| {
+            let checkpoint = i.checkpoint();
+            let fixity_keyword = i
+                .run(scan_word)
+                .filter(|word| parse_operator_fixity(*word).is_some());
+            if fixity_keyword.is_none() {
+                i.rollback(checkpoint);
+            }
+            fixity_keyword
+        });
+        (Some(keyword), after_lazy, fixity_keyword)
+    } else if parse_operator_fixity(keyword).is_some() {
+        (None, None, Some(keyword))
     } else {
-        (None, None, keyword)
+        return None;
     };
-    let fixity = parse_operator_fixity(fixity_keyword)?;
-    let after_fixity = scan_optional_inline_trivia(&mut i)?;
+
+    let after_fixity = fixity_keyword
+        .as_ref()
+        .and_then(|_| scan_maybe_optional_inline_trivia(&mut i));
 
     Some(StatementIntro::Operator(OperatorStatementIntro {
         start,
@@ -243,7 +268,6 @@ where
         after_lazy,
         fixity_keyword,
         after_fixity,
-        fixity,
     }))
 }
 
@@ -271,13 +295,19 @@ where
             return true;
         };
         let Some(_) = scan_required_inline_trivia(i) else {
-            return !matches!(name.text(), "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix");
+            return !matches!(
+                name.text(),
+                "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix"
+            );
         };
         if i.input.remainder().starts_with('=') {
             return true;
         }
         let _ = after_my;
-        !matches!(name.text(), "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix")
+        !matches!(
+            name.text(),
+            "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix"
+        )
     })();
     i.rollback(checkpoint);
     selected
@@ -317,6 +347,20 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = scan_required_inline_trivia(i);
+    if trivia.is_none() {
+        i.rollback(checkpoint);
+    }
+    trivia
+}
+
+fn scan_maybe_optional_inline_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = scan_optional_inline_trivia(i);
     if trivia.is_none() {
         i.rollback(checkpoint);
     }
@@ -423,7 +467,9 @@ where
     {
         emit_layout_missing(committed);
     }
-    let value = if let Some(value) = parse_direct_expression_with_operators(operators, leading, committed) {
+    let value = if let Some(value) =
+        parse_direct_expression_with_operators(operators, leading, committed)
+    {
         value
     } else if binding_value_error_retry(operators, committed) {
         match parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed) {
@@ -460,7 +506,10 @@ fn emit_layout_missing<'parse, 'source, 'local, E, O>(
         let role = GrammarRole::Layout(LayoutRole::InlineTrivia);
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -565,7 +614,10 @@ where
         let role = GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value));
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -649,7 +701,10 @@ fn emit_import_missing<'parse, 'source, 'local, E, O>(
         let grammar_role = GrammarRole::Declaration(DeclarationRole::Import(role));
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role: grammar_role, range: at..at },
+            RecoverySiteKey {
+                role: grammar_role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
@@ -680,14 +735,17 @@ fn emit_import_group_close_missing<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(
-                    crate::session::PunctuationEvidence::Close(delimiter),
-                ),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    delimiter,
+                )),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -714,7 +772,10 @@ fn emit_import_group_mismatched_close<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -724,9 +785,9 @@ fn emit_import_group_mismatched_close<'parse, 'source, 'local, E, O>(
             }]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(
-                    crate::session::PunctuationEvidence::Close(expected),
-                ),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    expected,
+                )),
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -751,14 +812,17 @@ fn emit_import_operator_close_missing<'parse, 'source, 'local, E, O>(
         };
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: at..at },
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
             RecoveryKind::Missing,
             Arc::from([]),
             Arc::from([SyntaxExpectation {
                 role,
-                expected: ExpectedSyntax::Punctuation(
-                    crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis),
-                ),
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -773,7 +837,7 @@ fn emit_import_operator_close_missing<'parse, 'source, 'local, E, O>(
 pub(crate) fn commit_operator_header<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: OperatorStatementIntro<'source>,
-) -> Option<OperatorHeaderDeclaration<'source>>
+) -> Recovered<OperatorHeaderDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -783,51 +847,100 @@ where
     committed.start_node(SyntaxKind::OperatorHeader);
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
-        committed.emit_trivia(intro.after_visibility.as_ref()?);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
     }
     if let Some(lazy_keyword) = intro.lazy_keyword {
         committed.token(SyntaxKind::LazyKw, lazy_keyword.range());
-        committed.emit_trivia(intro.after_lazy.as_ref()?);
+        if let Some(trivia) = &intro.after_lazy {
+            committed.emit_trivia(trivia);
+        } else if commit_operator_fixity_candidate(committed) {
+            emit_layout_missing(committed);
+        }
     }
-    committed.token(fixity_token_kind(intro.fixity), intro.fixity_keyword.range());
-    committed.emit_trivia(&intro.after_fixity);
-
-    let name = commit_operator_name(committed)?;
-    let (left_binding_power, right_binding_power) = match intro.fixity {
-        OperatorFixity::Nullfix => (None, None),
-        OperatorFixity::Prefix => {
-            emit_optional_inline_trivia(committed)?;
-            (None, Some(commit_binding_power(committed)?))
+    let fixity = match intro.fixity_keyword {
+        Some(keyword) => {
+            let fixity = parse_operator_fixity(keyword)
+                .expect("operator intro stores only a recognized fixity");
+            committed.token(fixity_token_kind(fixity), keyword.range());
+            Recovered::Complete(fixity)
         }
-        OperatorFixity::Suffix => {
-            emit_optional_inline_trivia(committed)?;
-            (Some(commit_binding_power(committed)?), None)
-        }
-        OperatorFixity::Infix => {
-            emit_optional_inline_trivia(committed)?;
-            let left = commit_binding_power(committed)?;
-            emit_optional_inline_trivia(committed)?;
-            let right = commit_binding_power(committed)?;
-            (Some(left), Some(right))
+        None => commit_operator_fixity(committed),
+    };
+    let fixity = match fixity {
+        Recovered::Complete(fixity) => fixity,
+        Recovered::Incomplete => {
+            committed.finish_node();
+            return Recovered::Incomplete;
         }
     };
-    emit_optional_inline_trivia(committed)?;
-    let equals = commit_character(committed, '=')?;
-    committed.token(SyntaxKind::Equals, equals.clone());
+
+    if let Some(trivia) = &intro.after_fixity {
+        committed.emit_trivia(trivia);
+    } else {
+        emit_optional_inline_trivia(committed);
+    }
+    let name = match commit_operator_name(committed) {
+        Recovered::Complete(name) => Some(name),
+        Recovered::Incomplete => None,
+    };
+    let (left_binding_power, right_binding_power, binding_powers_complete) = match fixity {
+        OperatorFixity::Nullfix => (None, None, true),
+        OperatorFixity::Prefix => {
+            emit_optional_inline_trivia(committed);
+            let right = commit_binding_power(committed, OperatorHeaderRole::RightBindingPower);
+            let complete = matches!(right, Recovered::Complete(_));
+            (None, recovered_binding_power(right), complete)
+        }
+        OperatorFixity::Suffix => {
+            emit_optional_inline_trivia(committed);
+            let left = commit_binding_power(committed, OperatorHeaderRole::LeftBindingPower);
+            let complete = matches!(left, Recovered::Complete(_));
+            (recovered_binding_power(left), None, complete)
+        }
+        OperatorFixity::Infix => {
+            emit_optional_inline_trivia(committed);
+            let left = commit_binding_power(committed, OperatorHeaderRole::LeftBindingPower);
+            emit_optional_inline_trivia(committed);
+            let right = commit_binding_power(committed, OperatorHeaderRole::RightBindingPower);
+            let complete =
+                matches!(left, Recovered::Complete(_)) && matches!(right, Recovered::Complete(_));
+            (
+                recovered_binding_power(left),
+                recovered_binding_power(right),
+                complete,
+            )
+        }
+    };
+    emit_optional_inline_trivia(committed);
+    let equals = commit_operator_definition_introducer(committed);
     committed.finish_node();
 
-    Some(OperatorHeaderDeclaration {
-        range: intro.start..equals.end,
-        name,
-        visibility: intro
-            .visibility
-            .as_ref()
-            .map_or(Visibility::Private, |prefix| prefix.visibility),
-        lazy: intro.lazy_keyword.is_some(),
-        fixity: intro.fixity,
-        left_binding_power,
-        right_binding_power,
-    })
+    match (name, binding_powers_complete, equals) {
+        (Some(name), true, Recovered::Complete(equals)) => {
+            Recovered::Complete(OperatorHeaderDeclaration {
+                range: intro.start..equals.end,
+                name,
+                visibility: intro
+                    .visibility
+                    .as_ref()
+                    .map_or(Visibility::Private, |prefix| prefix.visibility),
+                lazy: intro.lazy_keyword.is_some(),
+                fixity,
+                left_binding_power,
+                right_binding_power,
+            })
+        }
+        _ => Recovered::Incomplete,
+    }
+}
+
+fn recovered_binding_power(value: Recovered<BindingPower>) -> Option<BindingPower> {
+    match value {
+        Recovered::Complete(value) => Some(value),
+        Recovered::Incomplete => None,
+    }
 }
 
 fn fixity_token_kind(fixity: OperatorFixity) -> SyntaxKind {
@@ -839,50 +952,401 @@ fn fixity_token_kind(fixity: OperatorFixity) -> SyntaxKind {
     }
 }
 
-fn commit_operator_name<'parse, 'source, 'local, E, O>(
+fn commit_operator_fixity<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<&'source str>
+) -> Recovered<OperatorFixity>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (open, name, name_range, close) = committed.probe(|probe| {
-        let i = probe.input();
-        let open = scan_character(i, '(')?;
-        let name_start = i.pos();
-        let name = parse_operator_name(i)?;
-        let name_range = name_start..i.pos();
-        let close = scan_character(i, ')')?;
-        Some((open, name, name_range, close))
-    })?;
+    if !commit_operator_fixity_candidate(committed) && !operator_fixity_error_retry(committed) {
+        emit_operator_fixity_missing(committed);
+        return Recovered::Incomplete;
+    }
+    let keyword = commit_word(committed).expect("sink-free candidate must still scan a word");
+    let fixity = parse_operator_fixity(keyword).expect("candidate recognizes only a fixity");
+    committed.token(fixity_token_kind(fixity), keyword.range());
+    Recovered::Complete(fixity)
+}
 
+/// Fixity is the header shape discriminator.  A malformed spelling owns one
+/// Error episode and may retry only at a later recognized discriminator;
+/// otherwise the continuation stops without inventing a BP arity.
+fn operator_fixity_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ';') {
+                return (start < end).then_some((start..end, false));
+            }
+            let checkpoint = i.checkpoint();
+            let candidate = i.run(scan_word).and_then(parse_operator_fixity).is_some();
+            i.rollback(checkpoint);
+            if candidate {
+                return (start < end).then_some((start..end, true));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return false;
+    };
+    emit_operator_error(
+        committed,
+        OperatorHeaderRole::Fixity,
+        ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Prefix),
+        range,
+        crate::session::UnexpectedCategory::Word,
+    );
+    retry
+}
+
+fn commit_operator_fixity_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(scan_word).and_then(parse_operator_fixity).is_some();
+        i.rollback(checkpoint);
+        candidate
+    })
+}
+
+fn emit_operator_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: OperatorHeaderRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let grammar_role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role: grammar_role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role: grammar_role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_operator_fixity_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role =
+            GrammarRole::Declaration(DeclarationRole::OperatorHeader(OperatorHeaderRole::Fixity));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Prefix),
+                    range: at..at,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Infix),
+                    range: at..at,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Suffix),
+                    range: at..at,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                },
+                SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Keyword(crate::session::KeywordEvidence::Nullfix),
+                    range: at..at,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                },
+            ]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_operator_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: OperatorHeaderRole,
+    expected: ExpectedSyntax,
+    range: Range<usize>,
+    category: crate::session::UnexpectedCategory,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let grammar_role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role: grammar_role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role: grammar_role,
+                expected,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_operator_name_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::OperatorName,
+            delimiter: Delimiter::Parenthesis,
+        };
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                )),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn commit_operator_definition_introducer<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(equals) = commit_character(committed, '=') {
+        committed.token(SyntaxKind::Equals, equals.clone());
+        return Recovered::Complete(equals);
+    }
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some(start..end);
+            };
+            if matches!(character, '\r' | '\n' | ';' | '=') {
+                return (start < end).then_some(start..end);
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    });
+    if let Some(range) = recovered {
+        emit_operator_error(
+            committed,
+            OperatorHeaderRole::DefinitionIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+            range,
+            crate::session::UnexpectedCategory::OtherCharacter,
+        );
+        if let Some(equals) = commit_character(committed, '=') {
+            committed.token(SyntaxKind::Equals, equals.clone());
+            // The punctuation is present after an Error episode, but that
+            // episode means this mandatory slot cannot contribute a complete
+            // header fact.
+            return Recovered::Incomplete;
+        }
+    }
+    emit_operator_missing(
+        committed,
+        OperatorHeaderRole::DefinitionIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+    );
+    Recovered::Incomplete
+}
+
+fn commit_operator_name<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<&'source str>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     committed.start_node(SyntaxKind::OperatorName);
-    committed.token(SyntaxKind::LParen, open);
-    committed.token(SyntaxKind::Operator, name_range);
-    committed.token(SyntaxKind::RParen, close);
+    let open = if let Some(open) = commit_character(committed, '(') {
+        committed.token(SyntaxKind::LParen, open);
+        true
+    } else {
+        emit_operator_missing(
+            committed,
+            OperatorHeaderRole::Name,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+        );
+        false
+    };
+    if !open {
+        committed.finish_node();
+        return Recovered::Incomplete;
+    }
+
+    let spelling = committed.probe(|probe| {
+        let i = probe.input();
+        let start = i.pos();
+        while let Some(character) = i.input.remainder().chars().next() {
+            if character == ')' {
+                break;
+            }
+            if character.is_whitespace()
+                || matches!(
+                    character,
+                    '(' | '[' | ']' | '{' | '}' | '\\' | ',' | ';' | '"' | '\''
+                )
+            {
+                break;
+            }
+            i.input.next()?;
+        }
+        let end = i.pos();
+        (start < end).then_some((&i.input.source()[start..end], start..end))
+    });
+    let Some((name, range)) = spelling else {
+        emit_operator_missing(
+            committed,
+            OperatorHeaderRole::Name,
+            ExpectedSyntax::OperatorName,
+        );
+        if let Some(close) = commit_character(committed, ')') {
+            committed.token(SyntaxKind::RParen, close);
+        } else {
+            emit_operator_name_close_missing(committed);
+        }
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
+    committed.token(SyntaxKind::Operator, range);
+    let close = if let Some(close) = commit_character(committed, ')') {
+        committed.token(SyntaxKind::RParen, close);
+        true
+    } else {
+        emit_operator_name_close_missing(committed);
+        false
+    };
     committed.finish_node();
-    Some(name)
+    close
+        .then_some(name)
+        .map_or(Recovered::Incomplete, Recovered::Complete)
 }
 
 fn commit_binding_power<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<BindingPower>
+    role: OperatorHeaderRole,
+) -> Recovered<BindingPower>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (binding_power, components, dots) = committed.probe(|probe| {
+    enum BindingPowerScan {
+        Complete(BindingPower, Vec<Range<usize>>, Vec<Range<usize>>),
+        Invalid(Range<usize>),
+    }
+
+    let scan = committed.probe(|probe| {
         let i = probe.input();
         let mut values = Vec::new();
         let mut components = Vec::new();
         let mut dots = Vec::new();
+        let start = i.pos();
 
         loop {
-            let start = i.pos();
+            let component_start = i.pos();
             while i
                 .input
                 .remainder()
@@ -893,9 +1357,14 @@ where
                 i.input.next()?;
             }
             let end = i.pos();
-            (start < end).then_some(())?;
-            values.push(i.input.source()[start..end].parse::<i8>().ok()?);
-            components.push(start..end);
+            if component_start == end {
+                return (start < end).then_some(BindingPowerScan::Invalid(start..end));
+            }
+            let Ok(value) = i.input.source()[component_start..end].parse::<i8>() else {
+                return Some(BindingPowerScan::Invalid(start..end));
+            };
+            values.push(value);
+            components.push(component_start..end);
 
             if !i.input.remainder().starts_with('.') {
                 break;
@@ -907,18 +1376,97 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
         let (first, rest) = values.split_first()?;
-        Some((BindingPower::new(*first, rest.iter().copied()), components, dots))
-    })?;
+        Some(BindingPowerScan::Complete(
+            BindingPower::new(*first, rest.iter().copied()),
+            components,
+            dots,
+        ))
+    });
 
-    committed.start_node(SyntaxKind::BindingPower);
-    for (index, component) in components.into_iter().enumerate() {
-        if index > 0 {
-            committed.token(SyntaxKind::Dot, dots[index - 1].clone());
+    match scan {
+        Some(BindingPowerScan::Complete(binding_power, components, dots)) => {
+            committed.start_node(SyntaxKind::BindingPower);
+            for (index, component) in components.into_iter().enumerate() {
+                if index > 0 {
+                    committed.token(SyntaxKind::Dot, dots[index - 1].clone());
+                }
+                committed.token(SyntaxKind::Integer, component);
+            }
+            committed.finish_node();
+            Recovered::Complete(binding_power)
         }
-        committed.token(SyntaxKind::Integer, component);
+        Some(BindingPowerScan::Invalid(range)) => {
+            emit_operator_error(
+                committed,
+                role,
+                ExpectedSyntax::BindingPower,
+                range,
+                crate::session::UnexpectedCategory::DecimalInteger,
+            );
+            Recovered::Incomplete
+        }
+        None => {
+            if binding_power_error_retry(committed, role) {
+                commit_binding_power(committed, role)
+            } else {
+                emit_operator_missing(committed, role, ExpectedSyntax::BindingPower);
+                Recovered::Incomplete
+            }
+        }
     }
-    committed.finish_node();
-    Some(binding_power)
+}
+
+/// A binding-power slot retries only at a later digit vector.  Words are a
+/// body-NUD safe point, so they stay for the operator-definition continuation
+/// rather than becoming a fabricated binding power here.
+fn binding_power_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: OperatorHeaderRole,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ';' | '=') {
+                return (start < end).then_some((start..end, false));
+            }
+            if character.is_ascii_digit() {
+                return (start < end).then_some((start..end, true));
+            }
+            let checkpoint = i.checkpoint();
+            let body_nud = i.run(scan_word).is_some();
+            i.rollback(checkpoint);
+            if body_nud {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return false;
+    };
+    emit_operator_error(
+        committed,
+        role,
+        ExpectedSyntax::BindingPower,
+        range,
+        crate::session::UnexpectedCategory::OtherCharacter,
+    );
+    retry
 }
 
 fn commit_optional_inline_trivia<'parse, 'source, 'local, E, O>(
@@ -935,16 +1483,15 @@ where
 
 fn emit_optional_inline_trivia<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<()>
-where
+) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let trivia = commit_optional_inline_trivia(committed)?;
-    committed.emit_trivia(&trivia);
-    Some(())
+    if let Some(trivia) = commit_optional_inline_trivia(committed) {
+        committed.emit_trivia(&trivia);
+    }
 }
 
 fn commit_character<'parse, 'source, 'local, E, O>(
@@ -1036,7 +1583,9 @@ where
     let start = committed_position(committed);
     committed.start_node(SyntaxKind::UseTree);
 
-    let (form, prefix, terminal, terminal_end, glob_aliases) = if let Some(open) = commit_maybe_character(committed, '{').flatten() {
+    let (form, prefix, terminal, terminal_end, glob_aliases) = if let Some(open) =
+        commit_maybe_character(committed, '{').flatten()
+    {
         let (terminal, end) = match commit_use_group(committed, open) {
             Recovered::Complete(group) => group,
             Recovered::Incomplete => {
@@ -1044,7 +1593,13 @@ where
                 return Recovered::Incomplete;
             }
         };
-        (HeaderImportForm::Plain, empty_use_path(), terminal, end, Vec::new())
+        (
+            HeaderImportForm::Plain,
+            empty_use_path(),
+            terminal,
+            end,
+            Vec::new(),
+        )
     } else if let Some(open) = commit_maybe_character(committed, '(').flatten() {
         let first = match commit_parenthesized_use_operator(committed, open) {
             Recovered::Complete(segment) => segment,
@@ -1078,7 +1633,12 @@ where
                 committed.finish_node();
                 return Recovered::Incomplete;
             };
-            match commit_use_path_and_terminal(committed, first_segment, None, HeaderImportForm::Mod) {
+            match commit_use_path_and_terminal(
+                committed,
+                first_segment,
+                None,
+                HeaderImportForm::Mod,
+            ) {
                 Recovered::Complete(result) => result,
                 Recovered::Incomplete => {
                     committed.finish_node();
@@ -1087,7 +1647,12 @@ where
             }
         } else {
             let following_separator = commit_maybe_use_separator(committed).flatten();
-            let form = classify_use_form(first, following_separator.as_ref().map(|(separator, _)| *separator));
+            let form = classify_use_form(
+                first,
+                following_separator
+                    .as_ref()
+                    .map(|(separator, _)| *separator),
+            );
             match form {
                 HeaderImportForm::Plain => match commit_use_path_and_terminal(
                     committed,
@@ -1112,7 +1677,10 @@ where
                     );
                     let (_, marker_range) = following_separator
                         .expect("realm and band forms require their marker separator");
-                    committed.token(separator_token_kind(form_marker_separator(form)), marker_range);
+                    committed.token(
+                        separator_token_kind(form_marker_separator(form)),
+                        marker_range,
+                    );
                     if let Some(open) = commit_maybe_character(committed, '{').flatten() {
                         let (terminal, end) = match commit_use_group(committed, open) {
                             Recovered::Complete(group) => group,
@@ -1148,7 +1716,9 @@ where
                         }
                     }
                 }
-                HeaderImportForm::Mod => unreachable!("mod was handled before marker classification"),
+                HeaderImportForm::Mod => {
+                    unreachable!("mod was handled before marker classification")
+                }
             }
         }
     };
@@ -1191,7 +1761,9 @@ fn form_marker_separator(form: HeaderImportForm) -> UseSeparator {
     match form {
         HeaderImportForm::Realm => UseSeparator::Slash,
         HeaderImportForm::Band => UseSeparator::ColonColon,
-        HeaderImportForm::Plain | HeaderImportForm::Mod => unreachable!("only markers have a marker separator"),
+        HeaderImportForm::Plain | HeaderImportForm::Mod => {
+            unreachable!("only markers have a marker separator")
+        }
     }
 }
 
@@ -1226,7 +1798,12 @@ where
             .or(commit_maybe_use_separator(committed).flatten())
         else {
             committed.finish_node();
-            let end = path.segments().last().expect("use path has its first segment").range().end;
+            let end = path
+                .segments()
+                .last()
+                .expect("use path has its first segment")
+                .range()
+                .end;
             return Recovered::Complete((form, path, UseTerminal::Single, end, Vec::new()));
         };
         if let Some(open) = commit_maybe_character(committed, '{').flatten() {
@@ -1264,9 +1841,9 @@ where
         let segment = match commit_use_path_segment(committed) {
             Recovered::Complete(segment) => segment,
             Recovered::Incomplete => {
-            emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
-            committed.finish_node();
-            return Recovered::Incomplete;
+                emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
+                committed.finish_node();
+                return Recovered::Incomplete;
             }
         };
         emit_use_segment(committed, &segment);
@@ -1274,7 +1851,10 @@ where
     }
 }
 
-fn terminal_with_join<'source>(terminal: UseTerminal<'source>, join: UseSeparator) -> UseTerminal<'source> {
+fn terminal_with_join<'source>(
+    terminal: UseTerminal<'source>,
+    join: UseSeparator,
+) -> UseTerminal<'source> {
     match terminal {
         UseTerminal::Group { items, .. } => UseTerminal::Group {
             join: Some(join),
@@ -1374,10 +1954,7 @@ fn emit_use_segment<'parse, 'source, 'local, E, O>(
         UseSegment::Operator { range, .. } => {
             committed.start_node(SyntaxKind::OperatorName);
             committed.token(SyntaxKind::LParen, range.start..range.start + 1);
-            committed.token(
-                SyntaxKind::Operator,
-                range.start + 1..range.end - 1,
-            );
+            committed.token(SyntaxKind::Operator, range.start + 1..range.end - 1);
             committed.token(SyntaxKind::RParen, range.end - 1..range.end);
             committed.finish_node();
         }
@@ -1417,7 +1994,10 @@ where
         if committed_at_eof(committed) {
             emit_import_group_close_missing(committed, Delimiter::Brace);
             committed.finish_node();
-            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
+            return Recovered::Complete((
+                UseTerminal::Group { join: None, items },
+                committed_position(committed),
+            ));
         }
         if let Recovered::Complete(item) = commit_use_tree(committed) {
             items.push(item);
@@ -1444,7 +2024,10 @@ where
         } else if committed_at_eof(committed) {
             emit_import_group_close_missing(committed, Delimiter::Brace);
             committed.finish_node();
-            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
+            return Recovered::Complete((
+                UseTerminal::Group { join: None, items },
+                committed_position(committed),
+            ));
         } else if commit_use_tree_candidate(committed) {
             // Two same-line tree atoms need an explicit comma.  Keep the
             // second atom at this position so the next group iteration can
@@ -1457,7 +2040,10 @@ where
         } else if !newline {
             emit_import_group_close_missing(committed, Delimiter::Brace);
             committed.finish_node();
-            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
+            return Recovered::Complete((
+                UseTerminal::Group { join: None, items },
+                committed_position(committed),
+            ));
         }
     }
 }
@@ -1593,13 +2179,14 @@ where
             anchor,
         });
     }
-    let anchor = match commit_use_anchor(committed, anchor_prefix.expect("anchor prefix was checked")) {
-        Recovered::Complete(anchor) => anchor,
-        Recovered::Incomplete => {
-            committed.finish_node();
-            return Recovered::Incomplete;
-        }
-    };
+    let anchor =
+        match commit_use_anchor(committed, anchor_prefix.expect("anchor prefix was checked")) {
+            Recovered::Complete(anchor) => anchor,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        };
     committed.finish_node();
     Recovered::Complete(UseQualifiers {
         version: None,
@@ -1708,7 +2295,11 @@ where
         return Recovered::Complete(UseExclusion::Glob { range: star });
     }
     let Some(word) = commit_word(committed) else {
-        emit_import_missing(committed, ImportRole::GroupEntry, ExpectedSyntax::Identifier);
+        emit_import_missing(
+            committed,
+            ImportRole::GroupEntry,
+            ExpectedSyntax::Identifier,
+        );
         committed.finish_node();
         return Recovered::Incomplete;
     };
@@ -1764,13 +2355,25 @@ where
             emit_import_group_mismatched_close(
                 committed,
                 close,
-                if mismatched == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
-                if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+                if mismatched == ')' {
+                    Delimiter::Parenthesis
+                } else {
+                    Delimiter::Brace
+                },
+                if closing == ')' {
+                    Delimiter::Parenthesis
+                } else {
+                    Delimiter::Brace
+                },
             );
             continue;
         }
         if committed_at_eof(committed) {
-            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            let delimiter = if closing == ')' {
+                Delimiter::Parenthesis
+            } else {
+                Delimiter::Brace
+            };
             emit_import_group_close_missing(committed, delimiter);
             committed.finish_node();
             return Recovered::Complete(UseExclusion::Group {
@@ -1805,13 +2408,25 @@ where
             emit_import_group_mismatched_close(
                 committed,
                 close,
-                if mismatched == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
-                if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+                if mismatched == ')' {
+                    Delimiter::Parenthesis
+                } else {
+                    Delimiter::Brace
+                },
+                if closing == ')' {
+                    Delimiter::Parenthesis
+                } else {
+                    Delimiter::Brace
+                },
             );
             continue;
         }
         if committed_at_eof(committed) {
-            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            let delimiter = if closing == ')' {
+                Delimiter::Parenthesis
+            } else {
+                Delimiter::Brace
+            };
             emit_import_group_close_missing(committed, delimiter);
             committed.finish_node();
             return Recovered::Complete(UseExclusion::Group {
@@ -1822,7 +2437,11 @@ where
         if let Some(comma) = commit_maybe_character(committed, ',').flatten() {
             committed.token(SyntaxKind::Comma, comma);
         } else if !newline {
-            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            let delimiter = if closing == ')' {
+                Delimiter::Parenthesis
+            } else {
+                Delimiter::Brace
+            };
             emit_import_group_close_missing(committed, delimiter);
             committed.finish_node();
             return Recovered::Complete(UseExclusion::Group {
@@ -1887,7 +2506,12 @@ where
         }
         let after_keyword = scan_maybe_required_inline_trivia(i);
         let name = after_keyword.as_ref().and_then(|_| i.run(scan_word));
-        Some(AliasPrefix { leading, keyword, after_keyword, name })
+        Some(AliasPrefix {
+            leading,
+            keyword,
+            after_keyword,
+            name,
+        })
     })
 }
 
@@ -1940,7 +2564,11 @@ where
             return None;
         }
         let after_keyword = scan_maybe_required_inline_trivia(i);
-        Some(WithPrefix { leading, keyword, after_keyword })
+        Some(WithPrefix {
+            leading,
+            keyword,
+            after_keyword,
+        })
     })
 }
 
@@ -1969,7 +2597,11 @@ where
             return None;
         }
         let after_keyword = scan_maybe_required_inline_trivia(i);
-        Some(WithoutPrefix { leading, keyword, after_keyword })
+        Some(WithoutPrefix {
+            leading,
+            keyword,
+            after_keyword,
+        })
     })
 }
 
@@ -2099,9 +2731,11 @@ where
             line.at_line_start = false;
             i.local.set_line(line);
             let candidate = i.input.remainder().starts_with('{')
-                || i.input.remainder().chars().next().is_some_and(|next| {
-                    next == '_' || next.is_alphabetic()
-                });
+                || i.input
+                    .remainder()
+                    .chars()
+                    .next()
+                    .is_some_and(|next| next == '_' || next.is_alphabetic());
             if candidate {
                 return Some((start..end, true));
             }
@@ -2115,7 +2749,10 @@ where
         let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
-            RecoverySiteKey { role, range: range.clone() },
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
             RecoveryKind::Error,
             Arc::from([crate::session::UnexpectedSyntax::Token {
                 range: range.clone(),
@@ -2202,11 +2839,15 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let result = i.run(scan_punctuation).and_then(|punctuation| match punctuation.kind() {
-            PunctuationKind::ColonColon => Some((UseSeparator::ColonColon, punctuation.range())),
-            PunctuationKind::Slash => Some((UseSeparator::Slash, punctuation.range())),
-            _ => None,
-        });
+        let result = i
+            .run(scan_punctuation)
+            .and_then(|punctuation| match punctuation.kind() {
+                PunctuationKind::ColonColon => {
+                    Some((UseSeparator::ColonColon, punctuation.range()))
+                }
+                PunctuationKind::Slash => Some((UseSeparator::Slash, punctuation.range())),
+                _ => None,
+            });
         if result.is_none() {
             i.rollback(checkpoint);
         }
@@ -2831,9 +3472,7 @@ fn parse_operator_fixity(word: WordSpan<'_>) -> Option<OperatorFixity> {
     }
 }
 
-fn parse_operator_name<'source, E>(
-    i: &mut SynIn<'_, 'source, '_, E>,
-) -> Option<&'source str>
+fn parse_operator_name<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<&'source str>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2856,9 +3495,7 @@ where
 }
 
 /// Parses the dot-separated binding-power vector used by operator headers.
-fn parse_binding_power<E>(
-    i: SynIn<E>,
-) -> Option<BindingPower>
+fn parse_binding_power<E>(i: SynIn<E>) -> Option<BindingPower>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2944,9 +3581,7 @@ where
     })
 }
 
-fn parse_use_tree<'source, E>(
-    i: &mut SynIn<'_, 'source, '_, E>,
-) -> Option<UseTree<'source>>
+fn parse_use_tree<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<UseTree<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3172,9 +3807,7 @@ where
     Some(aliases)
 }
 
-fn parse_use_alias<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<WordSpan<'source>>
+fn parse_use_alias<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3217,9 +3850,7 @@ where
     i.run(scan_use_version)
 }
 
-fn scan_use_version<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<UseVersion<'source>>
+fn scan_use_version<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<UseVersion<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3502,9 +4133,7 @@ where
     (punctuation.kind() == PunctuationKind::Open(Delimiter::Brace)).then_some(())
 }
 
-fn scan_open_parenthesis<E>(
-    mut i: SynIn<E>,
-) -> Option<Range<usize>>
+fn scan_open_parenthesis<E>(mut i: SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3523,10 +4152,7 @@ where
     (punctuation.kind() == PunctuationKind::Close(Delimiter::Parenthesis)).then_some(())
 }
 
-fn parse_close_delimiter<E>(
-    delimiter: Delimiter,
-    mut i: SynIn<E>,
-) -> Option<Range<usize>>
+fn parse_close_delimiter<E>(delimiter: Delimiter, mut i: SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3535,9 +4161,7 @@ where
     (punctuation.kind() == PunctuationKind::Close(delimiter)).then(|| punctuation.range())
 }
 
-fn parse_close_brace<E>(
-    mut i: SynIn<E>,
-) -> Option<Range<usize>>
+fn parse_close_brace<E>(mut i: SynIn<E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3555,9 +4179,7 @@ where
     (punctuation.kind() == PunctuationKind::Comma).then_some(())
 }
 
-fn parse_use_separator<E>(
-    mut i: SynIn<E>,
-) -> Option<UseSeparator>
+fn parse_use_separator<E>(mut i: SynIn<E>) -> Option<UseSeparator>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3601,8 +4223,7 @@ mod tests {
         SyntaxNode,
         input::SourceInput,
         session::{
-            CommitOutput, CommittedRecoveryRecord, FullCstOutput, HeaderOutput, ParseLocal,
-            Probe,
+            CommitOutput, CommittedRecoveryRecord, FullCstOutput, HeaderOutput, ParseLocal, Probe,
         },
     };
 
@@ -3663,12 +4284,12 @@ mod tests {
             self.calls.borrow_mut().push(OutputCall::Finish);
         }
 
-            fn commit_recovery(&mut self, _: CommittedRecoveryRecord) {}
+        fn commit_recovery(&mut self, _: CommittedRecoveryRecord) {}
 
-            fn emit_missing(&mut self, _: CommittedRecoveryRecord) {}
+        fn emit_missing(&mut self, _: CommittedRecoveryRecord) {}
 
-            fn emit_error(&mut self, _: CommittedRecoveryRecord) {}
-        }
+        fn emit_error(&mut self, _: CommittedRecoveryRecord) {}
+    }
 
     fn parse_direct_operator_with_output<'source, O>(
         source: &'source str,
@@ -3692,9 +4313,36 @@ mod tests {
         let HeaderStatementIntro::Operator(intro) = intro else {
             panic!("source did not select the operator continuation");
         };
-        let declaration = commit_operator_header(&mut committed, intro)
-            .expect("operator continuation should parse the source");
+        let Recovered::Complete(declaration) = commit_operator_header(&mut committed, intro) else {
+            panic!("operator continuation should parse the source");
+        };
         (declaration, committed.into_output())
+    }
+
+    fn parse_recovered_operator<'source>(
+        source: &'source str,
+    ) -> (
+        Recovered<OperatorHeaderDeclaration<'source>>,
+        FullCstOutput<'source>,
+    ) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let (intro, mut committed) =
+            commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+                .expect("source has an operator header introduction");
+        let HeaderStatementIntro::Operator(intro) = intro else {
+            panic!("source did not select the operator continuation");
+        };
+        let outcome = commit_operator_header(&mut committed, intro);
+        (outcome, committed.into_output())
     }
 
     fn parse_direct_use_with_output<'source, O>(
@@ -3736,8 +4384,9 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let (intro, mut committed) = commit_header_statement(Probe::new(i), FullCstOutput::new(source))
-            .expect("use keyword commits the header continuation");
+        let (intro, mut committed) =
+            commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+                .expect("use keyword commits the header continuation");
         let HeaderStatementIntro::Use(intro) = intro else {
             panic!("expected a use continuation");
         };
@@ -3747,13 +4396,19 @@ mod tests {
         ));
         let root = SyntaxNode::new_root(committed.into_output().finish_complete());
         assert_eq!(root.to_string(), source);
-        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::Missing)
+        );
     }
 
     fn parse_direct_binding_with_output<'source>(
         source: &'source str,
         operators: &crate::operator::OperatorTable,
-    ) -> (ParsedBindingDeclaration<'source, rowan::Checkpoint>, FullCstOutput<'source>) {
+    ) -> (
+        ParsedBindingDeclaration<'source, rowan::Checkpoint>,
+        FullCstOutput<'source>,
+    ) {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
@@ -3781,7 +4436,10 @@ mod tests {
     fn parse_recovered_binding<'source>(
         source: &'source str,
         operators: &crate::operator::OperatorTable,
-    ) -> (Recovered<ParsedBindingDeclaration<'source, rowan::Checkpoint>>, FullCstOutput<'source>) {
+    ) -> (
+        Recovered<ParsedBindingDeclaration<'source, rowan::Checkpoint>>,
+        FullCstOutput<'source>,
+    ) {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
@@ -3838,23 +4496,24 @@ mod tests {
         .set_local(&mut local);
         let calls = Rc::new(RefCell::new(Vec::new()));
 
-        assert!(commit_header_statement(
-            Probe::new(i),
-            RecordingOutput {
-                calls: Rc::clone(&calls),
-            },
-        )
-        .is_none());
+        assert!(
+            commit_header_statement(
+                Probe::new(i),
+                RecordingOutput {
+                    calls: Rc::clone(&calls),
+                },
+            )
+            .is_none()
+        );
         assert!(calls.borrow().is_empty());
         assert_eq!(source_input.remainder(), source);
     }
 
     #[test]
     fn statement_intro_selects_use_and_operator_continuations_without_emitting() {
-        for (source, expected_remainder) in [
-            ("our use std", "std"),
-            ("pub lazy infix (<+>)", "(<+>)"),
-        ] {
+        for (source, expected_remainder) in
+            [("our use std", "std"), ("pub lazy infix (<+>)", "(<+>)")]
+        {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
             let mut expectations = chasa::LatestSink::new();
@@ -3884,7 +4543,7 @@ mod tests {
                     assert_eq!(intro.start, 0);
                     assert_eq!(intro.visibility.unwrap().visibility, Visibility::Public);
                     assert_eq!(intro.lazy_keyword.map(|word| word.text()), Some("lazy"));
-                    assert_eq!(intro.fixity, OperatorFixity::Infix);
+                    assert_eq!(intro.fixity_keyword.map(|word| word.text()), Some("infix"));
                 }
                 _ => panic!("unexpected introduction for {source}"),
             }
@@ -4008,8 +4667,9 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let (intro, mut committed) = commit_header_statement(Probe::new(i), FullCstOutput::new(source))
-            .expect("use keyword commits the header continuation");
+        let (intro, mut committed) =
+            commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+                .expect("use keyword commits the header continuation");
         let HeaderStatementIntro::Use(intro) = intro else {
             panic!("expected a use continuation");
         };
@@ -4031,7 +4691,13 @@ mod tests {
 
     #[test]
     fn direct_use_recovers_missing_operator_alias_exclusion_and_anchor_slots() {
-        for source in ["use (", "use (+", "use std as", "use std::* without", "use std with"] {
+        for source in [
+            "use (",
+            "use (+",
+            "use std as",
+            "use std::* without",
+            "use std with",
+        ] {
             assert_direct_use_incomplete_is_lossless(source);
         }
     }
@@ -4084,7 +4750,8 @@ mod tests {
     #[test]
     fn direct_use_group_recovers_a_missing_same_line_comma() {
         let source = "use {first second}";
-        let (declaration, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let (declaration, output) =
+            parse_direct_use_with_output(source, FullCstOutput::new(source));
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert_eq!(root.to_string(), source);
@@ -4115,10 +4782,8 @@ mod tests {
     #[test]
     fn direct_binding_recovers_missing_inline_separation_without_synthetic_trivia() {
         let source = "my value=result";
-        let (binding, output) = parse_direct_binding_with_output(
-            source,
-            &crate::operator::OperatorTable::empty(),
-        );
+        let (binding, output) =
+            parse_direct_binding_with_output(source, &crate::operator::OperatorTable::empty());
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert_eq!(binding.range(), 0..source.len());
@@ -4134,7 +4799,8 @@ mod tests {
     #[test]
     fn direct_binding_value_error_retries_a_later_nud_candidate() {
         let source = "my value = @@result";
-        let (outcome, output) = parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
+        let (outcome, output) =
+            parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert!(matches!(outcome, Recovered::Complete(_)));
@@ -4150,7 +4816,8 @@ mod tests {
     #[test]
     fn direct_binding_value_error_stops_at_its_safe_point_without_a_candidate() {
         let source = "my value = @@";
-        let (outcome, output) = parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
+        let (outcome, output) =
+            parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert!(matches!(outcome, Recovered::Incomplete));
@@ -4180,7 +4847,8 @@ mod tests {
         assert_eq!(header_declaration, full_declaration);
         assert_eq!(full_output.finish_complete().to_string(), source);
 
-        let (_, full_output) = parse_direct_operator_with_output(source, FullCstOutput::new(source));
+        let (_, full_output) =
+            parse_direct_operator_with_output(source, FullCstOutput::new(source));
         let root = SyntaxNode::new_root(full_output.finish_complete());
         let tokens = root
             .descendants_with_tokens()
@@ -4227,17 +4895,137 @@ mod tests {
             let (declaration, output) =
                 parse_direct_operator_with_output(source, FullCstOutput::new(source));
             assert_eq!(
-                declaration.left_binding_power().map(BindingPower::components),
+                declaration
+                    .left_binding_power()
+                    .map(BindingPower::components),
                 left,
                 "{source}"
             );
             assert_eq!(
-                declaration.right_binding_power().map(BindingPower::components),
+                declaration
+                    .right_binding_power()
+                    .map(BindingPower::components),
                 right,
                 "{source}"
             );
             assert_eq!(output.finish_complete().to_string(), source, "{source}");
         }
+    }
+
+    #[test]
+    fn direct_operator_header_missing_name_preserves_its_binding_power_and_equals() {
+        let source = "prefix 50 =";
+        let (outcome, output) = parse_recovered_operator(source);
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::BindingPower)
+        );
+    }
+
+    #[test]
+    fn direct_operator_header_unterminated_name_closes_its_node_and_preserves_following_slots() {
+        let source = "prefix (+ 50 =";
+        let (outcome, output) = parse_recovered_operator(source);
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::OperatorName)
+        );
+    }
+
+    #[test]
+    fn direct_operator_header_missing_fixity_does_not_guess_an_arity() {
+        let source = "lazy";
+        let (outcome, output) = parse_recovered_operator(source);
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::BindingPower)
+        );
+    }
+
+    #[test]
+    fn direct_operator_header_recovers_missing_or_malformed_binding_power_for_every_fixity() {
+        let cases = [
+            ("nullfix (+) 1 =", SyntaxKind::Error),
+            ("prefix (+) =", SyntaxKind::Missing),
+            ("suffix (+) 128 =", SyntaxKind::Error),
+            ("infix (+) 1. =", SyntaxKind::Error),
+        ];
+
+        for (source, recovery_kind) in cases {
+            let (outcome, output) = parse_recovered_operator(source);
+            let root = SyntaxNode::new_root(output.finish_complete());
+
+            assert!(matches!(outcome, Recovered::Incomplete), "{source}");
+            assert_eq!(root.to_string(), source, "{source}");
+            assert!(
+                root.descendants().any(|node| node.kind() == recovery_kind),
+                "{source}",
+            );
+        }
+    }
+
+    #[test]
+    fn direct_operator_header_preserves_an_i8_overflow_as_one_error() {
+        let source = "prefix (+) 128 =";
+        let (outcome, output) = parse_recovered_operator(source);
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        let errors = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].text(), "128");
+    }
+
+    #[test]
+    fn direct_operator_header_missing_equals_closes_the_header() {
+        let source = "prefix (+) 50";
+        let (outcome, output) = parse_recovered_operator(source);
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert!(matches!(outcome, Recovered::Incomplete));
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+        assert_eq!(root.kind(), SyntaxKind::OperatorHeader);
     }
 
     #[test]
@@ -4251,19 +5039,23 @@ mod tests {
             "use realm/{tools}",
             "use band::*",
         ] {
-            let (header_declaration, _) =
-                parse_direct_use_with_output(source, HeaderOutput::new());
+            let (header_declaration, _) = parse_direct_use_with_output(source, HeaderOutput::new());
             let (full_declaration, full_output) =
                 parse_direct_use_with_output(source, FullCstOutput::new(source));
             assert_eq!(header_declaration, full_declaration, "{source}");
-            assert_eq!(full_output.finish_complete().to_string(), source, "{source}");
+            assert_eq!(
+                full_output.finish_complete().to_string(),
+                source,
+                "{source}"
+            );
         }
     }
 
     #[test]
     fn direct_use_glob_keeps_alias_without_and_qualifier_tokens_losslessly() {
         let source = "use std::* as all as every without {foo, (*)} v1 with program::ui";
-        let (declaration, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let (declaration, output) =
+            parse_direct_use_with_output(source, FullCstOutput::new(source));
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert_eq!(root.kind(), SyntaxKind::UseDeclaration);
@@ -4637,10 +5429,8 @@ mod tests {
     fn accepts_parenthesized_operator_segments_at_normal_path_positions() {
         let (at_spec_start, remainder) = parse_use("use (+)::value");
         assert_eq!(remainder, "");
-        let [
-            UseSegment::Operator { range, text },
-            UseSegment::Word(word),
-        ] = at_spec_start.tree().prefix().segments()
+        let [UseSegment::Operator { range, text }, UseSegment::Word(word)] =
+            at_spec_start.tree().prefix().segments()
         else {
             panic!("expected an operator followed by a word path segment");
         };
