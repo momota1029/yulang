@@ -4617,6 +4617,14 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/late-operator-after-body/main.yu"
     ));
+    const UNDECLARED_OPERATOR_NUD_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/undeclared-operator-nud/main.yu"
+    ));
+    const UNDECLARED_OPERATOR_INFIX_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/undeclared-operator-infix/main.yu"
+    ));
 
     #[derive(Clone, Copy)]
     struct Phase2ParserFixture {
@@ -4626,7 +4634,7 @@ mod tests {
         recovery_count: usize,
     }
 
-    const PHASE2_PARSER_FIXTURES: [Phase2ParserFixture; 10] = [
+    const PHASE2_PARSER_FIXTURES: [Phase2ParserFixture; 12] = [
         Phase2ParserFixture {
             name: "leading-use-plain",
             source: LEADING_USE_SOURCE,
@@ -4686,6 +4694,18 @@ mod tests {
             source: HEADER_OPERATOR_ORDER_STAR_THEN_PLUS_SOURCE,
             reuses_header_recovery: false,
             recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "undeclared-operator-nud",
+            source: UNDECLARED_OPERATOR_NUD_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 1,
+        },
+        Phase2ParserFixture {
+            name: "undeclared-operator-infix",
+            source: UNDECLARED_OPERATOR_INFIX_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 1,
         },
     ];
 
@@ -5688,6 +5708,98 @@ mod tests {
                 .diagnostics()
                 .iter()
                 .any(|diagnostic| diagnostic.primary() == &error_range)
+        );
+    }
+
+    #[test]
+    fn undeclared_operator_in_nud_position_uses_binding_value_recovery() {
+        let source = std::str::from_utf8(UNDECLARED_OPERATOR_NUD_SOURCE).expect("fixture is UTF-8");
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
+        let [recovery] = output.committed_recoveries() else {
+            panic!("the NUD fixture must produce one generic recovery");
+        };
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(recovery.kind, RecoveryKind::Error);
+        assert_eq!(recovery.site.range, 11..15);
+        assert_eq!(
+            recovery.site.role,
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value))
+        );
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let parsed = crate::parse_file(
+            Arc::clone(&source_text),
+            Arc::new(crate::scan_header(Arc::clone(&source_text))),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.diagnostics().len(), 1);
+        assert_eq!(parsed.diagnostics()[0].primary(), &(11..15));
+        assert!(matches!(
+            parsed.diagnostics()[0].cause(),
+            SyntaxDiagnosticCause::Recovery(_)
+        ));
+        assert!(root.descendants().any(|node| {
+            node.kind() == SyntaxKind::Error && syntax_range(node.text_range()) == (11..15)
+        }));
+        assert!(root.descendants().any(|node| {
+            node.kind() == SyntaxKind::IdentifierExpression
+                && syntax_range(node.text_range()) == (15..20)
+        }));
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Operator)
+        );
+    }
+
+    #[test]
+    fn undeclared_operator_after_left_operand_uses_root_trailing_input_recovery() {
+        let source =
+            std::str::from_utf8(UNDECLARED_OPERATOR_INFIX_SOURCE).expect("fixture is UTF-8");
+        let output =
+            parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
+        let [recovery] = output.committed_recoveries() else {
+            panic!("the infix fixture must produce one generic recovery");
+        };
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(recovery.kind, RecoveryKind::Error);
+        assert_eq!(recovery.site.range, 16..25);
+        assert_eq!(
+            recovery.site.role,
+            GrammarRole::Statement(StatementRole::TrailingInput {
+                owner: StatementKind::BindingDeclaration,
+            })
+        );
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let parsed = crate::parse_file(
+            Arc::clone(&source_text),
+            Arc::new(crate::scan_header(Arc::clone(&source_text))),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.diagnostics().len(), 1);
+        assert_eq!(parsed.diagnostics()[0].primary(), &(16..25));
+        assert!(matches!(
+            parsed.diagnostics()[0].cause(),
+            SyntaxDiagnosticCause::Recovery(_)
+        ));
+        assert!(root.descendants().any(|node| {
+            node.kind() == SyntaxKind::Error && syntax_range(node.text_range()) == (16..25)
+        }));
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::InfixExpression)
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| token.kind() == SyntaxKind::Operator)
         );
     }
 

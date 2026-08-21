@@ -1,0 +1,14 @@
+[case]
+source = "main.yu"
+description = "an undeclared operator-shaped token after a body left operand follows generic recovery"
+tags = ["operator-header", "operator-scoping", "undeclared-operator", "recovery"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 0 }
+stop = "first_non_header"

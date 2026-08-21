@@ -4019,3 +4019,21 @@ minimumが両path(`parse_expression_with_operators`/`parse_direct_expression_wit
 fixture`header-full-diagnostic-identity`(26 bytes)の実byte内容とmetadataが追補の
 2-recovery acceptance target(`Missing @ 3..3`、`Missing @ 26..26`)と一致すること、
 以上すべてを現行コードと突き合わせ不一致なし。
+
+## 追補: body内の未宣言 operator-shaped token
+
+operator tableのどこにも一致entryを持たないoperator-shaped tokenがbodyに現れたとき、
+専用のdiagnosticやoperator専用fallbackは定義しない。context-dependentな既存generic recoveryへ
+委ねることを、意図した挙動として確認する。
+
+left operandがまだないNUD位置では、`scan_operator`がtrieのlongest-matchからcandidateを得られず
+`None`を返す（`scan/operator.rs:110,163`）。`recognize_nud`はその失敗を他のNUD alternativeへ
+fall throughさせる（`grammar/expression.rs:282`）。left operandがある位置では、unmatched runは
+generic expression recovery、またはrootのtrailing-input recoveryがそのcontextに応じて消費する。
+前者のexpression-slot retryは`grammar/declaration.rs:817`にある。
+
+この挙動は未宣言operatorを有効なoperatorとして扱う規則ではない。どのgeneric recovery pathが
+発火するか、そのCST shapeとdiagnosticは既存のcontextごとのrecovery machineryが決める。ここで
+新しいdiagnostic、recovery node、またはoperator-table外のtokenに対する特別扱いを追加しない。
+
+著者: ユーザー確認済みの決定（Claude Sonnet 5 との会話、2026-08-22）。
