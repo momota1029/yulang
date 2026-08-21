@@ -1,0 +1,18 @@
+[case]
+source = "main.yu"
+description = "an operator declaration after the first body item is excluded from HeaderInfo and cannot authorize a later operator use"
+tags = ["operator-header", "header-boundary", "late-operator", "operator-table"]
+
+[input]
+syntax_environment = "empty"
+
+[boundary]
+header_info = "raw_observation_only"
+note = "The first binding closes header discovery. The later operator definition remains body syntax, but its header-shaped declaration is not a HeaderInfo operator fact and cannot change the immutable full-parse operator table."
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 0 }
+stop = "first_non_header"

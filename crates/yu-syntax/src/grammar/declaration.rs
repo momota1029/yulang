@@ -4605,6 +4605,18 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/contracts/phase2-parser/v0/cases/header-full-diagnostic-identity/main.yu"
     ));
+    const HEADER_OPERATOR_ORDER_PLUS_THEN_STAR_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/header-operator-order-plus-then-star/main.yu"
+    ));
+    const HEADER_OPERATOR_ORDER_STAR_THEN_PLUS_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/header-operator-order-star-then-plus/main.yu"
+    ));
+    const LATE_OPERATOR_AFTER_BODY_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/late-operator-after-body/main.yu"
+    ));
 
     #[derive(Clone, Copy)]
     struct Phase2ParserFixture {
@@ -4614,7 +4626,7 @@ mod tests {
         recovery_count: usize,
     }
 
-    const PHASE2_PARSER_FIXTURES: [Phase2ParserFixture; 8] = [
+    const PHASE2_PARSER_FIXTURES: [Phase2ParserFixture; 10] = [
         Phase2ParserFixture {
             name: "leading-use-plain",
             source: LEADING_USE_SOURCE,
@@ -4662,6 +4674,18 @@ mod tests {
             source: HEADER_FULL_DIAGNOSTIC_IDENTITY_SOURCE,
             reuses_header_recovery: true,
             recovery_count: 2,
+        },
+        Phase2ParserFixture {
+            name: "header-operator-order-plus-then-star",
+            source: HEADER_OPERATOR_ORDER_PLUS_THEN_STAR_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
+        },
+        Phase2ParserFixture {
+            name: "header-operator-order-star-then-plus",
+            source: HEADER_OPERATOR_ORDER_STAR_THEN_PLUS_SOURCE,
+            reuses_header_recovery: false,
+            recovery_count: 0,
         },
     ];
 
@@ -5171,9 +5195,20 @@ mod tests {
                     fixture.name
                 );
             };
+            let parsed_operator = declaration.to_header_operator();
+            assert_eq!(parsed_operator.range(), &(0..declaration_source.len()), "{}", fixture.name);
+            assert_eq!(parsed_operator.name(), operator.name(), "{}", fixture.name);
+            assert_eq!(parsed_operator.fixity(), operator.fixity(), "{}", fixture.name);
             assert_eq!(
-                declaration.to_header_operator(),
-                *operator,
+                parsed_operator.visibility(),
+                operator.visibility(),
+                "{}",
+                fixture.name
+            );
+            assert_eq!(parsed_operator.is_lazy(), operator.is_lazy(), "{}", fixture.name);
+            assert_eq!(
+                parsed_operator.binding_power(),
+                operator.binding_power(),
                 "{}",
                 fixture.name
             );
@@ -5523,6 +5558,137 @@ mod tests {
             assert_complete_root_tree(fixture, source, &direct_root);
             assert_parse_file_matches_direct_candidate(fixture, &parsed_root, &direct_root);
         }
+    }
+
+    #[test]
+    fn header_operator_declaration_order_does_not_change_body_pratt_shape() {
+        let fixtures = [
+            (
+                "plus-then-star",
+                HEADER_OPERATOR_ORDER_PLUS_THEN_STAR_SOURCE,
+                ["<+>", "<*>"],
+            ),
+            (
+                "star-then-plus",
+                HEADER_OPERATOR_ORDER_STAR_THEN_PLUS_SOURCE,
+                ["<*>", "<+>"],
+            ),
+        ];
+        let mut body_shapes = Vec::new();
+
+        for (name, bytes, header_names) in fixtures {
+            let source = std::str::from_utf8(bytes).expect("fixtures are UTF-8");
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                Arc::clone(&source_text),
+                Arc::clone(&header),
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let value_start = source
+                .rfind("a <+> b <*> c")
+                .expect("fixture has the shared body expression");
+
+            assert_eq!(
+                header.coverage().stop(),
+                crate::HeaderStop::FirstNonHeader,
+                "{name}"
+            );
+            assert_eq!(
+                header.coverage().range(),
+                &(0..value_start - "my value = ".len()),
+                "{name}"
+            );
+            assert_eq!(
+                header
+                    .operators()
+                    .iter()
+                    .map(|operator| operator.name())
+                    .collect::<Vec<_>>(),
+                header_names,
+                "{name}",
+            );
+            assert!(parsed.diagnostics().is_empty(), "{name}");
+
+            let shape = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::InfixExpression)
+                .map(|node| {
+                    let range = syntax_range(node.text_range());
+                    range.start - value_start..range.end - value_start
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(shape, [0..13, 6..13], "{name}");
+
+            let operators = root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| {
+                    token.kind() == SyntaxKind::Operator
+                        && syntax_range(token.text_range()).start >= value_start
+                })
+                .map(|token| token.text().to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(operators, ["<+>", "<*>"], "{name}");
+            body_shapes.push(shape);
+        }
+
+        assert_eq!(body_shapes[0], body_shapes[1]);
+    }
+
+    #[test]
+    fn operator_declaration_after_header_cutoff_cannot_authorize_later_operator_use() {
+        let source =
+            std::str::from_utf8(LATE_OPERATOR_AFTER_BODY_SOURCE).expect("fixture is UTF-8");
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+        let parsed = crate::parse_file(
+            Arc::clone(&source_text),
+            Arc::clone(&header),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let late_use_start = source
+            .rfind("<+>")
+            .expect("fixture has a late operator use");
+        let late_use_end = source[late_use_start..]
+            .find('\n')
+            .map_or(source.len(), |offset| late_use_start + offset);
+
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage().range(), &(0..0));
+        assert!(header.operators().is_empty());
+        assert!(
+            root.descendants()
+                .any(|node| node.kind() == SyntaxKind::OperatorHeader)
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::InfixExpression)
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .any(|token| {
+                    token.kind() == SyntaxKind::Operator
+                        && syntax_range(token.text_range())
+                            == (late_use_start..late_use_start + 3)
+                })
+        );
+
+        let error_range = late_use_start..late_use_end;
+        assert!(root.descendants().any(|node| {
+            node.kind() == SyntaxKind::Error && syntax_range(node.text_range()) == error_range
+        }));
+        assert!(
+            parsed
+                .diagnostics()
+                .iter()
+                .any(|diagnostic| diagnostic.primary() == &error_range)
+        );
     }
 
     fn root_candidate_operator_table() -> crate::operator::OperatorTable {

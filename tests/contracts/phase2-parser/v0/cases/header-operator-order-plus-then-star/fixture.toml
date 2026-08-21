@@ -1,0 +1,49 @@
+[case]
+source = "main.yu"
+description = "two leading operator declarations build one immutable table before their body use"
+tags = ["operator-header", "operator-order", "header-discovery", "pratt-precedence"]
+
+[input]
+syntax_environment = "empty"
+
+[header]
+diagnostics = []
+
+[header.coverage]
+range = { start = 0, end = 50 }
+stop = "first_non_header"
+
+[[header.operators]]
+key = "infix-plus"
+range = { start = 0, end = 19 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 40, right = 41 }
+
+[[header.operators]]
+key = "infix-star"
+range = { start = 25, end = 44 }
+name = "<*>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 60, right = 61 }
+
+[full]
+diagnostics = []
+
+[[full.header_projection.operators]]
+key = "infix-plus"
+range = { start = 0, end = 19 }
+name = "<+>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 40, right = 41 }
+
+[[full.header_projection.operators]]
+key = "infix-star"
+range = { start = 25, end = 44 }
+name = "<*>"
+fixity = "infix"
+visibility = "private"
+binding_power = { left = 60, right = 61 }

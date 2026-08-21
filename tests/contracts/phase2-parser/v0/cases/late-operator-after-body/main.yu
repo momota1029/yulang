@@ -1,0 +1,3 @@
+my seed = 1
+infix (<+>) 50 51 = body
+my value = a <+> b
