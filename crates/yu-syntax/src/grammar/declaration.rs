@@ -216,7 +216,10 @@ pub(crate) fn parse_direct_root_candidate(
                 StatementKind::OperatorDefinition
             }
         });
-        root_statement_start = false;
+        root_statement_start = committed.probe(|probe| {
+            let line = probe.input().local.line();
+            line.at_line_start && line.line_indent == 0
+        });
     }
 
     committed.finish_node();
