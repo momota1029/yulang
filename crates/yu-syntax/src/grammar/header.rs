@@ -13,7 +13,7 @@ use chasa::{
 };
 
 use crate::{
-    HeaderImport, HeaderOperator, HeaderStop,
+    HeaderImport, HeaderImportForm, HeaderOperator, HeaderStop,
     input::SourceInput,
     scan::{opaque_body::scan_opaque_body, trivia::scan_trivia},
     session::{LineState, ParseLocal},
@@ -121,6 +121,49 @@ fn at_header_statement_start(line: LineState) -> bool {
 mod tests {
     use super::*;
 
+    const LEADING_USE_FIXTURES: [(&[u8], HeaderImportForm, &[&str]); 4] = [
+        (
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/contracts/phase2-parser/v0/cases/leading-use-plain/main.yu"
+            )),
+            HeaderImportForm::Plain,
+            &["std", "data"],
+        ),
+        (
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/contracts/phase2-parser/v0/cases/leading-use-mod/main.yu"
+            )),
+            HeaderImportForm::Mod,
+            &["math", "value"],
+        ),
+        (
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/contracts/phase2-parser/v0/cases/leading-use-realm/main.yu"
+            )),
+            HeaderImportForm::Realm,
+            &["tools", "format"],
+        ),
+        (
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/contracts/phase2-parser/v0/cases/leading-use-band/main.yu"
+            )),
+            HeaderImportForm::Band,
+            &["support", "value"],
+        ),
+    ];
+    const INFIX_OPERATOR_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/infix-operator-header/main.yu"
+    ));
+    const LATE_USE_SOURCE: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/contracts/phase2-parser/v0/cases/late-use-after-body/main.yu"
+    ));
+
     #[test]
     fn dispatches_use_and_operator_header_starters_but_stops_at_binding() {
         let use_only = discover_header("use std::data\n");
@@ -183,5 +226,74 @@ mod tests {
         assert_eq!(header.operators()[0].name(), "<+>");
         assert_eq!(header.imports().len(), 1);
         assert_eq!(header.imports()[0].path(), ["std", "data"]);
+    }
+
+    #[test]
+    fn projects_every_leading_use_fixture_with_its_form_and_route() {
+        for (bytes, form, path) in LEADING_USE_FIXTURES {
+            let source = std::str::from_utf8(bytes).expect("fixtures are UTF-8");
+            let header = discover_header(source);
+            let body_start = source.find("my value").expect("fixture has a body binding");
+
+            assert_eq!(header.stop(), HeaderStop::FirstNonHeader, "{source}");
+            assert_eq!(header.coverage(), &(0..body_start), "{source}");
+            let [import] = header.imports() else {
+                panic!("expected one import for fixture: {source}");
+            };
+            assert_eq!(import.form(), form, "{source}");
+            assert_eq!(import.path(), path, "{source}");
+            assert!(header.operators().is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn projects_the_infix_header_fixture_after_skipping_its_body() {
+        let source = std::str::from_utf8(INFIX_OPERATOR_SOURCE).expect("fixture is UTF-8");
+        let header = discover_header(source);
+        let body_start = source.find("my value").expect("fixture has a body binding");
+
+        assert_eq!(header.stop(), HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage(), &(0..body_start));
+        assert!(header.imports().is_empty());
+        let [operator] = header.operators() else {
+            panic!("expected one operator for fixture: {header:#?}");
+        };
+        assert_eq!(operator.name(), "<+>");
+        assert_eq!(operator.range(), &(0..19));
+    }
+
+    #[test]
+    fn expands_group_items_in_source_order() {
+        let source = "use std::io::{read, nested::{write, flush}, close}\nmy value = 1\n";
+        let header = discover_header(source);
+
+        assert_eq!(header.stop(), HeaderStop::FirstNonHeader);
+        assert_eq!(
+            header
+                .imports()
+                .iter()
+                .map(|import| import.path().join("::"))
+                .collect::<Vec<_>>(),
+            [
+                "std::io::read",
+                "std::io::nested::write",
+                "std::io::nested::flush",
+                "std::io::close",
+            ]
+        );
+    }
+
+    #[test]
+    fn stops_before_a_late_use_in_the_body_fixture() {
+        let source = std::str::from_utf8(LATE_USE_SOURCE).expect("fixture is UTF-8");
+        let header = discover_header(source);
+        let body_start = source.find("my value").expect("fixture has a body binding");
+
+        assert_eq!(header.stop(), HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage(), &(0..body_start));
+        let [import] = header.imports() else {
+            panic!("expected exactly one leading import: {header:#?}");
+        };
+        assert_eq!(import.path(), ["std", "data"]);
     }
 }
