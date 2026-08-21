@@ -50,69 +50,69 @@ impl<'source> OpaqueBodySpan<'source> {
 /// the first character of the following declaration. Delimiter depth is local
 /// because this opaque scan does not establish grammar-owned structural groups.
 pub(crate) fn scan_opaque_body<'source, E>(
-    mut input: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> Option<OpaqueBodySpan<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    let baseline = input
+    let start = i.pos();
+    let baseline = i
         .local
         .indentation_baseline()
-        .map_or(input.local.line().line_indent, |baseline| baseline.column);
+        .map_or(i.local.line().line_indent, |baseline| baseline.column);
     let mut delimiter_depth = 0_usize;
 
     loop {
-        if starts_comment(input.input.remainder()) {
-            let trivia_start = input.pos();
-            input.run(from_fn(scan_trivia))?;
+        if starts_comment(i.input.remainder()) {
+            let trivia_start = i.pos();
+            i.run(scan_trivia)?;
 
-            if input.input.remainder().is_empty()
+            if i.input.remainder().is_empty()
                 || (delimiter_depth == 0
-                    && crossed_layout_boundary(trivia_start, baseline, input.local))
+                    && crossed_layout_boundary(trivia_start, baseline, i.local))
             {
-                return Some(body_span(start, &input));
+                return Some(body_span(start, &i));
             }
             continue;
         }
 
-        if input.input.remainder().starts_with("'[") || input.input.remainder().starts_with("'{") {
-            if input.run(from_fn(scan_quoted_yumark_region))? == RegionEnd::Unterminated {
-                return Some(body_span(start, &input));
+        if i.input.remainder().starts_with("'[") || i.input.remainder().starts_with("'{") {
+            if i.run(scan_quoted_yumark_region)? == RegionEnd::Unterminated {
+                return Some(body_span(start, &i));
             }
             continue;
         }
 
-        if input.input.remainder().starts_with("~\"") {
-            if input.run(from_fn(scan_rule_literal_region))? == RegionEnd::Unterminated {
-                return Some(body_span(start, &input));
+        if i.input.remainder().starts_with("~\"") {
+            if i.run(scan_rule_literal_region)? == RegionEnd::Unterminated {
+                return Some(body_span(start, &i));
             }
             continue;
         }
 
-        if input.input.remainder().starts_with('"') {
-            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
-                return Some(body_span(start, &input));
+        if i.input.remainder().starts_with('"') {
+            if i.run(scan_string_region)? == RegionEnd::Unterminated {
+                return Some(body_span(start, &i));
             }
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
-            return Some(body_span(start, &input));
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
+            return Some(body_span(start, &i));
         };
 
         let newline = if character == '\r' {
-            input.skip(item('\n').or_not())?;
-            update_newline(character_start, input.pos(), input.local);
+            i.skip(item('\n').or_not())?;
+            update_newline(character_start, i.pos(), i.local);
             true
         } else if character == '\n' {
-            update_newline(character_start, input.pos(), input.local);
+            update_newline(character_start, i.pos(), i.local);
             true
         } else {
-            update_non_newline(character, input.local);
+            update_non_newline(character, i.local);
             false
         };
 
@@ -123,30 +123,30 @@ where
         }
 
         if newline && delimiter_depth == 0 {
-            consume_indentation(&mut input)?;
-            if input.local.line().line_indent <= baseline {
-                return Some(body_span(start, &input));
+            consume_indentation(&mut i)?;
+            if i.local.line().line_indent <= baseline {
+                return Some(body_span(start, &i));
             }
         }
     }
 }
 
 fn scan_string_region<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.skip(item('"'))?;
-    mark_non_trivia(input.local);
+    i.skip(item('"'))?;
+    mark_non_trivia(i.local);
 
-    let quote_count = if input.input.remainder().starts_with("\"\"") {
-        input.skip(item('"'))?;
-        input.skip(item('"'))?;
+    let quote_count = if i.input.remainder().starts_with("\"\"") {
+        i.skip(item('"'))?;
+        i.skip(item('"'))?;
         let mut count = 3;
-        while input.maybe(item('"'))?.is_some() {
+        while i.maybe(item('"'))?.is_some() {
             count += 1;
         }
         count
@@ -158,37 +158,37 @@ where
     } else {
         EmbeddedLexicalMode::Heredoc { quote_count }
     };
-    input.local.push_lexical_mode(mode);
+    i.local.push_lexical_mode(mode);
 
     loop {
-        if starts_quote_sentinel(input.input.remainder(), quote_count) {
+        if starts_quote_sentinel(i.input.remainder(), quote_count) {
             for _ in 0..quote_count {
-                input.skip(item('"'))?;
+                i.skip(item('"'))?;
             }
-            mark_non_trivia(input.local);
-            debug_assert_eq!(input.local.pop_lexical_mode(), Some(mode));
+            mark_non_trivia(i.local);
+            debug_assert_eq!(i.local.pop_lexical_mode(), Some(mode));
             return Some(RegionEnd::Closed);
         }
 
-        if input.input.remainder().starts_with('%') {
-            if input.run(from_fn(scan_string_interpolation_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with('%') {
+            if i.run(scan_string_interpolation_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
 
         if character == '\\' {
-            let escaped_start = input.pos();
-            let Some(escaped) = input.maybe(any)? else {
+            let escaped_start = i.pos();
+            let Some(escaped) = i.maybe(any)? else {
                 return Some(RegionEnd::Unterminated);
             };
-            update_region_character(escaped, escaped_start, &mut input)?;
+            update_region_character(escaped, escaped_start, &mut i)?;
         }
     }
 }
@@ -199,29 +199,29 @@ where
 /// are tracked locally. Yumark text is not Yulang string syntax, so quotes and
 /// escapes remain ordinary text here.
 fn scan_quoted_yumark_region<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.skip(item('\''))?;
-    mark_non_trivia(input.local);
+    i.skip(item('\''))?;
+    mark_non_trivia(i.local);
 
-    let (literal_mode, outer_close) = if input.input.remainder().starts_with('[') {
-        input.skip(item('['))?;
+    let (literal_mode, outer_close) = if i.input.remainder().starts_with('[') {
+        i.skip(item('['))?;
         (YumarkMode::Inline, ']')
     } else {
-        input.skip(item('{'))?;
+        i.skip(item('{'))?;
         (YumarkMode::Block, '}')
     };
-    mark_non_trivia(input.local);
+    mark_non_trivia(i.local);
 
     let mut mode = literal_mode;
     let mut quote_depth = 0_usize;
     let line_document_continuation = false;
-    input.local.push_lexical_mode(EmbeddedLexicalMode::Yumark {
+    i.local.push_lexical_mode(EmbeddedLexicalMode::Yumark {
         mode,
         quote_depth,
         line_document_continuation,
@@ -232,44 +232,44 @@ where
 
     loop {
         if literal_mode == YumarkMode::Block && delimiters.len() == 1 && at_block_document_start {
-            if input.local.line().at_line_start {
-                consume_indentation(&mut input)?;
+            if i.local.line().at_line_start {
+                consume_indentation(&mut i)?;
             }
-            quote_depth = scan_yumark_quote_prefix(&mut input)?;
+            quote_depth = scan_yumark_quote_prefix(&mut i)?;
             mode = if quote_depth == 0 {
                 YumarkMode::Block
             } else {
                 YumarkMode::Quoted
             };
-            replace_yumark_mode(&mut input, mode, quote_depth, line_document_continuation);
+            replace_yumark_mode(&mut i, mode, quote_depth, line_document_continuation);
 
-            if input.input.remainder().starts_with("```") {
-                if input.run(from_fn(|input| {
-                    scan_yumark_fence_region(input, quote_depth)
+            if i.input.remainder().starts_with("```") {
+                if i.run(from_fn(|i| {
+                    scan_yumark_fence_region(i, quote_depth)
                 }))? == RegionEnd::Unterminated
                 {
                     return Some(RegionEnd::Unterminated);
                 }
                 quote_depth = 0;
                 mode = YumarkMode::Block;
-                replace_yumark_mode(&mut input, mode, quote_depth, line_document_continuation);
+                replace_yumark_mode(&mut i, mode, quote_depth, line_document_continuation);
                 at_block_document_start = false;
                 continue;
             }
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
         let newline = matches!(character, '\r' | '\n');
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
 
         if delimiters.last().copied() == Some(character) {
             delimiters.pop();
             if delimiters.is_empty() {
                 debug_assert_eq!(
-                    input.local.pop_lexical_mode(),
+                    i.local.pop_lexical_mode(),
                     Some(EmbeddedLexicalMode::Yumark {
                         mode,
                         quote_depth,
@@ -289,7 +289,7 @@ where
 /// Consumes a structural Yumark code fence, retaining its kind and logical
 /// line-continuation state until the matching closing fence or EOF.
 fn scan_yumark_fence_region<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -298,18 +298,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     for _ in 0..3 {
-        input.skip(item('`'))?;
+        i.skip(item('`'))?;
     }
-    mark_non_trivia(input.local);
+    mark_non_trivia(i.local);
 
     // The oracle tests this prefix immediately after the opening fence, not
     // after parsing or normalizing its info line.
-    let kind = if input.input.remainder().starts_with("yulang") {
+    let kind = if i.input.remainder().starts_with("yulang") {
         FenceKind::Yulang
     } else {
         FenceKind::Raw
     };
-    input.local.push_lexical_mode(EmbeddedLexicalMode::Fence {
+    i.local.push_lexical_mode(EmbeddedLexicalMode::Fence {
         kind,
         continuation: false,
     });
@@ -317,28 +317,28 @@ where
     // Consume the entire info line. A fence without its separating newline is
     // incomplete, even if its info spelling happened to name Yulang.
     loop {
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
         let newline = matches!(character, '\r' | '\n');
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
         if newline {
             break;
         }
     }
-    replace_fence_mode(&mut input, kind, true);
+    replace_fence_mode(&mut i, kind, true);
 
     let end = match kind {
-        FenceKind::Raw => scan_raw_yumark_fence_body(&mut input, quote_depth)?,
-        FenceKind::Yulang => scan_yulang_fence_body(&mut input, quote_depth)?,
+        FenceKind::Raw => scan_raw_yumark_fence_body(&mut i, quote_depth)?,
+        FenceKind::Yulang => scan_yulang_fence_body(&mut i, quote_depth)?,
     };
     if end == RegionEnd::Unterminated {
         return Some(RegionEnd::Unterminated);
     }
 
     debug_assert_eq!(
-        input.local.pop_lexical_mode(),
+        i.local.pop_lexical_mode(),
         Some(EmbeddedLexicalMode::Fence {
             kind,
             continuation: true,
@@ -350,7 +350,7 @@ where
 /// Raw fences only inspect structural line starts. Everything else, including
 /// braces and other lexical openers, is plain fence text.
 fn scan_raw_yumark_fence_body<E>(
-    mut input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -361,20 +361,20 @@ where
     let mut continuation = true;
     loop {
         if continuation
-            && consume_yumark_fence_line_prefix(&mut input, quote_depth)?
-            && input.input.remainder().starts_with("```")
+            && consume_yumark_fence_line_prefix(&mut i, quote_depth)?
+            && i.input.remainder().starts_with("```")
         {
-            consume_fence_sigil(&mut input)?;
+            consume_fence_sigil(&mut i)?;
             return Some(RegionEnd::Closed);
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
         continuation = matches!(character, '\r' | '\n');
-        update_region_character(character, character_start, &mut input)?;
-        replace_fence_mode(&mut input, FenceKind::Raw, continuation);
+        update_region_character(character, character_start, &mut i)?;
+        replace_fence_mode(&mut i, FenceKind::Raw, continuation);
     }
 }
 
@@ -382,7 +382,7 @@ where
 /// string, comment, interpolation, rule literal, or nested Yumark literal is
 /// not mistaken for the statement-level fence stop.
 fn scan_yulang_fence_body<E>(
-    mut input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     quote_depth: usize,
 ) -> Option<RegionEnd>
 where
@@ -393,62 +393,62 @@ where
     let mut continuation = true;
     loop {
         if continuation
-            && consume_yumark_fence_line_prefix(&mut input, quote_depth)?
-            && input.input.remainder().starts_with("```")
+            && consume_yumark_fence_line_prefix(&mut i, quote_depth)?
+            && i.input.remainder().starts_with("```")
         {
-            consume_fence_sigil(&mut input)?;
+            consume_fence_sigil(&mut i)?;
             return Some(RegionEnd::Closed);
         }
 
-        if starts_comment(input.input.remainder()) {
-            input.run(from_fn(scan_trivia))?;
-            if input.input.remainder().is_empty() {
+        if starts_comment(i.input.remainder()) {
+            i.run(scan_trivia)?;
+            if i.input.remainder().is_empty() {
                 return Some(RegionEnd::Unterminated);
             }
-            continuation = input.local.line().at_line_start;
-            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continuation = i.local.line().at_line_start;
+            replace_fence_mode(&mut i, FenceKind::Yulang, continuation);
             continue;
         }
 
-        if input.input.remainder().starts_with("'[") || input.input.remainder().starts_with("'{") {
-            if input.run(from_fn(scan_quoted_yumark_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with("'[") || i.input.remainder().starts_with("'{") {
+            if i.run(scan_quoted_yumark_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
-            continuation = input.local.line().at_line_start;
-            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continuation = i.local.line().at_line_start;
+            replace_fence_mode(&mut i, FenceKind::Yulang, continuation);
             continue;
         }
 
-        if input.input.remainder().starts_with("~\"") {
-            if input.run(from_fn(scan_rule_literal_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with("~\"") {
+            if i.run(scan_rule_literal_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
-            continuation = input.local.line().at_line_start;
-            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continuation = i.local.line().at_line_start;
+            replace_fence_mode(&mut i, FenceKind::Yulang, continuation);
             continue;
         }
 
-        if input.input.remainder().starts_with('"') {
-            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with('"') {
+            if i.run(scan_string_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
-            continuation = input.local.line().at_line_start;
-            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continuation = i.local.line().at_line_start;
+            replace_fence_mode(&mut i, FenceKind::Yulang, continuation);
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
         continuation = matches!(character, '\r' | '\n');
-        update_region_character(character, character_start, &mut input)?;
-        replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+        update_region_character(character, character_start, &mut i)?;
+        replace_fence_mode(&mut i, FenceKind::Yulang, continuation);
     }
 }
 
 fn consume_yumark_fence_line_prefix<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     quote_depth: usize,
 ) -> Option<bool>
 where
@@ -456,16 +456,16 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    consume_indentation(input)?;
-    let Some(prefix_len) = yumark_quote_prefix_len(input.input.remainder(), quote_depth) else {
+    consume_indentation(i)?;
+    let Some(prefix_len) = yumark_quote_prefix_len(i.input.remainder(), quote_depth) else {
         return Some(false);
     };
     for _ in 0..prefix_len {
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(false);
         };
-        update_region_character(character, character_start, input)?;
+        update_region_character(character, character_start, i)?;
     }
     Some(true)
 }
@@ -485,33 +485,33 @@ fn yumark_quote_prefix_len(remainder: &str, quote_depth: usize) -> Option<usize>
     Some(index)
 }
 
-fn consume_fence_sigil<E>(input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn consume_fence_sigil<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     for _ in 0..3 {
-        input.skip(item('`'))?;
+        i.skip(item('`'))?;
     }
-    mark_non_trivia(input.local);
+    mark_non_trivia(i.local);
     Some(())
 }
 
 fn replace_fence_mode<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     kind: FenceKind,
     continuation: bool,
 ) where
     E: ErrorSink<usize>,
 {
-    input
+    i
         .local
         .replace_lexical_mode(EmbeddedLexicalMode::Fence { kind, continuation });
 }
 
 fn scan_yumark_quote_prefix<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<usize>
 where
     E: ErrorSink<usize>,
@@ -519,27 +519,27 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut quote_depth = 0_usize;
-    while input.input.remainder().starts_with('>') {
-        input.skip(item('>'))?;
-        mark_non_trivia(input.local);
+    while i.input.remainder().starts_with('>') {
+        i.skip(item('>'))?;
+        mark_non_trivia(i.local);
         quote_depth += 1;
 
-        if let Some(space) = input.maybe(item(' ').or(item('\t')))? {
-            update_non_newline(space, input.local);
+        if let Some(space) = i.maybe(item(' ').or(item('\t')))? {
+            update_non_newline(space, i.local);
         }
     }
     Some(quote_depth)
 }
 
 fn replace_yumark_mode<E>(
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
     mode: YumarkMode,
     quote_depth: usize,
     line_document_continuation: bool,
 ) where
     E: ErrorSink<usize>,
 {
-    input
+    i
         .local
         .replace_lexical_mode(EmbeddedLexicalMode::Yumark {
             mode,
@@ -563,43 +563,43 @@ fn matching_delimiter(character: char) -> Option<char> {
 /// terminator. Its only nested structure is `{...}` rule interpolation, whose
 /// delimiters must remain opaque to the surrounding operator body.
 fn scan_rule_literal_region<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.skip(item('~'))?;
-    input.skip(item('"'))?;
-    mark_non_trivia(input.local);
-    input
+    i.skip(item('~'))?;
+    i.skip(item('"'))?;
+    mark_non_trivia(i.local);
+    i
         .local
         .push_lexical_mode(EmbeddedLexicalMode::RuleLiteral);
 
     loop {
-        if input.input.remainder().starts_with('"') {
-            input.skip(item('"'))?;
-            mark_non_trivia(input.local);
+        if i.input.remainder().starts_with('"') {
+            i.skip(item('"'))?;
+            mark_non_trivia(i.local);
             debug_assert_eq!(
-                input.local.pop_lexical_mode(),
+                i.local.pop_lexical_mode(),
                 Some(EmbeddedLexicalMode::RuleLiteral)
             );
             return Some(RegionEnd::Closed);
         }
 
-        if input.input.remainder().starts_with('{') {
-            if input.run(from_fn(scan_rule_literal_interpolation))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with('{') {
+            if i.run(scan_rule_literal_interpolation)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
     }
 }
 
@@ -607,38 +607,38 @@ where
 /// syntax. Capture and lazy-capture spellings do not change the lexical
 /// boundary; only nested delimiters, comments, and normal strings do.
 fn scan_rule_literal_interpolation<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.skip(item('{'))?;
-    mark_non_trivia(input.local);
+    i.skip(item('{'))?;
+    mark_non_trivia(i.local);
     let mut delimiter_depth = 1_usize;
 
     loop {
-        if starts_comment(input.input.remainder()) {
-            input.run(from_fn(scan_trivia))?;
-            if input.input.remainder().is_empty() {
+        if starts_comment(i.input.remainder()) {
+            i.run(scan_trivia)?;
+            if i.input.remainder().is_empty() {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        if input.input.remainder().starts_with('"') {
-            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with('"') {
+            if i.run(scan_string_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
 
         match character {
             '(' | '[' | '{' => delimiter_depth += 1,
@@ -655,65 +655,65 @@ where
 /// is deliberately scanned byte-for-byte so quotes, escapes, and newlines do
 /// not terminate the enclosing string before the interpolation body begins.
 fn scan_string_interpolation_region<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    input.skip(item('%'))?;
-    mark_non_trivia(input.local);
-    input
+    i.skip(item('%'))?;
+    mark_non_trivia(i.local);
+    i
         .local
         .push_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 0 });
 
     loop {
-        if input.input.remainder().starts_with('{') {
-            input.skip(item('{'))?;
-            mark_non_trivia(input.local);
-            input
+        if i.input.remainder().starts_with('{') {
+            i.skip(item('{'))?;
+            mark_non_trivia(i.local);
+            i
                 .local
                 .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 1 });
             break;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
     }
 
     let mut delimiter_depth = 1_usize;
     loop {
-        if starts_comment(input.input.remainder()) {
-            input.run(from_fn(scan_trivia))?;
-            if input.input.remainder().is_empty() {
+        if starts_comment(i.input.remainder()) {
+            i.run(scan_trivia)?;
+            if i.input.remainder().is_empty() {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        if input.input.remainder().starts_with('"') {
-            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+        if i.input.remainder().starts_with('"') {
+            if i.run(scan_string_region)? == RegionEnd::Unterminated {
                 return Some(RegionEnd::Unterminated);
             }
             continue;
         }
 
-        let character_start = input.pos();
-        let Some(character) = input.maybe(any)? else {
+        let character_start = i.pos();
+        let Some(character) = i.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        update_region_character(character, character_start, &mut input)?;
+        update_region_character(character, character_start, &mut i)?;
 
         match character {
             '(' | '[' | '{' => delimiter_depth += 1,
             ')' | ']' => delimiter_depth = delimiter_depth.saturating_sub(1).max(1),
             '}' if delimiter_depth == 1 => {
                 debug_assert_eq!(
-                    input.local.pop_lexical_mode(),
+                    i.local.pop_lexical_mode(),
                     Some(EmbeddedLexicalMode::Interpolation { delimiter_depth: 1 })
                 );
                 return Some(RegionEnd::Closed);
@@ -722,7 +722,7 @@ where
             _ => {}
         }
 
-        input
+        i
             .local
             .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth });
     }
@@ -731,30 +731,30 @@ where
 fn update_region_character<E>(
     character: char,
     start: usize,
-    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
     if character == '\r' {
-        input.skip(item('\n').or_not())?;
-        update_newline(start, input.pos(), input.local);
+        i.skip(item('\n').or_not())?;
+        update_newline(start, i.pos(), i.local);
     } else if character == '\n' {
-        update_newline(start, input.pos(), input.local);
+        update_newline(start, i.pos(), i.local);
     } else {
-        update_non_newline(character, input.local);
+        update_non_newline(character, i.local);
     }
     Some(())
 }
 
-fn consume_indentation<E>(input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn consume_indentation<E>(i: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    while let Some(character) = input.maybe(item(' ').or(item('\t')))? {
-        update_non_newline(character, input.local);
+    while let Some(character) = i.maybe(item(' ').or(item('\t')))? {
+        update_non_newline(character, i.local);
     }
     Some(())
 }
@@ -806,14 +806,14 @@ fn mark_non_trivia(local: &mut ParseLocal) {
 
 fn body_span<'source, E>(
     start: usize,
-    input: &In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
+    i: &In<'_, SourceInput<'source>, (), &mut ParseLocal, E>,
 ) -> OpaqueBodySpan<'source>
 where
     E: ErrorSink<usize>,
 {
-    let end = input.pos();
+    let end = i.pos();
     OpaqueBodySpan {
-        text: &input.input.source()[start..end],
+        text: &i.input.source()[start..end],
         start,
         end,
     }
@@ -1160,20 +1160,20 @@ mod tests {
         local.push_delimiter(Delimiter::Brace);
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let body = input
-            .run(from_fn(scan_opaque_body))
+        let body = i
+            .run(scan_opaque_body)
             .expect("opaque body scanning is total");
 
-        assert_eq!(input.local.delimiter(), Some(Delimiter::Brace));
+        assert_eq!(i.local.delimiter(), Some(Delimiter::Brace));
         assert_eq!(
-            input.local.indentation_baseline(),
+            i.local.indentation_baseline(),
             Some(IndentationBaseline {
                 column: 0,
                 kind: IndentationBaselineKind::Introducer,
@@ -1182,8 +1182,8 @@ mod tests {
 
         ScanResult {
             body: (body.range(), body.text()),
-            remainder: input.input.remainder(),
-            lexical_mode: input.local.lexical_mode(),
+            remainder: i.input.remainder(),
+            lexical_mode: i.local.lexical_mode(),
         }
     }
 }
