@@ -306,7 +306,7 @@ impl BindingPower {
     }
 }
 
-/// Discover leading plain imports and infix operator signatures.
+/// Discover leading imports and infix operator signatures.
 pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
     let source = source.as_ref();
     let mut cursor = HeaderCursor::new(source);
@@ -322,7 +322,7 @@ pub fn scan_header(source: Arc<SourceText>) -> HeaderInfo {
 
         let declaration = match starter.kind {
             TokenKind::Keyword(HeaderKeyword::Use) => {
-                scan_plain_use(&mut cursor, declaration_start).map(HeaderDeclaration::Import)
+                scan_use(&mut cursor, declaration_start).map(HeaderDeclaration::Import)
             }
             TokenKind::Keyword(HeaderKeyword::Infix) => {
                 scan_infix_operator(&mut cursor, declaration_start).map(HeaderDeclaration::Operator)
@@ -360,21 +360,77 @@ enum HeaderDeclaration {
     Operator(HeaderOperator),
 }
 
-fn scan_plain_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<HeaderImport> {
+fn scan_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<HeaderImport> {
     cursor.consume_exact_space()?;
     let first_component = cursor.consume_path_component()?;
-    let mut range_end = first_component.range.end;
-    let mut path = vec![first_component.text.to_owned()];
+    let form = classify_use_form(first_component.text, None);
+    let (form, mut range_end, mut path, mut separators) = if form == HeaderImportForm::Mod {
+        cursor.consume_exact_space()?;
+        let component = cursor.consume_path_component()?;
+        (
+            form,
+            component.range.end,
+            vec![component.text.to_owned()],
+            Vec::new(),
+        )
+    } else {
+        match cursor.next() {
+            Some(ScanItem::Token(token)) => {
+                let separator = header_import_route_separator(&token)?;
+                let form = classify_use_form(first_component.text, Some(separator));
+                let component = cursor.consume_path_component()?;
+                match form {
+                    HeaderImportForm::Realm | HeaderImportForm::Band => (
+                        form,
+                        component.range.end,
+                        vec![component.text.to_owned()],
+                        Vec::new(),
+                    ),
+                    HeaderImportForm::Plain => (
+                        form,
+                        component.range.end,
+                        vec![first_component.text.to_owned(), component.text.to_owned()],
+                        vec![separator],
+                    ),
+                    HeaderImportForm::Mod => {
+                        unreachable!("mod is handled before separator scanning")
+                    }
+                }
+            }
+            Some(ScanItem::Trivia(Trivia {
+                kind: TriviaKind::Newline { indentation },
+                ..
+            })) => {
+                debug_assert_eq!(cursor.indentation(), indentation);
+                return Some(header_import(
+                    range_start,
+                    first_component.range.end,
+                    HeaderImportForm::Plain,
+                    vec![first_component.text.to_owned()],
+                    Vec::new(),
+                ));
+            }
+            None => {
+                return Some(header_import(
+                    range_start,
+                    first_component.range.end,
+                    HeaderImportForm::Plain,
+                    vec![first_component.text.to_owned()],
+                    Vec::new(),
+                ));
+            }
+            _ => return None,
+        }
+    };
 
     loop {
         match cursor.next() {
-            Some(ScanItem::Token(Token {
-                kind: TokenKind::ColonColon,
-                ..
-            })) => {
+            Some(ScanItem::Token(token)) => {
+                let separator = header_import_route_separator(&token)?;
                 let component = cursor.consume_path_component()?;
                 range_end = component.range.end;
                 path.push(component.text.to_owned());
+                separators.push(separator);
             }
             Some(ScanItem::Trivia(Trivia {
                 kind: TriviaKind::Newline { indentation },
@@ -388,15 +444,63 @@ fn scan_plain_use(cursor: &mut HeaderCursor<'_>, range_start: usize) -> Option<H
         }
     }
 
-    let separators =
-        std::iter::repeat_n(HeaderImportRouteSeparator::ColonColon, path.len() - 1).collect();
-    Some(HeaderImport::new(
+    Some(header_import(
+        range_start,
+        range_end,
+        form,
+        path,
+        separators,
+    ))
+}
+
+fn classify_use_form(
+    first_component: &str,
+    following_separator: Option<HeaderImportRouteSeparator>,
+) -> HeaderImportForm {
+    if first_component == "mod" {
+        HeaderImportForm::Mod
+    } else if first_component == "realm"
+        && following_separator == Some(HeaderImportRouteSeparator::Slash)
+    {
+        HeaderImportForm::Realm
+    } else if first_component == "band"
+        && following_separator == Some(HeaderImportRouteSeparator::ColonColon)
+    {
+        HeaderImportForm::Band
+    } else {
+        HeaderImportForm::Plain
+    }
+}
+
+fn header_import_route_separator(token: &Token<'_>) -> Option<HeaderImportRouteSeparator> {
+    match token {
+        Token {
+            kind: TokenKind::ColonColon,
+            ..
+        } => Some(HeaderImportRouteSeparator::ColonColon),
+        Token {
+            kind: TokenKind::Symbol,
+            text: "/",
+            ..
+        } => Some(HeaderImportRouteSeparator::Slash),
+        _ => None,
+    }
+}
+
+fn header_import(
+    range_start: usize,
+    range_end: usize,
+    form: HeaderImportForm,
+    path: Vec<String>,
+    separators: Vec<HeaderImportRouteSeparator>,
+) -> HeaderImport {
+    HeaderImport::new(
         range_start..range_end,
-        HeaderImportForm::Plain,
+        form,
         HeaderImportRoute::new(path, separators),
         Visibility::Private,
         None,
-    ))
+    )
 }
 
 fn scan_infix_operator(
@@ -760,6 +864,104 @@ mod tests {
         assert_eq!(import.path(), ["std".to_owned(), "data".to_owned()]);
         assert_eq!(import.visibility(), Visibility::Private);
         assert_eq!(import.alias(), None);
+    }
+
+    #[test]
+    fn discovers_simple_use_forms_with_marker_specific_routes() {
+        let cases = [
+            (
+                "use std::data\n",
+                HeaderImportForm::Plain,
+                &["std", "data"] as &[_],
+                &[HeaderImportRouteSeparator::ColonColon][..],
+            ),
+            (
+                "use mod math::value\n",
+                HeaderImportForm::Mod,
+                &["math", "value"],
+                &[HeaderImportRouteSeparator::ColonColon][..],
+            ),
+            (
+                "use realm/tools::format\n",
+                HeaderImportForm::Realm,
+                &["tools", "format"],
+                &[HeaderImportRouteSeparator::ColonColon][..],
+            ),
+            (
+                "use band::support::value\n",
+                HeaderImportForm::Band,
+                &["support", "value"],
+                &[HeaderImportRouteSeparator::ColonColon][..],
+            ),
+        ];
+
+        for (source, form, path, separators) in cases {
+            let header = scan_header(Arc::from(source));
+
+            assert_eq!(header.coverage().range(), &(0..source.len()), "{source}");
+            assert_eq!(header.coverage().stop(), HeaderStop::Eof, "{source}");
+            let [import] = header.imports() else {
+                panic!("expected exactly one header import: {header:#?}");
+            };
+            assert_eq!(import.form(), form, "{source}");
+            assert_eq!(import.path(), path, "{source}");
+            assert_eq!(import.route().separators(), separators, "{source}");
+        }
+    }
+
+    #[test]
+    fn keeps_non_marker_use_paths_plain() {
+        let cases = [
+            (
+                "use realm::tools\n",
+                &["realm", "tools"] as &[_],
+                &[HeaderImportRouteSeparator::ColonColon][..],
+            ),
+            (
+                "use band/tools\n",
+                &["band", "tools"],
+                &[HeaderImportRouteSeparator::Slash][..],
+            ),
+            (
+                "use package/tools::format\n",
+                &["package", "tools", "format"],
+                &[
+                    HeaderImportRouteSeparator::Slash,
+                    HeaderImportRouteSeparator::ColonColon,
+                ][..],
+            ),
+        ];
+
+        for (source, path, separators) in cases {
+            let header = scan_header(Arc::from(source));
+            let [import] = header.imports() else {
+                panic!("expected exactly one header import: {header:#?}");
+            };
+            assert_eq!(import.form(), HeaderImportForm::Plain, "{source}");
+            assert_eq!(import.path(), path, "{source}");
+            assert_eq!(import.route().separators(), separators, "{source}");
+        }
+    }
+
+    #[test]
+    fn parses_simple_use_forms_losslessly() {
+        for source in [
+            "use std::data\nmy value = 1\n",
+            "use mod math::value\nmy value = 1\n",
+            "use realm/tools::format\nmy value = 1\n",
+            "use band::support::value\nmy value = 1\n",
+        ] {
+            let source: Arc<SourceText> = Arc::from(source);
+            let header = Arc::new(scan_header(Arc::clone(&source)));
+            let parsed = parse_file(
+                Arc::clone(&source),
+                header,
+                Arc::new(SyntaxEnvironment::empty()),
+            );
+
+            assert_eq!(parsed.green().to_string(), source.as_ref());
+            assert!(parsed.diagnostics().is_empty());
+        }
     }
 
     #[test]
