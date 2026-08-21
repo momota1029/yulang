@@ -1,4 +1,4 @@
-//! Lossless range scanning for whitespace, newlines, and ordinary comments.
+//! Lossless typed-range scanning for whitespace, newlines, and ordinary comments.
 
 use std::ops::Range;
 
@@ -14,21 +14,114 @@ use crate::{
     session::{EmbeddedLexicalMode, LineState, ParseLocal},
 };
 
-/// The contiguous source range consumed by one maximal trivia scan.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct TriviaSpan {
-    start: usize,
-    end: usize,
+/// The typed, contiguous source range consumed by one maximal trivia scan.
+///
+/// Parts borrow no source text. A caller that commits this scanner result can
+/// therefore emit every trivia token directly from its source range without a
+/// second lexical pass.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TriviaRun {
+    range: Range<usize>,
+    parts: TriviaParts,
 }
 
-impl TriviaSpan {
-    pub(crate) fn range(self) -> Range<usize> {
-        self.start..self.end
+impl TriviaRun {
+    fn new(range: Range<usize>, parts: TriviaParts) -> Self {
+        debug_assert!(parts.cover(range.clone()));
+        Self { range, parts }
     }
 
-    pub(crate) fn is_empty(self) -> bool {
-        self.start == self.end
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
     }
+
+    pub(crate) fn parts(&self) -> &[TriviaPart] {
+        self.parts.as_slice()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.parts.is_empty()
+    }
+}
+
+/// Typed parts of one maximal trivia run.
+///
+/// This stays local to one scanner decision. The storage representation can
+/// become inline-first later without changing the range contract.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct TriviaParts(Vec<TriviaPart>);
+
+impl TriviaParts {
+    fn push(&mut self, part: TriviaPart) {
+        self.0.push(part);
+    }
+
+    fn extend(&mut self, parts: impl IntoIterator<Item = TriviaPart>) {
+        self.0.extend(parts);
+    }
+
+    pub(crate) fn as_slice(&self) -> &[TriviaPart] {
+        &self.0
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn cover(&self, range: Range<usize>) -> bool {
+        let Some(first) = self.0.first() else {
+            return range.start == range.end;
+        };
+        if first.range.start != range.start {
+            return false;
+        }
+
+        let mut end = range.start;
+        for part in &self.0 {
+            if part.range.start != end || part.range.start == part.range.end {
+                return false;
+            }
+            end = part.range.end;
+        }
+        end == range.end
+    }
+}
+
+/// One source-backed trivia token in a [`TriviaRun`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TriviaPart {
+    kind: TriviaPartKind,
+    range: Range<usize>,
+}
+
+impl TriviaPart {
+    fn new(kind: TriviaPartKind, range: Range<usize>) -> Self {
+        Self { kind, range }
+    }
+
+    pub(crate) fn kind(&self) -> &TriviaPartKind {
+        &self.kind
+    }
+
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+/// The lexical category of one trivia part.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum TriviaPartKind {
+    Whitespace,
+    Newline,
+    LineComment,
+    BlockComment { termination: CommentTermination },
+}
+
+/// Whether a block comment reached its matching closing delimiter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CommentTermination {
+    Closed,
+    Unterminated { remaining_depth: usize },
 }
 
 /// Consumes the maximal ordinary-trivia run at the current byte position.
@@ -38,38 +131,45 @@ impl TriviaSpan {
 /// shared trivia scanner; only `//` is an ordinary line comment here.
 pub(crate) fn scan_trivia<E>(
     mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
-) -> Option<TriviaSpan>
+) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = input.pos();
+    let mut parts = TriviaParts::default();
 
     loop {
-        let ordinary_trivia = choice((
-            from_fn(scan_whitespace).to(()),
-            from_fn(scan_line_comment).to(()),
-            from_fn(scan_block_comment).to(()),
-        ));
-        if input.maybe(ordinary_trivia)?.is_none() {
-            break;
+        if let Some(whitespace) = input.maybe(from_fn(scan_whitespace))? {
+            parts.extend(whitespace);
+            continue;
         }
+        if let Some(comment) = input.maybe(from_fn(scan_line_comment))? {
+            parts.push(comment);
+            continue;
+        }
+        if let Some(comment) = input.maybe(from_fn(scan_block_comment))? {
+            parts.push(comment);
+            continue;
+        }
+        break;
     }
 
-    Some(TriviaSpan {
-        start,
-        end: input.pos(),
-    })
+    Some(TriviaRun::new(start..input.pos(), parts))
 }
 
-fn scan_whitespace<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn scan_whitespace<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<Vec<TriviaPart>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut consumed = false;
+    let mut parts = Vec::new();
+    let mut whitespace_start = None;
 
     loop {
         let start = input.pos();
@@ -104,17 +204,42 @@ where
             }
         }
         input.local.set_line(line);
+
+        match unit {
+            WhitespaceUnit::Horizontal => {
+                whitespace_start.get_or_insert(start);
+            }
+            WhitespaceUnit::Newline => {
+                if let Some(whitespace_start) = whitespace_start.take() {
+                    parts.push(TriviaPart::new(
+                        TriviaPartKind::Whitespace,
+                        whitespace_start..start,
+                    ));
+                }
+                parts.push(TriviaPart::new(TriviaPartKind::Newline, start..end));
+            }
+        }
         consumed = true;
     }
 
-    consumed.then_some(())
+    if let Some(whitespace_start) = whitespace_start {
+        parts.push(TriviaPart::new(
+            TriviaPartKind::Whitespace,
+            whitespace_start..input.pos(),
+        ));
+    }
+
+    consumed.then_some(parts)
 }
 
-fn scan_line_comment<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn scan_line_comment<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
+    let start = input.pos();
     input.skip(tag("//"))?;
     input
         .local
@@ -124,15 +249,21 @@ where
         input.local.pop_lexical_mode(),
         Some(EmbeddedLexicalMode::LineComment)
     );
-    Some(())
+    Some(TriviaPart::new(
+        TriviaPartKind::LineComment,
+        start..input.pos(),
+    ))
 }
 
-fn scan_block_comment<E>(mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+fn scan_block_comment<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let start = input.pos();
     input.skip(tag("/*"))?;
     input
         .local
@@ -149,7 +280,18 @@ where
             // The oracle accepts an unterminated block comment at EOF and
             // synthesizes its closing trivia token. Keep the lexical frame so
             // callers can still observe that the source ended in this mode.
-            return Some(());
+            let Some(EmbeddedLexicalMode::BlockComment { depth }) = input.local.lexical_mode()
+            else {
+                unreachable!("block-comment scanner owns the top lexical frame");
+            };
+            return Some(TriviaPart::new(
+                TriviaPartKind::BlockComment {
+                    termination: CommentTermination::Unterminated {
+                        remaining_depth: depth,
+                    },
+                },
+                start..input.pos(),
+            ));
         };
 
         match unit {
@@ -172,7 +314,12 @@ where
                         input.local.pop_lexical_mode(),
                         Some(EmbeddedLexicalMode::BlockComment { depth: 1 })
                     );
-                    return Some(());
+                    return Some(TriviaPart::new(
+                        TriviaPartKind::BlockComment {
+                            termination: CommentTermination::Closed,
+                        },
+                        start..input.pos(),
+                    ));
                 }
                 input
                     .local
@@ -237,6 +384,108 @@ enum BlockCommentUnit {
 mod tests {
     use super::*;
     use chasa::{input::IsCut, prelude::from_fn_once, prelude::item};
+
+    #[test]
+    fn typed_parts_are_contiguous_and_cover_the_maximal_run() {
+        let source = " \t\r\n// comment\n/* outer /* inner */ */name";
+        let trivia_end = source.find("name").expect("test suffix must exist");
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let run = input
+            .run(from_fn(scan_trivia))
+            .expect("trivia scanning is total");
+
+        assert_eq!(run.range(), 0..trivia_end);
+        assert_eq!(
+            run.parts(),
+            [
+                TriviaPart::new(TriviaPartKind::Whitespace, 0..2),
+                TriviaPart::new(TriviaPartKind::Newline, 2..4),
+                TriviaPart::new(TriviaPartKind::LineComment, 4..14),
+                TriviaPart::new(TriviaPartKind::Newline, 14..15),
+                TriviaPart::new(
+                    TriviaPartKind::BlockComment {
+                        termination: CommentTermination::Closed,
+                    },
+                    15..trivia_end,
+                ),
+            ]
+        );
+
+        let mut end = run.range().start;
+        for part in run.parts() {
+            let range = part.range();
+            assert_eq!(range.start, end);
+            assert!(range.start < range.end);
+            end = range.end;
+        }
+        assert_eq!(end, run.range().end);
+    }
+
+    #[test]
+    fn empty_run_has_an_empty_range_and_no_parts() {
+        let mut source_input = SourceInput::new("name");
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let run = input
+            .run(from_fn(scan_trivia))
+            .expect("trivia scanning is total");
+
+        assert_eq!(run.range(), 0..0);
+        assert!(run.parts().is_empty());
+        assert!(run.is_empty());
+    }
+
+    #[test]
+    fn unterminated_nested_block_comment_records_its_remaining_depth() {
+        let source = "/* outer /* nested";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut input = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let run = input
+            .run(from_fn(scan_trivia))
+            .expect("trivia scanning is total");
+
+        assert_eq!(run.range(), 0..source.len());
+        assert_eq!(
+            run.parts(),
+            [TriviaPart::new(
+                TriviaPartKind::BlockComment {
+                    termination: CommentTermination::Unterminated { remaining_depth: 2 },
+                },
+                0..source.len(),
+            )]
+        );
+        assert_eq!(
+            input.local.lexical_mode(),
+            Some(EmbeddedLexicalMode::BlockComment { depth: 2 })
+        );
+    }
 
     #[test]
     fn whitespace_and_newlines_update_physical_line_state() {

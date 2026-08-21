@@ -19,7 +19,7 @@ use crate::{
     session::{ParseLocal, StopKind},
 };
 
-use super::trivia::{TriviaSpan, scan_trivia};
+use super::trivia::{TriviaRun, scan_trivia};
 
 /// One accepted operator use and its exact source extent.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ pub(crate) struct ScannedOperator<'source> {
     start: usize,
     end: usize,
     fixity: ScannedFixity,
-    trailing_trivia: TriviaSpan,
+    trailing_trivia: TriviaRun,
 }
 
 impl<'source> ScannedOperator<'source> {
@@ -44,8 +44,8 @@ impl<'source> ScannedOperator<'source> {
         &self.fixity
     }
 
-    pub(crate) fn trailing_trivia(&self) -> TriviaSpan {
-        self.trailing_trivia
+    pub(crate) fn trailing_trivia(&self) -> &TriviaRun {
+        &self.trailing_trivia
     }
 }
 
@@ -118,7 +118,7 @@ where
             candidate_input.local.set_line(line);
 
             let trailing_trivia = candidate_input.run(from_fn(scan_trivia))?;
-            let trailing = trailing_info(trailing_trivia, candidate_input.local.line());
+            let trailing = trailing_info(&trailing_trivia, candidate_input.local.line());
             let kinds = entry.fixities().kinds();
 
             if is_call_or_path_sensitive(kinds)
@@ -175,7 +175,7 @@ where
 struct AcceptedCandidate {
     end: usize,
     fixity: ScannedFixity,
-    trailing_trivia: TriviaSpan,
+    trailing_trivia: TriviaRun,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -185,11 +185,11 @@ enum TrailingInfo {
     Newline { indentation: usize },
 }
 
-fn trailing_info(span: TriviaSpan, line: crate::session::LineState) -> TrailingInfo {
-    if span.is_empty() {
+fn trailing_info(run: &TriviaRun, line: crate::session::LineState) -> TrailingInfo {
+    if run.is_empty() {
         return TrailingInfo::None;
     }
-    let range = span.range();
+    let range = run.range();
     if line
         .last_newline
         .is_some_and(|(start, end)| range.contains(&start) && end <= range.end)
