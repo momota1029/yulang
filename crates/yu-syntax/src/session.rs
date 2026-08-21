@@ -327,6 +327,7 @@ pub(crate) enum EmbeddedLexicalMode {
     },
     Fence {
         kind: FenceKind,
+        /// Whether the next source position is a logical fence-line start.
         continuation: bool,
     },
 }
@@ -343,7 +344,9 @@ pub(crate) enum YumarkMode {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FenceKind {
+    /// A Yumark code fence whose body is raw text.
     Raw,
+    /// A Yumark code fence whose body uses Yulang lexical regions.
     Yulang,
 }
 

@@ -1,9 +1,8 @@
 //! Header-mode scanning for operator bodies that are not expression-parsed.
 //!
-//! This scanner makes comments, normal strings, heredocs, and string
-//! interpolation, rule literals, and quoted/block Yumark opaque to the outer
-//! delimiter/layout scan. Raw/Yulang fences still need their own lexical-region
-//! handling before this scanner can cover the complete language.
+//! This scanner makes comments, normal strings, heredocs, string interpolation,
+//! rule literals, quoted/block Yumark, and Yumark code fences opaque to the
+//! outer delimiter/layout scan.
 
 use std::ops::Range;
 
@@ -16,7 +15,7 @@ use chasa::{
 
 use crate::{
     input::SourceInput,
-    session::{EmbeddedLexicalMode, ParseLocal, YumarkMode},
+    session::{EmbeddedLexicalMode, FenceKind, ParseLocal, YumarkMode},
 };
 
 use super::trivia::scan_trivia;
@@ -228,6 +227,9 @@ where
 
     loop {
         if literal_mode == YumarkMode::Block && delimiters.len() == 1 && at_block_document_start {
+            if input.local.line().at_line_start {
+                consume_indentation(&mut input)?;
+            }
             quote_depth = scan_yumark_quote_prefix(&mut input)?;
             mode = if quote_depth == 0 {
                 YumarkMode::Block
@@ -236,11 +238,11 @@ where
             };
             replace_yumark_mode(&mut input, mode, quote_depth, line_document_continuation);
 
-            // A later slice distinguishes raw and Yulang fences. For this
-            // slice, consuming a fence body is enough to keep its `}` text
-            // from closing the surrounding apostrophe-brace literal.
             if input.input.remainder().starts_with("```") {
-                if input.run(from_fn(scan_yumark_fence_body))? == RegionEnd::Unterminated {
+                if input.run(from_fn(|input| {
+                    scan_yumark_fence_region(input, quote_depth)
+                }))? == RegionEnd::Unterminated
+                {
                     return Some(RegionEnd::Unterminated);
                 }
                 quote_depth = 0;
@@ -279,11 +281,11 @@ where
     }
 }
 
-/// Consumes a structural Yumark fence just far enough to preserve the outer
-/// apostrophe-brace boundary. Its info string and raw/Yulang distinction remain
-/// the responsibility of the following fence slice.
-fn scan_yumark_fence_body<E>(
+/// Consumes a structural Yumark code fence, retaining its kind and logical
+/// line-continuation state until the matching closing fence or EOF.
+fn scan_yumark_fence_region<E>(
     mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    quote_depth: usize,
 ) -> Option<RegionEnd>
 where
     E: ErrorSink<usize>,
@@ -295,6 +297,20 @@ where
     }
     mark_non_trivia(input.local);
 
+    // The oracle tests this prefix immediately after the opening fence, not
+    // after parsing or normalizing its info line.
+    let kind = if input.input.remainder().starts_with("yulang") {
+        FenceKind::Yulang
+    } else {
+        FenceKind::Raw
+    };
+    input.local.push_lexical_mode(EmbeddedLexicalMode::Fence {
+        kind,
+        continuation: false,
+    });
+
+    // Consume the entire info line. A fence without its separating newline is
+    // incomplete, even if its info spelling happened to name Yulang.
     loop {
         let character_start = input.pos();
         let Some(character) = input.maybe(any)? else {
@@ -306,14 +322,44 @@ where
             break;
         }
     }
+    replace_fence_mode(&mut input, kind, true);
 
-    let mut at_fence_line_start = true;
+    let end = match kind {
+        FenceKind::Raw => scan_raw_yumark_fence_body(&mut input, quote_depth)?,
+        FenceKind::Yulang => scan_yulang_fence_body(&mut input, quote_depth)?,
+    };
+    if end == RegionEnd::Unterminated {
+        return Some(RegionEnd::Unterminated);
+    }
+
+    debug_assert_eq!(
+        input.local.pop_lexical_mode(),
+        Some(EmbeddedLexicalMode::Fence {
+            kind,
+            continuation: true,
+        })
+    );
+    Some(RegionEnd::Closed)
+}
+
+/// Raw fences only inspect structural line starts. Everything else, including
+/// braces and other lexical openers, is plain fence text.
+fn scan_raw_yumark_fence_body<E>(
+    mut input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    quote_depth: usize,
+) -> Option<RegionEnd>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut continuation = true;
     loop {
-        if at_fence_line_start && input.input.remainder().starts_with("```") {
-            for _ in 0..3 {
-                input.skip(item('`'))?;
-            }
-            mark_non_trivia(input.local);
+        if continuation
+            && consume_yumark_fence_line_prefix(&mut input, quote_depth)?
+            && input.input.remainder().starts_with("```")
+        {
+            consume_fence_sigil(&mut input)?;
             return Some(RegionEnd::Closed);
         }
 
@@ -321,9 +367,142 @@ where
         let Some(character) = input.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
         };
-        at_fence_line_start = matches!(character, '\r' | '\n');
+        continuation = matches!(character, '\r' | '\n');
         update_region_character(character, character_start, &mut input)?;
+        replace_fence_mode(&mut input, FenceKind::Raw, continuation);
     }
+}
+
+/// Yulang fence bodies need lexical-region awareness so a triple backtick in a
+/// string, comment, interpolation, rule literal, or nested Yumark literal is
+/// not mistaken for the statement-level fence stop.
+fn scan_yulang_fence_body<E>(
+    mut input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    quote_depth: usize,
+) -> Option<RegionEnd>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut continuation = true;
+    loop {
+        if continuation
+            && consume_yumark_fence_line_prefix(&mut input, quote_depth)?
+            && input.input.remainder().starts_with("```")
+        {
+            consume_fence_sigil(&mut input)?;
+            return Some(RegionEnd::Closed);
+        }
+
+        if starts_comment(input.input.remainder()) {
+            input.run(from_fn(scan_trivia))?;
+            if input.input.remainder().is_empty() {
+                return Some(RegionEnd::Unterminated);
+            }
+            continuation = input.local.line().at_line_start;
+            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continue;
+        }
+
+        if input.input.remainder().starts_with("'[") || input.input.remainder().starts_with("'{") {
+            if input.run(from_fn(scan_quoted_yumark_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continuation = input.local.line().at_line_start;
+            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continue;
+        }
+
+        if input.input.remainder().starts_with("~\"") {
+            if input.run(from_fn(scan_rule_literal_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continuation = input.local.line().at_line_start;
+            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continue;
+        }
+
+        if input.input.remainder().starts_with('"') {
+            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continuation = input.local.line().at_line_start;
+            replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+            continue;
+        }
+
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(RegionEnd::Unterminated);
+        };
+        continuation = matches!(character, '\r' | '\n');
+        update_region_character(character, character_start, &mut input)?;
+        replace_fence_mode(&mut input, FenceKind::Yulang, continuation);
+    }
+}
+
+fn consume_yumark_fence_line_prefix<E>(
+    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    quote_depth: usize,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_indentation(input)?;
+    let Some(prefix_len) = yumark_quote_prefix_len(input.input.remainder(), quote_depth) else {
+        return Some(false);
+    };
+    for _ in 0..prefix_len {
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(false);
+        };
+        update_region_character(character, character_start, input)?;
+    }
+    Some(true)
+}
+
+fn yumark_quote_prefix_len(remainder: &str, quote_depth: usize) -> Option<usize> {
+    let mut index = 0_usize;
+    for _ in 0..quote_depth {
+        let rest = remainder.get(index..)?;
+        if !rest.starts_with('>') {
+            return None;
+        }
+        index += 1;
+        if matches!(remainder.get(index..)?.chars().next(), Some(' ' | '\t')) {
+            index += 1;
+        }
+    }
+    Some(index)
+}
+
+fn consume_fence_sigil<E>(input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>) -> Option<()>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    for _ in 0..3 {
+        input.skip(item('`'))?;
+    }
+    mark_non_trivia(input.local);
+    Some(())
+}
+
+fn replace_fence_mode<E>(
+    input: &mut In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    kind: FenceKind,
+    continuation: bool,
+) where
+    E: ErrorSink<usize>,
+{
+    input
+        .local
+        .replace_lexical_mode(EmbeddedLexicalMode::Fence { kind, continuation });
 }
 
 fn scan_yumark_quote_prefix<E>(
@@ -761,14 +940,12 @@ mod tests {
         let block = scan(" '{# Title\n}\nnext");
         let nested = scan(" '{# Title\n[inline {command}]\n}\nnext");
         let quoted = scan(" '{> quoted { braces }\n}\nnext");
-        let fenced = scan(" '{```yulang\n}\n```\n}\nnext");
 
         for (result, expected) in [
             (inline, " '[hello world]\n"),
             (block, " '{# Title\n}\n"),
             (nested, " '{# Title\n[inline {command}]\n}\n"),
             (quoted, " '{> quoted { braces }\n}\n"),
-            (fenced, " '{```yulang\n}\n```\n}\n"),
         ] {
             assert_eq!(result.body, (0..expected.len(), expected));
             assert_eq!(result.remainder, "next");
@@ -784,6 +961,43 @@ mod tests {
         assert_eq!(result.body, (0..expected.len(), expected));
         assert_eq!(result.remainder, "next");
         assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
+    fn raw_yumark_fence_ignores_braces_and_mid_line_fence_text() {
+        let result = scan(" '{```text\n}\n{ raw }\nbody ``` remains text\n```\n}\nnext");
+        let expected = " '{```text\n}\n{ raw }\nbody ``` remains text\n```\n}\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
+    fn yulang_yumark_fence_reuses_nested_lexical_regions() {
+        let result = scan(
+            " '{```yulang\nmy data = \"%{ { value } }\"\n~\"users/{id}\"\n'[inline]\n// ``` remains comment text\nbody ``` remains mid-line text\n```\n}\nnext",
+        );
+        let expected = " '{```yulang\nmy data = \"%{ { value } }\"\n~\"users/{id}\"\n'[inline]\n// ``` remains comment text\nbody ``` remains mid-line text\n```\n}\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
+    fn raw_fence_accepts_indented_and_blockquote_continuation_lines() {
+        let indented = scan(" '{\n  ```raw\n  }\n  ```\n}\nnext");
+        let quoted = scan(" '{> ```rust\n> }\n> ```\n}\nnext");
+
+        for (result, expected) in [
+            (indented, " '{\n  ```raw\n  }\n  ```\n}\n"),
+            (quoted, " '{> ```rust\n> }\n> ```\n}\n"),
+        ] {
+            assert_eq!(result.body, (0..expected.len(), expected));
+            assert_eq!(result.remainder, "next");
+            assert_eq!(result.lexical_mode, None);
+        }
     }
 
     #[test]
@@ -863,6 +1077,33 @@ mod tests {
                 mode: YumarkMode::Quoted,
                 quote_depth: 1,
                 line_document_continuation: false,
+            })
+        );
+    }
+
+    #[test]
+    fn unterminated_fences_keep_their_kind_and_continuation_state() {
+        let raw = scan(" '{```text\nbody");
+        let yulang = scan(" '{```yulang-extra\nmy value = 1");
+        let raw_expected = " '{```text\nbody";
+        let yulang_expected = " '{```yulang-extra\nmy value = 1";
+
+        assert_eq!(raw.body, (0..raw_expected.len(), raw_expected));
+        assert_eq!(raw.remainder, "");
+        assert_eq!(
+            raw.lexical_mode,
+            Some(EmbeddedLexicalMode::Fence {
+                kind: FenceKind::Raw,
+                continuation: false,
+            })
+        );
+        assert_eq!(yulang.body, (0..yulang_expected.len(), yulang_expected));
+        assert_eq!(yulang.remainder, "");
+        assert_eq!(
+            yulang.lexical_mode,
+            Some(EmbeddedLexicalMode::Fence {
+                kind: FenceKind::Yulang,
+                continuation: false,
             })
         );
     }
