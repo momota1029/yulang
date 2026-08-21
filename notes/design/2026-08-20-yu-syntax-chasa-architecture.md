@@ -1858,3 +1858,581 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
   document は変更していない。
 
 著者: Codex gpt-5.6-sol xhigh（2026-08-21）
+
+## 追補案: `use` 宣言と operator header の direct-CST node shape
+
+この節は、`Direct Rowan full-parse session` の実装 slice 3 で使う宣言 CST を具体化する。
+既決の Use AST、header fact、recognition / commit continuation 境界は変更しない。ここで決めるのは、
+accepted continuation がどの node をいつ開き、各 source token と trivia をどの親の直下へ書くかである。
+
+本節の CST は semantic AST と同時に source order で構築する。CST から Use AST や
+`OperatorHeaderDeclaration` を復元するための再走査は行わず、逆に AST を完成させてから CST token を
+replay することもない。以下の child list は recovery のない valid source に対する canonical shape とする。
+mandatory slot の recovery では、その slot と同じ位置へ既決の `Missing` または `Error` node を置き、
+前後の valid child の順序を変えない。
+
+### 表記と trivia 所有規則
+
+以下の表記を使う。
+
+| 表記 | 意味 |
+| --- | --- |
+| `I+` | `scan_trivia` が返す non-empty run で、source range 内に CR / LF を含まないもの。各 part を typed trivia token として順に emit する |
+| `I*` | 上と同じ inline trivia run だが empty でもよい。empty のとき child は増えない |
+| `G*` | group / list position の maximal `TriviaRun`。newline と comment を含めてよく、empty のとき child は増えない |
+| `X?` | source に存在するときだけ一個の `X` |
+| `X*` | source order の零個以上の `X` |
+| `A \| B` | grammar が accepted slot で一意に選んだどちらか一方 |
+
+`TriviaRun` は node ではない。`Whitespace`、`Newline`、`LineComment`、`BlockComment` の各 token を、
+child list 中の `I+` / `I*` / `G*` の位置へ直接 emit する。CRLF は既決通り一個の `Newline` token である。
+
+trivia の concrete parent は次で固定する。
+
+1. file 先頭、statement 間、および declaration の semantic end より後ろにある trivia は `Root` の直下に
+   置く。したがって statement 終端の newline、caller が所有する semicolon、`use` の最後の suffix または
+   operator header の `=` より後ろの空白は declaration node に含めない。
+2. declaration 内で次の required / optional slot を導入する trivia は、accepted transition と一緒に一度だけ
+   emit する。CST 上ではその transition を包む最小の構造 node の直下で、次の child の直前に置く。
+   たとえば alias 前の `I+` は `UseTree` または `UseGlob` の直下、`as` 後の `I+` は
+   `UseAlias` の直下に置く。
+3. optional transition の probe が不成立なら、その probe が読んだ trivia も input / `ParseLocal` と一緒に
+   rollback し、emit しない。outer statement loop または別の accepted transition が同じ source range を
+   一度だけ所有する。
+4. group の brace / parenthesis 内にある `G*` は group node の直下に置く。comma と newline は item node に
+   押し込まず sibling にする。これにより explicit comma、implicit newline separator、comment、empty group、
+   trailing comma が source に現れた順のまま観測できる。
+5. path separator の前後には trivia を許さない。これは現在の use grammar と oracle state machine の
+   contract であり、`UsePath` は segment / separator のみを持つ。
+
+これは「次の accepted slot と一緒に trivia を commit する」という leading-trivia convention である。
+ただし trivia token 自体を次の leaf node の中へ常に入れるわけではない。構造上の parent を安定させるため、
+inter-child trivia は最小の共通 parent の直下に置く。旧 `FullCstBuilder` のように trivia を declaration range
+内へ lossless に残しつつ、どの subtree が separator / suffix trivia を所有するかも一意になる。
+
+この convention は declaration continuation に限定する。既決の expression operator scanner が返す
+`ScannedOperator.trailing_trivia` は trailing result のままであり、Pratt CST の所有規則を変更しない。
+Rowan 上ではどちらも source-order の sibling token であり、旧 `FullCstBuilder` と同じく token text の
+順序や coverage に差はない。
+
+`RowanSink` には必要な primitive がすでにある。`token_range` と `emit_trivia`、node の
+`start_node` / `finish_node` だけで本節の shape を表現でき、declaration では `start_node_at` を使わない。
+ただし現在の capability wrapper では `RowanSink::emit_trivia` が `Committed` まで proxy されていない。
+slice 3 では `CommitOutput::emit_trivia(&TriviaRun)` と `Committed::emit_trivia` を追加し、
+`FullCstOutput` は `RowanSink::emit_trivia` へ委譲、`HeaderOutput` は no-op とする。continuation が
+`TriviaPartKind -> SyntaxKind` の対応を各所で複製する形にはしない。これは新しい sink primitive ではなく、
+sub-slice 1 と 2 の既存 primitive を capability boundary へ通す wiring である。
+
+### `UseDeclaration`
+
+一個の source declaration は `SyntaxKind::UseDeclaration` で包む。ordered children は次である。
+
+```text
+UseDeclaration :=
+    (VisibilityKw I+)?
+    UseKw I+
+    UseTree
+
+VisibilityKw := PubKw | MyKw | OurKw
+```
+
+visibility spelling がないとき token や zero-width visibility node は作らない。semantic
+`Visibility::Private` は prefix の absence から得る。明示 `my` は `MyKw`、`pub` は `PubKw`、`our` は
+`OurKw` とする。現在の `parse_use_declaration` は visibility を常に Private にしているが、Use AST の
+`visibility` field と oracle の caller-owned declaration prefix は明示 visibility を保持するため、shared
+statement intro が prefix を確定し、この node の先頭へ emit する。
+
+`UseDeclaration.range` は最初の visibility token、なければ `UseKw` の先頭から、`UseTree` の最後の
+non-trivia token までである。`UseDeclaration` node も同じ source extent を持つ。`use` と spec の間の
+`I+` は node 直下であり、`UseTree` の中には入れない。
+
+### `UseTree`、form marker、`UsePath`
+
+各 recursive spec は `SyntaxKind::UseTree` で包む。最初に form head、次に normalized prefix path、
+terminal、alias、qualifier の順で書く。
+
+```text
+FormHead :=
+      ModKw I+
+    | RealmKw Slash
+    | BandKw ColonColon
+
+PathSegment :=
+      Identifier
+    | OperatorName
+
+OperatorName := LParen Operator RParen
+
+UsePath :=
+    PathSegment ((ColonColon | Slash) PathSegment)*
+```
+
+`UsePath` は `SyntaxKind::UsePath`、parenthesized operator segment は
+`SyntaxKind::OperatorName` で包む。word segment は追加 wrapper を置かず `Identifier` token を直接
+`UsePath` の child にする。operator segment の `Operator` token は括弧を含まず、`OperatorName` node と
+`UseSegment::Operator.range` は両括弧を含む。`UseSegment::Operator.text` は内側 token の source text である。
+
+`UsePath` node は AST の `UsePath.segments` が non-empty のときだけ作る。root group や marker 直後の
+group / glob に対応する empty `UsePath` は source byte を持たないため、valid CST に zero-width node を
+作らず、`UsePath` child の absence で表す。zero-width node は recovery の `Missing` に限定する。
+
+form head は専用 wrapper node を作らず、`UseTree` の direct children とする。
+
+- `mod` は `ModKw` と直後の `I+` を emit し、その後の `UsePath` は必ず `Identifier` から始まる。
+  `mod` 自体は normalized path に入らない。
+- accepted `realm/` marker は `RealmKw`, `Slash`、accepted `band::` marker は `BandKw`,
+  `ColonColon` とする。marker separator は `UsePath` にも terminal join にも入らない。
+- Plain の `realm::x`、`band/x`、`other/x` では marker kind を使わない。先頭 spelling は
+  `UsePath` 内の `Identifier`、separator は同じ `UsePath` 内の token になる。
+- marker 直後に group / glob が来る場合、marker separator は form head にすでに現れているので
+  AST の terminal `join` は `None` のままである。
+
+現在の AST-producing parser は normal path の parenthesized operator segment をまだ全 transition で
+recognize していない。しかし `UseSegment::Operator` と設計済み state table は spec start と separator
+target の両方でこれを要求する。direct continuation は exclusion 専用 branch へ限定せず、Plain の
+`PathSegment` として両位置で `OperatorName` を受理する。
+
+`UseTree` の terminal 別 child list は次である。
+
+```text
+Single tree :=
+    FormHead? UsePath
+    (I+ UseAlias)*
+    UseQualifiers?
+
+Group tree :=
+    FormHead? UsePath?
+    TerminalJoin?
+    UseGroup
+    (I+ UseAlias)*
+    UseQualifiers?
+
+Glob tree :=
+    FormHead? UsePath?
+    TerminalJoin?
+    UseGlob
+    UseQualifiers?
+
+TerminalJoin := ColonColon | Slash
+```
+
+`TerminalJoin` は wrapper を作らず `UseTree` の direct token とし、直後の `UseGroup` / `UseGlob` と
+`UsePath` の sibling にする。これは AST の `UseTerminal::{Group, Glob}.join` に一対一で対応する。
+separator を `UsePath` に入れると末尾に target segment のない path になり、terminal node に入れると
+brace / star 自体の source extent が join まで広がるため、どちらも採らない。
+
+`UseTerminal::Single` は source 上の terminal token を持たないため node を作らない。`UseGroup` /
+`UseGlob` child がないことと、non-empty `UsePath` が完了したことから derived する。marker なしの
+Plain glob は path と join を必須とし、`use *` は引き続き不受理である。Realm / Band marker が terminal
+origin をすでに与えた場合は empty path、`join = None` の glob を許す。
+
+### `UseGroup`
+
+group terminal は `SyntaxKind::UseGroup` で包み、join token を含めず opening brace から closing brace
+までを所有する。
+
+```text
+UseGroup :=
+    LBrace G*
+    (UseTree G* (Comma G*)?)*
+    RBrace
+
+# direct child sequence
+LBrace
+G*
+(UseTree G* (Comma G*)?)*
+RBrace
+```
+
+ただし隣り合う二個の `UseTree` の間は、comma があるか、間の `G*` の source range が CR / LF を含む
+場合だけ valid である。block comment token の内側に physical newline がある場合も、現在の
+`consume_group_trivia` と同じく newline separator として数える。synthetic comma、implicit-separator
+token、separator node は作らない。
+
+この sequence により、`{}`、`{ /*c*/ }`、`{a,b}`、`{a\n b}`、`{a,}`、`{a,\n}` を同じ node shape で
+表せる。comma は group の punctuation であって前後どちらかの `UseTree` の一部ではないため、group 直下の
+sibling にする。nested group の item は同じ `UseTree` continuation を再帰的に呼ぶ。
+
+group terminal の後ろに認識された alias は `UseGroup` の外、親 `UseTree` の `(I+ UseAlias)*` に置く。
+したがって `UseGroup` node の extent は常に `{` から対応する `}` までであり、semantic validation が
+group alias を拒否しても group 内の complete child CST は変わらない。
+
+### `UseAlias`
+
+一回の `as name` は `SyntaxKind::UseAlias` で包む。
+
+```text
+UseAlias := AsKw I+ Identifier
+```
+
+alias を導入した `I+` は `UseAlias` の直前にある親 node の child、`as` と name の間の `I+` は
+`UseAlias` の child である。これにより `UseAlias` node 自体は `as` から name の末尾までになり、
+`WordSpan` は最後の `Identifier` token と一致する。反復 alias は source order の別 node として全部残す。
+最後の一個へ上書きせず、既決の semantic validation が repeated / group / glob alias を判定する。
+
+Single / Group tree の alias は `UseTree` 直下に置く。Glob tree だけは次節の source-order constraint により
+`UseGlob` の child に置くが、commit continuation はどちらの場合も同じ `UseTree.aliases` vector へ同時に
+追加する。
+
+### `UseGlob` と `without`
+
+glob terminal は `SyntaxKind::UseGlob` で包む。node は `Star` から始まり、glob tail に属する alias と
+optional `without` clause までを source order で所有する。
+
+```text
+UseGlob :=
+    Star
+    (I+ UseAlias)*
+    (
+        I+ WithoutKw I+
+        UseExclusion
+        (Comma G* UseExclusion)*
+    )?
+```
+
+top-level `without` list では first exclusion の前に inline trivia が必須である。二個目以降は comma が
+必須で、comma の直前には trivia を挟まない。comma 後は `scan_trivia` の maximal runをそのまま `G*` として
+emit するため、改行を含められる。newline だけを top-level exclusion separator としては使わない。
+
+`UseTree.aliases` が AST 上は terminal と sibling の field である一方、source grammar では glob alias が
+`Star` と `without` の間に現れる。`UseGlob` が optional `without` を一つの contiguous node として包み、
+新しい `UseWithout` wrapper を増やさないため、glob alias の `UseAlias` node は `UseGlob` 内へ置く。
+semantic AST と CST の parent を無理に一対一にせず、source-contiguous construct を優先する決定である。
+alias vector は continuation が同時に作るため、この nesting 差を CST 再走査で埋めない。
+
+`without` がない場合も `UseGlob` は `Star` と accepted alias の末尾で閉じる。version / `with` は glob
+selection ではなく tree qualifier なので `UseGlob` を閉じた後の `UseQualifiers` に置く。
+
+### `UseQualifiers`、`UseVersion`、`UseAnchor`
+
+version または anchor が一つでも存在するときだけ `SyntaxKind::UseQualifiers` を作る。ordered children は
+次である。
+
+```text
+UseQualifiers :=
+      I+ UseVersion (I+ UseAnchor)?
+    | I+ UseAnchor
+
+UseVersion := Version
+
+UseAnchor :=
+    WithKw I+ UsePath
+```
+
+`UseVersion` は `SyntaxKind::UseVersion` で包み、その唯一の child は source spelling 全体を持つ
+`Version` token である。`v1-alpha+build.2` も一 token のままで、内側の dot / hyphen / plus を別 token に
+分割しない。`UseVersion.range` / `text` はこの token から同時に得る。
+
+`UseAnchor` は `SyntaxKind::UseAnchor` で包む。anchor の `UsePath` は word segment のみを許し、group、glob、
+parenthesized operator segment を許さない。separator token の shape は通常の `UsePath` と同じである。
+
+qualifier 全体を `SyntaxKind::UseQualifiers` で包むのは、version だけ、anchor だけ、version + anchor の三形を
+一箇所から typed に取得し、group item / glob tail のどちらに付いた suffix も同じ subtree として扱うためで
+ある。qualifier がない valid tree に empty `UseQualifiers` node は作らない。
+
+### `UseExclusion` と `UseExclusionGroup`
+
+`without` list の一 item は必ず `SyntaxKind::UseExclusion` で包む。payload は次のいずれか一個である。
+
+```text
+UseExclusion :=
+      Identifier
+    | OperatorName
+    | Star
+    | UseExclusionGroup
+
+UseExclusionGroup :=
+      LParen G* (UseTree G* (Comma G*)?)* RParen
+    | LBrace  G* (UseTree G* (Comma G*)?)* RBrace
+```
+
+`UseExclusionGroup` の item separation、empty / trailing comma、implicit newline rule は `UseGroup` と同じ
+machine を使う。delimiter spelling は source のまま `LParen` / `RParen` または `LBrace` / `RBrace` に
+する。group の child は AST の `UseExclusion::Group.items` と同じく recursive `UseTree` であり、
+`UseExclusion` の flat listへ変換しない。
+
+exclusion position では parenthesized operator recognizer を group recognizer より先に probe する。
+したがって `(*)` は次の shape になり、glob exclusion や parenthesized groupに潰れない。
+
+```text
+UseExclusion
+  OperatorName
+    LParen
+    Operator "*"
+    RParen
+```
+
+bare `*` は `UseExclusion > Star`、`(a, b)` は
+`UseExclusion > UseExclusionGroup(LParen ... RParen)` になる。group probe と operator probe のいずれも
+accepted 前には emit しない。
+
+### Use AST field と visible CST の対応
+
+lossless invariant は「semantic field ごとに専用 node が必要」という意味ではなく、source byte が一度だけ
+typed token として存在し、semantic valueを commit 時に同じ recognition result から作れることを要求する。
+専用の source child を持たない field は次の通りである。
+
+| AST field / value | CST での表現と理由 |
+| --- | --- |
+| `UseDeclaration.range`, `UseTree.range`,各 segment / version / exclusion の range | node / token の source extent から commit 時に同時に得る metadata。range 自体は source text ではない |
+| implicit `Visibility::Private` | visibility keyword の absence。明示 private は `MyKw` で区別できる |
+| `HeaderImportForm::Plain` | form-marker token の absence。Mod / Realm / Band は専用 keyword token と marker separator で可視 |
+| empty `UsePath` | `UsePath` child の absence。source byte がない valid valueへ zero-width node を作らない |
+| `UseTerminal::Single` | `UseGroup` / `UseGlob` child がない完了 path。source 上の terminal marker がない |
+| `UseTerminal::{Group, Glob}.join` | terminal 直前の direct `ColonColon` / `Slash` token。`None` は token の absence |
+| `UsePath.separators` / `UseSeparator` | `UsePath` 内の literal separator token。marker separator、terminal joinとは親と位置で区別する |
+| `UseTree.aliases` | source order の `UseAlias` node。Glob では contiguous `UseGlob` 内、他 terminal では `UseTree` 直下にあるが、vector は parse 時に同じ continuation が作る |
+| `UseQualifiers.version` / `anchor` の `Option` | `UseVersion` / `UseAnchor` child の presence / absence |
+| `UseVersion.text` |一個の `Version` token の raw spelling。canonical version value はまだ計算しない |
+| `UseSegment::Word` | `Identifier` token。segment ごとの冗長 wrapper は置かない |
+| `UseSegment::Operator.text` | `OperatorName` 内の `Operator` token。segment range は括弧を含む node extent |
+| `UseExclusion::Glob.range` | `UseExclusion` 内の bare `Star` token extent |
+| normalized form / projected header route | CST に synthetic token を足さない。semantic AST / fact は同じ accepted ranges から同時に作る |
+
+### `use` の canonical tree 例
+
+`use std::io::{read, write}` は次の shape になる。indent は Rowan parent / child を表す。
+
+```text
+UseDeclaration
+  UseKw "use"
+  Whitespace " "
+  UseTree
+    UsePath
+      Identifier "std"
+      ColonColon "::"
+      Identifier "io"
+    ColonColon "::"          # terminal join
+    UseGroup
+      LBrace "{"
+      UseTree
+        UsePath
+          Identifier "read"
+      Comma ","
+      Whitespace " "
+      UseTree
+        UsePath
+          Identifier "write"
+      RBrace "}"
+```
+
+`use std::* as all without {foo, (*)} v1 with program::ui` の terminal tail は次になる。
+
+```text
+UseTree
+  UsePath
+    Identifier "std"
+  ColonColon "::"            # terminal join
+  UseGlob
+    Star "*"
+    Whitespace " "
+    UseAlias
+      AsKw "as"
+      Whitespace " "
+      Identifier "all"
+    Whitespace " "
+    WithoutKw "without"
+    Whitespace " "
+    UseExclusion
+      UseExclusionGroup
+        LBrace "{"
+        UseTree
+          UsePath
+            Identifier "foo"
+        Comma ","
+        Whitespace " "
+        UseTree
+          UsePath
+            OperatorName
+              LParen "("
+              Operator "*"
+              RParen ")"
+        RBrace "}"
+  UseQualifiers
+    Whitespace " "
+    UseVersion
+      Version "v1"
+    Whitespace " "
+    UseAnchor
+      WithKw "with"
+      Whitespace " "
+      UsePath
+        Identifier "program"
+        ColonColon "::"
+        Identifier "ui"
+```
+
+### `OperatorHeaderDeclaration`
+
+operator header 全体は `SyntaxKind::OperatorHeader` で包む。ordered children は次である。
+
+```text
+OperatorHeader :=
+    (VisibilityKw I+)?
+    (LazyKw I+)?
+    FixityKw I*
+    OperatorName
+    BindingPowerSlots
+    I* Equals
+
+VisibilityKw := PubKw | MyKw | OurKw
+FixityKw := PrefixKw | InfixKw | SuffixKw | NullfixKw
+
+OperatorName :=
+    LParen Operator RParen
+
+BindingPowerSlots :=
+      /* nullfix: empty */
+    | I+ BindingPower                         # prefix: right
+    | I+ BindingPower                         # suffix: left
+    | I+ BindingPower I+ BindingPower         # infix: left, right
+
+BindingPower :=
+    Integer (Dot Integer)*
+```
+
+`VisibilityKw` と `LazyKw` の後ろは non-empty inline trivia を必須とする。fixity と `(` の間、最後の
+binding power と `=` の間は empty でもよい inline trivia で、physical newline は許さない。
+`OperatorName` 内にも trivia を許さない。operator spelling 全体を一個の `Operator` token にし、dynamic
+expression scanner の NUD / LED classificationは呼ばない。`*` が name なら `Star` ではなく
+`Operator` である。
+
+`BindingPower` は一 vector ごとに `SyntaxKind::BindingPower` で包み、digit component ごとに
+`Integer` token、component 間に literal `Dot` token を置く。`5.0.1` を一個の number token にせず、
+`Integer("5"), Dot("."), Integer("0"), Dot("."), Integer("1")` とする。raw spellingを保持したまま、
+semantic `BindingPower` は各 component を一度だけ `i8` へ変換して同時に作る。
+
+left / right 専用 node kind は作らない。fixity と `BindingPower` child の個数 / source order から role が
+一意に決まる。
+
+| fixity | `BindingPower` children | semantic mapping |
+| --- | --- | --- |
+| `NullfixKw` | 0 | left = `None`, right = `None` |
+| `PrefixKw` | 1 | first = right |
+| `SuffixKw` | 1 | first = left |
+| `InfixKw` | 2 | first = left, second = right |
+
+header node は trailing `Equals` を含み、その byte の直後で閉じる。`=` の後の trivia と body は
+`OperatorHeader` に含めない。これにより node extent と `OperatorHeaderDeclaration.range`、
+`HeaderOperator.range` が同じになり、header mode は同じ位置から opaque body scan、full mode は通常の
+body grammar へ進める。
+
+`OperatorHeaderDeclaration` の source-visible でない field は次の通りである。
+
+| field | CST での表現と理由 |
+| --- | --- |
+| `range` | `OperatorHeader` node extent。metadata 自体は token ではない |
+| default private visibility | `VisibilityKw` の absence。明示 `my` と区別できる |
+| `lazy: bool` | `LazyKw` の presence / absence |
+| `fixity` |一個の `FixityKw` kind |
+| `name: &str` | `OperatorName` 内の `Operator` token text。括弧は別 tokenとして lossless に残る |
+| left / right binding power `Option` | fixity と positional `BindingPower` child から同時に決まる |
+| `BindingPower.components` の数値 |各 `Integer` token text の semantic conversion。raw digit spellingは CST に残る |
+
+たとえば `pub lazy infix (<+>) 5.0 5.1 =` は次の shape になる。
+
+```text
+OperatorHeader
+  PubKw "pub"
+  Whitespace " "
+  LazyKw "lazy"
+  Whitespace " "
+  InfixKw "infix"
+  Whitespace " "
+  OperatorName
+    LParen "("
+    Operator "<+>"
+    RParen ")"
+  Whitespace " "
+  BindingPower
+    Integer "5"
+    Dot "."
+    Integer "0"
+  Whitespace " "
+  BindingPower
+    Integer "5"
+    Dot "."
+    Integer "1"
+  Whitespace " "
+  Equals "="
+```
+
+### 非自明な nesting choice の根拠
+
+- path 内 separator、terminal join、form-marker separator は同じ spelling でも semantic slot が違う。
+  wrapper kind を増やさず、parent と sibling position で一意に区別する。
+- comma / newline / comment は list の構造情報であり、前後の item の意味内容ではない。group 直下の
+  sibling にすると implicit newline separator と trailing comma を synthetic node なしで保持できる。
+- valid empty path と Single terminal に zero-width node を作らない。source にない構造 marker を追加すると
+  `Missing` recovery nodeとの区別が弱くなるためである。
+- `UseGlob` は star から `without` の最後まで contiguous にする。そのため source 上で間に挟まる glob alias
+  も同 node に入る。AST field ownershipより、編集・range queryで一続きの syntax constructになることを
+  優先する。
+- `OperatorName` は use segment / exclusion / operator header で共有する。三者とも「parenthesis で
+  operator spelling を identifier-like slotへ入れる」という同じ concrete syntax であり、token kind は
+  enclosing grammar slotが区別する。
+- binding power の left / right wrapper を増やさない。fixityごとの arity と source orderがすでに role を
+  完全に決め、raw vector structureは共通 `BindingPower` nodeで十分に観測できる。
+
+### 必要な `SyntaxKind` 追加
+
+**追加はない。** sub-slice 1 で追加済みの次の vocabulary だけで本節の canonical shapeを表現できる。
+
+- use node: `UseDeclaration`, `UseTree`, `UsePath`, `UseGroup`, `UseGlob`, `UseAlias`,
+  `UseQualifiers`, `UseVersion`, `UseAnchor`, `UseExclusion`, `UseExclusionGroup`
+- operator-header node: `OperatorHeader`, `OperatorName`, `BindingPower`
+- contextual / header token: `UseKw`, `ModKw`, `RealmKw`, `BandKw`, `AsKw`, `WithoutKw`,
+  `WithKw`, `PubKw`, `MyKw`, `OurKw`, `LazyKw`, `PrefixKw`, `InfixKw`, `SuffixKw`, `NullfixKw`,
+  `Version`
+- shared token: `Identifier`, `Integer`, `Operator`, `Dot`, `ColonColon`, `Slash`, `Comma`, `Star`,
+  `LParen`, `RParen`, `LBrace`, `RBrace`, `Equals` と typed trivia kinds
+
+`UseWithout`、`UseSegment`、`UseSeparator`、`Visibility`、`LeftBindingPower`、
+`RightBindingPower` の node variant は追加しない。それぞれ `UseGlob` の contiguous child list、token / node
+position、または semantic value だけで一意に表せるためである。
+
+### Open questions
+
+この追補の direct-CST node shape について、既存 code / design から解けずに残る question は **ない**。
+
+既存章の Still open である version validation、`with` resolution、fixture schema の qualifier / glob field、
+late `use` / `mod` discovery、operator-table build conflict diagnostic、`TriviaParts` inline capacity は、この
+追補では変更しない。いずれも raw syntax を上記 CST へ lossless に置くことを妨げず、slice 3 の
+node nestingを追加判断なしで実装できる。
+
+### Ready for implementation checklist
+
+Terra-tier implementation session は次を順に機械的に確認する。
+
+- [ ] `SyntaxKind` は増やさず、上の既存 variant と contextual classification をそのまま使う。
+- [ ] `CommitOutput` / `Committed` へ `emit_trivia(&TriviaRun)` を通し、full は既存
+      `RowanSink::emit_trivia`、header は no-op にする。
+- [ ] shared statement intro が visibility + `use`、または visibility + lazy + fixity を一意に確定するまで
+      sink call を行わず、accepted 後だけ declaration node を開始する。
+- [ ] `UseDeclaration`、recursive `UseTree`、`UsePath` を上の ordered child list 通りに同時 emitし、
+      marker separator / path separator / terminal joinを別 slotとして保持する。
+- [ ] normal use path の spec start と separator target の両方で parenthesized `OperatorName` を受理する。
+- [ ] `UseGroup` / `UseExclusionGroup` は comma と `G*` を direct child とし、newline implicit separator、
+      empty group、trailing commaを synthetic tokenなしで扱う。
+- [ ] `UseGlob` は alias、`without` keyword、flat exclusion listを source orderで包み、各 itemを
+      `UseExclusion`、nested delimiter formを `UseExclusionGroup` で包む。
+- [ ] alias、version、anchorをそれぞれ `UseAlias`、`UseVersion`、`UseAnchor` にし、qualifierがある場合だけ
+      `UseQualifiers` を作る。repeated alias tokenを捨てない。
+- [ ] `OperatorHeader` は modifier / fixity、`OperatorName`、fixity arity通りの `BindingPower`、`Equals` を
+      emitし、`=` 直後で閉じる。
+- [ ] Header output と Full output が同じ continuation から同じ Use AST / operator declarationを返し、
+      node emissionの有無だけが異なることを unit test で固定する。
+- [ ] canonical tree test に少なくとも root / nested / empty / newline-separated group、operator segment、
+      glob + repeated alias + `without`、version + anchor、4 fixity、visibility + lazy、vector BP を入れる。
+- [ ] optional transition failure中の sink call countが0で、accepted trivia/token rangeだけが一度 emitされる
+      ことを RecordingOutput で検査する。
+- [ ] slice 対象 source で node balance、contiguous token coverage、`green.to_string() == source`、
+      header/full fact parityをすべて通す。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認（2026-08-21、direct-CST node-shape 追補案）。
+査読はCodex gpt-5.6-terra（high）による事実クロスチェックに基づく: SyntaxKind vocabulary(既存variant過不足なし)、
+`CommitOutput`/`Committed`/`FullCstOutput`/`HeaderOutput`いずれにも`emit_trivia`が未露出であること、
+`parse_use_declaration`が常に`Visibility::Private`を返すこと、parenthesized operator segment認識が
+現状`parse_use_exclusion`経由のみであること、`UseTerminal`/`UseSegment`/`UseQualifiers`/`UseExclusion`/
+`OperatorHeaderDeclaration`/`BindingPower`のfield・variant shape、以上すべてを現行コードと突き合わせ、
+不一致なし。
