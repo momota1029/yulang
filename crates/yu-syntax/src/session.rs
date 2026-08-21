@@ -204,6 +204,10 @@ impl ParseLocal {
         self.stop_sets.replace_last(stop_set);
     }
 
+    pub(crate) fn pop_stop_set(&mut self) -> Option<StopSet> {
+        self.stop_sets.pop()
+    }
+
     pub(crate) fn stop_set(&self) -> Option<StopSet> {
         self.stop_sets.last().copied()
     }
