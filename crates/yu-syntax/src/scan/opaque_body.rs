@@ -2,7 +2,12 @@
 //!
 //! This scanner makes comments, normal strings, heredocs, string interpolation,
 //! rule literals, quoted/block Yumark, and Yumark code fences opaque to the
-//! outer delimiter/layout scan.
+//! outer delimiter/layout scan. Each region owns its interior braces and
+//! newlines; only after its closing sentinel does the outer scan resume
+//! deciding header-body boundaries.
+//!
+//! This is lexical boundary scanning only. It does not build a CST, validate
+//! embedded syntax, or parse Yulang statements inside a fence.
 
 use std::ops::Range;
 
@@ -993,6 +998,33 @@ mod tests {
         for (result, expected) in [
             (indented, " '{\n  ```raw\n  }\n  ```\n}\n"),
             (quoted, " '{> ```rust\n> }\n> ```\n}\n"),
+        ] {
+            assert_eq!(result.body, (0..expected.len(), expected));
+            assert_eq!(result.remainder, "next");
+            assert_eq!(result.lexical_mode, None);
+        }
+    }
+
+    #[test]
+    fn opaque_regions_preserve_inner_layout_across_crlf_and_utf8() {
+        let string = scan(" \"日本語 %{ { value }\r\n } text\"\r\nnext");
+        let rule = scan(" ~\"日本語/{ { value }\r\n }\"\r\nnext");
+        let inline_yumark = scan(" '[日本語 { nested }\r\nline]\r\nnext");
+        let block_yumark = scan(" '{日本語\r\n{ nested }\r\n}\r\nnext");
+        let raw_fence = scan(" '{```raw\r\n日本語 { }\r\n```\r\n}\r\nnext");
+        let yulang_fence =
+            scan(" '{```yulang\r\nmy text = \"日本語 %{ { value } }\"\r\n```\r\n}\r\nnext");
+
+        for (result, expected) in [
+            (string, " \"日本語 %{ { value }\r\n } text\"\r\n"),
+            (rule, " ~\"日本語/{ { value }\r\n }\"\r\n"),
+            (inline_yumark, " '[日本語 { nested }\r\nline]\r\n"),
+            (block_yumark, " '{日本語\r\n{ nested }\r\n}\r\n"),
+            (raw_fence, " '{```raw\r\n日本語 { }\r\n```\r\n}\r\n"),
+            (
+                yulang_fence,
+                " '{```yulang\r\nmy text = \"日本語 %{ { value } }\"\r\n```\r\n}\r\n",
+            ),
         ] {
             assert_eq!(result.body, (0..expected.len(), expected));
             assert_eq!(result.remainder, "next");
