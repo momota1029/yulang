@@ -78,6 +78,9 @@ Yulang の実装では、次を大切にする。
   同じlifetimeへまとめない。chasaの`#[derive(Reborrow)]`が要求するのは、右辺の
   `In<...>`で`In`自身の最初のslotへ正しく対応させることだけで、`SynIn`側のパラメータの
   並び順自体は型aliasの単なる名前の付け替えなので自由。
+  戻り値などで特定のlifetimeを名指しする必要がない箇所は`SynIn<E>`（全lifetime省略）
+  で書く。特定のlifetime（例:`'source`）を戻り値へ伝える必要がある箇所だけ
+  `SynIn<'_, 'source, '_, E>`のようにそのslotだけ名前を書く。
 
 ## ファイル構成
 
