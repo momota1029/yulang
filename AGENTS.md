@@ -72,6 +72,8 @@ Yulang の実装では、次を大切にする。
 - `i.run(from_fn(some_fn))`のように、ただの関数を`from_fn`で包んでから`.run`で走らせない。
   `some_fn`が直接`Parser`として呼べる関数なら`some_fn(i)`と書く。
 - chasaの`In<...>`状態を表すパラメータ・束縛名は`input`ではなく`i`にする（chasaの推奨命名）。
+- `In<'_, SourceInput<...>, (), &mut ParseLocal, E>`をそのまま関数シグネチャへ書き下さない。
+  `crates/yu-syntax/src/session.rs`で定義する`SynIn<'a, 'source, E>`を使う。
 
 ## ファイル構成
 
