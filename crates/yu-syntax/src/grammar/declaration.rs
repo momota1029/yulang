@@ -24,9 +24,9 @@ use crate::{
     },
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
-        DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ImportRole,
-        LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey, SynIn,
-        SyntaxExpectation,
+        DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
+        ImportRole, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
+        StatementRole, SynIn, SyntaxExpectation,
     },
     syntax_kind::SyntaxKind,
 };
@@ -463,7 +463,7 @@ where
         committed.emit_trivia(after_equals);
     }
     if after_equals.as_ref().is_none_or(TriviaRun::is_empty)
-        && binding_value_candidate(operators, leading, committed)
+        && direct_expression_candidate(operators, leading, committed)
     {
         emit_layout_missing(committed);
     }
@@ -471,7 +471,11 @@ where
         parse_direct_expression_with_operators(operators, leading, committed)
     {
         value
-    } else if binding_value_error_retry(operators, committed) {
+    } else if direct_expression_error_retry(
+        operators,
+        GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value)),
+        committed,
+    ) {
         match parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed) {
             Some(value) => value,
             None => {
@@ -561,12 +565,13 @@ where
     })
 }
 
-/// The direct Pratt parser leaves a non-NUD byte untouched on rejection. For
-/// binding recovery, consume the invalid run as one Error episode and retry
-/// the same value slot only when a later local NUD candidate is found. Newline,
+/// The direct Pratt parser leaves a non-NUD byte untouched on rejection.
+/// Consume the invalid run as one Error episode and retry the same mandatory
+/// expression slot only when a later local NUD candidate is found. Newline,
 /// semicolon, and EOF remain owner boundaries and are never consumed here.
-fn binding_value_error_retry<'parse, 'source, 'local, E, O>(
+fn direct_expression_error_retry<'parse, 'source, 'local, E, O>(
     operators: &crate::operator::OperatorTable,
+    role: GrammarRole,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -611,7 +616,6 @@ where
     };
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value));
         CommittedRecoveryRecord::new(
             i.local.next_diagnostic_id(),
             RecoverySiteKey {
@@ -636,7 +640,7 @@ where
     retry
 }
 
-fn binding_value_candidate<'parse, 'source, 'local, E, O>(
+fn direct_expression_candidate<'parse, 'source, 'local, E, O>(
     operators: &crate::operator::OperatorTable,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -934,6 +938,85 @@ where
         }
         _ => Recovered::Incomplete,
     }
+}
+
+/// Continues a complete [`commit_operator_header`] in a full parse session.
+///
+/// The header has already closed its `OperatorHeader` node and produced its
+/// header fact before this function starts.  Consequently a missing or
+/// malformed body can only produce the full-origin body recovery below; it
+/// cannot retract or alter that fact.  The future root driver calls this only
+/// after `commit_operator_header` returned [`Recovered::Complete`].
+pub(crate) fn commit_operator_definition_body<'parse, 'source, 'local, E>(
+    operators: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, FullCstOutput<'source>>,
+) -> Recovered<ParsedExpression<rowan::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let after_equals = commit_required_inline_trivia(committed);
+    let leading = if after_equals.as_ref().is_none_or(TriviaRun::is_empty) {
+        LeadingTrivia::None
+    } else {
+        LeadingTrivia::Present
+    };
+    if let Some(after_equals) = &after_equals {
+        committed.emit_trivia(after_equals);
+    }
+    if after_equals.as_ref().is_none_or(TriviaRun::is_empty)
+        && direct_expression_candidate(operators, leading, committed)
+    {
+        emit_layout_missing(committed);
+    }
+
+    if let Some(body) = parse_direct_expression_with_operators(operators, leading, committed) {
+        return Recovered::Complete(body);
+    }
+    if direct_expression_error_retry(
+        operators,
+        GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+        committed,
+    ) {
+        if let Some(body) =
+            parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed)
+        {
+            return Recovered::Complete(body);
+        }
+    }
+
+    emit_operator_definition_body_missing(committed);
+    Recovered::Incomplete
+}
+
+fn emit_operator_definition_body_missing<'parse, 'source, 'local, E>(
+    committed: &mut Committed<'parse, 'source, 'local, E, FullCstOutput<'source>>,
+) where
+    E: ErrorSink<usize>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
 }
 
 fn recovered_binding_power(value: Recovered<BindingPower>) -> Option<BindingPower> {
@@ -2792,7 +2875,15 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.probe(|probe| scan_required_inline_trivia(probe.input()))
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = scan_required_inline_trivia(i);
+        if trivia.is_none() {
+            i.rollback(checkpoint);
+        }
+        trivia
+    })
 }
 
 fn trivia_has_newline<'parse, 'source, 'local, E, O>(
@@ -4345,6 +4436,53 @@ mod tests {
         (outcome, committed.into_output())
     }
 
+    fn parse_operator_definition_body<'source>(
+        source: &'source str,
+        operators: &crate::operator::OperatorTable,
+    ) -> (
+        OperatorHeaderDeclaration<'source>,
+        Recovered<ParsedExpression<rowan::Checkpoint>>,
+        FullCstOutput<'source>,
+    ) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let (intro, mut committed) =
+            commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+                .expect("source has an operator header introduction");
+        let HeaderStatementIntro::Operator(intro) = intro else {
+            panic!("source did not select the operator continuation");
+        };
+
+        committed.start_node(SyntaxKind::Root);
+        let Recovered::Complete(header) = commit_operator_header(&mut committed, intro) else {
+            panic!("operator header should complete before its body continuation");
+        };
+        let body = commit_operator_definition_body(operators, &mut committed);
+
+        // The future root loop owns statement separators and following trivia.
+        // This focused harness emits only the safe-point tails used below.
+        if let Some(tail) = commit_trivia(&mut committed) {
+            if !tail.is_empty() {
+                committed.emit_trivia(&tail);
+            }
+        }
+        if let Some(semicolon) = commit_character(&mut committed, ';') {
+            committed.token(SyntaxKind::Semicolon, semicolon);
+        }
+        committed.probe(|probe| assert_eq!(probe.input().input.remainder(), ""));
+        committed.finish_node();
+
+        (header, body, committed.into_output())
+    }
+
     fn parse_direct_use_with_output<'source, O>(
         source: &'source str,
         output: O,
@@ -4833,6 +4971,142 @@ mod tests {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             1,
+        );
+    }
+
+    #[test]
+    fn direct_operator_definition_body_is_a_root_sibling_after_a_complete_header() {
+        let source = "infix (<+>) 50 51 = left";
+        let (header, body, output) =
+            parse_operator_definition_body(source, &crate::operator::OperatorTable::empty());
+        let Recovered::Complete(body) = body else {
+            panic!("operator definition body should parse");
+        };
+
+        assert_eq!(header.range(), 0..19);
+        assert_eq!(body.range(), 20..source.len());
+        assert!(output.committed_recoveries().is_empty());
+
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.to_string(), source);
+        let children = root.children().collect::<Vec<_>>();
+        assert_eq!(
+            children.iter().map(|node| node.kind()).collect::<Vec<_>>(),
+            [SyntaxKind::OperatorHeader, SyntaxKind::IdentifierExpression],
+        );
+        assert_eq!(children[0].text().to_string(), "infix (<+>) 50 51 =");
+        assert_eq!(children[1].text().to_string(), "left");
+    }
+
+    #[test]
+    fn direct_operator_definition_body_recovers_missing_inline_trivia_before_a_nud() {
+        let source = "infix (<+>) 50 51 =left";
+        let (_, body, output) =
+            parse_operator_definition_body(source, &crate::operator::OperatorTable::empty());
+        assert!(matches!(body, Recovered::Complete(_)));
+        assert_eq!(output.committed_recoveries().len(), 1);
+        let recovery = &output.committed_recoveries()[0];
+        assert_eq!(recovery.kind, RecoveryKind::Missing);
+        assert_eq!(
+            recovery.site.role,
+            GrammarRole::Layout(LayoutRole::InlineTrivia),
+        );
+        assert_eq!(recovery.site.range, 19..19);
+
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_operator_definition_missing_body_keeps_the_complete_header() {
+        let header_source = "infix (<+>) 50 51 =";
+
+        for suffix in ["", ";", "\n"] {
+            let source = format!("{header_source}{suffix}");
+            let (header, body, output) =
+                parse_operator_definition_body(&source, &crate::operator::OperatorTable::empty());
+
+            assert!(matches!(body, Recovered::Incomplete), "{source:?}");
+            assert_eq!(header.range(), 0..header_source.len(), "{source:?}");
+            assert_eq!(output.committed_recoveries().len(), 1, "{source:?}");
+            let recovery = &output.committed_recoveries()[0];
+            assert_eq!(recovery.kind, RecoveryKind::Missing, "{source:?}");
+            assert_eq!(
+                recovery.site.role,
+                GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+                "{source:?}",
+            );
+            assert_eq!(
+                recovery.site.range,
+                header_source.len()..header_source.len(),
+                "{source:?}",
+            );
+
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::Missing)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            let children = root.children().collect::<Vec<_>>();
+            assert_eq!(children[0].kind(), SyntaxKind::OperatorHeader, "{source:?}");
+            assert_eq!(children[0].text().to_string(), header_source, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn direct_operator_definition_body_error_retries_a_later_nud_without_changing_header() {
+        let header_source = "infix (<+>) 50 51 =";
+        let (expected_header, _) =
+            parse_direct_operator_with_output(header_source, HeaderOutput::new());
+        let source = format!("{header_source} @@left");
+        let (header, body, output) =
+            parse_operator_definition_body(&source, &crate::operator::OperatorTable::empty());
+        let Recovered::Complete(body) = body else {
+            panic!("body should retry from the later identifier");
+        };
+
+        assert_eq!(header, expected_header);
+        assert_eq!(header.range(), 0..header_source.len());
+        assert_eq!(body.range(), header_source.len() + 3..source.len());
+        assert_eq!(output.committed_recoveries().len(), 1);
+        let recovery = &output.committed_recoveries()[0];
+        assert_eq!(recovery.kind, RecoveryKind::Error);
+        assert_eq!(
+            recovery.site.role,
+            GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+        );
+        assert_eq!(
+            recovery.site.range,
+            header_source.len() + 1..header_source.len() + 3
+        );
+
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .map(|node| node.text().to_string())
+                .collect::<Vec<_>>(),
+            ["@@"],
+        );
+        assert_eq!(
+            root.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                SyntaxKind::OperatorHeader,
+                SyntaxKind::Error,
+                SyntaxKind::IdentifierExpression,
+            ],
         );
     }
 
