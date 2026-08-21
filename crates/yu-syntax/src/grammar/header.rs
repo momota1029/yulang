@@ -15,7 +15,7 @@ use chasa::{
 use crate::{
     HeaderImport, HeaderOperator, HeaderStop,
     input::SourceInput,
-    scan::trivia::scan_trivia,
+    scan::{opaque_body::scan_opaque_body, trivia::scan_trivia},
     session::{LineState, ParseLocal},
 };
 
@@ -98,6 +98,9 @@ pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
             }
             HeaderDeclaration::OperatorHeader(declaration) => {
                 operators.push(declaration.to_header_operator());
+                input
+                    .run(from_fn(scan_opaque_body))
+                    .expect("opaque body scanning is total");
             }
         }
     };
@@ -166,5 +169,19 @@ mod tests {
                 .iter()
                 .all(|import| import.path().join("::") != "std::fs::read")
         );
+    }
+
+    #[test]
+    fn skips_an_operator_body_before_dispatching_the_next_header() {
+        let source = "infix (<+>) 50 51 = {\n  \"{ not an outer delimiter }\"\n}\nuse std::data\nmy value = 1\n";
+        let header = discover_header(source);
+        let body_end = source.find("my value").expect("test has a body binding");
+
+        assert_eq!(header.stop(), HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage(), &(0..body_end));
+        assert_eq!(header.operators().len(), 1);
+        assert_eq!(header.operators()[0].name(), "<+>");
+        assert_eq!(header.imports().len(), 1);
+        assert_eq!(header.imports()[0].path(), ["std", "data"]);
     }
 }
