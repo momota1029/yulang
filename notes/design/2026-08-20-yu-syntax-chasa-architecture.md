@@ -4275,8 +4275,8 @@ semicolon / implicit newline separator、record / list literal、call argument l
 parenthesized formは本追補へ含めない。それぞれが同じsurface invariantを必要とする場合も、
 このexpression nodeへ無名で統合せず、各grammar ownerのdesignとして扱う。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定（2026-08-22、
-parenthesized expression-list CST / inference boundary追補案）。
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-22、parenthesized expression-list CST / inference boundary追補案）。
 
 ## 追補: body内の未宣言 operator-shaped token
 
