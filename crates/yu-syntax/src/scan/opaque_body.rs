@@ -1,9 +1,9 @@
 //! Header-mode scanning for operator bodies that are not expression-parsed.
 //!
-//! This first slice makes comments, normal strings, and heredocs opaque to the
-//! outer delimiter/layout scan. Interpolation, rule literals, quoted/block
-//! Yumark, and raw/Yulang fences still need their own lexical-region handling
-//! before this scanner can cover the complete language.
+//! This scanner makes comments, normal strings, heredocs, and string
+//! interpolation opaque to the outer delimiter/layout scan. Rule literals,
+//! quoted/block Yumark, and raw/Yulang fences still need their own lexical-
+//! region handling before this scanner can cover the complete language.
 
 use std::ops::Range;
 
@@ -152,6 +152,13 @@ where
             return Some(RegionEnd::Closed);
         }
 
+        if input.input.remainder().starts_with('%') {
+            if input.run(from_fn(scan_string_interpolation_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
         let character_start = input.pos();
         let Some(character) = input.maybe(any)? else {
             return Some(RegionEnd::Unterminated);
@@ -165,6 +172,84 @@ where
             };
             update_region_character(escaped, escaped_start, &mut input)?;
         }
+    }
+}
+
+/// Consumes one oracle string interpolation, from `%` through its matching
+/// outer `}`. The text between `%` and `{` is format text, not string text: it
+/// is deliberately scanned byte-for-byte so quotes, escapes, and newlines do
+/// not terminate the enclosing string before the interpolation body begins.
+fn scan_string_interpolation_region<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<RegionEnd>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    input.skip(item('%'))?;
+    mark_non_trivia(input.local);
+    input
+        .local
+        .push_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 0 });
+
+    loop {
+        if input.input.remainder().starts_with('{') {
+            input.skip(item('{'))?;
+            mark_non_trivia(input.local);
+            input
+                .local
+                .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 1 });
+            break;
+        }
+
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(RegionEnd::Unterminated);
+        };
+        update_region_character(character, character_start, &mut input)?;
+    }
+
+    let mut delimiter_depth = 1_usize;
+    loop {
+        if starts_comment(input.input.remainder()) {
+            input.run(from_fn(scan_trivia))?;
+            if input.input.remainder().is_empty() {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
+        if input.input.remainder().starts_with('"') {
+            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(RegionEnd::Unterminated);
+        };
+        update_region_character(character, character_start, &mut input)?;
+
+        match character {
+            '(' | '[' | '{' => delimiter_depth += 1,
+            ')' | ']' => delimiter_depth = delimiter_depth.saturating_sub(1).max(1),
+            '}' if delimiter_depth == 1 => {
+                debug_assert_eq!(
+                    input.local.pop_lexical_mode(),
+                    Some(EmbeddedLexicalMode::Interpolation { delimiter_depth: 1 })
+                );
+                return Some(RegionEnd::Closed);
+            }
+            '}' => delimiter_depth -= 1,
+            _ => {}
+        }
+
+        input
+            .local
+            .replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth });
     }
 }
 
@@ -302,6 +387,43 @@ mod tests {
     }
 
     #[test]
+    fn interpolation_suspends_outer_layout_until_its_string_ends() {
+        let simple = scan(" \"%{x}\"\nnext");
+        let statement = scan(" \"%{my x = 41; x + 1}\"\nnext");
+        let nested = scan(" \"%{ { my x = 41; x + 1 } }\"\nnext");
+
+        for (result, expected) in [
+            (simple, " \"%{x}\"\n"),
+            (statement, " \"%{my x = 41; x + 1}\"\n"),
+            (nested, " \"%{ { my x = 41; x + 1 } }\"\n"),
+        ] {
+            assert_eq!(result.body, (0..expected.len(), expected));
+            assert_eq!(result.remainder, "next");
+            assert_eq!(result.lexical_mode, None);
+        }
+    }
+
+    #[test]
+    fn interpolation_format_text_does_not_apply_string_termination_rules() {
+        let result = scan(" \"%format \"text\"\n{ value }\"\nnext");
+        let expected = " \"%format \"text\"\n{ value }\"\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
+    fn interpolation_body_reuses_string_heredoc_and_comment_regions() {
+        let result = scan(" \"%{ \"}\" \"\"\"}\nvalue\"\"\" /* }\n*/ { value } }\"\nnext");
+        let expected = " \"%{ \"}\" \"\"\"}\nvalue\"\"\" /* }\n*/ { value } }\"\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
     fn comment_delimiters_do_not_change_outer_depth() {
         let block = scan(" /* {[( */ value\nnext");
         let line = scan(" value // }])\nnext");
@@ -329,6 +451,19 @@ mod tests {
         assert_eq!(
             heredoc.lexical_mode,
             Some(EmbeddedLexicalMode::Heredoc { quote_count: 3 })
+        );
+    }
+
+    #[test]
+    fn unterminated_interpolation_keeps_its_local_depth_at_eof() {
+        let result = scan(" \"%{ { open");
+        let expected = " \"%{ { open";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "");
+        assert_eq!(
+            result.lexical_mode,
+            Some(EmbeddedLexicalMode::Interpolation { delimiter_depth: 2 })
         );
     }
 
