@@ -1,16 +1,18 @@
 //! Immutable parse context and rollback-owned scanner/layout state.
 
-use chasa::{prelude::In, Back};
+use std::ops::Range;
+
+use chasa::{Back, ErrorSink, prelude::In};
 
 use crate::{
-    HeaderInfo,
-    input::SourceInput,
-    operator::OperatorTable,
-    parse::SyntaxEnvironment,
+    HeaderInfo, input::SourceInput, operator::OperatorTable, parse::SyntaxEnvironment,
+    sink::RowanSink, syntax_kind::SyntaxKind,
 };
 
-pub(crate) type SynIn<'a, 'source, 'b, E> =
-    In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
+pub(crate) type SynIn<'a, 'source, 'b, E> = In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
+
+/// The chasa input made available to shared grammar recognition.
+pub(crate) type GrammarInput<'a, 'source, 'b, E> = SynIn<'a, 'source, 'b, E>;
 
 /// Data selected before parsing and never mutated by speculative branches.
 pub(crate) struct ParseEnv<'source, 'context> {
@@ -373,61 +375,223 @@ pub(crate) struct OperatorCandidateProbe {
 }
 
 /// Non-emitting access available to speculative parsers and scanner probes.
-pub(crate) struct Probe<'parse, I, E> {
-    input: &'parse mut I,
-    local: &'parse mut ParseLocal,
-    expectations: &'parse mut E,
+///
+/// The capability owns chasa's input, rollback-owned [`ParseLocal`], and
+/// speculative expectation sink as one value. It deliberately has no route to
+/// a direct CST sink, header facts, or committed recovery records.
+pub(crate) struct Probe<'parse, 'source, 'local, E: ErrorSink<usize>> {
+    input: GrammarInput<'parse, 'source, 'local, E>,
 }
 
-impl<'parse, I, E> Probe<'parse, I, E> {
-    pub(crate) fn new(
-        input: &'parse mut I,
-        local: &'parse mut ParseLocal,
-        expectations: &'parse mut E,
-    ) -> Self {
-        Self {
-            input,
-            local,
-            expectations,
+impl<'parse, 'source, 'local, E: ErrorSink<usize>> Probe<'parse, 'source, 'local, E> {
+    pub(crate) fn new(input: GrammarInput<'parse, 'source, 'local, E>) -> Self {
+        Self { input }
+    }
+
+    /// Runs scanner and recognition work with the underlying chasa input.
+    pub(crate) fn input(&mut self) -> &mut GrammarInput<'parse, 'source, 'local, E> {
+        &mut self.input
+    }
+
+    /// Transitions an accepted branch to an output-owning continuation.
+    pub(crate) fn commit<O: CommitOutput<'source>>(
+        self,
+        output: O,
+    ) -> Committed<'parse, 'source, 'local, E, O> {
+        Committed {
+            probe: self,
+            output,
         }
     }
+}
 
-    pub(crate) fn input(&mut self) -> &mut I {
-        self.input
+/// Recovery data is committed only after a recovery path has been selected.
+///
+/// Slice 5 gives this record its typed site, expectation, and unexpected-token
+/// fields. Keeping it opaque here lets the output boundary exist without
+/// pre-empting that recovery design.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CommittedRecoveryRecord {
+    _private: (),
+}
+
+/// Operations available to a continuation after its grammar branch commits.
+///
+/// Header and full outputs implement the same interface, so shared
+/// continuations monomorphize without a mode branch for every token.
+pub(crate) trait CommitOutput<'source> {
+    type Checkpoint: Copy;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint;
+    fn start_node(&mut self, kind: SyntaxKind);
+    fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind);
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>);
+    fn finish_node(&mut self);
+    fn commit_recovery(&mut self, record: CommittedRecoveryRecord);
+}
+
+mod direct_cst_sink {
+    pub(crate) trait Sealed {}
+}
+
+/// Sealed direct-emission interface implemented only by the Rowan sink.
+///
+/// This is intentionally not an empty marker: scanner code cannot gain CST
+/// emission merely by adding a trait bound. Only [`FullCstOutput`] exposes
+/// these operations through a committed continuation.
+pub(crate) trait DirectCstSink: direct_cst_sink::Sealed {
+    type Checkpoint: Copy;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint;
+    fn start_node(&mut self, kind: SyntaxKind);
+    fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind);
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>);
+    fn finish_node(&mut self);
+}
+
+impl direct_cst_sink::Sealed for RowanSink<'_> {}
+
+impl DirectCstSink for RowanSink<'_> {
+    type Checkpoint = rowan::Checkpoint;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint {
+        RowanSink::checkpoint(self)
     }
 
-    pub(crate) fn local(&mut self) -> &mut ParseLocal {
-        self.local
+    fn start_node(&mut self, kind: SyntaxKind) {
+        RowanSink::start_node(self, kind);
     }
 
-    pub(crate) fn expectations(&mut self) -> &mut E {
-        self.expectations
+    fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind) {
+        RowanSink::start_node_at(self, checkpoint, kind);
     }
 
-    pub(crate) fn commit<S: DirectCstSink>(
-        self,
-        sink: &'parse mut S,
-    ) -> CommittedCst<'parse, I, E, S> {
-        CommittedCst { probe: self, sink }
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
+        RowanSink::token_range(self, kind, range);
+    }
+
+    fn finish_node(&mut self) {
+        RowanSink::finish_node(self);
     }
 }
 
-/// Marker boundary for the direct Rowan sink supplied by the follow-up slice.
-pub(crate) trait DirectCstSink {}
+/// Direct-CST output for a full parse session.
+pub(crate) struct FullCstOutput<'source> {
+    sink: RowanSink<'source>,
+    committed_recoveries: Vec<CommittedRecoveryRecord>,
+}
+
+impl<'source> FullCstOutput<'source> {
+    pub(crate) fn new(source: &'source str) -> Self {
+        Self {
+            sink: RowanSink::new(source),
+            committed_recoveries: Vec::new(),
+        }
+    }
+}
+
+impl<'source> CommitOutput<'source> for FullCstOutput<'source> {
+    type Checkpoint = <RowanSink<'source> as DirectCstSink>::Checkpoint;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint {
+        DirectCstSink::checkpoint(&mut self.sink)
+    }
+
+    fn start_node(&mut self, kind: SyntaxKind) {
+        DirectCstSink::start_node(&mut self.sink, kind);
+    }
+
+    fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind) {
+        DirectCstSink::start_node_at(&mut self.sink, checkpoint, kind);
+    }
+
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
+        DirectCstSink::token(&mut self.sink, kind, range);
+    }
+
+    fn finish_node(&mut self) {
+        DirectCstSink::finish_node(&mut self.sink);
+    }
+
+    fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
+        self.committed_recoveries.push(record);
+    }
+}
+
+/// Header-mode output keeps continuation control flow without building a CST.
+pub(crate) struct HeaderOutput {
+    committed_recoveries: Vec<CommittedRecoveryRecord>,
+}
+
+impl HeaderOutput {
+    pub(crate) fn new() -> Self {
+        Self {
+            committed_recoveries: Vec::new(),
+        }
+    }
+}
+
+impl<'source> CommitOutput<'source> for HeaderOutput {
+    type Checkpoint = ();
+
+    fn checkpoint(&mut self) -> Self::Checkpoint {}
+
+    fn start_node(&mut self, _: SyntaxKind) {}
+
+    fn start_node_at(&mut self, _: Self::Checkpoint, _: SyntaxKind) {}
+
+    fn token(&mut self, _: SyntaxKind, _: Range<usize>) {}
+
+    fn finish_node(&mut self) {}
+
+    fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
+        self.committed_recoveries.push(record);
+    }
+}
 
 /// Access available only after a branch or recovery path has been committed.
-pub(crate) struct CommittedCst<'parse, I, E, S: DirectCstSink> {
-    probe: Probe<'parse, I, E>,
-    sink: &'parse mut S,
+pub(crate) struct Committed<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
+{
+    probe: Probe<'parse, 'source, 'local, E>,
+    output: O,
 }
 
-impl<'parse, I, E, S: DirectCstSink> CommittedCst<'parse, I, E, S> {
-    pub(crate) fn probe(&mut self) -> &mut Probe<'parse, I, E> {
-        &mut self.probe
+impl<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
+    Committed<'parse, 'source, 'local, E, O>
+{
+    /// Temporarily reborrows the sink-free capability.
+    ///
+    /// The output stays inaccessible until `recognize` returns, keeping
+    /// scanner probes and direct emission in separate phases.
+    pub(crate) fn probe<R>(
+        &mut self,
+        recognize: impl FnOnce(&mut Probe<'parse, 'source, 'local, E>) -> R,
+    ) -> R {
+        recognize(&mut self.probe)
     }
 
-    pub(crate) fn sink(&mut self) -> &mut S {
-        self.sink
+    pub(crate) fn checkpoint(&mut self) -> O::Checkpoint {
+        self.output.checkpoint()
+    }
+
+    pub(crate) fn start_node(&mut self, kind: SyntaxKind) {
+        self.output.start_node(kind);
+    }
+
+    pub(crate) fn start_node_at(&mut self, checkpoint: O::Checkpoint, kind: SyntaxKind) {
+        self.output.start_node_at(checkpoint, kind);
+    }
+
+    pub(crate) fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
+        self.output.token(kind, range);
+    }
+
+    pub(crate) fn finish_node(&mut self) {
+        self.output.finish_node();
+    }
+
+    pub(crate) fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
+        self.output.commit_recovery(record);
     }
 }
 
@@ -651,24 +815,83 @@ mod tests {
     }
 
     #[test]
-    fn committed_capability_adds_sink_access_only_after_transition() {
-        #[derive(Default)]
-        struct FakeSink {
-            writes: usize,
+    fn committed_capability_keeps_probe_sink_free_until_its_closure_returns() {
+        use std::{cell::RefCell, rc::Rc};
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        enum OutputCall {
+            Start(SyntaxKind),
+            Token(SyntaxKind, Range<usize>),
+            Finish,
         }
-        impl DirectCstSink for FakeSink {}
+
+        struct RecordingOutput {
+            calls: Rc<RefCell<Vec<OutputCall>>>,
+        }
+
+        impl CommitOutput<'_> for RecordingOutput {
+            type Checkpoint = usize;
+
+            fn checkpoint(&mut self) -> Self::Checkpoint {
+                self.calls.borrow().len()
+            }
+
+            fn start_node(&mut self, kind: SyntaxKind) {
+                self.calls.borrow_mut().push(OutputCall::Start(kind));
+            }
+
+            fn start_node_at(&mut self, _: Self::Checkpoint, kind: SyntaxKind) {
+                self.calls.borrow_mut().push(OutputCall::Start(kind));
+            }
+
+            fn token(&mut self, kind: SyntaxKind, range: Range<usize>) {
+                self.calls.borrow_mut().push(OutputCall::Token(kind, range));
+            }
+
+            fn finish_node(&mut self) {
+                self.calls.borrow_mut().push(OutputCall::Finish);
+            }
+
+            fn commit_recovery(&mut self, _: CommittedRecoveryRecord) {}
+        }
 
         let mut input = SourceInput::new("x");
         let mut local = ParseLocal::new();
-        let mut expectations = Vec::<&'static str>::new();
-        let mut sink = FakeSink::default();
-        let probe = Probe::new(&mut input, &mut local, &mut expectations);
-        let mut committed = probe.commit(&mut sink);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = chasa::input::In::new(
+            &mut input,
+            &mut expectations,
+            chasa::input::IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let probe = Probe::new(i);
+        let mut committed = probe.commit(RecordingOutput {
+            calls: Rc::clone(&calls),
+        });
 
-        committed.sink().writes += 1;
-        committed.probe().expectations().push("accepted");
+        committed.probe(|probe| {
+            assert_eq!(probe.input().input.next(), Some('x'));
+            probe.input().local.set_inline(true);
+            assert!(calls.borrow().is_empty());
+        });
 
-        assert_eq!(committed.sink().writes, 1);
-        assert_eq!(committed.probe().expectations(), &["accepted"]);
+        let checkpoint = committed.checkpoint();
+        committed.start_node(SyntaxKind::Root);
+        committed.start_node_at(checkpoint, SyntaxKind::IdentifierExpression);
+        committed.token(SyntaxKind::Identifier, 0..1);
+        committed.finish_node();
+
+        assert!(local.inline());
+        assert_eq!(
+            calls.take(),
+            vec![
+                OutputCall::Start(SyntaxKind::Root),
+                OutputCall::Start(SyntaxKind::IdentifierExpression),
+                OutputCall::Token(SyntaxKind::Identifier, 0..1),
+                OutputCall::Finish,
+            ]
+        );
     }
 }

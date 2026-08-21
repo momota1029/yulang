@@ -14,7 +14,6 @@ use rowan::{Checkpoint, GreenNode, GreenNodeBuilder};
 
 use crate::{
     scan::trivia::{TriviaPartKind, TriviaRun},
-    session::DirectCstSink,
     syntax_kind::SyntaxKind,
 };
 
@@ -174,8 +173,6 @@ impl<'source> RowanSink<'source> {
         self.last_token_end = Some(range.end);
     }
 }
-
-impl DirectCstSink for RowanSink<'_> {}
 
 #[cfg(test)]
 mod tests {
