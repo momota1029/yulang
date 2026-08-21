@@ -1,6 +1,6 @@
 //! Shared grammar for source-leading declarations.
 
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use chasa::{
     Back as _, ErrorSink, Input as _,
@@ -20,7 +20,11 @@ use crate::{
         trivia::{TriviaRun, scan_trivia},
         word::{WordSpan, scan_word},
     },
-    session::{CommitOutput, Committed, Delimiter, Probe, SynIn},
+    session::{
+        BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, DeclarationRole,
+        ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
+        RecoverySiteKey, SyntaxExpectation, Delimiter, Probe, SynIn,
+    },
     syntax_kind::SyntaxKind,
 };
 
@@ -96,6 +100,13 @@ pub(crate) struct ParsedBindingDeclaration<'source, C> {
     range: Range<usize>,
     name: WordSpan<'source>,
     value: ParsedExpression<C>,
+}
+
+/// A committed continuation completed its CST regardless of whether it could
+/// produce the semantic value required by its caller.
+pub(crate) enum Recovered<T> {
+    Complete(T),
+    Incomplete,
 }
 
 impl<'source, C> ParsedBindingDeclaration<'source, C> {
@@ -341,7 +352,7 @@ pub(crate) fn commit_binding_declaration<'parse, 'source, 'local, E, O>(
     operators: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: BindingStatementIntro<'source>,
-) -> Option<ParsedBindingDeclaration<'source, O::Checkpoint>>
+) -> Recovered<ParsedBindingDeclaration<'source, O::Checkpoint>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -351,28 +362,79 @@ where
     committed.start_node(SyntaxKind::BindingStatement);
     committed.token(SyntaxKind::MyKw, intro.my_keyword.range());
 
-    let after_my = commit_required_inline_trivia(committed)?;
-    committed.emit_trivia(&after_my);
-    let name = commit_word(committed)?;
+    if let Some(after_my) = commit_required_inline_trivia(committed) {
+        committed.emit_trivia(&after_my);
+    }
+    let Some(name) = commit_word(committed) else {
+        emit_binding_missing(committed, BindingRole::Name, ExpectedSyntax::Identifier);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
     committed.token(SyntaxKind::Identifier, name.range());
 
-    let after_name = commit_required_inline_trivia(committed)?;
-    committed.emit_trivia(&after_name);
-    let equals = commit_character(committed, '=')?;
-    committed.token(SyntaxKind::Equals, equals);
+    if let Some(after_name) = commit_required_inline_trivia(committed) {
+        committed.emit_trivia(&after_name);
+    }
+    if let Some(equals) = commit_character(committed, '=') {
+        committed.token(SyntaxKind::Equals, equals);
+    } else {
+        emit_binding_missing(
+            committed,
+            BindingRole::DefinitionIntroducer,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+        );
+    }
 
-    let after_equals = commit_required_inline_trivia(committed)?;
-    let leading = if after_equals.is_empty() {
+    let after_equals = commit_optional_inline_trivia(committed);
+    let leading = if after_equals.as_ref().is_none_or(TriviaRun::is_empty) {
         LeadingTrivia::None
     } else {
         LeadingTrivia::Present
     };
-    committed.emit_trivia(&after_equals);
-    let value = parse_direct_expression_with_operators(operators, leading, committed)?;
+    if let Some(after_equals) = &after_equals {
+        committed.emit_trivia(after_equals);
+    }
+    let Some(value) = parse_direct_expression_with_operators(operators, leading, committed) else {
+        emit_binding_missing(committed, BindingRole::Value, ExpectedSyntax::Expression);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
     let range = intro.start..value.range().end;
     committed.finish_node();
 
-    Some(ParsedBindingDeclaration { range, name, value })
+    Recovered::Complete(ParsedBindingDeclaration { range, name, value })
+}
+
+fn emit_binding_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: BindingRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let grammar_role = GrammarRole::Declaration(DeclarationRole::Binding(role));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role: grammar_role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role: grammar_role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
 }
 
 /// Completes an accepted operator-header introduction while building its AST
@@ -2891,8 +2953,11 @@ mod tests {
             .run(recognize_binding_statement_intro)
             .expect("binding prefix");
         let mut committed = probe.commit(FullCstOutput::new(source));
-        let declaration = commit_binding_declaration(operators, &mut committed, intro)
-            .expect("complete binding declaration");
+        let Recovered::Complete(declaration) =
+            commit_binding_declaration(operators, &mut committed, intro)
+        else {
+            panic!("complete binding declaration");
+        };
         (declaration, committed.into_output())
     }
 
@@ -3049,6 +3114,41 @@ mod tests {
         assert_eq!(
             root.children()
                 .filter_map(|node| (node.kind() == SyntaxKind::PrefixExpression).then_some(node))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn direct_binding_missing_value_closes_the_statement_and_emits_one_missing_node() {
+        let source = "my value =";
+        let operators = crate::operator::OperatorTable::empty();
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_binding_statement_intro)
+            .expect("binding prefix");
+        let mut committed = probe.commit(FullCstOutput::new(source));
+
+        assert!(matches!(
+            commit_binding_declaration(&operators, &mut committed, intro),
+            Recovered::Incomplete
+        ));
+        let root = SyntaxNode::new_root(committed.into_output().finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             1
         );

@@ -90,6 +90,7 @@ pub(crate) struct ParseLocal {
     lexical_modes: RollbackStack<EmbeddedLexicalMode>,
     staged_header_facts: Vec<StagedHeaderFact>,
     operator_probes: Vec<OperatorCandidateProbe>,
+    next_diagnostic_id: u32,
 }
 
 impl ParseLocal {
@@ -104,6 +105,7 @@ impl ParseLocal {
             lexical_modes: RollbackStack::new(),
             staged_header_facts: Vec::new(),
             operator_probes: Vec::new(),
+            next_diagnostic_id: 0,
         }
     }
 
@@ -118,6 +120,7 @@ impl ParseLocal {
             lexical_modes: self.lexical_modes.checkpoint(),
             staged_header_facts_len: self.staged_header_facts.len(),
             operator_probes_len: self.operator_probes.len(),
+            next_diagnostic_id: self.next_diagnostic_id,
         }
     }
 
@@ -134,6 +137,7 @@ impl ParseLocal {
             .truncate(checkpoint.staged_header_facts_len);
         self.operator_probes
             .truncate(checkpoint.operator_probes_len);
+        self.next_diagnostic_id = checkpoint.next_diagnostic_id;
     }
 
     pub(crate) fn line(&self) -> LineState {
@@ -227,6 +231,13 @@ impl ParseLocal {
     pub(crate) fn operator_probe_count(&self) -> usize {
         self.operator_probes.len()
     }
+
+    /// Allocate a recovery identity only after a continuation has committed.
+    pub(crate) fn next_diagnostic_id(&mut self) -> DiagnosticId {
+        let id = DiagnosticId(self.next_diagnostic_id);
+        self.next_diagnostic_id += 1;
+        id
+    }
 }
 
 impl Default for ParseLocal {
@@ -259,6 +270,7 @@ pub(crate) struct ParseLocalCheckpoint {
     lexical_modes: StackCheckpoint,
     staged_header_facts_len: usize,
     operator_probes_len: usize,
+    next_diagnostic_id: u32,
 }
 
 /// Physical-line state changed while trailing trivia is consumed.

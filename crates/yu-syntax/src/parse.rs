@@ -5,7 +5,8 @@ use rowan::{GreenNode, GreenNodeBuilder};
 use crate::{
     Delimiter, HeaderCursor, HeaderInfo, HeaderKeyword, OperatorFixity, ScanItem, SourceText,
     TokenKind, TriviaKind,
-    operator::{OperatorOrigin, OperatorTable},
+    operator::{OperatorOrigin, OperatorTable, compile_full_parse_operators_recovering},
+    session::CommittedRecoveryRecord,
     syntax_kind::SyntaxKind,
 };
 
@@ -141,7 +142,21 @@ pub fn parse_file(
     header: Arc<HeaderInfo>,
     syntax: Arc<SyntaxEnvironment>,
 ) -> ParsedFile {
+    // Construction is deliberately separate from the old CST entrypoint.  The
+    // accepted table is prepared once so duplicate capabilities produce their
+    // construction diagnostics without replacing this parser authority.
+    let operator_compilation = compile_full_parse_operators_recovering(
+        syntax.operators(),
+        header.operators(),
+    )
+    .expect("complete header operators and validated imports never have empty spellings");
     let green = FullCstBuilder::new(source.as_ref(), header.as_ref()).build();
+    let diagnostics = operator_compilation
+        .rejected_conflicts
+        .into_iter()
+        .enumerate()
+        .map(|(event, conflict)| SyntaxDiagnostic::conflicting_operator_fixity(event as u32, conflict))
+        .collect();
 
     ParsedFile {
         source,
@@ -149,7 +164,7 @@ pub fn parse_file(
         header,
         syntax_environment: syntax.key(),
         green,
-        diagnostics: Arc::from([]),
+        diagnostics,
     }
 }
 
@@ -227,7 +242,111 @@ impl SourceRevision {
 /// Structured syntax diagnostic owned by the syntax phase.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SyntaxDiagnostic {
-    _private: (),
+    id: u32,
+    primary: Range<usize>,
+    cause: SyntaxDiagnosticCause,
+}
+
+impl SyntaxDiagnostic {
+    pub(crate) fn recovery(record: CommittedRecoveryRecord) -> Self {
+        Self {
+            id: record.id.0,
+            primary: record.site.range.clone(),
+            cause: SyntaxDiagnosticCause::Recovery(RecoveryDiagnostic { record }),
+        }
+    }
+
+    fn conflicting_operator_fixity(
+        id: u32,
+        conflict: crate::operator::RejectedOperatorFixity,
+    ) -> Self {
+        let primary = conflict.second_range.clone();
+        Self {
+            id,
+            primary,
+            cause: SyntaxDiagnosticCause::ConflictingOperatorFixity(OperatorConflictDiagnostic {
+                spelling: conflict.spelling,
+                fixity: conflict.fixity,
+                first_origin: conflict.first_origin,
+                first_range: conflict.first_range,
+                second_origin: conflict.second_origin,
+                second_range: conflict.second_range,
+            }),
+        }
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn primary(&self) -> &Range<usize> {
+        &self.primary
+    }
+
+    pub fn cause(&self) -> &SyntaxDiagnosticCause {
+        &self.cause
+    }
+}
+
+/// The typed cause of a syntax diagnostic.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SyntaxDiagnosticCause {
+    /// A committed grammar recovery, distinct from semantic table construction.
+    Recovery(RecoveryDiagnostic),
+    ConflictingOperatorFixity(OperatorConflictDiagnostic),
+}
+
+/// The committed recovery record behind a recovery diagnostic.
+///
+/// Its typed site, unexpected evidence, and expectation union remain an
+/// internal grammar vocabulary until the diagnostic presentation API is
+/// versioned, but no information is collapsed into a message string here.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoveryDiagnostic {
+    record: CommittedRecoveryRecord,
+}
+
+impl RecoveryDiagnostic {
+    pub(crate) fn record(&self) -> &CommittedRecoveryRecord {
+        &self.record
+    }
+}
+
+/// One rejected operator capability and the already-accepted conflicting site.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OperatorConflictDiagnostic {
+    spelling: Box<str>,
+    fixity: OperatorFixity,
+    first_origin: OperatorOrigin,
+    first_range: Range<usize>,
+    second_origin: OperatorOrigin,
+    second_range: Range<usize>,
+}
+
+impl OperatorConflictDiagnostic {
+    pub fn spelling(&self) -> &str {
+        &self.spelling
+    }
+
+    pub fn fixity(&self) -> OperatorFixity {
+        self.fixity
+    }
+
+    pub fn first_origin(&self) -> OperatorOrigin {
+        self.first_origin
+    }
+
+    pub fn first_range(&self) -> &Range<usize> {
+        &self.first_range
+    }
+
+    pub fn second_origin(&self) -> OperatorOrigin {
+        self.second_origin
+    }
+
+    pub fn second_range(&self) -> &Range<usize> {
+        &self.second_range
+    }
 }
 
 struct FullCstBuilder<'source, 'header> {
@@ -466,6 +585,69 @@ mod tests {
             BindingPower, OperatorDeclaration, OperatorFixities, compile_full_parse_operators,
         },
     };
+
+    #[test]
+    fn parse_file_keeps_the_first_local_fixity_and_reports_the_rejected_site() {
+        let source: Arc<SourceText> = Arc::from(
+            "infix (<+>) 40 41 = left\ninfix (<+>) 42 43 = right\n",
+        );
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+
+        assert_eq!(header.operators().len(), 2);
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let [diagnostic] = parsed.diagnostics() else {
+            panic!("the duplicate fixity must be diagnosed");
+        };
+        assert_eq!(diagnostic.primary(), header.operators()[1].range());
+        let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause() else {
+            panic!("operator construction must not masquerade as CST recovery");
+        };
+        assert_eq!(conflict.spelling(), "<+>");
+        assert_eq!(conflict.fixity(), OperatorFixity::Infix);
+        assert_eq!(conflict.first_origin(), OperatorOrigin::Local);
+        assert_eq!(conflict.second_origin(), OperatorOrigin::Local);
+        assert_eq!(conflict.first_range(), header.operators()[0].range());
+        assert_eq!(conflict.second_range(), header.operators()[1].range());
+    }
+
+    #[test]
+    fn recovery_diagnostic_keeps_the_committed_record_distinct_from_construction() {
+        use crate::session::{
+            DiagnosticId, ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
+            RecoverySiteKey, StatementRole, SyntaxExpectation,
+        };
+
+        let record = CommittedRecoveryRecord::new(
+            DiagnosticId(9),
+            RecoverySiteKey {
+                role: GrammarRole::Statement(StatementRole::Starter),
+                range: 4..4,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role: GrammarRole::Statement(StatementRole::Starter),
+                expected: ExpectedSyntax::Expression,
+                range: 4..4,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        );
+        let diagnostic = SyntaxDiagnostic::recovery(record.clone());
+
+        assert_eq!(diagnostic.id(), 9);
+        assert_eq!(diagnostic.primary(), &(4..4));
+        let SyntaxDiagnosticCause::Recovery(recovery) = diagnostic.cause() else {
+            panic!("a recovery record must not be a construction conflict");
+        };
+        assert_eq!(recovery.record(), &record);
+    }
 
     #[test]
     fn imported_environment_rejects_a_full_table_with_local_sites() {

@@ -153,7 +153,7 @@ impl OperatorDeclaration {
 
 /// The source relative to a full parse where an operator declaration originated.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(crate) enum OperatorOrigin {
+pub enum OperatorOrigin {
     Local,
     Imported(SyntaxDependencySlot),
 }
