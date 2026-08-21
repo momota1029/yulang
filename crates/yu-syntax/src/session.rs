@@ -333,8 +333,11 @@ pub(crate) enum EmbeddedLexicalMode {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum YumarkMode {
+    /// The apostrophe-bracket literal body, `'[...]`.
     Inline,
+    /// A `>`-prefixed document line within an apostrophe-brace literal.
     Quoted,
+    /// A non-quoted document line within an apostrophe-brace literal, `'{...}`.
     Block,
 }
 
