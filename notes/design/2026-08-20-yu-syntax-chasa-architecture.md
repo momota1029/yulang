@@ -19,6 +19,11 @@ projection を再照合し、Plain / Mod / Realm / Band の分類、再帰 group
 表せる Use AST、および group から `HeaderImport` への投影を確定した。version suffix と `with`
 anchor は typed syntax として保持するが、source-provider / version resolution の意味は future scope とする。
 
+Revision note (direct full-parse closure): shared recognition core を rollback が必要な local decision に
+限定し、accepted branch を recovery 込みで完走する commit-aware continuation と分離した。typed
+trivia run、direct Rowan emission、Pratt NUD / LED の probe / commit、canonical `OperatorTable` の
+session 構築、および最初の vertical slice に必要な `SyntaxKind` vocabulary を decision として固定した。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -1204,6 +1209,418 @@ source-loader が全 file の source set をどう固定点へ到達させるか
 - use grammar の header/full parity failure は既決通り compiler invariant violation とし、full value で
   header value を上書きしない。
 
+## Direct Rowan full-parse session
+
+この章は、前節までに確定した「shared declaration grammar」「sink を持たない speculative parser」
+「parse-event buffer を置かない direct Rowan emission」を、現在の `grammar::declaration`、
+`grammar::expression`、`grammar::header`、`RowanSink` へ接続できる API boundary まで具体化する。
+
+採用する構成は **shared recognition core + commit-aware continuation** である。source 全体や declaration
+全体を一度 AST にしてから CST を復元しない。逆に、全 parser へ常時 sink を渡して speculative arm から
+書けるようにもしない。rollback が必要な最小の local decision だけを sink-free recognition とし、
+accepted branch は commit 後の continuation が source order で一度だけ CST を書きながら完走する。
+
+### Recognition と commit continuation の境界
+
+shared recognition core に残す責務は次に限定する。
+
+- character input と rollback-aware `ParseLocal` を読み、現在位置で成立し得る local grammar role を判定する。
+- scanner が確定した source byte range、contextual tag、fixity、binding power、delimiter / layout 情報を返す。
+- `choice`、`maybe`、`lookahead`、`longest_match_then` の候補探索と、その候補内で生じた
+  `LatestSink` expectation を所有する。
+- candidate rejection では input、`ParseLocal`、expectation を checkpoint へ戻し、public fact、CST、
+  committed recovery record を一切変更しない。
+
+recognition result は一個の statement intro、use state transition、operator-header slot、NUD / LED
+candidate、または一回の trivia run に必要な typed data だけを持つ。node start / finish の列や source
+全体の token 列を持たない。accepted result は caller が直ちに commit continuation へ渡し、保持・replay
+しない。
+
+commit continuation は次を所有する。
+
+- accepted branch の node / token を source order で direct sink へ書く。
+- mandatory tail が欠けた場合、別 declaration arm へ戻らず shared recovery を commit する。
+- syntax AST / fact projection に必要な semantic value を、scanner result から同時に組み立てる。
+- recovery site ごとに `LatestSink` の最遠 typed candidate union を一度だけ committed record へ凍結する。
+- completed use / operator declaration を header fact へ投影し、full mode では frozen `HeaderInfo` と照合する。
+
+ここで「同時に AST を組み立てる」は CST 復元用 token buffer を作るという意味ではない。`UseTree` と
+`OperatorHeaderDeclaration` は header fact / parity の semantic input として必要なので、commit
+continuation が引き続き返す。一方、full parse の expression は boxed `Expression` AST を最終 product に
+必要としない。Pratt control を output-generic にし、unit test 用 `AstExpressionOutput` は現在の
+`Expression` を作り、production の `CstExpressionOutput` は Rowan node と最小の `ParsedExpression`
+metadata（range と left-wrap checkpoint）だけを作る。同じ NUD / LED recognition と precedence control を
+使い、AST parser と CST parser の二つの grammar authority は作らない。
+
+### Capability と API shape
+
+現在の `Probe` / `CommittedCst` skeleton は、chasa `In<SourceInput, ..., &mut ParseLocal, ...>` を
+実際に包む capability へ発展させる。以下の署名は lifetime spelling の固定ではなく、アクセス権と
+data flow の binding contract を示す。
+
+```rust
+struct Probe<'parse, 'source, E> {
+    input: GrammarInput<'parse, 'source, E>,
+}
+
+struct Committed<'parse, 'source, E, O> {
+    probe: Probe<'parse, 'source, E>,
+    output: O,
+}
+
+trait CommitOutput<'source> {
+    type Checkpoint: Copy;
+
+    fn checkpoint(&mut self) -> Self::Checkpoint;
+    fn start_node(&mut self, kind: SyntaxKind);
+    fn start_node_at(&mut self, checkpoint: Self::Checkpoint, kind: SyntaxKind);
+    fn token(&mut self, kind: SyntaxKind, range: Range<usize>);
+    fn finish_node(&mut self);
+    fn commit_recovery(&mut self, record: CommittedRecoveryRecord);
+}
+```
+
+`Probe` は source input、`ParseLocal`、`LatestSink` だけへ access できる。`RowanSink`、fact vector、
+committed recovery log は持たない。`Committed::probe` は scoped closure として sink-free `Probe` を一時的に
+再借用し、closure が返るまで `output` へ access できない形にする。raw `&mut RowanSink` を返す API や、
+probe と sink を同時に借用できる field access は置かない。
+
+`FullCstOutput` は `RowanSink` と committed recovery log を包んで `CommitOutput` を実装する。
+`HeaderOutput` は Rowan sink を持たず、node / token operation が code generation 上 no-op になる
+implementation と、fact transaction / committed recovery だけを持つ。generic continuation は両 output に
+monomorphize されるため、production hot path に mode branch を一 token ごとに置かない。
+
+`DirectCstSink` は空 marker のまま残さず、`RowanSink` が実装する sealed emission interface とする。
+`CommittedCst` は raw sink を外へ渡さず、上記 `CommitOutput` operation を自身の method として公開する。
+これにより、scanner callback が `DirectCstSink` trait bound を追加するだけで emission capability を得る
+ことを防ぐ。
+
+statement driver の概念 API は次とする。
+
+```rust
+enum StatementIntro<'source> {
+    Use(UseIntro<'source>),
+    Binding(BindingIntro<'source>),
+    OperatorHeader(OperatorHeaderIntro<'source>),
+}
+
+fn probe_statement_intro(
+    probe: Probe<'_, '_, ParseErrorSink>,
+) -> Option<StatementIntro<'_>>;
+
+fn continue_statement<O: CommitOutput<'_>>(
+    intro: StatementIntro<'_>,
+    committed: &mut Committed<'_, '_, ParseErrorSink, O>,
+) -> StatementOutcome;
+```
+
+full mode は `StatementIntro` が一意に選ばれた後に chasa `cut` を行い、対応する continuation へ入る。
+header mode は同じ intro recognizer を checkpoint 下で呼ぶ。`Use` / `OperatorHeader` なら transaction を
+commit して同じ declaration continuation を使い、`Binding` / unknown starter なら checkpoint へ戻して
+`FirstNonHeader` として正常停止する。
+
+cut は「最初の word を読んだ」だけでは置かない。`my` は binding intro と private operator-header prefix
+の両方になり得るため、必要な lookahead で declaration role が一意になった後に置く。`use` のように
+starter 自体が role を一意にする場合は、その keyword と mandatory following slot を認識した時点を
+commit boundary とする。cut 後の mandatory field failure は `None` で outer `choice` へ戻らず、既存の
+typed recovery role で `Missing` / `Error` と committed record を作る。
+
+### Declaration family ごとの分割
+
+#### `use`
+
+現在の `parse_use_tree` 全体を一個の speculative recognizer として残さない。次の local decision を
+sink-free recognizer として抽出する。
+
+- declaration starter と visibility prefix。
+- spec start の contextual form (`mod`、`realm` + `/`、`band` + `::`、Plain)。
+- separator 後の segment / operator-name / group / glob decision。
+- group 内の close / comma / newline / next item decision。
+- alias、`without`、version、`with` anchor の各 optional transition。
+
+commit continuation は accepted transition ごとに source span をemitし、同時に現在の `UseTree`を
+組み立てる。recursive group は同じ continuation を再帰し、complete child を source order で閉じる。
+optional transition が存在しないことは normal probe failure であり、何も emit しない。transition の
+introducer が確定した後の欠落は recovery であり、その branch の `Missing` / `Error` を commit する。
+
+declaration node は `UseDeclaration`、recursive spec は `UseTree`、path は `UsePath` として構造化する。
+group / exclusion item の branch-local recovery は既存の一対一 committed recovery rule を使い、complete
+sibling の node と fact を捨てない。full mode が完成した `UseDeclaration` を投影した結果は、同じ source
+revision の header projection と range / form / route / visibility / alias で exact に照合する。qualifier を
+落とした `HeaderImport` は作らないという既存決定を維持する。
+
+#### Operator header
+
+operator header intro recognizer は `[visibility] [lazy] fixity` が一つの declaration role として確定する
+ところまで読む。visibility / lazy / fixity の各 token と間の trivia は local recognition result に保持し、
+commit 後すぐemitする。continuation は operator-name delimiter、operator spelling、fixity ごとの0〜2個の
+`BindingPower`、`=`を順に読む。
+
+binding-power recognizer は `digits+ ('.' digits+)*` の component range を返す。semantic valueは既存の
+`BindingPower`へ一度だけ変換し、CSTは`BindingPower` node内へ`Integer` / `Dot` tokenを即時emitする。
+operator spelling はdynamic expression scannerで再分類せず、operator-name slotが確定した範囲を
+`Operator` tokenとしてemitする。
+
+`=`をcommitした時点で`OperatorHeaderDeclaration`が完成し、header modeはfactをtransaction commitして
+opaque body scanへ、full modeは同じfactを`HeaderInfo`と照合して通常のstatement/body grammarへ進む。
+header opaque scanはCSTを作らず、full body parseとのauthorityを混同しない。
+
+#### Binding statement
+
+`my`だけではoperator visibilityとの区別が付かないため、shared statement-intro recognitionがbinding roleを
+確定してから`BindingStatement`を開始する。nameと`=`をcommitした後はexpression recoveryを含むtotal
+continuationとし、別declarationへ戻らない。header modeはbinding introをconsumeせず`FirstNonHeader`で
+止まり、full modeだけがbinding continuationを実行する。
+
+### Pratt NUD / LED の probe / commit
+
+current `parse_expression_bp`のprecedence controlとoracle judge tableは維持するが、現在の
+`parse_infix_tail`のようにRHSをASTへ読み切ってからtailを返す形はdirect CST pathで使わない。
+
+conceptual resultとAPIは次とする。
+
+```rust
+enum NudRecognition<'source> {
+    Identifier(TokenSpan<'source>),
+    Integer(IntegerSpan<'source>),
+    Prefix(ScannedOperator<'source>),
+    Nullfix(ScannedOperator<'source>),
+}
+
+enum LedRecognition<'source> {
+    Infix {
+        leading: TriviaRun,
+        operator: ScannedOperator<'source>,
+        left: BindingPower,
+        right: BindingPower,
+    },
+    Suffix {
+        leading: TriviaRun,
+        operator: ScannedOperator<'source>,
+        left: BindingPower,
+    },
+}
+
+fn probe_nud(...) -> Option<NudRecognition<'_>>;
+
+fn probe_led(
+    minimum: &BindingPower,
+    probe: Probe<'_, '_, ParseErrorSink>,
+) -> Option<LedRecognition<'_>>;
+
+fn commit_led<O: CommitOutput<'_>>(
+    accepted: LedRecognition<'_>,
+    left: ParsedExpression<O::Checkpoint>,
+    committed: &mut Committed<'_, '_, ParseErrorSink, O>,
+) -> ParsedExpression<O::Checkpoint>;
+```
+
+`probe_led`はleading trivia、`longest_match_then`、boundary、judge、value-start lookahead、fixity、minimum
+binding powerの検査までをsink-freeで終える。candidateなし、site mismatch、BP不足ならLED probe開始前へ
+rollbackし、leading triviaもemitしない。accepted resultが返った後にcallerがcutし、それからのみ
+`commit_led`を呼ぶ。
+
+full CST outputの順序は次で固定する。
+
+```text
+left_checkpoint = checkpoint immediately before committed left operand
+emit left operand
+accepted = probe_led(minimum)
+if no accepted candidate: return left
+cut
+start_node_at(left_checkpoint, InfixExpression | SuffixExpression)
+emit accepted leading trivia
+emit operator token and its accepted trailing trivia
+if infix: parse and emit RHS with right binding power
+finish application node
+continue LED loop
+```
+
+prefixはaccepted NUD fixityの後にcutし、`PrefixExpression`を開始してoperator / trailing triviaをemitして
+からRHSを再帰parseする。nullfixは`NullfixExpression`を開始してoperatorをemitし、その場で閉じる。
+suffixはRHSを読まず、leftを`start_node_at`で包む。operator candidate callback、`value_start`
+lookahead、BP比較中にはsink call countが増えない。
+
+expression先頭のleading triviaはcallerが所有し、expression checkpointより前にemitする。leftとLEDの間の
+leading triviaはaccepted LEDが所有し、application node内でleftの後にemitする。operator scannerが
+受理したtrailing triviaはoperatorとRHSの間に一度だけemitする。lower-precedence LEDをcallerへ返す場合は
+そのtriviaをconsumeもemitもしない。
+
+### Typed local trivia result
+
+current `TriviaSpan { start, end }`だけでは、同じrange内のhorizontal whitespace、CRLF newline、line
+comment、nested block commentを異なるCST tokenとしてemitできない。`scan_trivia`は次のlocal resultを返す
+形へ発展させる。
+
+```rust
+struct TriviaRun {
+    range: Range<usize>,
+    parts: TriviaParts,
+}
+
+struct TriviaPart {
+    kind: TriviaPartKind,
+    range: Range<usize>,
+}
+
+enum TriviaPartKind {
+    Whitespace,
+    Newline,
+    LineComment,
+    BlockComment {
+        termination: CommentTermination,
+    },
+}
+
+enum CommentTermination {
+    Closed,
+    Unterminated { remaining_depth: usize },
+}
+```
+
+`TriviaParts`は一回のmaximal trivia scanだけに生存するinline-first compact containerとし、source全体へ
+蓄積しない。overflow storageの具体的な実装はobservable contractではない。partはtextを所有せず、元sourceの
+UTF-8 byte rangeだけを持つ。次のinvariantをscanner unit testとsink debug checkで固定する。
+
+- empty runでは`range.start == range.end`かつpartsは空。
+- non-empty partはsource orderで重ならず、隣接し、全partsの連結がrun rangeと一致する。
+- CRLFは一個の`Newline` partで、二byte rangeを持つ。
+- line comment rangeは改行を含まず、直後の改行は独立`Newline` partになる。
+- nested block commentは一個の`BlockComment` token rangeとして保持し、未閉鎖なら残depthを保持する。
+- layout用`LineState`と`EmbeddedLexicalMode`のmutationはcurrent scanner同様`ParseLocal`に入り、candidate
+  rejection時にはparts resultと一緒にrollbackする。
+
+full outputはaccepted `TriviaRun`を受け取った直後、各partを`Whitespace`、`Newline`、`LineComment`、
+`BlockComment` tokenへ写す。header outputはpartsをemitしないが、同じrunからleading / trailing triviaと
+layout stateを得る。operator scannerの`ScannedOperator.trailing_trivia`は`TriviaSpan`から`TriviaRun`へ
+変え、longest candidateがrejectされた場合はrunを公開しない。
+
+これはparse-event bufferではない。保持単位は一回のscanner decisionだけで、accepted後に即時emitして
+破棄する。`TriviaRun`からsourceを再scanせず、token textは`RowanSink::token_range`がsource rangeから
+borrowする。
+
+### Rowan sink completion contract
+
+`RowanSink`には`token_range(kind, Range<usize>)`と`emit_trivia(&TriviaRun)`を追加し、callerがsource sliceを
+手組みしない形にする。既存のsource ownership、contiguous order check、`checkpoint`、`start_node_at`は
+維持する。
+
+full sessionはroot nodeを一度だけ開始し、file-leading triviaを一回scan / emitしてからstatement loopへ
+入る。parse終了時は`finish_complete`相当のoperationで次を検査してから`GreenNode`を返す。
+
+- node start / finishがbalancedである。
+- first token rangeが0から始まり、last token endが`source.len()`である。
+- emitted token / trivia rangeがgap、overlap、重複なくsource全体を一度だけ覆う。
+- `green.to_string() == source`である。
+
+`Missing`はzero-width nodeなのでcoverageを進めない。`Error`はcommit済みrecoveryがconsumeした一byte以上の
+rangeを子tokenとして持ち、coverageを進める。unknown / malformed sourceをlosslessにするためのrecoveryも
+direct character consumptionと即時`Error` emissionを使い、旧`lex()`や全source token bufferへfallback
+しない。
+
+### Canonical `OperatorTable`
+
+正本は`crates/yu-syntax/src/operator.rs`のfull-fixity trieを持つ`operator::OperatorTable`とする。
+`parse.rs`にある空のpublic unit struct `parse::OperatorTable`は削除し、`lib.rs`はcanonical型を同じ
+`OperatorTable`名でre-exportする。
+
+`SyntaxEnvironment`はimport済みsyntax dependencyからcompile済みの`Arc<OperatorTable>`を保持する。
+`SyntaxEnvironment::operators() -> &OperatorTable`というpublic accessorの型名は変えない。placeholder unit
+constructorを直接使う互換性は維持せず、`Default` / `OperatorTable::empty()`を正規のempty constructorと
+する。opaque table nameと`parse_file` signatureは維持される。
+
+full session開始前に、imported tableと`HeaderInfo.operators`を次のようなsingle builderで一度だけmergeする。
+
+```rust
+fn compile_full_parse_operators(
+    imported: &OperatorTable,
+    local: &[HeaderOperator],
+) -> Result<OperatorTable, OperatorTableBuildError>;
+```
+
+builderはimported entryの全fixity / binding power / provenanceをcopy-on-buildし、その後local declarationを
+source orderでmergeする。同じspellingの異なるfixityは一entryへ集約し、同fixityの再宣言は既決通り
+`ConflictingFixity`とする。errorはspelling、fixity、old origin / range、new origin / rangeを保持するため、
+canonical entryはfixityごとのorigin metadataを失わない形へevolveする。
+
+buildに成功したtableは`FullParseSession` / `ParseEnv`が所有または`Arc`で固定し、scannerとPratt parserは
+同じreferenceだけを見る。full parse中のinsert、overlay、lazy rebuild、HeaderInfo / CST再走査は置かない。
+`SyntaxEnvironment`内のimported tableも、個々のexpression entrypointで再compileしない。
+
+cross-source conflictをどのsyntax-planning diagnosticへ写し、table build failure後に`parse_file`がどの
+recovery CSTを返すかは下のStill openに残す。これはcanonical型とparse中immutableというdecisionを
+変更しない。
+
+### `SyntaxKind` vocabulary
+
+最初のdirect full-parse vertical sliceで、現在のvariantに加えて次を導入する。nodeとtokenを同じenumに
+置くcurrent Rowan language shapeは維持する。
+
+| family | node variants | token variants |
+| --- | --- | --- |
+| recovery | `Missing`, `Error` | `Unknown`（既存、commit済みerror childに限定） |
+| use | `UseTree`, `UsePath`, `UseGroup`, `UseGlob`, `UseAlias`, `UseQualifiers`, `UseVersion`, `UseAnchor`, `UseExclusion`, `UseExclusionGroup` | `ModKw`, `RealmKw`, `BandKw`, `AsKw`, `WithoutKw`, `WithKw`, `Version` |
+| operator header | `OperatorName`, `BindingPower` | `PubKw`, `OurKw`, `LazyKw`, `PrefixKw`, `SuffixKw`, `NullfixKw`（`MyKw` / `InfixKw`は既存） |
+| expression | `IdentifierExpression`, `PrefixExpression`, `InfixExpression`, `SuffixExpression`, `NullfixExpression` | 既存`Identifier` / `Integer` / `Operator`を使用 |
+| punctuation | — | `Slash`, `Colon`, `Comma`, `Star`, `LBrace`, `RBrace`, `LBracket`, `RBracket`, `Semicolon`, `Apostrophe`, `Backslash`（`Dot` / `ColonColon` / `LParen` / `RParen` / `Equals`は既存） |
+| trivia | — | `LineComment`, `BlockComment`（`Whitespace` / `Newline`は既存） |
+
+`UseKw`、`UseDeclaration`、`OperatorHeader`、`BindingStatement`、`IntegerLiteral`など既存variantは維持する。
+contextual keywordはscanner-wide keyword tableで先に固定せず、accepted grammar slotが上表のkindへ分類する。
+たとえば一般path segmentの`realm`は`Identifier`、markerとしてacceptedされた`realm/`の先頭だけが
+`RealmKw`になる。operator-name内の`*`は`Operator`、separator後globとしてacceptedされた`*`だけが
+`Star`になる。
+
+`SuffixExpression`はcurrent `Expression` enumにまだないが、canonical tableがsuffix capabilityを既に
+持ち、最初からfull-fixityを保つという決定に合わせてvocabularyへ含める。実装がsuffix LEDを後回しにする
+場合も`Unknown`や`InfixExpression`へ潰さない。
+
+### Header / full parity と diagnostics
+
+headerとfullは同じstatement intro、use transition、operator-header slot recognizerを使う。違うのはcommit
+outputとoperator bodyのcontinuationだけである。headerはcomplete mandatory fieldsだけをfact transactionへ
+commitし、fullは同じsemantic declarationを作ってfrozen factとexact比較する。
+
+recovery recognitionもshared coreに置く。probe failureの`LatestSink` candidateはまだdiagnosticではない。
+commit continuationがrecovery siteを選んだ時だけ、既決の`GrammarRole + ByteRange` key、全candidate union、
+selected primaryを一件のcommitted recovery recordへ写す。header/fullの同じsiteは同じIDを再利用し、
+node emissionの有無でidentityを変えない。full outputはその同じrecordに対応する`Missing` / `Error` nodeを
+direct emitする。
+
+fixture schema v0のheader/full range、form、route、operator shapeは変更しない。新しいstructured use node、
+comment token、expression application nodeはproduction CSTの精度を上げるが、glob / exclusion / version /
+anchorのheader projection fieldをschema v0へ暗黙に追加しない。
+
+### Implementation slices and gates
+
+この章の実装は少なくとも次の順序へ分ける。
+
+1. `SyntaxKind`、typed `TriviaRun`、`RowanSink::token_range` / whole-source completion check。
+2. actual chasa inputを包む`Probe` / `Committed` capabilityとoutput-generic commit continuation skeleton。
+3. shared statement introとuse / operator-header continuation。header fact parityとdirect declaration CST。
+4. canonical `OperatorTable`のpublic type一本化とfull session開始前merge。
+5. NUD / LED probeとdirect Pratt continuation。`start_node_at`によるprefix / infix / suffix / nullfix CST。
+6. binding statementを含むroot statement loop、committed recovery、whole-file lossless invariant。
+
+各sliceは次を満たす。
+
+- speculative scanner / `choice` / `maybe` / `longest_match_then`中のsink call countは0のまま。
+- accepted local resultは一度だけemitされ、token/eventのsource-wide bufferとreplayがない。
+- header/fullのshared declaration projectionとrecovery ID parityが維持される。
+- triviaを含む全token rangeがsource orderで連続し、slice対象fixtureで`green.to_string() == source`になる。
+- `+!a` / `a+!b`はcanonical full-fixity tableとoracle judge semanticsを使い、candidate fallback中にCSTが
+  増えない。
+- production pathは旧`HeaderCursor` / `lex` / `FullCstBuilder`へfallbackしない。置換完了までは内部
+  candidateとして隔離し、public entrypointを二系統にしない。
+
+### Still open
+
+- imported operatorとlocal header operatorの`ConflictingFixity`を、どのsyntax-planning recovery site / IDへ
+  対応させるか。typed build errorと両originは保持するが、`parse_file`がtable build failure後に返すCSTと
+  diagnostic orderingは、full-session diagnostics wiring時に既存の一対一原則へ沿って決める。
+- `TriviaParts`のinline capacityとoverflow storageの具体型。range / part invariantと非蓄積性は確定だが、
+  capacityはrepresentative corpusの計測後に決める。
+
 ## Fate of the committed code
 
 ### Reuse assessment
@@ -1344,6 +1761,19 @@ representative corpus の regression を見る。
    role/range 不一致時は fuzzy deduplicate せず full-origin の新しい ID を発行する。
 9. full fixity API extension は architecture replacement の最初の vertical slice に含める。
    infix-only compatibility representation を中間段階として残さない。
+10. direct full parse は shared recognition core + commit-aware continuation とする。rollback が必要な
+    local decision だけを sink-free `Probe` で行い、accepted branch は `cut` 後の total continuation が
+    AST / fact と direct CST output を同時に作る。declaration / expression 全体の token event buffer と
+    replay は置かない。
+11. trivia scanner は text を所有しない local `TriviaRun` を返し、whitespace、CRLF newline、line
+    comment、nested block comment の contiguous source range を typed part として保持する。accepted run は
+    commit 後すぐ emit して破棄し、CST emission のために source を再走査しない。
+12. canonical operator table は `operator::OperatorTable` とする。空の placeholder
+    `parse::OperatorTable` は削除し、public `OperatorTable` 名は canonical 型の re-export として維持する。
+    imported syntax と local header fact は full session 前に一度だけ merge し、parse 中は immutable に使う。
+13. direct CST の lexical / structural vocabulary は `SyntaxKind` に明示し、contextual keyword と operator
+    glyph は accepted grammar slot で分類する。probe 中は kind を決めても emit せず、committed token だけが
+    source range を一度だけ覆う。
 
 ## Implementation gates
 
@@ -1383,9 +1813,11 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
   `stmt/{mod,use_scan,use_decl}.rs`、`parse/mod.rs`、`tests/{expr_grammar,stmt_grammar}.rs`、
   `crates/sources/src/lib.rs`、Cargo manifest / lock。
 - Yulang3 current tree: `docs/yulang3-architecture.md` §4.2.1-4.2.2 / §18、
-  `crates/yu-syntax/src/{lib,parse,input,session,sink,syntax_kind}.rs`、
+  `crates/yu-syntax/src/{lib,parse,input,session,sink,syntax_kind,operator}.rs`、
+  `crates/yu-syntax/src/grammar/{mod,declaration,expression,header}.rs`、
+  `crates/yu-syntax/src/scan/operator.rs`、
   `notes/design/2026-08-20-phase2-parser-fixture-schema.md`、phase 2 parser fixtures、
-  commit `e1737368` と `7022ed27`。
+  commit `e1737368`、`7022ed27`、`669e678e`。
 - local Cargo registry `rowan-0.15.17`: `src/green/builder.rs` と `examples/math.rs` の
   `GreenNodeBuilder::checkpoint` / `start_node_at`。
 
@@ -1418,7 +1850,11 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
   Plain / Mod / Realm / Band の form、marker を除いた path、declaration range、Private visibility を
   そのまま再現することを確認した。fixture schema v0 は recursive group の independent committed item
   projection と整合する一方、glob / exclusion / version / anchor の field をまだ持たないことを明記した。
+- current `RowanSink`、`Probe` / `CommittedCst` skeleton、grammar declaration / expression / header、
+  operator scanner と二つの `OperatorTable` 定義を再照合した。local probe が sink-free、accepted
+  continuation が direct emit、full session が canonical immutable table を一度だけ構築する境界を、
+  current API から実装可能な shape として固定した。
 - この revision は本 design document だけを変更し、source、manifest、fixture、正本 architecture
   document は変更していない。
 
-著者: Codex gpt-5.6-sol xhigh（2026-08-20）
+著者: Codex gpt-5.6-sol xhigh（2026-08-21）
