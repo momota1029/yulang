@@ -130,37 +130,37 @@ pub(crate) enum CommentTermination {
 /// the oracle grammar. Document recognition therefore stays outside this
 /// shared trivia scanner; only `//` is an ordinary line comment here.
 pub(crate) fn scan_trivia<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<TriviaRun>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
+    let start = i.pos();
     let mut parts = TriviaParts::default();
 
     loop {
-        if let Some(whitespace) = input.maybe(from_fn(scan_whitespace))? {
+        if let Some(whitespace) = i.maybe(from_fn(scan_whitespace))? {
             parts.extend(whitespace);
             continue;
         }
-        if let Some(comment) = input.maybe(from_fn(scan_line_comment))? {
+        if let Some(comment) = i.maybe(from_fn(scan_line_comment))? {
             parts.push(comment);
             continue;
         }
-        if let Some(comment) = input.maybe(from_fn(scan_block_comment))? {
+        if let Some(comment) = i.maybe(from_fn(scan_block_comment))? {
             parts.push(comment);
             continue;
         }
         break;
     }
 
-    Some(TriviaRun::new(start..input.pos(), parts))
+    Some(TriviaRun::new(start..i.pos(), parts))
 }
 
 fn scan_whitespace<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<Vec<TriviaPart>>
 where
     E: ErrorSink<usize>,
@@ -172,17 +172,17 @@ where
     let mut whitespace_start = None;
 
     loop {
-        let start = input.pos();
+        let start = i.pos();
         let unit = choice((
             one_of(" \t").to(WhitespaceUnit::Horizontal),
             choice((tag("\r\n"), tag("\r"), tag("\n"))).to(WhitespaceUnit::Newline),
         ));
-        let Some(unit) = input.maybe(unit)? else {
+        let Some(unit) = i.maybe(unit)? else {
             break;
         };
-        let end = input.pos();
+        let end = i.pos();
 
-        let mut line = input.local.line();
+        let mut line = i.local.line();
         if !consumed && line.at_line_start {
             // The oracle derives indentation from the final whitespace part
             // after the most recent newline, so a comment-separated part
@@ -203,7 +203,7 @@ where
                 };
             }
         }
-        input.local.set_line(line);
+        i.local.set_line(line);
 
         match unit {
             WhitespaceUnit::Horizontal => {
@@ -225,7 +225,7 @@ where
     if let Some(whitespace_start) = whitespace_start {
         parts.push(TriviaPart::new(
             TriviaPartKind::Whitespace,
-            whitespace_start..input.pos(),
+            whitespace_start..i.pos(),
         ));
     }
 
@@ -233,39 +233,39 @@ where
 }
 
 fn scan_line_comment<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    let start = input.pos();
-    input.skip(tag("//"))?;
-    input
+    let start = i.pos();
+    i.skip(tag("//"))?;
+    i
         .local
         .push_lexical_mode(EmbeddedLexicalMode::LineComment);
-    input.skip(many_skip(none_of("\r\n")))?;
+    i.skip(many_skip(none_of("\r\n")))?;
     debug_assert_eq!(
-        input.local.pop_lexical_mode(),
+        i.local.pop_lexical_mode(),
         Some(EmbeddedLexicalMode::LineComment)
     );
     Some(TriviaPart::new(
         TriviaPartKind::LineComment,
-        start..input.pos(),
+        start..i.pos(),
     ))
 }
 
 fn scan_block_comment<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<TriviaPart>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = input.pos();
-    input.skip(tag("/*"))?;
-    input
+    let start = i.pos();
+    i.skip(tag("/*"))?;
+    i
         .local
         .push_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: 1 });
 
@@ -276,11 +276,11 @@ where
             from_fn(scan_whitespace).to(BlockCommentUnit::Whitespace),
             any.to(BlockCommentUnit::Text),
         ));
-        let Some(unit) = input.maybe(comment_unit)? else {
+        let Some(unit) = i.maybe(comment_unit)? else {
             // The oracle accepts an unterminated block comment at EOF and
             // synthesizes its closing trivia token. Keep the lexical frame so
             // callers can still observe that the source ended in this mode.
-            let Some(EmbeddedLexicalMode::BlockComment { depth }) = input.local.lexical_mode()
+            let Some(EmbeddedLexicalMode::BlockComment { depth }) = i.local.lexical_mode()
             else {
                 unreachable!("block-comment scanner owns the top lexical frame");
             };
@@ -290,38 +290,38 @@ where
                         remaining_depth: depth,
                     },
                 },
-                start..input.pos(),
+                start..i.pos(),
             ));
         };
 
         match unit {
             BlockCommentUnit::Open => {
-                let Some(EmbeddedLexicalMode::BlockComment { depth }) = input.local.lexical_mode()
+                let Some(EmbeddedLexicalMode::BlockComment { depth }) = i.local.lexical_mode()
                 else {
                     unreachable!("block-comment scanner owns the top lexical frame");
                 };
-                input
+                i
                     .local
                     .replace_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: depth + 1 });
             }
             BlockCommentUnit::Close => {
-                let Some(EmbeddedLexicalMode::BlockComment { depth }) = input.local.lexical_mode()
+                let Some(EmbeddedLexicalMode::BlockComment { depth }) = i.local.lexical_mode()
                 else {
                     unreachable!("block-comment scanner owns the top lexical frame");
                 };
                 if depth == 1 {
                     debug_assert_eq!(
-                        input.local.pop_lexical_mode(),
+                        i.local.pop_lexical_mode(),
                         Some(EmbeddedLexicalMode::BlockComment { depth: 1 })
                     );
                     return Some(TriviaPart::new(
                         TriviaPartKind::BlockComment {
                             termination: CommentTermination::Closed,
                         },
-                        start..input.pos(),
+                        start..i.pos(),
                     ));
                 }
-                input
+                i
                     .local
                     .replace_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: depth - 1 });
             }
@@ -331,36 +331,36 @@ where
 }
 
 fn scan_block_slash<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    input.skip(item('/'))?;
+    i.skip(item('/'))?;
     // Match the oracle's overlap rule: in `/*/`, the immediately overlapping
     // `*/` prevents the same bytes from opening a nested comment.
-    input.skip(many_skip(tag("*/")))?;
+    i.skip(many_skip(tag("*/")))?;
     Some(
-        input
+        i
             .maybe(item('*'))?
             .map_or(BlockCommentUnit::Text, |_| BlockCommentUnit::Open),
     )
 }
 
 fn scan_block_star<E>(
-    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+    mut i: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
 ) -> Option<BlockCommentUnit>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
-    input.skip(item('*'))?;
+    i.skip(item('*'))?;
     // Symmetrically skip an immediately overlapping `/*` before deciding
     // whether the final slash closes the current depth.
-    input.skip(many_skip(tag("/*")))?;
+    i.skip(many_skip(tag("/*")))?;
     Some(
-        input
+        i
             .maybe(item('/'))?
             .map_or(BlockCommentUnit::Text, |_| BlockCommentUnit::Close),
     )
@@ -393,15 +393,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let run = input
-            .run(from_fn(scan_trivia))
+        let run = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..trivia_end);
@@ -437,15 +437,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let run = input
-            .run(from_fn(scan_trivia))
+        let run = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..0);
@@ -460,15 +460,15 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let run = input
-            .run(from_fn(scan_trivia))
+        let run = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(run.range(), 0..source.len());
@@ -482,7 +482,7 @@ mod tests {
             )]
         );
         assert_eq!(
-            input.local.lexical_mode(),
+            i.local.lexical_mode(),
             Some(EmbeddedLexicalMode::BlockComment { depth: 2 })
         );
     }
@@ -494,22 +494,22 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let span = input
-            .run(from_fn(scan_trivia))
+        let span = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..9);
-        assert_eq!(input.pos(), 9);
-        assert_eq!(input.input.remainder(), "name");
+        assert_eq!(i.pos(), 9);
+        assert_eq!(i.input.remainder(), "name");
         assert_eq!(
-            input.local.line(),
+            i.local.line(),
             LineState {
                 last_newline: Some((6, 7)),
                 line_start: 7,
@@ -522,20 +522,20 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let span = input
-            .run(from_fn(scan_trivia))
+        let span = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..3);
         assert_eq!(
-            input.local.line(),
+            i.local.line(),
             LineState {
                 last_newline: Some((1, 2)),
                 line_start: 2,
@@ -553,20 +553,20 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let span = input
-            .run(from_fn(scan_trivia))
+        let span = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..trivia_end);
-        assert_eq!(input.input.remainder(), "next");
-        assert_eq!(input.local.lexical_mode(), None);
+        assert_eq!(i.input.remainder(), "next");
+        assert_eq!(i.local.lexical_mode(), None);
     }
 
     #[test]
@@ -577,22 +577,22 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let span = input
-            .run(from_fn(scan_trivia))
+        let span = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert_eq!(span.range(), 0..trivia_end);
-        assert_eq!(input.input.remainder(), "next");
-        assert_eq!(input.local.lexical_mode(), None);
+        assert_eq!(i.input.remainder(), "next");
+        assert_eq!(i.local.lexical_mode(), None);
         assert_eq!(
-            input.local.line(),
+            i.local.line(),
             LineState {
                 last_newline: Some((10, 12)),
                 line_start: 12,
@@ -608,20 +608,20 @@ mod tests {
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let span = input
-            .run(from_fn(scan_trivia))
+        let span = i
+            .run(scan_trivia)
             .expect("trivia scanning is total");
 
         assert!(span.is_empty());
-        assert_eq!(input.pos(), 0);
-        assert_eq!(input.input.remainder(), "-- document");
+        assert_eq!(i.pos(), 0);
+        assert_eq!(i.input.remainder(), "-- document");
     }
 
     #[test]
@@ -637,16 +637,16 @@ mod tests {
         let original_line = local.line();
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
-        let mut input = In::new(
+        let mut i = In::new(
             &mut source_input,
             &mut expectations,
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
 
-        let result = input
+        let result = i
             .maybe(from_fn_once(|mut probe| {
-                let span = probe.run(from_fn(scan_trivia))?;
+                let span = probe.run(scan_trivia)?;
                 assert_eq!(span.range(), 0..21);
                 assert_eq!(
                     probe.local.lexical_mode(),
@@ -658,9 +658,9 @@ mod tests {
             .expect("the probe failure is uncut");
 
         assert_eq!(result, None);
-        assert_eq!(input.pos(), 0);
-        assert_eq!(input.input.remainder(), "\n  /* outer /* nested");
-        assert_eq!(input.local.line(), original_line);
-        assert_eq!(input.local.lexical_mode(), None);
+        assert_eq!(i.pos(), 0);
+        assert_eq!(i.input.remainder(), "\n  /* outer /* nested");
+        assert_eq!(i.local.line(), original_line);
+        assert_eq!(i.local.lexical_mode(), None);
     }
 }
