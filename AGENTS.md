@@ -74,8 +74,10 @@ Yulang の実装では、次を大切にする。
 - chasaの`In<...>`状態を表すパラメータ・束縛名は`input`ではなく`i`にする（chasaの推奨命名）。
 - `In<'_, SourceInput<...>, (), &mut ParseLocal, E>`をそのまま関数シグネチャへ書き下さない。
   `crates/yu-syntax/src/session.rs`で定義する`SynIn<'a, 'source, 'b, E>`を使う。
-  `'a`はchasaの`#[derive(Reborrow)]`が要求する`In`自身のreborrow対象lifetimeなので先頭に置く。
-  `'source`は`SourceInput<'source>`、`'b`は`&'b mut ParseLocal`のlifetime。
+  `'a`（`In`自身のreborrow対象lifetime）と`'b`（`&mut ParseLocal`の借用lifetime）を
+  同じlifetimeへまとめない。chasaの`#[derive(Reborrow)]`が要求するのは、右辺の
+  `In<...>`で`In`自身の最初のslotへ正しく対応させることだけで、`SynIn`側のパラメータの
+  並び順自体は型aliasの単なる名前の付け替えなので自由。
 
 ## ファイル構成
 
