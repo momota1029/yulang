@@ -21,7 +21,8 @@ use crate::{
         word::{WordSpan, scan_word},
     },
     session::{
-        BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, DeclarationRole,
+        BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
+        DeclarationRole, ImportRole,
         ExpectedSyntax, ExpectationSources, GrammarRole, RecoveryKind,
         RecoverySiteKey, SyntaxExpectation, Delimiter, LayoutRole, Probe, SynIn,
     },
@@ -70,7 +71,7 @@ pub(crate) struct UseStatementIntro<'source> {
     visibility: Option<VisibilityPrefix<'source>>,
     after_visibility: Option<TriviaRun>,
     use_keyword: WordSpan<'source>,
-    after_use: TriviaRun,
+    after_use: Option<TriviaRun>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -179,9 +180,10 @@ where
 {
     let (intro, mut committed) = commit_header_statement(probe, output)?;
     let declaration = match intro {
-        HeaderStatementIntro::Use(intro) => {
-            HeaderDeclaration::Use(commit_use_declaration(&mut committed, intro)?)
-        }
+        HeaderStatementIntro::Use(intro) => match commit_use_declaration(&mut committed, intro) {
+            Recovered::Complete(declaration) => HeaderDeclaration::Use(declaration),
+            Recovered::Incomplete => return None,
+        },
         HeaderStatementIntro::Operator(intro) => {
             HeaderDeclaration::OperatorHeader(commit_operator_header(&mut committed, intro)?)
         }
@@ -218,7 +220,9 @@ where
             visibility,
             after_visibility,
             use_keyword: keyword,
-            after_use: scan_required_inline_trivia(&mut i)?,
+            // The committed continuation owns the mandatory separator and
+            // first target, so a bare `use` is still a selected statement.
+            after_use: scan_maybe_required_inline_trivia(&mut i),
         }));
     }
 
@@ -301,6 +305,22 @@ where
     let trivia = i.run(scan_trivia)?;
     (!trivia.is_empty() && !i.input.source()[trivia.range()].contains(['\r', '\n']))
         .then_some(trivia)
+}
+
+/// Unlike the mandatory scanner used after a continuation has committed, an
+/// intro may inspect this slot without consuming a newline or EOF boundary.
+fn scan_maybe_required_inline_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = scan_required_inline_trivia(i);
+    if trivia.is_none() {
+        i.rollback(checkpoint);
+    }
+    trivia
 }
 
 fn scan_optional_inline_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
@@ -612,6 +632,142 @@ fn emit_binding_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
+/// Emits the common committed-recovery shape for an import-owned mandatory
+/// slot.  Use continuations select the narrow `ImportRole` at their call site;
+/// the record construction itself stays shared with every such slot.
+fn emit_import_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: ImportRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let grammar_role = GrammarRole::Declaration(DeclarationRole::Import(role));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role: grammar_role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role: grammar_role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_import_group_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    delimiter: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::ImportGroup,
+            delimiter,
+        };
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(
+                    crate::session::PunctuationEvidence::Close(delimiter),
+                ),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_import_group_mismatched_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+    actual: Delimiter,
+    expected: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::ImportGroup,
+            delimiter: expected,
+        };
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::Punctuation(
+                    crate::session::PunctuationEvidence::Close(actual),
+                ),
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(
+                    crate::session::PunctuationEvidence::Close(expected),
+                ),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_import_operator_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::OperatorName,
+            delimiter: Delimiter::Parenthesis,
+        };
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(
+                    crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis),
+                ),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
 /// Completes an accepted operator-header introduction while building its AST
 /// and direct CST from the same scans.
 pub(crate) fn commit_operator_header<'parse, 'source, 'local, E, O>(
@@ -824,7 +980,7 @@ where
 pub(crate) fn commit_use_declaration<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: UseStatementIntro<'source>,
-) -> Option<UseDeclaration<'source>>
+) -> Recovered<UseDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -834,14 +990,31 @@ where
     committed.start_node(SyntaxKind::UseDeclaration);
     if let Some(visibility) = &intro.visibility {
         emit_visibility(committed, visibility);
-        committed.emit_trivia(intro.after_visibility.as_ref()?);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
     }
     committed.token(SyntaxKind::UseKw, intro.use_keyword.range());
-    committed.emit_trivia(&intro.after_use);
-    let tree = commit_use_tree(committed)?;
+    if let Some(trivia) = &intro.after_use {
+        committed.emit_trivia(trivia);
+    } else if commit_use_tree_candidate(committed) {
+        emit_layout_missing(committed);
+    }
+    if !commit_use_tree_candidate(committed) && !use_tree_error_retry(committed) {
+        emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    }
+    let tree = match commit_use_tree(committed) {
+        Recovered::Complete(tree) => tree,
+        Recovered::Incomplete => {
+            committed.finish_node();
+            return Recovered::Incomplete;
+        }
+    };
     committed.finish_node();
 
-    Some(UseDeclaration {
+    Recovered::Complete(UseDeclaration {
         range: intro.start..tree.range().end,
         visibility: intro
             .visibility
@@ -853,7 +1026,7 @@ where
 
 fn commit_use_tree<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<UseTree<'source>>
+) -> Recovered<UseTree<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -863,29 +1036,71 @@ where
     let start = committed_position(committed);
     committed.start_node(SyntaxKind::UseTree);
 
-    let (form, prefix, terminal, terminal_end, glob_aliases) = if let Some(open) = commit_maybe_character(committed, '{')? {
-        let (terminal, end) = commit_use_group(committed, open)?;
+    let (form, prefix, terminal, terminal_end, glob_aliases) = if let Some(open) = commit_maybe_character(committed, '{').flatten() {
+        let (terminal, end) = match commit_use_group(committed, open) {
+            Recovered::Complete(group) => group,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        };
         (HeaderImportForm::Plain, empty_use_path(), terminal, end, Vec::new())
-    } else if let Some(first) = commit_maybe_operator_segment(committed)? {
-        commit_use_path_and_terminal(committed, first, None, HeaderImportForm::Plain)?
+    } else if let Some(open) = commit_maybe_character(committed, '(').flatten() {
+        let first = match commit_parenthesized_use_operator(committed, open) {
+            Recovered::Complete(segment) => segment,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        };
+        match commit_use_path_and_terminal(committed, first, None, HeaderImportForm::Plain) {
+            Recovered::Complete(result) => result,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        }
     } else {
-        let first = commit_word(committed)?;
+        let Some(first) = commit_word(committed) else {
+            emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
+            committed.finish_node();
+            return Recovered::Incomplete;
+        };
         if first.text() == "mod" {
             committed.token(SyntaxKind::ModKw, first.range());
-            let trivia = commit_required_inline_trivia(committed)?;
-            committed.emit_trivia(&trivia);
-            let first_segment = UseSegment::Word(commit_word(committed)?);
-            commit_use_path_and_terminal(committed, first_segment, None, HeaderImportForm::Mod)?
+            if let Some(trivia) = commit_required_inline_trivia(committed) {
+                committed.emit_trivia(&trivia);
+            } else if commit_word_candidate(committed) {
+                emit_layout_missing(committed);
+            }
+            let Some(first_segment) = commit_word(committed).map(UseSegment::Word) else {
+                emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Identifier);
+                committed.finish_node();
+                return Recovered::Incomplete;
+            };
+            match commit_use_path_and_terminal(committed, first_segment, None, HeaderImportForm::Mod) {
+                Recovered::Complete(result) => result,
+                Recovered::Incomplete => {
+                    committed.finish_node();
+                    return Recovered::Incomplete;
+                }
+            }
         } else {
-            let following_separator = commit_maybe_use_separator(committed)?;
+            let following_separator = commit_maybe_use_separator(committed).flatten();
             let form = classify_use_form(first, following_separator.as_ref().map(|(separator, _)| *separator));
             match form {
-                HeaderImportForm::Plain => commit_use_path_and_terminal(
+                HeaderImportForm::Plain => match commit_use_path_and_terminal(
                     committed,
                     UseSegment::Word(first),
                     following_separator,
                     HeaderImportForm::Plain,
-                )?,
+                ) {
+                    Recovered::Complete(result) => result,
+                    Recovered::Incomplete => {
+                        committed.finish_node();
+                        return Recovered::Incomplete;
+                    }
+                },
                 HeaderImportForm::Realm | HeaderImportForm::Band => {
                     committed.token(
                         if form == HeaderImportForm::Realm {
@@ -895,17 +1110,42 @@ where
                         },
                         first.range(),
                     );
-                    let (_, marker_range) = following_separator?;
+                    let (_, marker_range) = following_separator
+                        .expect("realm and band forms require their marker separator");
                     committed.token(separator_token_kind(form_marker_separator(form)), marker_range);
-                    if let Some(open) = commit_maybe_character(committed, '{')? {
-                        let (terminal, end) = commit_use_group(committed, open)?;
+                    if let Some(open) = commit_maybe_character(committed, '{').flatten() {
+                        let (terminal, end) = match commit_use_group(committed, open) {
+                            Recovered::Complete(group) => group,
+                            Recovered::Incomplete => {
+                                committed.finish_node();
+                                return Recovered::Incomplete;
+                            }
+                        };
                         (form, empty_use_path(), terminal, end, Vec::new())
-                    } else if let Some(star) = commit_maybe_character(committed, '*')? {
-                        let (terminal, end, aliases) = commit_use_glob(committed, star)?;
+                    } else if let Some(star) = commit_maybe_character(committed, '*').flatten() {
+                        let (terminal, end, aliases) = match commit_use_glob(committed, star) {
+                            Recovered::Complete(glob) => glob,
+                            Recovered::Incomplete => {
+                                committed.finish_node();
+                                return Recovered::Incomplete;
+                            }
+                        };
                         (form, empty_use_path(), terminal, end, aliases)
                     } else {
-                        let first_segment = commit_use_path_segment(committed)?;
-                        commit_use_path_and_terminal(committed, first_segment, None, form)?
+                        let first_segment = match commit_use_path_segment(committed) {
+                            Recovered::Complete(segment) => segment,
+                            Recovered::Incomplete => {
+                                committed.finish_node();
+                                return Recovered::Incomplete;
+                            }
+                        };
+                        match commit_use_path_and_terminal(committed, first_segment, None, form) {
+                            Recovered::Complete(result) => result,
+                            Recovered::Incomplete => {
+                                committed.finish_node();
+                                return Recovered::Incomplete;
+                            }
+                        }
                     }
                 }
                 HeaderImportForm::Mod => unreachable!("mod was handled before marker classification"),
@@ -915,9 +1155,21 @@ where
 
     let aliases = match terminal {
         UseTerminal::Glob { .. } => glob_aliases,
-        _ => commit_use_aliases(committed)?,
+        _ => match commit_use_aliases(committed) {
+            Recovered::Complete(aliases) => aliases,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        },
     };
-    let qualifiers = commit_use_qualifiers(committed)?;
+    let qualifiers = match commit_use_qualifiers(committed) {
+        Recovered::Complete(qualifiers) => qualifiers,
+        Recovered::Incomplete => {
+            committed.finish_node();
+            return Recovered::Incomplete;
+        }
+    };
     let end = qualifiers_end(&qualifiers).unwrap_or_else(|| {
         aliases
             .last()
@@ -925,7 +1177,7 @@ where
     });
     committed.finish_node();
 
-    Some(UseTree {
+    Recovered::Complete(UseTree {
         range: start..end,
         form,
         prefix,
@@ -948,7 +1200,7 @@ fn commit_use_path_and_terminal<'parse, 'source, 'local, E, O>(
     first: UseSegment<'source>,
     mut pending_separator: Option<(UseSeparator, Range<usize>)>,
     form: HeaderImportForm,
-) -> Option<(
+) -> Recovered<(
     HeaderImportForm,
     UsePath<'source>,
     UseTerminal<'source>,
@@ -971,17 +1223,20 @@ where
     loop {
         let Some((separator, range)) = pending_separator
             .take()
-            .or(commit_maybe_use_separator(committed)?)
+            .or(commit_maybe_use_separator(committed).flatten())
         else {
             committed.finish_node();
-            let end = path.segments().last()?.range().end;
-            return Some((form, path, UseTerminal::Single, end, Vec::new()));
+            let end = path.segments().last().expect("use path has its first segment").range().end;
+            return Recovered::Complete((form, path, UseTerminal::Single, end, Vec::new()));
         };
-        if let Some(open) = commit_maybe_character(committed, '{')? {
+        if let Some(open) = commit_maybe_character(committed, '{').flatten() {
             committed.finish_node();
             committed.token(separator_token_kind(separator), range);
-            let (terminal, end) = commit_use_group(committed, open)?;
-            return Some((
+            let (terminal, end) = match commit_use_group(committed, open) {
+                Recovered::Complete(group) => group,
+                Recovered::Incomplete => return Recovered::Incomplete,
+            };
+            return Recovered::Complete((
                 form,
                 path,
                 terminal_with_join(terminal, separator),
@@ -989,11 +1244,14 @@ where
                 Vec::new(),
             ));
         }
-        if let Some(star) = commit_maybe_character(committed, '*')? {
+        if let Some(star) = commit_maybe_character(committed, '*').flatten() {
             committed.finish_node();
             committed.token(separator_token_kind(separator), range);
-            let (terminal, end, aliases) = commit_use_glob(committed, star)?;
-            return Some((
+            let (terminal, end, aliases) = match commit_use_glob(committed, star) {
+                Recovered::Complete(glob) => glob,
+                Recovered::Incomplete => return Recovered::Incomplete,
+            };
+            return Recovered::Complete((
                 form,
                 path,
                 terminal_with_join(terminal, separator),
@@ -1003,7 +1261,14 @@ where
         }
         committed.token(separator_token_kind(separator), range);
         path.separators.push(separator);
-        let segment = commit_use_path_segment(committed)?;
+        let segment = match commit_use_path_segment(committed) {
+            Recovered::Complete(segment) => segment,
+            Recovered::Incomplete => {
+            emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
+            committed.finish_node();
+            return Recovered::Incomplete;
+            }
+        };
         emit_use_segment(committed, &segment);
         path.segments.push(segment);
     }
@@ -1032,17 +1297,69 @@ fn separator_token_kind(separator: UseSeparator) -> SyntaxKind {
 
 fn commit_use_path_segment<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<UseSegment<'source>>
+) -> Recovered<UseSegment<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    commit_maybe_operator_segment(committed)?.map_or_else(
-        || commit_word(committed).map(UseSegment::Word),
-        Some,
-    )
+    if let Some(open) = commit_maybe_character(committed, '(').flatten() {
+        return commit_parenthesized_use_operator(committed, open);
+    }
+    match commit_word(committed) {
+        Some(word) => Recovered::Complete(UseSegment::Word(word)),
+        None => {
+            emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Path);
+            Recovered::Incomplete
+        }
+    }
+}
+
+/// Once `(` selects an operator segment, it owns the operator-name node.  A
+/// malformed spelling or absent `)` therefore cannot fall back into a group
+/// arm and leave the direct CST unbalanced.
+fn commit_parenthesized_use_operator<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    open: Range<usize>,
+) -> Recovered<UseSegment<'source>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let spelling = committed.probe(|probe| {
+        let i = probe.input();
+        let start = i.pos();
+        while let Some(character) = i.input.remainder().chars().next() {
+            if !is_use_operator_character(character) {
+                break;
+            }
+            i.input.next()?;
+        }
+        let end = i.pos();
+        (start < end).then_some(start..end)
+    });
+    let Some(spelling) = spelling else {
+        committed.start_node(SyntaxKind::OperatorName);
+        committed.token(SyntaxKind::LParen, open);
+        emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::OperatorName);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
+    let Some(close) = commit_maybe_character(committed, ')').flatten() else {
+        committed.start_node(SyntaxKind::OperatorName);
+        committed.token(SyntaxKind::LParen, open);
+        committed.token(SyntaxKind::Operator, spelling);
+        emit_import_operator_close_missing(committed);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
+    Recovered::Complete(UseSegment::Operator {
+        range: open.start..close.end,
+        text: &committed.probe(|probe| probe.input().input.source())[spelling],
+    })
 }
 
 fn emit_use_segment<'parse, 'source, 'local, E, O>(
@@ -1070,7 +1387,7 @@ fn emit_use_segment<'parse, 'source, 'local, E, O>(
 fn commit_use_group<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     open: Range<usize>,
-) -> Option<(UseTerminal<'source>, usize)>
+) -> Recovered<(UseTerminal<'source>, usize)>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1081,26 +1398,66 @@ where
     committed.token(SyntaxKind::LBrace, open);
     let mut items = Vec::new();
     loop {
-        let trivia = commit_trivia(committed)?;
+        let trivia = commit_trivia(committed).expect("trivia scanning is total");
         committed.emit_trivia(&trivia);
-        if let Some(close) = commit_maybe_character(committed, '}')? {
+        if let Some(close) = commit_maybe_character(committed, '}').flatten() {
             committed.token(SyntaxKind::RBrace, close.clone());
             committed.finish_node();
-            return Some((UseTerminal::Group { join: None, items }, close.end));
+            return Recovered::Complete((UseTerminal::Group { join: None, items }, close.end));
         }
-        items.push(commit_use_tree(committed)?);
-        let trivia = commit_trivia(committed)?;
+        if let Some(close) = commit_maybe_character(committed, ')').flatten() {
+            emit_import_group_mismatched_close(
+                committed,
+                close,
+                Delimiter::Parenthesis,
+                Delimiter::Brace,
+            );
+            continue;
+        }
+        if committed_at_eof(committed) {
+            emit_import_group_close_missing(committed, Delimiter::Brace);
+            committed.finish_node();
+            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
+        }
+        if let Recovered::Complete(item) = commit_use_tree(committed) {
+            items.push(item);
+        }
+        let trivia = commit_trivia(committed).expect("trivia scanning is total");
         let newline = trivia_has_newline(committed, &trivia);
         committed.emit_trivia(&trivia);
-        if let Some(close) = commit_maybe_character(committed, '}')? {
+        if let Some(close) = commit_maybe_character(committed, '}').flatten() {
             committed.token(SyntaxKind::RBrace, close.clone());
             committed.finish_node();
-            return Some((UseTerminal::Group { join: None, items }, close.end));
+            return Recovered::Complete((UseTerminal::Group { join: None, items }, close.end));
         }
-        if let Some(comma) = commit_maybe_character(committed, ',')? {
+        if let Some(close) = commit_maybe_character(committed, ')').flatten() {
+            emit_import_group_mismatched_close(
+                committed,
+                close,
+                Delimiter::Parenthesis,
+                Delimiter::Brace,
+            );
+            continue;
+        }
+        if let Some(comma) = commit_maybe_character(committed, ',').flatten() {
             committed.token(SyntaxKind::Comma, comma);
+        } else if committed_at_eof(committed) {
+            emit_import_group_close_missing(committed, Delimiter::Brace);
+            committed.finish_node();
+            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
+        } else if commit_use_tree_candidate(committed) {
+            // Two same-line tree atoms need an explicit comma.  Keep the
+            // second atom at this position so the next group iteration can
+            // recover it as an ordinary sibling.
+            emit_import_missing(
+                committed,
+                ImportRole::GroupEntry,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+            );
         } else if !newline {
-            return None;
+            emit_import_group_close_missing(committed, Delimiter::Brace);
+            committed.finish_node();
+            return Recovered::Complete((UseTerminal::Group { join: None, items }, committed_position(committed)));
         }
     }
 }
@@ -1108,7 +1465,7 @@ where
 fn commit_use_glob<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     star: Range<usize>,
-) -> Option<(UseTerminal<'source>, usize, Vec<WordSpan<'source>>)> 
+) -> Recovered<(UseTerminal<'source>, usize, Vec<WordSpan<'source>>)>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1117,25 +1474,48 @@ where
 {
     committed.start_node(SyntaxKind::UseGlob);
     committed.token(SyntaxKind::Star, star.clone());
-    let aliases = commit_use_aliases(committed)?;
+    let aliases = match commit_use_aliases(committed) {
+        Recovered::Complete(aliases) => aliases,
+        Recovered::Incomplete => {
+            committed.finish_node();
+            return Recovered::Incomplete;
+        }
+    };
     let mut end = aliases.last().map_or(star.end, |alias| alias.range().end);
     let mut without = Vec::new();
-    if let Some(prefix) = commit_maybe_without_prefix(committed)? {
+    if let Some(prefix) = commit_maybe_without_prefix(committed) {
         committed.emit_trivia(&prefix.leading);
         committed.token(SyntaxKind::WithoutKw, prefix.keyword.range());
-        committed.emit_trivia(&prefix.after_keyword);
-        without.push(commit_use_exclusion(committed)?);
-        end = exclusion_range(without.last()?).end;
-        while let Some(comma) = commit_maybe_character(committed, ',')? {
+        if let Some(trivia) = &prefix.after_keyword {
+            committed.emit_trivia(trivia);
+        } else if commit_use_exclusion_candidate(committed) {
+            emit_layout_missing(committed);
+        }
+        match commit_use_exclusion(committed) {
+            Recovered::Complete(exclusion) => {
+                end = exclusion_range(&exclusion).end;
+                without.push(exclusion);
+            }
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        }
+        while let Some(comma) = commit_maybe_character(committed, ',').flatten() {
             committed.token(SyntaxKind::Comma, comma);
-            let trivia = commit_trivia(committed)?;
+            let trivia = commit_trivia(committed).expect("trivia scanning is total");
             committed.emit_trivia(&trivia);
-            without.push(commit_use_exclusion(committed)?);
-            end = exclusion_range(without.last()?).end;
+            match commit_use_exclusion(committed) {
+                Recovered::Complete(exclusion) => {
+                    end = exclusion_range(&exclusion).end;
+                    without.push(exclusion);
+                }
+                Recovered::Incomplete => break,
+            }
         }
     }
     committed.finish_node();
-    Some((
+    Recovered::Complete((
         UseTerminal::Glob {
             join: None,
             without,
@@ -1147,7 +1527,7 @@ where
 
 fn commit_use_aliases<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Vec<WordSpan<'source>>>
+) -> Recovered<Vec<WordSpan<'source>>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1155,31 +1535,40 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut aliases = Vec::new();
-    while let Some(alias) = commit_maybe_use_alias(committed)? {
+    while let Some(alias) = commit_maybe_use_alias(committed) {
         committed.emit_trivia(&alias.leading);
         committed.start_node(SyntaxKind::UseAlias);
         committed.token(SyntaxKind::AsKw, alias.keyword.range());
-        committed.emit_trivia(&alias.after_keyword);
-        committed.token(SyntaxKind::Identifier, alias.name.range());
+        if let Some(trivia) = &alias.after_keyword {
+            committed.emit_trivia(trivia);
+        } else if commit_word_candidate(committed) {
+            emit_layout_missing(committed);
+        }
+        let Some(name) = alias.name else {
+            emit_import_missing(committed, ImportRole::Alias, ExpectedSyntax::Identifier);
+            committed.finish_node();
+            return Recovered::Incomplete;
+        };
+        committed.token(SyntaxKind::Identifier, name.range());
         committed.finish_node();
-        aliases.push(alias.name);
+        aliases.push(name);
     }
-    Some(aliases)
+    Recovered::Complete(aliases)
 }
 
 fn commit_use_qualifiers<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<UseQualifiers<'source>>
+) -> Recovered<UseQualifiers<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let version = commit_maybe_version(committed)?;
-    let anchor_prefix = commit_maybe_with_prefix(committed)?;
+    let version = commit_maybe_version(committed);
+    let anchor_prefix = commit_maybe_with_prefix(committed);
     if version.is_none() && anchor_prefix.is_none() {
-        return Some(UseQualifiers::default());
+        return Recovered::Complete(UseQualifiers::default());
     }
     committed.start_node(SyntaxKind::UseQualifiers);
     if let Some(version) = version {
@@ -1188,19 +1577,31 @@ where
         committed.token(SyntaxKind::Version, version.value.range());
         committed.finish_node();
         let anchor = if let Some(prefix) = anchor_prefix {
-            Some(commit_use_anchor(committed, prefix)?)
+            match commit_use_anchor(committed, prefix) {
+                Recovered::Complete(anchor) => Some(anchor),
+                Recovered::Incomplete => {
+                    committed.finish_node();
+                    return Recovered::Incomplete;
+                }
+            }
         } else {
             None
         };
         committed.finish_node();
-        return Some(UseQualifiers {
+        return Recovered::Complete(UseQualifiers {
             version: Some(version.value),
             anchor,
         });
     }
-    let anchor = commit_use_anchor(committed, anchor_prefix?)?;
+    let anchor = match commit_use_anchor(committed, anchor_prefix.expect("anchor prefix was checked")) {
+        Recovered::Complete(anchor) => anchor,
+        Recovered::Incomplete => {
+            committed.finish_node();
+            return Recovered::Incomplete;
+        }
+    };
     committed.finish_node();
-    Some(UseQualifiers {
+    Recovered::Complete(UseQualifiers {
         version: None,
         anchor: Some(anchor),
     })
@@ -1209,7 +1610,7 @@ where
 fn commit_use_anchor<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     prefix: WithPrefix<'source>,
-) -> Option<UsePath<'source>>
+) -> Recovered<UsePath<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1219,16 +1620,30 @@ where
     committed.emit_trivia(&prefix.leading);
     committed.start_node(SyntaxKind::UseAnchor);
     committed.token(SyntaxKind::WithKw, prefix.keyword.range());
-    committed.emit_trivia(&prefix.after_keyword);
+    if let Some(trivia) = &prefix.after_keyword {
+        committed.emit_trivia(trivia);
+    } else if commit_word_candidate(committed) {
+        emit_layout_missing(committed);
+    }
     committed.start_node(SyntaxKind::UsePath);
-    let first = commit_word(committed)?;
+    let Some(first) = commit_word(committed) else {
+        emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Identifier);
+        committed.finish_node();
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
     committed.token(SyntaxKind::Identifier, first.range());
     let mut path = UsePath {
         segments: vec![UseSegment::Word(first)],
         separators: Vec::new(),
     };
-    while let Some((separator, range)) = commit_maybe_use_separator(committed)? {
-        let segment = commit_word(committed)?;
+    while let Some((separator, range)) = commit_maybe_use_separator(committed).flatten() {
+        let Some(segment) = commit_word(committed) else {
+            emit_import_missing(committed, ImportRole::Path, ExpectedSyntax::Identifier);
+            committed.finish_node();
+            committed.finish_node();
+            return Recovered::Incomplete;
+        };
         committed.token(separator_token_kind(separator), range);
         committed.token(SyntaxKind::Identifier, segment.range());
         path.separators.push(separator);
@@ -1236,12 +1651,12 @@ where
     }
     committed.finish_node();
     committed.finish_node();
-    Some(path)
+    Recovered::Complete(path)
 }
 
 fn commit_use_exclusion<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<UseExclusion<'source>>
+) -> Recovered<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1250,31 +1665,57 @@ where
 {
     let start = committed_position(committed);
     committed.start_node(SyntaxKind::UseExclusion);
-    if let Some(segment) = commit_maybe_operator_segment(committed)? {
-        emit_use_segment(committed, &segment);
+    if let Some(open) = commit_maybe_character(committed, '(').flatten() {
+        if commit_parenthesized_use_operator_candidate(committed) {
+            let group = match commit_parenthesized_use_operator(committed, open) {
+                Recovered::Complete(segment) => UseExclusion::Segment(segment),
+                Recovered::Incomplete => {
+                    committed.finish_node();
+                    return Recovered::Incomplete;
+                }
+            };
+            let UseExclusion::Segment(segment) = &group else {
+                unreachable!("operator parsing always returns a segment");
+            };
+            emit_use_segment(committed, segment);
+            committed.finish_node();
+            return Recovered::Complete(group);
+        }
+        let group = match commit_use_exclusion_group(committed, open, '(', ')') {
+            Recovered::Complete(group) => group,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        };
         committed.finish_node();
-        return Some(UseExclusion::Segment(segment));
+        return Recovered::Complete(group);
     }
-    if let Some(open) = commit_maybe_character(committed, '(')? {
-        let group = commit_use_exclusion_group(committed, open, '(', ')')?;
+    if let Some(open) = commit_maybe_character(committed, '{').flatten() {
+        let group = match commit_use_exclusion_group(committed, open, '{', '}') {
+            Recovered::Complete(group) => group,
+            Recovered::Incomplete => {
+                committed.finish_node();
+                return Recovered::Incomplete;
+            }
+        };
         committed.finish_node();
-        return Some(group);
+        return Recovered::Complete(group);
     }
-    if let Some(open) = commit_maybe_character(committed, '{')? {
-        let group = commit_use_exclusion_group(committed, open, '{', '}')?;
-        committed.finish_node();
-        return Some(group);
-    }
-    if let Some(star) = commit_maybe_character(committed, '*')? {
+    if let Some(star) = commit_maybe_character(committed, '*').flatten() {
         committed.token(SyntaxKind::Star, star.clone());
         committed.finish_node();
-        return Some(UseExclusion::Glob { range: star });
+        return Recovered::Complete(UseExclusion::Glob { range: star });
     }
-    let word = commit_word(committed)?;
+    let Some(word) = commit_word(committed) else {
+        emit_import_missing(committed, ImportRole::GroupEntry, ExpectedSyntax::Identifier);
+        committed.finish_node();
+        return Recovered::Incomplete;
+    };
     committed.token(SyntaxKind::Identifier, word.range());
     committed.finish_node();
     debug_assert_eq!(word.range().start, start);
-    Some(UseExclusion::Segment(UseSegment::Word(word)))
+    Recovered::Complete(UseExclusion::Segment(UseSegment::Word(word)))
 }
 
 fn commit_use_exclusion_group<'parse, 'source, 'local, E, O>(
@@ -1282,7 +1723,7 @@ fn commit_use_exclusion_group<'parse, 'source, 'local, E, O>(
     open: Range<usize>,
     opening: char,
     closing: char,
-) -> Option<UseExclusion<'source>>
+) -> Recovered<UseExclusion<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1301,9 +1742,9 @@ where
     );
     let mut items = Vec::new();
     loop {
-        let trivia = commit_trivia(committed)?;
+        let trivia = commit_trivia(committed).expect("trivia scanning is total");
         committed.emit_trivia(&trivia);
-        if let Some(close) = commit_maybe_character(committed, closing)? {
+        if let Some(close) = commit_maybe_character(committed, closing).flatten() {
             committed.token(
                 if closing == ')' {
                     SyntaxKind::RParen
@@ -1313,16 +1754,38 @@ where
                 close.clone(),
             );
             committed.finish_node();
-            return Some(UseExclusion::Group {
+            return Recovered::Complete(UseExclusion::Group {
                 range: start..close.end,
                 items,
             });
         }
-        items.push(commit_use_tree(committed)?);
-        let trivia = commit_trivia(committed)?;
+        let mismatched = if closing == ')' { '}' } else { ')' };
+        if let Some(close) = commit_maybe_character(committed, mismatched).flatten() {
+            emit_import_group_mismatched_close(
+                committed,
+                close,
+                if mismatched == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+                if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+            );
+            continue;
+        }
+        if committed_at_eof(committed) {
+            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            emit_import_group_close_missing(committed, delimiter);
+            committed.finish_node();
+            return Recovered::Complete(UseExclusion::Group {
+                range: start..committed_position(committed),
+                items,
+            });
+        }
+        match commit_use_tree(committed) {
+            Recovered::Complete(item) => items.push(item),
+            Recovered::Incomplete => {}
+        }
+        let trivia = commit_trivia(committed).expect("trivia scanning is total");
         let newline = trivia_has_newline(committed, &trivia);
         committed.emit_trivia(&trivia);
-        if let Some(close) = commit_maybe_character(committed, closing)? {
+        if let Some(close) = commit_maybe_character(committed, closing).flatten() {
             committed.token(
                 if closing == ')' {
                     SyntaxKind::RParen
@@ -1332,15 +1795,40 @@ where
                 close.clone(),
             );
             committed.finish_node();
-            return Some(UseExclusion::Group {
+            return Recovered::Complete(UseExclusion::Group {
                 range: start..close.end,
                 items,
             });
         }
-        if let Some(comma) = commit_maybe_character(committed, ',')? {
+        let mismatched = if closing == ')' { '}' } else { ')' };
+        if let Some(close) = commit_maybe_character(committed, mismatched).flatten() {
+            emit_import_group_mismatched_close(
+                committed,
+                close,
+                if mismatched == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+                if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace },
+            );
+            continue;
+        }
+        if committed_at_eof(committed) {
+            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            emit_import_group_close_missing(committed, delimiter);
+            committed.finish_node();
+            return Recovered::Complete(UseExclusion::Group {
+                range: start..committed_position(committed),
+                items,
+            });
+        }
+        if let Some(comma) = commit_maybe_character(committed, ',').flatten() {
             committed.token(SyntaxKind::Comma, comma);
         } else if !newline {
-            return None;
+            let delimiter = if closing == ')' { Delimiter::Parenthesis } else { Delimiter::Brace };
+            emit_import_group_close_missing(committed, delimiter);
+            committed.finish_node();
+            return Recovered::Complete(UseExclusion::Group {
+                range: start..committed_position(committed),
+                items,
+            });
         }
     }
 }
@@ -1349,8 +1837,8 @@ where
 struct AliasPrefix<'source> {
     leading: TriviaRun,
     keyword: WordSpan<'source>,
-    after_keyword: TriviaRun,
-    name: WordSpan<'source>,
+    after_keyword: Option<TriviaRun>,
+    name: Option<WordSpan<'source>>,
 }
 
 #[derive(Clone)]
@@ -1363,19 +1851,19 @@ struct VersionPrefix<'source> {
 struct WithPrefix<'source> {
     leading: TriviaRun,
     keyword: WordSpan<'source>,
-    after_keyword: TriviaRun,
+    after_keyword: Option<TriviaRun>,
 }
 
 #[derive(Clone)]
 struct WithoutPrefix<'source> {
     leading: TriviaRun,
     keyword: WordSpan<'source>,
-    after_keyword: TriviaRun,
+    after_keyword: Option<TriviaRun>,
 }
 
 fn commit_maybe_use_alias<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Option<AliasPrefix<'source>>>
+) -> Option<AliasPrefix<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1385,29 +1873,27 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let result = (|| {
-            let leading = scan_required_inline_trivia(i)?;
-            let keyword = i.run(scan_word)?;
-            (keyword.text() == "as").then_some(())?;
-            let after_keyword = scan_required_inline_trivia(i)?;
-            let name = i.run(scan_word)?;
-            Some(AliasPrefix {
-                leading,
-                keyword,
-                after_keyword,
-                name,
-            })
-        })();
-        if result.is_none() {
+        let Some(leading) = scan_required_inline_trivia(i) else {
             i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        if keyword.text() != "as" {
+            i.rollback(checkpoint);
+            return None;
         }
-        Some(result)
+        let after_keyword = scan_maybe_required_inline_trivia(i);
+        let name = after_keyword.as_ref().and_then(|_| i.run(scan_word));
+        Some(AliasPrefix { leading, keyword, after_keyword, name })
     })
 }
 
 fn commit_maybe_version<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Option<VersionPrefix<'source>>>
+) -> Option<VersionPrefix<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1425,13 +1911,13 @@ where
         if result.is_none() {
             i.rollback(checkpoint);
         }
-        Some(result)
+        result
     })
 }
 
 fn commit_maybe_with_prefix<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Option<WithPrefix<'source>>>
+) -> Option<WithPrefix<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1441,27 +1927,26 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let result = (|| {
-            let leading = scan_required_inline_trivia(i)?;
-            let keyword = i.run(scan_word)?;
-            (keyword.text() == "with").then_some(())?;
-            let after_keyword = scan_required_inline_trivia(i)?;
-            Some(WithPrefix {
-                leading,
-                keyword,
-                after_keyword,
-            })
-        })();
-        if result.is_none() {
+        let Some(leading) = scan_required_inline_trivia(i) else {
             i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        if keyword.text() != "with" {
+            i.rollback(checkpoint);
+            return None;
         }
-        Some(result)
+        let after_keyword = scan_maybe_required_inline_trivia(i);
+        Some(WithPrefix { leading, keyword, after_keyword })
     })
 }
 
 fn commit_maybe_without_prefix<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Option<WithoutPrefix<'source>>>
+) -> Option<WithoutPrefix<'source>>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1471,21 +1956,20 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let result = (|| {
-            let leading = scan_required_inline_trivia(i)?;
-            let keyword = i.run(scan_word)?;
-            (keyword.text() == "without").then_some(())?;
-            let after_keyword = scan_required_inline_trivia(i)?;
-            Some(WithoutPrefix {
-                leading,
-                keyword,
-                after_keyword,
-            })
-        })();
-        if result.is_none() {
+        let Some(leading) = scan_required_inline_trivia(i) else {
             i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        if keyword.text() != "without" {
+            i.rollback(checkpoint);
+            return None;
         }
-        Some(result)
+        let after_keyword = scan_maybe_required_inline_trivia(i);
+        Some(WithoutPrefix { leading, keyword, after_keyword })
     })
 }
 
@@ -1506,6 +1990,16 @@ where
     committed.probe(|probe| probe.input().pos())
 }
 
+fn committed_at_eof<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.probe(|probe| probe.input().input.remainder().is_empty())
+}
+
 fn commit_word<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<WordSpan<'source>>
@@ -1516,6 +2010,128 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.probe(|probe| probe.input().run(scan_word))
+}
+
+/// A sink-free test for the first `UseTree` atom.  It intentionally does not
+/// scan the whole tree: this is only the local-candidate decision used by the
+/// declaration-head recovery rule.
+fn commit_use_tree_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let candidate = i.input.remainder().starts_with('{')
+            || i.input.remainder().starts_with('(')
+            || i.run(scan_word).is_some()
+            || i.run(parse_parenthesized_use_operator).is_some();
+        i.rollback(checkpoint);
+        candidate
+    })
+}
+
+fn commit_parenthesized_use_operator_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.probe(|probe| {
+        probe
+            .input()
+            .input
+            .remainder()
+            .chars()
+            .next()
+            .is_some_and(is_use_operator_character)
+    })
+}
+
+fn commit_use_exclusion_candidate<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        matches!(i.input.remainder().chars().next(), Some('(' | '{' | '*'))
+            || i.run(scan_word).is_some()
+    })
+}
+
+/// Consumes one contiguous invalid use-tree head episode, then leaves a later
+/// locally-recognizable tree atom for the same slot to retry.  Statement and
+/// group boundaries remain untouched for their owners.
+fn use_tree_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ';' | ',' | '}' | ')') {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            let candidate = i.input.remainder().starts_with('{')
+                || i.input.remainder().chars().next().is_some_and(|next| {
+                    next == '_' || next.is_alphabetic()
+                });
+            if candidate {
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return false;
+    };
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Path,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+    retry
 }
 
 fn commit_trivia<'parse, 'source, 'local, E, O>(
@@ -3103,9 +3719,35 @@ mod tests {
         let HeaderStatementIntro::Use(intro) = intro else {
             panic!("source did not select the use continuation");
         };
-        let declaration = commit_use_declaration(&mut committed, intro)
-            .expect("use continuation should parse the source");
+        let Recovered::Complete(declaration) = commit_use_declaration(&mut committed, intro) else {
+            panic!("use continuation should parse the source");
+        };
         (declaration, committed.into_output())
+    }
+
+    fn assert_direct_use_incomplete_is_lossless(source: &str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let (intro, mut committed) = commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+            .expect("use keyword commits the header continuation");
+        let HeaderStatementIntro::Use(intro) = intro else {
+            panic!("expected a use continuation");
+        };
+        assert!(matches!(
+            commit_use_declaration(&mut committed, intro),
+            Recovered::Incomplete
+        ));
+        let root = SyntaxNode::new_root(committed.into_output().finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::Missing));
     }
 
     fn parse_direct_binding_with_output<'source>(
@@ -3350,6 +3992,123 @@ mod tests {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn direct_use_missing_target_closes_the_declaration_and_emits_one_missing_node() {
+        let source = "use";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let (intro, mut committed) = commit_header_statement(Probe::new(i), FullCstOutput::new(source))
+            .expect("use keyword commits the header continuation");
+        let HeaderStatementIntro::Use(intro) = intro else {
+            panic!("expected a use continuation");
+        };
+
+        assert!(matches!(
+            commit_use_declaration(&mut committed, intro),
+            Recovered::Incomplete
+        ));
+        let root = SyntaxNode::new_root(committed.into_output().finish_complete());
+        assert_eq!(root.kind(), SyntaxKind::UseDeclaration);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_use_recovers_missing_operator_alias_exclusion_and_anchor_slots() {
+        for source in ["use (", "use (+", "use std as", "use std::* without", "use std with"] {
+            assert_direct_use_incomplete_is_lossless(source);
+        }
+    }
+
+    #[test]
+    fn direct_use_exclusion_group_discards_a_mismatched_close_before_its_matching_close() {
+        let source = "use std::* without {foo)}";
+        let (_, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_use_target_error_retries_a_later_tree_candidate() {
+        let source = "use @value";
+        let (_, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_use_group_missing_close_closes_the_group_at_eof() {
+        let source = "use {value";
+        let (_, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_use_group_recovers_a_missing_same_line_comma() {
+        let source = "use {first second}";
+        let (declaration, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(declaration.tree().range(), 4..source.len());
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_use_group_discards_a_mismatched_close_before_its_matching_close() {
+        let source = "use {value)}";
+        let (_, output) = parse_direct_use_with_output(source, FullCstOutput::new(source));
+        let root = SyntaxNode::new_root(output.finish_complete());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
         );
     }
 
