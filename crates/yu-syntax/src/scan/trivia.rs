@@ -158,6 +158,26 @@ where
     Some(TriviaRun::new(start..i.pos(), parts))
 }
 
+/// Consumes exactly one ordinary comment without absorbing adjacent whitespace.
+///
+/// Layout scanners that need to stop immediately before an outer newline use
+/// this narrower entrypoint.  It deliberately keeps comment recognition in
+/// the same lexical authority as [`scan_trivia`].
+pub(crate) fn scan_comment<E>(i: SynIn<E>) -> Option<TriviaPart>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().starts_with("//") {
+        scan_line_comment(i)
+    } else if i.input.remainder().starts_with("/*") {
+        scan_block_comment(i)
+    } else {
+        None
+    }
+}
+
 fn scan_whitespace<E>(
     mut i: SynIn<E>,
 ) -> Option<Vec<TriviaPart>>

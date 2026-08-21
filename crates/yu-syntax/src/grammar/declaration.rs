@@ -5,8 +5,9 @@ use std::{ops::Range, sync::Arc};
 use chasa::{
     Back as _, ErrorSink, Input as _,
     error::std::{Unexpected, UnexpectedEndOfInput},
+    input::IsCut,
     parser::Parser as _,
-    prelude::from_fn,
+    prelude::{In, from_fn},
 };
 
 use crate::{
@@ -15,18 +16,21 @@ use crate::{
     grammar::expression::{
         Expression, ParsedExpression, parse_direct_expression_with_operators, parse_expression,
     },
+    input::SourceInput,
     operator::{BindingPower, OperatorFixity},
     scan::{
+        opaque_body::scan_root_recovery,
         operator::LeadingTrivia,
         punctuation::{PunctuationKind, scan_punctuation},
-        trivia::{TriviaRun, scan_trivia},
+        trivia::{TriviaPartKind, TriviaRun, scan_trivia},
         word::{WordSpan, scan_word},
     },
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
         DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
         ImportRole, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
-        StatementRole, SynIn, SyntaxExpectation,
+        RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, SynIn, SyntaxExpectation,
+        UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -124,6 +128,223 @@ impl<'source, C> ParsedBindingDeclaration<'source, C> {
 
     pub(crate) fn value(&self) -> &ParsedExpression<C> {
         &self.value
+    }
+}
+
+/// Builds the direct full-parse root candidate without changing `parse_file`.
+///
+/// The immutable operator table is supplied by the caller's session setup;
+/// this candidate neither rebuilds it nor mutates it while parsing.
+pub(crate) fn parse_direct_root_candidate(
+    source: &str,
+    operators: &crate::operator::OperatorTable,
+) -> rowan::GreenNode {
+    let mut source_input = SourceInput::new(source);
+    let mut local = crate::session::ParseLocal::new();
+    let mut expectations = chasa::LatestSink::new();
+    let mut is_cut = false;
+    let i = In::new(
+        &mut source_input,
+        &mut expectations,
+        IsCut::new(&mut is_cut),
+    )
+    .set_local(&mut local);
+    let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+
+    committed.start_node(SyntaxKind::Root);
+    let mut root_statement_start = true;
+    let mut previous_statement = None;
+
+    loop {
+        let trivia = commit_trivia(&mut committed).expect("trivia scanning is total");
+        if !trivia.is_empty() {
+            root_statement_start |= trivia
+                .parts()
+                .iter()
+                .any(|part| matches!(part.kind(), TriviaPartKind::Newline))
+                && committed.probe(|probe| probe.input().local.line().line_indent == 0);
+            committed.emit_trivia(&trivia);
+        }
+
+        if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
+            break;
+        }
+
+        if let Some(semicolon) = commit_character(&mut committed, ';') {
+            committed.token(SyntaxKind::Semicolon, semicolon);
+            root_statement_start = true;
+            previous_statement = None;
+            continue;
+        }
+
+        if !root_statement_start {
+            emit_root_error(&mut committed, previous_statement);
+            continue;
+        }
+
+        let intro = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let intro = i.run(recognize_statement_intro);
+            if intro.is_none() {
+                i.rollback(checkpoint);
+            }
+            intro
+        });
+
+        let Some(intro) = intro else {
+            emit_root_error(&mut committed, None);
+            continue;
+        };
+
+        previous_statement = Some(match intro {
+            StatementIntro::Use(intro) => {
+                let _ = commit_use_declaration(&mut committed, intro);
+                StatementKind::UseDeclaration
+            }
+            StatementIntro::Binding(intro) => {
+                let _ = commit_binding_declaration(operators, &mut committed, intro);
+                StatementKind::BindingDeclaration
+            }
+            StatementIntro::Operator(intro) => {
+                if matches!(
+                    commit_operator_header(&mut committed, intro),
+                    Recovered::Complete(_)
+                ) {
+                    let _ = commit_operator_definition_body(operators, &mut committed);
+                }
+                StatementKind::OperatorDefinition
+            }
+        });
+        root_statement_start = false;
+    }
+
+    committed.finish_node();
+    committed.into_output().finish_complete()
+}
+
+fn emit_root_error<'parse, 'source, 'local, E>(
+    committed: &mut Committed<'parse, 'source, 'local, E, FullCstOutput<'source>>,
+    previous_statement: Option<StatementKind>,
+) where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let range = committed.probe(|probe| {
+        probe
+            .input()
+            .run(scan_root_recovery)
+            .expect("root recovery always consumes a non-empty episode")
+    });
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = previous_statement.map_or(StatementRole::Starter, |owner| {
+            StatementRole::TrailingInput { owner }
+        });
+        let head = root_unexpected_head(i.input.source(), &range);
+        let unexpected = previous_statement.map_or(
+            RootUnexpected::UnrecognizedStarter {
+                range: range.clone(),
+                head,
+            },
+            |owner| RootUnexpected::TrailingInput {
+                owner,
+                range: range.clone(),
+                head,
+            },
+        );
+        CommittedRecoveryRecord::new(
+            i.local.next_diagnostic_id(),
+            RecoverySiteKey {
+                role: GrammarRole::Statement(role),
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Root(unexpected)]),
+            root_statement_expectations(role, range.clone()),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn root_statement_expectations(
+    role: StatementRole,
+    range: Range<usize>,
+) -> Arc<[SyntaxExpectation]> {
+    Arc::from(
+        [
+            crate::session::KeywordEvidence::Use,
+            crate::session::KeywordEvidence::Lazy,
+            crate::session::KeywordEvidence::Prefix,
+            crate::session::KeywordEvidence::Infix,
+            crate::session::KeywordEvidence::Suffix,
+            crate::session::KeywordEvidence::Nullfix,
+        ]
+        .map(|keyword| SyntaxExpectation {
+            role: GrammarRole::Statement(role),
+            expected: ExpectedSyntax::Keyword(keyword),
+            range: range.clone(),
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }),
+    )
+}
+
+fn root_unexpected_head(source: &str, range: &Range<usize>) -> RootUnexpectedHead {
+    let remainder = &source[range.start..range.end];
+    let character = remainder
+        .chars()
+        .next()
+        .expect("root recovery ranges are non-empty");
+    let punctuation = if remainder.starts_with("::") {
+        Some(PunctuationKind::ColonColon)
+    } else {
+        match character {
+            '(' => Some(PunctuationKind::Open(Delimiter::Parenthesis)),
+            ')' => Some(PunctuationKind::Close(Delimiter::Parenthesis)),
+            '[' => Some(PunctuationKind::Open(Delimiter::Bracket)),
+            ']' => Some(PunctuationKind::Close(Delimiter::Bracket)),
+            '{' => Some(PunctuationKind::Open(Delimiter::Brace)),
+            '}' => Some(PunctuationKind::Close(Delimiter::Brace)),
+            ',' => Some(PunctuationKind::Comma),
+            ';' => Some(PunctuationKind::Semicolon),
+            '.' => Some(PunctuationKind::Dot),
+            '/' => Some(PunctuationKind::Slash),
+            ':' => Some(PunctuationKind::Colon),
+            '\\' => Some(PunctuationKind::Backslash),
+            '\'' => Some(PunctuationKind::Apostrophe),
+            _ => None,
+        }
+    };
+    if let Some(punctuation) = punctuation {
+        return RootUnexpectedHead::Punctuation(punctuation_evidence(punctuation));
+    }
+    match character {
+        '_' => RootUnexpectedHead::Word,
+        character if unicode_ident::is_xid_start(character) => RootUnexpectedHead::Word,
+        character if character.is_ascii_digit() => RootUnexpectedHead::DecimalInteger,
+        '=' => RootUnexpectedHead::Punctuation(crate::session::PunctuationEvidence::Equals),
+        '*' => RootUnexpectedHead::Punctuation(crate::session::PunctuationEvidence::Star),
+        '+' | '-' | '!' | '#' | '$' | '%' | '&' | '<' | '>' | '?' | '@' | '^' | '|' | '~' => {
+            RootUnexpectedHead::OperatorLike
+        }
+        _ => RootUnexpectedHead::OtherCharacter,
+    }
+}
+
+fn punctuation_evidence(kind: PunctuationKind) -> crate::session::PunctuationEvidence {
+    match kind {
+        PunctuationKind::Open(delimiter) => crate::session::PunctuationEvidence::Open(delimiter),
+        PunctuationKind::Close(delimiter) => crate::session::PunctuationEvidence::Close(delimiter),
+        PunctuationKind::Backslash => crate::session::PunctuationEvidence::Backslash,
+        PunctuationKind::Apostrophe => crate::session::PunctuationEvidence::Apostrophe,
+        PunctuationKind::Comma => crate::session::PunctuationEvidence::Comma,
+        PunctuationKind::Semicolon => crate::session::PunctuationEvidence::Semicolon,
+        PunctuationKind::Dot => crate::session::PunctuationEvidence::Dot,
+        PunctuationKind::Slash => crate::session::PunctuationEvidence::Slash,
+        PunctuationKind::ColonColon => crate::session::PunctuationEvidence::ColonColon,
+        PunctuationKind::Colon => crate::session::PunctuationEvidence::Colon,
     }
 }
 
@@ -4617,6 +4838,72 @@ mod tests {
         .set_local(&mut local);
         parse_direct_header_declaration(Probe::new(i), output)
             .expect("source has a direct header declaration")
+    }
+
+    #[test]
+    fn direct_root_candidate_parses_use_operator_and_binding_in_source_order() {
+        let source = "use std::io\ninfix (<+>) 50 51 = left\nmy value = left";
+        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(green);
+
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                SyntaxKind::UseDeclaration,
+                SyntaxKind::OperatorHeader,
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::BindingStatement,
+            ],
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error)
+        );
+    }
+
+    #[test]
+    fn direct_root_candidate_recovers_one_unknown_line_then_continues() {
+        let source = "unknown words\nuse std::io";
+        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(green);
+
+        assert_eq!(root.to_string(), source);
+        let errors = root
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].text().to_string(), "unknown words");
+        assert!(
+            root.children()
+                .any(|node| node.kind() == SyntaxKind::UseDeclaration)
+        );
+    }
+
+    #[test]
+    fn direct_root_candidate_keeps_embedded_fake_boundaries_in_one_error_episode() {
+        let source = concat!(
+            "garbage \"string;\nuse hidden\" /* comment;\nuse hidden */ ",
+            "'[yumark;\nuse hidden] '{\n```raw\nfence;\nuse hidden\n```\n}\n",
+            "use std::io",
+        );
+        let green = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty());
+        let root = SyntaxNode::new_root(green);
+
+        assert_eq!(root.to_string(), source);
+        let errors = root
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].text().to_string().contains("fence;\nuse hidden"));
+        assert!(
+            root.children()
+                .any(|node| node.kind() == SyntaxKind::UseDeclaration)
+        );
     }
 
     #[test]

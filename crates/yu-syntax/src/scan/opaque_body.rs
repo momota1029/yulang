@@ -12,7 +12,7 @@
 use std::ops::Range;
 
 use chasa::{
-    ErrorSink,
+    Back as _, ErrorSink,
     error::std::{Unexpected, UnexpectedEndOfInput},
     parser::SkipParserOnce as _,
     prelude::{any, from_fn, item},
@@ -22,7 +22,7 @@ use crate::{
     session::{EmbeddedLexicalMode, FenceKind, ParseLocal, SynIn, YumarkMode},
 };
 
-use super::trivia::scan_trivia;
+use super::trivia::{scan_comment, scan_trivia};
 
 /// The exact source extent consumed while skipping one operator body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -126,6 +126,85 @@ where
             if i.local.line().line_indent <= baseline {
                 return Some(body_span(start, &i));
             }
+        }
+    }
+}
+
+/// Consumes one non-empty root-recovery episode up to its earliest safe point.
+///
+/// This deliberately shares the embedded-region scanners used by
+/// [`scan_opaque_body`].  Root recovery therefore cannot mistake delimiters or
+/// physical newlines inside a string, rule literal, Yumark literal, fence, or
+/// comment for a statement boundary.
+pub(crate) fn scan_root_recovery<E>(mut i: SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut delimiters = Vec::new();
+    let mut consumed = false;
+
+    loop {
+        if i.input.remainder().is_empty() {
+            return consumed.then_some(start..i.pos());
+        }
+
+        if starts_comment(i.input.remainder()) {
+            i.run(scan_comment)?;
+            consumed = true;
+            continue;
+        }
+
+        if i.input.remainder().starts_with("'[") || i.input.remainder().starts_with("'{") {
+            i.run(scan_quoted_yumark_region)?;
+            consumed = true;
+            continue;
+        }
+
+        if i.input.remainder().starts_with("~\"") {
+            i.run(scan_rule_literal_region)?;
+            consumed = true;
+            continue;
+        }
+
+        if i.input.remainder().starts_with('"') {
+            i.run(scan_string_region)?;
+            consumed = true;
+            continue;
+        }
+
+        if matches!(i.input.remainder().chars().next(), Some('\r' | '\n'))
+            && consumed
+            && delimiters.is_empty()
+        {
+            let checkpoint = i.checkpoint();
+            i.run(scan_trivia)?;
+            let boundary = i.input.remainder().is_empty() || i.local.line().line_indent == 0;
+            if boundary {
+                i.rollback(checkpoint);
+                return Some(start..i.pos());
+            }
+            continue;
+        }
+
+        if i.input.remainder().starts_with(';') && consumed && delimiters.is_empty() {
+            return Some(start..i.pos());
+        }
+
+        let character_start = i.pos();
+        let character = i.maybe(any)?;
+        let Some(character) = character else {
+            return consumed.then_some(start..i.pos());
+        };
+        update_region_character(character, character_start, &mut i)?;
+        consumed = true;
+
+        if let Some(close) = matching_delimiter(character) {
+            delimiters.push(close);
+        } else if delimiters.last().copied() == Some(character) {
+            delimiters.pop();
         }
     }
 }
