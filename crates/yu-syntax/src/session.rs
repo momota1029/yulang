@@ -489,6 +489,10 @@ impl<'source> FullCstOutput<'source> {
             committed_recoveries: Vec::new(),
         }
     }
+
+    pub(crate) fn finish_complete(self) -> rowan::GreenNode {
+        self.sink.finish_complete()
+    }
 }
 
 impl<'source> CommitOutput<'source> for FullCstOutput<'source> {
@@ -603,6 +607,10 @@ impl<'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>>
 
     pub(crate) fn commit_recovery(&mut self, record: CommittedRecoveryRecord) {
         self.output.commit_recovery(record);
+    }
+
+    pub(crate) fn into_output(self) -> O {
+        self.output
     }
 }
 
