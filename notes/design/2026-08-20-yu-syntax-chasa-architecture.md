@@ -2853,3 +2853,737 @@ provenance / environment boundary追補案）。
 constructorがないこと、`HeaderOperator`が単一fixityしか持たないこと、`compile_full_parse_operators`が
 本追補より前の節に既存のconceptual signatureとして存在すること、以上すべてを現行コードと突き合わせ、
 不一致なし。
+
+## 追補案: root statement loop、committed recovery、binding continuation、operator merge failure
+
+この節は、`Direct Rowan full-parse session` の第6かつ最後のsub-sliceを、実装時に追加判断が不要な
+boundaryまで具体化する。対象はfull modeのroot statement loop、mandatory slot recovery、
+`my <name> = <expression>`のdirect-CST continuation、およびfull-parse operator tableの
+`ConflictingFixity`をpublic `parse_file`がどう扱うかである。
+
+既決のdirect-CST node shape、`Probe` / `Committed` capability、header/full recovery identity、
+canonical immutable `OperatorTable`は変更しない。特に`OperatorHeader` nodeは`=`の直後で閉じ、
+`Missing`はzero-width、`Error`は一byte以上を所有するというcontractを維持する。この追補はpublic
+entrypointを新pipelineへ切り替える決定ではない。切り替え可能と判断するためのgateを定義するだけである。
+
+### Decision summary
+
+- full rootは`Root`を一度だけ開き、root-owned trivia / semicolonをemitしながら、sink-free
+  `StatementIntro` probe、committed continuation、root recoveryをEOFまで繰り返す。
+- accepted statement familyは`UseDeclaration`、`OperatorDefinition`、`BindingDeclaration`の三つである。
+  operator definitionは既決の`OperatorHeader` nodeと、その後ろのdirect Pratt expression bodyを一つの
+  statement control episodeとして扱うが、新しいwrapper nodeは追加しない。
+- introがcommitした後のcontinuationはtotalである。mandatory slot failureを`Option::None`でouter
+  statement choiceへ返さず、`Complete(T)`または`Incomplete`を返しながら`Missing` / `Error`と
+  `CommittedRecoveryRecord`を一対一で作る。
+- root `Error`は、現在位置から、delimiter / embedded lexical regionの外側にある最初のsemicolon、
+  次のcolumn-zero root lineの直前、またはEOFまでを一episodeとしてconsumeする。keyword spellingだけを
+  見てline途中へ同期しない。
+- binding valueとoperator definition bodyは、sessionのcanonical `OperatorTable`を渡した
+  `parse_direct_expression_with_operators`で読む。旧`FullCstBuilder`のinteger-only special caseへ
+  scopeを縮めない。
+- `compile_full_parse_operators`相当のmergeで`ConflictingFixity`が生じても、public `parse_file`は
+  `ParsedFile`を返す。先に採用済みのfixityを残し、incoming duplicateだけをrejectし、typed construction
+  diagnosticを追加して、同じsingle builder passを続行する。
+- operator conflictはsource byteのparse recoveryではないため、架空の`Missing` / `Error` nodeを作らない。
+  `SyntaxDiagnostic`はcommitted recoveryとoperator-table construction conflictをtyped causeで区別する。
+
+### 現行実装で確認したblocker
+
+現行`FullCstBuilder`が一般statementとして構造化するのは、`emit_header`が`HeaderInfo`のrangeから作る
+`UseDeclaration` / `OperatorHeader`を除くと、token kindが正確に
+`MyKw Whitespace Identifier Whitespace Equals Whitespace Integer`となり、直後がnewlineまたはEOFである
+一形だけである。それ以外のnon-binding部分は`lex() -> Vec<LexedToken>`のtokenを`Root`直下へそのまま流す。
+したがってこのold pathの限定性を、新direct grammarの言語scopeとして固定してはならない。
+
+一方、`BindingDeclaration`のfieldは`range`、`name: WordSpan`、`value: Expression`であり、
+`Expression` enum自体はidentifier / integerに加えてprefix / nullfix / suffix / infix applicationを表せる。
+現行`parse_binding_declaration`が呼ぶ`parse_expression`はidentifier / integerだけの最小helperだが、
+`parse_expression_with_operators`とsub-slice 5のdirect continuationは同じ`Expression` domainのdynamic
+operator formをすでに実装している。第6sub-sliceのtargetは後者である。
+
+残る五つのblockerは現行codeでも次の通り確認できる。
+
+1. root statement loopとroot synchronization ruleが存在しない。
+2. `StatementRole`、`RecoveryKind`、root-level unexpected evidenceのconcrete shapeがなく、
+   `CommittedRecoveryRecord`は`_private: ()`だけである。
+3. `commit_use_declaration` / `commit_operator_header`以下のmandatory helperは、nodeを開いた後でも
+   `Option::None`を返し、recovery nodeもrecordも作らない。
+4. bindingはAST-producing `parse_binding_declaration`だけで、direct continuationがない。
+5. `SyntaxDiagnostic`も`_private: ()`だけであり、strict operator merge errorを`parse_file`へ写すcontractが
+   ない。
+
+`SyntaxKind`には`Missing`、`Error`、`BindingStatement`、全direct expression kindがすでにある。
+本追補の最小実装で`SyntaxKind`追加は不要である。
+
+### Statement vocabularyとintro classification
+
+rootとbinding recoveryに必要なclosed vocabularyは次とする。「既存の`GrammarRole` family」とは、本note
+冒頭近く（`enum GrammarRole { Declaration(DeclarationRole), ..., Statement(StatementRole), ... }`、
+上記の`GrammarRole`/`DeclarationRole`/`ImportRole`/`OperatorHeaderRole`定義を参照）で先に決めた
+design上のfamilyを指し、現行`.rs`実装にはまだ存在しない。本追補は、そこで既に導入済みの
+`GrammarRole::Statement(StatementRole)` variantの中身を、次のvocabularyまで初めて具体化する。
+表示文字列やraw `SyntaxKind`をidentityとして使わない。
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum StatementKind {
+    UseDeclaration,
+    OperatorDefinition,
+    BindingDeclaration,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum StatementRole {
+    Starter,
+    Separator,
+    TrailingInput { owner: StatementKind },
+    OperatorDefinitionBody,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum BindingRole {
+    Name,
+    DefinitionIntroducer,
+    Value,
+}
+
+enum DeclarationRole {
+    Import(ImportRole),
+    OperatorHeader(OperatorHeaderRole),
+    Binding(BindingRole),
+}
+```
+
+`StatementRole::Starter`はrootでknown introが一つも成立しなかったsite、`Separator`はstatement間の
+explicit semicolon、`TrailingInput`はcompleteまたはincomplete statementのsemantic end後に同じlogical
+lineへ残ったsource、`OperatorDefinitionBody`は`OperatorHeader`の`=`より後ろのfull-only bodyを表す。
+bindingの三fieldはdeclaration-specific roleに置き、root starterと同じroleへ潰さない。
+
+shared introは次へ発展させる。
+
+```rust
+enum StatementIntro<'source> {
+    Use(UseStatementIntro<'source>),
+    Binding(BindingStatementIntro<'source>),
+    OperatorHeader(OperatorStatementIntro<'source>),
+}
+```
+
+intro recognitionは次のpriorityではなく、次の構造判定で一意にする。
+
+1. 先頭`use`はuse、先頭fixity wordはoperator、先頭`lazy`の後ろがfixityまたはmandatory fixity recovery
+   positionならoperatorとする。
+2. `pub` / `our`はvisibilityとしてだけ使い、その後ろが`use`、`lazy`、fixityのいずれかなら対応familyを
+   選ぶ。そこまで到達しないprefixはfamilyを推測せずroot starter recoveryへ返す。
+3. `my`の後ろにinline trivia、word、inline trivia、`=`がlookaheadできた場合は、word spellingが
+   `use` / `lazy` / fixityと同じでもbindingを選ぶ。これは現行`parse_declaration`が
+   `my <word> =`をbindingとして受理する範囲を維持する。
+4. 3が不成立で、`my`後ろのwordが`use`ならexplicit-private use、`lazy`またはfixityなら
+   explicit-private operatorを選ぶ。それ以外、または`my`の直後がnewline / EOF / punctuationならbindingを
+   選び、name以降をmandatory recoveryへ渡す。inlineでないvisibility prefixは成立しないため、`my`単独を
+   operator/useへ推測しない。
+5. recognitionがlookaheadで読んだrangeと`TriviaRun`はtyped introに保持し、commit後に一度だけemitする。
+   同じprefixをCST emissionのために再scanしない。
+
+`use` keywordやoperator fixityまでfamilyが確定したら、直後のrequired triviaやpath / nameはintro成功の
+条件に含めない。たとえば`use\nuse std::data`の最初の`use`はuse continuationへcommitし、byte 3に
+missing pathを作れる。現行`UseStatementIntro.after_use`のようにmandatory tailまでintroへ含めるshapeは
+この目的に合わないため、intro fieldは「すでに認識できたprefix」と「continuationが回復すべき最初のslot」を
+区別する。
+
+header modeは同じclassifierをcheckpoint下で呼び、Use / OperatorHeaderだけをcommitする。Bindingは
+checkpointへ戻して既決通り`FirstNonHeader`で正常停止する。full modeだけが三familyすべてをcommitする。
+
+### Root statement loop
+
+full driverのcontrol flowは次で固定する。
+
+```text
+compile one immutable full-parse OperatorTable (with conflict recovery described below)
+initialize SourceInput / ParseLocal at file start
+start Root
+
+loop:
+    scan and emit one maximal root-owned TriviaRun
+    if EOF: break
+
+    if current byte is a top-level semicolon:
+        emit Semicolon directly under Root
+        continue
+
+    if current position is not a root statement start:
+        commit one root Error and continue
+
+    checkpoint input + ParseLocal + expectation sink
+    intro = probe_statement_intro()
+    if intro exists:
+        cut; transfer to Committed
+        run the selected total continuation
+        continue
+
+    rollback to the checkpoint
+    commit one root Error and continue
+
+finish Root
+finish_complete()
+```
+
+root statement startは、file byte 0、top-level semicolon直後、またはroot-owned triviaが少なくとも一個の
+physical newlineを含み、そのrunの末尾で`line_indent == 0`となる位置である。水平spaceだけを挟んだ
+statement tailを新statementにしない。column-zeroの判定はUTF-8 byte offsetではなく、既存`LineState`が
+数えるphysical indentation columnを使う。tabの将来のdisplay width規則をこの判定へ先取りせず、現行scanner
+と同じ一code unit一indent stepを維持する。
+
+Use continuationがcomplete `UseDeclaration`を返した場合だけheader fact projection / parity checkへ渡す。
+OperatorHeader continuationがcomplete headerを返した場合は、header fact parityを確認した後、full modeだけが
+`=`後ろのinline triviaをemitして`parse_direct_expression_with_operators`でbodyを読む。body expression nodeは
+`OperatorHeader`のsiblingとして`Root`直下に現れるが、root driver上は同じ
+`StatementKind::OperatorDefinition`の完了条件である。header modeは従来通り同じ位置からopaque body scanへ
+進む。
+
+binding continuationは一個の`BindingStatement`を完成させる。各statementのsemantic end後、newline / EOF /
+semicolon以外が残れば、次のloopで`TrailingInput { owner }`のroot recoveryを行う。continuationが残余byteを
+握りつぶしたり、次statementのintroを自身のchildに入れたりしない。
+
+### Root recoveryのsafe point
+
+root recoveryはcurrent non-trivia byte `start`から始め、必ず`end > start`になるまでsource characterを
+consumeする。次のうち最も早い位置を`end`とし、boundary自体はconsumeしない。
+
+1. active embedded lexical regionがなく、recovery開始後に開いた`()` / `[]` / `{}`がすべて閉じた状態で
+   現れるsemicolonの先頭。
+2. 同じouter stateで現れるphysical newlineの先頭で、そのnewlineから始まるmaximal ordinary triviaを
+   sink-freeにlookaheadした結果がEOF、または次のnon-trivia byteの`line_indent == 0`となる位置。
+3. EOF。
+
+newline後の次lineがindentされている場合、そのnewline、indent、次lineのsourceは同じ`Error` episodeへ
+含める。次にcolumn-zeroのlineまたはEOFへ到達した時に止まる。blank line、line comment、block commentを
+挟む場合は、最初のboundary newlineより後ろのmaximal trivia全体をroot loopが所有するため、`Error`は
+そのnewlineの直前で止まる。
+
+string、heredoc、interpolation、rule literal、quoted / block Yumark、raw / Yulang fence、line comment、
+nested block commentの中ではsemicolon / newlineをboundaryにしない。region recognitionとouter delimiter
+trackingは`scan::opaque_body`と同じoperator-independent lexical authorityを使う。root recovery専用の簡易
+quote counterを別に作らない。ただしreturn valueはopaque bodyのheader coverageではなく、non-empty
+`Range<usize>`一個であり、source-wide token列を作らない。
+
+`garbage use std`のline途中に`use`が現れても同期しない。keyword listをraw sourceから検索するとstring /
+comment内を誤認し、word spellingを変えただけでrecovery boundaryが変わるためである。semicolonまたは
+column-zero lineというstructural boundaryを通った後だけ、root loopがあらためてintro probeを行う。
+
+この規則はprogress guaranteeも兼ねる。boundaryがcurrent positionと一致するsemicolonはroot loop自身が
+先にconsumeするため、root recoveryへ渡らない。その他のcaseでは少なくとも一Unicode scalarをconsumeして
+からboundaryを探索し、zero-width `Error`や同じpositionでのretry loopを作らない。
+
+### Recovery recordとunexpected evidenceのconcrete shape
+
+recovery kindはnode shapeそのものだけを表し、expected elementを重複してpayloadへ入れない。
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum RecoveryKind {
+    Missing,
+    Error,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum UnexpectedSyntax {
+    EndOfInput { at: usize },
+    Token {
+        range: ByteRange,
+        category: UnexpectedCategory,
+    },
+    Root(RootUnexpected),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum UnexpectedCategory {
+    Word,
+    DecimalInteger,
+    OperatorLike,
+    Punctuation(PunctuationEvidence),
+    OtherCharacter,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum PunctuationEvidence {
+    Open(DelimiterKind),
+    Close(DelimiterKind),
+    Comma,
+    Semicolon,
+    Dot,
+    Slash,
+    Colon,
+    ColonColon,
+    Equals,
+    Star,
+    Apostrophe,
+    Backslash,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RootUnexpected {
+    UnrecognizedStarter {
+        range: ByteRange,
+        head: RootUnexpectedHead,
+    },
+    TrailingInput {
+        owner: StatementKind,
+        range: ByteRange,
+        head: RootUnexpectedHead,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum RootUnexpectedHead {
+    Word,
+    DecimalInteger,
+    OperatorLike,
+    Punctuation(PunctuationEvidence),
+    OtherCharacter,
+}
+```
+
+`PunctuationEvidence`はdelimiter、comma、semicolon、colon類などdiagnosticに必要なclosed token categoryで
+あり、scanner内部の`PunctuationKind`のpublic exposureやlocalized labelではない。root evidenceの`range`は
+`Error` node全体のrange、`head`はそのrangeの先頭non-trivia lexical categoryである。source textはrangeから
+取得できるためcopyしない。local slot recoveryは`Token`または`EndOfInput`を使い、root statement episodeと
+混ぜない。
+
+既存conceptual recordを次の実fieldへ発展させる。
+
+```rust
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CommittedRecoveryRecord {
+    id: DiagnosticId,
+    site: RecoverySiteKey,
+    kind: RecoveryKind,
+    unexpected: Arc<[UnexpectedSyntax]>,
+    expectations: Arc<[SyntaxExpectation]>,
+    primary_expectation: usize,
+}
+```
+
+constructorは次を検査する。
+
+- `Missing`なら`site.range.start == site.range.end`である。
+- `Error`なら`site.range.start < site.range.end`であり、少なくとも一件のnon-EOF unexpected evidenceを持つ。
+- expectation unionは空でなく、`primary_expectation < expectations.len()`である。
+- `Error`のroot range、local consumed range、CST `Error` node rangeが同一である。
+
+full CST emissionは`Missing`なら`start_node(Missing); finish_node()`だけを行う。`Error`なら
+`start_node(Error); token(Unknown, range); finish_node()`とし、raw source rangeを一個のchild tokenとして
+一度だけemitする。recovery pathのcommit時に`LatestSink`を一度takeし、既決のcandidate union / primary
+selectionを行ってから、nodeとrecordを一回ずつcommitする。
+
+### Mandatory slot recoveryの共通規則
+
+commit後のhelper returnは概念上次のshapeにする。
+
+```rust
+enum Recovered<T> {
+    Complete(T),
+    Incomplete,
+}
+```
+
+`Incomplete`は「CSTとrecovery recordはcommit済みだが、semantic factを作るmandatory valueがない」ことを
+表す。commit後に`None`を返してopen nodeをcallerへ残す意味ではない。各continuationは自身が開いたnodeを
+必ず閉じ、statement outcomeまで返す。nested use itemの`Incomplete`はそのbranchのfactだけを抑止し、owner
+safe pointへ同期できたsiblingを続行する。
+
+mandatory slotは次の共通ruleで扱う。
+
+| slot class | current positionの状態 | recoveryとcontinuation |
+| --- | --- | --- |
+| required inline separation | newlineを含まず、次slotがcurrent positionで認識できる | current positionへ`Missing(Layout(...))`を置き、sourceをconsumeせず次slotを読む |
+| required inline separation | newline / root boundary / EOFで、次slot自体も存在しない | separator単独のrecordを作らず、次のsemantic slotの`Missing`一件へ集約する。boundaryはconsumeしない |
+| atomic value | matching valueがある | normal commit |
+| atomic value | owner safe pointまたはEOF | current positionへ`Missing(expected)`を置き、inputを止める |
+| atomic value | invalid sourceがslotを占有する | 次のlocal candidateまたはowner safe pointまで一byte以上を一個の`Error`にし、candidateがあればslotをretryする |
+| fixed punctuation / keyword | following slotがcurrent positionで認識できる、またはowner safe point | punctuationを挿入したものとして`Missing`を置き、following slot / owner closeへ進む |
+| fixed punctuation / keyword | invalid sourceが間にある | invalid runを一個の`Error`にし、punctuationまたはfollowing slotでretryする |
+| shape discriminator | absent at safe point | `Missing`後にconstructを`Incomplete`としてowner boundaryへ同期する。arityやbranchを推測しない |
+| closing delimiter | matching closeがある | normal commit |
+| closing delimiter | mismatched closeがある | mismatched delimiter一個を`Error`にしてmatching close探索を続ける |
+| closing delimiter | outer/root safe pointまたはEOF | boundaryをconsumeせずmatching closeの`Missing`を置き、owner nodeを閉じる |
+
+local candidateはslot grammar自身をsink-free probeして判定する。たとえばbinding valueならNUD candidate、
+path separator後ならword / parenthesized operator / group / glob、`=`ならbody/value NUDがcandidateになる。
+raw keyword searchやCST再走査は行わない。
+
+required inline separationは、後続contentが存在するのに区切りだけがない時だけ独立したrecovery siteになる。
+`use\nuse std::data`の最初のdeclarationではbyte 3に`Missing(Import(Path))`一件を置き、同じbyteへ
+layout `Missing`を重ねない。これは一つのcausal absenceからseparatorとcontentのdiagnosticを連鎖生成しない
+規則であり、phase-2のmalformed-header fixtureが固定する一recovery / 一diagnosticと一致する。
+
+continuation familyごとのmandatory slotとowner safe pointは次で固定する。
+
+| continuation | mandatory slots | local / owner safe pointとfact rule |
+| --- | --- | --- |
+| Use declaration head | `use`後inline separation、最初の`UseTree` target | physical newline、semicolon、root boundary、EOF。target欠落ならdeclaration factは作らない |
+| `mod` / path | `mod`後inline separationとfirst identifier、separator後のword / `OperatorName` / group / glob | current groupのcomma / matching close、use suffix introducer、root boundary。separator後target欠落のbranchだけ`Incomplete` |
+| parenthesized use operator | non-empty operator spelling、`)` | path separator、comma、matching owner close、inline suffix、root boundary。`(`をacceptした後は別group armへ戻らない |
+| alias / `without` / `with` | accepted introducer後のinline separationとalias name / first exclusion / first anchor identifier、separator後のanchor identifier | comma、matching group close、次のvalid suffix、root boundary。introducer keywordを認識した後はoptional transition absenceへrollbackしない |
+| use group / exclusion group | comma後のitem、matching `}` / `)` | matching close、comma、newline separator、outer/root boundary、EOF。incomplete item後も次のcomplete siblingを続ける |
+| operator modifiers / fixity | modifier後inline separation、fixity discriminator | root boundary / EOF。fixityがなければBP arityを推測せずheader factを作らない |
+| operator name | `(`、non-empty spelling、`)` | first BP candidate、`=`、root boundary。nameまたはcloseだけを欠くcaseは`Missing`で後続slotを保つ |
+| operator BP / `=` | fixity arity通りのBP、definition introducer`=` | next BP、body NUD、root boundary。i8変換不能なdigit vectorはsourceを保持する`Error`で、zeroやclampへ変換しない |
+| binding | `my`後inline separation、name、`=`、value | `=`、value NUD、semicolon、root boundary、EOF。name/valueのないbinding semantic valueは作らない |
+| operator definition body | `=`後のbody expression | semicolon、root boundary、EOF。header factはすでにcompleteなら保持し、body recoveryだけをfull-originにする |
+
+groupのnewline separatorはvalid syntaxであり`Missing(Comma)`を作らない。同じlogical lineでcomplete itemの
+直後に次item starterが来た場合だけcommaの`Missing`を置く。empty groupとtrailing commaも既決通りvalidで
+ある。matching closeがないままcolumn-zeroのknown statement introへ到達した場合は、outer/root safe pointを
+優先してcloseの`Missing`を置き、次statementをgroup itemとして飲み込まない。
+
+Use AST / operator header ASTはmandatory fieldがすべて一意に得られたconstructだけを作る。recovery CSTを
+後から再走査してpartial factを補完しない。header/full shared rangeで同じrecovery siteが生じた場合は、
+既決通りheader-origin recordのID、expectation union、primaryをそのまま再利用する。
+
+### Binding declaration direct-CST continuation
+
+binding nodeは既存`SyntaxKind::BindingStatement`を使い、valid sourceのordered child shapeを次とする。
+
+```text
+BindingStatement :=
+    MyKw I+
+    Identifier I+
+    Equals I+
+    DirectExpression
+```
+
+ここで`I+`は既存のinline `TriviaRun`であり、physical newlineを含まない。現行AST-producing
+`parse_binding_declaration`の三箇所の`inline_trivia` requirementを維持する。missing separationは前節の
+layout recoveryで表し、synthetic whitespace tokenは作らない。statement前後のtriviaとsemicolonは
+`Root`が所有する。
+
+conceptual continuationは次である。
+
+```rust
+fn commit_binding_declaration<O: CommitOutput<'_>>(
+    intro: BindingStatementIntro<'_>,
+    operators: &OperatorTable,
+    committed: &mut Committed<'_, '_, ParseErrorSink, O>,
+) -> BindingStatementOutcome<O::Checkpoint>;
+
+enum BindingStatementOutcome<'source, C> {
+    Complete(ParsedBindingDeclaration<'source, C>),
+    Incomplete { range: Range<usize> },
+}
+
+struct ParsedBindingDeclaration<'source, C> {
+    range: Range<usize>,
+    name: WordSpan<'source>,
+    value: ParsedExpression<C>,
+}
+```
+
+continuationは`BindingStatement`を開き、introが保持した`MyKw` rangeをemitし、name / `=`までを
+mandatory recovery込みで進める。`=`後ろのaccepted triviaをemitした上で、そのpresenceを
+`LeadingTrivia::{None, Present}`へ写し、canonical tableとともに
+`parse_direct_expression_with_operators`へ渡す。expression continuationが返す
+`ParsedExpression<Checkpoint>`はrangeとleft-wrap checkpointだけを保持し、boxed `Expression` ASTを
+production CSTのために作らない。
+
+`Complete`の三fieldはAST `BindingDeclaration`の三fieldと一対一である。`Incomplete.range`は実際に閉じた
+recovered `BindingStatement` extentであり、semantic binding factとして公開しない。generic
+`BindingDeclaration<V>`へ既存AST型を即座にrefactorするか、上のdirect metadataを別typeにするかはobservable
+contractではないが、二つのgrammar authorityやCST再走査を作らないことはcontractである。
+
+source-visible fieldとの対応は次の通りである。
+
+| `BindingDeclaration` field | direct CST / metadata |
+| --- | --- |
+| `range` | `MyKw`のstartからcomplete expressionのend。recovered incomplete statementは別outcomeであり、架空のcomplete rangeを作らない |
+| `name` | `BindingStatement`直下の`Identifier` tokenと、そのscanから同時に得た`WordSpan` |
+| `value` | operator-aware direct expression subtreeと`ParsedExpression.range`。CSTからASTを復元しない |
+
+target expressionはidentifier / integerだけでなく、session tableが許すprefix / nullfix / suffix / infixを
+含む。`my value = +!a`と`my value = a+!b`はsub-slice 5と同じcandidate fallback / BP semanticsでparseする。
+旧`FullCstBuilder`の`my <ident> = <integer>` token patternはcompatibility observationにすぎず、direct
+continuationのscope authorityにはしない。
+
+expression startがnewline / semicolon / EOFならvalue roleの`Missing`を置いてnodeを閉じる。invalid byte後に
+同じstatement内のNUD candidateがある場合はinvalid runを`Error`にしてcandidateからretryする。candidateが
+なければroot boundaryで止まり、次statementをvalueとしてconsumeしない。
+
+### Operator definition bodyのfull-only continuation
+
+既決の`OperatorHeader` shapeは変更しない。complete headerの`Equals`後、full root driverはrequired inline
+triviaと一個のdirect expression bodyをmandatory slotとして読む。valid fixture
+`infix (<+>) 50 51 = left`では`OperatorHeader("... =")`と`IdentifierExpression("left")`がsource orderの
+siblingになり、diagnosticは生じない。
+
+bodyが欠落またはmalformedでも、name / fixity / BP / `=`までcompleteな`HeaderOperator` factは捨てない。
+body recoveryは`GrammarRole::Statement(StatementRole::OperatorDefinitionBody)`を持つfull-only eventであり、
+header fact parityのIDへ混ぜない。今回のvertical sliceが構造化するbody grammarはsub-slice 5のdirect Pratt
+domainまでである。将来block、pattern、type、Yumark statement familyを追加する際は`StatementIntro`と
+body grammarをclosed enumで拡張し、root raw fallbackを常設しない。
+
+### `SyntaxDiagnostic`とoperator-table conflict
+
+public `parse_file`のsignatureは維持する。
+
+```rust
+pub fn parse_file(
+    source: Arc<SourceText>,
+    header: Arc<HeaderInfo>,
+    syntax: Arc<SyntaxEnvironment>,
+) -> ParsedFile;
+```
+
+`ConflictingFixity`はsourceまたはselected syntax environmentに対するdiagnosable conflictであり、
+`Result<ParsedFile, _>`としてCST全体を失うfatal construction errorにはしない。public contractは次である。
+
+1. imported entryをcanonical order、local header operatorをsource orderで一回だけbuilderへ渡す。
+2. vacant fixityは従来通り採用する。同spelling / same fixityがoccupiedなら、accepted `first`をtableに残し、
+   incoming `second`一capabilityだけをrejectする。binding powerが同じでもdiagnosticにする。
+3. conflictをtyped recordへ追加した後も後続declarationを処理し、異なるspelling / fixityを失わない。
+4. finish時に、accepted capabilityだけからimmutable entry/site vectorsとtrieを一度作る。
+5. degradedだがdeterministicなtableでfull CST parseを最後まで行い、conflict diagnosticをfinal ordered listへ
+   入れた`ParsedFile`を返す。
+
+strict unit / constructor boundaryの`compile_full_parse_operators(...) -> Result<OperatorTable,
+OperatorTableBuildError>`は、最初のconflictをcallerへ返すfail-fast APIとして維持してよい。production
+session preparationは同じ`OperatorTableBuilder::merge` primitiveを使うrecovering wrapperを一回だけ走らせる。
+strict functionが一度失敗した後にempty tableでparseしたり、source / HeaderInfoを再走査して二回目のtableを
+作ったりしない。
+
+recovering construction boundaryのconceptual shapeは次である。
+
+```rust
+struct FullParseOperatorCompilation {
+    table: OperatorTable,
+    rejected_conflicts: Vec<RejectedOperatorFixity>,
+}
+
+struct RejectedOperatorFixity {
+    spelling: Box<str>,
+    fixity: OperatorFixity,
+    first_origin: OperatorOrigin,
+    first_range: Range<usize>,
+    second_origin: OperatorOrigin,
+    second_range: Range<usize>,
+}
+
+enum FullParseOperatorConstructionError {
+    EmptySpelling {
+        origin: OperatorOrigin,
+        range: Range<usize>,
+    },
+}
+
+fn compile_full_parse_operators_recovering(
+    imported: &OperatorTable,
+    local: &[HeaderOperator],
+) -> Result<FullParseOperatorCompilation, FullParseOperatorConstructionError>;
+```
+
+`rejected_conflicts`はmerge encounter orderを保ち、全entryがsame-fixity duplicateであることを型で示す。
+`OperatorTableBuildError`全体をvectorへ入れて実装者が`EmptySpelling`までrecoverableと解釈するshapeにはしない。
+`FullParseSession` constructorはこの`Result`を受け、`Ok`のtableとconflict recordsを同じsessionへ移す。
+`Err(EmptySpelling)`は下記の通りsource recoveryではなくconstruction invariant violationである。
+
+`SyntaxDiagnostic`は少なくとも次のtyped causeを保持する形へ発展させる。
+
+```rust
+pub struct SyntaxDiagnostic {
+    id: DiagnosticId,
+    primary: ByteRange,
+    cause: SyntaxDiagnosticCause,
+}
+
+pub enum SyntaxDiagnosticCause {
+    Recovery {
+        site: RecoverySiteKey,
+        kind: RecoveryKind,
+        unexpected: Arc<[UnexpectedSyntax]>,
+        expectations: Arc<[SyntaxExpectation]>,
+        primary_expectation: usize,
+    },
+    ConflictingOperatorFixity(OperatorConflictDiagnostic),
+}
+
+pub struct OperatorConflictDiagnostic {
+    spelling: Box<str>,
+    fixity: OperatorFixity,
+    first_origin: OperatorOrigin,
+    first_range: ByteRange,
+    second_origin: OperatorOrigin,
+    second_range: ByteRange,
+}
+```
+
+public field visibilityはaccessor中心に調整してよいが、cause distinctionと両siteの情報は落とさない。
+imported originのmodule label / revisionは`SyntaxEnvironment.dependency(slot)`からpresentation時に解決する。
+primary rangeは常にincoming local declarationの`second_range`である。imported/local conflictではfirst siteを
+dependency revisionのsecondary location、local/local conflictでは両rangeをcurrent revisionのlocationとする。
+
+operator conflictの`DiagnosticId`はfull-construction originのeventとして、header-origin eventの続きから
+merge encounter orderで割り当てる。identity keyはtyped
+`OperatorConflictKey { spelling, fixity, first_origin/range, second_origin/range }`であり、
+`RecoverySiteKey`やmessage stringへ偽装しない。final diagnosticsは既決のprimary range、event、codeのstable
+orderで一度sortするため、constructionがparseより先に起きることを表示順へそのまま使わない。
+
+既存のrecovery-only conceptual `DiagnosticIdentity`は、cause authorityを失わない次のsumへ発展させる。
+
+```rust
+enum DiagnosticIdentity {
+    Recovery {
+        revision: SourceRevision,
+        origin: RecoveryDiagnosticOrigin,
+        event: DiagnosticEventSequence,
+        site: RecoverySiteKey,
+    },
+    OperatorTableConflict {
+        revision: SourceRevision,
+        event: DiagnosticEventSequence,
+        key: OperatorConflictKey,
+    },
+}
+
+struct DiagnosticEventSequence(u32);
+
+enum RecoveryDiagnosticOrigin {
+    Header,
+    Full,
+}
+```
+
+`OperatorTableConflict`はcurrent full parse constructionだけが発行するため、もう一段のoptional originを持たない。
+既存conceptual `RecoveryEventSequence`はdiagnostic全causeで共有する`DiagnosticEventSequence`へrenameし、
+allocatorはheader recovery、full construction、full recoveryで重複しない一つのrevision-local sequenceを使う。
+既存fixtureの`id.origin = "header" | "full"` projectionはrecovery variantだけを投影し、construction variantを
+文字列`full` recoveryへ偽装しない。
+
+operator conflictはsource characterをskip / insertしたrecoveryではない。したがってlocal
+`OperatorHeader`を`Error`で包んだり、`Missing`をsecond rangeへ置いたりしない。既決の
+「1 committed recovery node = 1 recovery diagnostic」は維持するが、逆向きの「全diagnosticがrecovery nodeを
+持つ」はconstruction diagnosticには要求しない。phase-2 fixture schemaでoperator conflictをclosed-worldに
+assertする前に、`full.construction_diagnostics`相当のadditive projectionを設け、recovery bijectionの対象を
+`SyntaxDiagnosticCause::Recovery`へ限定する。これはpresentation wordingや`DiagnosticCode` allocationを
+決めなくてもtyped boundaryを実装できる。
+
+`EmptySpelling`はcomplete operator header factがnon-empty nameを要求し、validated imported tableも
+non-empty spellingを要求するため、normal `parse_file` inputからは到達しないconstruction invariantである。
+malformed sourceのempty nameはheader continuationの`Missing`になりfactをcommitしない。
+`ConflictingFixity`とこのinvariant failureを同じdegraded recoveryへ混ぜない。
+
+### Non-obvious choicesの根拠
+
+- root boundaryをknown keywordそのものにしない。line途中のword、string/comment内のspelling、use pathの
+  contextual wordをstatementへ誤分割せず、renameでrecovery rangeが変わらない。
+- next column-zero lineで、starterがknownかどうかにかかわらず一度止まる。unknown statementが複数line続く
+  sourceを一個の巨大な`Error`へ潰さず、一line単位のroot episodeとしてprogressできる。delimiter / lexical
+  region内のnewlineだけは同episodeへ残す。
+- committed continuationを`Option`のままにしない。direct sinkはrollbackできないため、node start後の
+  `None`は構造balanceとdiagnostic ownershipの両方を曖昧にする。`Recovered<T>`はcomplete factの有無と
+  CST完走を分ける。
+- bindingをold builderのinteger-only shapeへ合わせない。すでに一つのcanonical operator tableとdirect
+  Pratt authorityがあり、scopeを縮めるとAST/full CSTで別grammarになる。
+- operator header bodyをroot unknown recoveryへ落とさない。`OperatorHeader`の既決rangeを広げずに、bodyを
+  同statement episodeのdirect expression siblingとすることでvalid fixtureをdiagnosticなしで構造化できる。
+- conflict時にempty tableへfallbackしない。一つのduplicate fixityのために無関係なimported/local operatorを
+  全て失うと、その後のtoken boundaryとdiagnosticが連鎖的に変わる。first-accepted一capabilityだけを残す方が
+  merge order、provenance、既存error fieldと一致する。
+- conflictをCST recovery nodeにしない。syntaxはlosslessにparseできており、問題は二つのsemantic capabilityを
+  一つのsession tableへ入れられないことにある。source consumptionを表す`Error`へ偽装するとrecovery nodeの
+  意味が壊れる。
+
+### Sub-slice 6 gate
+
+このsub-sliceを「実装完了」と判定し、old `HeaderCursor` / `lex` / `FullCstBuilder` pathを削除候補にできるのは、
+少なくとも次を全て満たした時である。
+
+- internal direct root candidateがUse、4 fixityのoperator definition、operator-aware bindingをsource orderで
+  EOFまでparseし、valid fixtureにunexpected root `Error`を作らない。
+- bindingとoperator bodyでidentifier / integer、prefix / nullfix / suffix / infix、`+!a` / `a+!b`を
+  canonical tableからdirect emitできる。
+- use / operator headerの全mandatory slotがcommit後に`Option::None`でabortせず、node balanceを保った
+  `Complete` / `Incomplete` outcomeになる。
+- root recoveryがsemicolon、column-zero line、EOFの規則通りに同期し、delimiter / string / comment /
+  interpolation / rule / Yumark / fence内部で早期分割しない。
+- every-byte-prefixとrepresentative malformed corpusでpanic / hang / zero-progressがなく、全`Missing`が
+  zero-width、全`Error`がnon-emptyである。
+- committed recovery nodeと`SyntaxDiagnosticCause::Recovery`が一対一で、header/full exact siteは同じIDと
+  frozen expectation unionを再利用する。
+- `ConflictingFixity` caseがfirst-accepted fixityでparseを継続し、両origin/rangeを持つ一construction
+  diagnosticを返す。empty-table fallback、silent overwrite、CST dropがない。
+- all current phase-2 parser fixturesでheader fact / range parity、diagnostic identity、CST node balance、
+  contiguous token coverage、`green.to_string() == source`が成立する。
+- old pathとnew internal candidateのvalid fixture projectionを比較し、old pathが構造化していた
+  `BindingStatement` / `IntegerLiteral`をnew pathが少なくとも同等以上のtyped shapeで保持する。
+- production candidateにsource-wide token/event buffer、CST replay、old lexer fallback、parse中のoperator
+  table mutation / rebuildがない。
+
+このgateを満たしても、本追補だけを根拠にpublic `parse_file`を切り替えない。code landing後のtest結果とdiffを
+Claude / userが確認した上で、entrypoint cutoverとold path削除を同じimplementation changeで行うか決める。
+long-lived feature flag、runtime fallback、二つのpublic parser authorityは作らないという既決方針は維持する。
+
+### Open questions
+
+この追補のsub-slice 6 implementationをblockするopen questionは**ない**。root safe point、mandatory slot
+recovery、binding scope、operator bodyの最小full continuation、`ConflictingFixity`後のpublic return contractは
+上記で確定する。
+
+別layerの既存open questionであるversion / `with` resolution、late `use` / non-header `mod`のsource-set
+discovery、stable `ModuleId` / syntax-environment key allocator、reexport chain presentation、
+`TriviaParts` inline capacityは変更しない。operator conflict用fixture schemaのadditive field名とlocalized
+message / diagnostic codeもpresentation / contract-versioning作業として後続できるが、typed cause、両site、
+first-accepted degraded tableという実装判断はopenに戻さない。
+
+### Ready for implementation checklist
+
+Terra-tier implementation sessionは次を順に機械的に確認する。
+
+- [ ] `StatementKind`、`StatementRole`、`BindingRole`、`RecoveryKind`、`UnexpectedSyntax`、
+      `RootUnexpected`をclosed enumとして追加し、raw message / `SyntaxKind` / free-form stringをidentityにしない。
+- [ ] `CommittedRecoveryRecord`へID、typed site、kind、unexpected evidence、expectation union、primary indexを
+      実fieldとして入れ、Missing/Error range invariantをconstructorで検査する。
+- [ ] `CommitOutput` / `Committed`に一対一の`emit_missing` / `emit_error` recovery pathを置き、full outputは
+      zero-width `Missing`または`Error > Unknown(non-empty range)`、header outputは同じrecordだけをcommitする。
+- [ ] statement introをUse / Binding / OperatorHeaderへ拡張し、`my <word> =` lookaheadをvisibility付きheader
+      prefixより先に構造判定する。probe中のsink call countは0に保つ。
+- [ ] `use` keyword / operator family確定後のmandatory tailをintro success条件から外し、malformed
+      declarationをcommitted continuation内でrecoverできるようにする。
+- [ ] commit後のuse / operator helperを`Option::None` abortから`Recovered<T>` / total outcomeへ変え、全open
+      nodeをowner continuationが閉じる。
+- [ ] mandatory slot table通りにlocal candidate / owner safe pointを実装し、optional `as` / `without` / `with`
+      keywordをacceptした後はmissing tailをoptional absenceへrollbackしない。
+- [ ] group / exclusion groupのmatching close、mismatched close、comma、newline sibling、outer/root boundary、EOFを
+      testし、incomplete child後のcomplete sibling factを保持する。
+- [ ] root recovery scannerをopaque lexical-region authorityと共有し、non-empty consume、top-level semicolon、
+      next column-zero line、EOFの最早boundaryを返す。mid-line keywordへ同期しない。
+- [ ] `commit_binding_declaration`を`BindingStatement` shape通りに実装し、canonical tableを渡した
+      `parse_direct_expression_with_operators`でvalueをemitする。新しいbinding node kindは追加しない。
+- [ ] complete operator header後、full modeだけがrequired trivia + direct expression bodyを読み、header modeは
+      opaque scanを維持する。body failureでcomplete header factを捨てない。
+- [ ] full rootがleading / inter-statement / trailing triviaとsemicolonを`Root`直下へ一度だけemitし、EOFで
+      `finish_complete`する。
+- [ ] recovering operator compilationがsingle builder passで全incoming conflictをcollectし、first capabilityを
+      保持、secondだけをrejectして、後続の異fixity / spellingを採用する。
+- [ ] `SyntaxDiagnostic`へRecovery / ConflictingOperatorFixityのtyped causeを追加し、conflictに架空のCST
+      recovery nodeを作らない。imported originはenvironment provenanceからmodule/revisionへ解決できる。
+- [ ] valid use/operator/binding fixtures、`use\nuse ...`、missing delimiter / BP / equals / value、unknown root line、
+      indented continuation、semicolon recovery、string/comment/Yumark/fence内fake boundaryをtestする。
+- [ ] local/localとimported/local conflictで`parse_file`が`ParsedFile`を返し、lossless CST、degraded tableに基づく
+      stable parse、両site diagnosticを保持することをtestする。
+- [ ] every-byte-prefix fuzz、node / token coverage、`green.to_string() == source`、header/full recovery ID parity、
+      speculative sink call count 0をgateとして通す。
+- [ ] gate確認前にpublic `parse_file`をnew pipelineへ切り替えず、切り替えるchangeではold
+      `HeaderCursor` / `lex` / `FullCstBuilder`をfallbackなしで一括削除する。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認（2026-08-21、direct-parse cutover
+sub-slice 6追補案）。
+査読はCodex gpt-5.6-terra（high）による事実クロスチェックに基づく: `BindingDeclaration`のfield shape、
+`SyntaxKind`の`Missing`/`Error`/`BindingStatement`/各direct expression kindの存在、
+`CommittedRecoveryRecord`/`SyntaxDiagnostic`が現状`_private: ()`のみであること、
+`commit_use_declaration`/`commit_operator_header`が現状mandatory helperの失敗を`Option::None`で
+伝播しrecovery nodeを作らないこと、`scan::opaque_body`がoperator-independentなlexical-region権限を
+持つこと、以上を現行コードと突き合わせ不一致なし。2点だけ訂正した:
+「`FullCstBuilder`がheader構造化分を除く全部を生tokenで流す」という精度の粗さと、
+「`GrammarRole` familyは既存」という記述——現行`.rs`実装には存在せず、design note冒頭近くの
+先行section（`enum GrammarRole { ..., Statement(StatementRole), ... }`）で導入済みの
+design上の概念であることを明記した。
