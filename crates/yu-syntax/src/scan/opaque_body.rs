@@ -1,9 +1,9 @@
 //! Header-mode scanning for operator bodies that are not expression-parsed.
 //!
 //! This scanner makes comments, normal strings, heredocs, and string
-//! interpolation opaque to the outer delimiter/layout scan. Rule literals,
-//! quoted/block Yumark, and raw/Yulang fences still need their own lexical-
-//! region handling before this scanner can cover the complete language.
+//! interpolation, and rule literals opaque to the outer delimiter/layout scan.
+//! Quoted/block Yumark and raw/Yulang fences still need their own lexical-region
+//! handling before this scanner can cover the complete language.
 
 use std::ops::Range;
 
@@ -69,6 +69,13 @@ where
                 || (delimiter_depth == 0
                     && crossed_layout_boundary(trivia_start, baseline, input.local))
             {
+                return Some(body_span(start, &input));
+            }
+            continue;
+        }
+
+        if input.input.remainder().starts_with("~\"") {
+            if input.run(from_fn(scan_rule_literal_region))? == RegionEnd::Unterminated {
                 return Some(body_span(start, &input));
             }
             continue;
@@ -171,6 +178,99 @@ where
                 return Some(RegionEnd::Unterminated);
             };
             update_region_character(escaped, escaped_start, &mut input)?;
+        }
+    }
+}
+
+/// Consumes one oracle `~"..."` rule literal.
+///
+/// Unlike a normal string, a backslash has no effect on this literal's quote
+/// terminator. Its only nested structure is `{...}` rule interpolation, whose
+/// delimiters must remain opaque to the surrounding operator body.
+fn scan_rule_literal_region<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<RegionEnd>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    input.skip(item('~'))?;
+    input.skip(item('"'))?;
+    mark_non_trivia(input.local);
+    input
+        .local
+        .push_lexical_mode(EmbeddedLexicalMode::RuleLiteral);
+
+    loop {
+        if input.input.remainder().starts_with('"') {
+            input.skip(item('"'))?;
+            mark_non_trivia(input.local);
+            debug_assert_eq!(
+                input.local.pop_lexical_mode(),
+                Some(EmbeddedLexicalMode::RuleLiteral)
+            );
+            return Some(RegionEnd::Closed);
+        }
+
+        if input.input.remainder().starts_with('{') {
+            if input.run(from_fn(scan_rule_literal_interpolation))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(RegionEnd::Unterminated);
+        };
+        update_region_character(character, character_start, &mut input)?;
+    }
+}
+
+/// Consumes a `{...}` rule-literal interpolation without interpreting capture
+/// syntax. Capture and lazy-capture spellings do not change the lexical
+/// boundary; only nested delimiters, comments, and normal strings do.
+fn scan_rule_literal_interpolation<E>(
+    mut input: In<'_, SourceInput<'_>, (), &mut ParseLocal, E>,
+) -> Option<RegionEnd>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    input.skip(item('{'))?;
+    mark_non_trivia(input.local);
+    let mut delimiter_depth = 1_usize;
+
+    loop {
+        if starts_comment(input.input.remainder()) {
+            input.run(from_fn(scan_trivia))?;
+            if input.input.remainder().is_empty() {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
+        if input.input.remainder().starts_with('"') {
+            if input.run(from_fn(scan_string_region))? == RegionEnd::Unterminated {
+                return Some(RegionEnd::Unterminated);
+            }
+            continue;
+        }
+
+        let character_start = input.pos();
+        let Some(character) = input.maybe(any)? else {
+            return Some(RegionEnd::Unterminated);
+        };
+        update_region_character(character, character_start, &mut input)?;
+
+        match character {
+            '(' | '[' | '{' => delimiter_depth += 1,
+            ')' | ']' => delimiter_depth = delimiter_depth.saturating_sub(1).max(1),
+            '}' if delimiter_depth == 1 => return Some(RegionEnd::Closed),
+            '}' => delimiter_depth -= 1,
+            _ => {}
         }
     }
 }
@@ -424,6 +524,47 @@ mod tests {
     }
 
     #[test]
+    fn rule_literals_suspend_outer_layout_until_the_closing_quote() {
+        let simple = scan(" ~\"users/{id}\"\nnext");
+        let capture = scan(" ~\"{id = ident}\"\nnext");
+        let lazy_capture = scan(" ~\":name {rest = ..}\"\nnext");
+        let grouped = scan(" ~\"{ (id [key]) }\"\nnext");
+        let multiline = scan(" ~\"users/\n{id}\nend\"\nnext");
+
+        for (result, expected) in [
+            (simple, " ~\"users/{id}\"\n"),
+            (capture, " ~\"{id = ident}\"\n"),
+            (lazy_capture, " ~\":name {rest = ..}\"\n"),
+            (grouped, " ~\"{ (id [key]) }\"\n"),
+            (multiline, " ~\"users/\n{id}\nend\"\n"),
+        ] {
+            assert_eq!(result.body, (0..expected.len(), expected));
+            assert_eq!(result.remainder, "next");
+            assert_eq!(result.lexical_mode, None);
+        }
+    }
+
+    #[test]
+    fn rule_literal_interpolation_reuses_string_and_comment_regions() {
+        let result = scan(" ~\"{ id = \"}\" /* } */ }\"\nnext");
+        let expected = " ~\"{ id = \"}\" /* } */ }\"\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
+    fn rule_literal_backslash_does_not_escape_its_terminator() {
+        let result = scan(" ~\"before\\\" suffix\nnext");
+        let expected = " ~\"before\\\" suffix\n";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "next");
+        assert_eq!(result.lexical_mode, None);
+    }
+
+    #[test]
     fn comment_delimiters_do_not_change_outer_depth() {
         let block = scan(" /* {[( */ value\nnext");
         let line = scan(" value // }])\nnext");
@@ -465,6 +606,16 @@ mod tests {
             result.lexical_mode,
             Some(EmbeddedLexicalMode::Interpolation { delimiter_depth: 2 })
         );
+    }
+
+    #[test]
+    fn unterminated_rule_literal_keeps_its_lexical_mode_at_eof() {
+        let result = scan(" ~\"users/{id}");
+        let expected = " ~\"users/{id}";
+
+        assert_eq!(result.body, (0..expected.len(), expected));
+        assert_eq!(result.remainder, "");
+        assert_eq!(result.lexical_mode, Some(EmbeddedLexicalMode::RuleLiteral));
     }
 
     struct ScanResult<'source> {
