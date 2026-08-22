@@ -75,6 +75,7 @@ pub(crate) enum FixedPostfixTail<'source> {
     Call(CallTail<'source>),
     Index(IndexTail<'source>),
     Field(FieldTail<'source>),
+    Projection(ProjectionTail<'source>),
     Path(PathTail<'source>),
 }
 
@@ -91,6 +92,43 @@ pub(crate) struct IndexTail<'source> {
     open: Range<usize>,
     items: Vec<OperatorChain<'source>>,
     close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectionTail<'source> {
+    Tuple(ProjectionTupleTail<'source>),
+    Record(ProjectionRecordTail<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProjectionTupleTail<'source> {
+    dot: Range<usize>,
+    open: Range<usize>,
+    items: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProjectionRecordTail<'source> {
+    dot: Range<usize>,
+    open: Range<usize>,
+    items: Vec<ProjectionRecordItem<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectionRecordItem<'source> {
+    Expression(OperatorChain<'source>),
+    Spread(ProjectionRecordSpreadItem<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProjectionRecordSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<OperatorChain<'source>>>,
     range: Range<usize>,
 }
 
@@ -605,6 +643,8 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         OperatorChainItem::Primary(primary) => primary.range().end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(tail)) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Tuple(tail))) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(tail))) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
         OperatorChainItem::MlArgument { range, .. } => range.end,
@@ -651,6 +691,8 @@ enum LedRecognition<'source> {
 enum FixedPostfixRecognition {
     Call { open: Range<usize> },
     Index { open: Range<usize> },
+    ProjectionTuple { leading: TriviaRun, dot: Range<usize>, open: Range<usize> },
+    ProjectionRecord { leading: TriviaRun, dot: Range<usize>, open: Range<usize> },
     Field { leading: TriviaRun, dot: Range<usize> },
     Path { leading: TriviaRun, separator: Range<usize> },
 }
@@ -680,7 +722,15 @@ where
         PunctuationKind::Open(Delimiter::Bracket) if leading.is_empty() => {
             Some(FixedPostfixRecognition::Index { open: punctuation.range() })
         }
-        PunctuationKind::Dot if !matches!(i.input.remainder().chars().next(), Some('(' | '{')) => {
+        PunctuationKind::Dot if matches!(i.input.remainder().chars().next(), Some('(')) => {
+            let open = i.input.next()?;
+            Some(FixedPostfixRecognition::ProjectionTuple { leading, dot: punctuation.range(), open: (i.pos() - open.len_utf8())..i.pos() })
+        }
+        PunctuationKind::Dot if matches!(i.input.remainder().chars().next(), Some('{')) => {
+            let open = i.input.next()?;
+            Some(FixedPostfixRecognition::ProjectionRecord { leading, dot: punctuation.range(), open: (i.pos() - open.len_utf8())..i.pos() })
+        }
+        PunctuationKind::Dot => {
             Some(FixedPostfixRecognition::Field { leading, dot: punctuation.range() })
         }
         PunctuationKind::ColonColon => {
@@ -779,6 +829,12 @@ where
     match tail {
         FixedPostfixRecognition::Call { open } => FixedPostfixTail::Call(parse_call_tail(table, open, i)),
         FixedPostfixRecognition::Index { open } => FixedPostfixTail::Index(parse_index_tail(table, open, i)),
+        FixedPostfixRecognition::ProjectionTuple { dot, open, .. } => {
+            FixedPostfixTail::Projection(ProjectionTail::Tuple(parse_projection_tuple_tail(table, dot, open, i)))
+        }
+        FixedPostfixRecognition::ProjectionRecord { dot, open, .. } => {
+            FixedPostfixTail::Projection(ProjectionTail::Record(parse_projection_record_tail(table, dot, open, i)))
+        }
         FixedPostfixRecognition::Field { dot, .. } => {
             let name = if let Some(name) = i.run(scan_word) {
                 Recovered::Complete(name)
@@ -943,6 +999,82 @@ where
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Bracket));
     IndexTail { open: open.clone(), items, close, range: open.start..i.pos() }
+}
+
+fn parse_projection_tuple_tail<'source, E>(table: &OperatorTable, dot: Range<usize>, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ProjectionTupleTail<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    i.local.push_delimiter(Delimiter::Parenthesis);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
+    i.local.push_stop_set(stops); i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple);
+    let opening = consume_trivia(i).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    push_layout_delimited_baseline(layout, i);
+    let mut items = Vec::new();
+    let close = parse_projection_items_ast(table, i, layout, &mut items, recognize_parenthesized_close);
+    pop_layout_delimited_baseline(layout, i);
+    assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple));
+    assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+    ProjectionTupleTail { dot: dot.clone(), open, items, close, range: dot.start..i.pos() }
+}
+
+fn parse_projection_items_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>, layout: LayoutDelimitedFrame, items: &mut Vec<OperatorChain<'source>>, close: fn(SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>) -> Recovered<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+    loop {
+        if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(item); }
+        else {
+            let at = i.pos();
+            if i.run(recognize_call_separator).is_some() {
+                items.push(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at));
+                consume_trivia(i).expect("trivia scanning is total");
+                if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+                continue;
+            }
+            return Recovered::Incomplete;
+        }
+        let trivia = consume_trivia(i).expect("trivia scanning is total");
+        if i.run(recognize_call_separator).is_some() {
+            consume_trivia(i).expect("trivia scanning is total");
+            if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+            continue;
+        }
+        if let Some(close) = i.run(close) { return Recovered::Complete(close); }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        return Recovered::Incomplete;
+    }
+}
+
+fn parse_projection_record_tail<'source, E>(table: &OperatorTable, dot: Range<usize>, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ProjectionRecordTail<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    i.local.push_delimiter(Delimiter::Brace);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBrace);
+    i.local.push_stop_set(stops); i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord);
+    let opening = consume_trivia(i).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    push_layout_delimited_baseline(layout, i);
+    let mut items = Vec::new();
+    let close = if let Some(close) = i.run(recognize_record_projection_close) { Recovered::Complete(close) } else { loop {
+        if let Some(marker) = i.run(scan_exact_dot_dot) {
+            let rhs_start = i.pos(); consume_trivia(i).expect("trivia scanning is total");
+            let rhs = i.run(from_fn(|i| parse_operator_chain(table, i))).map(Box::new).map_or(Recovered::Incomplete, Recovered::Complete);
+            items.push(ProjectionRecordItem::Spread(ProjectionRecordSpreadItem { marker: marker.clone(), rhs, range: marker.start..i.pos().max(rhs_start) }));
+        } else if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(ProjectionRecordItem::Expression(item)); }
+        else { break Recovered::Incomplete; }
+        let trivia = consume_trivia(i).expect("trivia scanning is total");
+        if i.run(recognize_call_separator).is_some() { consume_trivia(i).expect("trivia scanning is total"); if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); } continue; }
+        if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        break Recovered::Incomplete;
+    }};
+    pop_layout_delimited_baseline(layout, i);
+    assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord));
+    assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    ProjectionRecordTail { dot: dot.clone(), open, items, close, range: dot.start..i.pos() }
 }
 
 /// AST-side counterpart to [`call_argument_error_retry`].  The CallTail owns
@@ -1724,6 +1856,29 @@ where
     close
 }
 
+fn recognize_record_projection_close<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint(); let punctuation = i.run(scan_punctuation)?;
+    let close = (punctuation.kind() == PunctuationKind::Close(Delimiter::Brace)).then(|| punctuation.range());
+    if close.is_none() { i.rollback(checkpoint); }
+    close
+}
+
+fn scan_exact_dot_dot<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint(); let start = i.pos();
+    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) { i.input.next()?; }
+    let end = i.pos();
+    if &i.input.source()[start..end] != ".." { i.rollback(checkpoint); return None; }
+    let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line); Some(start..end)
+}
+
+fn is_operator_shaped_character(character: char) -> bool {
+    matches!(character, '!' | '#' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~')
+}
+
 fn recognize_braced_statement_block_open<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Range<usize>>
@@ -1840,6 +1995,8 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
     match tail {
         FixedPostfixRecognition::Call { open } => commit_call_tail(table, open, committed),
         FixedPostfixRecognition::Index { open } => commit_index_tail(table, open, committed),
+        FixedPostfixRecognition::ProjectionTuple { leading, dot, open } => commit_projection_tuple_tail(table, leading, dot, open, committed),
+        FixedPostfixRecognition::ProjectionRecord { leading, dot, open } => commit_projection_record_tail(table, leading, dot, open, committed),
         FixedPostfixRecognition::Field { leading, dot } => {
             committed.emit_trivia(&leading);
             committed.start_node(SyntaxKind::FieldTail);
@@ -1921,6 +2078,66 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); });
     committed.finish_node();
 }
+
+fn commit_projection_tuple_tail<'parse, 'source, 'local, E, O>(table: &OperatorTable, leading: TriviaRun, dot: Range<usize>, open: Range<usize>, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.emit_trivia(&leading); committed.start_node(SyntaxKind::ProjectionTupleTail); committed.token(SyntaxKind::Dot, dot); committed.token(SyntaxKind::LParen, open);
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
+    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionTuple); });
+    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+    commit_projection_items(table, committed, layout, ProjectionKind::Tuple);
+    if let Some(close) = committed.probe(|probe| probe.input().run(recognize_parenthesized_close)) { committed.token(SyntaxKind::RParen, close); } else { emit_projection_close_missing(committed, ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis); }
+    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); }); committed.finish_node();
+}
+
+fn commit_projection_record_tail<'parse, 'source, 'local, E, O>(table: &OperatorTable, leading: TriviaRun, dot: Range<usize>, open: Range<usize>, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.emit_trivia(&leading); committed.start_node(SyntaxKind::ProjectionRecordTail); committed.token(SyntaxKind::Dot, dot); committed.token(SyntaxKind::LBrace, open);
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBrace));
+    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Brace); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::ProjectionRecord); });
+    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+    commit_projection_items(table, committed, layout, ProjectionKind::Record);
+    if let Some(close) = committed.probe(|probe| probe.input().run(recognize_record_projection_close)) { committed.token(SyntaxKind::RBrace, close); } else { emit_projection_close_missing(committed, ConstructRole::ProjectionRecordTail, Delimiter::Brace); }
+    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace)); }); committed.finish_node();
+}
+
+#[derive(Clone, Copy)]
+enum ProjectionKind { Tuple, Record }
+
+fn commit_projection_items<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>, layout: LayoutDelimitedFrame, kind: ProjectionKind)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let close_pending = |committed: &mut Committed<'parse, 'source, 'local, E, O>| match kind { ProjectionKind::Tuple => parenthesized_close_pending(committed), ProjectionKind::Record => record_projection_close_pending(committed) };
+    if close_pending(committed) { return; }
+    loop {
+        let marker = matches!(kind, ProjectionKind::Record).then(|| committed.probe(|probe| probe.input().run(scan_exact_dot_dot))).flatten();
+        if let Some(marker) = marker {
+            committed.start_node(SyntaxKind::ProjectionRecordSpreadItem);
+            committed.token(SyntaxKind::DotDot, marker);
+            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() { emit_projection_missing(committed, ExpressionRole::ProjectionRecordSpreadRhs, ExpectedSyntax::Expression); }
+            committed.finish_node();
+        } else if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+            let role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleItem, ProjectionKind::Record => ExpressionRole::ProjectionRecordItem };
+            emit_projection_missing(committed, role, ExpectedSyntax::Expression);
+        }
+        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+        if let Some(separator) = commit_call_separator(committed) { committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1); let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing); if close_pending(committed) { break; } continue; }
+        if close_pending(committed) { break; }
+        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        break;
+    }
+}
+
+fn record_projection_close_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{ committed.probe(|probe| { let i = probe.input(); let checkpoint = i.checkpoint(); let pending = i.run(recognize_record_projection_close).is_some(); i.rollback(checkpoint); pending }) }
 
 fn commit_index_tail<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
@@ -4257,6 +4474,24 @@ fn emit_index_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
+fn emit_projection_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, expected: ExpectedSyntax)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    }); committed.emit_missing(record);
+}
+
+fn emit_projection_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, owner: ConstructRole, delimiter: Delimiter)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    }); committed.emit_missing(record);
+}
+
 fn emit_index_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>)
 where E: ErrorSink<usize>, O: CommitOutput<'source>,
 {
@@ -5331,6 +5566,43 @@ mod tests {
     }
 
     #[test]
+    fn projection_tails_precede_field_dispatch_and_keep_general_expression_items() {
+        let source = "a[i;j].(x,y).{left: value, ..rest}";
+        let chain = parse(source, &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(_)),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Tuple(ProjectionTupleTail { items: tuple_items, .. }))),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(ProjectionRecordTail { items: record_items, .. }))),
+            ] if tuple_items.len() == 2
+                && matches!(record_items.as_slice(), [ProjectionRecordItem::Expression(_), ProjectionRecordItem::Spread(_)])
+        ));
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::IdentifierExpression, SyntaxKind::IndexTail, SyntaxKind::ProjectionTupleTail, SyntaxKind::ProjectionRecordTail],
+        );
+        let record = chain.children().find(|node| node.kind() == SyntaxKind::ProjectionRecordTail).unwrap();
+        assert_eq!(record.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 1);
+        assert_eq!(record.children().filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem).count(), 1);
+
+        for source in ["a.()", "a.(x, y(f))", "a.{}", "a.{..left, middle, ..right}", "a .{x}", "a/*c*/.(x)"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root.descendants().any(|node| matches!(node.kind(), SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail)), "{source:?}");
+        }
+        for source in ["a. (x)", "a. {x}"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail)), "{source:?}");
+        }
+    }
+
+    #[test]
     fn fixed_path_accepts_sigil_segments_and_retries_after_a_missing_segment() {
         let source = "x::::$name";
         let chain = parse(source, &canonical_operator_table());
@@ -5373,7 +5645,7 @@ mod tests {
             ), "{source:?}: {recoveries:?}");
         }
 
-        for source in ["x..", "x...", "x.(", "x.{"] {
+        for source in ["x..", "x..."] {
             assert!(fixed_tail_after_identifier(source).is_none(), "{source:?}");
         }
 
