@@ -22,6 +22,8 @@ pub enum SyntaxKind {
     OperatorName,
     BindingPower,
     BindingStatement,
+    BindingHeader,
+    BindingBody,
     IntegerLiteral,
     IdentifierExpression,
     ParenthesizedExpression,
@@ -159,6 +161,8 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::OperatorName as u16 => SyntaxKind::OperatorName,
             value if value == SyntaxKind::BindingPower as u16 => SyntaxKind::BindingPower,
             value if value == SyntaxKind::BindingStatement as u16 => SyntaxKind::BindingStatement,
+            value if value == SyntaxKind::BindingHeader as u16 => SyntaxKind::BindingHeader,
+            value if value == SyntaxKind::BindingBody as u16 => SyntaxKind::BindingBody,
             value if value == SyntaxKind::IntegerLiteral as u16 => SyntaxKind::IntegerLiteral,
             value if value == SyntaxKind::IdentifierExpression as u16 => {
                 SyntaxKind::IdentifierExpression

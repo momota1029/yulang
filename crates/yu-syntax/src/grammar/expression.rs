@@ -10,7 +10,11 @@ use chasa::{
 };
 
 use crate::{
-    grammar::declaration::Recovered,
+    grammar::declaration::{
+        BindingDeclaration, Recovered, StatementIntro, UseDeclaration,
+        commit_binding_declaration, commit_use_declaration, parse_binding_declaration_with_operators,
+        parse_use_declaration, recognize_statement_intro,
+    },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
     operator::OperatorTable,
     scan::{
@@ -20,7 +24,8 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
+        BindingRole, BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
+        DeclarationRole, Delimiter,
         ExpressionDelimitedOwner,
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
@@ -38,7 +43,7 @@ pub(crate) struct OperatorChain<'source> {
 }
 
 impl<'source> OperatorChain<'source> {
-    fn new(items: Vec<OperatorChainItem<'source>>, range: Range<usize>) -> Self {
+    pub(crate) fn new(items: Vec<OperatorChainItem<'source>>, range: Range<usize>) -> Self {
         Self { items, range }
     }
 
@@ -191,12 +196,21 @@ pub(crate) enum ColonApplicationRhs<'source> {
     },
 }
 
-/// The currently-supported statement subset for an indented colon RHS.
-/// Declaration statements remain root-owned until their colon-body grammar is
-/// specified separately.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Statement<'source> {
-    expression: OperatorChain<'source>,
+pub(crate) enum Statement<'source> {
+    Expression(OperatorChain<'source>),
+    Binding(BindingDeclaration<'source>),
+    Use(UseDeclaration<'source>),
+}
+
+impl<'source> Statement<'source> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        match self {
+            Self::Expression(expression) => expression.range(),
+            Self::Binding(binding) => binding.range(),
+            Self::Use(declaration) => declaration.range(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -205,6 +219,11 @@ pub(crate) struct IndentedStatementBlock<'source> {
     block_indent: usize,
     statements: Vec<Recovered<Statement<'source>>>,
     range: Range<usize>,
+}
+
+impl<'source> IndentedStatementBlock<'source> {
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn statements(&self) -> &[Recovered<Statement<'source>>] { &self.statements }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1346,7 +1365,7 @@ where
         } else { i.rollback(checkpoint); }
     }
     let end = terminal_semicolon_end.unwrap_or_else(|| match &body {
-        Recovered::Complete(WithBody::Inline { statement }) => statement.expression.range.end,
+        Recovered::Complete(WithBody::Inline { statement }) => statement.range().end,
         Recovered::Complete(WithBody::Indented { block }) => block.range.end,
         Recovered::Incomplete => with.colon.unwrap_or_else(|| with.keyword.range()).end,
     });
@@ -1362,15 +1381,39 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
-        return Some(Statement { expression });
+    if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+        return Some(statement);
     }
     let range = call_argument_error_retry_ast(table, i)?;
     let expression = i.run(from_fn(|i| parse_operator_chain(table, i)))?;
     let end = expression.range.end;
     let mut items = vec![OperatorChainItem::Error { range: range.clone() }];
     items.extend(expression.items);
-    Some(Statement { expression: OperatorChain::new(items, range.start..end) })
+    Some(Statement::Expression(OperatorChain::new(items, range.start..end)))
+}
+
+/// The shared AST statement entry used by every statement-sequence owner.
+/// Declaration starters are exact maximal words; all other input falls back
+/// to the ordinary expression-chain NUD path at the same position.
+fn parse_canonical_statement<'source, E>(
+    table: &OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Statement<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let intro = i.run(recognize_statement_intro);
+    i.rollback(checkpoint);
+    match intro {
+        Some(StatementIntro::Binding(_)) => i
+            .run(from_fn(|i| parse_binding_declaration_with_operators(table, i)))
+            .map(Statement::Binding),
+        Some(StatementIntro::Use(_)) => i.run(parse_use_declaration).map(Statement::Use),
+        _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
+    }
 }
 
 fn recognize_semicolon<'source, E>(
@@ -2658,17 +2701,18 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
         ),
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
-            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+            committed.start_node(SyntaxKind::Statement);
+            if !commit_canonical_statement(table, leading_trivia(&trivia), committed) {
                 if with_body_error_retry(table, committed) {
-                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    commit_canonical_statement(table, LeadingTrivia::None, committed)
+                        .then_some(())
                         .expect("a retried with body must commit");
                 } else {
                     emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement);
-                    if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
-                        committed.token(SyntaxKind::Semicolon, semicolon);
-                    }
                 }
-            } else if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
+            }
+            committed.finish_node();
+            if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
                 committed.token(SyntaxKind::Semicolon, semicolon);
             }
         }
@@ -2824,10 +2868,11 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
-/// Parses the expression-statement subset of a colon-introduced block.  The
-/// root statement dispatcher remains intentionally separate: colon bodies do
-/// not yet own declarations.
-fn parse_indented_statement_block<'source, E>(
+/// Parses an owner-introduced indented canonical-statement block.
+///
+/// The caller owns the introducer and layout classification; this entry owns
+/// only the already-selected block continuation and its scope restoration.
+pub(crate) fn parse_indented_statement_block<'source, E>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
     base_indent: usize,
@@ -2845,6 +2890,31 @@ where
         base_indent,
         block_indent,
         IndentedStatementBlockOptions::default(),
+        i,
+    )
+}
+
+pub(crate) fn parse_indented_binding_body<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            companion_stop: None,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
+        },
         i,
     )
 }
@@ -2921,18 +2991,18 @@ where
         statements: Vec::new(),
     };
 
-    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
-        parsed.statements.push(Recovered::Complete(Statement { expression }));
+    if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+        parsed.statements.push(Recovered::Complete(statement));
         while !options.companion_stop(i) {
             let Some(separator) = recognize_statement_sequence_separator(i, policy) else { break; };
             if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
                 break;
             }
-            let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+            let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) else {
                 parsed.statements.push(Recovered::Incomplete);
                 break;
             };
-            parsed.statements.push(Recovered::Complete(Statement { expression }));
+            parsed.statements.push(Recovered::Complete(statement));
         }
     } else {
         parsed.statements.push(Recovered::Incomplete);
@@ -2984,10 +3054,10 @@ where
         return Vec::new();
     }
     let mut statements = Vec::new();
-    let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+    let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) else {
         return statements;
     };
-    statements.push(Recovered::Complete(Statement { expression }));
+    statements.push(Recovered::Complete(statement));
     loop {
         if braced_statement_block_close_pending(i) {
             break;
@@ -2998,11 +3068,11 @@ where
         if braced_statement_block_close_pending(i) {
             break;
         }
-        let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+        let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) else {
             statements.push(Recovered::Incomplete);
             break;
         };
-        statements.push(Recovered::Complete(Statement { expression }));
+        statements.push(Recovered::Complete(statement));
     }
     statements
 }
@@ -3248,7 +3318,7 @@ fn pop_indented_statement_block_scope<E>(
     );
 }
 
-fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
     _base_indent: usize,
@@ -3266,6 +3336,31 @@ fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
         _base_indent,
         block_indent,
         IndentedStatementBlockOptions::default(),
+        committed,
+    );
+}
+
+pub(crate) fn commit_indented_binding_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            companion_stop: None,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
+        },
         committed,
     );
 }
@@ -3471,7 +3566,7 @@ where
         let checkpoint = probe.input().checkpoint();
         let trivia = consume_trivia(probe.input()).expect("trivia scanning is total");
         let leading = leading_trivia(&trivia);
-        let candidate = direct_expression_nud_candidate(table, leading, probe);
+        let candidate = direct_canonical_statement_candidate(table, leading, probe);
         probe.input().rollback(checkpoint);
         candidate.then_some(trivia)
     })?;
@@ -3579,17 +3674,78 @@ fn commit_statement_sequence_statement<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::Statement);
-    if parse_direct_operator_chain(table, leading, committed).is_none() {
+    if !commit_canonical_statement(table, leading, committed) {
         match statement_sequence_error_retry(table, policy, committed) {
             Some(true) => {
-                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
-                    .expect("a retried block statement must commit its shared NUD candidate");
+                commit_canonical_statement(table, LeadingTrivia::None, committed)
+                    .then_some(())
+                    .expect("a retried block statement must commit its shared candidate");
             }
             Some(false) => {}
             None => emit_statement_sequence_missing(policy, committed),
         }
     }
     committed.finish_node();
+}
+
+/// Commits the same three statement alternatives used by the AST-side
+/// canonical statement entry.  A declaration intro consumes its already
+/// classified prefix only after the statement wrapper has been opened; every
+/// other input remains owned by the expression-chain path.
+fn commit_canonical_statement<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let intro = i.run(recognize_statement_intro);
+        if !matches!(intro, Some(StatementIntro::Binding(_) | StatementIntro::Use(_))) {
+            i.rollback(checkpoint);
+            return None;
+        }
+        intro
+    });
+    match intro {
+        Some(StatementIntro::Binding(intro)) => {
+            let _ = commit_binding_declaration(table, committed, intro);
+            true
+        }
+        Some(StatementIntro::Use(intro)) => {
+            let _ = commit_use_declaration(committed, intro);
+            true
+        }
+        Some(StatementIntro::Operator(_)) | None => {
+            parse_direct_operator_chain(table, leading, committed).is_some()
+        }
+    }
+}
+
+fn direct_canonical_statement_candidate<'parse, 'source, 'local, E>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let checkpoint = i.checkpoint();
+    let declaration = matches!(
+        i.run(recognize_statement_intro),
+        Some(StatementIntro::Binding(_) | StatementIntro::Use(_))
+    );
+    i.rollback(checkpoint);
+    declaration || direct_expression_nud_candidate(table, leading, probe)
 }
 
 /// A statement recovery records one non-empty invalid episode and retries the
@@ -3622,7 +3778,7 @@ where
             let mut line = i.local.line();
             line.at_line_start = false;
             i.local.set_line(line);
-            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+            if direct_canonical_statement_candidate(table, LeadingTrivia::None, probe) {
                 return Some((start..end, true));
             }
         }
@@ -7335,7 +7491,14 @@ mod tests {
         let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
             body: Recovered::Complete(WithBody::Inline { statement }), ..
         }))] = nested.items() else { panic!("expected terminal with body"); };
-        assert!(matches!(statement.expression.items(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]));
+        assert!(matches!(statement.as_ref(), Statement::Expression(expression)
+            if matches!(expression.items(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))])));
+
+        let binding_inline = parse("a with: my item = value", &canonical_operator_table());
+        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+            body: Recovered::Complete(WithBody::Inline { statement }), ..
+        }))] = binding_inline.items() else { panic!("expected inline binding statement"); };
+        assert!(matches!(statement.as_ref(), Statement::Binding(_)));
 
         let nested = parse("a: b with: c", &canonical_operator_table());
         let [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
@@ -7353,6 +7516,28 @@ mod tests {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source);
             assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::WithBodyTail));
+        }
+
+        for (source, binding, use_declaration) in [
+            ("a with: my item = value", true, false),
+            ("a with:\n  our item = value\n  use std", true, true),
+            ("{\n  pub item = value\n  use std\n}", true, true),
+            ("if condition:\n  my item = value", true, false),
+            ("case value:\n  item ->\n    my nested = value", true, false),
+            ("catch action:\n  error ->\n    use std", false, true),
+        ] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement),
+                binding,
+                "{source:?}",
+            );
+            assert_eq!(
+                root.descendants().any(|node| node.kind() == SyntaxKind::UseDeclaration),
+                use_declaration,
+                "{source:?}",
+            );
         }
         for source in ["f(a with:b)", "a[b with:c]", "a.(b with:c)"] {
             let root = parse_direct(source, &canonical_operator_table());

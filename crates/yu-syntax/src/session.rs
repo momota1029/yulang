@@ -627,9 +627,9 @@ pub(crate) enum StatementRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum BindingRole {
-    Name,
-    DefinitionIntroducer,
-    Value,
+    Target,
+    Body,
+    IndentedStatement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

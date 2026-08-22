@@ -14,8 +14,11 @@ use crate::{
     BindingPower as HeaderBindingPower, BindingPowers, HeaderImport, HeaderImportForm,
     HeaderImportRoute, HeaderImportRouteSeparator, HeaderOperator, Visibility,
     grammar::expression::{
-        Expression, ParsedExpression, parse_direct_expression_with_operators, parse_expression,
+        IndentedStatementBlock, OperatorChain, ParsedExpression, commit_indented_binding_body,
+        parse_direct_expression_with_operators, parse_expression_with_operators,
+        parse_indented_binding_body,
     },
+    grammar::pattern::{ParsedPattern, Pattern, parse_direct_pattern, parse_pattern},
     input::SourceInput,
     operator::{BindingPower, OperatorFixity},
     scan::{
@@ -29,8 +32,8 @@ use crate::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
         DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
         ImportRole, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
-        RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, SynIn, SyntaxExpectation,
-        UnexpectedSyntax,
+        RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, SynIn,
+        SyntaxExpectation, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -95,19 +98,32 @@ pub(crate) struct OperatorStatementIntro<'source> {
 
 /// The committed prefix of a direct binding declaration.
 ///
-/// The continuation owns the mandatory name, equals, and value slots; keeping
-/// them out of this sink-free prefix is what lets the root statement loop cut
-/// at `my` before recovery is selected.
+/// The continuation owns the Pattern target and optional exact-equals body;
+/// keeping both out of this sink-free prefix lets every statement owner cut at
+/// the visibility word before recovery is selected.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BindingStatementIntro<'source> {
     start: usize,
-    my_keyword: WordSpan<'source>,
+    visibility: VisibilityPrefix<'source>,
 }
 
 pub(crate) struct ParsedBindingDeclaration<'source, C> {
+    visibility: Visibility,
     range: Range<usize>,
-    name: WordSpan<'source>,
-    value: ParsedExpression<C>,
+    target: Recovered<ParsedPattern<C>>,
+    definition: Option<ParsedBindingDefinition<C>>,
+    marker: std::marker::PhantomData<&'source str>,
+}
+
+pub(crate) struct ParsedBindingDefinition<C> {
+    equals: Range<usize>,
+    body: Recovered<ParsedBindingBody<C>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct ParsedBindingBody<C> {
+    range: Range<usize>,
+    marker: std::marker::PhantomData<C>,
 }
 
 /// A committed continuation completed its CST regardless of whether it could
@@ -123,13 +139,27 @@ impl<'source, C> ParsedBindingDeclaration<'source, C> {
         self.range.clone()
     }
 
-    pub(crate) fn name(&self) -> WordSpan<'source> {
-        self.name
+    pub(crate) fn visibility(&self) -> Visibility {
+        self.visibility
     }
 
-    pub(crate) fn value(&self) -> &ParsedExpression<C> {
-        &self.value
+    pub(crate) fn target(&self) -> &Recovered<ParsedPattern<C>> {
+        &self.target
     }
+
+    pub(crate) fn definition(&self) -> Option<&ParsedBindingDefinition<C>> {
+        self.definition.as_ref()
+    }
+}
+
+impl<C> ParsedBindingDefinition<C> {
+    pub(crate) fn body(&self) -> &Recovered<ParsedBindingBody<C>> { &self.body }
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+}
+
+impl<C> ParsedBindingBody<C> {
+    fn new(range: Range<usize>) -> Self { Self { range, marker: std::marker::PhantomData } }
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
 }
 
 /// Builds the direct full-parse root candidate without changing `parse_file`.
@@ -532,32 +562,34 @@ where
 {
     let checkpoint = i.checkpoint();
     let selected = (|| {
-        let Some(my_keyword) = i.run(scan_word) else {
+        let Some(visibility_keyword) = i.run(scan_word) else {
             return false;
         };
-        if my_keyword.text() != "my" {
+        if visibility_prefix(visibility_keyword).is_none() {
             return false;
         }
-        let Some(after_my) = scan_required_inline_trivia(i) else {
-            return true;
-        };
-        let Some(name) = i.run(scan_word) else {
-            return true;
-        };
         let Some(_) = scan_required_inline_trivia(i) else {
-            return !matches!(
-                name.text(),
-                "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix"
-            );
-        };
-        if i.input.remainder().starts_with('=') {
             return true;
+        };
+        let Some(target_head) = i.run(scan_word) else {
+            return true;
+        };
+        if target_head.text() == "use" {
+            let use_checkpoint = i.checkpoint();
+            let selected_as_use = scan_required_inline_trivia(i).is_some()
+                && parse_use_tree(i).is_some();
+            i.rollback(use_checkpoint);
+            return !selected_as_use;
         }
-        let _ = after_my;
-        !matches!(
-            name.text(),
-            "use" | "lazy" | "prefix" | "infix" | "suffix" | "nullfix"
-        )
+        if matches!(target_head.text(), "lazy" | "prefix" | "infix" | "suffix" | "nullfix") {
+            let definition_checkpoint = i.checkpoint();
+            let binding_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+            let is_binding_definition = binding_trivia(binding_base, i).is_some()
+                && i.run(scan_binding_exact_equals).is_some();
+            i.rollback(definition_checkpoint);
+            return is_binding_definition;
+        }
+        true
     })();
     i.rollback(checkpoint);
     selected
@@ -642,7 +674,7 @@ fn emit_visibility<'parse, 'source, 'local, E, O>(
     committed.token(kind, visibility.keyword.range());
 }
 
-/// Recognizes only the `my` prefix of a binding statement without giving the
+/// Recognizes one visibility prefix of a binding statement without giving the
 /// speculative branch access to a CST or recovery sink.
 pub(crate) fn recognize_binding_statement_intro<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
@@ -653,15 +685,12 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let my_keyword = i.run(scan_word)?;
-    (my_keyword.text() == "my").then_some(BindingStatementIntro { start, my_keyword })
+    let keyword = i.run(scan_word)?;
+    let visibility = visibility_prefix(keyword)?;
+    Some(BindingStatementIntro { start, visibility })
 }
 
-/// Emits one complete binding declaration using the session's immutable Pratt
-/// table. This valid-only precursor establishes the direct CST/data flow
-/// without reconstructing an expression AST from the emitted tree; the next
-/// recovery slice must make this continuation total before the root driver
-/// calls it.
+/// Commits one binding declaration without reconstructing its AST from CST.
 pub(crate) fn commit_binding_declaration<'parse, 'source, 'local, E, O>(
     operators: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -674,75 +703,115 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::BindingStatement);
-    committed.token(SyntaxKind::MyKw, intro.my_keyword.range());
-
-    if let Some(after_my) = commit_required_inline_trivia(committed) {
-        committed.emit_trivia(&after_my);
-    } else if commit_word_candidate(committed) {
-        emit_layout_missing(committed);
+    committed.start_node(SyntaxKind::BindingHeader);
+    emit_visibility(committed, &intro.visibility);
+    let binding_base = committed.probe(|probe| {
+        probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column)
+    });
+    let target_trivia = committed.probe(|probe| binding_trivia(binding_base, probe.input()));
+    if let Some(trivia) = &target_trivia {
+        committed.emit_trivia(trivia);
     }
-    let Some(name) = commit_word(committed) else {
-        emit_binding_missing(committed, BindingRole::Name, ExpectedSyntax::Identifier);
-        committed.finish_node();
-        return Recovered::Incomplete;
-    };
-    committed.token(SyntaxKind::Identifier, name.range());
-
-    if let Some(after_name) = commit_required_inline_trivia(committed) {
-        committed.emit_trivia(&after_name);
-    } else if commit_character_candidate(committed, '=') {
-        emit_layout_missing(committed);
-    }
-    if let Some(equals) = commit_character(committed, '=') {
-        committed.token(SyntaxKind::Equals, equals);
-    } else {
-        emit_binding_missing(
-            committed,
-            BindingRole::DefinitionIntroducer,
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+    let stops = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default().with(StopKind::Equal));
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    let target = parse_direct_pattern(operators, LeadingTrivia::None, committed)
+        .map_or_else(
+            || {
+                emit_binding_missing(committed, BindingRole::Target, ExpectedSyntax::Pattern);
+                Recovered::Incomplete
+            },
+            Recovered::Complete,
         );
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    let definition_intro = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let Some(trivia) = binding_trivia(binding_base, i) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        let Some(equals) = i.run(scan_binding_exact_equals) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        Some((trivia, equals))
+    });
+    if let Some((trivia, equals)) = &definition_intro {
+        committed.emit_trivia(trivia);
+        committed.token(SyntaxKind::Equals, equals.clone());
     }
-
-    let after_equals = commit_optional_inline_trivia(committed);
-    let leading = if after_equals.as_ref().is_none_or(TriviaRun::is_empty) {
-        LeadingTrivia::None
-    } else {
-        LeadingTrivia::Present
-    };
-    if let Some(after_equals) = &after_equals {
-        committed.emit_trivia(after_equals);
-    }
-    if after_equals.as_ref().is_none_or(TriviaRun::is_empty)
-        && direct_expression_candidate(operators, leading, committed)
-    {
-        emit_layout_missing(committed);
-    }
-    let value = if let Some(value) =
-        parse_direct_expression_with_operators(operators, leading, committed)
-    {
-        value
-    } else if direct_expression_error_retry(
-        operators,
-        GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value)),
-        committed,
-    ) {
-        match parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed) {
-            Some(value) => value,
-            None => {
-                emit_binding_missing(committed, BindingRole::Value, ExpectedSyntax::Expression);
-                committed.finish_node();
-                return Recovered::Incomplete;
-            }
-        }
-    } else {
-        emit_binding_missing(committed, BindingRole::Value, ExpectedSyntax::Expression);
-        committed.finish_node();
-        return Recovered::Incomplete;
-    };
-    let range = intro.start..value.range().end;
     committed.finish_node();
 
-    Recovered::Complete(ParsedBindingDeclaration { range, name, value })
+    let definition = definition_intro.map(|(_trivia, equals)| {
+        committed.start_node(SyntaxKind::BindingBody);
+        let body = commit_binding_body(operators, binding_base, committed);
+        let end = match &body {
+            Recovered::Complete(body) => body.range().end,
+            Recovered::Incomplete => equals.end,
+        };
+        committed.finish_node();
+        ParsedBindingDefinition { equals: equals.clone(), body, range: equals.start..end }
+    });
+    let end = definition.as_ref().map_or_else(
+        || match &target {
+            Recovered::Complete(target) => target.range().end,
+            Recovered::Incomplete => committed.probe(|probe| probe.input().pos()),
+        },
+        |definition| definition.range.end,
+    );
+    committed.finish_node();
+    Recovered::Complete(ParsedBindingDeclaration {
+        visibility: intro.visibility.visibility,
+        range: intro.start..end,
+        target,
+        definition,
+        marker: std::marker::PhantomData,
+    })
+}
+
+fn commit_binding_body<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    binding_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<ParsedBindingBody<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let body_start = committed.probe(|probe| probe.input().pos());
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let trivia = committed.probe(|probe| probe.input().run(scan_trivia)).expect("trivia is total");
+    let has_newline = committed.probe(|probe| probe.input().input.source()[trivia.range()].contains(['\r', '\n']));
+    if has_newline && committed.probe(|probe| probe.input().local.line().line_indent <= binding_base) {
+        committed.probe(|probe| probe.input().rollback(checkpoint));
+        emit_binding_missing(committed, BindingRole::Body, ExpectedSyntax::Expression);
+        return Recovered::Incomplete;
+    }
+    if has_newline {
+        let block_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+        commit_indented_binding_body(operators, trivia, binding_base, block_indent, committed);
+        let end = committed.probe(|probe| probe.input().pos());
+        return Recovered::Complete(ParsedBindingBody::new(body_start..end));
+    }
+    let leading = if trivia.is_empty() { LeadingTrivia::None } else { LeadingTrivia::Present };
+    committed.emit_trivia(&trivia);
+    let body = parse_direct_expression_with_operators(operators, leading, committed)
+        .or_else(|| {
+            direct_expression_error_retry(
+                operators,
+                GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+                committed,
+            ).then(|| parse_direct_expression_with_operators(operators, LeadingTrivia::None, committed)).flatten()
+        });
+    match body {
+        Some(body) => Recovered::Complete(ParsedBindingBody::new(body.range())),
+        None => {
+            emit_binding_missing(committed, BindingRole::Body, ExpectedSyntax::Expression);
+            Recovered::Incomplete
+        }
+    }
 }
 
 /// Emits the recovery record shared by every missing inline separator. The
@@ -3216,12 +3285,13 @@ where
     })
 }
 
-/// A `my name = value` declaration with a minimal expression value.
+/// A visibility-prefixed binding declaration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BindingDeclaration<'source> {
+    visibility: Visibility,
+    target: Recovered<Pattern<'source>>,
+    definition: Option<BindingDefinition<'source>>,
     range: Range<usize>,
-    name: WordSpan<'source>,
-    value: Expression<'source>,
 }
 
 impl<'source> BindingDeclaration<'source> {
@@ -3229,13 +3299,36 @@ impl<'source> BindingDeclaration<'source> {
         self.range.clone()
     }
 
-    pub(crate) fn name(&self) -> WordSpan<'source> {
-        self.name
+    pub(crate) fn visibility(&self) -> Visibility {
+        self.visibility
     }
 
-    pub(crate) fn value(&self) -> &Expression<'source> {
-        &self.value
+    pub(crate) fn target(&self) -> &Recovered<Pattern<'source>> {
+        &self.target
     }
+
+    pub(crate) fn definition(&self) -> Option<&BindingDefinition<'source>> {
+        self.definition.as_ref()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BindingDefinition<'source> {
+    equals: Range<usize>,
+    body: Recovered<BindingBody<'source>>,
+    range: Range<usize>,
+}
+
+impl<'source> BindingDefinition<'source> {
+    pub(crate) fn equals(&self) -> Range<usize> { self.equals.clone() }
+    pub(crate) fn body(&self) -> &Recovered<BindingBody<'source>> { &self.body }
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum BindingBody<'source> {
+    Inline { expression: OperatorChain<'source> },
+    Indented { block: IndentedStatementBlock<'source> },
 }
 
 /// An operator signature before its opaque header body.
@@ -3696,8 +3789,8 @@ where
 {
     i.choice((
         parse_use_declaration.map(Declaration::Use),
-        parse_binding_declaration.map(Declaration::Binding),
         parse_operator_header.map(Declaration::OperatorHeader),
+        parse_binding_declaration.map(Declaration::Binding),
     ))
 }
 
@@ -3881,25 +3974,139 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let table = crate::operator::OperatorTable::empty();
+    parse_binding_declaration_with_operators(&table, i)
+}
+
+pub(crate) fn parse_binding_declaration_with_operators<'source, E>(
+    table: &crate::operator::OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<BindingDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = i.pos();
     let keyword = i.run(scan_word)?;
-    (keyword.text() == "my").then_some(())?;
-    inline_trivia(&mut i)?;
-    let name = i.run(scan_word)?;
-    inline_trivia(&mut i)?;
-    i.skip(chasa::prelude::item('='))?;
-    inline_trivia(&mut i)?;
-    let value = i.run(parse_expression)?;
-    let end = value.range().end;
+    let visibility = visibility_prefix(keyword)?.visibility;
+    let binding_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    binding_trivia(binding_base, &mut i)?;
+    let stops = i.local.stop_set().unwrap_or_default().with(StopKind::Equal);
+    i.local.push_stop_set(stops);
+    let target = i.run(from_fn(|i| parse_pattern(table, i)));
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let target = target.map_or(Recovered::Incomplete, Recovered::Complete);
+    let mut end = match &target {
+        Recovered::Complete(pattern) => pattern.range().end,
+        Recovered::Incomplete => i.pos(),
+    };
+
+    let definition = {
+        let checkpoint = i.checkpoint();
+        if binding_trivia(binding_base, &mut i).is_none() {
+            i.rollback(checkpoint);
+            None
+        } else if let Some(equals) = i.run(scan_binding_exact_equals) {
+            let body_start = equals.start;
+            let body = parse_binding_body_ast(table, binding_base, &mut i)
+                .map_or(Recovered::Incomplete, Recovered::Complete);
+            let body_end = match &body {
+                Recovered::Complete(BindingBody::Inline { expression }) => expression.range().end,
+                Recovered::Complete(BindingBody::Indented { block }) => block.range().end,
+                Recovered::Incomplete => i.pos(),
+            };
+            end = body_end.max(equals.end);
+            Some(BindingDefinition { equals, body, range: body_start..end })
+        } else {
+            i.rollback(checkpoint);
+            None
+        }
+    };
 
     Some(BindingDeclaration {
+        visibility,
+        target,
+        definition,
         range: start..end,
-        name,
-        value,
     })
 }
 
-fn parse_use_declaration<'source, E>(
+fn parse_binding_body_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    binding_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<BindingBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia)?;
+    let has_newline = i.input.source()[trivia.range()].contains(['\r', '\n']);
+    if has_newline {
+        if i.local.line().line_indent <= binding_base {
+            i.rollback(checkpoint);
+            return None;
+        }
+        let block_indent = i.local.line().line_indent;
+        return Some(BindingBody::Indented {
+            block: parse_indented_binding_body(table, trivia, binding_base, block_indent, i),
+        });
+    }
+    let expression = i.run(from_fn(|i| parse_expression_with_operators(table, i)))?;
+    Some(BindingBody::Inline { expression })
+}
+
+fn binding_trivia<E>(binding_base: usize, i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia)?;
+    if i.input.source()[trivia.range()].contains(['\r', '\n'])
+        && i.local.line().line_indent <= binding_base
+    {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(trivia)
+}
+
+fn scan_binding_exact_equals<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    while i.input.remainder().chars().next().is_some_and(binding_operator_character) {
+        i.input.next()?;
+    }
+    let end = i.pos();
+    if &i.input.source()[start..end] != "=" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
+}
+
+fn binding_operator_character(character: char) -> bool {
+    !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && character != '_'
+        && !unicode_ident::is_xid_continue(character)
+        && !matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@')
+}
+
+pub(crate) fn parse_use_declaration<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<UseDeclaration<'source>>
 where
@@ -3908,8 +4115,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let keyword = i.run(scan_word)?;
-    (keyword.text() == "use").then_some(())?;
+    let first = i.run(scan_word)?;
+    let visibility = if let Some(visibility) = visibility_prefix(first) {
+        inline_trivia(&mut i)?;
+        let keyword = i.run(scan_word)?;
+        (keyword.text() == "use").then_some(visibility.visibility)?
+    } else {
+        (first.text() == "use").then_some(Visibility::Private)?
+    };
     inline_trivia(&mut i)?;
 
     let tree = parse_use_tree(&mut i)?;
@@ -3917,7 +4130,7 @@ where
 
     Some(UseDeclaration {
         range: start..end,
-        visibility: Visibility::Private,
+        visibility,
         tree,
     })
 }
@@ -5772,7 +5985,7 @@ mod tests {
         assert_eq!(recovery.site.range, 11..15);
         assert_eq!(
             recovery.site.role,
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Value))
+            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
         );
         let source_text: Arc<crate::SourceText> = Arc::from(source);
         let parsed = crate::parse_file(
@@ -6014,7 +6227,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_binding_declaration_emits_one_operator_aware_value_subtree() {
+    fn direct_binding_declaration_emits_one_operator_aware_body_subtree() {
         let source = "my value = +!result";
         let operators = crate::operator::OperatorTable::from_declarations([
             crate::operator::OperatorDeclaration::new(
@@ -6028,8 +6241,9 @@ mod tests {
         let root = SyntaxNode::new_root(output.finish_complete());
 
         assert_eq!(binding.range(), 0..source.len());
-        assert_eq!(binding.name().text(), "value");
-        assert_eq!(binding.value().range(), 11..19);
+        assert!(matches!(binding.target(), Recovered::Complete(target) if target.range() == (3..8)));
+        assert!(matches!(binding.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(body) if body.range() == (11..19))));
         assert_eq!(root.kind(), SyntaxKind::BindingStatement);
         assert_eq!(root.to_string(), source);
         assert_eq!(
@@ -6079,7 +6293,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_binding_missing_value_closes_the_statement_and_emits_one_missing_node() {
+    fn direct_binding_missing_body_closes_the_statement_and_emits_one_missing_node() {
         let source = "my value =";
         let operators = crate::operator::OperatorTable::empty();
         let mut source_input = SourceInput::new(source);
@@ -6101,7 +6315,7 @@ mod tests {
 
         assert!(matches!(
             commit_binding_declaration(&operators, &mut committed, intro),
-            Recovered::Incomplete
+            Recovered::Complete(_)
         ));
         let root = SyntaxNode::new_root(committed.into_output().finish_complete());
         assert_eq!(root.to_string(), source);
@@ -6239,7 +6453,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_binding_recovers_missing_inline_separation_without_synthetic_trivia() {
+    fn direct_binding_allows_an_adjacent_exact_definition_introducer() {
         let source = "my value=result";
         let (binding, output) =
             parse_direct_binding_with_output(source, &crate::operator::OperatorTable::empty());
@@ -6251,7 +6465,7 @@ mod tests {
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
-            2,
+            0,
         );
     }
 
@@ -6273,13 +6487,13 @@ mod tests {
     }
 
     #[test]
-    fn direct_binding_value_error_stops_at_its_safe_point_without_a_candidate() {
+    fn direct_binding_body_error_stops_at_its_safe_point_without_a_candidate() {
         let source = "my value = @@";
         let (outcome, output) =
             parse_recovered_binding(source, &crate::operator::OperatorTable::empty());
         let root = SyntaxNode::new_root(output.finish_complete());
 
-        assert!(matches!(outcome, Recovered::Incomplete));
+        assert!(matches!(outcome, Recovered::Complete(_)));
         assert_eq!(root.to_string(), source);
         assert_eq!(
             root.descendants()
@@ -7530,9 +7744,92 @@ mod tests {
             panic!("expected binding declaration");
         };
         assert_eq!(binding.range(), 0..14);
-        assert_eq!(binding.name().text(), "value");
-        assert_eq!(binding.value().range(), 11..14);
+        assert_eq!(binding.visibility(), Visibility::Private);
+        assert!(matches!(binding.target(), Recovered::Complete(pattern) if pattern.range() == (3..8)));
+        assert!(matches!(binding.definition(), Some(definition)
+            if matches!(definition.body(), Recovered::Complete(BindingBody::Inline { expression }) if expression.range() == (11..14))));
         assert_eq!(i.input.remainder(), "\n");
+    }
+
+    #[test]
+    fn bindings_accept_every_visibility_optional_definition_and_pattern_target() {
+        for (source, visibility, has_definition, target_range) in [
+            ("my value", Visibility::Private, false, 3..8),
+            ("our (left, right) = pair", Visibility::Our, true, 4..17),
+            ("pub [head, tail] = values", Visibility::Public, true, 4..16),
+            ("my {left, right} = record", Visibility::Private, true, 3..16),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+
+            let Some(Declaration::Binding(binding)) = i.run(parse_declaration) else {
+                panic!("expected binding for {source:?}");
+            };
+            assert_eq!(binding.visibility(), visibility, "{source:?}");
+            assert!(matches!(binding.target(), Recovered::Complete(target) if target.range() == target_range), "{source:?}");
+            assert_eq!(binding.definition().is_some(), has_definition, "{source:?}");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+        }
+    }
+
+    #[test]
+    fn binding_indented_body_reuses_the_canonical_statement_dispatch() {
+        let source = "our item =\n  my nested = value\n  use std";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        let Some(Declaration::Binding(binding)) = i.run(parse_declaration) else {
+            panic!("expected binding declaration");
+        };
+        let Some(definition) = binding.definition() else { panic!("expected definition"); };
+        let Recovered::Complete(BindingBody::Indented { block }) = definition.body() else {
+            panic!("expected indented binding body");
+        };
+        assert!(matches!(block.statements(), [
+            Recovered::Complete(crate::grammar::expression::Statement::Binding(_)),
+            Recovered::Complete(crate::grammar::expression::Statement::Use(_)),
+        ]));
+        assert_eq!(i.input.remainder(), "");
+    }
+
+    #[test]
+    fn visibility_prefixed_use_is_selected_only_with_a_valid_use_tree() {
+        for source in ["my use = value", "our use = value", "pub use = value"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            assert!(matches!(i.run(parse_declaration), Some(Declaration::Binding(_))), "{source:?}");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+        }
+        for source in ["my use std", "our use std", "pub use std"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            assert!(matches!(i.run(parse_declaration), Some(Declaration::Use(_))), "{source:?}");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+        }
     }
 
     #[test]
