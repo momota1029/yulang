@@ -11085,7 +11085,7 @@ keyword-colon間newline、inline semicolon ownership、current Statement subset 
 
 ## 追補案: canonical `Statement`のbinding / use declaration拡張
 
-Status: Claude review / exact wordingのfinal sign-off待ち。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 Date: 2026-08-23。
 
@@ -11618,5 +11618,5 @@ Claude reviewでは、特にoptional bodyなしbinding、`my use` contextual spl
 旧root production supersession、nested useのheader projection禁止、inline Withのcanonical Statement wrapper、
 Pattern Equal stopとouter statement boundaryのexact restoreを確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Statement binding / use declaration拡張追補案）。
