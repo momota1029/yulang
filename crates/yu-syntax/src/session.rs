@@ -147,6 +147,7 @@ pub(crate) struct ParseLocal {
     ml_arg: bool,
     stop_sets: RollbackStack<StopSet>,
     delimiters: RollbackStack<Delimiter>,
+    expression_delimited_owners: RollbackStack<ExpressionDelimitedOwner>,
     lexical_modes: RollbackStack<EmbeddedLexicalMode>,
     staged_header_facts: Vec<StagedHeaderFact>,
     operator_probes: Vec<OperatorCandidateProbe>,
@@ -164,6 +165,7 @@ impl ParseLocal {
             ml_arg: false,
             stop_sets: RollbackStack::new(),
             delimiters: RollbackStack::new(),
+            expression_delimited_owners: RollbackStack::new(),
             lexical_modes: RollbackStack::new(),
             staged_header_facts: Vec::new(),
             operator_probes: Vec::new(),
@@ -194,6 +196,7 @@ impl ParseLocal {
             ml_arg: self.ml_arg,
             stop_sets: self.stop_sets.checkpoint(),
             delimiters: self.delimiters.checkpoint(),
+            expression_delimited_owners: self.expression_delimited_owners.checkpoint(),
             lexical_modes: self.lexical_modes.checkpoint(),
             staged_header_facts_len: self.staged_header_facts.len(),
             operator_probes_len: self.operator_probes.len(),
@@ -210,6 +213,8 @@ impl ParseLocal {
         self.ml_arg = checkpoint.ml_arg;
         self.stop_sets.rollback(checkpoint.stop_sets);
         self.delimiters.rollback(checkpoint.delimiters);
+        self.expression_delimited_owners
+            .rollback(checkpoint.expression_delimited_owners);
         self.lexical_modes.rollback(checkpoint.lexical_modes);
         self.staged_header_facts
             .truncate(checkpoint.staged_header_facts_len);
@@ -282,6 +287,18 @@ impl ParseLocal {
 
     pub(crate) fn delimiter(&self) -> Option<Delimiter> {
         self.delimiters.last().copied()
+    }
+
+    pub(crate) fn push_expression_delimited_owner(&mut self, owner: ExpressionDelimitedOwner) {
+        self.expression_delimited_owners.push(owner);
+    }
+
+    pub(crate) fn pop_expression_delimited_owner(&mut self) -> Option<ExpressionDelimitedOwner> {
+        self.expression_delimited_owners.pop()
+    }
+
+    pub(crate) fn expression_delimited_owner(&self) -> Option<ExpressionDelimitedOwner> {
+        self.expression_delimited_owners.last().copied()
     }
 
     pub(crate) fn push_lexical_mode(&mut self, mode: EmbeddedLexicalMode) {
@@ -370,6 +387,7 @@ pub(crate) struct ParseLocalCheckpoint {
     ml_arg: bool,
     stop_sets: StackCheckpoint,
     delimiters: StackCheckpoint,
+    expression_delimited_owners: StackCheckpoint,
     lexical_modes: StackCheckpoint,
     staged_header_facts_len: usize,
     operator_probes_len: usize,
@@ -438,6 +456,19 @@ pub(crate) enum Delimiter {
     Parenthesis,
     Bracket,
     Brace,
+}
+
+/// The expression-list owner that authorizes ML application within one item.
+///
+/// This is deliberately distinct from the delimiter and stop stacks: callers
+/// use those stacks for boundary ownership, while this stack records the
+/// expression grammar whose items may themselves contain spaced application.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ExpressionDelimitedOwner {
+    Call,
+    Index,
+    ProjectionTuple,
+    ProjectionRecord,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -605,6 +636,7 @@ pub(crate) enum ConstructRole {
     OperatorName,
     ExpressionGroup,
     ArgumentList,
+    IndexTail,
     BracedStatementBlockExpression,
     ParenthesizedPattern,
     ListPattern,
@@ -617,6 +649,8 @@ pub(crate) enum ExpressionRole {
     ParenthesizedSeparator,
     CallArgument,
     CallArgumentSeparator,
+    IndexItem,
+    IndexSeparator,
     FieldName,
     PathSegment,
     MlArgument,
@@ -1304,6 +1338,7 @@ mod tests {
         });
         local.push_stop_set(StopSet::default().with(StopKind::Newline));
         local.push_delimiter(Delimiter::Parenthesis);
+        local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
         local.push_lexical_mode(EmbeddedLexicalMode::BlockComment { depth: 1 });
         local.stage_header_fact(StagedHeaderFact::Import);
         local.begin_operator_probe(OperatorCandidateProbe {
@@ -1332,6 +1367,11 @@ mod tests {
         );
         assert_eq!(local.pop_delimiter(), Some(Delimiter::Parenthesis));
         local.push_delimiter(Delimiter::Bracket);
+        assert_eq!(
+            local.pop_expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::Call)
+        );
+        local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
         local.replace_lexical_mode(EmbeddedLexicalMode::Interpolation { delimiter_depth: 2 });
         local.push_lexical_mode(EmbeddedLexicalMode::Heredoc { quote_count: 3 });
         local.stage_header_fact(StagedHeaderFact::Operator);
@@ -1365,6 +1405,10 @@ mod tests {
             Some(StopSet::default().with(StopKind::Newline))
         );
         assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
+        assert_eq!(
+            local.expression_delimited_owner(),
+            Some(ExpressionDelimitedOwner::Call)
+        );
         assert_eq!(
             local.lexical_mode(),
             Some(EmbeddedLexicalMode::BlockComment { depth: 1 })

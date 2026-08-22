@@ -21,6 +21,7 @@ use crate::{
     },
     session::{
         BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
+        ExpressionDelimitedOwner,
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
@@ -72,6 +73,7 @@ pub(crate) enum OperatorChainItem<'source> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum FixedPostfixTail<'source> {
     Call(CallTail<'source>),
+    Index(IndexTail<'source>),
     Field(FieldTail<'source>),
     Path(PathTail<'source>),
 }
@@ -80,6 +82,14 @@ pub(crate) enum FixedPostfixTail<'source> {
 pub(crate) struct CallTail<'source> {
     open: Range<usize>,
     arguments: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct IndexTail<'source> {
+    open: Range<usize>,
+    items: Vec<OperatorChain<'source>>,
     close: Recovered<Range<usize>>,
     range: Range<usize>,
 }
@@ -594,6 +604,7 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         | OperatorChainItem::InfixUse(operator) | OperatorChainItem::SuffixUse(operator) => operator.range.end,
         OperatorChainItem::Primary(primary) => primary.range().end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(tail)) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
         OperatorChainItem::MlArgument { range, .. } => range.end,
@@ -639,6 +650,7 @@ enum LedRecognition<'source> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FixedPostfixRecognition {
     Call { open: Range<usize> },
+    Index { open: Range<usize> },
     Field { leading: TriviaRun, dot: Range<usize> },
     Path { leading: TriviaRun, separator: Range<usize> },
 }
@@ -664,6 +676,9 @@ where
     match punctuation.kind() {
         PunctuationKind::Open(Delimiter::Parenthesis) if leading.is_empty() => {
             Some(FixedPostfixRecognition::Call { open: punctuation.range() })
+        }
+        PunctuationKind::Open(Delimiter::Bracket) if leading.is_empty() => {
+            Some(FixedPostfixRecognition::Index { open: punctuation.range() })
         }
         PunctuationKind::Dot if !matches!(i.input.remainder().chars().next(), Some('(' | '{')) => {
             Some(FixedPostfixRecognition::Field { leading, dot: punctuation.range() })
@@ -747,21 +762,8 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 fn ml_argument_context_allows<E>(i: &SynIn<E>) -> bool
 where E: ErrorSink<usize>,
 {
-    let stops = active_stop_set(i);
-    let call_argument_owner = matches!(i.local.delimiter(), Some(Delimiter::Parenthesis))
-        && stops.contains(StopKind::Comma)
-        && stops.contains(StopKind::Semicolon)
-        && stops.contains(StopKind::RightParenthesis);
-    if matches!(i.local.delimiter(), Some(Delimiter::Brace))
-        || (matches!(i.local.delimiter(), Some(Delimiter::Parenthesis)) && !call_argument_owner)
-        || ((stops.contains(StopKind::Comma) || stops.contains(StopKind::Semicolon)) && !call_argument_owner)
-    {
-        return false;
-    }
-    !stops.contains(StopKind::Colon)
-        && !stops.contains(StopKind::Arrow)
-        && !stops.contains(StopKind::Elsif)
-        && !stops.contains(StopKind::Else)
+    i.local.expression_delimited_owner().is_some()
+        || (i.local.delimiter().is_none() && active_stop_set(i) == StopSet::default())
 }
 
 fn parse_fixed_postfix_tail<'source, E>(
@@ -776,6 +778,7 @@ where
 {
     match tail {
         FixedPostfixRecognition::Call { open } => FixedPostfixTail::Call(parse_call_tail(table, open, i)),
+        FixedPostfixRecognition::Index { open } => FixedPostfixTail::Index(parse_index_tail(table, open, i)),
         FixedPostfixRecognition::Field { dot, .. } => {
             let name = if let Some(name) = i.run(scan_word) {
                 Recovered::Complete(name)
@@ -820,6 +823,7 @@ where
     i.local.push_delimiter(Delimiter::Parenthesis);
     let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
     i.local.push_stop_set(stops);
+    i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
     let opening = consume_trivia(i).expect("trivia scanning is total");
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
     push_layout_delimited_baseline(layout, i);
@@ -864,9 +868,81 @@ where
         }
     };
     pop_layout_delimited_baseline(layout, i);
+    assert_eq!(
+        i.local.pop_expression_delimited_owner(),
+        Some(ExpressionDelimitedOwner::Call)
+    );
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
     CallTail { open: open.clone(), arguments, close, range: open.start..i.pos() }
+}
+
+fn parse_index_tail<'source, E>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndexTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    i.local.push_delimiter(Delimiter::Bracket);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBracket);
+    i.local.push_stop_set(stops);
+    i.local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index);
+    let opening = consume_trivia(i).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    push_layout_delimited_baseline(layout, i);
+    let mut items = Vec::new();
+    let close = if let Some(close) = i.run(recognize_index_close) {
+        Recovered::Complete(close)
+    } else {
+        loop {
+            if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+                items.push(item);
+            } else {
+                if let Some(range) = call_argument_error_retry_ast(table, i) {
+                    items.push(OperatorChain::new(
+                        vec![OperatorChainItem::Error { range: range.clone() }],
+                        range,
+                    ));
+                    continue;
+                }
+                let at = i.pos();
+                if i.run(recognize_call_separator).is_some() {
+                    items.push(OperatorChain::new(
+                        vec![OperatorChainItem::MissingOperand { range: at..at }],
+                        at..at,
+                    ));
+                    consume_trivia(i).expect("trivia scanning is total");
+                    if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
+                    continue;
+                }
+                break Recovered::Incomplete;
+            }
+            let trivia = consume_trivia(i).expect("trivia scanning is total");
+            if i.run(recognize_call_separator).is_some() {
+                consume_trivia(i).expect("trivia scanning is total");
+                if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
+                continue;
+            }
+            if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
+                continue;
+            }
+            break Recovered::Incomplete;
+        }
+    };
+    pop_layout_delimited_baseline(layout, i);
+    assert_eq!(
+        i.local.pop_expression_delimited_owner(),
+        Some(ExpressionDelimitedOwner::Index)
+    );
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Bracket));
+    IndexTail { open: open.clone(), items, close, range: open.start..i.pos() }
 }
 
 /// AST-side counterpart to [`call_argument_error_retry`].  The CallTail owns
@@ -1631,6 +1707,23 @@ where
     close
 }
 
+fn recognize_index_close<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let close = matches!(punctuation.kind(), PunctuationKind::Close(Delimiter::Bracket))
+        .then(|| punctuation.range());
+    if close.is_none() {
+        i.rollback(checkpoint);
+    }
+    close
+}
+
 fn recognize_braced_statement_block_open<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Range<usize>>
@@ -1746,6 +1839,7 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
 {
     match tail {
         FixedPostfixRecognition::Call { open } => commit_call_tail(table, open, committed),
+        FixedPostfixRecognition::Index { open } => commit_index_tail(table, open, committed),
         FixedPostfixRecognition::Field { leading, dot } => {
             committed.emit_trivia(&leading);
             committed.start_node(SyntaxKind::FieldTail);
@@ -1788,7 +1882,7 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
     committed.token(SyntaxKind::LParen, open);
     let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
-    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); });
+    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call); });
     let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent));
     committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
@@ -1824,8 +1918,76 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
         ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
         ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
     }
-    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); });
+    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); });
     committed.finish_node();
+}
+
+fn commit_index_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::IndexTail);
+    committed.token(SyntaxKind::LBracket, open);
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightBracket));
+    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Bracket); probe.input().local.push_stop_set(stops); probe.input().local.push_expression_delimited_owner(ExpressionDelimitedOwner::Index); });
+    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+    if !index_close_pending(committed) {
+        loop {
+            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+                if index_item_error_retry(table, committed) {
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                        .expect("a retried index item must commit its shared NUD candidate");
+                } else {
+                    emit_index_missing(committed, ExpressionRole::IndexItem, ExpectedSyntax::Expression);
+                }
+            }
+            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            if let Some(separator) = commit_call_separator(committed) {
+                committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1);
+                let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
+                if index_close_pending(committed) { break; }
+                continue;
+            }
+            if index_close_pending(committed) { break; }
+            let boundary = committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent));
+            if boundary == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
+                emit_index_missing(committed, ExpressionRole::IndexSeparator, ExpectedSyntax::DelimitedSequenceSeparator);
+                continue;
+            }
+            break;
+        }
+    }
+    match commit_index_close(committed) {
+        IndexClose::Matched(close) => committed.token(SyntaxKind::RBracket, close),
+        IndexClose::Missing => emit_index_close_missing(committed),
+    }
+    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Index)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Bracket)); });
+    committed.finish_node();
+}
+
+fn index_item_error_retry<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos(); let mut end = start;
+        loop {
+            let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
+            i.input.next()?; end = i.pos();
+            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+        }
+    });
+    let Some(range) = recovered else { return false; };
+    emit_index_error(committed, ExpressionRole::IndexItem, range);
+    true
 }
 
 fn call_argument_error_retry<'parse, 'source, 'local, E, O>(
@@ -3860,6 +4022,59 @@ where
     })
 }
 
+fn index_close_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input(); let checkpoint = i.checkpoint();
+        let pending = i.run(recognize_index_close).is_some();
+        i.rollback(checkpoint);
+        pending
+    })
+}
+
+enum IndexClose {
+    Matched(Range<usize>),
+    Missing,
+}
+
+fn commit_index_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> IndexClose
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) {
+            return IndexClose::Missing;
+        }
+        let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation));
+        if let Some(punctuation) = punctuation {
+            match punctuation.kind() {
+                PunctuationKind::Close(Delimiter::Bracket) => return IndexClose::Matched(punctuation.range()),
+                PunctuationKind::Close(actual @ (Delimiter::Parenthesis | Delimiter::Brace)) => {
+                    emit_index_close_error(committed, punctuation.range(), actual);
+                }
+                _ => emit_index_close_error(committed, punctuation.range(), Delimiter::Bracket),
+            }
+            continue;
+        }
+        let range = committed.probe(|probe| {
+            let start = probe.input().pos(); let mut end = start;
+            loop {
+                let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
+                if matches!(character, ')' | ']' | '}' | ';') { return (start < end).then_some(start..end); }
+                i.input.next()?; end = i.pos();
+                let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+            }
+        }).expect("an index close recovery consumes invalid source");
+        emit_index_close_error(committed, range, Delimiter::Bracket);
+    }
+}
+
 fn commit_parenthesized_comma<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<Range<usize>>
@@ -4027,6 +4242,51 @@ fn emit_call_error<'parse, 'source, 'local, E, O>(
         Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
         Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]),
         0,
+    ));
+    committed.emit_error(record);
+}
+
+fn emit_index_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, expected: ExpectedSyntax,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_index_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::IndexTail, delimiter: Delimiter::Bracket };
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Bracket)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_index_close_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, range: Range<usize>, actual: Delimiter)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::IndexTail, delimiter: Delimiter::Bracket };
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(actual)) }]),
+        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Bracket)), range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
+    ));
+    committed.emit_error(record);
+}
+
+fn emit_index_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, range: Range<usize>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let role = GrammarRole::Expression(expression_role);
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
+        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
     ));
     committed.emit_error(record);
 }
@@ -4970,6 +5230,79 @@ mod tests {
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
         assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn index_tails_are_flat_layout_delimited_and_bp_neutral() {
+        for (source, item_count) in [
+            ("a[]", 0),
+            ("a[i]", 1),
+            ("a[i, j]", 2),
+            ("a[i; j]", 2),
+            ("a[i\nj]", 2),
+        ] {
+            let chain = parse(source, &canonical_operator_table());
+            let [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail { items, .. }))] = chain.items() else {
+                panic!("expected index tail for {source:?}");
+            };
+            assert_eq!(items.len(), item_count, "{source:?}");
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IndexTail).count(), 1, "{source:?}");
+        }
+        let source = "a[i].field(x)::name";
+        let root = parse_direct(source, &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::IdentifierExpression, SyntaxKind::IndexTail, SyntaxKind::FieldTail, SyntaxKind::CallTail, SyntaxKind::PathTail],
+        );
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse(source, &low), parse(source, &high));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn index_tail_requires_adjacency_and_recovers_locally() {
+        assert!(matches!(
+            fixed_tail_after_identifier("a[i]"),
+            Some(FixedPostfixRecognition::Index { .. })
+        ));
+        assert!(fixed_tail_after_identifier("a [i]").is_none());
+        for source in ["a[,i]", "a[i,,j]", "a[@i]"] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(!recoveries.is_empty(), "{source:?}");
+        }
+        for source in ["a[i", "a[i)"] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(recoveries.iter().any(|record| {
+                record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::IndexTail,
+                    delimiter: Delimiter::Bracket,
+                }
+            }), "{source:?}");
+        }
+        let (_, recoveries) = parse_direct_recovered("a[i j]", &canonical_operator_table());
+        assert!(recoveries.is_empty(), "a spaced shared NUD remains one ML item");
+    }
+
+    #[test]
+    fn index_tail_restores_owner_frames_and_precedes_terminal_colon() {
+        for source in ["f(a[i], b)", "a[f(b)]", "run:\n  a[i]\n  f(b)"] {
+            let _ = parse(source, &canonical_operator_table());
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root.descendants().any(|node| node.kind() == SyntaxKind::IndexTail));
+            assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)));
+        }
+        let chain = parse("a[i]: rhs", &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(_)), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]
+        ));
     }
 
     #[test]
@@ -6171,6 +6504,7 @@ mod tests {
         ])
         .expect("canonical operators should be valid")
     }
+
 
     fn colon_operator_table(binding_power: BindingPower) -> OperatorTable {
         OperatorTable::from_declarations([OperatorDeclaration::new(
