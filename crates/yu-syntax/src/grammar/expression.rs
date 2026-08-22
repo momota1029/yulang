@@ -381,6 +381,7 @@ where
                         match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
                             LayoutDelimitedBoundary::ImplicitNewline => continue,
                             LayoutDelimitedBoundary::DeeperNewline => break i.run(recognize_parenthesized_close)?,
+                            LayoutDelimitedBoundary::None if expression_nud_candidate_input(table, &mut i) => continue,
                             LayoutDelimitedBoundary::None => break i.run(recognize_parenthesized_close)?,
                         }
                     }
@@ -692,6 +693,18 @@ where
     E: ErrorSink<usize>,
 {
     active_stop_set(i).contains(StopKind::Comma)
+}
+
+fn expression_nud_candidate_input<E>(table: &OperatorTable, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(from_fn(|i| recognize_nud(table, LeadingTrivia::None, i))).is_some();
+    i.rollback(checkpoint);
+    candidate
 }
 
 fn trivia_continues_chain<E>(trivia: &TriviaRun, i: &SynIn<E>) -> bool
@@ -3029,6 +3042,13 @@ where
                 }
                 continue;
             }
+            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
+                emit_parenthesized_separator_missing(committed);
+                if commit_parenthesized_element(table, LeadingTrivia::None, committed).is_none() {
+                    emit_expression_missing(committed);
+                }
+                continue;
+            }
             break;
         }
     }
@@ -3073,6 +3093,19 @@ where
                 .expect("a retried parenthesized element must commit its shared NUD candidate")
         })
     })
+}
+
+fn parenthesized_element_pending<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| direct_expression_nud_candidate(table, LeadingTrivia::None, probe))
 }
 
 /// A mandatory list element owns invalid bytes only until a shared NUD
@@ -3277,6 +3310,36 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
             Arc::from([SyntaxExpectation {
                 role,
                 expected: ExpectedSyntax::Expression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_parenthesized_separator_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -4053,14 +4116,21 @@ mod tests {
 
         let (root, recoveries) = parse_direct_recovered("(a b)", &canonical_operator_table());
         assert_eq!(root.to_string(), "(a b)");
+        let outer = only_child(&root, SyntaxKind::OperatorChain);
+        let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
+        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
         assert!(matches!(
             recoveries.as_slice(),
-            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
-                if site.role == GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::ExpressionGroup,
-                    delimiter: Delimiter::Parenthesis,
-                } && site.range == (3..4)
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator)
+                    && site.range == (3..3)
         ));
+
+        let chain = parse("(a b)", &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] = chain.items() else {
+            panic!("expected parenthesized expression");
+        };
+        assert_eq!(elements.len(), 2);
     }
 
     #[test]

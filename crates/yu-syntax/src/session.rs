@@ -612,6 +612,7 @@ pub(crate) enum ConstructRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ExpressionRole {
     Nud,
+    ParenthesizedSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
