@@ -9691,3 +9691,492 @@ nested delimiter frame、no synthetic Separator node、all recovery exitのframe
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、layout-aware comma-or-newline delimited sequence authority追補案）。
+
+## 追補案: call / field / path / ML applicationのfixed OperatorChain tail
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+### Scopeと既存architectureへの関係
+
+本追補は、precedence-neutral `OperatorChain`追補で名前とflat source-order placementだけを予約した次の四形式を
+具体化する。
+
+```text
+CallTail       # f(x, y)
+FieldTail      # value.field
+PathTail       # Module::name
+MlArgument     # f x y の各 x / y
+```
+
+`IndexTail`（`a[i]`）と`ProjectionTail`（`a.(...)` / `a.{...}`）はYulang2にも実在する別grammarであるが、
+本追補のscope外である。既存architectureにあるnamed-but-unspecified variantを維持し、CST body、AST field、adjacency、
+recoveryを本追補から推論してはならない。future index / projection addendumがそれぞれのauthorityになる。
+
+本追補は次をsupersedeしない。
+
+- flat `OperatorChain`、BP-neutral surface invariant、target-free structural continuation。
+- dynamic operator role judgeとHIR-side single association authority。
+- `ColonApplicationTail`のterminality、inline / indented RHS、outer sequence ownership。
+- 既存五constructの`LayoutDelimitedSequence` rule。
+
+ただし`CallTail`のargument groupはYulang2でもlayout-aware delimited listだったため、本追補から
+`LayoutDelimitedSequence` primitiveの新しいconsumerになる。これは先行追補が実装対象とした「五construct」を六constructへ
+読み替えるretroactive supersessionではない。call固有のexplicit semicolonを含むseparator policyは本追補だけが所有する。
+
+### Yulang2 oracle evidence
+
+historical behaviorのauthorityを次で固定する。
+
+- fieldは`scan_dot_field`が`.`と直後のidentifierを一個の`DotField` lexへscanし、LED `Field`がtarget-free tailをemitして
+  shared tail loopへ戻った
+  （`yulang2-oracle@a58eefc3:crates/parser/src/scan/mod.rs:123-128`,
+  `crates/parser/src/expr/tail.rs:54-59`, `crates/parser/tests/expr_grammar.rs:870-880`）。
+- pathはLED `PathSep`が`::`を保持し、ordinary / sigil identifierをmandatory RHSとしてscanしてshared tail loopへ戻った。
+  missing RHSはempty `InvalidToken`、non-name RHSはnon-empty invalidだった
+  （`crates/parser/src/expr/tail.rs:84-101,299-302,351-366`,
+  `crates/parser/tests/expr_grammar.rs:883-917`, `crates/parser/tests/recovery.rs:20-36`）。
+- callはleading triviaが`TriviaInfo::None`の`(`だけを`CallStart`にし、`ExprListMachine`へdelegateした。call listは
+  comma / semicolonをliteral separator、following indent `<= call_base`のnewlineをimplicit separatorとして扱った
+  （`crates/parser/src/expr/scan.rs:239-255`, `crates/parser/src/expr/tail.rs:103-108`,
+  `crates/parser/src/expr/group.rs:30-117`, `crates/parser/src/parse/mod.rs:21-77`）。
+- ML applicationは一回のLED `MlNud`につき一個の`ApplyML`を作り、nested parseだけ`ml_arg = true`にした。
+  `ml_arg`中は次tail前のtriviaがnon-emptyならargumentを終了し、outer shared loopが次argumentをclaimした。
+  equal-or-shallower newlineはtail loop全体を止め、deeper newlineはcandidateを許した
+  （`crates/parser/src/expr/tail.rs:21-45,273-294`, `crates/parser/src/expr/scan.rs:217-283`,
+  `crates/parser/tests/expr_grammar.rs:824-843`, `crates/parser/tests/stmt_grammar.rs:2971-3048`）。
+- fixed tailはnumeric `min_bp`比較を通らず、call / field / pathの後も同じtail loopへ戻った。したがってこれらは互いにも
+  dynamic operatorにもsource順にinterleaveした
+  （`crates/parser/src/expr/tail.rs:47-113,226-294`）。
+
+### Authoritative surface grammar
+
+`G*`はemptyでもよい一回のmaximal `TriviaRun`、`G+`はnon-empty maximal `TriviaRun`である。
+`ChainContinuingTrivia`と`MlArgumentSeparator`のnewline条件は後節でexhaustiveに定義する。
+
+```text
+FixedExpressionContinuation :=
+    CallTail
+  | ChainContinuingTrivia FieldTail
+  | ChainContinuingTrivia PathTail
+
+ChainContinuingTrivia :=
+    maximal G* containing no physical newline
+  | maximal G* whose following_line_indent > active_base
+
+CallTail :=
+    LParen OpeningTrivia
+    [
+        OperatorChain
+        { CallArgumentBoundary OperatorChain }
+        [ CallArgumentBoundary ]
+    ]
+    RParen
+
+CallArgumentBoundary :=
+    ExplicitCallArgumentBoundary
+  | ImplicitNewlineBoundary(call_base)
+
+ExplicitCallArgumentBoundary := Comma | Semicolon
+
+FieldTail := Dot Identifier
+
+PathTail := ColonColon G* PathSegment
+PathSegment := Identifier | SigilIdentifier
+
+MlApplicationContinuation := MlArgumentSeparator MlArgument
+MlArgumentSeparator := G+ satisfying the ML boundary table
+MlArgument := OperatorChain under the ml_arg stop scope
+```
+
+`CallTail`の`LParen`はcompleted operandにbyte-adjacentでなければならない。`FieldTail`の`Dot Identifier`も
+内部triviaを許さない。対してfield / path introducerの前には`ChainContinuingTrivia`を許し、`PathTail`の`::`後には
+maximal `G*`を許す。leading / inter-tail triviaはouter `OperatorChain`直下、path segment前のtriviaは`PathTail`直下、
+call opener後とargument間のtriviaは`CallTail`直下にsource orderで一度だけ置く。
+
+### CST vocabularyとshape
+
+追加するnode kindは次の四個だけである。既存の`Dot`、`ColonColon`、`LParen`、`RParen`、`Comma`、`Semicolon`、
+`Identifier`、`SigilIdentifier`、trivia、`Missing`、`Error` token / node vocabularyを再利用する。
+
+```text
+SyntaxKind::CallTail
+SyntaxKind::FieldTail
+SyntaxKind::PathTail
+SyntaxKind::MlArgument
+```
+
+valid CST shapeを次で固定する。
+
+```text
+# f(x, y)
+OperatorChain
+  IdentifierExpression "f"
+  CallTail
+    LParen "("
+    OperatorChain
+      IdentifierExpression "x"
+    Comma ","
+    Whitespace " "
+    OperatorChain
+      IdentifierExpression "y"
+    RParen ")"
+
+# value.field::method
+OperatorChain
+  IdentifierExpression "value"
+  FieldTail
+    Dot "."
+    Identifier "field"
+  PathTail
+    ColonColon "::"
+    Identifier "method"
+
+# f x y
+OperatorChain
+  IdentifierExpression "f"
+  Whitespace " "
+  MlArgument
+    OperatorChain
+      IdentifierExpression "x"
+  Whitespace " "
+  MlArgument
+    OperatorChain
+      IdentifierExpression "y"
+```
+
+tail nodeはtargetをchildにしない。call argumentだけが`CallTail`のnested `OperatorChain`、ML argumentだけが
+`MlArgument`のnested `OperatorChain`になる。field / pathのname slotはleaf tokenであり、name用wrapper nodeを追加しない。
+literal call separatorは`CallTail`直下のraw `Comma` / `Semicolon` tokenとし、`Separator` wrapperを作らない。
+implicit call boundaryもraw triviaだけで表し、empty `Separator`、`Missing(Comma)`、sourceにないtokenを合成しない。
+
+Yulang2のcomposite `DotField(".field")`は移植せず、Yulang3ではadjacentな`Dot(".")` + `Identifier("field")`へ分ける。
+これはsource acceptanceを変えないtokenization divergenceであり、mandatory name slotとzero-width recovery positionを
+typedに表すための意図的な差である。Yulang2 `ApplyC` / `Field` / `PathSep` / `ApplyML` node名も、既存architectureで
+予約済みのtarget-free `CallTail` / `FieldTail` / `PathTail` / `MlArgument`へ置き換える。
+
+`IndexTail` / `ProjectionTail`は上のnode追加listとshape例に意図的に含めない。本追補はその既存予約を削除もしない。
+
+### Parser-side surface AST
+
+precedence-neutral parser-side valueを次へ具体化する。separator trivia / tokenはlossless CSTがauthorityであり、ASTへ複製しない。
+
+```rust
+pub(crate) enum OperatorChainItem<'source> {
+    // existing dynamic / primary / terminal variants,
+    FixedPostfix(FixedPostfixTail<'source>),
+    MlArgument {
+        argument: Box<OperatorChain<'source>>,
+        range: Range<usize>,
+    },
+    // existing recovery variants,
+}
+
+pub(crate) enum FixedPostfixTail<'source> {
+    Call(CallTail<'source>),
+    Field(FieldTail<'source>),
+    Path(PathTail<'source>),
+    // Index / Projection remain reserved and unspecified by this addendum.
+}
+
+pub(crate) struct CallTail<'source> {
+    open: Range<usize>,
+    arguments: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct FieldTail<'source> {
+    dot: Range<usize>,
+    name: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct PathTail<'source> {
+    separator: Range<usize>,
+    segment: Recovered<PathSegment<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum PathSegment<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+}
+```
+
+missing call argumentは`OperatorChainItem::MissingOperand`を含むtotal nested chainとして`arguments`へ置く。
+explicit trailing comma / semicolonはcall semantic arityを変えないためAST markerを追加しない。missing close / name / segmentの
+`Recovered`とrangeはCST recovery siteを指し、target application edgeやnumeric BPを持たない。
+
+### Continuation recognitionとcall / ML adjacency
+
+operand-complete siteのjudge順とownershipを次で固定する。fixed punctuationとdynamic spellingが同じsource positionから
+始まり得るcaseは、既存のcanonical longest-spelling / call-path-sensitive continuation judgeを一回だけ使い、
+本追補専用のsecond scannerを作らない。
+
+1. active owner stop、equal-or-shallower newline、matching delimiterを先に判定し、owner boundaryをconsumeしない。
+2. canonical judgeがaccepted dynamic suffix / infixを返せば、そのroleを保持する。fixed tail recoveryがaccepted operator spellingを
+   shorter punctuationへsplitしてはならない。
+3. structural candidateがauthorityを得た場合、no-leading-trivia `(`は`CallTail`、exact `.identifier`は`FieldTail`、
+   exact `::`は`PathTail`としてacceptしてcutする。reserved projection lookaheadのbody grammarは本追補では開かない。
+4. non-empty triviaとshared NUD candidateがML boundary tableを満たす場合だけ`MlArgument`をacceptする。同じpositionの
+   longer NUD token（将来の`:symbol`等）が成立する場合、shorter terminal punctuationへsplitしない。
+5. terminal `ColonApplicationTail`をacceptしたらchainを終了する。
+
+concrete call / ML disambiguationは次だけで決まり、semantic typeやnumeric BPを読まない。
+
+| source | classification |
+| --- | --- |
+| `f(x)` | triviaなしの`(`なのでone `CallTail` |
+| `f (x)` | non-empty same-line triviaなのでone `MlArgument(ParenthesizedExpression)` |
+| `f/*c*/(x)` | commentもnon-empty triviaなのでone `MlArgument` |
+| root base 0の`f\n  (x)` | following indent 2 > 0なのでone multiline `MlArgument` |
+| root base 0の`f\n(x)` | following indent 0 <= 0なのでchain stop。newline / `(x)`はouter ownerへ返す |
+
+`(`にleading triviaがない場合、ML argumentを表すempty separatorは存在しないためcallが常にauthorityを持つ。
+leading triviaがある場合、call recognitionは失敗し、qualifying ML separator + shared parenthesized NUDとしてだけacceptできる。
+call/path-sensitive prefix-or-nullfix word ruleも維持する。たとえば`last()` / `last::sub`では直後の`(`/`::`を
+dynamic operator spellingのargumentとせず、identifier head + structural tailを優先する。
+
+field normal recognitionはexact adjacent `.field`だけである。`.(` / `.{`はfuture `ProjectionTail` authorityへ残し、
+`..`、`...`、operator tableがacceptするlonger spellingを`.` + missing fieldへsplitしない。pathは`::`を`:`二個へsplitせず、
+`ColonApplicationTail`より先にlongest fixed punctuationとして判定する。
+
+### ML whitespace / newline boundary table
+
+ML applicationはdelimiter pairを持たないためown `LayoutDelimitedFrame`をpushしない。prospective separatorの
+maximal `TriviaRun`と、current lexical depthのactive `IndentationBaseline.column`を使う。
+
+```text
+MlArgumentSeparator(trivia, active_base) :=
+    trivia is non-empty
+    and (
+        trivia contains no physical newline
+        or following_line_indent > active_base
+    )
+    and shared OperatorChain NUD candidate follows
+```
+
+tableはexhaustiveである。
+
+| trivia before prospective argument | following candidate | result / owner |
+| --- | --- | --- |
+| empty | any NUD | ML separatorではない。no-space call / fixed tail / dynamic judgeへ残す |
+| non-empty、physical newlineなし | shared NUD | one `MlArgument` |
+| newlineあり、following indent `> active_base` | shared NUD | one `MlArgument` |
+| newlineあり、following indent `<= active_base` | shared NUD | current tail loopをstopし、triviaとcandidateをouter sequence / statement ownerへ返す |
+| qualifying trivia | shared NUDなし | ML tailをcommitしない。triviaをouter chain / callerへ残す |
+| opaque lexical region内部だけのnewline | — | trivia classifierへ出ないためML layout判定に参加しない |
+
+shared NUD candidateはcurrent `OperatorChain`が実際にacceptできるprimary、prefix、nullfixであり、identifier / integer /
+parenthesized / braced / `if` / `case` / `catch`等の実装済みprimaryと、将来同じprimary authorityへ追加されるstring / rule等を含む。
+candidate listをML専用に複製しない。LED siteでdynamic judgeがinfix / suffixを選んだoperatorはML NUDへ再解釈しない。
+これによりYulang2 fixture同様、`1\n    +2`はdynamic infixになり得る一方、judgeがprefix NUDを選ぶ
+`1\n    -2`はML argumentになり得る。
+
+one `MlArgument`をacceptした後、nested `OperatorChain`だけ`ml_arg = true`にする。このscopeではtail前triviaが
+non-emptyになった時点でnested chainを終了する。adjacent `x.field(y)::z`は同じnested argumentに残るが、
+`f x y`の`y`前spaceはnested argumentへ入らず、outer chainが二個目の`MlArgument`としてclaimする。
+separator triviaはouter `OperatorChain`直下であり`MlArgument` rangeに含めない。scope exit / recovery / rollbackの全pathで
+original `ml_arg`をexact restoreする。
+
+#### `LayoutDelimitedFrame`との合成
+
+ML boundaryと`LayoutDelimitedSequence`はorthogonalだが独立したindent値を競合させない。delimiter ownerは従来どおり
+`LayoutDelimitedFrame`をpushし、そのbaseをcurrent lexical depthのactive indentation baselineにする。nested
+`OperatorChain`のML probeはそのtop baselineを読むだけで、layout frameを再計算・上書きしない。
+
+- newline indent `<= container base`: current expression chainとML probeがstopし、containerがimplicit separatorとしてclaimする。
+- newline indent `> container base`: container separatorではなくcurrent expression continuationであり、shared NUDがあればML argumentになる。
+- delimiterを抜ければtop baselineをexact restoreし、outer statement / arm / containerの判定へ戻る。
+
+root / non-delimited expressionではnearest block / introducer baseline、なければ0を使う。したがってML applicationは
+own delimiter frameを持たないが、enclosing call / parenthesized / list / record / statement layoutとtyped baseline stack経由で
+一意にcomposeする。raw `line_indent`だけを見たり、`LayoutDelimitedFrame::inline`をML argumentごとにpushしたりしない。
+
+### Call argument layout
+
+`CallTail`はopen accept / cut直後にopening triviaを一回consumeし、先行`LayoutDelimitedSequence`と同じ式で
+`call_base`をcaptureする。
+
+```text
+incoming_base := current lexical-depth indentation baseline, or 0
+call_base :=
+    if OpeningTrivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+baseをfirst argumentから導出しない。comma / semicolonとqualifying newlineが同じinter-argument gapにある場合は
+literal punctuationをauthorityとするone boundary clusterであり、newline triviaを二度数えない。qualifying trailing newline、
+trailing comma、trailing semicolonはいずれもvalidで、empty argumentを作らない。semicolonはCallTailだけのhistorical explicit
+separatorであり、先行五constructでは引き続きinvalidである。
+
+### Recovery contract
+
+全四形式でaccepted introducer後はcutし、malformed tailをdynamic operatorやnew primaryへreinterpretしない。
+pure absenceはzero-width `Missing`、source byteを所有するmalformationは次のvalid retry / owner safe pointまでのmaximal
+non-empty `Error`、one committed recovery node = one recovery diagnosticとする。active stop、matching outer delimiter、
+equal-or-shallower newline、EOFをconsumeしない。AST / direct-CSTは同じcandidate probeとrecovery siteを共有する。
+
+session vocabularyは既存`ConstructRole::ArgumentList`、`ExpectedSyntax::{Identifier, Expression,
+DelimitedSequenceSeparator}`、closing-delimiter roleを再利用し、expression-local siteとして概念上次を追加する。
+
+```text
+ExpressionRole::CallArgument
+ExpressionRole::CallArgumentSeparator
+ExpressionRole::FieldName
+ExpressionRole::PathSegment
+ExpressionRole::MlArgument
+```
+
+`StopKind::{Comma, Semicolon, RightParenthesis}`、existing `ml_arg` flag、delimiter / indentation stackで足りるため、
+newline専用またはtail専用のuntyped stop booleanを追加しない。
+
+#### `CallTail` recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `f()` | valid zero-argument call。recoveryなし |
+| `f(a,)` / `f(a;)` / qualifying trailing newline before `)` | valid trailing boundary。empty argument / Missingなし |
+| `f(,a)` | first comma前にzero-width `OperatorChain > Missing(CallArgument)`一件。commaを保持して`a`をretry |
+| `f(a,,b)` | second comma前にzero-width missing argument一件。second commaをboundaryとして保持して`b`をretry |
+| same-line next argument candidate without boundary | zero-width `Missing(CallArgumentSeparator)`、same-position retry。ただし`f(a b)`の`a b`がvalid ML applicationならone argumentであり、このrecoveryを発行しない |
+| malformed argument bytes then valid NUD | next NUD直前までone maximal non-empty `OperatorChain > Error`、same argument slotをretry |
+| `f(a` + EOF / caller-owned boundary | argumentを保持し、boundaryをconsumeせずzero-width missing `RParen`一件 |
+| stray mismatched close | caller-owned outer closeならconsumeせずmissing `RParen`。otherwise close tokenをone non-empty `Error`にしてsame close slotを続行 |
+| explicit comma / semicolon + qualifying newline | one literal-authoritative boundary。newlineはfollowing trivia、duplicate item / diagnosticなし |
+| deeper newline in an argument | call separatorへ昇格しない。current `OperatorChain` continuation / recoveryが所有 |
+
+call scopeは`Comma`、`Semicolon`、matching `RightParenthesis`をcurrent-depth owner stopにする。これによりcall argument内の
+`ColonApplicationTail`はouter sequence ownership ruleに従ってexactly one inline RHS argumentだけを取り、call separatorを返す。
+
+#### `FieldTail` recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `x.field` | valid `FieldTail(Dot, Identifier)` |
+| `x.` + EOF / owner safe point | `Dot`を保持した`FieldTail`内にzero-width `Missing(FieldName)`一件 |
+| `x. field` | dynamic operator authorityがないexact standalone dotならdot直後へzero-width missing name。following trivia / `field`はconsumeせずouter continuationへ返す |
+| `x.` followed by non-name invalid bytes | dotを保持し、次fixed continuation / dynamic LED / owner boundaryまでをone maximal non-empty `Error(FieldName)`にする |
+| `x..`, `x...`, `x.(`, `x.{` | longer operator / reserved projection candidateをfield + Missingへsplitしない。respective authorityへ返す |
+
+bare-dot recovery probeはprojection lookaheadとcanonical longest operator probeが不成立のときだけcommitできる。
+Yulang2はmalformed dotをgeneric invalidへ落としたが、Yulang3はaccepted standalone field introducerが一意な場合だけmandatory
+name slotを保持する。これは本節末尾のexplicit divergenceである。
+
+#### `PathTail` recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `x::name` / `x:: $name` | valid path segment。`::`後triviaはtail内に保持 |
+| `x::` + EOF / owner safe point | `ColonColon`を保持した`PathTail`内にzero-width `Missing(PathSegment)`一件 |
+| `x::::name` | first tailのsegment位置へzero-width Missing一件、second `::`をconsumeせずouter tail loopからsame-position retry |
+| `x::123` | `ColonColon`を保持し、non-name RHSをone maximal non-empty `Error(PathSegment)`にする |
+| invalid run followed by fixed continuation / owner boundary | boundary直前までone non-empty Error、boundaryをouter tail / callerへ返す |
+
+path recoveryは`::`をcolon application二個へsplitせず、missing / Error segmentをordinary expression primaryとして
+捏造しない。valid segment後はshared tail loopへ戻る。
+
+#### `MlArgument` recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `f x`、`f\n  x` at base 0 | valid separator + one `MlArgument`。recoveryなし |
+| `f ` + EOF / owner boundary | shared NUD candidateがないためML tailをacceptしない。triviaだけを保持しMissing argumentを作らない |
+| equal-or-shallower newline before candidate | ML tailをacceptせずnewline / candidateをouter ownerへ返す。recoveryなし |
+| separator後にaccepted prefix/nullfix introducerがありoperand欠落 | `MlArgument > OperatorChain`内でoperator-useを保持し、nested mandatory operandのzero-width Missing一件 |
+| separator後のparenthesized / braced primaryがmalformed | accepted primaryのdelimiter / item recoveryをnested chain内で一回だけ行い、ML-specific duplicate Missingを作らない |
+| separator後がshared NUDでないinvalid run | ML tailをcommitしない。current outer expression / statement ownerのgeneric maximal Errorへ渡す |
+
+normal ML recognitionはseparatorとshared NUD candidateを一個のsink-free probeで確認してからtrivia / nodeをcommitする。
+したがってtrailing whitespaceだけから空`MlArgument`を作らない。accepted NUD後のfailureはtotal nested `OperatorChain` recoveryが
+所有し、ML layerが同じcauseへ第二diagnosticを重ねない。
+
+### Chaining、dynamic operator、ColonApplicationTail
+
+四形式はCSTで常にsource-order siblingになる。representative mixed formを次で固定する。
+
+```text
+a.b(c)::d e
+
+OperatorChain
+  IdentifierExpression "a"
+  FieldTail ".b"
+  CallTail "(c)"
+  PathTail "::d"
+  Whitespace " "
+  MlArgument
+    OperatorChain "e"
+```
+
+parserはどのfixed tail / ML argumentでもnumeric BPを比較せず、accept後はoperand-complete tail loopへ戻る。
+HIR associatorは既存contractどおりcall / field / pathをreserved structural postfix、nested `MlArgument`を先にassociateした
+fixed left applicationとしてcurrent association cursorへsource orderで適用する。したがって`f x y`は`(f x) y`、
+`a + b(c)`は`b(c)`がright operand内のfixed continuation、`a!()`と`a()!`はそれぞれsource orderのsuffix / call列になる。
+このsemantic nestingをCST / parser-side ASTへ書き戻さない。
+
+field / path / call / MLは`ColonApplicationTail`より前に何個でも現れてよい。outer `ml_arg` scopeに戻った後のcolonは
+outer chainのterminal tailになるため、`f x: rhs`は`Primary(f), MlArgument(x), ColonApplicationTail(rhs)`である。
+一方、nested `MlArgument`のparse中はexisting `ml_arg` reservationによりcolonをacceptせずouter loopへ返す。
+
+`ColonApplicationTail`をacceptした後、同じ`OperatorChain`へcall / field / path / ML / dynamic operatorを追加してはならない。
+colon RHS内部はown nested chainsとして四形式を普通に含められる。colon application resultへさらにtailを付けるsourceは
+`(f: rhs).field`のようにparenthesizeし、outer chainで新しいtailを開始する。terminal tail後のpunctuation / triviaを
+same-chain continuationとしてrecoverしない。
+
+### Explicit Yulang2 divergences
+
+本追補の意図的なCST / recovery shape差は次の四点であり、それ以外のacceptance / chainingを「consistency」の名で変更しない。
+
+1. Yulang2 `DotField` composite tokenをYulang3 `Dot` + `Identifier`へ分割する。adjacencyは維持する。
+2. Yulang2のimplicit call separator用empty `Separator` nodeとexplicit separator wrapperを移植せず、raw trivia / punctuationと
+   sibling argument hierarchyで表す。これは先行`LayoutDelimitedSequence`のsyntax-as-written CST ruleをcallへ適用する差である。
+3. Yulang2のmalformed field dotはgeneric invalidだったが、Yulang3ではlonger operator / projection authorityがなくstandalone dotが
+   field introducerとして一意なcaseに限り`FieldTail + Missing(FieldName)`へする。one committed recovery siteとmandatory-slot
+   disciplineを優先し、ambiguous spellingはfieldへcommitしない。
+4. Yulang2のempty / non-empty `InvalidToken` recoveryは、call / field / pathのtyped mandatory slotではzero-width `Missing` / maximal
+   non-empty `Error`へ置き換える。これは本architecture全体のone recovery node = one diagnostic contractを適用するshape差であり、
+   malformed bytesをvalid sourceへ再解釈する変更ではない。
+
+さらに、既存architectureが予約した`MlArgumentSeparator`の**non-empty trivia**要件を維持する。Yulang2 scannerはtoken boundaryだけで
+separate NUDを作れる一部punctuation / literal starterをtriviaなしの`MlNud`へ送れた
+（`yulang2-oracle@a58eefc3:crates/parser/src/expr/scan.rs:239-255,277-283`）が、本追補はそれを一般化しない。
+no-space `(`はCallTail、no-space fixed punctuationはそのfixed tail、その他のno-space token列はshared lexical / dynamic judgeの
+authorityであり、ML applicationはwhitespace / layout continuationだけである。このacceptance divergenceはreviewで明示確認する。
+
+### Implementation gates
+
+1. AST / direct-CSTが同じfour-tail recognizerを使い、BP-only table changeでshape / recoveryが不変である。
+2. `f(x)`と`f (x)`、same-line / deeper / equal-or-shallower newlineのcall-vs-ML tableを全てfixture化する。
+3. `f x y`がtwo sibling `MlArgument`、各argumentがone nested flat `OperatorChain`になる。
+4. field / path / call / MLとprefix / infix / suffixのmixed source-order CST、HIR association fixtureを分離して固定する。
+5. callのempty、comma / semicolon / implicit-newline、trailing boundary、mixed literal+newline、deeper continuationを固定する。
+6. call argument frameとouter parenthesized / list / record / statement frameがnested lexical depthでexact restoreされる。
+7. field `Dot + Identifier`、path `ColonColon + (Identifier | SigilIdentifier)`のnormal / missing / malformed caseを固定する。
+8. `.(` / `.{` / longer dot operatorをFieldTail recoveryへsplitせず、`::`をColonApplicationTailへsplitしない。
+9. ML argument内のadjacent fixed tail、non-empty-trivia stop、prefix/nullfix mandatory operand recoveryを固定する。
+10. all recoveryでMissing zero-width、Error non-empty、node / diagnostic一対一、owner boundary unconsumed、node / scope balance、
+    `green.to_string() == source`を満たす。
+11. fixed / ML tailの後にcolonを許し、colon後のsame-chain continuationを0件にする。nested RHS tailは別chainに残す。
+12. `IndexTail` / `ProjectionTail`のSyntaxKind、AST body、scanner、recoveryをこのimplementation sliceへ混ぜない。
+
+### Closed decisions and review focus
+
+本追補で四形式のimplementationをblockするopen questionはない。次を確定する。
+
+- call / field / pathはtarget-free `FixedPostfixTail`、MLはone-argument-per-nodeの`MlArgument`である。
+- `f(x)`はcall、`f (x)`はML parenthesized argumentである。
+- ML separatorはnon-empty same-line triviaまたはactive baseよりdeeperなnewlineであり、equal / shallower newlineはouter ownerへ返す。
+- MLはown `LayoutDelimitedFrame`を持たず、enclosing typed baseline stackを読む。
+- callはcomma / semicolon / implicit newline listで、approved layout base formulaとraw-trivia boundary shapeを使う。
+- field nameはdot-adjacent ordinary identifier、path segmentはtriviaを挟めるordinary / sigil identifierである。
+- fixed / ML tailはdynamic numeric BPを読まずsource orderでchainし、colonはそれらの後にだけ置けるterminal tailである。
+- Index / Projectionはnamed-but-unspecifiedのfuture scopeである。
+
+Claude reviewでは、特にcallのhistorical semicolon、call base capture、`f(x)` / `f (x)`、Yulang2のtrivia-free
+`MlNud`からの明示的 divergence、ml_arg中のnon-empty-trivia stop、delimited frameとのbaseline composition、DotField token split、
+bare-dot recoveryのlongest-spelling guard、colon terminality、Index / Projection scope exclusionを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、call / field / path / ML application fixed-tail追補案）。
