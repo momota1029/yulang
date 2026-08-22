@@ -8008,3 +8008,591 @@ grammar、family差、CST ownership、phase boundaryをopenに戻さない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、NUD-primary `case` / `catch` expression grammar追補案）。
+
+## 追補案: comma-delimited `ListPattern`とspread item grammar
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+already-implemented fixed-precedence pattern grammarへ、NUD-position primary `ListPattern`を追加する。
+
+```text
+ListPattern :=
+    LBracket G*
+    [ ListPatternItem G* { Comma G* ListPatternItem G* } [ Comma G* ] ]
+    RBracket
+
+ListPatternItem := Pattern | ListPatternSpreadItem
+ListPatternSpreadItem := DotDot G* Pattern
+```
+
+このsliceは次を確定する。
+
+- `[]`はvalid zero-item list patternである。
+- separatorはcommaだけである。physical newlineはlossless triviaとして保持するがimplicit separatorにしない。
+- terminal commaをvalidとし、そのrangeをASTにも保持する。
+- spread marker `..`のRHSはidentifier-only rest nameではなくfull recursive `Pattern`である。
+- spread itemのpositionとmultiplicityをparserで制限しない。first / middle / last、複数spreadを同じsurface shapeで受理する。
+- ordinary itemはdirect child `Pattern`、spreadだけは`ListPatternSpreadItem(DotDot, Pattern)` wrapperを持つ。
+- `[` / `]`、comma、trivia、spread spellingをsource orderのまま一度だけemitする。
+
+spreadの個数・位置・型的な意味はsyntax recognitionではない。future pattern HIR lowering / validationがlanguage-level制約を
+必要と判断した場合も、parserはliteral sourceを同じ`ListPattern` shapeで保持し、later phaseがdiagnosticを出す。
+
+本追補はfirst-slice pattern addendumの「list pattern / spreadをdeferする」というscope gateだけをsupersedeする。
+identifier / integer / symbol / parenthesized primary、alias / alternation precedence、case/catch consumer boundaryは変更しない。
+case/catchはsame `parse_direct_pattern`を呼ぶため、別wiringなしでlist patternをarmへ受け入れる。
+
+### Re-verified Yulang2 surface and implementation
+
+Yulang2 specのexact productionは次だった
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:1519-1530`)。
+
+```text
+pat_list =
+  "[" ((pattern | ".." pattern) ("," (pattern | ".." pattern))* ","?)? "]"
+```
+
+pattern NUD dispatchは`OpenBracket`を`parse_pat_list_group`へ送り、一個の`PatList`を開始した
+(`yulang2-oracle@a58eefc3:crates/parser/src/pat/parse.rs:100-103,307-315`)。list item machineは各item先頭で
+`DotDot`を独立にprobeし、成立すれば`PatSpread`を開始してfull `parse_pattern`をRHSへ呼んだ。ordinary itemも同じ
+comma / closing stop下でfull patternだった
+(`crates/parser/src/pat/parse.rs:355-408`)。
+
+このloopはspread count、既出spread、item indexを保持しない。したがってYulang2 parser上はspreadがfirst / middle / lastの
+どこにあってもよく、複数spreadもparse-time validだった。これはsemantic rationaleが明文化された結果ではなく、
+item-local recognitionの帰結である。本追補はhistorical permissivenessを無批判にsemantic ruleへ昇格するのではなく、
+**surface parserがcross-item semantic validationを所有しない**というYulang3のphase boundaryとして明示的に採用する。
+
+explicit separator predicateは`Comma`だけだった
+(`crates/parser/src/pat/parse.rs:365-372`)。ただしunderlying `DelimitedListMachine`はcurrent base indent以下のphysical
+newlineをempty `Separator`として受理した
+(`yulang2-oracle@a58eefc3:crates/parser/src/parse/mod.rs:21-23,35-67`)。よってhistorical implementation languageは
+specのcomma grammarより広かった。list pattern固有fixtureにimplicit-newline separator coverageはない。
+
+emptyとtrailing commaはdedicated branchではなく、item probeが`BracketR`をStopとして返しgeneric machineがcloseを
+consumeすることで成立した。open直後のcloseとcomma後のcloseは同じpathである
+(`crates/parser/src/pat/parse.rs:370-397`;
+`crates/parser/src/parse/mod.rs:35-67`)。
+
+唯一のlist-pattern fixture `[head, ..middle, tail]`は次のCSTを固定する。
+
+```text
+PatList(
+  BracketL,
+  Pattern(head),
+  Separator(Comma),
+  PatSpread(DotDot, Pattern(middle)),
+  Separator(Comma),
+  Pattern(tail),
+  BracketR,
+)
+```
+
+evidenceは`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:201-230`である。tagのtest suiteには
+list patternのmissing close、missing spread RHS、missing separator、malformed item fixtureがない。したがってrecoveryは
+historical test oracleを推測せず、Yulang3のtyped mandatory-slot contractから定義する。
+
+### Current Yulang3 baseline and extension point
+
+commit `72c93d5a`時点の`PatternPrimary`は`Identifier`、`Integer`、`Symbol`、`Parenthesized`だけであり、
+`PatternNudRecognition` / `recognize_pattern_nud`もopen parenthesisまでしかdelimited primaryを認識しない
+(`crates/yu-syntax/src/grammar/pattern.rs:62-68,399-440`)。`parse_pattern` / `parse_direct_pattern`、fixed
+`PatternPrecedence`、parenthesized comma / close recoveryは実装済みである。
+
+case/catch-driven fixesはactive `Arrow` / `ArmGuardIf` / `ArmGuardWhere`をpattern NUDとinvalid-run recoveryのsafe pointにし、
+`parse_direct_pattern`をactual arm consumerへ接続した
+(`crates/yu-syntax/src/grammar/pattern.rs:357-452,985-1019`;
+`crates/yu-syntax/src/grammar/expression.rs:907-929,2502-2508`;
+`crates/yu-syntax/src/session.rs:357-373`)。list primaryはこのsame entrypointをrecursiveに拡張し、case/catch側へparallel
+parserを作らない。
+
+scanner / session vocabularyには`Delimiter::Bracket`、`StopKind::RightBracket`、`LBracket` / `RBracket` scanとCST tokenが
+すでにある (`crates/yu-syntax/src/session.rs:357-380`;
+`crates/yu-syntax/src/scan/punctuation.rs:67-74`;
+`crates/yu-syntax/src/syntax_kind.rs:94-100`)。ただしgrammar owner、item sequence、spread marker、typed list recoveryはない。
+tokenが存在することをlist grammar実装済みとは数えない。
+
+`pattern.rs`先頭の「production consumerがない」というmodule commentはcase/catch実装後の現状と一致しない
+(`crates/yu-syntax/src/grammar/pattern.rs:1-6`)。本callではsourceを変更しないが、future implementation sliceはlist追加と
+同時にcommentを「standalone entrypointを持ち、case/catchからもconsumeされるindependent grammar family」へ更新する。
+
+### Separator scope: comma-only
+
+Yulang3 `ListPattern`はcomma-onlyとする。semicolonもimplicit physical newlineもvalid separatorではない。
+
+approved first-slice pattern addendumは`ParenthesizedPattern`について、Yulang2 generic machineのimplicit-newline behaviorを
+移植せず、newlineをtriviaとして保持しつつnext element前へmissing comma recoveryを置く、と確定した
+(`notes/design/2026-08-20-yu-syntax-chasa-architecture.md:6841-6849,7177`)。list patternは同じpattern grammar familyの
+同じcomma-delimited recursive element listであり、ここだけhistorical implementation leakageを復活させる理由がない。
+
+結果を次で固定する。
+
+| source | result |
+| --- | --- |
+| `[]` | valid empty list |
+| `[a]` | valid one ordinary item |
+| `[a,]` | valid one item + trailing comma |
+| `[a,\n b]` | valid two items。newlineはcomma後trivia |
+| `[a\n b]` | two items + zero-width missing comma before `b` |
+| `[a; b]` | semicolonはnon-empty separator `Error`。valid separatorではない |
+
+newlineを禁止byteにしない。commentsを含む`G*`としてCSTへ残し、commaの有無だけをsurface validityに使う。
+future language decisionでlayout-separated pattern containerが必要になった場合は、そのcontainer ownerのaddendumで
+明示的に導入する。generic bracket scopeが暗黙に全pattern listへlayout separatorを与えてはならない。
+
+### Spread item and semantic boundary
+
+`ListPatternSpreadItem`はliteral `..`とmandatory full `Pattern@Lowest`を所有する。
+
+```text
+ListPatternSpreadItem := DotDot G* Pattern@Lowest
+```
+
+full recursive RHSを選ぶ理由は三つある。
+
+1. Yulang2 actual parserとspecの両方がfull patternを要求する。
+2. `..tail as rest`、`..(:tag | other)`、`..[head, ..tail]`をexisting pattern grammarのcompositionとして表せる。
+3. parserがidentifier spellingをrest bindingへ固定すると、binding / wildcard / constructor判断をHIR前へ引き戻す。
+
+spread RHSのextentはlist ownerのlocal `Comma` / `RightBracket` stopまでである。したがって`[..a | b, c]`ではspread RHSは
+alternationを含む`Pattern(a | b)`、second list itemは`c`である。`..`とRHSの間のtriviaはoptionalで、`..tail`と
+`.. tail`を同じnode shapeで保持する。
+
+position / multiplicityはunrestricted surface grammarとする。
+
+```text
+[..head, middle]
+[head, ..middle, tail]
+[head, ..tail]
+[..left, middle, ..right]
+```
+
+いずれもparser-validである。parserはspread countを数えず、一個目と二個目でnode kindやrecovery pathを変えない。
+「最大一個」「tail positionだけ」等を将来採用する場合、それはlist destructuring semanticsを所有するpattern lowering /
+validation ruleとして全`ListPatternSpreadItem`列を一度検査する。CSTを二種類へ分けたり、second spreadをgeneric `Error`へ
+変換したりしない。
+
+これはinvalid syntaxを無条件にsemantic phaseへ送る一般規則ではない。missing comma、missing spread RHS、missing closeは
+grammar errorとしてparserがrecoverする。一方、source上明示されたvalid item formの組合せに対するcardinality constraintは
+later validationである、という境界である。
+
+### Grammar and precedence integration
+
+`G*`はnewlineを含み得るmaximal lossless trivia run、`Pattern@P`はexisting fixed minimum precedence callである。
+
+```text
+PatternPrimary += ListPattern
+
+ListPattern :=
+    LBracket G*
+    [
+        ListPatternItem G*
+        { Comma G* ListPatternItem G* }
+        [ Comma G* ]
+    ]
+    RBracket
+
+ListPatternItem :=
+    Pattern@Lowest
+  | ListPatternSpreadItem
+
+ListPatternSpreadItem :=
+    DotDot G* Pattern@Lowest
+```
+
+item-required positionではspread markerをordinary pattern NUDより先にcomposite probeする。`..`が成立しなければbyteを
+consumeせずexisting `PatternNudRecognition`へfallbackする。spreadはnew precedence tailではなくlist-primary内部のitem
+prefixである。`PatternPrecedence::{Lowest, Alternation, Alias}`と`PatternLedRecognition`を変更しない。
+
+matching `]`後はouter `Pattern`のexisting LED loopへ戻る。したがって`[a] as xs | []`はhead
+`ListPattern`、alias tail、alternation tailという既存source-order shapeになる。list nodeがouter pattern tailを所有しない。
+
+### `..` lexical ownership
+
+current fixed punctuation scannerはbracketsを既にscanする一方、`..` / `...`をdynamic-operator territoryへ残している
+(`crates/yu-syntax/src/scan/punctuation.rs:39-58,67-82`)。list pattern parserは`OperatorTable`を受け取らないため、
+spread markerをdynamic operator declarationへ問い合わせない。
+
+implementationはdeclaration-independentなmaximal operator-shaped spelling probeをreuse / extractし、list-item-required
+positionでcandidate textがexact `..`のときだけ`DotDot`としてacceptする。`...`、`..+`等のlonger operator-shaped
+spellingを`..` + remainderへsplitしない。probeはsink-freeで、reject時にinput / line stateをexact rollbackする。
+
+このexactnessはadjacent RHSを禁止しない。`..tail`ではmaximal operator-shaped spellingが`..`で終わり、following
+identifier `tail`がRHS NUDになる。`...tail`はspreadではなくmalformed itemとしてrecoveryされる。operator headerで
+`..`のfixity / BPを宣言または変更してもlist-pattern CST / AST / diagnosticは変わらない。
+
+`SyntaxKind::DotDot`はaccepted list spread markerのfixed grammar roleである。expression positionの同じspellingは
+引き続きdynamic `Operator` tokenであり、shared `PunctuationKind`へunconditional `DotDot`を追加しない。
+
+### Delimiter and stop scope
+
+accepted `LBracket`でcutした後、list ownerは次をpushする。
+
+```text
+delimiter = Delimiter::Bracket
+local stops = { StopKind::Comma, StopKind::RightBracket }
+```
+
+このlocal frameはincoming case/catch `Arrow` / `ArmGuardIf` / `ArmGuardWhere` / handler `Comma`、outer paren close等を
+bracket depthの外へsuspendする。list内部のcommaはlist ownerが所有し、matching `]`後にouter stop frameをexact restoreする。
+たとえば`catch x: [head, ..tail], handler -> body`ではfirst commaはlist separator、`]`後のcommaだけがcatch handler
+separatorである。
+
+all exit paths、すなわちempty close、normal close、trailing comma close、missing item、malformed item、missing closeで
+delimiter / stop stackを一回ずつpopする。recursive list RHSは新しいbracket frameをnestし、inner closeがouter closeを
+consumeしない。
+
+list item candidateは次のpriorityで判定する。
+
+1. matching `RightBracket` pendingならempty / terminal boundary。itemを開始しない。
+2. exact `DotDot` pendingならspread item。
+3. existing `pattern_nud_candidate`ならordinary item。
+4. comma pendingならmandatory item missing boundary。
+5. それ以外はnon-empty item / separator recovery。
+
+incoming outer stopはnormal item parse中はsuspendするが、missing-close recoveryのescape boundaryとしてsnapshotを保持する。
+matching `]`を得る前にcurrent-depth caller-owned arrow / guard / outer close / EOFへ達した場合、zero-width missing `]`をemitして
+outer boundaryをconsumeせずscopeをrestoreする。opaque lexical region内の同じspellingはescape boundaryにしない。
+
+### CST vocabulary and shape
+
+本sliceで追加するkindは次だけである。
+
+```text
+SyntaxKind::ListPattern
+SyntaxKind::ListPatternSpreadItem
+SyntaxKind::DotDot
+```
+
+`Pattern`、`IdentifierPattern`、`ParenthesizedPattern`、`LBracket`、`RBracket`、`Comma`、trivia、`Missing`、`Error`は
+existing kindを使う。`PatList` / `PatSpread` abbreviation、`RestPattern`、`ListPatternItem` wrapper、generic `Separator` nodeは
+追加しない。
+
+ordinary itemはdirect `Pattern` childである。spread itemだけはmarkerとRHSのownershipを表す
+`ListPatternSpreadItem`を持つ。commaはapproved `ParenthesizedPattern`と同様にraw `Comma` tokenとして`ListPattern`直下へ
+emitし、synthetic separator nodeへ包まない。
+
+`[head, ..middle, tail]`のCSTは次になる。
+
+```text
+Pattern
+  ListPattern
+    LBracket "["
+    Pattern
+      IdentifierPattern
+        Identifier "head"
+    Comma ","
+    Whitespace " "
+    ListPatternSpreadItem
+      DotDot ".."
+      Pattern
+        IdentifierPattern
+          Identifier "middle"
+    Comma ","
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        Identifier "tail"
+    RBracket "]"
+```
+
+`[..left, ..right,]`もouter kindを変えない。
+
+```text
+Pattern
+  ListPattern
+    LBracket "["
+    ListPatternSpreadItem
+      DotDot ".."
+      Pattern
+        IdentifierPattern
+          Identifier "left"
+    Comma ","
+    Whitespace " "
+    ListPatternSpreadItem
+      DotDot ".."
+      Pattern
+        IdentifierPattern
+          Identifier "right"
+    Comma ","
+    RBracket "]"
+```
+
+zero / one / many item、ordinary / spread ordering、trailing comma、spread countによって`ListPattern`以外のouter nodeを
+選ばない。全source byteを一度だけemitし、`green.to_string() == source`を維持する。
+
+### Parser-side AST shape
+
+existing `PatternPrimary`へ一variantを追加する。
+
+```rust
+pub(crate) enum PatternPrimary<'source> {
+    Identifier(PatternNameSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Symbol(SymbolPattern<'source>),
+    Parenthesized(ParenthesizedPattern<'source>),
+    List(ListPattern<'source>),
+}
+
+pub(crate) struct ListPattern<'source> {
+    open: Range<usize>,
+    items: Vec<Recovered<ListPatternItem<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ListPatternItem<'source> {
+    Pattern(Pattern<'source>),
+    Spread(ListPatternSpreadItem<'source>),
+}
+
+pub(crate) struct ListPatternSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<Pattern<'source>>>,
+    range: Range<usize>,
+}
+```
+
+`items`のsource orderはCSTと一致する。missing item after commaは`Recovered::Incomplete`、accepted spread + missing RHSは
+`Recovered::Complete(ListPatternItem::Spread { rhs: Recovered::Incomplete, ... })`で区別する。後者はliteral `..`が存在する
+というsyntax factを失わない。exact recovery carrierはcurrent codeへ合わせてよいが、この区別を潰してはならない。
+
+ASTはall comma tokenをduplicateしない。semantic validationに必要なitem order / spread marker role / trailing commaとclose
+recoveryだけを保持し、lossless spellingはCSTをauthorityとする。`ListPatternItem::Spread`をidentifier rest bindingへlowerする
+判断はparser-side ASTで行わない。
+
+### Shared comma-delimited pattern mechanics
+
+`ParenthesizedPattern`と`ListPattern`は、empty detection、comma commit、trailing comma、missing separator same-position retry、
+matching close、scope restorationという二個目のconcrete userを持つ。これらのmechanicsはcopyせず、closed internal policyへ
+factorする。
+
+```rust
+enum PatternDelimitedPolicy {
+    Parenthesized,
+    List,
+}
+```
+
+policyが所有するのはdelimiter、opening / closing token kind、construct role、item / separator recovery role、item-candidate /
+item-commit callbackだけである。`ParenthesizedPattern`はordinary `Pattern`だけ、`ListPattern`はordinary / spread sumをparseする。
+public ASTをgeneric `DelimitedPattern<T>`へ変えず、outer CST nodeとsemantic projectionはdistinctのままにする。
+
+expression argument list、statement sequence、case/catch arm sequence、future record-field sequenceをこのhelperへ通さない。
+separator spellingがcommaでも、item grammar、layout、close recovery ownerが異なるためである。future record patternはmixed field /
+spread / default expression grammarを自分のaddendumで設計する。
+
+### Recognition / commit control flow
+
+AST pathとdirect-CST pathで同じsink-free NUD recognitionを共有する。
+
+```text
+recognize_pattern_nud:
+    existing arm-stop / symbol priority
+    exact name / integer / parenthesis probes
+    if fixed `[` opening is accepted:
+        return PatternNudRecognition::List { open }
+
+commit_list_pattern(open):
+    start ListPattern; emit LBracket; push bracket scope
+    emit maximal leading trivia
+
+    if matching RBracket pending:
+        emit close; pop scope; finish valid empty list
+        return
+
+    loop:
+        commit one mandatory ListPatternItem
+        emit following trivia
+
+        if comma pending:
+            emit raw Comma and following trivia
+            if matching RBracket pending:
+                record trailing comma; emit close; pop scope; finish
+                return
+            continue with one mandatory item
+
+        if matching RBracket pending:
+            emit close; pop scope; finish
+            return
+
+        if exact DotDot or Pattern NUD candidate pending:
+            emit zero-width Missing(ListSeparator)
+            retry next item at the same position
+            continue
+
+        recover one non-empty separator/close episode
+        if item candidate found:
+            retry next item
+        else:
+            recover/insert close; pop scope; finish
+```
+
+mandatory item continuationは次である。
+
+```text
+commit_list_item:
+    if exact DotDot pending:
+        start ListPatternSpreadItem; emit DotDot; cut
+        emit trivia
+        commit Pattern@Lowest with role ListSpreadRhs
+        finish spread item
+    else:
+        commit Pattern@Lowest with role ListItem
+```
+
+accepted `[` / `..`後はalternativeへrollbackしない。direct `Pattern` nodeはexisting
+`parse_direct_pattern_bp(PatternPrecedence::Lowest, role, ...)`がemitする。list wrapperがpattern recovery diagnosticを
+重複発行しない。
+
+### Typed recovery contract
+
+typed vocabularyへ次を追加する。
+
+```text
+PatternRole::{
+    ListItem,
+    ListSpreadRhs,
+    ListSeparator,
+}
+
+ConstructRole::ListPattern
+
+ExpectedSyntax::Pattern
+ExpectedSyntax::Punctuation(Comma)
+ExpectedSyntax::Punctuation(Close(Bracket))
+```
+
+new recovery primitiveは不要である。zero-width `Missing`、maximal non-empty `Error`、one committed recovery node = one
+diagnostic、same-position retry、delimiter / lexical safe pointをexisting parenthesized / case-arm contractどおり使う。
+
+| source situation | required recovery / CST ownership |
+| --- | --- |
+| `[]` | valid empty `ListPattern`。Missingなし |
+| `[a,]` | valid one item + raw trailing `Comma`。Missingなし |
+| `[,a]` | first comma位置に`Pattern > Missing(ListItem)`、commaを保持し`a`をnext itemとしてparse |
+| `[a,,b]` | second comma位置にmissing item一件。両commaを保持し`b`へ進む |
+| `[a b]` | current no-ML-application sliceでは`b`直前へzero-width `Missing(ListSeparator)`、same positionからordinary itemをretry |
+| `[a ..b]` | `..`直前へzero-width `Missing(ListSeparator)`、same positionからspread itemをretry |
+| `[a; b]` | `;`をnon-empty `Error(ListSeparator)`、expected commaとし、`b`をsame sequenceのnext itemとしてretry |
+| `[a, @ b]` | `@`をnon-empty `Error(ListItem)`にし、same mandatory item slotを`b`からretry |
+| `[..tail]` | complete spread item。RHSはfull `Pattern(tail)` |
+| `[..]` | `DotDot`を保持したspread node内にzero-width `Pattern > Missing(ListSpreadRhs)`、`]`をconsumeしない |
+| `[..,a]` | comma位置でmissing spread RHS一件。そのcommaをlist separatorとして保持し`a`へ進む |
+| `[..@tail]` | `@`をspread RHSのnon-empty `Error`にし、same RHS slotを`tail`からretry |
+| `[...,a]` | `...`を`DotDot`へsplitせずnon-empty malformed item `Error`。comma後の`a`へ進む |
+| `[a` + EOF | itemを保持し、EOFへzero-width `Missing(RBracket)`一件 |
+| `[a)` | `)`をclosing-delimiter evidence付きnon-empty `Error`にし、matching `]`探索またはmissing closeへ進む |
+| case arm内`[a -> body` | outer Arrowをconsumeせずzero-width missing `]`を置き、scope restore後arm ownerへ返す |
+
+leading / repeated commaはempty / trailing判定と区別する。trailing commaがvalidなのは少なくとも一個のcommitted itemの後で、
+comma後にmatching closeがpendingな場合だけである。open直後のcommaはmissing first item、二comma目はmissing intervening itemを
+表す。
+
+invalid-run recoveryはmatching `]`、comma、exact spread marker、ordinary Pattern NUD candidate、captured outer safe point、EOFを
+consumeしない。non-empty Errorをemitした場合だけsame mandatory slotをretryする。同じpositionへMissing separatorを二度
+置かず、retryはitem commitまたはnon-empty recovery consumptionで必ずprogressする。
+
+future ML-application pattern tailが追加されれば、whitespace-separated primary candidateをcurrent itemのtailとしてconsumeする
+caseが増え得る。その場合もlist loopが先にshapeを推測せず、**full Pattern parserが返した位置**でだけseparatorを判定する。
+上表の`[a b]`はcurrent sliceのgateであり、future ML grammarを禁止する恒久的lexical splitではない。
+
+matching close recoveryはnested delimiter / opaque string・comment・interpolation region内の`]`をouter closeにしない。
+mismatched current-depth `)` / `}`はunexpected closing evidenceとしてnon-empty Errorにできるが、captured caller boundaryを
+越えてmatching closeを探さない。all recovery recordは`GrammarRole::Pattern`または
+`GrammarRole::ClosingDelimiter { owner: ListPattern, ... }`を持ち、root trailing diagnosticと混同しない。
+
+### Existing architecture principlesとの整合
+
+- **syntax-as-written CST:** item count、spread count / position、trailing commaによってouter nodeを変えない。literal spreadだけを
+  source-local wrapperで示す。
+- **independent pattern authority:** list primary / spread item / fixed comma scopeはpattern moduleが所有する。expression
+  `OperatorChain`やdynamic NUD / LEDへ追加しない。
+- **fixed precedence:** spread RHSはexisting `Pattern@Lowest`であり、新しいprecedence levelや`BpVec`を要求しない。
+- **immutable operator table:** list entrypointはtableを受け取らず、`..` declaration / BP変更から独立する。
+- **oracle judge separation:** `[` primaryとitem-required `..`はsmall pattern NUD/item judgeへ追加し、expression operator oracleへ
+  混ぜない。
+- **rollback discipline:** bracket / exact spread / comma / close / next-item candidateはsink-free probe、accept後cut、forward-only
+  emitとする。started nodeやdiagnosticをrollbackしない。
+- **lexical-region awareness:** delimiter stackがnested bracket / paren / brace、opaque region、outer case stopsを分離する。
+- **mandatory-slot recovery:** accepted spreadはmissing RHSでも`ListPatternSpreadItem`を閉じる。missing separatorはsame-position
+  item retry、malformed episodeはnon-empty Errorでprogressする。
+- **semantic deferral:** identifier / wildcard / constructor判断に加え、spread cardinality / position / capture semanticsをlater
+  pattern lowering / validationへ送る。
+- **consumer stability:** case/catchは同じpattern entrypointを呼ぶだけで、list内部commaをhandler / arm separatorとして
+  誤認しない。consumer-specific codeへlist special caseを足さない。
+
+### Implementation boundary and required gates
+
+implementation sliceは`crates/yu-syntax/src/grammar/pattern.rs`を中心に次を行う。
+
+1. AST / NUD recognitionへ`ListPattern`とspread itemを追加する。
+2. `SyntaxKind::{ListPattern, ListPatternSpreadItem, DotDot}`とrowan conversionを追加する。
+3. `PatternRole::{ListItem, ListSpreadRhs, ListSeparator}`、`ConstructRole::ListPattern`を追加する。
+4. `Delimiter::Bracket` / `StopKind::RightBracket`を初めてproduction pattern scopeへ接続する。
+5. operator table非依存のexact maximal `..` probeを追加またはgrammar-neutral lexical primitiveから抽出する。
+6. parenthesized / listでcomma / close mechanicsをclosed internal policyとして共有し、item grammarはowner別に保つ。
+7. AST-only / direct-CST path、typed diagnostics、scope restorationをfixtureで固定する。
+
+required gatesは次である。
+
+1. `[]`、`[a]`、`[a,]`、`[a,b]`、`[a,b,]`がuniform `ListPattern`とexact item count / trailing markerを持つ。
+2. `[head, ..middle, tail]`がordinary / spread / ordinary source-order shapeになる。
+3. `[..a, b, ..c]`が二spreadをsurface-validに保持し、second spreadをErrorへ変えない。
+4. `[..a | b, c]`のspread RHSがalternationを含むfull Patternである。
+5. `[a,\n b]`はvalid、`[a\n b]`はmissing comma一件、`[a; b]`はseparator Errorになる。
+6. leading / repeated comma、missing separator before ordinary / spread、malformed itemがtableどおりsame-position retryする。
+7. missing / malformed spread RHSがDotDot nodeを保持し、comma / closeをconsumeしない。
+8. missing / mismatched close、outer arm arrow escape、nested bracketsでall delimiter / stop framesがbalancedになる。
+9. `...` / `..+`をspreadへprefix-splitしない。`..tail` / `.. tail`はvalidである。
+10. operator headerの`..` spelling / fixity / BP変更でlist pattern CST / AST / diagnosticsが変わらない。
+11. `case xs: [head, ..tail] -> head`と`catch x: [a,b], handler -> body`でbracket-local comma ownershipを保つ。
+12. all probesでsink call 0、accepted node emission一回、`green.to_string() == source`、AST/direct parityを満たす。
+13. existing parenthesized pattern、case/catch、expression/operator testsのshape / diagnosticsを維持する。
+
+### Explicit future scope
+
+本追補は次を設計しない。
+
+- record pattern、field shorthand、`name: pattern (= expression)?`、`name = expression`、record spread。
+- pattern type annotationとtype-expression grammar。
+- string / rule literal pattern。
+- field / path / no-space constructor call / ML application pattern tail。
+- wildcard / constructor resolution、or-pattern binding-set equality、list element typing。
+- spreadのruntime matching algorithm、capture representation、zero / one / many element allocation semantics。
+- semantic ruleとしてのspread count / position制限。必要ならpattern HIR / validation addendumが所有する。
+- expression list literal。same bracketsを使ってもexpression grammar familyの別primaryである。
+- implicit-newlineまたはsemicolon-separated pattern list。futureに必要ならseparator-scope addendumで明示的に決める。
+
+record spreadとlist spreadはliteral `.. Pattern`を共有し得るが、outer item grammarとsemantic roleが異なる。本sliceの
+`ListPatternSpreadItem`をfuture record CST nodeへ流用するかはrecord addendumが判断し、ここではgeneric
+`PatternSpread`へ早期統合しない。
+
+### Closed decisions and review focus
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- list patternはcomma-only、empty / trailing comma validである。
+- implicit newline / semicolonをvalid separatorにしない。
+- spread RHSはfull recursive Patternである。
+- parserはspread position / multiplicityを制限しない。
+- ordinary itemはdirect Pattern、spreadは`ListPatternSpreadItem` wrapperである。
+- exact `..`はlist-item-required contextのfixed syntaxで、dynamic operator tableから独立する。
+- parenthesized / listはdelimiter mechanicsだけをclosed internal policyで共有し、public AST / CST ownerを統合しない。
+- accepted bracket / spread後のmandatory-slot recoveryはtotalで、outer case/catch stopをconsumeしない。
+- record / type / literal / constructor-tail patternを同時実装しない。
+
+Claude reviewでは、特に`..tail`を許しつつ`...` / `..+`をprefix-splitしないlexical boundary、outer catch handler commaと
+inner list commaのscope、spread RHS alternation extent、second spreadをparser Errorにしないphase boundary、newlineの
+comma-only recovery、leading / repeated comma、missing spread RHSがcloseを守ること、missing-close時のouter arm stop escape、
+parenthesized mechanics共有がtype-erased over-generalizationにならないことを確認対象にする。helper名、private range carrier、
+typed diagnostic enumの具体名はcurrent sourceへ合わせて調整してよいが、surface grammar、CST shape、separator scope、
+semantic deferralをopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、comma-delimited `ListPattern`とspread item grammar追補案）。
