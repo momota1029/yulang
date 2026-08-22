@@ -4987,5 +4987,5 @@ future construct-specific addendumでoracle fixtureとともに具体化する�
 CST application treeを作る案へ戻すことはできない。call / field / index / colon / assignment / `with` / `as`も、
 各constructのfuture recovery detailは追加できるが、本追補のBP-neutral layer分類を変更しない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、precedence-neutral dynamic operator chain / association boundary追補案）。
