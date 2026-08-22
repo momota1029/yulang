@@ -11623,7 +11623,7 @@ Pattern Equal stopとouter statement boundaryのexact restoreを確認対象に�
 
 ## 追補案: canonical `Statement` / root `Declaration`の`mod` declaration拡張
 
-Status: Claude review / exact wordingのfinal sign-off待ち。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 Date: 2026-08-23。
 
@@ -12149,5 +12149,5 @@ Claude reviewでは、特に`mod test;`のanonymous authority、`mod test` EOF�
 visibility-led `mod`とBindingのcollision、missing name / body no-cascade、missing-colon inline retry、root header非projection、
 `BracedStatementBlockExpression`流用による旧追補の限定supersessionを確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Statement / root Declaration `mod` declaration追補案）。
