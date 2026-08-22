@@ -7232,3 +7232,779 @@ colon ownership、consumer非接続をopenに戻さない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、first-slice pattern grammar追補案）。
+
+## 追補案: NUD-primary `case` / `catch` expression grammar
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3のfirst `case` / `catch` sliceを、standalone pattern grammarの最初のconsumerとして追加する。両者は
+`IfExpression`と同じNUD-position `PrimaryExpression`であり、dynamic operator chainの
+`TerminalOuterContinuation`ではない。したがって`case` / `catch` expression全体が一個の`OperandSlot::Value`となり、
+その外側へprefix / infix / suffix useをsource orderのまま接続できる。
+
+first sliceはnormal expression formの`case`と`catch`を同時に所有し、次を含む。
+
+- optional apostrophe-sigil label。
+- mandatory scrutinee `OperatorChain`。
+- colon-inline arm sequenceとcolon-indented arm block。
+- `case`のcomma-separated inline multiple arms。
+- `catch`のinline exactly-one arm、indented multiple arms、専用brace arm block。
+- arm-local `if` / `where` guard。
+- `catch` armのoptional second full `Pattern`（handler pattern）。
+- inlineまたはdeeper-indented statement blockを取るmandatory arrow body。
+
+`case`と`catch`を別sliceへ分けない。outer node名と許可surfaceは異なるが、keyword / label / scrutinee / block、
+pattern / guard / arrow / bodyというcommit skeleton、fixed arm boundary、layout判定、recovery authorityを共有する。
+片方だけを先行すると、もう片方の既知の差分を無視したboolean-driven helperが先に事実化するためである。実装は
+任意のboolean組合せを持つconfigではなく、closed `CaseLikeFamily::{Case, Catch}`からfamily固有policyとnode kindを
+導出する。
+
+このsliceでarmが受理できるpatternは、commit `4ec436cc`のstandalone first slice、すなわちidentifier / sigil
+identifier、integer、contiguous symbol、comma-only parenthesized pattern、`as` alias、`|` alternationだけである。
+list / record / type annotation / string・rule / constructor call・ML application patternをcase側でstub実装しない。
+
+### Re-verified Yulang2 grammar and deliberate Yulang3 boundary
+
+Yulang2では`CaseLikeConfig`がexpression / block / arm / guard node kindと、handler、inline-list、brace-blockの許可を
+parameterizeし、一個の`parse_case_like_expr` / `parse_arm`を共有していた
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:523-531,573-630,814-939`)。actual configは
+`case = { handler: false, inline-list: true, brace: false }`、
+`catch = { handler: true, inline-list: false, brace: true }`だった
+(`crates/parser/src/expr/control.rs:549-570`)。optional labelはapostropheで始まる`SigilIdent`一個であり、
+scrutineeの前に直接emitされた
+(`crates/parser/src/expr/control.rs:633-648`;
+`crates/parser/tests/expr_grammar.rs:1618-1655`)。
+
+scrutinee parserは両familyで`Colon`をlocal stopにし、brace blockを所有する`catch`だけ`BraceL`もstopにした。
+`case x { ... }`のbraceはcase block introducerではなくscrutinee側へ残す、という差は実装とspecの両方に明記される
+(`crates/parser/src/expr/control.rs:584-620`;
+`spec/2026-06-06-syntax-design.md:1181-1184`)。Yulang3もこの非対称を維持する。
+
+colon後のYulang2 layoutは、deeper newlineなら複数armのindent machine、inlineなら`case`だけcomma list、`catch`は
+一armだけだった。catchだけは専用brace arm listも持った
+(`crates/parser/src/expr/control.rs:689-812`;
+`spec/2026-06-06-syntax-design.md:1181-1215`)。catch braceはgeneric statement blockではなく、
+`CatchBlock`が`BraceL` / arm / separator / `BraceR`を直接所有する。Yulang3の
+`BracedStatementBlockExpression`へrouteしない。
+
+arm parserはpatternへ`Arrow` / `If` / `Where`、catch first patternだけ`Comma`をlocal stopとして与え、catchの
+comma後もidentifier限定ではなく二個目のfull `Pattern`を呼んでいた。guardは`if`または`where`の後をnormal
+expressionとして読み、`Arrow`で止めた
+(`crates/parser/src/expr/control.rs:823-915`)。guard fixtureとhandler fixtureもこのshapeを固定する
+(`crates/parser/tests/expr_grammar.rs:1865-1910,2143-2200`;
+`crates/parser/tests/stmt_grammar.rs:2906-2914`)。Yulang3もhandlerをnameへ狭めず、current first-sliceで表現可能な
+full `Pattern`とする。
+
+arrow後のbodyはcase-like専用block parserではなく、generic colon applicationとif/elseも使った同じ
+`parse_inline_or_indent`へ渡された。plain inlineは一expression、physical newline後のindentがcurrent arm lineより
+deepならshared statement blockだった
+(`crates/parser/src/expr/control.rs:22-35,917-926`)。したがってYulang3のindented arm bodyも
+single-expression special nodeではなくexisting `IndentedStatementBlock`である。Yulang2はbody直後のoptional `;`を
+arm自身の末尾でconsumeした (`crates/parser/src/expr/control.rs:928-935`)。この`;`はarm-list separatorではない、という
+ownershipも維持する。
+
+historical fixturesはcase inline / indented、guard、label、catch handlerをcoverする
+(`crates/parser/tests/expr_grammar.rs:1788-1910,1618-1655,2143-2200`)。tag時点にcatch brace fixtureはないため、
+そのformのhistorical evidenceはimplementationとspecでありtest evidenceではない、と区別する。
+
+Yulang3はYulang2のevent shapeを無条件に復元しない。expression bodyはprecedence-shaped treeではなくflat
+`OperatorChain`であり、patternはcommit `4ec436cc`のfixed-precedence surface CSTである。またarm sequenceは
+statement sequenceではない。この追補が共有するのはverified surface boundaryとlayout primitiveであり、旧parserの
+backtracking / event protocolではない。
+
+### Architectural placement: two NUD primaries
+
+expression NUD recognitionへ次を追加する。
+
+```rust
+enum NudRecognition<'source> {
+    // existing variants ...
+    Case {
+        keyword: WordSpan<'source>,
+        base_indent: usize,
+    },
+    Catch {
+        keyword: WordSpan<'source>,
+        base_indent: usize,
+    },
+}
+```
+
+`case` / `catch`はmaximal word scanのexact textが一致するときだけcontextual keywordになる。`casefold`、`catcher`は
+ordinary identifierである。probe orderはfixed structural primaryをdynamic prefix / nullfix operatorより先に置く
+existing `if` precedentに合わせ、accept前はsink-free、accept後にcutしてそれぞれ`CaseExpression` /
+`CatchExpression`をcommitする。
+
+```text
+PrimaryExpression += CaseExpression | CatchExpression
+
+CaseExpression  := CaseKw  CaseLikeHead CaseBlock
+CatchExpression := CatchKw CaseLikeHead CatchBlock
+
+CaseLikeHead := G* [ CaseLikeLabel G* ] Scrutinee G0*
+CaseLikeLabel := Apostrophe!Identifier
+Scrutinee := OperatorChain
+```
+
+`CaseLikeLabel`の`!`はapostropheとidentifier bodyの間にtriviaもbyte gapもないことを表す。scannerは一個のmaximal
+apostrophe-sigil spellingを`SigilIdentifier` tokenとしてemitする。labelとscrutineeの間にgrammar上のmandatory triviaは
+置かない。ordinary wordが続く場合はmaximal sigil scan自身がseparatorを要求し、`case 'go(4): ...`のように次primaryが
+punctuationから始まる場合はadjacentでもboundaryが成立する。labelがない`case(`も同じword-boundary ruleで成立する。
+optional probeがapostrophe-sigil compositeをacceptしなければbyteをconsumeしない。
+
+`case` / `catch`全体は`PrimaryExpression`なのでparenthesized element、if body、colon-application argument、braced
+statement block内のexpression statementとして使える。逆にouter expressionのlone colonは、case-like nodeのcommitが
+完了してcontrolが`OperatorChain`へ戻った後にだけ`ColonApplicationTail`候補になり得る。case / catch内部のblock
+introducer colonはouter tailではない。
+
+### First-slice grammar
+
+`G*`はnewlineを含み得るmaximal lossless trivia run、`G0*`はcurrent inline regionから出ないtrivia runである。
+`LineBreak(indent)`はopaque lexical region外のphysical newlineとその後のindentを表す。`ArmIndent`はcolonを含む
+case-like introducer lineよりstrictly deepな、最初のarmのindentである。`BodyIndent`はarrowのあるarm lineより
+strictly deepである。
+
+```text
+CaseExpression :=
+    CaseKw G* [ CaseLabel G* ] CaseScrutinee G0* CaseBlock
+
+CatchExpression :=
+    CatchKw G* [ CatchLabel G* ] CatchScrutinee G0* CatchBlock
+
+CaseLabel  := Apostrophe!Identifier
+CatchLabel := Apostrophe!Identifier
+
+CaseScrutinee  := OperatorChain  // local stop: Colon
+CatchScrutinee := OperatorChain  // local stops: Colon, LBrace
+
+CaseBlock :=
+    Colon (
+        CaseInlineArmSequence
+      | CaseIndentedArmSequence
+    )
+
+CatchBlock :=
+    Colon (
+        CatchInlineArmSequence
+      | CatchIndentedArmSequence
+    )
+  | LBrace G* CatchBracedArmSequence G* RBrace
+
+CaseInlineArmSequence :=
+    G0* CaseArm { G0* Comma G0* CaseArm } [ G0* Comma ]
+
+CatchInlineArmSequence :=
+    G0* CatchArm
+
+CaseIndentedArmSequence :=
+    LineBreak(ArmIndent > case-base-indent)
+    CaseArm
+    { ArmSeparator CaseArm }
+    [ G0* Comma ]
+
+CatchIndentedArmSequence :=
+    LineBreak(ArmIndent > catch-base-indent)
+    CatchArm
+    { ArmSeparator CatchArm }
+    [ G0* Comma ]
+
+CatchBracedArmSequence :=
+    CatchArm
+    { CatchBracedArmSeparator CatchArm }
+    [ G0* Comma ]
+
+CatchBracedArmSeparator :=
+    G0* Comma G*
+  | PhysicalNewlineAtCurrentBraceDepth
+
+ArmSeparator :=
+    PhysicalNewline(next-indent = ArmIndent)
+  | G0* Comma G*
+
+CaseArm :=
+    Pattern [ ArmGuard ] ArmArrow ArmBody [ Semicolon ]
+
+CatchArm :=
+    Pattern [ G0* Comma G0* Pattern ] [ ArmGuard ] ArmArrow ArmBody [ Semicolon ]
+
+ArmGuard :=
+    G0* (IfKw | WhereKw) G0* GuardExpression
+
+GuardExpression := OperatorChain  // local stop: Arrow
+
+ArmArrow := G0* Arrow
+
+ArmBody :=
+    InlineArmBody
+  | IndentedArmBody
+
+InlineArmBody := G0* OperatorChain
+
+IndentedArmBody :=
+    LineBreak(BodyIndent > arm-line-indent)
+    IndentedStatementBlock
+```
+
+すべてのblock formは少なくとも一armを要求する。`catch x {}`はempty valid valueではなく、`CatchBlock`内のmandatory
+`CatchArm`を`Missing` recoveryする。これはYulang2 brace loopがcloseを見つける前にdegenerate arm parseへ入れたかどうかを
+surface validityの根拠にしない、Yulang3の明示的なnon-empty contractである。
+
+commaを所有する三policy、すなわちcase inline、case/catch indented、catch braceはnatural boundary直前の一個の
+trailing commaをvalid source markerとして保持する。comma後に同じregionのpattern NUD candidateがあれば次armを読む。
+boundaryならtrailing separator、candidateでもboundaryでもなければmandatory next-arm recoveryへ入る。catch inlineは
+arm-list commaを一切所有しない。したがってcatch inline arm body内のgeneric colon applicationは、自身のinline argument
+commaを通常どおり所有できる。
+
+このtrailing-comma ruleはYulang3でlist policyをuniformにする明示的な決定である。Yulang2 case-inline loopもcomma直後が
+physical newlineなら次armを要求せず終了した
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:706-724`)が、EOF / dedent / brace closeを横断する一個の
+明文化されたcontractではなかった。Yulang3は各policyのnatural boundaryを先に判定し、CSTへliteral commaを残す。
+
+semicolonは`CaseArm` / `CatchArm`のoptional terminal tokenであり、`CaseArmSeparator` /
+`CatchArmSeparator` nodeへ入れない。inline caseでsemicolonをconsumeしたarmはそのinline sequenceを終了する。
+indented / braced regionでは後続layoutまたはcommaが次armを開始できるが、semicolon単独をarm separatorとして扱わない。
+Yulang2はsemicolon consume後に`Either::Left`をouter loopへ返したため、ownerによってはそのまま次armへ進める余地が
+あった。このcontrol-flow side effectはYulang3へ移植しない。next-arm validityはclosed sequence policyだけが決め、
+semicolonの有無から暗黙に導出しない。
+
+### Scrutinee, pattern, guard, and arrow boundaries
+
+case-like ownerはscrutinee parse直前にcaller stop frameをpushする。
+
+```text
+case  scrutinee stops  = outer stops + Colon
+catch scrutinee stops  = outer stops + Colon + LeftBrace
+```
+
+fixed compositeをdynamic continuationより先に判定する。`StopKind::Colon`によりblock introducerは
+`ColonApplicationTail`へ入らない。`catch`の`StopKind::LeftBrace`によりbraceは
+`BracedStatementBlockExpression` NUDやfuture ML argumentへ入らず`CatchBlock`が所有する。`case`はLeftBrace stopを
+pushしない。current first sliceにML applicationがまだなく`case x { ... }`全体をhistorical形でparseできない場合でも、
+case grammarがbraceを先取りしてはならない。future fixed tail / ML addendumがscrutinee側を拡張できるboundaryを保つ。
+
+arm first patternのstop frameは次である。
+
+```text
+case  first-pattern stops  = outer + Arrow + ArmGuardIf + ArmGuardWhere
+catch first-pattern stops  = outer + Arrow + ArmGuardIf + ArmGuardWhere + Comma
+catch handler-pattern stops = outer + Arrow + ArmGuardIf + ArmGuardWhere
+guard-expression stops      = outer + Arrow
+```
+
+`ArmGuardIf` / `ArmGuardWhere`はword spellingのcontextual stop roleであり、global lexer keywordではない。completed
+pattern直後のmaximal wordがexact `if` / `where`のときだけarm ownerがguardを開始する。`if`はここでは
+`IfExpression` NUDではない。guard nodeの中へ`IfKw`または`WhereKw`をemitし、その後のnormal `OperatorChain`だけを
+`Arrow`まで読む。delimiter / opaque lexical regionへ入ればouter arrow stopはsuspendされる。
+
+current `StopKind`には`Arrow` / guard-word stopがなく、pattern mandatory-primary recoveryも`) ] } , ;`とactive colon
+だけをpreserveする
+(`crates/yu-syntax/src/session.rs:342-370`;
+`crates/yu-syntax/src/grammar/pattern.rs:357-383,414-456`)。implementation sliceは
+`StopKind::Arrow`、`StopKind::ArmGuardIf`、`StopKind::ArmGuardWhere`を追加し、expressionとpatternのrecognition / recoveryが
+これらをconsumeしないよう拡張する。`Comma`は既存stopを使う。名前をplain `If` / `Where`にせずarm-local roleを表すのは、
+future consumerが同じword spellingへ別boundary semanticsを与えてもstop authorityを混ぜないためである。
+
+`->`はscanner-layerでは現在dynamic-operator territoryである
+(`crates/yu-syntax/src/scan/punctuation.rs:54-58,159-166`)。arm grammarはshared fixed punctuation setへ無条件追加せず、
+arm boundaryでだけmaximal operator-shaped tokenをsink-freeにscanし、textがexact `->`なら`SyntaxKind::Arrow`として
+acceptする。`->>`を`->` + `>`へsplitしない。operator declarationに`->`が存在するか、そのbinding powerが何かは
+arm separatorの認識へ影響しない。nested delimiter内またはguard / bodyのordinary expression regionでは、active arm
+stopがsuspendされる限り`->`は通常のdynamic operator spellingであり得る。
+
+pattern parserはcommit `4ec436cc`で`parse_pattern`と`parse_direct_pattern`をstandalone公開し、まだconsumerを持たない
+(`crates/yu-syntax/src/grammar/pattern.rs:148-173`)。この追補は「consumerへwireしない」という前slice固有gateだけを
+supersedeする。patternのindependent fixed-precedence family、surface shape、colon-composite priorityは変更しない。
+とくにactive colon stop下でもcontiguous `:foo` compositeを先にrecognizeするため、arm source `:foo -> body`をsymbol
+patternとして読める。
+
+### Arm body layout and shared body authority
+
+arrowをconsumeした時点で、そのarrowがあるphysical lineのindentを`arm-line-indent`としてcaptureする。直後のmaximal
+triviaにphysical newlineがなければinline body、newlineがありnext line indentが`arm-line-indent`よりstrictly deepなら
+indented body、same / shallowerならmissing bodyかつ次arm / outer boundaryである。この判定はcolon applicationと
+if/elseが使うcurrent `recognize_post_colon_body_layout`
+(`crates/yu-syntax/src/grammar/expression.rs:807-833`)と同じprimitiveである。
+
+primitiveはcolonをinspectせず、すでにintroducer tokenをconsumeした後のtriviaとbase indentだけを見る。case/catch
+sliceではこれを`recognize_introduced_body_layout`（または同等のneutral name）へrenameし、colon application、if/else
+colon body、case/catch arrow bodyから共有する。owner-specific wrapperは共有しない。
+
+- colon application wrapperはinline comma argument listまたはindented statement blockを所有する。
+- if/else wrapperはinline one expressionまたはcompanion-aware indented statement blockを所有する。
+- case/catch arm wrapperはinline one `OperatorChain`またはdefault-policy `IndentedStatementBlock`を所有する。
+
+case/catchのindented arm bodyはexisting statement-loop coreと`StatementSequencePolicy::Indented`をそのまま使う
+(`crates/yu-syntax/src/grammar/expression.rs:1170-1259`)。`IfExpression`の`elsif` / `else` companion-stop optionは使わない。
+arm-listの次armはbody blockからのdedentでownerへ返り、arm-sequence policyが読む。body内statementのnewline /
+semicolonとarm間newline / commaは別authorityである。
+
+inline bodyへ与えるstopはarm-sequence policyが決める。
+
+| owner | inline body local stops | rationale |
+| --- | --- | --- |
+| case inline | `Comma` + `Semicolon` + natural line boundary | commaは次case arm、semicolonはcurrent arm terminalを開始する |
+| catch inline | `Semicolon` + natural line boundary | inline catchは一arm。commaをbody側から奪わない |
+| case/catch indented arm | `Comma` + `Semicolon` + arm-indent boundary | explicit comma、arm terminal、dedent/newlineをbodyから守る |
+| catch brace | `Comma` + `Semicolon` + `RightBrace` + current-depth newline | brace separator / arm terminal / closeをbodyから守る |
+
+bodyはinlineでもexactly one `OperatorChain`であり、generic colon application's `InlineExprList`をarm grammarが複製しない。
+`a -> f: x, y`のcomma ownershipは上表のouter arm policyに従う。複数colon argumentを一arm body内へ確実に入れたい場合は
+parenthesizeするかindented bodyを使う。parserはbodyの意味、guard truth、pattern coverageを判定しない。
+indented body内部のsemicolonはexisting statement sequenceが所有する。arm-terminal semicolonは、そのblockがdedentで
+完了してarm ownerへ戻った後の同一arm regionに現れるtokenだけである。
+
+### Dedicated arm-sequence core
+
+armは`Statement`ではない。pattern、optional handler、optional guard、fixed arrow、bodyを持つため、
+`StatementSequencePolicy`や`Statement` nodeへ通さない。一方、このsliceにはすでにcase inline、shared indented、catch
+inline-single、catch braceという複数のconcrete ownerがあるため、layoutごとにloopをcopyせず、closed arm-sequence
+policyを一個導入する。
+
+```rust
+enum CaseLikeFamily {
+    Case,
+    Catch,
+}
+
+enum ArmSequencePolicy {
+    CaseInline,
+    CatchInlineSingle,
+    Indented {
+        family: CaseLikeFamily,
+        base_indent: usize,
+        arm_indent: usize,
+    },
+    CatchBraced,
+}
+```
+
+`CaseLikeFamily`はnode kind、scrutinee stops、handler許可、block introducer許可をclosed methodで返す。
+`ArmSequencePolicy`はseparator recognition、terminal boundary、body stop、trailing-comma ownershipだけを返す。
+arm parser自体はfamilyを受けてCase/Catch nodeとoptional handler slotを選ぶ。`allow_handler_name` /
+`allow_inline_list` / `allow_brace_block`の独立booleanを公開せず、存在しない組合せを表現不能にする。
+
+sequence coreはsource-orderに次を行う。
+
+```text
+parse_arm_sequence(policy):
+    recognize policy-owned empty/terminal boundary
+    recover mandatory first arm if boundary is immediate
+
+    loop:
+        parse exactly one family arm
+        if policy terminal boundary:
+            finish
+        if explicit comma:
+            emit family-specific ArmSeparator
+            if terminal boundary:
+                record trailing comma and finish
+            parse next arm
+        else if indented policy and next arm starts at arm-indent after newline:
+            retain newline as lossless trivia and parse next arm
+        else if CatchBraced and a current-depth newline is followed by another arm:
+            retain newline as lossless trivia and parse next arm
+        else if next Pattern NUD candidate exists in the same region:
+            emit Missing separator and retry one arm
+        else:
+            finish or recover to the nearest policy safe point
+```
+
+newline-only separation does not require a synthetic separator token; physical newline trivia remains in source order between arm nodes。
+explicit comma is wrapped in`SyntaxKind::CaseArmSeparator`または`SyntaxKind::CatchArmSeparator`。catch handler comma is
+direct child of`CatchArm`でありseparator nodeではない。same spellingのroleをparent shapeで区別する。
+
+### CST vocabulary and direct shape
+
+first sliceは次を追加する。
+
+```text
+SyntaxKind::CaseExpression
+SyntaxKind::CatchExpression
+SyntaxKind::CaseLabel
+SyntaxKind::CatchLabel
+SyntaxKind::CaseScrutinee
+SyntaxKind::CatchScrutinee
+SyntaxKind::CaseBlock
+SyntaxKind::CatchBlock
+SyntaxKind::CaseArm
+SyntaxKind::CatchArm
+SyntaxKind::CaseGuard
+SyntaxKind::CatchGuard
+SyntaxKind::CaseArmSeparator
+SyntaxKind::CatchArmSeparator
+
+SyntaxKind::CaseKw
+SyntaxKind::CatchKw
+SyntaxKind::WhereKw
+SyntaxKind::Arrow
+```
+
+`IfKw`、`SigilIdentifier`、`Colon`、`Comma`、`Semicolon`、`LBrace`、`RBrace`、`Pattern`、`OperatorChain`、
+`IndentedStatementBlock`、trivia、`Missing`、`Error`はexisting kindを使う。`CaseLikeExpression`、generic `Arm`、generic
+`Guard`、`ColonApplicationTail`、`BracedStatementBlockExpression`をcase/catch nodeの代用にしない。
+
+`case 'go x: 1 if ok -> yes, _ -> no`のoutlineは次になる。
+
+```text
+CaseExpression
+  CaseKw "case"
+  Whitespace " "
+  CaseLabel
+    SigilIdentifier "'go"
+  Whitespace " "
+  CaseScrutinee
+    OperatorChain
+      IdentifierExpression "x"
+  CaseBlock
+    Colon ":"
+    Whitespace " "
+    CaseArm
+      Pattern
+        IntegerPattern "1"
+      Whitespace " "
+      CaseGuard
+        IfKw "if"
+        Whitespace " "
+        OperatorChain
+          IdentifierExpression "ok"
+      Whitespace " "
+      Arrow "->"
+      Whitespace " "
+      OperatorChain
+        IdentifierExpression "yes"
+    CaseArmSeparator
+      Comma ","
+    Whitespace " "
+    CaseArm
+      Pattern
+        IdentifierPattern "_"
+      Whitespace " "
+      Arrow "->"
+      Whitespace " "
+      OperatorChain
+        IdentifierExpression "no"
+```
+
+`catch action { err, handler -> recover; }`では`CatchBlock`がbracesを直接所有し、first pattern、handler comma、second
+`Pattern`、arrow、body、semicolonは一個の`CatchArm`のdirect source-order childrenになる。innerに
+`BracedStatementBlockExpression`、`Statement`、`ColonApplicationTail`を作らない。
+
+guard `OperatorChain`もbody `OperatorChain`もprecedence-neutralである。declared/imported numeric binding powerだけが変わっても
+このCST hierarchyは変わらない。later associator / HIR loweringがscrutinee、guard、bodyの各chainを独立にassociateする。
+pattern associationはpattern grammarのfixed surface ruleが所有し、dynamic expression associatorへ送らない。
+
+### Parser-side AST shape
+
+parser-side projectionはfamily差をvisible typeへ残し、shared helperの都合だけで一個のboolean-rich public structへ潰さない。
+
+```rust
+pub(crate) enum PrimaryExpression<'source> {
+    // existing variants ...
+    Case(CaseExpression<'source>),
+    Catch(CatchExpression<'source>),
+}
+
+pub(crate) struct CaseExpression<'source> {
+    keyword: WordSpan<'source>,
+    label: Option<CaseLikeLabel<'source>>,
+    scrutinee: Recovered<Box<OperatorChain<'source>>>,
+    block: Recovered<CaseBlock<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
+
+pub(crate) struct CatchExpression<'source> {
+    keyword: WordSpan<'source>,
+    label: Option<CaseLikeLabel<'source>>,
+    scrutinee: Recovered<Box<OperatorChain<'source>>>,
+    block: Recovered<CatchBlock<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
+
+pub(crate) struct CaseLikeLabel<'source> {
+    text: &'source str,
+    range: Range<usize>,
+}
+
+pub(crate) struct CaseBlock<'source> {
+    colon: Recovered<Range<usize>>,
+    arms: Recovered<ArmSequence<CaseArm<'source>>>,
+    layout: ColonArmLayout,
+    range: Range<usize>,
+}
+
+pub(crate) enum CatchBlock<'source> {
+    Colon {
+        colon: Recovered<Range<usize>>,
+        arms: Recovered<ArmSequence<CatchArm<'source>>>,
+        layout: ColonArmLayout,
+        range: Range<usize>,
+    },
+    Braced {
+        open: Range<usize>,
+        arms: Recovered<ArmSequence<CatchArm<'source>>>,
+        close: Recovered<Range<usize>>,
+        range: Range<usize>,
+    },
+}
+
+pub(crate) enum ColonArmLayout {
+    Inline,
+    Indented {
+        base_indent: usize,
+        arm_indent: usize,
+    },
+}
+
+pub(crate) struct ArmSequence<A> {
+    arms: Vec<Recovered<A>>,
+    trailing_comma: Option<Range<usize>>,
+}
+
+pub(crate) struct CaseArm<'source> {
+    pattern: Recovered<Pattern<'source>>,
+    guard: Option<Recovered<CaseGuard<'source>>>,
+    arrow: Recovered<Range<usize>>,
+    body: Recovered<ArmBody<'source>>,
+    terminator: Option<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct CatchArm<'source> {
+    pattern: Recovered<Pattern<'source>>,
+    handler: Option<Recovered<Pattern<'source>>>,
+    guard: Option<Recovered<CatchGuard<'source>>>,
+    arrow: Recovered<Range<usize>>,
+    body: Recovered<ArmBody<'source>>,
+    terminator: Option<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct CaseGuard<'source> {
+    keyword: ArmGuardKeyword<'source>,
+    condition: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct CatchGuard<'source> {
+    keyword: ArmGuardKeyword<'source>,
+    condition: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ArmGuardKeyword<'source> {
+    If(WordSpan<'source>),
+    Where(WordSpan<'source>),
+}
+
+pub(crate) enum ArmBody<'source> {
+    Inline(Box<OperatorChain<'source>>),
+    Indented(IndentedStatementBlock<'source>),
+}
+```
+
+separator tokenの全列はlossless CSTがauthorityであり、ASTはassociation / loweringとrecoveryに必要なarm order、layout、
+terminal comma、semicolon rangeだけを持つ。`Recovered`のexact carrierはcurrent sourceの型へ合わせてよいが、missing
+pattern / guard expression / arrow / body / closeを別slotとして識別できなければならない。
+
+### Recognition / commit control flow
+
+direct pathを次で固定する。
+
+```text
+commit_case_like_expression(family, keyword, base_indent):
+    start family Expression node
+    emit family keyword
+
+    probe optional apostrophe-sigil label
+    if accepted:
+        commit family Label node; maximal sigil scanning defines the following scrutinee boundary
+
+    push family scrutinee stop frame
+    start family Scrutinee node
+    commit one mandatory OperatorChain or Missing
+    finish Scrutinee and pop stop frame
+
+    probe family-owned block introducer
+    if `:`:
+        start family Block; emit Colon
+        classify inline / deeper-indented / wrong-indent
+        commit mandatory arm sequence under matching policy
+        finish Block
+    else if family is Catch and `{`:
+        start CatchBlock; emit LBrace; push Brace delimiter/right-brace stop
+        commit mandatory CatchBraced arm sequence
+        recover/emit RBrace; pop scope; finish CatchBlock
+    else:
+        emit one Missing block-introducer/body cause without consuming outer boundary
+
+    finish family Expression node
+```
+
+一armのcontrol flowは次である。
+
+```text
+commit_arm(family, sequence_policy):
+    start family Arm node
+
+    push first-pattern stops
+    commit mandatory direct Pattern
+    pop stops
+
+    if family is Catch and comma follows before guard/arrow:
+        emit handler Comma directly
+        push handler-pattern stops
+        commit mandatory direct Pattern
+        pop stops
+
+    if contextual `if` or `where` follows:
+        start family Guard node; emit keyword
+        push Arrow stop
+        commit mandatory OperatorChain or Missing
+        pop stop; finish Guard
+
+    commit mandatory exact Arrow or Missing
+    classify post-arrow inline / deeper-indented / wrong-indent
+    commit mandatory OperatorChain or IndentedStatementBlock, or Missing
+    consume optional arm-terminal Semicolon
+
+    finish family Arm node
+```
+
+probeはtriviaもsinkもcommitせず、acceptされたcandidateのleading triviaだけをownerへemitする。label、guard、arrow、comma、
+brace closeのprobe failureでrollback後sink outputが残ってはならない。pattern / expression entrypointはactive stop frameを
+readするが、caller frameをpopしない。
+
+### Recovery contract
+
+新しいrecovery primitiveは導入しない。existing cut、mandatory slot、`Missing`、non-empty `Error`、delimiter / lexical-region
+safe pointを次のroleへ適用する。
+
+| failure | committed CST | preserved boundary / retry |
+| --- | --- | --- |
+| keyword後にscrutineeがない | family Scrutinee内に`Missing(Expression)` | `:`、catch `{`、outer close / newline / EOFをconsumeしない |
+| block introducerがない | family Block slotに一個の`Missing` | outer delimiter / newline / EOFへreturnする |
+| `:`後がsame-or-shallower newline | Block内に`Missing(Arm)` | triviaと次outer constructをconsumeしない |
+| first patternがない | Arm内Pattern slotに`Missing(Pattern)` | handler comma、guard keyword、arrow、block close / arm boundaryを守る |
+| catch handler comma後にpatternがない | second Pattern slotに`Missing(Pattern)` | guard / arrowを守る |
+| guard keyword後にexpressionがない | Guard内に`Missing(Expression)` | exact arrowを守り、同じarmを継続する |
+| arrowがないがbody NUD candidateがある | `Missing(Arrow)`をinsert | same positionからbodyをcommitする |
+| arrowとbodyが同じboundary原因でともにない | root-cause diagnostic一個と必要なslot marker | comma / dedent / right brace / EOFをconsumeしない |
+| post-arrow newlineがsame-or-shallower | `Missing(Expression)` | 次armまたはouter ownerへnewlineを返す |
+| arm間commaがなく次patternが始まる | family ArmSeparator位置に`Missing(Comma)` | same positionから次armを一度だけretryする |
+| comma後がmalformed | non-empty `Error`後にmandatory Arm retry | comma / close / dedent / EOF safe pointまでだけ進む |
+| catch braceが閉じない | CatchBlock内に`Missing(RBrace)` | caller-owned delimiter / lexical boundaryを越えない |
+
+mandatory armはpattern、optional handler、optional guard、arrow、bodyという内部slotを保ったdegenerate nodeを作る。
+parserはpattern recovery diagnosticをcase owner側で重複発行しない。association / HIR loweringは`Missing` / `Error`を含む
+scrutinee、guard、body chainとarmをdeterministically一回lowerできなければならず、parser diagnosticを再発行しない。
+
+recovery scanはopaque string / comment / interpolation region内部の`->`、comma、brace、`if`、`where`をsafe pointとして
+誤認しない。active delimiter stackとlexical modeが最優先である。同じsource positionで同じmandatory arm / arrow / bodyを
+retryせず、successまたはnon-empty recovery consumptionのどちらかで必ずprogressする。
+
+### Existing architecture principlesとの整合
+
+- **Precedence-neutral surface CST**: scrutinee、guard、bodyはflat `OperatorChain`であり、binding powerはcase/catch
+  parseへ入らない。arrowだけはarm ownerのfixed boundaryである。
+- **Immutable operator table**: tableは各nested `OperatorChain`のoperator spelling / fixity capability recognitionにだけ
+  read-onlyで使う。case/catch node shape、arm count、arrow ownership、layoutを変えない。
+- **BpVec / BindingPower**: yu-syntax側のcase/catch control flowでは使わない。later associatorが三種のnested chainを
+  associateするときだけ使う。
+- **Oracle judge table**: expression NUD tableへ`case` / `catch` primary candidateを追加する。pattern primary / tail、
+  case-like label、guard、arrow、arm separatorは各grammar ownerのfixed judgeでありdynamic operator oracleへ混ぜない。
+- **Rollback discipline**: keyword / label / introducer / guard / arrow / separator / closeはsink-free probe、accept後cut、
+  forward-only direct emitで処理する。started nodeやdiagnosticをrollbackしない。
+- **Lexical-region-aware scanning**: stop / separator / recoveryはcurrent delimiter depthとopaque lexical modeでだけ有効にする。
+- **Single body-layout authority**: introducer後triviaのinline / deeper-indent / wrong-indent分類を一個のneutral helperへ寄せ、
+  colon application、if、case/catchでcopyしない。owner-specific RHS arityとcompanion stopは各wrapperが持つ。
+- **Sequence authority**: statement sequenceとarm sequenceは別coreである。前者は`Statement`、後者はPattern / Guard /
+  Arrow / Bodyをparseし、policy type以外のcross-callを持たない。
+- **Surface / interpretation boundary**: parserはlabelの制御効果、patternのbinding / constructor / wildcard意味、handlerの
+  callable性、guard truth、exhaustiveness、catch semanticsを判定しない。HIR lowering以降が所有する。
+
+binding-power-only editはcase/catchを含むsurface CSTをinvalidateしない。association / HIRだけをinvalidateする。
+operator spelling / fixity-capability editはnested chain recognitionへ影響し得るためparse invalidation対象である。このsplitは
+precedence-neutral operator-chain追補と`docs/yulang3-architecture.md`のincremental invalidation contractに従う。
+
+### Implementation boundary and required gates
+
+implementation sliceは少なくとも次を行う。
+
+1. `SyntaxKind`へfamily-specific expression / label / scrutinee / block / arm / guard / separatorとkeyword / arrow kindを追加する。
+2. expression NUD judgeへexact contextual `case` / `catch`を追加し、AST pathとdirect-CST pathを同じrecognition resultへ
+   接続する。
+3. apostrophe-sigil label scannerをUnicode word-body primitiveから構成し、pattern private scannerのbody ruleをcopyしない。
+4. `StopKind`とexpression / pattern mandatory recoveryをarrow / arm-guard boundaryへ拡張する。
+5. maximal operator-shaped tokenからexact `->`だけをarm-local fixed tokenとしてrecognizeする。
+6. `CaseLikeFamily`とclosed `ArmSequencePolicy`を追加し、statement sequenceと分離したshared arm loopを実装する。
+7. current post-colon layout classifierをintroducer-neutral name / authorityへ移し、既存三callerを壊さずarrow bodyから共有する。
+8. arm bodyのindented routeをexisting default-policy `IndentedStatementBlock`へ接続する。
+9. AST/direct parity、lossless source、typed recovery diagnosticをfixtureで固定する。
+
+required testsは次を含む。
+
+- `case x: 1 -> a, 2 -> b`のinline multiple armsとoptional trailing comma。
+- `case x:\n  1 -> a\n  _ -> b`のindented newline arms、explicit comma variant、dedent termination。
+- `case 'go 4: 0 -> zero, n -> n`のlabel / scrutinee boundary。
+- `n if cond -> yes`と`n where cond -> yes`のfamily guard node、guard内flat `OperatorChain`。
+- current pattern subsetのsymbol、parenthesized、alias、alternationがarm arrow / guard stopを越えないこと。
+- `catch action: err, handler -> recover`のinline exactly-one armとfull second Pattern。
+- catch indented multiple armsと、comma / current-depth newlineの両方で区切る
+  `catch action { err -> recover, _ -> fallback }`のdirect `CatchBlock` braces。
+- case scrutineeはLeftBrace stopを持たず、catch scrutineeだけがbraceをblock introducerとしてreserveすること。
+- inline / deeper-indented arrow body、body内multiple statements、same-indent missing-body recovery。
+- missing scrutinee / pattern / handler / guard expression / arrow / body / brace close、missing arm commaのlossless recovery。
+- `->>`をarrowへsplitしないこと、operator tableにおける`->`の有無やBP変更がarm CST shapeを変えないこと。
+- nested delimiter / opaque lexical region内のcolon / brace / comma / arrow / guard wordをouter stopにしないこと。
+- `green.to_string() == source`、AST/direct structural parity、header/full diagnostic identity。
+
+current pattern grammarのhistorical standalone testsは残す。case/catch integration testsはpublic standalone pattern entrypointを
+迂回して別pattern implementationを作らず、同じ`parse_direct_pattern`をactive stop frame下で呼ぶ。
+
+### Explicit future scope
+
+次はこの追補へ含めない。
+
+- `\case` / `\catch` lambda form。backslash-lambda primaryとparameter / capture boundaryを専用addendumで設計する。
+- list / record / spread / type-annotation / string・rule / field / path / no-space constructor / ML application pattern。
+  pattern grammar自身のfuture sliceで追加し、case/catchは自動的に同じentrypointから受け取る。
+- historical `Ok v` / `Err e`のようなconstructor application patternをcase側だけで特別認識すること。
+- exhaustiveness、unreachable arm、duplicate binding、guard typing、handler validation、label semantics、exception routing。
+  HIR lowering / type and effect analysisの責務である。
+- other colon-owning constructs (`for`、`sub`、declaration body等)との抽象化。shared low-level layout primitive以外を
+  case-like grammarへ統合しない。
+
+`case` brace arm blockはfuture scopeではなく**invalid by design**である。case scrutinee側のbrace primary / future ML argument
+ownershipを保つ。catch colon-inline multiple armもfuture scopeではなく**invalid by design**であり、multiple armsは
+indented formまたはcatch-owned bracesを使う。
+
+### Closed decisions and review focus
+
+この追補で閉じるdecisionは次である。
+
+- `case`と`catch`は同一sliceのtwo NUD primariesであり、`ColonApplicationTail`ではない。
+- label、both guards、catch handler、catch brace blockをfirst sliceに含める。
+- patternはcommit `4ec436cc`のsame standalone parserをconsumeし、current subsetを越えるformをstubしない。
+- case scrutineeはColonだけ、catch scrutineeはColon + LeftBraceをreserveする。
+- catch handlerはfull second Patternでありidentifier-only validationをparserへ入れない。
+- guard `if`はIfExpressionではなくarm-local introducerである。
+- arrow後のindented bodyはexisting `IndentedStatementBlock`、arm listはdedicated arm-sequence coreである。
+- catch bracesはdirect `CatchBlock`であり`BracedStatementBlockExpression`ではない。
+- exact arrowはarm-local fixed boundaryでありnumeric BPから独立する。
+- all block formsはmandatory non-empty arm sequence、comma-owning list formsはexplicit trailing commaを保持する。
+- semicolonはarm terminalでありarm-list separatorではない。
+
+Claude reviewでは、特にcurrent pattern recoveryがarrow / guard boundaryを守る拡張、caseとcatchのbrace-stop非対称、
+catch inline bodyのcommaをarm listが奪わないこと、arrow lineを基準にしたdeeper body indent、statement sequenceとarm
+sequenceの分離、`->>` maximal scan、catch brace close recovery、trailing commaとsemicolonのownershipを確認対象にする。
+helper名、private AST carrier、typed diagnostic enumの具体名はcurrent sourceへ合わせて調整してよいが、上のsurface
+grammar、family差、CST ownership、phase boundaryをopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-22、NUD-primary `case` / `catch` expression grammar追補案）。
