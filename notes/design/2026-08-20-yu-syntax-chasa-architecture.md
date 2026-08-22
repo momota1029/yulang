@@ -38,6 +38,11 @@ Revision note (`if`-expression closure): `if` / `elsif` / `else`をterminal colo
 NUD-positionの`PrimaryExpression`として位置づけ、condition stop、colon-owned single body、既存
 `IndentedStatementBlock` reuse、arm continuation、recoveryを末尾の`if`-expression追補で確定した。
 
+Revision note (braced statement-block primary closure): ordinary NUD-positionの`{ statement* }`を、
+overloadedなhistorical `BraceGroup`ではなく`BracedStatementBlockExpression`として分離した。comma / semicolon /
+implicit-newline separator、empty / trailing-separator validity、shared statement-sequence core、closing recoveryを
+末尾のbraced statement-block追補で確定する。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -5306,14 +5311,15 @@ pub(crate) struct IndentedStatementBlock<'source> {
 作る。ASTのindent columnはlayout lowering / test projection用であり、lossless whitespace authorityはCSTである。
 inline comma tokenもASTへduplicateせず、argument countとrecovery itemだけを渡す。
 
-### BraceGroup内のrecord-literal-looking form
+### BracedStatementBlockExpression内のrecord-literal-looking form
 
 `{x: 1}`にrecord-literal専用CST nodeを追加しない。braceがexpression primaryとして現れてもcanonical
-statement blockの`BraceGroup`であり、その中の`x: 1`がordinary `OperatorChain` +
+statement blockの`BracedStatementBlockExpression`であり、その中の`x: 1`がordinary `OperatorChain` +
 `ColonApplicationTail`になる。Yulang2もこのshapeを明示していた
 (`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:793-795`、
-`crates/parser/tests/expr_grammar.rs:1093-1124`)。spreadを含む`{..base, x: 1, ..tail}`もbrace itemと
-generic colon applicationのcompositionであり、colon parserがrecord field semanticsを選ばない
+`crates/parser/tests/expr_grammar.rs:1093-1124`)。historical `{..base, x: 1, ..tail}`のfixed
+`ExprSpread` itemはcolon grammarのownerではなく、末尾のbraced statement-block追補がfuture scopeへ分離する。
+将来spread itemを追加しても、`x: 1`部分をgeneric colon applicationとして読む境界は変えない
 (`crates/parser/tests/expr_grammar.rs:1128-1145`)。
 
 後段がbrace statement列をrecord value、block value、または別のconstructとして解釈する場合も、
@@ -5401,7 +5407,7 @@ yu-syntax gateを次で固定する。
 6. first statementのindentを`block_indent`に固定し、dedent boundaryをconsumeせず、baseline / inline / ml_arg /
    stop scopeを全exit pathでrestoreする。
 7. root `f: x, y`ではcolonがcommaを所有し、`(f: x, y)`と`{x: 1, y: 2}`ではouter ownerがcommaを保持する。
-8. `{x: 1}` / `{..base, x: 1, ..tail}`がdedicated record CSTなしでBraceGroup + ordinary colon tailになる。
+8. `{x: 1}`がdedicated record CSTなしで`BracedStatementBlockExpression` + ordinary colon tailになる。
 9. EOF、horizontal-trivia EOF、wrong indent、empty indented block、leading / trailing comma、invalid run、malformed
    block statementをrecovery table通り固定する。
 10. all recoveryで`Missing` zero-width、`Error` non-empty、node / diagnostic一対一、owner boundary unconsumed、
@@ -5428,8 +5434,9 @@ inline / block body、recoveryを個別に固定する。
 - type field / named argument、polymorphic-variant-like colon starterなどtype grammar。
 - `with:`の二token structural continuation。これは`WithBodyTail` ownerであり、generic colon applicationではない。
 
-`{x: 1}`だけはfuture record grammarではない。本追補で決めたBraceGroup + generic colon application reuseが
-current surface decisionである。後段semantic record interpretationを追加してもCST ownerは変えない。
+`{x: 1}`だけはfuture record grammarではない。本追補と末尾のbraced statement-block追補で決めた
+`BracedStatementBlockExpression` + generic colon application reuseがcurrent surface decisionである。
+後段semantic record interpretationを追加してもCST ownerは変えない。
 
 ### Closed decisions and remaining implementation detail
 
@@ -5439,7 +5446,7 @@ current surface decisionである。後段semantic record interpretationを追�
 - strict `block_indent > base_indent` triggerとdedent boundary。
 - target-free terminal `ColonApplicationTail`、no dynamic BP、no following same-chain item。
 - outer comma ownership優先、colon-owned trailing comma禁止。
-- BraceGroup内のrecord-like reuseとdedicated record CST禁止。
+- `BracedStatementBlockExpression`内のrecord-like reuseとdedicated record CST禁止。
 - existing mandatory-slot / `Missing` / `Error` / typed diagnostic machineryによるtotal recovery。
 - generic colon applicationと他colon grammar familyの`StopKind::Colon`境界。
 
@@ -6010,9 +6017,9 @@ HIR gateは別sliceで次を満たす。
 
 本追補は次を設計または実装しない。
 
-- `if` / `elsif` / `else`のbrace body。`BraceGroup` primary / expression-list grammarが完成した後、
-  `IfArm` / `ElseArm`直下のalternativeとして別sliceで追加する。Yulang2ではこれはstatement blockではなく
-  expression-list `BraceGroup`だった
+- `if` / `elsif` / `else`のbrace body。ordinary primaryの`BracedStatementBlockExpression`とは共有せず、
+  専用expression-list grammarが完成した後に`IfArm` / `ElseArm`直下のalternativeとして別sliceで追加する。
+  Yulang2ではこれはstatement blockではなくexpression-list `BraceGroup`だった
   (`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:1047-1073`)。
 - `IndentedStatementBlock`内のdeclaration / full statement family。current expression-statement subsetの拡張は
   canonical `Statement` grammarが所有する。
@@ -6047,3 +6054,565 @@ CST hierarchy、layout inequality、phase boundaryをopenに戻さない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、NUD-primary `if` / `elsif` / `else` expression grammar追補案）。
+
+## 追補案: NUD-primary brace-delimited statement-block expression
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3のordinary expression positionに現れる`{ ... }`は、NUD-positionの
+`PrimaryExpression`としてparseする。中身はzero-or-moreのcanonical `Statement`であり、dynamic operatorを
+precedence-shaped treeへしない点も、colon-introduced `IndentedStatementBlock`内のstatementと同じである。
+completed operandへ付く`ColonApplicationTail` / `TerminalOuterContinuation`ではなく、
+`ParenthesizedExpression` / `IfExpression`と並ぶ一個のprimary valueである。
+
+CST node kindは`SyntaxKind::BracedStatementBlockExpression`とする。Yulang2の`BraceGroup`はordinary primary、
+declaration body、if / elsif / elseのexpression-list body、projection-record tail、rule body、use-spec list、
+string interpolationなど構造の異なるownerへ再利用されていたため、その名前をYulang3へ移植しない。
+`BracedStatementBlockExpression`は**ordinary primary expressionだけ**の名前であり、future declaration bodyや
+if-bodyへ共有しない。inner statement-sequence engineを共有しても、outer CST node authorityは各constructの
+addendumが個別に決める。
+
+valid separatorはcomma、semicolon、current statementを終了させるphysical newlineの三種である。empty `{}`と、
+matching `}`直前のtrailing comma / semicolon / implicit-newline separatorをvalidにする。これは
+`IndentedStatementBlock`よりseparator setとempty ruleが広いが、statement parse、recovery、progress guarantee、
+separator emissionを別実装にしない。closed policyを受け取るshared statement-sequence coreへ既存indent loopを
+factorし、brace ownerはmatching close / separator policyだけを提供する。
+
+`{x: 1}`をrecord literalとしてspecial-caseしない。これは一個の`Statement`を持つ
+`BracedStatementBlockExpression`であり、そのstatementのflat `OperatorChain`がordinary
+`ColonApplicationTail`で終わるだけである。empty record、record field、block valueなどのsemantic interpretationを
+見てparserがnode kindを変えない。
+
+### Fresh historical verification: exact Yulang2 statement-block rule
+
+Yulang2でordinary brace primaryはNUD `OpenBrace`から`parse_brace_stmt_block`へdispatchされた
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/core.rs:102-115`)。そのparserは一個の
+`BraceStmtBlockMachine`で`parse_statement`を反復した
+(`crates/parser/src/stmt/block.rs:14-18,54-69,156-185`)。
+
+separatorについて、fresh source verificationは次を示す。
+
+1. normal statement parseはlocal stopへ`Comma`を追加し、returned `Comma`または`Semicolon`を
+   `Separator` nodeとしてacceptする
+   (`crates/parser/src/stmt/block.rs:54-69,77-98`)。
+2. statementが`TriviaInfo::Newline`でreturnした場合、source tokenを合成しないempty `Separator` nodeをemitして
+   implicit newline separatorにする
+   (`crates/parser/src/stmt/block.rs:82-89`)。
+3. specもbrace statement blockのseparatorをcomma、semicolon、newlineの三種として列挙する
+   (`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:182-193`)。
+4. `{x: 1, y: 2}` fixtureでは二個のstatement-like `Expr`の間のcommaがouter `Separator`であり、first
+   `ApplyColon`のargument commaではない
+   (`yulang2-oracle@a58eefc3:crates/parser/tests/expr_grammar.rs:1093-1124`)。
+5. semicolonとimplicit newlineのactual statement-block shapeはdeclaration body fixtureでも固定されている
+   (`crates/parser/tests/stmt_grammar.rs:819-863`)。同じ`parse_brace_stmt_block` entrypointがordinary primaryと
+   declaration bodyから呼ばれるため、separator machineのevidenceとして有効である。
+
+empty / trailing ruleは`StopListMachine` controlから確定できる。各iterationの最初に次non-trivia tokenが
+`BraceR`ならitem parseを行わずcloseを返すため、first iterationの`{}`はvalid empty blockになる
+(`crates/parser/src/stmt/block.rs:18-33`)。statement後のcomma / semicolonはseparatorとしてcommitして次iterationへ
+進み、そこで`BraceR`を直接acceptするためtrailing explicit separatorもvalidである
+(`stmt/block.rs:77-98`; `crates/parser/src/parse/mod.rs:146-175`)。newline returnも先にimplicit `Separator`をemitして
+同じnext-iteration close pathへ入るため、trailing implicit newlineもvalidである。separator後に架空のempty
+statementや`Missing(statement)`を作らない。
+
+したがって「statement-block formはnewline / semicolonだけでcommaを受理しない」という要約は誤りである。
+commaはhistorical primary statement-block自身のvalid separatorであり、Yulang3でも維持する。
+
+同じhistorical machineは`..expr`を`ExprSpread`として読むbrace-local special branchも持っていた
+(`crates/parser/src/stmt/block.rs:35-52`)。ただし本追補のrequested productionとcurrent Yulang3
+`Statement` authorityは`{ statement* }`であり、fixed spread itemはまだ設計されていない。最初のsliceへ
+`BraceSpreadItem`を暗黙追加せずfuture scopeへ分離する。dynamic prefix operatorとして書ける`..expr`があっても、
+それはordinary expression statementであってparser-selected spread roleではない。colon-application追補にあった
+historical spread fixtureのpremature gateは、本追補がこの範囲だけsupersedeする。
+
+### Scope and non-unification boundary
+
+本追補が所有するsurface positionは次だけである。
+
+```text
+Value :=
+    PrimaryExpression
+  | NullfixUse
+
+PrimaryExpression :=
+    IdentifierExpression
+  | IntegerLiteral
+  | ParenthesizedExpression
+  | IfExpression
+  | BracedStatementBlockExpression
+  | future primary forms
+```
+
+`BracedStatementBlockExpression`はoperand-required NUD siteでrecognizeする。prefix useの後、parenthesized element、
+colon application argument、if condition / body、indented statement、future call / ML argumentなど、ordinary
+primaryを置ける全位置に現れ得る。matching `}`後はcompleted primaryとしてouter flat `OperatorChain`へ戻り、
+suffix / infix / fixed structural continuationを通常どおり続ける。
+
+次のhistorical `BraceGroup` ownerとはnode kindもgrammar entrypointも共有しない。
+
+- if / elsif / else brace bodyとprojection-record tailが使った`ExprListMachine`。これはstatementを許さない
+  expression listであり、spreadを含む別item grammarだった
+  (`yulang2-oracle@a58eefc3:crates/parser/src/expr/group.rs:13-27,48-118`,
+  `expr/control.rs:459-478,484-510`)。
+- `rule { ... }`のrule-body-specific parser
+  (`yulang2-oracle@a58eefc3:crates/parser/src/expr/rule.rs:30-66`)。
+- `use ... { ... }`のuse-spec parser
+  (`yulang2-oracle@a58eefc3:crates/parser/src/stmt/use_decl.rs:464`)。
+- `%{...}` interpolationのvirtual statement block
+  (`yulang2-oracle@a58eefc3:crates/parser/src/string/parse.rs:172-179`,
+  `crates/parser/src/stmt/block.rs:219-239`)。
+- `catch`固有の`CatchBlock`。`case`にはbrace form自体がない。
+
+declaration bodyはhistorically同じ`parse_brace_stmt_block` functionを呼んだが、Yulang3のouter CSTをここでは
+決めない。`for` / `mod` / `act` / `role` / `type`などのdeclaration grammarが追加されるとき、shared inner
+statement-sequence coreを利用してよいが、`BracedStatementBlockExpression` nodeをdeclaration childとして
+流用してはならない
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/for_stmt.rs:63`,
+`mod_decl.rs:64`, `act_decl.rs:70`, `role_decl.rs:67-105`, `type_decl.rs:196-262`)。
+
+### Valid grammar
+
+`G*`はnewlineを含み得るmaximal lossless trivia run、`G0`はphysical newlineを含まないmaximal trivia runである。
+`Gnl`は一個以上のphysical newlineを含み、completed statementがordinary expression-continuation ruleによって
+returnしたmaximal trivia runである。raw scannerがdeeper continuation lineを先にstatementへ分割する意味ではない。
+
+```text
+BracedStatementBlockExpression :=
+    LBrace OpeningTrivia
+    [
+        Statement
+        { BraceStatementSeparator Statement }
+        [ BraceStatementSeparator ]
+    ]
+    ClosingTrivia RBrace
+
+BraceStatementSeparator :=
+    G0 Comma G*
+  | G0 Semicolon G*
+  | Gnl
+
+OpeningTrivia := G*
+ClosingTrivia := G0
+```
+
+BNFの`OpeningTrivia`はfirst statementまたはmatching closeの前にあるためseparatorではない。
+statementを一個以上commitした後の`Gnl`だけがimplicit `BlockStatementSeparator`になる。explicit comma /
+semicolon branchが後続newlineを含むtriviaを所有した場合、そのnewlineへsecond implicit separatorを重ねない。
+
+valid formを次で固定する。
+
+| source form | statement count | separator shape |
+| --- | ---: | --- |
+| `{}` / `{   }` / `{\n}` | 0 | none。opening / closing triviaだけ |
+| `{x}` | 1 | none |
+| `{x,y}` | 2 | comma separator |
+| `{x;y}` | 2 | semicolon separator |
+| `{x\ny}` | 2 | implicit newline separator |
+| `{x,}` | 1 | valid trailing comma separator |
+| `{x;}` | 1 | valid trailing semicolon separator |
+| `{x\n}` | 1 | valid trailing implicit newline separator |
+
+separatorはstatement間にexactly one必要であり、上のoptional trailing position以外のempty itemをvalidにしない。
+`{x,,y}`や`{x,;}`は複数のvalid empty itemではなくmandatory statement-slot recoveryになる。
+
+newlineはdelimiter内なら常にstatement separatorという意味ではない。各`Statement`内の`OperatorChain`がactive
+statement baselineより深いcontinuation lineを受理できる場合、そのnewlineはstatement child内に残る。
+current statementを終了させてblock ownerへreturnしたcurrent-depth newlineだけを`Gnl`としてcommitする。
+matching `}`自身はindentに依存せずbrace ownerが認識する。
+
+### NUD recognition, delimiter scope, and stop ownership
+
+sink-free NUD judgeへ`NudRecognition::BracedStatementBlock { open }`を追加する。fixed punctuation scannerが
+current positionのlone `{`を`LBrace`としてrecognizeしたときacceptし、accepted後にcutしてtotal continuationへ
+入る。probe rejection時はinput / `ParseLocal`をrollbackし、Rowan sinkへ何も書かない。
+
+brace continuationは次のlocal scopeをpushする。
+
+```text
+Delimiter::Brace
+StopSet {
+    Comma,
+    Semicolon,
+    RightBrace,
+}
+ml_arg = false
+inline = owner-appropriate bracketed mode
+```
+
+このstop frameはincoming outer stopへ単純unionしない。outer if ownerの`Colon` / `Elsif` / `Else`、outer comma、
+outer closeなどをbrace内へ漏らさず、matching brace ownerがcurrent delimiter depthのseparator / closeを所有する。
+scope exit時にoriginal stop / delimiter / `ml_arg` / `inline` stateをexact restoreする。
+
+`StopKind::Comma`は`{x: 1, y: 2}`に不可欠である。first statementのcolon tailはincoming comma stopを見て一argument
+`1`だけをparseし、commaをbrace sequenceへ返す。`StopKind::Semicolon`をstop vocabularyへ追加し、future operator /
+ML application scannerがsemicolonをstatement内へ吸収しないようownerを型付けする。`StopKind::RightBrace`はmatching
+closeをstatement recoveryから保護する。
+
+string、comment、heredoc、interpolation、rule literal、Yumark、nested delimiter内のcomma / semicolon / newline /
+braceはactive lexical-region / delimiter stackが先に所有し、outer brace separatorやcloseへ誤分類しない。
+
+### One shared statement-sequence core
+
+brace-specific statement loopをcopyしない。一方、current `parse_indented_statement_block_with_options`をそのまま
+braceから呼ぶこともしない。indent trigger、dedent、non-empty recoveryを名前とcontrolに含むfunctionはbrace ownerの
+authorityではないためである。
+
+AST pathとdirect-CST pathのそれぞれで、existing loopから次のshared coreを抽出する。
+
+```rust
+enum StatementSequencePolicy {
+    Indented {
+        block_indent: usize,
+        companion_stop: Option<IndentedBlockCompanionStop>,
+        owner: StatementRecoveryOwner,
+    },
+    BracedPrimary {
+        close: Delimiter::Brace,
+        allow_empty: true,
+        allow_trailing_separator: true,
+        owner: StatementRecoveryOwner::BracedStatementBlockExpression,
+    },
+}
+
+struct ParsedStatementSequence<'source> {
+    statements: Vec<Recovered<Statement<'source>>>,
+}
+```
+
+これはpublic abstractionやopen traitではなく、現時点の二ownerを列挙するclosed policyである。shared coreが所有する
+責務は次である。
+
+1. canonical `Statement` candidate probe / parse / direct commit。
+2. `Recovered<Statement>` collectionとzero-progress guard。
+3. maximal invalid episodeの`Error`、missing mandatory statementの`Missing`、same-slot retry。
+4. policy-specific separator recognition後の`BlockStatementSeparator` emission。
+5. separator後にstatement、valid trailing boundary、またはrecoveryのどれへ進むかという共通state transition。
+6. owner-specific recovery roleを受け取り、同じalgorithmから異なるdiagnostic identityをcommitすること。
+
+outer wrapperが所有する責務は次である。
+
+| owner | outer-only responsibility |
+| --- | --- |
+| `IndentedStatementBlock` | strict indent trigger、block baseline、dedent、if companion stop、non-empty body contract |
+| `BracedStatementBlockExpression` | `LBrace` / `RBrace`、empty validity、comma enablement、all trailing separators、closing-delimiter recovery |
+
+separator policyはhard-coded unionにしない。indented ownerはnewline / semicolonだけ、braced-primary ownerはnewline /
+semicolon / commaを渡す。comma追加によってindent blockがcomma-separated statement blockへ変わってはならない。
+if companion-stop hookはIndented policyにだけ存在し、brace内のordinary `else` / `elsif` wordをouter ifへ返さない。
+
+current helper `commit_indented_block_statement` / `block_statement_error_retry`、AST側statement parse、
+`BlockStatementSeparator` emissionをshared responsibilityへrename / factorする。raw statement parser、recovery scanner、
+diagnostic creationをbrace用に複製しない。outer node emissionとclosing recoveryだけをbrace continuationへ新設する。
+
+### CST shape and byte ownership
+
+normal two-statement record-looking sourceは次のsurface shapeを持つ。
+
+```text
+OperatorChain
+  BracedStatementBlockExpression
+    LBrace "{"
+    Statement
+      OperatorChain
+        IdentifierExpression "x"
+        ColonApplicationTail
+          Colon ":"
+          Whitespace " "
+          OperatorChain
+            IntegerLiteral "1"
+    BlockStatementSeparator
+      Comma ","
+      Whitespace " "
+    Statement
+      OperatorChain
+        IdentifierExpression "y"
+        ColonApplicationTail
+          Colon ":"
+          Whitespace " "
+          OperatorChain
+            IntegerLiteral "2"
+    RBrace "}"
+```
+
+empty formは次である。
+
+```text
+OperatorChain
+  BracedStatementBlockExpression
+    LBrace "{"
+    G*
+    RBrace "}"
+```
+
+zero statement caseへ`Statement`、`BlockStatementSeparator`、`Missing`を合成しない。newline-only separator nodeは
+literal separator tokenを持たず、sourceの`TriviaRun`だけをchildに持つ。comma / semicolon separator nodeは
+separator直前の`G0`、literal token、次statement / closeまでのtriviaをsource orderで所有する。
+
+`BracedStatementBlockExpression.range`は`LBrace.start`からmatched `RBrace.end`までである。missing closeでは
+insertion pointまでをrangeにし、outer close / next owner safe pointを含めない。nested statement / colon tail /
+operator useのrangeをouter blockがsemantic childとして再計算しない。全byteを一回だけemitし、
+`green.to_string() == source`を維持する。
+
+`SyntaxKind::BraceGroup`、`RecordLiteral`、`RecordField`、generic `DelimitedBlock`は追加しない。required vocabularyは
+次だけである。
+
+```text
+SyntaxKind::BracedStatementBlockExpression
+SyntaxKind::Statement                  // existing
+SyntaxKind::BlockStatementSeparator    // existing; add comma branch
+SyntaxKind::LBrace                     // existing
+SyntaxKind::RBrace                     // existing
+```
+
+### Parser-side AST shape
+
+surface ASTはexisting `Statement`をそのまま保持する。
+
+```rust
+pub(crate) enum PrimaryExpression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Parenthesized { /* existing fields */ },
+    If(IfExpression<'source>),
+    BracedStatementBlock(BracedStatementBlockExpression<'source>),
+}
+
+pub(crate) struct BracedStatementBlockExpression<'source> {
+    open: Range<usize>,
+    // Empty is valid. Incomplete entries correspond one-to-one with CST recovery.
+    statements: Vec<Recovered<Statement<'source>>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+```
+
+comma / semicolon / newline spellingとtrailing positionのlossless authorityはCSTであり、semantic ASTへseparator listを
+duplicateしない。formatterやrefactoringがliteral separatorを必要とする場合はCST childを使う。
+`close: Recovered<Range<usize>>`はmatched rangeまたはalready-committed missing slotをtyped surface projectionへ
+伝える。concrete existing `Recovered<T>`に不足があればequivalentな`DelimiterSlot`へ分けてよい。
+
+各`Statement.expression`はflat `OperatorChain`のままである。pre-HIR associatorがstatementごとにoperator useを
+associateし、その後syntax-to-HIR loweringがneutral braced statement sequenceを作る。parser-side ASTも
+statement contents、statement count、separator spelling、inferred value typeを見てrecord-specific variantへ変えない。
+
+### `{x: 1}` and semantic interpretation boundary
+
+`{x: 1}`のparseは次のcompositionだけで完結する。
+
+1. `{`が`BracedStatementBlockExpression` NUDを開始する。
+2. shared sequence coreが一個の`Statement`を開始する。
+3. statementの`OperatorChain`が`IdentifierExpression("x")`を読み、lone colonをterminal
+   `ColonApplicationTail`として読む。
+4. brace ownerの`StopKind::Comma` / `RightBrace`によりcolon RHSは`1`で終了する。
+5. matching `}`がblockを閉じる。
+
+field name、record type、callee arity、brace全体のexpected typeをparserは読まない。`{}`、`{x}`、`{x: 1}`、
+`{f: x, y}`はstatement count / literal separator / child operator-chain shapeだけが異なり、outer node kindは常に
+`BracedStatementBlockExpression`である。
+
+後段がbraced statement sequenceをblock value、empty record、record-like aggregate、argument sugarなどへinterpretする
+規則はfuture HIR / inference designが所有する。何を選んでもsurface CSTを`RecordLiteral`へrename / reshapeせず、
+colon tailを`RecordField`へ置換しない。
+
+### Recognition / commit control flow
+
+direct parserのcontrolを次で固定する。
+
+```text
+at an operand-required NUD site:
+    sink-free probe a fixed LBrace
+    if absent: reject and rollback
+    accept BracedStatementBlock and cut
+    start BracedStatementBlockExpression
+    emit LBrace
+    push brace delimiter / local stop / ml_arg scopes
+    consume and emit opening trivia
+
+    if matching RBrace is current:
+        emit RBrace; this is the valid empty form
+    else:
+        run shared statement-sequence core under BracedPrimary policy
+        after each statement:
+            if matching RBrace: finish the sequence
+            if comma / semicolon / returned newline separator:
+                emit one BlockStatementSeparator
+                if matching RBrace follows: accept it as valid trailing separator
+                otherwise parse or recover the next mandatory Statement
+            if another Statement candidate follows without a separator:
+                emit one zero-width Missing(separator), then retry that Statement
+            otherwise recover one invalid episode to separator / close / next candidate
+        commit or recover the mandatory RBrace
+
+    pop every brace-local scope
+    finish BracedStatementBlockExpression
+    return one completed PrimaryExpression to the enclosing OperandSlot
+```
+
+matching close / empty / separator candidate probeはsink-freeである。accepted `{`後はcutし、missing closeやmalformed
+statementがあってもouter NUD choiceへrollbackしない。AST-only and direct-CST pathsは同じ boundary / separator /
+statement-start recognizerとsame policyを使う。
+
+### Mandatory-slot and closing recovery
+
+新しいrecovery primitiveを作らない。typed vocabularyへbrace ownerだけを追加する。
+
+```text
+GrammarRole::BracedStatementBlock(
+    BracedStatementBlockRole::{Statement, Separator}
+)
+
+GrammarRole::ClosingDelimiter {
+    owner: ConstructRole::BracedStatementBlockExpression,
+    delimiter: Delimiter::Brace,
+}
+
+ExpectedSyntax::Statement
+ExpectedSyntax::StatementSeparator
+ExpectedSyntax::Punctuation(Close(Delimiter::Brace))
+```
+
+`ExpectedSyntax::StatementSeparator`はcomma / semicolon / implicit newlineのtyped expectationを表示層へ渡す
+vocabulary extensionであり、recovery mechanismではない。existing `Missing` / `Error`、committed record、
+`DiagnosticId`、one node = one diagnostic contractを使う。
+
+代表caseを次で固定する。
+
+| source situation | recovery / ownership |
+| --- | --- |
+| `{}` / `{ G* }` | valid empty。recoveryなし |
+| `{` + EOF | empty bodyはvalidなのでclose用zero-width `Missing('}')`一件だけ。statement `Missing`を作らない |
+| `{x` + EOF | statementを保持し、EOFへclose用`Missing('}')`一件 |
+| `{x,` + EOF | commaはvalid trailing separator。statement `Missing`を作らずclose用`Missing('}')`一件 |
+| `{x,}` / `{x;}` / `{x\n}` | valid trailing separator + normal close。recoveryなし |
+| `{x y}`で`y`がseparate statement candidateとして返る | `y`直前へseparator用zero-width `Missing`一件を置き、`y`をnext statementとしてretryする。valid ML applicationなら分割しない |
+| `{x,,y}` | first comma後のmandatory statement slotをsecond comma位置でrecoverする。empty statementをvalidにしない |
+| `{x,@ y}` | invalid runを一個のnon-empty `Error`にし、same statement slotを`y`からretryする |
+| `{x]}` | mismatched `]`をclosing-delimiter roleの一個のnon-empty `Error`にし、matching `}`の探索を続ける |
+| `{x` followed by outer/root safe point | boundaryをconsumeせずzero-width close `Missing`を置き、brace nodeを閉じる |
+| malformed statement followed by comma / semicolon / returned newline | boundaryをconsumeせずstatement-local `Error` / `Missing`をcommitし、separator loopを続ける |
+
+matching close、separator、outer safe point、EOFはinvalid statement recoveryがconsumeしない。invalid byteを一byteずつ
+`Error`へ分割せず、次shared NUD candidateまたはowner boundaryまでのmaximal non-empty episodeにする。
+separator直後にmatching `}`があるcaseはgrammar上valid trailing separatorなので、mandatory statement helperを
+呼ぶ前にcloseをprobeする。
+
+mismatched `)` / `]`はexisting closing-delimiter ruleどおりactual delimiter evidenceを持つ`Error`としてconsumeし、
+同じbrace close slotを続行する。EOF / owner safe pointではmatching braceを合成tokenとして作らず、zero-width
+`Missing` nodeだけを置く。all recovery pathでdelimiter / stop / `ml_arg` / inline scopeを一度だけpopする。
+
+associator / HIR loweringは`Recovered<Statement>`とmissing closeをpanic / hangなしでdeterministic error HIRへlowerし、
+parser diagnosticを複製しない。
+
+### Existing architecture principlesとの整合
+
+- **NUD-primary placement:** `{`はoperand-required siteでprimaryを開始する。terminal continuation、dynamic operator、
+  if brace-body alternativeへroutingしない。
+- **single block authority:** canonical Statement parse、recovery、progress、separator state transitionをshared
+  statement-sequence coreへ一度だけ置く。indent / brace ownerはtrigger、boundary、allowed separatorsだけを所有する。
+- **rollback discipline:** `{` candidate、matching close、separator、statement startをsink-freeにprobeする。open accept後は
+  cutし、closing recoveryまでtotal continuationにする。
+- **direct CST / no event buffer:** openからclose / missing-closeまでforward-onlyにemitし、completed childをwrap /
+  replayしない。source-wide bufferを作らない。
+- **precedence-neutral chain:** each statementはflat `OperatorChain`であり、brace parserはnumeric BPを読まない。
+  BP-only changeでbrace CST hierarchy、separator、recoveryを変えない。
+- **immutable operator table / oracle judge:** statement chainはcanonical table / fixity-role judgeを使う。brace punctuationと
+  statement separatorsをdynamic operator tableへ登録しない。
+- **stop / delimiter ownership:** local `{Comma, Semicolon, RightBrace}` stopと`Delimiter::Brace`をpushし、outer
+  condition / list / close stopをsuspendする。scope stateをin-place mutationして漏らさない。
+- **colon composition:** brace-owned commaがgeneric colon tailのinline argument loopを止める。
+  `{x: 1, y: 2}`にrecord-field parserやcolon-specific brace exceptionを作らない。
+- **lexical-region-aware scanning:** nested literal / comment / interpolation / delimiter内のbrace / separatorをouter
+  statement blockへ誤分類しない。
+- **mandatory-slot recovery:** zero-width `Missing`、non-empty `Error`、owner safe point unconsumed、one committed node =
+  one diagnosticを既存ruleどおり適用する。empty / trailing separatorにrecoveryを作らない。
+- **phase boundary:** syntax-to-HIR associatorがstatement chainをassociateする。record / block interpretationやtypeを
+  CST shapeへ逆流させない。
+
+### Implementation boundary and required gates
+
+最初の`yu-syntax` implementation sliceは次を含む。
+
+1. `LBrace` NUD recognitionと`PrimaryExpression::BracedStatementBlock`。
+2. `SyntaxKind::BracedStatementBlockExpression`とexisting `Statement` / `BlockStatementSeparator` children。
+3. local brace delimiter / stop scopeとnew `StopKind::Semicolon`。
+4. shared closed-policy statement-sequence coreへのexisting indent loop factoring。
+5. brace policyのcomma / semicolon / implicit-newline separators、empty、all trailing separators。
+6. typed statement / separator / closing recovery、AST/direct parity、lossless CST fixture。
+
+declaration grammar、if expression-list body、projection record、spread、rule/use/interpolation grammar、HIR semantic
+interpretationを同じchangeへ混ぜない。
+
+`yu-syntax` gateを次で固定する。
+
+1. `{}`、`{ }`、`{\n}`がzero `Statement`のvalid `BracedStatementBlockExpression`になる。
+2. `{x}`がone `Statement > OperatorChain`を持つ。
+3. `{x,y}`、`{x;y}`、`{x\ny}`がtwo statementsとそれぞれcomma / semicolon / newline
+   `BlockStatementSeparator`を持つ。
+4. `{x,}`、`{x;}`、`{x\n}`がvalid trailing separatorで、`Missing(statement)`を持たない。
+5. deeper continuation newlineはcurrent statementに残り、returned current-depth newlineだけがseparatorになる。
+6. `{x: 1, y: 2}`でcommaはbrace owner、各colon tailはone inline argument、dedicated record nodeは0である。
+7. prefix / suffix / infixの周囲にbrace primaryを置いてもone `Primary` itemとしてouter flat chain orderを保つ。
+8. operator BPだけを変えてもgreen CST、surface AST、ranges、recovery、diagnosticsがexact一致する。
+9. `{` EOF、statement後EOF、trailing separator後EOF、missing separator、repeated separator、invalid statement、
+   mismatched closeをrecovery table通り固定する。
+10. nested braces / parentheses / strings / comments内のseparator / closeをouter braceがconsumeしない。
+11. all recoveryで`Missing` zero-width、`Error` non-empty、node / diagnostic一対一、balanced scopes / nodes、
+    `green.to_string() == source`を満たす。
+12. AST-only / direct-CSTのstatement count / ranges / close recoveryが一致し、probe中sink callは0である。
+13. existing colon / if indented-block fixturesがshared-core factoring後もbyte-for-byte同じCST / diagnosticsを保つ。
+14. historical fixed `ExprSpread` fixtureはこのsliceのacceptance gateに入れず、parser-selected spread CSTを追加しない。
+
+HIR gateは別sliceで次を満たす。
+
+1. each recovered statement chainをcanonical associatorへ一度だけ渡し、surface CSTへtreeを書き戻さない。
+2. empty / statement order / ranges / recoveryをneutral braced-block HIRへ保持する。
+3. record-like interpretationを追加してもgeneric colon applicationとsurface block CSTを保持する。
+4. malformed / unclosed blockをdeterministic error HIRへlowerし、parser diagnosticsを複製しない。
+
+### Explicit future scope
+
+本追補は次を設計しない。
+
+- if / elsif / else brace body。これはstatement blockではなく、comma / semicolon-separated expression listとspreadを
+  持つ別grammarであり、`IfArm` / `ElseArm` owner addendumが別node kindを決める。
+- projection-record tail `a.{x: y}`。historically上と同じ`ExprListMachine`を使ったが、fixed structural tailの
+  target / item / spread ownershipを専用addendumで決める。
+- declaration bodyのbrace form。inner shared statement-sequence coreはreuse可能だが、各declaration ownerの
+  outer CST node / allowed statement family / recoveryは別addendumが所有する。
+- primary blockのfixed `..expr` spread item。Yulang2には存在したが、`Statement`ではないbrace-local item role、
+  lowering、recoveryを別途設計するまで追加しない。
+- `rule { ... }`のrule-body grammar。
+- `use ... { ... }`のuse-spec / import-list grammar。
+- `%{...}` string interpolationのvirtual blockとinterpolation close ownership。
+- `catch`の`CatchBlock`。`case`にはbrace formを追加しない。
+- declaration / pattern / type / Yumarkなど、literal braceを使うその他grammar family。
+- block value、empty record、record aggregate、argument sugarなどのHIR / inference interpretation。
+
+historical outer node spellingがすべて`BraceGroup`だったことは、Yulang3でこれらを一nodeへ統合する根拠にしない。
+共有してよいのはcanonical scanner / statement-sequence / delimiter recoveryのうち実際に同じ責務だけである。
+
+### Closed decisions and review focus
+
+本追補のimplementation directionをblockするopen questionはない。次を確定する。
+
+- outer CST nameはprimary-only `BracedStatementBlockExpression`である。
+- grammarはzero-or-more `Statement`、separatorはcomma / semicolon / returned physical newlineである。
+- `{}`とcomma / semicolon / newline trailing separatorはvalidである。
+- brace and indent ownersはclosed-policy shared statement-sequence coreを使い、loop / recoveryをduplicateしない。
+- brace policyだけがcomma、empty、matching close、all trailing separatorsを有効にする。
+- `{x: 1}`はordinary Statement + OperatorChain + ColonApplicationTailでありrecord CSTを持たない。
+- historical fixed spread、if expression-list、declaration / rule / use / interpolation bracesは本nodeのownerではない。
+- operator associationはpre-HIR、block / record semanticsはlater HIR / inferenceが所有する。
+
+Claude reviewでは、特にexplicit separator後のtriviaとimplicit newlineを二重separatorにしないこと、empty / trailing
+separatorをmandatory statement recoveryより先に判定すること、brace-local stop frameがouter if / parenthesized stopを
+正しくsuspend / restoreすること、shared-core factoringがexisting indented-block recovery identityを変えないことを
+確認対象にする。これらのhelper signatureは調整してよいが、node name、valid separator set、empty / trailing rule、
+scope boundaryをopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、NUD-primary brace-delimited statement-block expression追補案）。
