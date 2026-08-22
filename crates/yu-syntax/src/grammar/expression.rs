@@ -768,6 +768,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     i.local.push_stop_set(stops);
     let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
+    consume_trivia(i).expect("trivia scanning is total");
     let block = recognize_arm_colon(i).map(|colon| Recovered::Complete(parse_case_block_ast(table, colon, base_indent, i))).unwrap_or(Recovered::Incomplete);
     let end = match &block { Recovered::Complete(block) => block.range.end, Recovered::Incomplete => match &scrutinee { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => keyword.range().end } };
     CaseExpression { keyword, label, scrutinee, block, base_indent, range: start..end }
@@ -784,6 +785,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     i.local.push_stop_set(stops);
     let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
+    consume_trivia(i).expect("trivia scanning is total");
     let block = if let Some(colon) = recognize_arm_colon(i) {
         Recovered::Complete(parse_catch_colon_block_ast(table, colon, base_indent, i))
     } else if let Some(open) = i.run(recognize_braced_statement_block_open) {
@@ -2494,7 +2496,17 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     }
     commit_arm_guard(table, family, committed);
     let arrow_trivia = consume_direct_trivia(committed); committed.emit_trivia(&arrow_trivia);
-    if let Some(arrow) = committed.probe(|probe| probe.input().run(scan_exact_arrow)) { committed.token(SyntaxKind::Arrow, arrow); commit_arm_body(table, family, policy, committed); } else { emit_case_like_missing(committed, CaseLikeRole::Arrow, ExpectedSyntax::Expression); commit_case_like_invalid_arrow(committed); }
+    if let Some(arrow) = committed.probe(|probe| probe.input().run(scan_exact_arrow)) {
+        committed.token(SyntaxKind::Arrow, arrow);
+        commit_arm_body(table, family, policy, committed);
+    } else {
+        emit_case_like_missing(committed, CaseLikeRole::Arrow, ExpectedSyntax::Expression);
+        if committed.probe(|probe| direct_expression_nud_candidate(table, LeadingTrivia::None, probe)) {
+            commit_arm_body(table, family, policy, committed);
+        } else {
+            commit_case_like_invalid_arrow(committed);
+        }
+    }
     let checkpoint = committed.probe(|probe| probe.input().checkpoint());
     let terminal_trivia = consume_direct_trivia(committed);
     if let Some(semicolon) = committed.probe(|probe| direct_semicolon(probe.input())) { committed.emit_trivia(&terminal_trivia); committed.token(SyntaxKind::Semicolon, semicolon); } else { committed.probe(|probe| probe.input().rollback(checkpoint)); }
@@ -4994,6 +5006,212 @@ mod tests {
         let root = parse_direct(source, &canonical_operator_table());
         assert_eq!(root.to_string(), source);
         assert_eq!(root.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::Arrow).count(), 0);
+    }
+
+    #[test]
+    fn case_and_catch_are_binding_power_invariant() {
+        let source = "case x + y: n if ready + now -> yes + again, _ -> no + later";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
+    }
+
+    #[test]
+    fn case_like_ast_and_direct_paths_agree_on_arm_count_and_layout() {
+        let cases = [
+            ("case x: 1 -> a, 2 -> b", 2, ColonArmLayout::Inline),
+            (
+                "case x:\n  1 -> a\n  _ -> b",
+                2,
+                ColonArmLayout::Indented {
+                    base_indent: 0,
+                    arm_indent: 2,
+                },
+            ),
+        ];
+
+        for (source, expected_arms, expected_layout) in cases {
+            let chain = parse(source, &canonical_operator_table());
+            let OperatorChainItem::Primary(PrimaryExpression::Case(case)) = &chain.items()[0] else {
+                panic!("case source must produce a case primary");
+            };
+            let Recovered::Complete(block) = &case.block else {
+                panic!("valid case source must complete its block");
+            };
+            let Recovered::Complete(arms) = &block.arms else {
+                panic!("valid case source must complete its arm sequence");
+            };
+            assert_eq!(arms.arms.len(), expected_arms);
+            assert_eq!(block.layout, expected_layout);
+
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source);
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArm).count(), expected_arms);
+            assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+        }
+
+        let source = "catch action { err -> recover, _ -> fallback }";
+        let chain = parse(source, &canonical_operator_table());
+        let OperatorChainItem::Primary(PrimaryExpression::Catch(catch)) = &chain.items()[0] else {
+            panic!("catch source must produce a catch primary");
+        };
+        let Recovered::Complete(CatchBlock::Braced { arms: Recovered::Complete(arms), .. }) = &catch.block else {
+            panic!("valid catch source must complete a braced block");
+        };
+        assert_eq!(arms.arms.len(), 2);
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CatchArm).count(), 2);
+        assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+    }
+
+    #[test]
+    fn nested_delimiters_keep_arm_boundaries_local() {
+        let sources = [
+            "case x: (a, b) -> (f, g), _ -> z",
+            "case (f: x): (a, b) -> (g, h), _ -> z",
+            "catch (action) { (err, handler) -> (recover, fallback), _ -> done }",
+        ];
+
+        for source in sources {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| token.kind() == SyntaxKind::Arrow)
+                    .count(),
+                2,
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn case_like_missing_arrow_retries_the_body_from_the_same_position() {
+        let source = "case x: n yes";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            recoveries
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>(),
+            vec![(RecoveryKind::Missing, GrammarRole::CaseLike(CaseLikeRole::Arrow), 10..10)],
+        );
+        assert!(root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::CaseArm)
+            .flat_map(|arm| arm.children())
+            .any(|node| node.kind() == SyntaxKind::OperatorChain && node.to_string() == "yes"));
+
+        let chain = parse(source, &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::Case(case))] = chain.items() else {
+            panic!("the AST path must recognize a case primary");
+        };
+        let Recovered::Complete(block) = &case.block else {
+            panic!("the AST path must recognize the inline block");
+        };
+        let Recovered::Complete(arms) = &block.arms else {
+            panic!("the AST path must retain its arm sequence");
+        };
+        let Recovered::Complete(arm) = &arms.arms[0] else {
+            panic!("the AST path must retain the arm");
+        };
+        assert!(matches!(
+            &arm.body,
+            Recovered::Complete(ArmBody::Inline(body))
+                if matches!(body.items(), [OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier))] if identifier.text() == "yes")
+        ));
+    }
+
+    #[test]
+    fn case_like_recovery_marks_missing_mandatory_slots_once() {
+        let cases = [
+            ("case : 1 -> a", vec![(RecoveryKind::Missing, 5..5)]),
+            ("case x", vec![(RecoveryKind::Missing, 6..6)]),
+            ("case x: -> a", vec![(RecoveryKind::Missing, 8..8)]),
+            ("catch action: err, -> recover", vec![(RecoveryKind::Missing, 19..19)]),
+            ("case x: n if -> yes", vec![(RecoveryKind::Missing, 13..13)]),
+            ("case x: n", vec![(RecoveryKind::Missing, 9..9)]),
+            ("case x: n ->", vec![(RecoveryKind::Missing, 12..12)]),
+            (
+                "catch action { err -> recover",
+                vec![(RecoveryKind::Missing, 29..29)],
+            ),
+        ];
+
+        for (source, expected) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .map(|record| (record.kind, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn case_like_invalid_arrow_run_recovers_to_the_next_comma_arm() {
+        let source = "case x: n @, _ -> b";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            recoveries
+                .iter()
+                .map(|record| (record.kind, record.site.range.clone()))
+                .collect::<Vec<_>>(),
+            vec![(RecoveryKind::Missing, 10..10), (RecoveryKind::Error, 10..11)],
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::CaseArm)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn case_like_same_indent_boundaries_stay_with_the_outer_owner() {
+        for (source, arm_missing) in [
+            ("my value = case x:\nnext", false),
+            ("my value = case x: n ->\nnext", true),
+        ] {
+            let output = crate::grammar::declaration::parse_direct_root_candidate(
+                source,
+                &canonical_operator_table(),
+                &[],
+            );
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source:?}");
+
+            let owner = root
+                .descendants()
+                .find(|node| {
+                    node.kind()
+                        == if arm_missing {
+                            SyntaxKind::CaseArm
+                        } else {
+                            SyntaxKind::CaseBlock
+                        }
+                })
+                .expect("case-like owner");
+            assert!(owner.children().any(|node| node.kind() == SyntaxKind::Missing));
+            assert!(
+                !owner
+                    .children_with_tokens()
+                    .any(|child| child.kind() == SyntaxKind::Newline),
+                "the boundary newline belongs to the outer statement"
+            );
+        }
     }
 
     fn direct_token_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
