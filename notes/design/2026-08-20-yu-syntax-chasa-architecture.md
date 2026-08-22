@@ -44,7 +44,7 @@ implicit-newline separator、empty / trailing-separator validity、shared statem
 末尾のbraced statement-block追補で確定する。
 
 Revision note (first pattern-grammar slice): expression `OperatorChain`とは独立したfixed-precedence pattern Pratt
-familyを追加し、identifier / sigil identifier、decimal integer、contiguous symbol、comma-only parenthesized pattern、
+familyを追加し、identifier / sigil identifier、decimal integer、contiguous symbol、layout-aware comma-or-newline parenthesized pattern、
 `as` alias、`|` alternationまでを末尾のpattern追補で確定する。case / catchを含むconsumer wiringと、未成立の
 list / type / string-rule / record / constructor-application grammarはfuture scopeへ分離する。
 
@@ -4099,7 +4099,8 @@ fixture`header-full-diagnostic-identity`(26 bytes)の実byte内容とmetadataが
 ## 追補案: parenthesized expression-listのsurface CSTと推論境界
 
 > **Status: 2026-08-22 amended in place.**
-> element count、comma-only separator、terminal comma marker、uniform
+> **Separator-scope status: superseded.** この追補のcomma-only grammar / recovery / gateだけは、末尾の
+> 「layout-aware comma-or-newline delimited sequence」追補がsupersedeする。element count、terminal comma marker、uniform
 > `ParenthesizedExpression` node、unit / grouping / tupleを推論側で判定するruleは維持する。
 > grammar、AST sketch、control flowは末尾のprecedence-neutral operator-chain追補に合わせて
 > `elements: Vec<OperatorChain>`へ更新済みであり、各elementをcurrent-depth `Comma | RParen`までflatにparseする。
@@ -5013,6 +5014,9 @@ call / field / index / assignment / `with` / `as`は各constructのfuture recove
 ## 追補案: lone `:`によるcolon applicationのsurface grammarとblock境界
 
 Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Separator-scope status: superseded。`InlineColonArguments`のcomma-only loopとouter-comma-only ownership判定は、末尾の
+「layout-aware comma-or-newline delimited sequence」追補へ置き換える。colon tail / inline-vs-indented / CST / ASTの他の決定は維持する。
 
 Date: 2026-08-22。
 
@@ -6626,6 +6630,9 @@ scope boundaryをopenに戻さない。
 
 Status: Claude review / exact wordingのfinal sign-off待ち。
 
+Separator-scope status: superseded。`ParenthesizedPattern`のcomma-only grammar / recovery / gatesだけは、末尾の
+「layout-aware comma-or-newline delimited sequence」追補へ置き換える。他のprimary / fixed tail / CST / AST決定は維持する。
+
 Date: 2026-08-22。
 
 ### Decision summary
@@ -8013,6 +8020,9 @@ grammar、family差、CST ownership、phase boundaryをopenに戻さない。
 
 Status: Claude review / exact wordingのfinal sign-off待ち。
 
+Separator-scope status: superseded。comma-only grammar / recovery / gatesだけは、末尾の
+「layout-aware comma-or-newline delimited sequence」追補へ置き換える。spread / CST / AST / semantic deferralは維持する。
+
 Date: 2026-08-22。
 
 ### Decision summary
@@ -8383,9 +8393,12 @@ policyが所有するのはdelimiter、opening / closing token kind、construct 
 item-commit callbackだけである。`ParenthesizedPattern`はordinary `Pattern`だけ、`ListPattern`はordinary / spread sumをparseする。
 public ASTをgeneric `DelimitedPattern<T>`へ変えず、outer CST nodeとsemantic projectionはdistinctのままにする。
 
-expression argument list、statement sequence、case/catch arm sequence、future record-field sequenceをこのhelperへ通さない。
-separator spellingがcommaでも、item grammar、layout、close recovery ownerが異なるためである。future record patternはmixed field /
-spread / default expression grammarを自分のaddendumで設計する。
+Status: この段落のfuture record-field predictionだけは後続の`RecordPattern`追補によりsupersededされた。record grammarが
+concrete third userになったため、delimiter / comma / close / retry mechanicsは`PatternDelimitedPolicy::Record`へ共有する。
+field / spread / embedded-default item grammarは引き続きrecord owner固有である。
+
+expression argument list、statement sequence、case/catch arm sequenceをこのhelperへ通さない。separator spellingがcommaでも、
+item grammar、layout、close recovery ownerが異なるためである。
 
 ### Recognition / commit control flow
 
@@ -8596,3 +8609,1085 @@ semantic deferralをopenに戻さない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、comma-delimited `ListPattern`とspread item grammar追補案）。
+
+## 追補案: comma-or-newline-delimited `RecordPattern`とfield/default grammar
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+already-implemented fixed-precedence pattern grammarへ、NUD-position primary `RecordPattern`を追加する。
+
+```text
+RecordPattern :=
+    LBrace G*
+    [ RecordPatternItem { RecordPatternSeparator RecordPatternItem } [ RecordPatternSeparator ] ]
+    RBrace
+
+RecordPatternSeparator := ExplicitCommaSeparator | ImplicitNewlineSeparator(record_base_indent)
+
+RecordPatternItem := RecordPatternField | RecordPatternSpreadItem
+
+RecordPatternField :=
+    PatternFieldName
+    [ G0 Colon G* Pattern@Lowest [ G0 Equals G* OperatorChain ]
+    | G0 Equals G* OperatorChain
+    ]
+
+PatternFieldName := Identifier | SigilIdentifier
+RecordPatternSpreadItem := DotDot G* Pattern@Lowest
+```
+
+`G*`はphysical newlineを含み得るmaximal lossless trivia、`G0`はphysical newlineを含まないmaximal triviaである。
+field introducerの`:` / `=`はfield nameと同じphysical lineにある場合だけ、そのfieldへ属する。introducerをcommitした後の
+mandatory nested pattern / default expressionはnewlineをまたいでよい。
+
+このsliceは次を確定する。
+
+- `{}`はvalid zero-item record patternである。
+- separatorはliteral commaまたはlayout条件を満たすimplicit physical newlineである。semicolonは受理しない。
+- terminal commaをvalidとし、そのrangeをASTにも保持する。
+- field headはfull `Pattern`ではなくname-only `Identifier | SigilIdentifier`である。
+- shorthand、colon nested-pattern、bare-defaultの三formを一個の`RecordPatternField` nodeで表す。
+- colon formのRHSはtypeではなくfull recursive `Pattern`であり、optional `= OperatorChain`を持てる。
+- bare `=` formとcolon formのdefault RHSはordinary precedence-neutral expression `OperatorChain`である。
+- spread RHSはfull recursive `Pattern`であり、position / multiplicityをparserで制限しない。
+- duplicate field name、spread cardinality / position、field binding/default semanticsはlater pattern HIR lowering / validationへ送る。
+
+本追補はfirst-slice pattern addendumのrecord-pattern defer gateと、ListPattern追補の「future record-field sequenceをshared
+delimited helperへ通さない」というprovisional statementをsupersedeする。concrete third userが成立したため、delimiter / comma /
+close / retry mechanicsだけを`PatternDelimitedPolicy::Record`へ共有する。一方、field dispatch、embedded expression、AST / CST owner、
+typed recovery roleはrecord固有のままにする。
+
+### Re-verified Yulang2 grammar and evidence
+
+Yulang2 specのproductionは次だった
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:1532-1551`)。
+
+```text
+pat_record =
+  "{" ((pat_field | ".." pattern) ("," (pat_field | ".." pattern))* ","?)? "}"
+
+pat_field =
+  ident
+  ident ":" pattern ("=" expr)?
+  ident "=" expr
+```
+
+actual NUD dispatchはopen braceを`parse_pat_record_group`へ送り、一個の`PatRecord`を開始した
+(`yulang2-oracle@a58eefc3:crates/parser/src/pat/parse.rs:296-305`)。record item machineは各item先頭で`DotDot`をprobeし、
+spreadなら`PatSpread`内へfull `parse_pattern`を呼んだ。spread count / indexのstateはなく、first / middle / lastおよび
+複数spreadをgrammarで区別しなかった (`crates/parser/src/pat/parse.rs:421-450`)。
+
+ordinary fieldは`scan_pat_nud`のresultを受けた後、headが`Ident | SigilIdent`のatomであることを要求した。したがってspecの
+`ident`よりactual implementationはsigil nameを含むが、integer、symbol、parenthesized pattern等のfull Pattern headは許さない
+(`crates/parser/src/pat/parse.rs:451-464`)。sigil shorthand `{$x}` fixtureもこのshapeを固定する
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:124-138`)。
+
+name後のdispatchはtoken-by-tokenだった。trailing triviaがnewlineならshorthandを終了し、それ以外ではnext scanned tokenを
+調べ、`Colon`ならfull nested pattern、`Equal`ならordinary expressionをparseした。colon branchだけはinner pattern stopへ
+`Equal`を追加し、inner patternが返したexact `Equal`をoptional default introducerとしてconsumeした。その他のtokenはinvalid
+だった (`crates/parser/src/pat/parse.rs:464-507`)。
+
+このevidenceは`{width: local_width}`のcolonをgeneral pattern type annotationと読んではならないことを示す。actual CSTは
+`PatField(Ident, Colon, Pattern)`であり、fixture名`pat_record_field_with_type_ann`もexpected treeでは`TypeAnn`を含まない
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:234-276,425-453`)。bare / colon defaultはboth
+`PatField(... Equal, Expr)`だった (`crates/parser/tests/pat_grammar.rs:255-276,456-483`)。
+
+explicit separator predicateはcommaだけだった (`crates/parser/src/pat/parse.rs:421-428`)。ただしshared
+`DelimitedListMachine`はcurrent base indent以下のphysical newlineをempty `Separator` nodeとして受理した
+(`yulang2-oracle@a58eefc3:crates/parser/src/parse/mod.rs:21-23,35-67`)。recordにはlistと違い、このbehaviorを直接固定する
+`{a\nb}` fixtureが存在する (`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:102-121`)。
+
+spread fixturesはhead `{ ..rest, width = 1 }`とtail `{ width = 1, ..rest }`、field fixturesはshorthand、sigil shorthand、
+colon nested pattern、colon + default、bare defaultをcoverする
+(`crates/parser/tests/pat_grammar.rs:124-198,234-276,425-483`)。empty、malformed head、missing RHS / close、duplicate name、
+middle / multiple spread、mixed field-form recoveryのfixtureはない。Yulang3 recoveryはhistorical outputを推測せず、existing typed
+mandatory-slot contractから定義する。
+
+### Separator scope: shared comma-or-newline rule
+
+`RecordPattern`は末尾の「layout-aware comma-or-newline delimited sequence」追補をそのまま使う。open brace直後のtriviaを
+読んだ時点で`record_base_indent`をsnapshotし、item後のphysical newlineのfollowing-line indentがbase以下ならimplicit
+separator、baseよりdeepならcurrent field / spread patternのcontinuation triviaとする。semicolonはvalid separatorではない。
+
+これはYulang2のrecord-specific fixture `{a\nb}`を復元し、同じshared mechanismをparenthesized / list patternにも適用する決定である。
+newlineはraw triviaとして一度だけ保持し、sourceにないcomma tokenやempty Separator nodeを合成しない。
+
+| source | result |
+| --- | --- |
+| `{}` | valid empty record |
+| `{a}` | valid shorthand field |
+| `{a,}` | valid shorthand + trailing comma |
+| `{a,\n b}` | valid two fields。newlineはcomma後trivia |
+| `{\n  a\n  b\n}` | base 2で二shorthand field。二newline boundaryはいずれもvalid |
+| `{a\nb}` at base 0 | equal-indent newlineで二shorthand field。Missingなし |
+| `{a\n  b}` at base 0 | deeper newlineはseparatorでなくfield continuation。`b`をnext fieldへ昇格しない |
+| `{a; b}` | semicolonはnon-empty separator `Error`。valid separatorではない |
+
+explicit commaがあるboundaryではcommaをauthorityとし、その後ろのnewline triviaをsecond separatorへ数えない。qualifying newlineの
+直後にcommaがある場合も一個のboundary clusterとしてcommaを優先し、empty item / duplicate boundaryを合成しない。
+
+### Field head and three-way dispatch
+
+`RecordPatternField`は一個のname-only headと、source punctuationで決まるoptional bodyを持つ。
+
+```text
+PatternFieldName := Identifier | SigilIdentifier
+
+RecordPatternField :=
+    PatternFieldName
+    [ G0 Colon G* Pattern@Lowest [ G0 Equals G* OperatorChain ]
+    | G0 Equals G* OperatorChain
+    ]
+```
+
+field name scannerはexisting `scan_pattern_name`をreuseする。CSTでは`IdentifierPattern`へ包まず、literal
+`Identifier | SigilIdentifier` tokenを`RecordPatternField`直下へemitする。ASTではexisting `PatternNameSpan`を使い、bare `_`は
+ordinary name、`_bar` / `$x`等はsigil nameである。binding / constructor / wildcard意味をparserで決めない。
+
+name後のrecognition priorityを次で固定する。
+
+1. physical newlineを含まないtrivia `G0`とexact `Colon`をsink-free composite probeする。成立すればcolon formへcutする。
+2. 同じ`G0`とexact `Equals`をprobeする。成立すればbare-default formへcutする。
+3. matching comma / right brace、qualifying same-or-shallower newline、captured outer safe pointならshorthandとしてfieldを終了する。
+4. deeper newlineはfield continuation triviaである。次tokenがvalid same-field suffixでなければfield-local recoveryを行い、next itemへ
+   昇格しない。
+5. same logical lineに次のrecord item candidateがあればshorthandを終了し、outer loopがmissing separatorをemitしてretryする。
+6. その他はfield continuation / separatorのnon-empty `Error`としてrecoverし、next item candidateまたはcloseを守る。
+
+probeがrejectした`G0`はfieldへcommitしない。shorthand後のtriviaとしてouter record nodeがemitする。line commentまたはblock
+comment内newlineがqualifying boundaryなら、その後ろにある`:` / `=`もprior fieldへattachしない。一方、introducerをcommitした後の`G*`は
+newlineを含めてmandatory RHSへ属し、`{x:\n  pattern}`と`{x =\n  expression}`を許す。
+
+三formは一個の`SyntaxKind::RecordPatternField`を共有する。fieldというliteral grammar owner、name slot、duplicate-name validation
+boundaryが同じであり、違いはsourceに`Colon` / `Equals`とRHSがあるかという内部shapeだけだからである。三node kindへ分けると
+missing introducer / RHS recoveryがfield identityを変え、downstreamが同じfield sequenceをvariant node名から再構成することになる。
+
+single wrapperはform差を消さない。ASTは`RecordPatternFieldForm::{Shorthand, Nested, Default}`でexact formを保持し、CSTはliteral
+tokens / child nodeのpresenceで区別する。colon formを`PatternTypeAnnotationTail`へ流用せず、bare defaultをbinding statementへ
+流用しない。
+
+### Exact `=` ownership and embedded expression boundary
+
+current `StopKind`には`Equal`がない一方、`SyntaxKind::Equals`と`PunctuationEvidence::Equals`は既にある。fixed punctuation scannerは
+`=`をdynamic-operator territoryへ残している。本sliceは次を追加する。
+
+```text
+StopKind::Equal
+```
+
+record field-required positionではdeclaration-independentなmaximal operator-shaped spellingをprobeし、candidate textがexact
+`=`のときだけfixed `Equals`としてacceptする。`==`、`=>`、`=+`等を`=` + remainderへsplitしない。operator headerで`=`の
+fixity / BPが宣言されても、field introducer positionのexact `=` ownershipは変わらない。
+
+colon formのnested patternにはlocal stops `{ Equal, Comma, RightBrace }`を与える。pattern NUD / LED / mandatory-primary recoveryは
+exact `=` pendingをcaller-owned boundaryとして扱い、consumeしない。recursive parenthesized / list / record patternはown delimiter
+scopeをpushしてouter `Equal` stopをsuspendし、matching close後にrestoreする。このため
+`{outer: {x = 1} = fallback}`のinner equalsはinner record field、second equalsはouter field defaultになる。
+
+accepted colon後、exact `=`がnested-pattern-required positionに来た場合はzero-width missing `Pattern`をemitした後、同じequalsを
+optional default introducerとしてconsumeする。`=`自体はoptionalなので、colon + valid Patternの後にequalsがないことへdiagnosticを
+出さない。equalsがliteralに存在してRHS expressionがない場合だけmissing default expressionを出す。
+
+bare / colon defaultのRHS ownerはordinary expression grammarである。
+
+```text
+RecordPatternDefault := Equals G* OperatorChain
+DefaultExpressionStops := { StopKind::Comma, StopKind::RightBrace }
+```
+
+AST pathは`parse_expression_with_operators`、direct-CST pathは`parse_direct_expression_with_operators`を呼ぶ。default RHSは
+precedence-neutral flat `OperatorChain`のままであり、record parserがassociationしない。active comma stopにより
+`{x = f: a, y}`のcommaはrecord separatorであり、colon applicationがinline argument listとして奪わない。commaをexpression内で
+使う場合はparenthesized expression等のown delimiterを使う。
+
+first-slice pattern entrypointは現在`OperatorTable`を受け取らないが、embedded expressionを正しくparseするにはcallerと同じ
+immutable tableが必要である。implementation sliceでは`parse_pattern` / `parse_direct_pattern`とrecursive continuationsへ
+`&OperatorTable`をthreadし、case/catchが既に持つtableを渡す。pattern NUD / LED、spread、field dispatchはtableを参照せず、
+record default callbackだけがexpression parserへforwardする。standalone pattern fixturesもexplicit tableを用意する。
+
+これはpattern precedenceをdynamic operatorへ変更するものではない。operator spelling / BP変更が影響できるのはliteral equals後の
+`OperatorChain` subtreeだけで、`RecordPattern` / field / spread / delimiter shapeは変わらない。
+
+### Spread scope and phase boundary
+
+record spreadはListPatternと同じsurface contractを持つが、owner-specific nodeを使う。
+
+```text
+RecordPatternSpreadItem := DotDot G* Pattern@Lowest
+```
+
+- RHSはidentifier-only rest nameではなくfull recursive Patternである。
+- exact maximal `..` probeをListPatternと共有し、`...` / `..+`をprefix-splitしない。
+- first / middle / last、複数spreadをparser-validとする。
+- parserはspread count、既出spread、field indexを保持しない。
+- cardinality / position / capture semanticsはlater pattern HIR lowering / validationが一度検査する。
+
+`RecordPatternSpreadItem`を`ListPatternSpreadItem`へ統合しない。同じmarker / RHS mechanicsをprivate callbackで共有できるが、record
+field sequenceとlist element sequenceではlowering roleが異なる。source-local wrapperをowner-specificに保つことで、later phaseが
+outer ancestorを再走査せずspread roleを得られる。
+
+duplicate field nameもparserではrejectしない。`{a, a = 1, ..left, ..right}`はsurface-valid uniform sequenceであり、必要な
+diagnosticはrecord-pattern validationが出す。
+
+### Grammar and delimiter scope
+
+full productionを次で固定する。
+
+```text
+PatternPrimary += RecordPattern
+
+RecordPattern :=
+    LBrace G*
+    [
+        RecordPatternItem
+        { RecordPatternSeparator RecordPatternItem }
+        [ RecordPatternSeparator ]
+    ]
+    RBrace
+
+RecordPatternSeparator :=
+    G* Comma G*
+  | ImplicitNewlineSeparator(record_base_indent)
+
+RecordPatternItem :=
+    RecordPatternField
+  | RecordPatternSpreadItem
+
+RecordPatternField :=
+    PatternFieldName
+    [ G0 Colon G* Pattern@Lowest [ G0 Equals G* OperatorChain ]
+    | G0 Equals G* OperatorChain
+    ]
+
+PatternFieldName := Identifier | SigilIdentifier
+RecordPatternSpreadItem := DotDot G* Pattern@Lowest
+```
+
+accepted `LBrace`でcutした後、record ownerは次をpushする。
+
+```text
+delimiter = Delimiter::Brace
+local stops = { StopKind::Comma, StopKind::RightBrace }
+```
+
+field colon RHSだけはこのsetへtemporary `StopKind::Equal`を加え、default expressionはouter two stopsへ戻す。incoming case/catch
+Arrow / guard / handler comma、outer paren / bracket close等はbrace depthの外へsuspendするが、missing-close recovery用safe-point
+snapshotとして保持する。matching `}`後にexact restoreする。
+
+`{` / `}`はpattern entrypointでだけ`RecordPattern`を開始する。expression entrypointのsame bytesは引き続き
+`BracedStatementBlockExpression`であり、そのstatement loop / `ColonApplicationTail` / CST nodeをrecord patternへ流用しない。
+逆にrecord default RHS内の`{x: 1}`はexpression parserが読むため、`BracedStatementBlockExpression`になり得る。grammar familyは
+entrypointとcurrent ownerで決まり、brace token単体でnode kindを共有しない。
+
+### CST vocabulary and source-order shapes
+
+本sliceで追加するkindは次である。
+
+```text
+SyntaxKind::RecordPattern
+SyntaxKind::RecordPatternField
+SyntaxKind::RecordPatternSpreadItem
+```
+
+`Pattern`、`Identifier`、`SigilIdentifier`、`Colon`、`Equals`、`DotDot`、`OperatorChain`、`LBrace`、`RBrace`、`Comma`、trivia、
+`Missing`、`Error`はexisting kindを使う。`PatRecord` / `PatField` abbreviation、`RecordShorthandField`、
+`RecordNestedPatternField`、`RecordDefaultField`、generic `PatternSpreadItem`、synthetic `Separator` nodeは追加しない。
+
+`{a, width: local_width = 1, height = fallback, ..rest,}`は次のCST shapeになる。
+
+```text
+Pattern
+  RecordPattern
+    LBrace "{"
+    RecordPatternField
+      Identifier "a"
+    Comma ","
+    Whitespace " "
+    RecordPatternField
+      Identifier "width"
+      Colon ":"
+      Whitespace " "
+      Pattern
+        IdentifierPattern
+          Identifier "local_width"
+      Whitespace " "
+      Equals "="
+      Whitespace " "
+      OperatorChain
+        IntegerLiteral
+          Integer "1"
+    Comma ","
+    Whitespace " "
+    RecordPatternField
+      Identifier "height"
+      Whitespace " "
+      Equals "="
+      Whitespace " "
+      OperatorChain
+        IdentifierExpression
+          Identifier "fallback"
+    Comma ","
+    Whitespace " "
+    RecordPatternSpreadItem
+      DotDot ".."
+      Pattern
+        IdentifierPattern
+          Identifier "rest"
+    Comma ","
+    RBrace "}"
+```
+
+`{}`、`{a}`、`{a,}`、mixed form、one / many spreadのすべてがsame outer `RecordPattern` kindを持つ。all literal tokensとtriviaを
+source orderで一度だけemitし、`green.to_string() == source`を維持する。
+
+### Parser-side AST shape
+
+existing `PatternPrimary`へ一variantを追加する。
+
+```rust
+pub(crate) enum PatternPrimary<'source> {
+    Identifier(PatternNameSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Symbol(SymbolPattern<'source>),
+    Parenthesized(ParenthesizedPattern<'source>),
+    List(ListPattern<'source>),
+    Record(RecordPattern<'source>),
+}
+
+pub(crate) struct RecordPattern<'source> {
+    open: Range<usize>,
+    items: Vec<Recovered<RecordPatternItem<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum RecordPatternItem<'source> {
+    Field(RecordPatternField<'source>),
+    Spread(RecordPatternSpreadItem<'source>),
+}
+
+pub(crate) struct RecordPatternField<'source> {
+    name: PatternNameSpan<'source>,
+    form: RecordPatternFieldForm<'source>,
+    range: Range<usize>,
+}
+
+pub(crate) enum RecordPatternFieldForm<'source> {
+    Shorthand,
+    Nested {
+        colon: Range<usize>,
+        pattern: Recovered<Box<Pattern<'source>>>,
+        default: Option<RecordPatternDefault<'source>>,
+    },
+    Default(RecordPatternDefault<'source>),
+}
+
+pub(crate) struct RecordPatternDefault<'source> {
+    equals: Range<usize>,
+    expression: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct RecordPatternSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<Pattern<'source>>>,
+    range: Range<usize>,
+}
+```
+
+`RecordPatternField`はname probeがacceptedされた場合だけ開始するため、field内の`name`はalways completeである。malformed headは
+outer `RecordPatternItem`の`Recovered::Incomplete`とdirect `Error`で表し、invalid tokenをfake name textへ変換しない。
+
+colon / equals / spread markerがliteralに存在する場合、そのform node / enum variantをmissing RHSでも保持する。ASTはall comma /
+triviaをduplicateせず、item order、field form、spread role、trailing comma、close recoveryを持つ。lossless spellingはCST authorityである。
+
+### Shared delimited mechanics and record-specific callbacks
+
+`PatternDelimitedPolicy`へthird variantを追加する。
+
+```rust
+enum PatternDelimitedPolicy {
+    Parenthesized,
+    List,
+    Record,
+}
+```
+
+`Record` policyは`Delimiter::Brace`、`StopKind::RightBrace`、`SyntaxKind::RBrace`、captured `base_indent`、
+`ConstructRole::RecordPattern`、`PatternRole::RecordSeparator`を返す。shared
+`parse_pattern_delimited_items_ast` / `commit_direct_pattern_delimited_items`はempty detection、raw comma emission、qualifying newline
+classification、trailing explicit / implicit separator、missing separator same-position retry、close recovery、scope balanceだけを所有する。
+
+record-specific callbackは次を所有する。
+
+- item candidate priority: exact `..`、field-name candidate。
+- spread wrapper kind / RHS role。
+- name-only field head commit。
+- same-line colon / equals composite probe。
+- nested Patternのtemporary Equal stop。
+- embedded OperatorChain parseとrecovery。
+- malformed field continuationのsafe retry。
+
+このboundaryならfield complexityをgeneric loopへ条件分岐として漏らさず、三containerのduplicate comma / close machineも作らない。
+public ASTを`DelimitedPattern<T>`へ統合せず、expression argument、statement、case/catch arm、future record expression literalをhelperへ
+通さない。
+
+### Recognition / commit control flow
+
+AST pathとdirect-CST pathはsame sink-free NUD / item / introducer probesを共有する。
+
+```text
+recognize_pattern_nud:
+    existing arm / active fixed-stop priority
+    symbol / name / integer / paren / bracket probes
+    if fixed `{` opening is accepted:
+        return PatternNudRecognition::Record { open }
+
+commit_record_pattern(open):
+    start RecordPattern; emit LBrace; push record scope
+    emit maximal leading trivia
+
+    if matching RBrace pending:
+        emit close; pop scope; finish valid empty record
+        return
+
+    loop:
+        commit one mandatory RecordPatternItem
+        emit following trivia
+
+        if explicit comma separator pending:
+            emit trivia + raw Comma + following trivia
+            if matching RBrace pending:
+                record trailing comma; emit close; pop scope; finish
+                return
+            continue with one mandatory item
+
+        if qualifying implicit newline separator pending:
+            emit newline trivia once; do not emit Separator / Missing / token
+            if matching RBrace pending:
+                finish as valid trailing implicit separator
+                emit close; pop scope; finish
+                return
+            continue with one mandatory item
+
+        if deeper newline pending:
+            return it to current item continuation / recovery; do not start next item
+
+        if matching RBrace pending:
+            emit close; pop scope; finish
+            return
+
+        if exact DotDot or field-name candidate pending:
+            emit zero-width Missing(RecordSeparator)
+            retry next item at same position
+            continue
+
+        recover one non-empty separator / continuation / close episode
+        if item candidate found:
+            retry next item
+        else:
+            recover/insert close; pop scope; finish
+```
+
+item commitは次である。
+
+```text
+commit_record_item:
+    if exact DotDot pending:
+        start RecordPatternSpreadItem; emit DotDot; cut
+        emit trivia
+        commit Pattern@Lowest with role RecordSpreadRhs
+        finish spread item
+        return
+
+    if field-name pending:
+        start RecordPatternField; emit Identifier or SigilIdentifier; cut
+
+        probe G0 + exact Colon
+        if accepted:
+            emit G0 + Colon + G*
+            push Equal stop
+            commit mandatory Pattern@Lowest with role RecordNestedPattern
+            pop Equal stop
+            probe G0 + exact Equals
+            if accepted:
+                commit RecordPatternDefault
+            finish field
+            return
+
+        probe G0 + exact Equals
+        if accepted:
+            commit RecordPatternDefault
+            finish field
+            return
+
+        finish shorthand field without consuming rejected trivia
+        return
+
+    recover mandatory RecordItem slot
+```
+
+`commit RecordPatternDefault`は`Equals`とfollowing triviaをemitし、record comma / right-brace stops下でmandatory
+`OperatorChain`を一個parseする。expression parserがNoneを返した場合はzero-width missing expressionをemitし、comma / qualifying
+newline / close /
+outer safe pointをconsumeしない。
+
+accepted `{` / `..` / `:` / `=`後はalternativeへrollbackしない。probe中はsink call 0で、accepted trivia / tokenは一度だけemitする。
+AST pathもsame stop push / pop orderとsame range boundaryを使う。
+
+### Typed recovery contract
+
+typed vocabularyへ次を追加する。
+
+```text
+PatternRole::{
+    RecordItem,
+    RecordFieldName,
+    RecordNestedPattern,
+    RecordDefaultExpression,
+    RecordSpreadRhs,
+    RecordSeparator,
+}
+
+ConstructRole::RecordPattern
+
+ExpectedSyntax::Identifier
+ExpectedSyntax::Pattern
+ExpectedSyntax::Expression
+ExpectedSyntax::Punctuation(Comma)
+ExpectedSyntax::Punctuation(Equals)
+ExpectedSyntax::Punctuation(Close(Brace))
+ExpectedSyntax::DelimitedSequenceSeparator
+```
+
+new recovery primitiveは不要である。zero-width `Missing`、maximal non-empty `Error`、one committed recovery node = one diagnostic、
+same-position retry、delimiter / lexical safe pointをexisting pattern container contractどおり使う。
+
+| source situation | required recovery / CST ownership |
+| --- | --- |
+| `{}` | valid empty `RecordPattern`。Missingなし |
+| `{a,}` | valid shorthand + raw trailing `Comma`。Missingなし |
+| `{a, b: p, c = e, ..r}` | mixed field forms / spreadをsource orderでvalidに保持 |
+| `{a\nb}` at base 0 | equal-indent newlineをvalid boundaryとして両fieldを保持。Missingなし |
+| `{\n  a\n  b\n}` | captured base 2で二field + valid trailing implicit separator |
+| `{a\n  b}` at base 0 | deeper newlineはcurrent field continuation。`b`をnext itemへsame-position retryしない |
+| `{,a}` | comma位置にmissing `RecordItem`一件、commaを保持して`a`へ進む |
+| `{a,,b}` | second comma位置にmissing item一件。両commaを保持し`b`へ進む |
+| `{1, a}` | `1`をnon-empty `Error(RecordFieldName/RecordItem)`。full Pattern fieldへ昇格せずcomma後の`a`へ進む |
+| `{@ a}` | `@`をnon-empty item `Error`、same mandatory slotを`a`からretry |
+| `{a b}` | same-line `b`直前へzero-width missing delimited separator、両shorthandを保持 |
+| `{a: p}` | complete colon nested-pattern field |
+| `{a:}` | Colonを保持し、close位置へzero-width `Pattern > Missing(RecordNestedPattern)` |
+| `{a:, b}` | comma位置へmissing nested Pattern一件。commaをrecord separatorとして保持 |
+| `{a: = 1}` | colon form内にmissing nested Pattern、same exact Equalsをdefault introducerとしてconsume |
+| `{a = value}` | complete bare-default field。RHSは`OperatorChain` |
+| `{a =}` | Equalsを保持し、close位置へzero-width `OperatorChain > Missing(RecordDefaultExpression)` |
+| `{a: p =}` | nested Patternを保持し、Equals後にmissing default expression |
+| `{a: p}`でequalsなし | optional default absent。diagnosticなし |
+| `{a\n: p}` with next indent `<= base` | newlineで`a` shorthand終了。Colonをprior fieldへattachせずnext-item Errorとして保持 |
+| `{a\n  : p}` with next indent `> base` | deeper continuation内のinvalid field suffix。next itemを開始しない |
+| `{..tail}` | complete record spread。RHSはfull Pattern |
+| `{..}` | DotDotを保持したspread node内にmissing Pattern、`}`をconsumeしない |
+| `{.., a}` | comma位置にmissing spread RHS一件、comma後の`a`へ進む |
+| `{...a}` | `...`をDotDotへsplitせずnon-empty malformed item Error |
+| `{..left, a, ..right}` | multiple / middle spreadをsurface-validに保持 |
+| `{a, a}` | duplicate spellingもparser-valid。later validation owner |
+| `{a` + EOF | fieldを保持し、EOFへzero-width `Missing(RBrace)`一件 |
+| `{a]` | `]`をclosing-delimiter evidence付きnon-empty Errorにし、missing `}`へ進む |
+| case arm内`{a -> body` | outer Arrowをconsumeせずmissing `}`を置き、scope restore後arm ownerへ返す |
+
+malformed head / continuation recoveryはmatching `}`、comma、qualifying newline、exact spread、field-name candidate、exact caller-owned Equal、captured outer
+safe point、EOFをconsumeしない。same positionへmissing separatorを二度emitせず、retryはitem commitまたはnon-empty Error consumptionで
+必ずprogressする。
+
+`==` / `=>` / `=+`はexact Equals boundaryではない。colon nested Patternのdefault markerにもfield bare-default introducerにも
+prefix-splitせず、一個のmalformed continuation episodeとしてrecoverする。default expression内のsecond exact `=`はlocal
+`StopKind::Equal`がactiveでないため、operator tableが許すならordinary dynamic operator useになり得る。
+
+matching close recoveryはnested delimiter / opaque string・comment・interpolation region内の`}`をouter closeにしない。all exit
+pathsでdelimiter / stop stackを一回ずつpopし、outer case/catch stopsとoperator table referenceをexact restoreする。wrapperはchild
+parserが既に出したmandatory-slot diagnosticをduplicateしない。
+
+### Existing architecture principlesとの整合
+
+- **syntax-as-written CST:** field count / form、spread count / position、duplicate name、trailing commaでouter nodeを変えない。literal
+  colon / equals / spreadだけをsource-local child shapeで示す。
+- **independent pattern authority:** record primary、field dispatch、spread、fixed comma / brace scopeはpattern grammarが所有する。
+  expression `BracedStatementBlockExpression` / `ColonApplicationTail`へdelegationしない。
+- **embedded expression authority:** default RHSだけをordinary flat `OperatorChain` ownerへ渡す。record parserはdynamic operator useを
+  recognize / associateしない。
+- **fixed precedence:** nested / spread RHSはexisting `Pattern@Lowest`であり、新しいpattern precedence levelや`BpVec`を要求しない。
+- **immutable operator table:** tableはdefault expression callbackへforwardするだけで、record field / spread recognitionには使わない。
+- **oracle judge separation:** `{` primary、field-name、exact `..`、same-line `:` / `=`をsmall pattern / record item judgeへ追加し、
+  expression operator oracleへ混ぜない。
+- **rollback discipline:** open / close / comma / name / exact introducer / next-item candidateはsink-free probe、accept後cut、forward-only
+  emitとする。rejected `G0`をemitしてからrollbackしない。
+- **lexical-region awareness:** brace delimiterがnested pattern / embedded expression / opaque regionとouter case stopsを分離する。
+- **mandatory-slot recovery:** accepted colon / equals / spreadはmissing RHSでもowner nodeを閉じる。missing separatorはsame-position retry、
+  malformed episodeはnon-empty Errorでprogressする。
+- **semantic deferral:** field-name meaning、duplicate name、default semantics、spread cardinality / position / captureをlater lowering /
+  validationへ送る。
+- **container consistency:** parenthesized / list / record patternはcomma-or-qualifying-newline、empty、trailing explicit / implicit separator
+  validというsame surface policyを持つ。
+- **CST family separation:** expression brace blockとrecord patternはscanner-level bracesだけを共有し、CST / AST / sequence authorityを
+  共有しない。
+
+### Implementation boundary and required gates
+
+implementation sliceは`crates/yu-syntax/src/grammar/pattern.rs`を中心に次を行う。
+
+1. AST / NUD recognitionへ`RecordPattern`、field、spread、default typesを追加する。
+2. `SyntaxKind::{RecordPattern, RecordPatternField, RecordPatternSpreadItem}`とrowan conversionを追加する。
+3. `PatternDelimitedPolicy::Record`、`ConstructRole::RecordPattern`、record-specific `PatternRole`を追加する。
+4. pattern entrypoint / recursive continuationsへimmutable `&OperatorTable`をthreadし、case/catch callersとstandalone fixturesを更新する。
+5. `StopKind::Equal`とexact maximal `=` probeを追加し、pattern boundary / recoveryへ接続する。
+6. existing exact `..` probeをrecord spreadへreuseし、owner-specific CST wrapperをemitする。
+7. shared delimited coreへRecord item candidate / commit / recovery callbackを追加し、field state machine自体はrecord-specificに保つ。
+8. AST-only / direct-CST parity、typed diagnostics、all scope restorationをfixtureで固定する。
+
+required gatesは次である。
+
+1. `{}`、`{a}`、`{a,}`、`{a,b}`、`{a,b,}`がuniform `RecordPattern`とexact item count / trailing markerを持つ。
+2. ordinary / sigil shorthandがdirect field-name tokenを持ち、`IdentifierPattern` wrapperを作らない。
+3. colon nested pattern、colon + default、bare defaultがsame `RecordPatternField` kindとdistinct AST formを持つ。
+4. `{width: local_width}`のRHSがPatternであり、type annotation nodeにならない。
+5. default RHSがflat `OperatorChain`になり、declared operatorsをcallerのimmutable tableでrecognizeする。
+6. `{a,\n b}`、equal-indent `{a\nb}`、multiline-base formはvalid、deeper newlineはcontinuation、`{a; b}`はseparator Errorになる。
+7. qualifying `{a\n: p}`がcolonを`a`へattachせず、deeper newline suffixをfield-local recoveryし、`{a:\n p}`はvalid colon formになる。
+8. missing field head / nested Pattern / default expression / spread RHSがliteral introducerとclose / commaを守る。
+9. same-position retryがmissing separator before field / spread、leading / repeated comma、malformed itemを一件ずつrecoverする。
+10. `[..]`相当のrecord spread、first / middle / last / multiple spreadをsurface-validに保持する。
+11. `...` / `..+`、`==` / `=>` / `=+`をfixed markerへprefix-splitしない。
+12. nested record/list/paren patternsがouter Equal / Comma / RightBrace stopをsuspend / restoreする。
+13. missing / mismatched brace、outer arm Arrow / guard escape、opaque lexical regionsでscope stackがbalancedになる。
+14. expression source `{x: 1}`は引き続き`BracedStatementBlockExpression`、pattern source `{x: p}`だけが`RecordPattern`になる。
+15. all probesでsink call 0、accepted emission一回、`green.to_string() == source`、AST/direct parityを満たす。
+16. existing parenthesized / list pattern、case/catch、expression block / colon application、operator testsを維持する。
+
+### Explicit future scope
+
+本追補は次を設計しない。
+
+- general pattern type annotation `Pattern : Type`とtype-expression grammar。
+- string / rule literal pattern。
+- field / path / no-space constructor call / ML application pattern tail。
+- record expression literal dedicated node。expression `{...}`はcurrent statement-block primaryのままである。
+- record pattern fieldのtype interpretation。colon RHSは本sliceでは常にPatternである。
+- field-name resolution、duplicate-field validation、default evaluation / omission semantics。
+- spreadのruntime matching algorithm、capture representation、count / position制約。
+- semicolon-separated record pattern。
+- declaration body、if brace-body、catch brace-arm-list、rule / use / interpolation brace grammarとの統合。
+
+future type annotation tailが追加されても、record field name直後のcolonはfield ownerが先にconsumeする。record nested Pattern内のcolonは
+そのfuture pattern grammarに従い得るが、outer field colonとsame CST nodeへmergeしない。
+
+### Closed decisions and review focus
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- record patternはcomma-or-qualifying-newline、empty / trailing explicit / implicit separator validである。
+- Yulang2のtested implicit-newline record separatorをshared Yulang3 mechanismとして復元する。
+- field headはname-onlyで、三formは一個の`RecordPatternField` kindを共有する。
+- colon RHSはfull Pattern、default RHSはflat OperatorChainである。
+- field introducerはsame-line exact `:` / `=`、committed introducer後のRHSはnewlineをまたげる。
+- colon nested Patternだけがtemporary exact `StopKind::Equal`を持つ。
+- spread RHSはfull Patternで、position / multiplicityをparserで制限しない。
+- record / list spreadはprivate mechanicsを共有してもowner-specific CST nodeを維持する。
+- `PatternDelimitedPolicy::Record`はcontainer mechanicsだけを共有し、field parserをgenericizeしない。
+- expression brace block / colon applicationとrecord-pattern grammarを統合しない。
+
+Claude reviewでは、特にYulang2-compatible base-indent snapshot、name後boundary newlineとintroducer後newlineの非対称、exact equalsが
+`==`等をsplitしないこと、missing colon Patternの位置にequalsがある場合のhandoff、nested delimiterがouter Equal stopをsuspendする
+こと、default expression comma ownership、case/catch table threading、multiple spread / duplicate fieldのphase boundary、shared
+delimited policyがrecord field stateを吸収しすぎないこと、expression `{x: 1}`とのCST separationを確認対象にする。helper名、private
+recovery carrier、table contextの具体的な型名はcurrent sourceへ合わせて調整してよいが、surface grammar、CST shape、separator
+scope、phase ownershipをopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-22、comma-or-newline-delimited `RecordPattern`とfield/default grammar追補案）。
+
+## 追補案: layout-aware comma-or-newline delimited sequence authority
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Supersession scope
+
+本追補は、次のapproved / implemented grammarにある**comma-only separator decisionだけ**をsupersedeする。
+
+1. `ParenthesizedExpression`。
+2. `ParenthesizedPattern`。
+3. `ListPattern`。
+4. `ColonApplicationTail::InlineColonArguments`。
+
+同時に、まだuser-approvedでない直前の`RecordPattern`追補をcomma-or-newline ruleへin-place revisionした。
+
+各constructのouter node、item grammar、AST element type、trailing comma marker、tuple / grouping interpretation、spread / field semantics、
+operator-chain flatness、recovery vocabularyは変更しない。変更するのはseparator recognition、layout base、newline ownership、関連する
+validity / recovery gatesだけである。
+
+### Re-verified Yulang2 `DelimitedListMachine`
+
+canonical implementationは`yulang2-oracle@a58eefc3:crates/parser/src/parse/mod.rs:9-79`にある。
+`parse_delimited_list`はopen lexemeをemitした直後、そのopen tokenが既にscanしたtrailing triviaから`leading_info`を得て、次で
+`base_indent`を一度だけsnapshotした (`:25-33`)。
+
+```text
+opening_info = open_lex.trailing_trivia_info()
+
+base_indent =
+    opening_info is Newline { indent } and indent > incoming_env_indent
+        ? indent
+        : incoming_env_indent
+```
+
+したがってbaseはfirst itemをparseした後に決まるのではない。openをacceptし、その直後のtriviaをscan済みにした時点で固定する。
+inline openならincoming container / expression indent、open直後にdeeper-indented lineがあればそのfirst content lineのindentがbaseになる。
+
+item parserが`Either::Left(TriviaInfo::Newline { indent, .. })`を返した場合、generic machineは`indent <= base_indent`ならimplicit
+separatorをacceptした (`:21-23,41-49`)。strictly deeper `indent > base_indent`ならlistを継続せずcallerへtriviaを返した。
+各item parserは一時的に`env.indent = base_indent`とし、expression tail自身も`newline indent <= env.indent`でcurrent itemを止めた
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/group.rs:81-116`;
+`crates/parser/src/expr/tail.rs:21-45`)。これによりdeeper newlineはitem grammarへ残り、equal / shallowerだけがcontainer boundaryへ
+戻った。
+
+implicit branchはsource tokenを持たないempty `Separator` nodeをemitした。explicit separator branchは
+`Separator(Comma)`またはconstructが許す`Separator(Semicolon)`をemitした
+(`yulang2-oracle@a58eefc3:crates/parser/src/parse/mod.rs:43-46,62-66`)。pattern paren `(A\nB)`とrecord `{a\nb}`のfixtureは
+empty `Separator` shapeを直接固定する
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:57-77,102-121`)。
+
+explicit / implicitのpriorityは一個のcombined probeではなかった。item parserがliteral separatorを`Right(stop)`で返せばexplicit
+branch、newline boundaryを`Left(info)`で返せばimplicit branchへ入った。comma直後のnewlineはcomma tokenのtrailing triviaとして
+next itemへ渡るためsecond separatorにならない。newline後にcommaが来る場合はhistorically implicit branchの次iterationでcommaを
+explicit separatorとして処理し得た。Yulang3は後述のboundary-cluster normalizationで、このsource episodeを一logical boundaryへ
+正規化する。
+
+`PatExprListMachine`、`PatListItemMachine`、`PatRecordFieldMachine`はexplicit `Comma`だけを列挙しながらsame generic implicit ruleを
+継承した (`yulang2-oracle@a58eefc3:crates/parser/src/pat/parse.rs:328-408,421-450`)。expression `ExprListMachine`はexplicit
+`Comma | Semicolon`だった (`crates/parser/src/expr/group.rs:72-116`)。本追補の五constructはsemicolonを復元せず、comma + generic
+newline mechanismだけを採用する。
+
+Yulang2 colon inline argument loopはgeneric machineを使わずincoming comma stopだけを見た
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/tail.rs:304-349`)。colonへのnewline extensionはYulang2 codeの機械的復元ではなく、
+user-confirmed Yulang3 unified mirroring ruleである。
+
+### Unified Yulang3 rule
+
+shared conceptを`LayoutDelimitedSequence`と呼ぶ。
+
+```text
+LayoutDelimitedSequence<Item, Close> :=
+    Open OpeningTrivia
+    [ Item { DelimitedSeparator Item } [ DelimitedSeparator ] ]
+    Close
+
+DelimitedSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(base_indent)
+
+ImplicitNewlineBoundary(base_indent) :=
+    maximal trivia run containing physical newline
+    whose following-line indentation <= base_indent
+```
+
+semicolonはこのshared policyに含めない。brace statement block等、semicolonを持つsequenceはown policyを維持する。
+
+#### Base-indent snapshot
+
+delimiter ownerはopening tokenをaccept / cutした直後、first itemをparseする前に次を行う。
+
+```text
+incoming_base = current indentation baseline
+opening_trivia = maximal trivia immediately following opener
+
+base_indent =
+    opening_trivia ends after a physical newline
+    && following_line_indent > incoming_base
+        ? following_line_indent
+        : incoming_base
+```
+
+`ParenthesizedExpression` / `ParenthesizedPattern`は`(`、`ListPattern`は`[`、`RecordPattern`は`{`をopenerとする。
+base snapshotはitem content、operator spelling、pattern tail、later recoveryから再計算しない。nested containerはown frameをpushし、closeで
+popしてouter frameをrestoreする。
+
+`InlineColonArguments`はdelimiterを持たないため、accepted `:`をopener-equivalentとする。ただしcolon直後にphysical newlineがあれば
+existing inline-vs-indented classifierが先に走る。deeper newlineは`IndentedStatementBlock`、same / shallower newlineはmissing /
+outer-boundary pathであり、inline listを開始しない。inline first argumentが始まった場合のlist baseはcolonを含むcurrent expression /
+statement lineのincoming baseで固定し、first argument後のnewlineからunified separator ruleを適用する。
+
+#### Boundary classification
+
+completed itemが返したmaximal trailing triviaについて、ownerは次をsource orderで判定する。
+
+1. current-depth explicit commaが同じinter-item episodeにあれば`ExplicitCommaBoundary`を選ぶ。
+2. commaがなく、triviaがphysical newlineを含み、following-line indent `<= base_indent`なら
+   `ImplicitNewlineBoundary`を選ぶ。
+3. following-line indent `> base_indent`ならseparatorではない。triviaをcurrent item continuationへ返す。
+4. newlineがなくnext item candidateが始まればmissing separator recoveryでsame-position retryする。
+
+explicit commaの前後にqualifying newlineがあっても一logical boundaryである。commaをliteral authorityとし、newline triviaを一度だけ
+保持する。Yulang2がnewline-before-commaを二iterationで扱い得た点は、Yulang3ではempty item / duplicate diagnosticを作らない
+boundary clusterへnormalizeする。repeated literal commaは従来どおりmissing item recovery対象であり、このnormalizationに含めない。
+
+ruleはexhaustiveである。physical newlineはcaptured baseとの比較により`<=` boundaryまたは`>` continuationのどちらかになる。
+「boundaryでもcontinuationでもないnewline」というthird stateを作らない。opaque lexical region内のnewlineはtrivia classifierへ出ず、
+separatorにならない。
+
+#### CST / AST representation
+
+Yulang3はYulang2のempty `Separator` nodeを移植しない。implicit boundaryのphysical newline / whitespace / commentはmaximal triviaとして
+container直下へsource orderで一度だけemitし、sourceにないtoken、`Missing(Comma)`、zero-width `Separator` nodeを合成しない。
+
+item nodeが一度閉じ、trivia後にnext item nodeが始まるCST hierarchyと、trivia末尾のfollowing-line indentがboundary factを完全に
+表す。formatter / loweringがsource-absent nodeを必要とせず、`green.to_string() == source`を維持できる。explicit commaは従来どおり
+raw `Comma` tokenをcontainer直下へemitする。
+
+parser-side ASTのseparator listは追加しない。`elements/items/arguments`のchild countとliteral `trailing_comma`だけを維持する。
+trailing implicit newlineはvalid sequence terminatorだが`trailing_comma`を`Some`にしない。したがってone-element
+`(a\n)`のnewlineがqualifying trailing boundaryでも、literal commaがない限り`(a)`と同じgrouping / identity classificationである。
+二element `(a\nb)`はchild countによってtupleになる。
+
+#### Shared session contract
+
+implementationはhard-coded newline checksを五loopへ複製せず、session-local typed frameを使う。
+
+```rust
+struct LayoutDelimitedFrame {
+    owner: LayoutDelimitedOwner,
+    base_indent: usize,
+    delimiter_depth: usize,
+    explicit_comma: bool,
+    implicit_newline: bool,
+}
+```
+
+frameはseparator probe、item parserへのlayout baseline、close / recovery safe point、colon outer-ownership queryを一箇所で提供する。
+matching / missing / malformed close、missing item、EOFの全pathでexactly once popする。`StopKind::Comma` / right-delimiter stopは引き続き
+token ownershipに使い、newline ownershipをbooleanの推測やraw stop-set unionだけで表さない。
+
+### ColonApplicationTail outer ownership
+
+old ruleの`incoming StopKind::Comma`だけを見る判定を次へ置き換える。
+
+```text
+outer_owns_inline_argument_sequence :=
+    current lexical depthにactive outer sequence authorityがあり、
+    そのownerがcommaまたはlayout newline boundaryをclaimする
+```
+
+outer ownerにはparenthesized / list / record containerだけでなく、`IndentedStatementBlock`、
+`BracedStatementBlockExpression`、case/catch arm sequence等のcurrent item / statement boundary ownerを含む。nested delimiter内へ入った
+outer frameはsuspendし、current lexical depthのtop ownerだけを問う。
+
+- `outer_owns_inline_argument_sequence == false`: colon tailはown inline frameをpushし、commaとqualifying newlineの両方で
+  one-or-more argumentsをparseする。
+- `true`: colon tailはexactly one `OperatorChain`だけをparseし、commaもqualifying newlineもconsume / classifyせずouter ownerへ返す。
+
+commaだけまたはnewlineだけをcolonが部分所有するstateは作らない。これによりroot expression `f: a, b`やouter sequenceを持たない
+standalone `f: a\nb`はmulti-argumentになり得る。一方、`(f: a, b)`、parenthesized multiline element、brace / indented statement内の
+colon applicationではouter sequenceがboundaryを保持し、colon RHSは一argumentで終了する。
+
+colon直後のnewlineによる`IndentedStatementBlock` triggerはこのinline ownership判定より先に行い、変更しない。今回のnewline
+separatorはinline first argumentが既に始まった後のargument間だけに適用する。
+
+### Construct-specific authoritative revisions
+
+#### `ParenthesizedExpression`
+
+```text
+ParenthesizedExpression :=
+    LParen OpeningTrivia
+    [
+        OperatorChain
+        { ParenthesizedExpressionSeparator OperatorChain }
+        [ ParenthesizedExpressionSeparator ]
+    ]
+    RParen
+
+ParenthesizedExpressionSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(parenthesized_expression_base)
+```
+
+| source | classification |
+| --- | --- |
+| `()` | zero elements |
+| `(a)` | one element, no trailing comma |
+| `(a,)` | one element, literal trailing comma / one-tuple |
+| `(\n  a\n  b\n)` | base 2、two elements、valid trailing implicit boundary |
+| `(a\nb)` at base 0 | equal-indent newline、two elements |
+| `(a\n  b)` at base 0 | deeper continuation inside first OperatorChain、not a second element boundary |
+
+qualifying newline前に`Missing(Comma)`をemitしない。deeper newline後にcurrent OperatorChainがvalid continuationをconsumeできない場合は
+expression-local recoveryであり、list loopが`b`をnew elementへ昇格しない。`trailing_comma` / infer-side tuple ruleは変更しない。
+
+#### `ParenthesizedPattern`
+
+```text
+ParenthesizedPattern :=
+    LParen OpeningTrivia
+    [
+        Pattern@Lowest
+        { ParenthesizedPatternSeparator Pattern@Lowest }
+        [ ParenthesizedPatternSeparator ]
+    ]
+    RParen
+
+ParenthesizedPatternSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(parenthesized_pattern_base)
+```
+
+`(A\nB)` at base 0と`(\n  A\n  B\n)`をvalid two-pattern formとし、Yulang2 fixtureを復元する。deeper newlineは
+current Pattern continuationへ残る。semicolonはinvalidのままである。empty / terminal comma / uniform node / alias / alternation
+precedenceは変更しない。
+
+#### `ListPattern`
+
+```text
+ListPattern :=
+    LBracket OpeningTrivia
+    [
+        ListPatternItem
+        { ListPatternSeparator ListPatternItem }
+        [ ListPatternSeparator ]
+    ]
+    RBracket
+
+ListPatternSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(list_pattern_base)
+```
+
+| source | result |
+| --- | --- |
+| `[]` | valid empty list |
+| `[a,]` | valid literal trailing comma |
+| `[\n  head\n  ..middle\n  tail\n]` | base 2、three items、valid trailing implicit boundary |
+| `[a\nb]` at base 0 | valid two items |
+| `[a\n  b]` at base 0 | deeper continuation in first Pattern、not a second list item |
+| `[a; b]` | separator Error。semicolon invalid |
+
+ordinary / spread item node、full Pattern spread RHS、unrestricted spread position / multiplicity、exact `..` ruleを変更しない。
+qualifying newline before ordinary / spread candidateはmissing comma recoveryでなくvalid boundaryである。
+
+#### `InlineColonArguments`
+
+```text
+InlineColonArguments(no_outer_sequence_owner) :=
+    OperatorChain
+    { InlineColonArgumentSeparator OperatorChain }
+    [ ImplicitNewlineBoundary(colon_inline_base) ]
+
+InlineColonArgumentSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(colon_inline_base)
+
+InlineColonArguments(outer_sequence_owner) :=
+    OperatorChain
+```
+
+literal trailing commaは従来どおりinvalid / outer-ownedであり、colon own listのvalid trailing separatorへ追加しない。qualifying
+newlineだけはsource tokenを持たない自然なline terminationでもあるため、final implicit boundaryをvalidとする。outer owner caseでは
+trailing newlineもouterへ返す。
+
+| source context | colon ownership |
+| --- | --- |
+| standalone `f: a, b` | colon owns comma、two arguments |
+| standalone base-0 `f: a\nb` | colon owns qualifying newline、two arguments |
+| standalone base-0 `f: a\n  b` | deeper continuation inside first argument |
+| `(f: a, b)` | parenthesized owner active、colon one argument、comma outer-owned |
+| multiline parenthesized / list item内 | outer frame active、colon one argument、qualifying newline outer-owned |
+| indented / braced statement sequence内 | statement owner active、colon one argument、statement newline outer-owned |
+
+#### `RecordPattern`
+
+直前のRecordPattern追補をin-placeで次へ更新済みである。
+
+```text
+RecordPattern :=
+    LBrace OpeningTrivia
+    [
+        RecordPatternItem
+        { RecordPatternSeparator RecordPatternItem }
+        [ RecordPatternSeparator ]
+    ]
+    RBrace
+
+RecordPatternSeparator :=
+    ExplicitCommaBoundary
+  | ImplicitNewlineBoundary(record_pattern_base)
+```
+
+`{a\nb}`をvalid two-shorthand recordとして復元する。deeper newlineはfield / spread RHS continuationであり、next itemを開始しない。
+field form、same-line field `:` / `=` introducer、nested Pattern、default OperatorChain、exact Equal stop、spread、CST / AST shapeは変更しない。
+
+### Recovery corrections shared by all five constructs
+
+| situation | corrected recovery |
+| --- | --- |
+| qualifying newline between complete items | valid boundary。Missing / Errorなし |
+| qualifying trailing newline before close | valid trailing implicit boundary。empty itemを作らない |
+| deeper newline | current item continuationへ返す。next item same-position retryを行わない |
+| same-line next item candidate without comma | zero-width missing delimited separator、same-position retry |
+| explicit comma followed by newline | one explicit boundary。newlineはfollowing trivia |
+| qualifying newline followed by comma | one boundary cluster、literal commaをauthorityとしempty itemを作らない |
+| repeated literal comma | existing missing-item recoveryを維持 |
+| semicolon | non-empty separator Error。五constructではvalidにしない |
+| missing close after implicit boundary | newline triviaを保持し、close-owned zero-width Missing一件 |
+| caller-owned comma / newline in colon RHS | colon consumes neither。outer ownerが一回だけ処理 |
+
+missing separator diagnosticのprimary expectationは表示上`comma or layout newline`を表せるtyped
+`ExpectedSyntax::DelimitedSequenceSeparator`へ広げる。source位置にnewlineが既にあるqualifying caseではdiagnostic自体を作らない。
+
+### Architecture interactions and implementation gates
+
+- **syntax-as-written CST:** implicit boundaryはliteral newline triviaとsibling item boundaryで表し、source-absent token / nodeを作らない。
+- **single layout authority:** base snapshotと`<=` / `>` classificationをshared helperへ集約し、五loopで再実装しない。
+- **rollback discipline:** opening trivia / trailing trivia / comma clusterをsink-free probeし、classification後に一度だけemitする。
+- **lexical-region awareness:** opaque region内newlineをseparatorにせず、nested delimiter frameがouter authorityをsuspendする。
+- **flat OperatorChain:** deeper newlineはcurrent flat chainへ残り、separator loopがoperator / primary contentからboundaryを推測しない。
+- **fixed pattern precedence:** pattern NUD / LED precedenceは変更せず、caller containerがreturned layout boundaryだけを分類する。
+- **colon terminality:** terminal outer tail / inline-vs-indented ruleを維持し、inline argument sequence ownershipだけを拡張する。
+- **incremental stability:** trivia indentation editはaffected container sequence / descendantsをinvalidateするが、operator table BP変更とは独立する。
+
+implementation sliceのrequired gatesは次である。
+
+1. shared base snapshotがinline open、open直後deeper newline、nested containerでYulang2 formulaと一致する。
+2. each constructでequal / shallower newlineがvalid、deeper newlineがcontinuationになる。
+3. comma + newline clusterを一boundaryとしてemitし、repeated comma recoveryは維持する。
+4. implicit boundaryでempty Separator / Missing commaをemitせず`green.to_string() == source`を満たす。
+5. trailing implicit boundaryがvalidで、AST `trailing_comma`はliteral commaだけを表す。
+6. parenthesized expression / pattern、list / record patternでnested delimiter scopeがouter base / ownerをrestoreする。
+7. colon root-owned comma / newline multi-argumentとouter-owned exactly-one argumentを両方fixture化する。
+8. colon post-introducer newlineのIndentedStatementBlock classificationを変更しない。
+9. missing close / malformed item / outer arm stopでframeをexactly once popし、diagnosticを重複しない。
+10. existing tuple / spread / field / default / operator-chain AST and CST assertionsはseparator関連以外を変更しない。
+
+### Closed decisions and review focus
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- baseはopen accept直後、opening triviaとincoming indentからYulang2 formulaで一度だけ決める。
+- newline following indent `<= base`はseparator、`> base`はcontinuationである。
+- implicit separatorはCST node / tokenを合成せずliteral triviaとitem hierarchyで表す。
+- explicit commaとqualifying newlineの同一episodeは一boundary clusterにする。
+- five constructsはcomma + implicit newlineを持ち、semicolonを持たない。
+- colonはouter sequence ownerがなければcomma / newline両方を所有し、あればexactly one argumentに制限する。
+- trailing implicit newlineはvalidだが`trailing_comma` markerではない。
+- separator以外の各construct designを変更しない。
+
+Claude reviewでは、特にYulang2 base snapshot formula、newline-before-comma normalization、open-inlineとopen-newlineのbase差、deeper
+newlineをmissing separatorへ誤変換しないこと、one-element trailing newlineとtuple interpretation、colon outer statement ownership、
+nested delimiter frame、no synthetic Separator node、all recovery exitのframe balanceを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-22、layout-aware comma-or-newline delimited sequence authority追補案）。
