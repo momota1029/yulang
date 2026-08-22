@@ -43,6 +43,11 @@ overloadedなhistorical `BraceGroup`ではなく`BracedStatementBlockExpression`
 implicit-newline separator、empty / trailing-separator validity、shared statement-sequence core、closing recoveryを
 末尾のbraced statement-block追補で確定する。
 
+Revision note (first pattern-grammar slice): expression `OperatorChain`とは独立したfixed-precedence pattern Pratt
+familyを追加し、identifier / sigil identifier、decimal integer、contiguous symbol、comma-only parenthesized pattern、
+`as` alias、`|` alternationまでを末尾のpattern追補で確定する。case / catchを含むconsumer wiringと、未成立の
+list / type / string-rule / record / constructor-application grammarはfuture scopeへ分離する。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -6616,3 +6621,614 @@ scope boundaryをopenに戻さない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、NUD-primary brace-delimited statement-block expression追補案）。
+
+## 追補案: first-slice pattern grammar
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3のpattern grammarを、expression `OperatorChain`とは独立したgrammar familyとして追加する。first sliceは
+次のsurface formだけを所有する。
+
+- ordinary identifier / sigil identifier primary。
+- decimal integer primary。
+- triviaを挟まない`:` + identifierから成るsymbol primary。
+- emptyを含むcomma-only parenthesized pattern list。
+- fixed keyword `as`によるalias tail。
+- fixed token `|`によるalternation tail。
+
+pattern parserはdynamic `OperatorTable`、expression NUD / LED judge、`OperatorChain`、`BpVec`を呼ばない。
+patternには宣言またはimport可能なnumeric binding powerがなく、tail precedenceはlanguage grammarに固定される。
+ただしprimaryとtailを一個の巨大なad-hoc loopへ混ぜず、pattern専用のsink-free NUD / LED recognitionと
+`PatternPrecedence`を持つindependent Pratt familyにする。CSTはleft operandを後からwrapせず、一個の`Pattern`
+nodeへhead primaryとsource-order tail nodeをforward-onlyにemitする。recursive operandを持つalternation tailだけが
+RHS `Pattern` childを持つ。
+
+この追補はpatternをconsumeするcase / catch arm、binding declaration、function parameterを設計しない。
+`parse_pattern` / `parse_direct_pattern`をstandalone fixtureから実行可能にしてgrammar単体を完成させ、各consumerは
+自分のaddendumでstop set、delimiter、layout、mandatory slot、outer CST ownershipを追加する。
+
+### Re-verified Yulang2 grammar
+
+Yulang2はexpression parserとは別に`parse_pattern_bp` / `parse_tail_bp`を持つPratt parserだった
+(`yulang2-oracle@a58eefc3:crates/parser/src/pat/parse.rs:15-29,44-121,123-268`)。fixed precedence enumは
+低い順に`Or`、`As`、`TypeAnn`、`ApplyML`である
+(`crates/parser/src/pat/parse.rs:114-121`)。`.field`、`::ident`、no-space callはminimum-precedence guardを持たず、
+すべてのrecursive thresholdで認識されるmaximally-tight postfix tailだった
+(`crates/parser/src/pat/parse.rs:144-171,233-258`)。したがってfull orderingは次である。
+
+```text
+lowest    alternation `|`
+           alias `as ident`
+           type annotation `: type`
+           whitespace ML application
+tightest   `.field` / `::ident` / no-space `(pattern, ...)` postfix sequence
+```
+
+`|`のRHSは`parse_pattern_bp(Prec::Or, ...)`で再帰するため、`A | B | C`はhistorically right-associated
+RHS shapeになる。`as`はpattern全体ではなくnormal `Ident`一個をmandatory RHSに取る
+(`crates/parser/src/pat/parse.rs:172-231`)。fixture `A | B as c: Int`はalternation RHS内に`PatAs`と
+`TypeAnn`が入ることを示す
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:280-304`)。
+
+NUD primaryはnumber、sigil identifier、contextual ordinary identifier、symbol、colon-start form、string / rule、
+parenthesized list、list、recordだった
+(`crates/parser/src/pat/scan.rs:15-26,61-99,146-174`;
+`crates/parser/src/pat/parse.rs:49-108`)。pattern scannerはsigil identifierをordinary wordより先にprobeするため、
+`_bar`は`SigilIdent`、bare `_`はsigil scanが完了せずordinary `Ident`になる
+(`yulang2-oracle@a58eefc3:crates/parser/src/scan/mod.rs:74-89,110-115,257-260`;
+`spec/2026-06-06-syntax-design.md:74-91`;
+`crates/parser/tests/pat_grammar.rs:314-325`)。専用wildcard CST nodeはなかった。
+
+contiguous `:foo`はNUD positionで`scan_symbol(..., allow_start = true)`がcolon punctuationより先に
+`:` + `ident`を一tokenの`Symbol`としてconsumeする。colonとwordの間にtriviaがある場合、このcomposite scanは
+失敗し、単独`Colon`が`PolyVariantStart` routeへ入る
+(`yulang2-oracle@a58eefc3:crates/parser/src/scan/mod.rs:140-150`;
+`crates/parser/src/pat/scan.rs:73-95,146-155`)。specの記述だけから大文字 / 小文字で分岐すると読んではならず、
+actual scanner boundaryは**contiguous compositeかsingle colonか**である。`:leaf x` fixtureはcontiguous symbolが
+その後ML argumentを取れたことを示す
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:569-583`)。
+
+record patternはcomma / implicit-newline delimited mixed-item grammarだった。itemは`.. pattern`または
+`PatField`であり、field headはspecの簡略形`ident`より実装が広い`Ident | SigilIdent`である。実装上のexact
+field grammarは次になる
+(`yulang2-oracle@a58eefc3:crates/parser/src/pat/parse.rs:296-315,411-508`;
+`spec/2026-06-06-syntax-design.md:1532-1551`)。
+
+```text
+HistoricalPatRecord :=
+    LBrace
+    [
+        (HistoricalPatField | DotDot Pattern)
+        { (Comma | implicit-newline) (HistoricalPatField | DotDot Pattern) }
+        [ Comma | implicit-newline ]
+    ]
+    RBrace
+
+HistoricalPatField :=
+    (Identifier | SigilIdentifier)
+    [ Colon Pattern [ Equals Expression ]
+    | Equals Expression
+    ]
+```
+
+colon field parsingは`Equals`をpattern stopとしてpushし、optional defaultをexpression parserでparseする。bare
+`Equals`も直接expression parserへ切り替える
+(`crates/parser/src/pat/parse.rs:471-503`)。fixtures cover sigil shorthand、rename/subpattern、colon + default、
+bare default、head/tail spread
+(`yulang2-oracle@a58eefc3:crates/parser/tests/pat_grammar.rs:124-276,425-483`)。
+
+以上はsibling investigationのprimary / tail / record summaryを確認する。ただし、postfix三種は独立した
+numeric precedence levelsではなくunguarded tight tailsであること、record field headはsigil identifierも許すこと、
+symbol / colon-startのactual scanner distinctionはadjacencyであることを補正する。
+
+### Current dependency audit and first-slice boundary
+
+current `yu-syntax`には`IdentifierExpression`、`IntegerLiteral`、`ParenthesizedExpression`、`IfExpression`、
+`BracedStatementBlockExpression`とflat dynamic `OperatorChain`があるが、pattern grammar entrypoint / AST / CST nodeは
+ない (`crates/yu-syntax/src/grammar/mod.rs`; `crates/yu-syntax/src/syntax_kind.rs:1-82`;
+`crates/yu-syntax/src/grammar/expression.rs:135-145,229-252`)。`GrammarRole::Pattern` / `PatternRole`はtyped recovery
+vocabularyのplaceholderであり、pattern parserの存在を意味しない
+(`crates/yu-syntax/src/session.rs:475-487,574-576`)。
+
+`LBracket` / `RBracket` token scanningと`Delimiter::Bracket`は存在するが、list literal / list patternのitem grammar、
+separator recovery、AST / CST ownerは存在しない。opaque lexical-region scannerにstring / rule modeがあっても、
+lossless string / rule literal CSTをbuildするgrammarは存在しない。`TypeRole` placeholderはあるがtype-expression parserは
+存在しない。これらを「scanner tokenがあるからdependencyが成立済み」と扱わない。
+
+first sliceのin / outを次で固定する。
+
+| form | first slice | rationale |
+| --- | --- | --- |
+| ordinary / sigil identifier | include | independent primaryとして成立する。binding / constructor / wildcard意味は後段へ送る |
+| bare `_` | include as ordinary identifier | dedicated wildcard nodeは作らず、source spellingだけを保持する |
+| decimal integer | include | existing integer scanning ruleをgrammar-neutral primitiveとして共有できる |
+| contiguous `:foo` symbol | include | existing fixed colon + word scannerから構成でき、pattern NUD ownershipを明示できる |
+| parenthesized pattern list | include | existing parenthesis delimiter / recoveryを利用でき、groupingとtuple arityをuniformに保持できる |
+| `as ident` | include | fixed tailでmissing dependencyがなく、pattern binding syntaxの最小核になる |
+| `| pattern` | include | fixed tailでmissing dependencyがなく、future case / catchに必要なcore compositionである |
+| list pattern / spread | defer | bracket tokenだけではitem / spread / comma / close recovery contractが決まらない |
+| record pattern / spread / default | defer | statement blockとは別ownerで、mixed pattern / expression field grammarを専用設計する必要がある |
+| `: type` annotation | hard defer | type-expression grammarが存在しない |
+| string / rule literal pattern | hard defer | literal body CST grammarが存在しない |
+| `.field` / `::ident` / no-space call / ML apply | defer | fixed call / ML application infrastructureとconstructor payload boundaryが未設計である |
+| non-integer number pattern | defer | current literal grammarはdecimal integerだけで、fraction / exponent surfaceをまだ所有しない |
+| spaced colon-start / poly-variant-like pattern | defer | outer colon stopとのownershipとsemantic roleをconsumer-independentにまだ確定できない |
+
+record patternに`BracedStatementBlockExpression`を流用しない。共有候補は`Delimiter::Brace`、closing recovery、trivia、
+comma probeだけであり、`StatementSequencePolicy`はrecord field / spread itemをparseするauthorityではない。
+record addendumは専用outer nodeとmixed item machineを決める。
+
+constructor clusterのうち`.field` / `::ident`だけをcheap tailとして先行追加する案も採用しない。path / field / call /
+ML applicationはconstructor nameとpayload extentを一緒に形づくる。call / ML grammarがない段階で一部だけを固定すると、
+後続addendumがtail ordering、no-space boundary、parenthesized payload interpretationを既成事実として背負うためである。
+
+### Grammar
+
+`G*`はnewlineを含み得るmaximal lossless trivia run、`G+`はword tokenを分離するnon-empty trivia runである。
+`Colon!Identifier`の`!`は二tokenの間にtriviaもbyte gapもないことを表す。`Pattern@P`はminimum fixed precedence
+`P`でのrecursive callを表す。
+
+```text
+Pattern := Pattern@Lowest
+
+Pattern@P := PatternPrimary { PatternTail(P) }
+
+PatternTail(P) :=
+    G* PatternAliasTail        if P <= Alias
+  | G* PatternAlternationTail  if P <= Alternation
+
+PatternAliasTail :=
+    AsKw G+ Identifier
+
+PatternAlternationTail :=
+    Pipe G* Pattern@Alternation
+
+PatternPrimary :=
+    IdentifierPattern
+  | IntegerPattern
+  | SymbolPattern
+  | ParenthesizedPattern
+
+IdentifierPattern :=
+    Identifier
+  | SigilIdentifier
+
+IntegerPattern := Integer
+
+SymbolPattern := Colon!Identifier
+
+ParenthesizedPattern :=
+    LParen G*
+    [
+        Pattern@Lowest G*
+        { Comma G* Pattern@Lowest G* }
+        [ Comma G* ]
+    ]
+    RParen
+```
+
+first-slice fixed precedenceは次だけである。
+
+```text
+enum PatternPrecedence {
+    Lowest = 0,
+    Alternation = 1,
+    Alias = 2,
+}
+```
+
+alternation RHSを`Pattern@Alternation`で読むため、`A | B | C`は`A | (B | C)`になる。aliasはalternationより
+tightであり、`A | B as c`のaliasはRHS `B`に属する。`A as x | B`ではalias tailをcommitしてからouter
+alternation tailを読む。`as`はtail positionだけでcontextual keywordになり、pattern-required NUD positionのbare
+`as` spellingはordinary `IdentifierPattern`である。
+
+tail直前の`G*`はtail candidateがacceptされたときだけcommitし、`Pattern`直下のtriviaとしてemitする。
+candidateがrejectされた場合はcaller-owned trailing triviaとして返す。`PatternAliasTail` /
+`PatternAlternationTail` nodeのrangeとchildrenはliteral `AsKw` / `Pipe`から始まり、先行triviaを取り込まない。
+alias前のtriviaは必須ではない。`)as x`や`1as x`のようにpreceding tokenが終わった位置からmaximal word scannerが
+exact `as`を読める場合もtailになる。`Aas`は一個のidentifierなのでalias tailへ分割しない。
+
+pipeはpattern-local scannerがexact一文字`|`としてprobeし、`SyntaxKind::Pipe`をemitする。shared
+`PunctuationKind`へpipeを追加せず、expression positionの`|`は引き続きdynamic `Operator` spellingである。
+pattern sourceの`||`はdynamic operator一個ではなくfixed pipe二個であり、mandatory RHS recoveryを通る。
+`as`もshared lexerのunconditional keywordではなく、pattern LED judgeがword textをtail positionでだけclassifyする。
+symbol name内の`:as`はordinary `Identifier` childであり`AsKw`にならない。
+
+parenthesized patternはelement countやtrailing commaによってouter node kindを変えない。`()`, `(a)`, `(a,)`,
+`(a,b)`, `(a,b,)`はすべて`ParenthesizedPattern`である。zero / grouping / one-tuple / tuple interpretationはfuture
+pattern loweringが行う。first sliceのseparatorはcommaだけである。Yulang2のgeneric delimited-list machineは
+current-depth implicit newlineもseparatorにした
+(`yulang2-oracle@a58eefc3:crates/parser/src/parse/mod.rs:21-23,35-77`;
+`crates/parser/tests/pat_grammar.rs:57-77`)が、Yulang3 first sliceへは移植しない。newlineを含むtriviaは保持するが、
+次elementとの間にcommaがなければmissing-separator recoveryになる。semicolonもvalid separatorではない。
+
+### Symbol and colon ownership
+
+`SymbolPattern`をsingle combined `Symbol` tokenにしない。CSTはexisting `Colon` tokenと`Identifier` tokenを別々に
+保持し、`SyntaxKind::SymbolPattern` parentがadjacent composite roleを表す。これによりfixed punctuation scannerの
+token authorityを変更せず、colon application / future type annotationとparent nodeで区別できる。
+
+pattern NUD judgeでは次のpriorityを固定する。
+
+1. current positionから`Colon`と直後の`Identifier`をsink-freeにcomposite probeする。
+2. compositeが成立すれば、consumerのactive `StopKind::Colon`があっても一個の`SymbolPattern`としてacceptする。
+3. compositeが成立せずactive `StopKind::Colon`があれば、colonをconsumeせずpattern ownerへreturnする。
+4. compositeが成立せずcolonがreservedでなければ、malformed symbol primaryとしてcolonをaccept / cutし、adjacent
+   identifier slotをrecoverする。
+
+この順序によりfuture arm source `:foo: body`ではfirst `:foo`がpattern、second `:`がarm ownerになる。一方、
+missing patternの`: body`ではspaced colonがowner boundaryとして残る。pattern parserはexpression
+`recognize_colon_application_tail`を呼ばず、completed pattern後のcolonをcolon applicationへ変換しない。
+
+`scan_pattern_name`はsigil compositeをordinary `scan_word`より先にprobeする。Unicode identifier bodyの規則を
+copyせず、shared word-body primitiveを抽出して使う。`$foo`、`&foo`、`'foo`、`_bar`、`__`は
+`SigilIdentifier`、bare `_`は`Identifier`になる。CST node名は`IdentifierPattern`のままであり、name resolution前に
+binding / constructorを決めない。`_`を`WildcardPattern`へ変えない。wildcard扱いが必要ならHIR pattern loweringが
+textとresolved contextから決める。
+
+### CST vocabulary and shape
+
+first sliceで追加するnode / token vocabularyは次である。
+
+```text
+SyntaxKind::Pattern
+SyntaxKind::IdentifierPattern
+SyntaxKind::IntegerPattern
+SyntaxKind::SymbolPattern
+SyntaxKind::ParenthesizedPattern
+SyntaxKind::PatternAliasTail
+SyntaxKind::PatternAlternationTail
+SyntaxKind::SigilIdentifier
+SyntaxKind::Pipe
+```
+
+`Identifier`、`Integer`、`Colon`、`Comma`、`LParen`、`RParen`、`AsKw`、trivia、`Missing`、`Error`はexisting kindを
+使う。`PatternApplication`、`ConstructorPattern`、`WildcardPattern`、`TuplePattern`、`UnitPattern`、`Symbol` combined
+tokenは追加しない。
+
+`A | B as c`のCSTは次になる。
+
+```text
+Pattern
+  IdentifierPattern
+    Identifier "A"
+  Whitespace " "
+  PatternAlternationTail
+    Pipe "|"
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        Identifier "B"
+      Whitespace " "
+      PatternAliasTail
+        AsKw "as"
+        Whitespace " "
+        Identifier "c"
+```
+
+`(:foo, _bar,)`は次になる。
+
+```text
+Pattern
+  ParenthesizedPattern
+    LParen "("
+    Pattern
+      SymbolPattern
+        Colon ":"
+        Identifier "foo"
+    Comma ","
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        SigilIdentifier "_bar"
+    Comma ","
+    RParen ")"
+```
+
+outer `Pattern`はhead primaryとsource-order tailを持つ。alias tailはalias targetだけ、alternation tailはliteral pipeと
+recursive RHS `Pattern`だけを所有する。left primaryをtail nodeのchildへmove / wrapせず、checkpoint rewindやevent
+bufferを使わない。全source byteを一度だけemitし、`green.to_string() == source`を維持する。
+
+### Parser-side AST shape
+
+```rust
+pub(crate) struct Pattern<'source> {
+    head: Recovered<PatternPrimary<'source>>,
+    tails: Vec<PatternTail<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum PatternPrimary<'source> {
+    Identifier(PatternNameSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Symbol(SymbolPattern<'source>),
+    Parenthesized(ParenthesizedPattern<'source>),
+}
+
+pub(crate) struct PatternNameSpan<'source> {
+    text: &'source str,
+    range: Range<usize>,
+    lexical_kind: PatternNameKind,
+}
+
+pub(crate) enum PatternNameKind {
+    Ordinary,
+    Sigil,
+}
+
+pub(crate) struct SymbolPattern<'source> {
+    colon: Range<usize>,
+    name: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct ParenthesizedPattern<'source> {
+    open: Range<usize>,
+    elements: Vec<Recovered<Pattern<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum PatternTail<'source> {
+    Alias(PatternAliasTail<'source>),
+    Alternation(PatternAlternationTail<'source>),
+}
+
+pub(crate) struct PatternAliasTail<'source> {
+    keyword: WordSpan<'source>,
+    // Historical grammar permits only an ordinary identifier here.
+    binding: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct PatternAlternationTail<'source> {
+    pipe: Range<usize>,
+    rhs: Recovered<Box<Pattern<'source>>>,
+    range: Range<usize>,
+}
+```
+
+`IntegerLiteral`はexpression AST variantをpatternへ埋め込むという意味ではなく、decimal integerのtext / rangeを
+表すgrammar-neutral value typeへ移すか共有する。pattern moduleがexpression moduleのprivate parserへ逆依存しない。
+separator spellingはCST authorityであり、ASTはterminal commaだけをsemantic disambiguation用に保持する。
+
+ASTもidentifier spellingからbinding、constructor、wildcardを決めない。alias targetだけは`as` grammarが要求する
+binding slotというsyntax roleを持つが、そのname resolution / duplicate-binding validationはlater loweringが所有する。
+
+### Entry points and recognition / commit control
+
+pattern moduleは次のentrypointを持つ。
+
+```rust
+pub(crate) fn parse_pattern<'source, E>(i: SynIn<'_, 'source, '_, E>)
+    -> Option<Pattern<'source>>;
+
+pub(crate) fn parse_direct_pattern<'parse, 'source, 'local, E, O>(
+    leading: LeadingTrivia,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedPattern<O::Checkpoint>>;
+
+fn parse_pattern_bp(..., minimum: PatternPrecedence, ...);
+```
+
+`parse_pattern`は`parse_expression_with_operators`に対応するpattern-family entrypointだが、`OperatorTable` argumentを
+取らない。first sliceではconsumerから呼ばず、standalone parser fixtureがroot / caller-provided stop setの両方を
+testする。future consumerはleading triviaをemitした後にdirect entrypointを呼び、自分のstop / delimiter scopeを
+push / popする。
+
+control flowを次で固定する。
+
+```text
+parse_pattern_bp(minimum):
+    start Pattern
+    sink-free recognize PatternPrimary at an operand-required position
+    if accepted:
+        cut and commit exactly one primary node
+    otherwise:
+        recover one mandatory primary slot
+
+    loop:
+        apply layout / active-stop boundary before tail judgement
+        sink-free recognize a pattern-specific tail
+
+        Alias when minimum <= Alias:
+            accept and cut
+            emit PatternAliasTail + AsKw
+            commit or recover one ordinary Identifier binding
+
+        Alternation when minimum <= Alternation:
+            accept and cut
+            emit PatternAlternationTail + Pipe
+            parse or recover Pattern@Alternation as mandatory RHS
+
+        rejected tail or higher-threshold tail:
+            leave it unconsumed and finish this Pattern
+
+    finish Pattern
+```
+
+`PatternNudRecognition`はordinary/sigil name、integer、symbol、parenthesizedだけ、`PatternLedRecognition`はalias /
+alternationだけを持つ。expression `NudRecognition` / `LedRecognition`へpattern variantを混ぜない。candidate probeは
+input / `ParseLocal`をrollbackし、sink / recovery recordへ書かない。primaryまたはtail spellingをacceptした後はcutし、
+mandatory child recoveryまでtotal continuationにする。
+
+parenthesized continuationは`Delimiter::Parenthesis`とlocal
+`StopSet { Comma, RightParenthesis }`をpushし、incoming outer stopをdelimiter depthの外へsuspendする。elementごとに
+`Pattern@Lowest`を呼ぶ。close / comma / next-primary candidateをsink-freeにprobeし、all exit pathでdelimiter / stop /
+layout stateをexact restoreする。
+
+### Recovery contract
+
+新しいrecovery mechanismを作らず、typed role vocabularyを具体化する。
+
+```text
+PatternRole::{
+    Primary,
+    SymbolName,
+    AliasBinding,
+    AlternationRhs,
+    ParenthesizedElement,
+    ParenthesizedSeparator,
+}
+
+ConstructRole::ParenthesizedPattern
+ExpectedSyntax::Pattern
+ExpectedSyntax::Identifier
+ExpectedSyntax::Punctuation(Comma)
+ExpectedSyntax::Punctuation(Close(Parenthesis))
+```
+
+zero-width `Missing`、maximal non-empty `Error`、one committed recovery node = one diagnostic、owner safe point
+unconsumedを既存contractどおり使う。代表caseを次で固定する。
+
+| source situation | recovery / ownership |
+| --- | --- |
+| empty standalone pattern input | `Pattern > Missing(Primary)`一件。EOFをconsumeしない |
+| `@ x` | `@`を一個のnon-empty primary `Error`にし、same slotを`x`からretryする |
+| `A as` + EOF | alias tailと`AsKw`を保持し、EOFへzero-width `Missing(AliasBinding)`一件 |
+| `A as $x` | sigil runをalias-binding slotのnon-empty `Error`にする。ordinary identifierだけをvalidにする |
+| `A |` + EOF | alternation tailとpipeを保持し、nested RHS `Pattern > Missing(Primary)`一件 |
+| `A | | B` | second pipe位置へRHS primary `Missing`一件を置き、そのpipeをnested alternation tailとしてconsumeして`B`へ進む |
+| `:` + EOF without colon stop | malformed `SymbolPattern`を保持し、colon endへ`Missing(SymbolName)`一件 |
+| `: foo` without colon stop | valid symbolにしない。colon + missing adjacent nameを保持し、`foo`をtrailing / caller-owned recoveryへ残す |
+| `: body` with active colon stop | pattern primaryをmissingとして記録し、colonとfollowing sourceをconsumerへ返す |
+| `:foo: body` with active colon stop | contiguous `:foo`をsymbolとしてconsumeし、second colonをconsumerへ返す |
+| `()` | valid zero-element parenthesized pattern。recoveryなし |
+| `(a,)` | valid one element + trailing comma。recoveryなし |
+| `(,a)` | first comma位置へ`Missing(ParenthesizedElement)`一件を置き、commaを保持して`a`へ進む |
+| `(a b)` | `b`直前へ`Missing(ParenthesizedSeparator)`一件を置き、`b`をnext elementとしてretryする |
+| `(a` + EOF | elementを保持し、EOFへclose用zero-width `Missing(')')`一件 |
+| `(a]` | `]`をclosing-delimiter evidence付きnon-empty `Error`にし、matching `)`探索またはmissing closeへ進む |
+
+`A as`、`A |`、accepted `(`、unreserved malformed `:`は別NUD / tail alternativeへrollbackしない。alias binding、
+comma、matching close、active outer stop、EOFはinvalid-run recoveryがconsumeしない。同じbyteへ複数helperが
+duplicate diagnosticを作らず、standalone rootのtrailing input recoveryとpattern-local mandatory recoveryを
+`GrammarRole`で区別する。
+
+first sliceにtype annotationがないため、standalone `x: Int`のcolonはvalid pattern tailではない。callerが
+`StopKind::Colon`をreserveしていればcolonを返し、reserveしていなければstandalone trailing-input recoveryが扱う。
+pattern parserがcolon RHSをexpressionまたはtypeとして推測してはならない。
+
+### Existing architecture principlesとの整合
+
+- **independent grammar authority:** pattern NUD / LEDとfixed precedenceはpattern moduleだけが所有する。
+  expression `OperatorChain`へpattern-specific itemを追加しない。
+- **precedence-neutral dynamic operators:** headerのnumeric BP変更でpattern CST / AST / diagnosticsは変わらない。
+  patternのfixed orderingはdeclared operator dataではなくliteral grammar ruleである。
+- **no `BpVec`:** `BpVec` / associatorはdynamic expression chain専用であり、three-value `PatternPrecedence`へ流用しない。
+- **immutable operator table:** pattern entrypointはtableを受け取らない。pattern内の`|`をoperator declarationで
+  shadow / rebindしない。
+- **oracle judge separation:** expression oracle judge tableは使わない。patternはsmall fixed
+  `PatternNudRecognition` / `PatternLedRecognition` tableを持つ。
+- **rollback discipline:** sigil/name、symbol composite、parenthesis、`as`、pipeをsink-freeにprobeし、accept後だけcut / emitする。
+- **direct CST:** outer `Pattern`を先にstartし、primary、tail、recursive RHSをsource orderにemitする。left wrapping、
+  completed-child replay、source-wide event bufferを要求しない。
+- **lexical-region awareness:** future literal / comment / nested delimiter内のcolon / pipe / commaをouter pattern tokenへ
+  誤分類しない。current embedded-mode stackをscanner authorityとして維持する。
+- **stop ownership:** contiguous symbol compositeだけがNUD positionでcolon stopより優先され、single colonはownerへ返る。
+  parenthesized local stopsはscope exit時にexact restoreする。
+- **mandatory-slot recovery:** accepted syntaxのrequired childを`Missing` / `Error`でtotalに閉じ、parser diagnosticをlater
+  pattern loweringが複製しない。
+- **semantic deferral:** identifier / `_` / uppercase spellingを見てbinding、wildcard、constructorをCSTで選ばない。
+  parenthesized arityのunit / grouping / tuple interpretationもloweringへ送る。
+
+### Standalone boundary and non-consumer status
+
+本追補のimplementationが完了しても、source rootのstatement parser、`my` declaration、function parameter、case / catch
+armからpattern entrypointを呼ばない。fixture harnessだけが`parse_pattern` / `parse_direct_pattern`を直接実行する。
+
+consumer wiringは単なるfunction call追加ではない。各ownerは少なくとも次を自分のaddendumで決める必要がある。
+
+- pattern前後のkeyword / delimiter / colon / arrow / guard stop。
+- current base indentとarm / parameter continuation rule。
+- missing patternがowner delimiterをconsumeしないrecovery boundary。
+- outer CST nodeとpattern child arity。
+- pattern loweringへ渡すscrutinee / binding scope。
+
+このため、本追補のtest fixtureにcase / catch風wrapper sourceを入れてconsumer grammarを先取りしない。
+
+### Implementation boundary and required gates
+
+first `yu-syntax` pattern sliceは次を含む。
+
+1. new `grammar/pattern.rs` entrypoint、AST-only / direct-CST parity、standalone fixture harness。
+2. `PatternPrecedence::{Lowest, Alternation, Alias}`とpattern-only NUD / LED recognition。
+3. pattern-specific ordinary / sigil name scanner。shared Unicode word bodyをcopyせずreuseする。
+4. grammar-neutral decimal integer literal scanner / valueのreuse。
+5. contiguous symbol compositeとactive colon-stop priority。
+6. comma-only uniform `ParenthesizedPattern`、empty / trailing comma、closing recovery。
+7. alias / alternation tailsとtyped mandatory-slot recovery。
+8. required `SyntaxKind` / `GrammarRole` / `ExpectedSyntax` vocabulary。
+
+implementation gateを次で固定する。
+
+1. `x`、`_`が`IdentifierPattern > Identifier`、`_bar`、`$x`、`&x`、`'x`が
+   `IdentifierPattern > SigilIdentifier`になる。`WildcardPattern`は0件である。
+2. `0`、`42`が`IntegerPattern > Integer`になり、expression `OperatorChain` nodeを持たない。
+3. `:foo`が`SymbolPattern(Colon, Identifier)`になり、combined `Symbol` tokenと`ColonApplicationTail`は0件である。
+4. active colon stop下の`:foo: body`はfirst compositeだけをconsumeし、second colonを返す。`: body`はfirst colonを返す。
+5. `()`、`(a)`、`(a,)`、`(a,b)`、`(a,b,)`がone uniform `ParenthesizedPattern` kindとexact element count /
+   trailing-comma markerを持つ。
+6. `(a\nb)`はimplicit newline separatorとしてvalidにせず、missing comma recoveryになる。
+7. `A as x`、`A as x as y`がsource-order alias tailsを持ち、alias RHSはordinary identifierだけを受理する。
+8. `A | B as c`、`A as x | B`、`A | B | C`がfixed precedence / right-recursive RHS shapeを満たす。
+9. operator headerの`|` spelling / fixity / BPを変えてもpattern CST、AST、ranges、recovery、diagnosticsがexact一致する。
+10. EOF primary、unknown primary、missing alias binding、missing alternation RHS、leading/repeated comma、missing separator、
+    missing/mismatched closeをrecovery tableどおり固定する。
+11. all probesでsink call 0、accepted primary / tail emission一回、all delimiter / stop scopes balanced、
+    `green.to_string() == source`を満たす。
+12. AST-only / direct-CST pathのprimary kind、tail order、element count、ranges、recoveryが一致する。
+13. `[a]`、`{a}`、`"a"`、`x: T`、`A::B`、`A.field`、`Some(x)`、`Some x`をexcluded formとして
+    accidental valid first-slice patternへ取り込まない。
+14. existing expression / colon / if / braced-block testsのCST / diagnosticをpattern vocabulary追加前後で維持する。
+15. production statement / declaration entrypointからpattern parserへのcall siteは0件である。
+
+### Explicit future scope
+
+本追補は次を設計または実装しない。
+
+- case / catch grammar、arm、guard、body、companion continuation、scrutinee ownership。
+- `my` / other binding declaration、function / lambda parameter、loop binderなどpattern consumer wiring。
+- list pattern `[pattern | ..pattern, ...]`、bracket item / spread / separator / closing recovery。
+- record pattern、sigil shorthand field、`name: pattern (= expr)?`、`name = expr`、`..pattern`。
+- pattern type annotation `: Type`と全type-expression grammar。
+- normal quote rule pattern、explicit rule literal、heredoc string pattern、`rule { ... }` pattern。
+- field projection `.field`、qualified path `::ident`、no-space constructor call、whitespace ML application。
+- constructor resolution、payload arity、parenthesized payload expansion、scrutinee type constraint。
+- decimal integer以外のfraction / exponent / other numeric literal pattern。
+- spaced single-colon `PolyVariantStart` formとpoly-variant pattern semantics。
+- implicit-newline parenthesized separatorとsemicolon-separated parenthesized pattern。
+- wildcard semantics、duplicate binding validation、or-pattern binding-set equality、alias scope、exhaustiveness。
+- pattern HIR / typed pattern lowering。first sliceはsurface AST / CSTまでである。
+
+future tail addendumはfixed order `Alternation < Alias < TypeAnnotation < MlApplication < tight postfix`を再検証し、
+`PatternPrecedence`へ必要なlevelだけを追加する。dynamic expression BPや`OperatorChain`へ移行しない。record / list
+addendumはdelimiter scannerを共有してよいが、`BracedStatementBlockExpression` / `StatementSequencePolicy`をpattern
+containerとしてreuseしない。
+
+### Closed decisions and review focus
+
+本追補のimplementation directionをblockするopen questionはない。次を確定する。
+
+- first sliceはidentifier / sigil、integer、contiguous symbol、comma-only parens、alias、alternationである。
+- `_`はordinary identifierであり、`_bar`はsigil identifierである。
+- patternはindependent fixed-precedence Pratt familyであり、expression operator machineryを使わない。
+- alternationはaliasよりlooseで、same-precedence RHS recursionはright-associated shapeを作る。
+- symbolはtwo tokens under one `SymbolPattern` nodeであり、adjacencyとNUD positionでcolon ownershipを決める。
+- parenthesized patternはelement count / trailing commaに依存せずone node kindを使う。
+- pattern parserはstandaloneで完成させ、consumerへまだwireしない。
+- missing dependenciesとconstructor / record shape decisionsをfirst sliceへstubで入れない。
+
+Claude reviewでは、特に`_bar`をordinary `scan_word`が先取りしないscanner order、active colon stopとcontiguous
+symbol compositeのpriority、`A | | B`のsame-position recovery、parenthesized newlineをvalid separatorへ昇格しないこと、
+future type / ML / postfix levelを追加できるPratt threshold、standalone trailing recoveryとcaller stopの分離を確認対象に
+する。helper名やAST range carrierはcurrent source型に合わせて調整してよいが、scope、CST vocabulary、precedence、
+colon ownership、consumer非接続をopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、first-slice pattern grammar追補案）。
