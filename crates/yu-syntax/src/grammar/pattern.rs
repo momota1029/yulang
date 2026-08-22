@@ -348,6 +348,22 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    parse_pattern_with_outer_missing_role(table, None, i)
+}
+
+/// AST counterpart of [`parse_direct_pattern_with_outer_missing_role`].  AST
+/// recovery has no committed diagnostic record, but sharing the entry keeps a
+/// caller's outer-slot ownership explicit on both parser paths.
+pub(crate) fn parse_pattern_with_outer_missing_role<'source, E>(
+    table: &OperatorTable,
+    _outer_missing_role: Option<GrammarRole>,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<Pattern<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     parse_pattern_bp(table, i, PatternPrecedence::Lowest)
 }
 
@@ -356,7 +372,7 @@ where
 /// fixed NUD recognition.
 pub(crate) fn parse_direct_pattern<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
-    _leading: LeadingTrivia,
+    leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedPattern<O::Checkpoint>>
 where
@@ -365,7 +381,31 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::Primary, committed)
+    parse_direct_pattern_with_outer_missing_role(table, leading, None, committed)
+}
+
+/// Direct pattern entry for a construct that owns only the outermost absent
+/// pattern slot.  Recursive pattern grammar continues to use its own typed
+/// [`PatternRole`] sites.
+pub(crate) fn parse_direct_pattern_with_outer_missing_role<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    _leading: LeadingTrivia,
+    outer_missing_role: Option<GrammarRole>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedPattern<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_direct_pattern_bp(
+        table,
+        PatternPrecedence::Lowest,
+        PatternRole::Primary,
+        outer_missing_role.unwrap_or_else(|| pattern_role(PatternRole::Primary)),
+        committed,
+    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1260,6 +1300,7 @@ fn parse_direct_pattern_bp<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     minimum: PatternPrecedence,
     primary_role: PatternRole,
+    outer_missing_role: GrammarRole,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedPattern<O::Checkpoint>>
 where
@@ -1285,7 +1326,7 @@ where
             committed,
         );
     } else {
-        emit_pattern_missing(committed, primary_role, ExpectedSyntax::Pattern);
+        emit_missing_with_role(committed, outer_missing_role, ExpectedSyntax::Pattern);
     }
 
     loop {
@@ -1329,6 +1370,7 @@ where
                     table,
                     PatternPrecedence::Alternation,
                     PatternRole::AlternationRhs,
+                    pattern_role(PatternRole::AlternationRhs),
                     committed,
                 )
                 .expect("a committed alternation owns a total RHS pattern");
@@ -1511,11 +1553,23 @@ fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
         committed.probe(|probe| probe.input().cut());
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
-        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::ListSpreadRhs, committed)
+        parse_direct_pattern_bp(
+            table,
+            PatternPrecedence::Lowest,
+            PatternRole::ListSpreadRhs,
+            pattern_role(PatternRole::ListSpreadRhs),
+            committed,
+        )
             .expect("a committed spread owns a total RHS pattern");
         committed.finish_node();
     } else {
-        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::ListItem, committed)
+        parse_direct_pattern_bp(
+            table,
+            PatternPrecedence::Lowest,
+            PatternRole::ListItem,
+            pattern_role(PatternRole::ListItem),
+            committed,
+        )
             .expect("a list mandatory item is total after recovery");
     }
 }
@@ -1586,7 +1640,13 @@ fn commit_direct_record_item<'parse, 'source, 'local, E, O>(
         committed.probe(|probe| probe.input().cut());
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
-        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::RecordSpreadRhs, committed)
+        parse_direct_pattern_bp(
+            table,
+            PatternPrecedence::Lowest,
+            PatternRole::RecordSpreadRhs,
+            pattern_role(PatternRole::RecordSpreadRhs),
+            committed,
+        )
             .expect("a committed record spread owns a total RHS pattern");
         committed.finish_node();
         return;
@@ -1610,7 +1670,13 @@ fn commit_direct_record_item<'parse, 'source, 'local, E, O>(
                 committed.emit_trivia(&trivia);
                 let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Equal));
                 committed.probe(|probe| probe.input().local.push_stop_set(stops));
-                parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::RecordNestedPattern, committed)
+                parse_direct_pattern_bp(
+                    table,
+                    PatternPrecedence::Lowest,
+                    PatternRole::RecordNestedPattern,
+                    pattern_role(PatternRole::RecordNestedPattern),
+                    committed,
+                )
                     .expect("a committed record colon owns a total nested pattern");
                 committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
                 commit_direct_record_default(table, committed);
@@ -1832,6 +1898,7 @@ fn commit_parenthesized_element<'parse, 'source, 'local, E, O>(
         table,
         PatternPrecedence::Lowest,
         PatternRole::ParenthesizedElement,
+        pattern_role(PatternRole::ParenthesizedElement),
         committed,
     )
     .expect("a parenthesized mandatory element is total after recovery");
@@ -2198,10 +2265,20 @@ fn emit_pattern_missing<'parse, 'source, 'local, E, O>(
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    emit_missing_with_role(committed, pattern_role(role), expected);
+}
+
+fn emit_missing_with_role<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = pattern_role(role);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -2692,6 +2769,11 @@ mod tests {
         assert_eq!(
             alias[0].site.role,
             GrammarRole::Pattern(PatternRole::AliasBinding)
+        );
+        let (_, empty) = parse_direct_recovered("");
+        assert_eq!(
+            empty[0].site.role,
+            GrammarRole::Pattern(PatternRole::Primary)
         );
     }
 

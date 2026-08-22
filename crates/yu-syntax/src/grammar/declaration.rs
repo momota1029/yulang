@@ -18,7 +18,8 @@ use crate::{
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_binding_body,
     },
-    grammar::pattern::{ParsedPattern, Pattern, parse_direct_pattern, parse_pattern},
+    grammar::pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
+        parse_pattern_with_outer_missing_role},
     input::SourceInput,
     operator::{BindingPower, OperatorFixity},
     scan::{
@@ -714,7 +715,12 @@ where
     }
     let stops = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default().with(StopKind::Equal));
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
-    let target = parse_direct_pattern(operators, LeadingTrivia::None, committed)
+    let target = parse_direct_pattern_with_outer_missing_role(
+        operators,
+        LeadingTrivia::None,
+        Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target))),
+        committed,
+    )
         .map_or_else(
             || {
                 emit_binding_missing(committed, BindingRole::Target, ExpectedSyntax::Pattern);
@@ -3994,7 +4000,8 @@ where
     binding_trivia(binding_base, &mut i)?;
     let stops = i.local.stop_set().unwrap_or_default().with(StopKind::Equal);
     i.local.push_stop_set(stops);
-    let target = i.run(from_fn(|i| parse_pattern(table, i)));
+    let target_role = GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target));
+    let target = i.run(from_fn(|i| parse_pattern_with_outer_missing_role(table, Some(target_role), i)));
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let target = target.map_or(Recovered::Incomplete, Recovered::Complete);
     let mut end = match &target {
@@ -6325,6 +6332,37 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn direct_binding_missing_target_uses_the_binding_owner_role() {
+        for (source, at) in [("my", 2), ("our", 3), ("pub", 3)] {
+            let output = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let [recovery] = output.committed_recoveries() else {
+                panic!("missing target must create one recovery for {source:?}");
+            };
+            assert_eq!(recovery.kind, RecoveryKind::Missing, "{source:?}");
+            assert_eq!(
+                recovery.site.role,
+                GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target)),
+                "{source:?}",
+            );
+            assert_eq!(recovery.site.range, at..at, "{source:?}");
+            assert_eq!(
+                recovery.expectations.as_ref(),
+                [SyntaxExpectation {
+                    role: GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Target)),
+                    expected: ExpectedSyntax::Pattern,
+                    range: at..at,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }],
+                "{source:?}",
+            );
+        }
     }
 
     #[test]
