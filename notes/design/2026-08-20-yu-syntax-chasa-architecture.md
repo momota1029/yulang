@@ -12154,7 +12154,7 @@ visibility-led `mod`とBindingのcollision、missing name / body no-cascade、mi
 
 ## 追補案: standalone foundational `TypeExpression` core grammar
 
-Status: Claude review反映済み、ユーザ承認待ち（2026-08-23）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 ### Scope and authority
 
@@ -12861,5 +12861,5 @@ TypeCall / TypeApply adjacency、`F A -> B`対`F A->B`、semicolon acceptance、
 trailing implicit newline classification、arrow RHSのowner-safe newline差、standalone entryのouter missing-role overrideを
 確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone foundational TypeExpression core grammar追補案）。
