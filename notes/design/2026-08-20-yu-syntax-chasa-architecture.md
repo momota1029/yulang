@@ -11620,3 +11620,534 @@ Pattern Equal stopとouter statement boundaryのexact restoreを確認対象に�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Statement binding / use declaration拡張追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`の`mod` declaration拡張
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-23。
+
+### Decision summary
+
+canonical `Statement`とroot `Declaration`へ、同じ`ModDeclaration`を選ぶvariantを追加する。
+
+```rust
+pub(crate) enum Statement<'source> {
+    Expression(OperatorChain<'source>),
+    Binding(BindingDeclaration<'source>),
+    Use(UseDeclaration<'source>),
+    Mod(ModDeclaration<'source>),
+}
+
+pub(crate) enum Declaration<'source> {
+    Use(UseDeclaration<'source>),
+    Binding(BindingDeclaration<'source>),
+    OperatorHeader(OperatorHeaderDeclaration<'source>),
+    Mod(ModDeclaration<'source>),
+}
+```
+
+rootとnestedでAST型、`ModDeclaration` CST node、recognition / continuation、recovery identityをforkしない。
+root full loopはdeclaration nodeを`Root`直下へemitし、nested canonical statement ownerは同じnodeを
+`Statement`一個の直下へemitする。
+
+surface grammarの中心は次である。
+
+```text
+ModDeclaration :=
+    [ VisibilityKw Gmod ] ModKw Gmod ModIdentity Gmod ModBody
+
+VisibilityKw := MyKw | OurKw | PubKw
+
+ModIdentity :=
+    NamedModule
+  | TestModule
+
+NamedModule := Name
+
+TestModule := TestMarker TestModuleIdentityTail
+
+TestModuleIdentityTail :=
+    EmptyTestName
+  | Gmod Name
+
+EmptyTestName :=
+    ε, only under positive lookahead for Gmod BodyStarter
+
+BodyStarter := Semicolon | LBrace | Colon
+
+ModBody :=
+    Semicolon
+  | BracedStatementBlockExpression
+  | ModColonBody
+
+ModColonBody :=
+    Colon G0* Statement [ Semicolon ]
+  | Colon IndentedStatementBlock
+```
+
+`TestModule` nameのoptional性は自由なomissionではない。`TestMarker`の後ろをprobeし、次がexact
+body starter `;` / `{` / `:`ならのみanonymous test moduleとしてnameをomitできる。それ以外では
+second `Name`がmandatoryである。
+
+### Yulang2 oracle re-verification
+
+historical behaviorのauthorityを次で固定する。
+
+- parserはoptional visibility、`mod`、first raw nameの順にemitし、first nameがexact `test`でなければ
+  それをmodule nameとした
+  (`yulang2-oracle@a58eefc3:crates/parser/src/stmt/mod_decl.rs:13-29,49-51`)。
+- first nameがexact `test`なら`TestModuleMarker`を作った。その後のtokenが`Semicolon` / `BraceL` /
+  `Colon`のどれかならanonymous、それ以外ならsecond raw nameをscanした
+  (`crates/parser/src/stmt/mod_decl.rs:30-48`)。`peek_stmt_lex(...).is_some_and(...)`なのでEOFは
+  anonymous判定にならず、`mod test` + EOFはsecond nameがないepisodeである。
+- fixtureは`mod test;`、`mod test {}`、`mod test:`、`mod test parser:`、
+  `my mod test internals:`、`our mod test x:`を一度にparseし、6 `ModDecl`、6 marker、3 ordinary nameを
+  assertした (`crates/parser/tests/stmt_grammar.rs:782-810`)。`my test = 1`の`test`はordinary binding
+  identifierで、markerは`mod`直後だけのcontextual ownerである (`tests/stmt_grammar.rs:812-817`)。
+- `Name`は`scan_name`のidentifier一個でありqualified pathではない。contextual wordもraw identifierとして
+  acceptし、`mod error;`は`error`を`Ident`とした
+  (`crates/parser/src/stmt/common.rs:30-37`, `crates/parser/src/scan/mod.rs:27-30`,
+  `crates/parser/tests/stmt_grammar.rs:1756-1767`)。
+- body starterは`;`、`{`、`:`の三種類だけである。braceはordinary `parse_brace_stmt_block`、colonは
+  ordinary inline / indented declaration body classifierへ委譲した
+  (`crates/parser/src/stmt/mod_decl.rs:53-76`, `crates/parser/src/stmt/block.rs:108-129`)。
+- brace itemとindent itemはどちらもsame `parse_statement`を呼び、module-specific member subsetを持たなかった
+  (`crates/parser/src/stmt/block.rs:54-69,242-284`, `crates/parser/src/stmt/mod.rs:52-98`)。したがって
+  nested `mod`もordinary statementとしてsource-levelにvalidである。
+- Yulang2のgeneric brace statement blockはcanonical statementの前にexact `..expr`を`ExprSpread`として
+  special-caseした (`crates/parser/src/stmt/block.rs:25-51`)。これはMod-specific memberではないが、Y3の
+  existing `BracedStatementBlockExpression`追補が明示的にdeferしたbrace-local itemであるため、本追補も
+  Mod専用に復活させない。
+- bare `mod`はstatement dispatcherが直接claimし、visibility dispatcherも`my` / `our` / `pub`後のexact
+  `mod`をbindingへrollbackせずmod parserへ渡した
+  (`crates/parser/src/stmt/mod.rs:64-85,159-205,243-264`)。
+- Yulang2にmod専用recovery tableはなかった。missing name / second name / terminatorはnodeをそのまま
+  closeし、unexpected terminatorだけをgeneric `InvalidToken`にし、brace / indentのgeneric recoveryを再利用した
+  (`crates/parser/src/stmt/mod_decl.rs:25-28,42-45,53-75`, `crates/parser/src/stmt/block.rs:25-33,169-185`)。
+
+### Supersession boundary
+
+本追補は次の既決事項をsupersedeしない。
+
+- canonical `Statement`のone shared AST / direct-CST dispatchと`StatementSequencePolicy`のseparator / boundary ownership。
+- `IndentedStatementBlock`のstrict deeper trigger、non-empty contract、dedent非consume。
+- `BracedStatementBlockExpression`のempty / trailing separator validity、comma / semicolon / newline separator、
+  owner-safe matching-close recovery。
+- rootとnestedでsame declaration child shapeを使い、nested occurrenceだけが`Statement` wrapperを持つ原則。
+- `UseDeclaration`だけをsource-leading import header factへprojectし、operator headerだけをimmutable
+  `OperatorTable`計画に反映するcurrent header-discovery authority。
+- `WithBodyTail`のterminal OperatorChain tailと、if / case / catch inline armがOperatorChain-onlyである境界。
+
+次は本追補が明示的にsupersedeする。
+
+- canonical `Statement`のclosed sumをExpression / Binding / UseからExpression / Binding / Use / Modへ拡張する。
+- full root `Declaration`のclosed sumへ`Mod`を追加する。`HeaderDeclaration`には追加しない。
+- canonical Statement binding / use追補のexplicit future scopeから`mod` declarationを取り除き、本追補を
+  token ownership / CST / recoveryのauthorityにする。
+- braced-statement-block追補の「`BracedStatementBlockExpression`はordinary primary expressionだけの名前」
+  と「declaration childとして流用しない」という予約
+  (`architecture.md:6081-6086,6179-6184,6607-6617`)を、`ModDeclaration`のbrace bodyに限りsupersedeする。今回の
+  scope決定はparser / AST / direct-CSTまでexisting block ownerをそのまま再利用するためである。
+  他のfuture declarationが自動的に同じnodeを使う一般則にはしない。
+
+### Authoritative surface grammar and layout
+
+`Gmod`は`mod_base`に対するdeclaration-continuing maximal triviaである。physical newlineを含まなければ
+emptyもacceptし、newlineを含むならfollowing indentが`mod_base`よりstrictly deeperな場合だけacceptする。
+equal-or-shallower newlineはouter statement ownerへ返す。`G0*`はphysical newlineを含まないmaximal triviaである。
+
+Mod candidateのfirst starter word（visibility prefixがあればその`my` / `our` / `pub`、なければ`mod`）を
+statement positionでacceptした直後、そのfollowing triviaをconsumeする前にactive
+`IndentationBaseline.column`を`mod_base`としてcaptureする。frameがなければ0を使う。
+visibility column、name column、body starter column、first body item indentからbaseを逆算しない。
+
+`VisibilityKw`と`ModKw`間も同じ`Gmod`を使う。`ModKw`後、
+marker / name後、second test name後は同じ`Gmod`を使い、`modFoo`、`module`、`testable`などの
+maximal wordをprefix splitしない。`Name`はexactly one `scan_word`が返すraw identifier-like wordで、
+`.` / `::` / `/`によるpathを本declaration内でparseしない。contextual statement word `error`等も
+Name positionではordinary identifier tokenとしてcommitする。
+
+body branch authorityを次で固定する。
+
+1. exact `;`ならbodyless branchとし、semicolonは`ModDeclaration`が所有する。
+2. exact lone `{`ならbrace branchとし、existing `BracedStatementBlockExpression`をそのままparse / commitする。
+3. exact lone `:`ならcolon branchとし、post-colon maximal triviaを`mod_base`で一度だけ分類する。
+4. starterがないがsame-line / deeper continuation上にvalid canonical `Statement` candidateがあるなら、
+   recovered missing-colon branchとしてzero-width Missing後にsame-positionからinline bodyをretryする。
+5. それ以外はbody-introducer recoveryまたはouter boundary returnである。
+
+`;`、`{`、`:`はexact punctuationとしてscanし、`::`をlone colonへsplitしない。bodyless semicolonと
+colon-inline body後のoptional terminal semicolonはMod ownerがconsumeする。brace close後やindented bodyの
+dedent後にあるsemicolonはouter statement sequence ownerに残す。
+
+#### Colon body layout
+
+literalまたはrecovered colon後のmaximal triviaを次で分類する。
+
+| post-colon maximal trivia | result / owner |
+| --- | --- |
+| physical newlineなし（emptyを含む） | inline。exactly one canonical `Statement`をparseし、sourceにあるterminal semicolon一個をoptionalにconsumeできる |
+| newlineあり、following indent `> mod_base` | indented。first line indentを`block_indent`とし、existing non-empty `IndentedStatementBlock`をparseする |
+| newlineあり、following indent `<= mod_base` | body missing。probeをrollbackし、newline / next tokenをouter statement ownerへ返す |
+| opaque lexical region内部だけのnewline | trivia classifierへ出ないためlayout branchへ影響しない |
+
+indented branchはdefault `StatementSequencePolicy::Indented`を使い、if companion stopやWith-specific optionを
+pushしない。brace branchはexisting `StatementSequencePolicy::BracedPrimary`をそのまま使う。どちらも
+canonical statement entryを通るため、Expression / Binding / Use / Modの全variantがmodule body itemになる。
+
+`ModDeclaration`はOperatorChain tailではなく、一個のcomplete `Statement` / root declaration ownerである。
+したがって`WithBodyTail`のような「same OperatorChain上でterminal tail」という概念を持たない。
+bodyless / brace / colon bodyのいずれかをfinishした時点でdeclaration statement全体が終了し、後続は
+outer statement separator / boundaryの所有の下でnext statementになる。body内のinline `Statement`やblock itemは
+own nested OperatorChainを持つため、その内側でfixed tail / colon / withをordinaryに使える。
+
+### CST vocabulary, shape, and byte ownership
+
+新しいnode kindは次の二個である。
+
+```text
+SyntaxKind::ModDeclaration
+SyntaxKind::TestModuleMarker
+```
+
+existing visibility token、`ModKw`、`Identifier`、`Semicolon`、`Colon`、`Statement`、
+`BracedStatementBlockExpression`、`IndentedStatementBlock`、`Missing`、`Error`、trivia tokenを再利用する。
+`ModHeader`、`ModBody`、anonymous-name placeholder、inline-body wrapperは追加しない。ASTの`ModBody`は
+parser-side discriminantであり、same-name CST wrapperを意味しない。
+
+ordinary bodyless root formを次で固定する。
+
+```text
+Root
+  ModDeclaration
+    ModKw "mod"
+    Whitespace " "
+    Identifier "Foo"
+    Semicolon ";"
+```
+
+named test moduleのnested colon formを次で固定する。`test`自体はglobal keyword tokenにせず、
+contextual owner node内の`Identifier`として保持する。
+
+```text
+Statement
+  ModDeclaration
+    MyKw "my"
+    Whitespace " "
+    ModKw "mod"
+    Whitespace " "
+    TestModuleMarker
+      Identifier "test"
+    Whitespace " "
+    Identifier "internals"
+    Colon ":"
+    IndentedStatementBlock
+      BlockOpeningTrivia
+      Statement
+        BindingStatement
+          ...
+```
+
+anonymous test brace formを次で固定する。
+
+```text
+Statement
+  ModDeclaration
+    ModKw "mod"
+    Whitespace " "
+    TestModuleMarker
+      Identifier "test"
+    Whitespace " "
+    BracedStatementBlockExpression
+      LBrace "{"
+      Statement
+        OperatorChain
+          IdentifierExpression "setup"
+      RBrace "}"
+```
+
+colon-inline formは`Colon`直後に`Statement`一個を置き、sourceにあるterminal semicolonだけを
+`ModDeclaration`直下に保持する。brace / indent bodyのinner statement separatorはexisting block ownerが所有し、
+Mod layerはduplicate separator nodeを作らない。
+
+`ModDeclaration.range`はvisibilityがsourceにあればそのstart、なければ`ModKw.start`から、
+bodyless semicolon、brace block、colon-inline terminal semicolon / statement、indented blockのいずれかlongest committed endまでである。
+outer separator、dedent、matching outer close、recoveryがconsumeしないtriviaを含めない。
+`TestModuleMarker.range`は`test`のsource rangeだけである。all source byteをexactly once emitし、
+`green.to_string() == source`を維持する。
+
+### Parser-side surface AST
+
+valid / locally recovered ASTを次で固定する。
+
+```rust
+pub(crate) struct ModDeclaration<'source> {
+    visibility: Visibility,
+    test_marker: Option<WordSpan<'source>>,
+    name: Option<Recovered<WordSpan<'source>>>,
+    body: Recovered<ModBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ModBody<'source> {
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Braced {
+        block: BracedStatementBlockExpression<'source>,
+    },
+    Colon {
+        colon: Recovered<Range<usize>>,
+        body: Recovered<ModColonBody<'source>>,
+    },
+}
+
+pub(crate) enum ModColonBody<'source> {
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`visibility` absenceとexplicit `my`はどちらも`Visibility::Private`だが、CST / rangeがsource spellingを
+保持する。`test_marker: None` + `name: Some(Complete(_))`はordinary named module。
+`test_marker: Some(_)` + `name: None`はbody starter lookaheadで証明されたvalid anonymous test module。
+`test_marker: Some(_)` + `name: Some(Complete(_))`はnamed test moduleである。`Some(Incomplete)`はmandatory
+ordinary nameまたはsecond test nameがrecoveryされたcaseに限る。
+
+first identifierがexact maximal `test`なら常にmarkerであり、ordinary module name `test`になるbranchはない。
+`mod test;`はvalid anonymous test moduleである。`mod test` + EOFはbody starter lookaheadが成功しないため
+named test module branchを選び、`name: Some(Incomplete)`になる。この二caseを同じASTへ潰さない。
+
+`body: Incomplete`はbody branch自体を選べなかったcase。`ModBody::Colon { colon: Incomplete, ... }`は
+valid inline Statement candidateからmissing colon branchを回復したcase。literal colonはcompleteだがbodyがないcaseは
+`colon: Complete`, inner `body: Incomplete`とし、mandatory slotの違いを保持する。
+
+### Root declaration, header discovery, and semantic boundary
+
+root / nestedのrelationshipを次で固定する。
+
+| caller | wrapper / syntax side effect |
+| --- | --- |
+| source-leading header discovery | `ModDeclaration`をparse / projectしない。`mod`はbindingと同様にcurrent leading header runを終了させる |
+| full root loop | `Declaration::Mod`を選び、`ModDeclaration`を`Root`直下へemitする |
+| nested canonical Statement | `Statement::Mod`を選び、same `ModDeclaration`を`Statement`直下へemitする |
+| module body statement sequence | surrounding full-parse `OperatorTable`とsame canonical statement entryを使い、syntax parse中にheader factを再計画しない |
+
+`mod`は`use`のようなimport route factも、operator headerのようなexpression parse前のBP factも生成しない。
+そのため`HeaderDeclaration::Mod`、`HeaderStatementIntro::Mod`、`HeaderInfo` projectionを追加しない。
+module namespace、file loading、visibility / export、nested import scope、test discovery / execution、module内operator header再計画は
+HIR / resolver / module plannerのfuture authorityであり、syntax ASTの`test_marker`やnestingからparserが決めない。
+
+### Statement-intro recognition and judge order
+
+canonical statement entryのupdated judge順を次で固定する。
+
+1. caller-owned EOF、dedent、matching close、valid trailing separator boundary、if companion stopを先に判定し、
+   boundaryをconsumeしない。
+2. current positionのmaximal `scan_word`をsink-freeにprobeする。`my` / `our` / `pub`なら
+   visibility-led branch、bare exact `mod`ならMod branch、bare exact `use`ならUse branchのauthorityを得る。
+   `module`、`modular`、`useful`、`my_mod`をprefix splitしない。
+3. visibility-led branchはfollowing declaration-continuing triviaとnext maximal wordをprobeする。next wordがexact `mod`なら
+   Modがauthorityを得る。このrecognitionはname / body lookaheadを成功条件にせず、`my mod = value`も
+   Binding target `mod`ではなくaccepted malformed Modとしてtotal recoveryへ入る。
+4. next wordがexact `use`でexisting contextual UseTree candidateを満たすならUse。それ以外の
+   visibility-led inputはexisting Binding branchである。`my test = value`はBindingであり、markerにならない。
+5. bare / visibility-prefixed Modがexact `ModKw`をacceptした時点でcutし、identity / body / recoveryを含む
+   total continuationへ入る。probe中にCST / diagnostic sinkへ書かない。
+6. declaration branchがacceptされなければsame positionからordinary `OperatorChain` NUDへfall throughし、
+   それもなけれcaller-specific statement recoveryへ渡す。
+
+AST pathとdirect-CST pathは同じ`StatementIntro::Mod(ModStatementIntro)`相当のclassification resultを使う。
+introはvisibility、`ModKw`、それらのtrivia、`mod_base`、start rangeを保持し、identityとbodyは
+accept後のcontinuation ownerに残す。root / nested callerが別のword judgeをcopyしない。
+
+### Delimiter, stop, and statement-owner scope
+
+Mod continuationはincoming `CanonicalStatementOwner`のEOF、semicolon / comma、matching close、dedent / equal-or-shallower
+newline、if companion stopをtyped queryで受け取る。identity / body-introducer recoveryはそれらをconsumeしない。
+
+brace branchはexisting `BracedStatementBlockExpression`のdelimiter / stop scopeをそのままpushする。そのscope内で
+outer comma / close / companion stopをsuspendし、inner comma / semicolon / newline / `}`をbrace ownerが一度だけ所有する。
+colon indented branchはexisting `IndentedStatementBlock` scopeをpushし、`inline = false`、`ml_arg = false`、
+indentation baseline、delimiter / stop stateをnormal / recoveryの全exit pathでexact restoreする。
+
+inline colon bodyはincoming statement ownerのboundaryを継承する。canonical statementがcompleteした後のoptional terminal
+semicolon一個以外、comma、matching close、equal-or-shallower newline、dedent、companion stopをconsumeしない。
+body内のnested declaration / delimiter ownerが自身のrecoveryをcommitした場合、outer Modはduplicate diagnosticを作らない。
+
+### Typed recovery contract
+
+typed vocabularyへ次を追加する。
+
+```text
+GrammarRole::Declaration(DeclarationRole::Mod(
+    ModRole::{Name, TestName, BodyIntroducer, Body, IndentedStatement}
+))
+
+ExpectedSyntax::Identifier
+ExpectedSyntax::Statement
+ExpectedSyntax::Punctuation(Semicolon)
+ExpectedSyntax::Punctuation(Open(Brace))
+ExpectedSyntax::Punctuation(Colon)
+```
+
+brace closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::BracedStatementBlockExpression, delimiter: Brace }`を再利用する。
+Mod専用close roleをduplicateしない。`Missing`はzero-width、`Error`はmaximal non-empty、
+one recovery node = one committed diagnosticとする。accepted exact `mod`後はcutし、locally malformedでも
+`ModDeclaration`をtotalにfinishする。
+
+#### Mod recovery table
+
+| source situation | recovery / continuation |
+| --- | --- |
+| `mod` + EOF / owner boundary | name位置へzero-width `Missing(Name: Identifier)`一件。same causeのBodyIntroducer Missingを重ねずboundaryをconsumeしない |
+| `mod ;` / `mod : body` / `mod {}` | body starter直前へzero-width `Missing(Name)`一件、same-positionでstarter branchをretryする |
+| name slotのinvalid run後にvalid raw name | maximal non-empty `Error(Name)`一件、same-slotからnameをretryする |
+| name slotのinvalid runがbody starter / owner boundaryまで続く | maximal non-empty `Error(Name)`一件でslotをcloseし、body starter / boundaryをconsumeしない。same causeのMissing Nameを重ねない |
+| `mod test;` / `mod test {}` / `mod test: body` | body-starter lookaheadがanonymousを証明。name Missingなし |
+| `mod test name...` | `test`をmarker nodeにし、second raw nameを`name: Some(Complete)`としてparse |
+| `mod test` + EOF / owner boundary | second name位置へzero-width `Missing(TestName: Identifier)`一件。body Missingをcascadeさせない |
+| test second-name slotのinvalid run後にvalid name | maximal non-empty `Error(TestName)`一件、same-slot retry |
+| test second-name slotのinvalid runがbody starterまで続く | maximal non-empty `Error(TestName)`一件でname slotをcloseし、starterをsame-positionでbody branchへ返す |
+| complete identity + exact `;` | valid bodyless branch。diagnosticなし |
+| complete identity + exact `{` | valid brace branch。empty body、multiple statements、all existing separators / trailing separatorsをbrace grammarに従ってaccept |
+| complete identity + exact `:` + inline/deeper body | valid colon branch。diagnosticなし |
+| complete identity + EOF / owner boundary | identity endへzero-width `Missing(BodyIntroducer)`一件。expectationは`;` / `{` / `:`のunion。boundaryをconsumeしない |
+| complete identity + equal-or-shallower newline + next statement | newline probeをrollbackし、identity endへ`Missing(BodyIntroducer)`一件。next statementをouter sequenceへ返す |
+| complete identity + same-line/deeper valid Statement candidate but no starter | candidate直前へzero-width `Missing(BodyIntroducer: Colon)`一件、`ModBody::Colon { colon: Incomplete }`を選びsame-positionでinline Statementをretry |
+| body-introducer slotのnon-owner invalid run後に`;` / `{` / `:` | maximal non-empty `Error(BodyIntroducer)`一件、starterからsame-slot retry |
+| body-introducer invalid run後にvalid inline Statement candidate | `Error(BodyIntroducer)`がmissing colon slotを充足し、duplicate Missing colonを作らずcandidateからinline body retry |
+| literal / recovered colon + EOF / semicolon / comma / matching close | body位置へzero-width `Missing(Body: Statement)`一件。boundaryをconsumeしない。literal semicolonはinline terminal markerとしてconsumeしてよい |
+| colon + equal-or-shallower newline | post-colon trivia probeをrollbackし、colon endへzero-width `Missing(Body)`一件。newline / next statementをouterへ返す |
+| colon + inline invalid run後にvalid Statement candidate | maximal non-empty `Error(Body)`一件、same body slotからretry |
+| colon + deeper newline but empty / malformed first statement | `IndentedStatementBlock`とopening triviaを保持し、block ownerが`Missing(IndentedStatement)`またはmaximal `Error`を一件commit。Mod layerはBody Missingをduplicateしない |
+| brace body missing `}` | existing brace closing roleでzero-width Missing close。EOF / caller-owned outer closeをconsumeしない |
+| brace body stray mismatched close | caller-owned outer closeならconsumeせずMissing `}`。otherwise mismatched close一tokenをnon-empty close Errorにし、same close slotを継続 |
+| body内malformed nested declaration / expression | inner ownerがtyped recoveryを一件commitし、Mod Bodyが同じrangeへMissing / Errorを重ねない |
+
+identity Missing / ErrorがEOFまたは同じowner boundaryをcauseにcloseした場合、BodyIntroducer Missingを
+同じpositionへcascadeさせない。literal colonまたはrecovered missing-colon branchを選んだ後だけBodyが
+mandatoryになる。invalid-run scannerはEOF、valid raw name / statement retry point、`;` / `{` / `:`、matching close、
+comma、equal-or-shallower newline、dedent、active companion stopをconsumeしない。
+
+### Nestability and interaction with existing Statement consumers
+
+canonical statement entryを呼ぶexisting siteは、declaration-specific local branchなしでModを受け取る。
+
+| owner | Mod acceptance / ownership |
+| --- | --- |
+| full root loop | `Declaration::Mod`としてaccept。`Statement` wrapperなし |
+| ColonApplicationTail indented RHS | ordinary `Statement::Mod`としてaccept。inline colon argument listはOperatorChain-onlyのまま |
+| IfExpression indented arm | `Statement::Mod`をaccept。inline arm bodyはOperatorChain-onlyのまま |
+| CaseExpression / CatchExpression indented arm body | `Statement::Mod`をaccept。pattern / guard / arrow / inline bodyは変更しない |
+| BracedStatementBlockExpression | `Statement::Mod`をitemにし、comma / semicolon / newline / matching closeをouter brace ownerが保持 |
+| WithBodyTail inline | exactly one `Statement::Mod`をaccept。Mod bodyが所有するsemicolonとWith terminal semicolonをsource positionに応じて一度だけconsume |
+| WithBodyTail indented | ordinary block siblingとして`Statement::Mod`をaccept |
+| BindingBody indented | ordinary RHS statementとして`Statement::Mod`をaccept |
+| Mod colon / brace / indented body | same canonical entryを再帰的に使い、nested `Statement::Mod`をaccept |
+
+if / case / catchのinline arm、binding inline body、ColonApplicationTail inline argumentは`OperatorChain`を所有する
+grammarであり、本追補でcanonical Statementへ拡張しない。ModはStatement-level ownerであり、
+OperatorChain NUD / LED、fixed tail、ML argumentとしてacceptしない。
+
+### Explicit scope boundary
+
+本追補は次を設計しない。
+
+- module path / qualified module name、file-backed module loading、module reopening / merging、namespace / export semantics。
+- `TestModuleMarker`のtest discovery、test naming、runner / HIR semantics。
+- module body内のindependent header discovery、operator table re-planning、nested `use`のname-resolution scope。
+- declaration-companion `with:`、derives、module-specific member grammar。Mod bodyはcanonical Statementのみである。
+- Yulang2 brace-local `..expr` spread item。existing `BracedStatementBlockExpression`のfuture scopeのままとし、
+  Mod bodyだけにad-hocに追加しない。
+- `type` / `struct` / `enum` / `error` / `role` / `impl` / `cast` / `act` declaration、`for` statement、
+  operator definition、`where`、doc-comment declaration。これらは引き続named-but-unspecified future
+  canonical-Statement variantである。
+- HIR lowering、scope creation、visibility interpretation、module/test diagnostics。
+
+### Explicit Yulang2 divergences and architecture-local decisions
+
+1. Yulang2はmod continuationのnext-token scanにtriviaのindent gateを置かず、equal-or-shallower newline後のname /
+   body starterもlexically読み得た。本追補はcanonical statement ownershipに合わせ、`Gmod`のequal-or-shallower
+   newlineをouter boundaryへ返す。これはnext statementをmissing module name / bodyへ吸い込まない意図的な
+   source acceptance / recovery boundary差である。
+2. Yulang2はmissing name / body starterでnodeを黙ってcloseし、generic empty / non-empty `InvalidToken`だけを
+   使った。本追補はtyped zero-width Missing、maximal non-empty Error、same-slot retry、one node = one recordへ
+   置き換える。
+3. Yulang2 CSTは`ModDecl > BraceGroup / IndentBlock`であった。本追補はY3のexisting
+   `ModDeclaration > BracedStatementBlockExpression / IndentedStatementBlock`を使い、nested occurrenceだけ
+   `Statement` wrapperを追加する。
+4. braced-statement-block追補はdeclaration childのouter nodeをfuture ownerが個別に決めるためreuseを禁止したが、
+   今回の明示scope決定はModに限りexisting `BracedStatementBlockExpression`のAST / CST / recoveryごと
+   reuseする。他declarationへの波及はない。
+5. Yulang2の`test`は`TestModuleMarker` node内の`Ident`だった。本追補もその位置的contextual
+   representationを保ち、global `TestKw`を追加しない。これはdivergenceではないが、keyword
+   infrastructureと混同しないため閉じたdecisionとする。
+6. Yulang2にY3のtwo-phase header projection相当はない。Y3はModをheader factへprojectせず、full root /
+   nested syntaxでだけacceptする。これはparser architecture差であり、valid full-parse sourceを狭めない。
+7. Yulang2 brace machineのimplicit newlineはempty `Separator` nodeをemitした。本追補はexisting Y3
+   `BracedStatementBlockExpression`のbyte ownership / `BlockStatementSeparator`のshapeをそのまま維持し、
+   historical empty separatorをMod専用に復活させない。
+8. Yulang2のbrace bodyは`..expr`を`ExprSpread`としてacceptしたが、Y3のexisting brace-primary追補は
+   このitemをdefer済みである。Modはexisting block grammarをそのままreuseし、historical spreadを独自に戻さない。
+9. Yulang2のMod bodyは当時のfull statement family全体をacceptした。current Y3 canonical Statementは
+   Expression / Binding / Use / Modだけであり、type-family / impl-family / for / operator / where /
+   doc-commentはそれぞれfuture Statement variantが追加されるまでMod body内でも未達である。
+
+### Implementation boundary and gates
+
+first implementation sliceはroot / nested Mod wiring、three body forms、test marker、typed recovery、全existing
+canonical Statement consumer fixturesを一度に含む。HIR / resolver / module loaderは含めない。
+
+implementation gateを次で固定する。
+
+1. AST / direct-CSTが同じsink-free `StatementIntro::Mod`判定を使い、bare / `my` / `our` / `pub`
+   のexact maximal word authorityが一致する。
+2. ordinary named、anonymous test、named testをAST / CST三shapeに固定し、`mod test;`と`mod test` + EOFを
+   潰さない。`testable`と`my test = value`はmarkerにならない。
+3. bodyless `;`、empty / multi-item brace、colon-inline one canonical Statement、colon-indented non-empty canonical
+   Statement sequenceをすべてacceptする。
+4. brace / indent / inline body内でExpression / Binding / Use / nested Modをacceptし、owner-specific parserをcopyしない。
+5. rootとnestedでsame `ModDeclaration` child shape、AST value、range、recovery identityを使い、差は
+   nested `Statement` wrapperだけである。
+6. source-leading Modはheader discoveryを終了させ、`HeaderDeclaration`、import fact、operator factを生成しない。
+7. identity / body-introducer / colon-bodyのrecovery tableをzero-width Missing、maximal non-empty Error、
+   same-slot retry、no same-cause cascadeで固定する。
+8. brace missing / mismatched closeはexisting owner-safe recoveryを一回だけ行い、Mod layerがduplicate close diagnosticを
+   作らない。
+9. colon後equal-or-shallower newline、outer comma / semicolon / matching close、dedent、if companion stopをMod recoveryが
+   consumeせず、outer ownerが一度だけcommitする。
+10. root、colon / if / case / catch indented body、braced block、With inline / indented、Binding indented、nested Modの
+    全consumer fixtureでMod acceptanceを確認する。inline expression-only arm / colon-argument / binding RHSは変更しない。
+11. `mod_base`、delimiter / stop、indentation baseline、`inline`、`ml_arg`をnormal / recoveryの全exit pathで
+    exact restoreする。
+12. BP-only operator table changeでMod identity / marker / body discriminator CSTは変わらず、body内OperatorChainだけが
+    same flat source-order invariantを保つ。
+13. all fixturesでAST/direct parity、lossless round trip、node balance、no sink call during probe、no CST replayを満たす。
+14. type-family / impl-family / for / operator / where / doc-comment declarationとmodule HIR / loadingを本sliceで実装しない。
+
+### Closed decisions and review focus
+
+本追補でsyntax implementationをblockするopen questionはない。次を確定する。
+
+- `ModDeclaration`はroot / nested共通で、rootは`Declaration::Mod`、nestedは`Statement::Mod`から所有する。
+- bare / `my` / `our` / `pub` exact `mod`はname / bodyの成否に依存せずstatement authorityを得る。
+- exact `test`は`mod`直後で常にmarker。body starter直結時だけanonymous、それ以外はsecond nameがmandatoryである。
+- bodyはbodyless semicolon、existing brace block、inline / strict-deeper indented colon bodyの三familyである。
+- ModはStatement-level ownerでありOperatorChain terminal tailではない。
+- Modはheader factを生成せず、module / test semanticsは後段へdeferする。
+- Mod recoveryはtyped owner-safe disciplineを使い、Yulang2のgeneric silent-close / InvalidTokenを再現しない。
+- Mod brace bodyに限り`BracedStatementBlockExpression`をAST / CSTともreuseし、旧予約を限定supersedeする。
+
+Claude reviewでは、特に`mod test;`のanonymous authority、`mod test` EOFのsecond-name recovery、
+visibility-led `mod`とBindingのcollision、missing name / body no-cascade、missing-colon inline retry、root header非projection、
+`BracedStatementBlockExpression`流用による旧追補の限定supersessionを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、canonical Statement / root Declaration `mod` declaration追補案）。
