@@ -6045,5 +6045,5 @@ condition / body scopeが失わないこと、same-position recovery aggregation
 確認対象にする。これらはconcrete helper signature / diagnostic display wordingの調整余地であり、上のgrammar arity、
 CST hierarchy、layout inequality、phase boundaryをopenに戻さない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、NUD-primary `if` / `elsif` / `else` expression grammar追補案）。
