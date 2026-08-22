@@ -541,6 +541,7 @@ pub(crate) enum ConstructRole {
     ExpressionGroup,
     ArgumentList,
     BracedStatementBlockExpression,
+    ParenthesizedPattern,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -572,7 +573,12 @@ pub(crate) enum BracedStatementBlockRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum PatternRole {
-    Pattern,
+    Primary,
+    SymbolName,
+    AliasBinding,
+    AlternationRhs,
+    ParenthesizedElement,
+    ParenthesizedSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -663,6 +669,7 @@ pub(crate) enum ExpectedSyntax {
     Identifier,
     Path,
     Expression,
+    Pattern,
     Statement,
     StatementSeparator,
     OperatorName,
