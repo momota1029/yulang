@@ -7230,5 +7230,5 @@ future type / ML / postfix levelを追加できるPratt threshold、standalone t
 する。helper名やAST range carrierはcurrent source型に合わせて調整してよいが、scope、CST vocabulary、precedence、
 colon ownership、consumer非接続をopenに戻さない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、first-slice pattern grammar追補案）。
