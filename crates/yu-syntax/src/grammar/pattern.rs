@@ -370,6 +370,7 @@ where
         };
         if matches!(character, ')' | ']' | '}' | ',' | ';')
             || (character == ':' && active_stop_set(i).contains(StopKind::Colon))
+            || arm_stop_pending(i)
         {
             return false;
         }
@@ -419,6 +420,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if arm_stop_pending(&mut i) {
+        return None;
+    }
     if let Some(symbol) = i.run(from_fn(recognize_symbol_pattern)) {
         return Some(symbol);
     }
@@ -433,6 +437,18 @@ where
         parse_integer_literal.map(PatternNudRecognition::Integer),
         recognize_open_parenthesis.map(|open| PatternNudRecognition::Parenthesized { open }),
     ))
+}
+
+fn arm_stop_pending<E>(i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let stops = active_stop_set(i);
+    if stops.contains(StopKind::Arrow) && i.input.remainder().starts_with("->") { return true; }
+    let checkpoint = i.checkpoint();
+    let word = i.run(scan_word).map(|word| word.text());
+    i.rollback(checkpoint);
+    matches!(word, Some("if") if stops.contains(StopKind::ArmGuardIf))
+        || matches!(word, Some("where") if stops.contains(StopKind::ArmGuardWhere))
 }
 
 /// Composite probe: a symbol owns only a colon immediately followed by a word.
@@ -985,7 +1001,9 @@ where
         let Some(character) = i.input.remainder().chars().next() else {
             return (start < end).then_some((start..end, false));
         };
-        if matches!(character, ')' | ']' | '}' | ',' | ';') || (!parenthesized && character == ':')
+        if matches!(character, ')' | ']' | '}' | ',' | ';')
+            || (!parenthesized && character == ':')
+            || arm_stop_pending(i)
         {
             return (start < end).then_some((start..end, false));
         }

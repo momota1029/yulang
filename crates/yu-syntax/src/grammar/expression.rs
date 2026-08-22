@@ -11,6 +11,7 @@ use chasa::{
 
 use crate::{
     grammar::declaration::Recovered,
+    grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern},
     operator::OperatorTable,
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
@@ -20,7 +21,7 @@ use crate::{
     },
     session::{
         BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
+        CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
@@ -141,6 +142,8 @@ pub(crate) enum PrimaryExpression<'source> {
         range: Range<usize>,
     },
     If(IfExpression<'source>),
+    Case(CaseExpression<'source>),
+    Catch(CatchExpression<'source>),
     BracedStatementBlock(BracedStatementBlockExpression<'source>),
 }
 
@@ -201,10 +204,50 @@ impl PrimaryExpression<'_> {
             Self::Integer(integer) => integer.range(),
             Self::Parenthesized { range, .. } => range.clone(),
             Self::If(if_expression) => if_expression.range.clone(),
+            Self::Case(expression) => expression.range.clone(),
+            Self::Catch(expression) => expression.range.clone(),
             Self::BracedStatementBlock(block) => block.range.clone(),
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CaseLikeFamily { Case, Catch }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ArmSequencePolicy {
+    CaseInline,
+    CatchInlineSingle,
+    Indented { family: CaseLikeFamily, base_indent: usize, arm_indent: usize },
+    CatchBraced,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CaseLikeLabel<'source> { text: &'source str, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CaseExpression<'source> { keyword: WordSpan<'source>, label: Option<CaseLikeLabel<'source>>, scrutinee: Recovered<Box<OperatorChain<'source>>>, block: Recovered<CaseBlock<'source>>, base_indent: usize, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CatchExpression<'source> { keyword: WordSpan<'source>, label: Option<CaseLikeLabel<'source>>, scrutinee: Recovered<Box<OperatorChain<'source>>>, block: Recovered<CatchBlock<'source>>, base_indent: usize, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CaseBlock<'source> { colon: Recovered<Range<usize>>, arms: Recovered<ArmSequence<CaseArm<'source>>>, layout: ColonArmLayout, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum CatchBlock<'source> { Colon { colon: Recovered<Range<usize>>, arms: Recovered<ArmSequence<CatchArm<'source>>>, layout: ColonArmLayout, range: Range<usize> }, Braced { open: Range<usize>, arms: Recovered<ArmSequence<CatchArm<'source>>>, close: Recovered<Range<usize>>, range: Range<usize> } }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ColonArmLayout { Inline, Indented { base_indent: usize, arm_indent: usize } }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ArmSequence<A> { arms: Vec<Recovered<A>>, trailing_comma: Option<Range<usize>> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CaseArm<'source> { pattern: Recovered<Pattern<'source>>, guard: Option<Recovered<CaseGuard<'source>>>, arrow: Recovered<Range<usize>>, body: Recovered<ArmBody<'source>>, terminator: Option<Range<usize>>, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CatchArm<'source> { pattern: Recovered<Pattern<'source>>, handler: Option<Recovered<Pattern<'source>>>, guard: Option<Recovered<CatchGuard<'source>>>, arrow: Recovered<Range<usize>>, body: Recovered<ArmBody<'source>>, terminator: Option<Range<usize>>, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CaseGuard<'source> { keyword: ArmGuardKeyword<'source>, condition: Recovered<Box<OperatorChain<'source>>>, range: Range<usize> }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CatchGuard<'source> { keyword: ArmGuardKeyword<'source>, condition: Recovered<Box<OperatorChain<'source>>>, range: Range<usize> }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ArmGuardKeyword<'source> { If(WordSpan<'source>), Where(WordSpan<'source>) }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ArmBody<'source> { Inline(Box<OperatorChain<'source>>), Indented(IndentedStatementBlock<'source>) }
 
 
 /// The source extent of one decimal integer literal.
@@ -347,6 +390,20 @@ where
                 )));
                 break;
             }
+            NudRecognition::Case { keyword, base_indent } => {
+                i.cut();
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Case(
+                    parse_case_expression(table, keyword, base_indent, &mut i),
+                )));
+                break;
+            }
+            NudRecognition::Catch { keyword, base_indent } => {
+                i.cut();
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Catch(
+                    parse_catch_expression(table, keyword, base_indent, &mut i),
+                )));
+                break;
+            }
             NudRecognition::Identifier(identifier) => {
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier)));
                 break;
@@ -472,6 +529,8 @@ enum NudRecognition<'source> {
     Parenthesized { open: Range<usize> },
     BracedStatementBlock { open: Range<usize> },
     If { keyword: WordSpan<'source>, base_indent: usize },
+    Case { keyword: WordSpan<'source>, base_indent: usize },
+    Catch { keyword: WordSpan<'source>, base_indent: usize },
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
     Prefix(ScannedOperator<'source>),
@@ -573,7 +632,7 @@ where
             kind: IndentationBaselineKind::Introducer,
         })
     );
-    let rhs = match recognize_post_colon_body_layout(base_indent, &mut i) {
+    let rhs = match recognize_introduced_body_layout(base_indent, &mut i) {
         ArmBodyLayout::Inline { trivia } => ColonApplicationRhsRecognition::Inline { trivia },
         ArmBodyLayout::Indented { opening_trivia, block_indent } => {
             ColonApplicationRhsRecognition::Indented { opening_trivia, base_indent, block_indent }
@@ -626,6 +685,7 @@ where
         recognize_parenthesized_open.map(|open| NudRecognition::Parenthesized { open }),
         recognize_braced_statement_block_open.map(|open| NudRecognition::BracedStatementBlock { open }),
         from_fn(recognize_if_nud),
+        from_fn(recognize_case_like_nud),
         from_fn(|i| {
             let scanned = scan_operator(OperatorSite::Nud, leading, table, i)?;
             match scanned.fixity() {
@@ -637,6 +697,18 @@ where
         parse_identifier.map(NudRecognition::Identifier),
         parse_integer_literal.map(NudRecognition::Integer),
     ))
+}
+
+fn recognize_case_like_nud<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<NudRecognition<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let word = i.run(scan_word)?;
+    let base_indent = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    match word.text() {
+        "case" => Some(NudRecognition::Case { keyword: word, base_indent }),
+        "catch" => Some(NudRecognition::Catch { keyword: word, base_indent }),
+        _ => None,
+    }
 }
 
 /// `if` stays a contextual word: this NUD judge accepts only the exact
@@ -684,6 +756,204 @@ where
     );
     IfExpression { arms, else_arm, base_indent, range: start..end }
 }
+
+fn parse_case_expression<'source, E>(table: &OperatorTable, keyword: WordSpan<'source>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CaseExpression<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = keyword.range().start;
+    consume_trivia(i).expect("trivia scanning is total");
+    let label = parse_case_like_label(i);
+    consume_trivia(i).expect("trivia scanning is total");
+    let stops = active_stop_set(i).with(StopKind::Colon);
+    i.local.push_stop_set(stops);
+    let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let block = recognize_arm_colon(i).map(|colon| Recovered::Complete(parse_case_block_ast(table, colon, base_indent, i))).unwrap_or(Recovered::Incomplete);
+    let end = match &block { Recovered::Complete(block) => block.range.end, Recovered::Incomplete => match &scrutinee { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => keyword.range().end } };
+    CaseExpression { keyword, label, scrutinee, block, base_indent, range: start..end }
+}
+
+fn parse_catch_expression<'source, E>(table: &OperatorTable, keyword: WordSpan<'source>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CatchExpression<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = keyword.range().start;
+    consume_trivia(i).expect("trivia scanning is total");
+    let label = parse_case_like_label(i);
+    consume_trivia(i).expect("trivia scanning is total");
+    let stops = active_stop_set(i).with(StopKind::Colon).with(StopKind::LeftBrace);
+    i.local.push_stop_set(stops);
+    let scrutinee = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let block = if let Some(colon) = recognize_arm_colon(i) {
+        Recovered::Complete(parse_catch_colon_block_ast(table, colon, base_indent, i))
+    } else if let Some(open) = i.run(recognize_braced_statement_block_open) {
+        Recovered::Complete(parse_catch_braced_block_ast(table, open, i))
+    } else { Recovered::Incomplete };
+    let end = match &block { Recovered::Complete(CatchBlock::Colon { range, .. } | CatchBlock::Braced { range, .. }) => range.end, Recovered::Incomplete => match &scrutinee { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => keyword.range().end } };
+    CatchExpression { keyword, label, scrutinee, block, base_indent, range: start..end }
+}
+
+fn parse_case_like_label<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<CaseLikeLabel<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else { return None; };
+    if punctuation.kind() != PunctuationKind::Apostrophe { i.rollback(checkpoint); return None; }
+    let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
+    let range = punctuation.range().start..word.range().end;
+    Some(CaseLikeLabel { text: &i.input.source()[range.clone()], range })
+}
+
+fn parse_case_block_ast<'source, E>(table: &OperatorTable, colon: Range<usize>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CaseBlock<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = recognize_introduced_body_layout(base_indent, i);
+    let (layout_kind, policy) = match layout {
+        ArmBodyLayout::Inline { .. } => (ColonArmLayout::Inline, ArmSequencePolicy::CaseInline),
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => { let _ = opening_trivia; (ColonArmLayout::Indented { base_indent, arm_indent: block_indent }, ArmSequencePolicy::Indented { family: CaseLikeFamily::Case, base_indent, arm_indent: block_indent }) }
+        ArmBodyLayout::WrongIndent => return CaseBlock { colon: Recovered::Complete(colon.clone()), arms: Recovered::Incomplete, layout: ColonArmLayout::Inline, range: colon.clone() },
+    };
+    let arms = Recovered::Complete(parse_case_arm_sequence_ast(table, policy, i));
+    let end = i.pos();
+    CaseBlock { colon: Recovered::Complete(colon.clone()), arms, layout: layout_kind, range: colon.start..end }
+}
+
+fn parse_catch_colon_block_ast<'source, E>(table: &OperatorTable, colon: Range<usize>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CatchBlock<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = recognize_introduced_body_layout(base_indent, i);
+    let (layout_kind, policy) = match layout {
+        ArmBodyLayout::Inline { .. } => (ColonArmLayout::Inline, ArmSequencePolicy::CatchInlineSingle),
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => { let _ = opening_trivia; (ColonArmLayout::Indented { base_indent, arm_indent: block_indent }, ArmSequencePolicy::Indented { family: CaseLikeFamily::Catch, base_indent, arm_indent: block_indent }) }
+        ArmBodyLayout::WrongIndent => return CatchBlock::Colon { colon: Recovered::Complete(colon.clone()), arms: Recovered::Incomplete, layout: ColonArmLayout::Inline, range: colon.clone() },
+    };
+    let arms = Recovered::Complete(parse_catch_arm_sequence_ast(table, policy, i));
+    CatchBlock::Colon { colon: Recovered::Complete(colon.clone()), arms, layout: layout_kind, range: colon.start..i.pos() }
+}
+
+fn parse_catch_braced_block_ast<'source, E>(table: &OperatorTable, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> CatchBlock<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let scope = push_braced_statement_block_scope(i);
+    consume_trivia(i).expect("trivia scanning is total");
+    let arms = Recovered::Complete(parse_catch_arm_sequence_ast(table, ArmSequencePolicy::CatchBraced, i));
+    consume_trivia(i).expect("trivia scanning is total");
+    let close = i.run(recognize_braced_statement_block_close).map_or(Recovered::Incomplete, Recovered::Complete);
+    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
+    pop_braced_statement_block_scope(i, scope);
+    CatchBlock::Braced { open: open.clone(), arms, close, range: open.start..end }
+}
+
+fn parse_case_arm_sequence_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> ArmSequence<CaseArm<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut arms = vec![Recovered::Complete(parse_case_arm_ast(table, policy, i))];
+    let mut trailing_comma = None;
+    while policy_allows_multiple(policy) {
+        let checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i).expect("trivia scanning is total");
+        if let Some(comma) = i.run(recognize_parenthesized_comma) {
+            consume_trivia(i).expect("trivia scanning is total");
+            if arm_sequence_boundary(policy, i) { trailing_comma = Some(comma); break; }
+            arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
+        } else if policy_newline_separator(policy, &trivia, i) {
+            arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
+        } else { i.rollback(checkpoint); break; }
+    }
+    ArmSequence { arms, trailing_comma }
+}
+
+fn parse_catch_arm_sequence_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> ArmSequence<CatchArm<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut arms = vec![Recovered::Complete(parse_catch_arm_ast(table, policy, i))];
+    let mut trailing_comma = None;
+    while policy_allows_multiple(policy) {
+        let checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i).expect("trivia scanning is total");
+        if let Some(comma) = i.run(recognize_parenthesized_comma) {
+            consume_trivia(i).expect("trivia scanning is total");
+            if arm_sequence_boundary(policy, i) { trailing_comma = Some(comma); break; }
+            arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
+        } else if policy_newline_separator(policy, &trivia, i) {
+            arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
+        } else { i.rollback(checkpoint); break; }
+    }
+    ArmSequence { arms, trailing_comma }
+}
+
+fn policy_allows_multiple(policy: ArmSequencePolicy) -> bool { !matches!(policy, ArmSequencePolicy::CatchInlineSingle) }
+fn arm_sequence_boundary<E>(policy: ArmSequencePolicy, i: &mut SynIn<E>) -> bool where E: ErrorSink<usize> {
+    if i.input.remainder().is_empty() || (matches!(policy, ArmSequencePolicy::CatchBraced) && i.input.remainder().starts_with('}')) { return true; }
+    match policy { ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent < arm_indent, _ => false }
+}
+fn policy_newline_separator<E>(policy: ArmSequencePolicy, trivia: &TriviaRun, i: &SynIn<E>) -> bool where E: ErrorSink<usize> {
+    if !trivia_has_physical_newline(trivia) { return false; }
+    match policy { ArmSequencePolicy::Indented { arm_indent, .. } => i.local.line().line_indent == arm_indent, ArmSequencePolicy::CatchBraced => true, _ => false }
+}
+
+fn parse_case_arm_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> CaseArm<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
+    i.local.push_stop_set(stops);
+    let pattern = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let guard = parse_case_guard_ast(table, i);
+    let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
+    let body = parse_arm_body_ast(table, policy, i);
+    let terminator = parse_optional_semicolon(i);
+    let end = i.pos();
+    CaseArm { pattern, guard, arrow, body, terminator, range: start..end }
+}
+
+fn parse_catch_arm_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> CatchArm<'source>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere).with(StopKind::Comma);
+    i.local.push_stop_set(stops);
+    let pattern = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let handler = if let Some(_) = i.run(recognize_parenthesized_comma) {
+        consume_trivia(i).expect("trivia scanning is total");
+        let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
+        i.local.push_stop_set(stops);
+        let handler = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        Some(handler)
+    } else { None };
+    let guard = parse_catch_guard_ast(table, i);
+    let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
+    let body = parse_arm_body_ast(table, policy, i);
+    let terminator = parse_optional_semicolon(i);
+    let end = i.pos();
+    CatchArm { pattern, handler, guard, arrow, body, terminator, range: start..end }
+}
+
+fn parse_case_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Recovered<CaseGuard<'source>>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| Recovered::Complete(CaseGuard { keyword, condition, range })) }
+fn parse_catch_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Recovered<CatchGuard<'source>>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { parse_arm_guard_ast(table, i).map(|(keyword, condition, range)| Recovered::Complete(CatchGuard { keyword, condition, range })) }
+fn parse_arm_guard_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<(ArmGuardKeyword<'source>, Recovered<Box<OperatorChain<'source>>>, Range<usize>)>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint(); let Some(trivia) = consume_trivia(i) else { return None; }; let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
+    let keyword = match word.text() { "if" => ArmGuardKeyword::If(word), "where" => ArmGuardKeyword::Where(word), _ => { i.rollback(checkpoint); return None; } };
+    let _ = trivia; consume_trivia(i).expect("trivia scanning is total");
+    let stops = active_stop_set(i).with(StopKind::Arrow); i.local.push_stop_set(stops);
+    let condition = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete);
+    assert_eq!(i.local.pop_stop_set(), Some(stops)); let end = match &condition { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => word.range().end };
+    Some((keyword, condition, word.range().start..end))
+}
+
+fn parse_arm_arrow<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { consume_trivia(i)?; i.run(scan_exact_arrow) }
+fn parse_optional_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); consume_trivia(i)?; let semicolon = i.run(scan_punctuation).and_then(|punctuation| (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range())); if semicolon.is_none() { i.rollback(checkpoint); } semicolon }
+fn parse_arm_body_ast<'source, E>(table: &OperatorTable, _policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ArmBody<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { let base_indent = i.local.line().line_indent; match recognize_introduced_body_layout(base_indent, i) { ArmBodyLayout::Inline { .. } => i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value)))).unwrap_or(Recovered::Incomplete), ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(table, opening_trivia, base_indent, block_indent, i))), ArmBodyLayout::WrongIndent => Recovered::Incomplete } }
+
+fn scan_exact_arrow<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let start = i.pos(); if !i.input.remainder().starts_with("->") || i.input.remainder().starts_with("->>") { return None; } i.input.next()?; i.input.next()?; let end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line); Some(start..end) }
 
 fn parse_if_arm<'source, E>(
     table: &OperatorTable,
@@ -778,7 +1048,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let layout = recognize_post_colon_body_layout(base_indent, i);
+    let layout = recognize_introduced_body_layout(base_indent, i);
     let rhs = match layout {
         ArmBodyLayout::Inline { trivia: _ } => {
             let chain = i.run(from_fn(|i| parse_operator_chain(table, i)));
@@ -811,8 +1081,8 @@ enum ArmBodyLayout {
     WrongIndent,
 }
 
-/// The post-colon layout decision is shared by colon application and if arms.
-fn recognize_post_colon_body_layout<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> ArmBodyLayout
+/// Classifies a body after its owner has already consumed an introducer.
+fn recognize_introduced_body_layout<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> ArmBodyLayout
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -963,6 +1233,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let leading = consume_trivia(&mut i)?;
+    if active_stop_set(&i).contains(StopKind::Arrow) && i.input.remainder().starts_with("->") {
+        return None;
+    }
     let leading_presence = leading_trivia(&leading);
     let scanned = scan_operator(OperatorSite::Led, leading_presence, table, i)?;
 
@@ -980,6 +1253,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     i.run(scan_trivia)
+}
+
+fn consume_direct_trivia<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> TriviaRun
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| consume_trivia(probe.input()).expect("trivia scanning is total"))
 }
 
 fn leading_trivia(trivia: &TriviaRun) -> LeadingTrivia {
@@ -2110,6 +2395,148 @@ fn cut_after_acceptance<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| probe.input().cut());
 }
 
+fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    family: CaseLikeFamily,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(family.expression_kind());
+    committed.token(family.keyword_kind(), keyword.range());
+    let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+    if let Some(label) = committed.probe(|probe| probe_case_like_label(probe.input())) {
+        committed.start_node(family.label_kind()); committed.token(SyntaxKind::SigilIdentifier, label); committed.finish_node();
+        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+    }
+    let stops = committed.probe(|probe| family.scrutinee_stop(active_stop_set(probe.input())));
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    committed.start_node(family.scrutinee_kind());
+    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Scrutinee, ExpectedSyntax::Expression); }
+    committed.finish_node();
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    let block_trivia = consume_direct_trivia(committed); committed.emit_trivia(&block_trivia);
+    if let Some(colon) = committed.probe(|probe| recognize_arm_colon(probe.input())) {
+        committed.start_node(family.block_kind()); committed.token(SyntaxKind::Colon, colon);
+        let layout = committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
+        let policy = match layout {
+            ArmBodyLayout::Inline { trivia } => { committed.emit_trivia(&trivia); family.inline_policy() }
+            ArmBodyLayout::Indented { opening_trivia, block_indent } => { committed.emit_trivia(&opening_trivia); ArmSequencePolicy::Indented { family, base_indent, arm_indent: block_indent } }
+            ArmBodyLayout::WrongIndent => { emit_case_like_missing(committed, CaseLikeRole::Arm, ExpectedSyntax::Pattern); committed.finish_node(); committed.finish_node(); return; }
+        };
+        commit_arm_sequence(table, family, policy, committed);
+        committed.finish_node();
+    } else if family == CaseLikeFamily::Catch {
+        if let Some(open) = committed.probe(|probe| probe.input().run(recognize_braced_statement_block_open)) {
+            committed.start_node(SyntaxKind::CatchBlock); committed.token(SyntaxKind::LBrace, open);
+            let scope = committed.probe(|probe| push_braced_statement_block_scope(probe.input()));
+            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            commit_arm_sequence(table, family, ArmSequencePolicy::CatchBraced, committed);
+            let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
+            if let Some(close) = committed.probe(|probe| probe.input().run(recognize_braced_statement_block_close)) { committed.token(SyntaxKind::RBrace, close); } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace))); }
+            committed.probe(|probe| pop_braced_statement_block_scope(probe.input(), scope)); committed.finish_node();
+        } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)); }
+    } else { emit_case_like_missing(committed, CaseLikeRole::Block, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon)); }
+    committed.finish_node();
+}
+
+impl CaseLikeFamily {
+    fn expression_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseExpression, Self::Catch => SyntaxKind::CatchExpression } }
+    fn keyword_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseKw, Self::Catch => SyntaxKind::CatchKw } }
+    fn label_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseLabel, Self::Catch => SyntaxKind::CatchLabel } }
+    fn scrutinee_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseScrutinee, Self::Catch => SyntaxKind::CatchScrutinee } }
+    fn block_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseBlock, Self::Catch => SyntaxKind::CatchBlock } }
+    fn arm_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseArm, Self::Catch => SyntaxKind::CatchArm } }
+    fn guard_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseGuard, Self::Catch => SyntaxKind::CatchGuard } }
+    fn separator_kind(self) -> SyntaxKind { match self { Self::Case => SyntaxKind::CaseArmSeparator, Self::Catch => SyntaxKind::CatchArmSeparator } }
+    fn inline_policy(self) -> ArmSequencePolicy { match self { Self::Case => ArmSequencePolicy::CaseInline, Self::Catch => ArmSequencePolicy::CatchInlineSingle } }
+    fn scrutinee_stop(self, outer: StopSet) -> StopSet { let stops = outer.with(StopKind::Colon); match self { Self::Case => stops, Self::Catch => stops.with(StopKind::LeftBrace) } }
+}
+
+fn probe_case_like_label<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{ let checkpoint = i.checkpoint(); let Some(apostrophe) = i.run(scan_punctuation) else { return None; }; if apostrophe.kind() != PunctuationKind::Apostrophe { i.rollback(checkpoint); return None; } let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; }; Some(apostrophe.range().start..word.range().end) }
+
+fn commit_arm_sequence<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_one_arm(table, family, policy, committed);
+    while policy_allows_multiple(policy) {
+        let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+        let trivia = consume_direct_trivia(committed);
+        if let Some(comma) = committed.probe(|probe| probe.input().run(recognize_parenthesized_comma)) {
+            committed.start_node(family.separator_kind()); committed.emit_trivia(&trivia); committed.token(SyntaxKind::Comma, comma); committed.finish_node();
+            let next = consume_direct_trivia(committed); committed.emit_trivia(&next);
+            if committed.probe(|probe| arm_sequence_boundary(policy, probe.input())) { return; }
+            commit_one_arm(table, family, policy, committed); continue;
+        }
+        let newline = committed.probe(|probe| policy_newline_separator(policy, &trivia, probe.input()));
+        if newline { committed.emit_trivia(&trivia); commit_one_arm(table, family, policy, committed); continue; }
+        committed.probe(|probe| probe.input().rollback(checkpoint)); return;
+    }
+}
+
+fn commit_one_arm<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(family.arm_kind());
+    let stops = committed.probe(|probe| { let mut stops = active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere); if family == CaseLikeFamily::Catch { stops = stops.with(StopKind::Comma); } stops });
+    committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    if parse_direct_pattern(LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern); }
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    if family == CaseLikeFamily::Catch && let Some(comma) = committed.probe(|probe| probe.input().run(recognize_parenthesized_comma)) {
+        committed.token(SyntaxKind::Comma, comma);
+        let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+        let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere)); committed.probe(|probe| probe.input().local.push_stop_set(stops));
+        if parse_direct_pattern(LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern); }
+        committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+    }
+    commit_arm_guard(table, family, committed);
+    let arrow_trivia = consume_direct_trivia(committed); committed.emit_trivia(&arrow_trivia);
+    if let Some(arrow) = committed.probe(|probe| probe.input().run(scan_exact_arrow)) { committed.token(SyntaxKind::Arrow, arrow); commit_arm_body(table, family, policy, committed); } else { emit_case_like_missing(committed, CaseLikeRole::Arrow, ExpectedSyntax::Expression); commit_case_like_invalid_arrow(committed); }
+    let checkpoint = committed.probe(|probe| probe.input().checkpoint());
+    let terminal_trivia = consume_direct_trivia(committed);
+    if let Some(semicolon) = committed.probe(|probe| direct_semicolon(probe.input())) { committed.emit_trivia(&terminal_trivia); committed.token(SyntaxKind::Semicolon, semicolon); } else { committed.probe(|probe| probe.input().rollback(checkpoint)); }
+    committed.finish_node();
+}
+
+fn commit_arm_guard<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some((trivia, keyword)) = committed.probe(|probe| probe_arm_guard(probe.input())) else { return; };
+    committed.emit_trivia(&trivia); committed.start_node(family.guard_kind());
+    committed.token(if keyword.text() == "if" { SyntaxKind::IfKw } else { SyntaxKind::WhereKw }, keyword.range());
+    let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow)); committed.probe(|probe| probe.input().local.push_stop_set(stops));
+    if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Guard, ExpectedSyntax::Expression); }
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops))); committed.finish_node();
+}
+
+fn probe_arm_guard<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<(TriviaRun, WordSpan<'source>)>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{ let checkpoint = i.checkpoint(); let Some(trivia) = consume_trivia(i) else { return None; }; let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; }; if matches!(word.text(), "if" | "where") { Some((trivia, word)) } else { i.rollback(checkpoint); None } }
+
+fn commit_arm_body<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let base_indent = committed.probe(|probe| probe.input().local.line().line_indent);
+    match committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input())) {
+        ArmBodyLayout::Inline { trivia } => {
+            committed.emit_trivia(&trivia);
+            let stops = committed.probe(|probe| arm_body_stop(policy, active_stop_set(probe.input()))); committed.probe(|probe| probe.input().local.push_stop_set(stops));
+            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression); }
+            committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+        }
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => commit_indented_statement_block(table, opening_trivia, base_indent, block_indent, committed),
+        ArmBodyLayout::WrongIndent => emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression),
+    }
+    let _ = family;
+}
+
+fn arm_body_stop(policy: ArmSequencePolicy, outer: StopSet) -> StopSet { match policy { ArmSequencePolicy::CaseInline | ArmSequencePolicy::Indented { .. } | ArmSequencePolicy::CatchBraced => outer.with(StopKind::Comma).with(StopKind::Semicolon), ArmSequencePolicy::CatchInlineSingle => outer.with(StopKind::Semicolon) } }
+fn direct_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); let punctuation = i.run(scan_punctuation)?; let range = (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range()); if range.is_none() { i.rollback(checkpoint); } range }
+
 fn commit_direct_operand_slot<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -2151,6 +2578,16 @@ where
         NudRecognition::If { keyword, base_indent } => {
             cut_after_acceptance(committed);
             commit_if_expression(table, keyword, base_indent, committed);
+            return Some(());
+        }
+        NudRecognition::Case { keyword, base_indent } => {
+            cut_after_acceptance(committed);
+            commit_case_like_expression(table, CaseLikeFamily::Case, keyword, base_indent, committed);
+            return Some(());
+        }
+        NudRecognition::Catch { keyword, base_indent } => {
+            cut_after_acceptance(committed);
+            commit_case_like_expression(table, CaseLikeFamily::Catch, keyword, base_indent, committed);
             return Some(());
         }
         NudRecognition::Identifier(identifier) => {
@@ -2305,7 +2742,7 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let layout = committed.probe(|probe| recognize_post_colon_body_layout(base_indent, probe.input()));
+    let layout = committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input()));
     match layout {
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
@@ -2719,6 +3156,38 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_case_like_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    case_role: CaseLikeRole,
+    expected: ExpectedSyntax,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::CaseLike(case_role);
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    });
+    committed.emit_missing(record);
+}
+
+fn commit_case_like_invalid_arrow<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let range = committed.probe(|probe| {
+        let i = probe.input(); let start = i.pos(); let mut end = start;
+        while let Some(character) = i.input.remainder().chars().next() {
+            if matches!(character, ',' | '}' | '\n' | '\r') { break; }
+            i.input.next().expect("the inspected source character exists"); end = i.pos();
+            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+        }
+        (start < end).then_some(start..end)
+    });
+    let Some(range) = range else { return; };
+    let role = GrammarRole::CaseLike(CaseLikeRole::Arrow);
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error, Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OperatorLike }]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0));
+    committed.emit_error(record);
 }
 
 fn emit_if_missing<'parse, 'source, 'local, E, O>(
@@ -4485,6 +4954,46 @@ mod tests {
         );
         assert_eq!(children[0].kind(), expected);
         children.into_iter().next().expect("one child")
+    }
+
+    #[test]
+    fn case_and_catch_are_primary_expressions_with_family_owned_arm_shapes() {
+        let case_source = "case x: 1 -> a, 2 -> b";
+        let case_root = parse_direct(case_source, &canonical_operator_table());
+        assert_eq!(case_root.to_string(), case_source);
+        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseExpression).count(), 1);
+        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArm).count(), 2);
+        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::CaseArmSeparator).count(), 1);
+        assert_eq!(case_root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+
+        let catch_source = "catch action { err, handler -> recover, _ -> fallback }";
+        let catch_root = parse_direct(catch_source, &canonical_operator_table());
+        assert_eq!(catch_root.to_string(), catch_source);
+        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchExpression).count(), 1);
+        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchBlock).count(), 1);
+        assert_eq!(catch_root.descendants().filter(|node| node.kind() == SyntaxKind::CatchArm).count(), 2);
+    }
+
+    #[test]
+    fn case_like_guards_and_indented_arms_keep_their_boundaries() {
+        for source in [
+            "case 'go 4: 0 if ok -> zero, n where ready -> n",
+            "case x:\n  1 -> a\n  _ -> b",
+            "catch action:\n  err -> recover\n  _ -> fallback",
+        ] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+        }
+        let root = parse_direct("case x: n if cond -> yes", &canonical_operator_table());
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseGuard).count(), 1);
+    }
+
+    #[test]
+    fn case_like_arrow_is_exact_and_never_splits_a_longer_operator() {
+        let source = "case x: n ->> body";
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::Arrow).count(), 0);
     }
 
     fn direct_token_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
