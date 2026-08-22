@@ -1012,7 +1012,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
     push_layout_delimited_baseline(layout, i);
     let mut items = Vec::new();
-    let close = parse_projection_items_ast(table, i, layout, &mut items, recognize_parenthesized_close);
+    let close = match parse_projection_items_ast(table, i, layout, &mut items, recognize_parenthesized_close) {
+        Recovered::Complete(close) => Recovered::Complete(close),
+        Recovered::Incomplete => parse_projection_close_ast(i, Delimiter::Parenthesis),
+    };
     pop_layout_delimited_baseline(layout, i);
     assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple));
     assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
@@ -1088,6 +1091,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         }
         break Recovered::Incomplete;
     }};
+    let close = match close {
+        Recovered::Complete(close) => Recovered::Complete(close),
+        Recovered::Incomplete => parse_projection_close_ast(i, Delimiter::Brace),
+    };
     pop_layout_delimited_baseline(layout, i);
     assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord));
     assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
@@ -1098,6 +1105,44 @@ fn exact_dot_dot_pending<E>(i: &mut SynIn<E>) -> bool
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint(); let pending = i.run(scan_exact_dot_dot).is_some(); i.rollback(checkpoint); pending
+}
+
+/// AST-side counterpart to the direct-CST projection closing-slot recovery.
+/// A mismatched closer belongs to this committed tail's close slot; only EOF
+/// and semicolon remain boundaries for an enclosing owner to handle.
+fn parse_projection_close_ast<E>(i: &mut SynIn<E>, delimiter: Delimiter) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        if i.input.remainder().is_empty()
+            || matches!(i.input.remainder().chars().next(), Some(';'))
+        {
+            return Recovered::Incomplete;
+        }
+        if let Some(punctuation) = i.run(scan_punctuation) {
+            if punctuation.kind() == PunctuationKind::Close(delimiter) {
+                return Recovered::Complete(punctuation.range());
+            }
+            continue;
+        }
+
+        let start = i.pos();
+        while let Some(character) = i.input.remainder().chars().next() {
+            if matches!(character, ')' | ']' | '}' | ';') {
+                break;
+            }
+            i.input.next().expect("the scanned projection-close byte exists");
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+        if i.pos() == start {
+            return Recovered::Incomplete;
+        }
+    }
 }
 
 /// AST-side counterpart to [`call_argument_error_retry`].  The CallTail owns
@@ -5714,6 +5759,74 @@ mod tests {
         }
         let (_, recoveries) = parse_direct_recovered("a.(x y)", &canonical_operator_table());
         assert!(recoveries.is_empty(), "valid ML continuation stays one tuple item");
+    }
+
+    #[test]
+    fn projection_tail_close_recovery_is_owner_safe_on_both_paths() {
+        let eof_cases = [
+            ("a.(x", ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis, 4..4),
+            ("a.{x", ConstructRole::ProjectionRecordTail, Delimiter::Brace, 4..4),
+        ];
+        for (source, owner, delimiter, range) in eof_cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(matches!(
+                recoveries.as_slice(),
+                [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                    if site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                        && site.range == range
+            ), "{source:?}: {recoveries:?}");
+        }
+
+        for (source, owner, delimiter, error_range, missing_range) in [
+            ("a.(x]", ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis, 4..5, 5..5),
+            ("a.{x)", ConstructRole::ProjectionRecordTail, Delimiter::Brace, 4..5, 5..5),
+        ] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(matches!(
+                recoveries.as_slice(),
+                [
+                    CommittedRecoveryRecord { kind: RecoveryKind::Error, site: error_site, .. },
+                    CommittedRecoveryRecord { kind: RecoveryKind::Missing, site: missing_site, .. },
+                ] if error_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                    && error_site.range == error_range
+                    && missing_site.role == GrammarRole::ClosingDelimiter { owner, delimiter }
+                    && missing_site.range == missing_range
+            ), "{source:?}: {recoveries:?}");
+
+            let chain = parse(source, &canonical_operator_table());
+            assert_eq!(chain.range().end, source.len(), "AST recovery must consume {source:?}");
+        }
+    }
+
+    #[test]
+    fn record_projection_rejects_non_exact_spread_spellings() {
+        for source in ["a.{...rest}", "a.{..+rest}"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            let record = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+                .expect("the exact projection introducer remains recognized");
+            assert_eq!(
+                record
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+                    .count(),
+                0,
+                "{source:?} must not split a longer spelling into a spread marker",
+            );
+
+            let chain = parse(source, &canonical_operator_table());
+            let [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Projection(ProjectionTail::Record(record)))] = chain.items() else {
+                panic!("{source:?} must remain a record projection tail: {chain:#?}");
+            };
+            assert!(
+                !record.items.iter().any(|item| matches!(item, ProjectionRecordItem::Spread(_))),
+                "{source:?} must not produce an AST spread item",
+            );
+        }
     }
 
     #[test]
