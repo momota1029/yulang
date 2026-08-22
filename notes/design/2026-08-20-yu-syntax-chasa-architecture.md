@@ -10658,3 +10658,427 @@ record-only spread、exact DotDot divergence、Yulang2 group wrapper削除、all
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、IndexTail / ProjectionTail fixed-tail追補案）。
+
+## generic-expression `WithBodyTail`追補案
+
+Status: Authoritative（ユーザ承認済み、2026-08-23）。ユーザより「body内で宣言文が使えないのは早めに直した方がいい」との優先度指摘あり——canonical `Statement`の宣言文拡張は本追補の future scope 項目だが、後回しにしすぎない。
+
+Date: 2026-08-23。
+
+### Scopeと既存architectureへの関係
+
+本追補は、precedence-neutral `OperatorChain`追補でterminal structural continuationとして名前だけ予約され、
+generic colon application追補で「二token structural continuation、generic colon applicationではない」として
+future scopeへ分離された、generic expression formの`WithBodyTail`を具体化する。
+
+```text
+expr with: inline_statement
+
+expr with:
+  statement
+  statement
+```
+
+本追補が所有するのは、operand-completeなgeneric `OperatorChain`へ付く上のformだけである。Yulang2にあった
+`struct` / `enum` / `type`等のdeclaration companion attachmentは、keyword position、outer declaration node、
+companion item grammar、brace formをdeclaration parser自身が所有した別recognition pathである。current
+`yu-syntax`にはそのtriggerとなるdeclaration grammarがないため、本追補へ含めない。後節でnamed future authorityとして
+明示的に予約する。
+
+本追補は次をsupersedeしない。
+
+- flat source-order `OperatorChain`とHIR-side single association authority。
+- `TerminalOuterContinuation := ColonApplicationTail | AssignmentTail | WithBodyTail`という既存予約、および
+  terminal tail accept後にsame-chain continuationを認めない不変条件。
+- `ColonApplicationTail`のlone-colon ownership、inline argument list、outer separator ownership。
+- `IndentedStatementBlock`、`StatementSequencePolicy::Indented`、strict deeper-indent trigger、dedent ownership。
+- current canonical `Statement`がexpression-statement subsetであり、declaration statement expansionはfuture scopeである境界。
+
+ただし既存continuation judgeの順序には、contextual `with` keyword authorityを具体化する限定的な追加を行う。
+exact maximal word `with`はYulang2でもordinary identifier / dynamic word operator / ML argumentより先に
+`ExprLedTag::With`へ分類されたため、generic `WithBodyTail` probeはそれらより先に置く。
+
+### Yulang2 oracle evidence
+
+historical behaviorのauthorityを次で固定する。
+
+- `with`はdeclaration専用starterではなくgeneric expression LED `ExprLedTag::With`だった。binding value `y`へ
+  `WithBlock`が付く`my x = y with:\n  my y = 1` fixtureがそのgeneric pathを固定する
+  （`yulang2-oracle@a58eefc3:crates/parser/src/expr/scan.rs:230-237`,
+  `crates/parser/src/expr/tail.rs:165-206`, `crates/parser/tests/stmt_grammar.rs:2523-2561`）。
+- `With` branchはbody parse後にshared `parse_tail_bp`へ戻らず、bodyのnext trivia / stopをcallerへ返した。
+  したがってhistorical `with:`はterminal LEDであり、body後のtokenをsame expression tailへ連結しなかった
+  （`crates/parser/src/expr/tail.rs:165-206`）。
+- `with`前のtriviaはshared tail ruleに従い、same-lineまたはactive indentよりdeepなnewlineなら継続、
+  equal-or-shallower newlineならtail loopを終了した。`with`自体にno-leading-trivia条件はなかった
+  （`crates/parser/src/expr/tail.rs:21-45`, `crates/parser/src/expr/scan.rs:230-237`）。
+- accepted `with`の後は次LEDをscanし、それがcolonのときだけbodyへ進んだ。post-colon triviaがnewlineを
+  含まずinlineならordinary `parse_statement`一個、strictly deeper newlineなら`parse_indent_stmt_block`を呼んだ。
+  equal-or-shallower newlineはmissing-invalidだった
+  （`crates/parser/src/expr/tail.rs:171-204`, `crates/parser/src/stmt/block.rs:108-129,242-284`）。
+- type-like declaration parserはgeneric LEDとは別に`with`をheader / body continuationとしてrecognizeし、
+  `:`ならcompanion indent / inline statement、`{`ならcompanion brace statementsをparseした
+  （`crates/parser/src/stmt/type_decl.rs:24-125,253-275`,
+  `crates/parser/src/stmt/struct_decl.rs:14-124`, `crates/parser/src/stmt/enum_decl.rs:17-143`）。
+- companion statementはmethod binding限定ではなかった。`derives`をspecial companion itemとして先にprobeし、
+  それ以外はordinary statement parserへ渡した。fixturesには`our x.foo = true`、複数`impl`、nested `type` / `struct`、
+  public bindingが存在する
+  （`crates/parser/src/stmt/mod.rs:39-50`, `crates/parser/src/stmt/block.rs:132-153,286-327`,
+  `crates/parser/tests/stmt_grammar.rs:1491-1533,1647-1675`,
+  `tests/yulang/regressions/runtime/attached_impl_pick.yu:7-14`,
+  `tests/yulang/regressions/effect/data_position_effect_function_public_signature.yu:4-10`）。
+
+### Authoritative surface grammar
+
+`G*`はemptyでもよい一回のmaximal `TriviaRun`、`G0*`はphysical newlineを含まないmaximal triviaである。
+`ChainContinuingTrivia`はcall / field / path / ML addendumで確定済みのruleを再利用する。
+
+```text
+WithBodyContinuation :=
+    ChainContinuingTrivia WithBodyTail
+
+WithBodyTail :=
+    WithKw WithIntroducerTrivia Colon WithBody
+
+WithIntroducerTrivia := G*
+
+WithBody :=
+    InlineWithBody
+  | IndentedStatementBlock
+
+InlineWithBody :=
+    G0* Statement [ Semicolon ]
+```
+
+normal formのintroducerはexact maximal word `with`とexact lone colonの二tokenである。`WithKw`と`Colon`の間には
+comment / newlineを含むmaximal triviaを許す。これはYulang2がaccepted `With`からそのtrailing triviaを渡して
+次LEDをscanし、token adjacencyを要求しなかったbehaviorを維持する。`withx`、`with?`等の別maximal wordを
+`with`へprefix-splitしない。`::`をlone colonへsplitしない。
+
+`WithBodyTail`前の`ChainContinuingTrivia`はouter `OperatorChain`直下に置き、tail rangeへ含めない。
+`WithKw`後からcolonまでのtriviaはtail直下、inline post-colon triviaもtail直下に置く。indented formの
+post-colon opening triviaはexisting `IndentedStatementBlock`の先頭に置く。
+
+### Terminality、flat chain、HIR association
+
+`WithBodyTail`は既存予約どおり`TerminalOuterTail`である。targetをchildにせず、current outer
+`OperatorChain`の先行source-order item列へ後段associatorが適用する。numeric BPを読まず、accepted後はbody recoveryを
+含めてtailをfinishし、同じouter chainへfixed / ML / dynamic / colon / second with continuationを追加しない。
+
+```text
+a + b with: cleanup
+
+OperatorChain
+  IdentifierExpression "a"
+  InfixOperatorUse "+"
+  IdentifierExpression "b"
+  Whitespace " "
+  WithBodyTail
+    WithKw "with"
+    Colon ":"
+    Whitespace " "
+    Statement
+      OperatorChain
+        IdentifierExpression "cleanup"
+```
+
+bodyの`Statement`はown nested `OperatorChain`を持つため、body内部ではfixed tail、dynamic operator、ML、
+`ColonApplicationTail`、nested `WithBodyTail`をordinaryに使える。たとえば`a with: b: c`のcolon tail、
+`a with: b with: c`のsecond with tailはbody statement側のnested chainに属し、outer `a` chainの後続siblingではない。
+with bodyの結果へさらにtailを付けるsourceは`(a with: body).field`のようにparenthesizeしてnew outer chainを開始する。
+
+HIR associatorは`WithBodyTail`に達した時点でpreceding pending segmentを一個のtargetへreduceする。body statementも
+canonical associatorで別にassociateし、surface CSTへsemantic nestingを書き戻さない。with bodyのscope / companion-module
+semantics、receiver attachment、cleanup / local-module interpretationはHIR / later semantic designの責務であり、parserは決めない。
+
+### Two-token recognitionとcontinuation judge順
+
+current `scan_word`はkeyword classを先決せずmaximal word + rangeを返し、`if` / `case` / `catch` ownerがexact textを
+sink-freeに判定してtyped keyword tokenとしてcommitする。同じmechanismをLED positionへ適用し、global lexer keywordや
+with専用character scannerを追加しない。既存`SyntaxKind::WithKw`と`KeywordEvidence::With`をuse grammarと共有するが、
+grammar ownerとCST parentは明確に異なる。
+
+operand-complete siteのjudge順を次で固定する。
+
+1. active owner stop、matching delimiter、equal-or-shallower newlineを先に判定し、owner boundaryをconsumeしない。
+2. `StopKind::With`がactiveでなければ、`ChainContinuingTrivia`後のexact maximal word `with`をsink-freeにprobeする。
+   exact wordをacceptした時点で`WithBodyTail` authorityを得てcutし、colon / body recoveryを含むtotal continuationへ入る。
+3. `with`でなければprobe全体をrollbackし、existing dynamic `recognize_led`を行う。
+4. existing `FixedPostfixRecognition`を行う。
+5. existing `recognize_ml_argument`を行う。
+6. existing lone-colon `recognize_colon_application_tail`を行う。
+7. 何もacceptしなければcurrent chainを終了する。
+
+exact `with` probeをdynamic LEDとMLより前に置くのは、Yulang2のword LED classifierが`SyntaxKind::With`を
+`MlNud(Atom)`より先に`ExprLedTag::With`へ変えたauthorityを維持するためである。operator tableに`with` spellingが
+存在しても、completed operand後のexact `with`はdynamic operatorにならない。`f with: body`を
+`Primary(f), MlArgument(with), ColonApplicationTail(body)`へsplitしない。
+
+normal acceptanceは二token introducerだが、recoveryのためexact `with` keyword一個でcommitする。colonがなければ
+typed zero-width `Missing(Colon)`を置き、valid body statement candidateが同じpositionにあればそこからretryする。
+accepted keywordをrollbackしてidentifier / dynamic operator / ML argumentへ読み替えない。この点もYulang2の
+reserved `With` classificationと一致する。
+
+`StopKind::With`をtyped word-boundary vocabularyへ追加する。generic rootではinactiveである。future declaration companion
+ownerがdeclaration head / bodyをparseするときにpushし、generic expression tailへkeywordを奪われないための予約である。
+active `StopKind::Colon`はcurrent positionのlone colonだけを止める。exact `with`をacceptした後のmandatory internal colonは
+`WithBodyTail`が所有し、outer colon stopが二token introducerを途中で分割しない。nested `ml_arg` scope内ではYulang2同様
+with tailをacceptせず、triviaとkeywordをouter chainへ返し、outer operand-complete loopがclaimする。
+
+### Body layoutとstatement-sequence reuse
+
+exact `with`をacceptした直後、current lexical depthのactive `IndentationBaseline.column`を`with_base`としてcaptureする。
+baselineがなければ0を使う。body baseをfirst statement indentから逆算しない。keyword-colon間triviaがnewlineを含んでも
+`with_base`は変えない。
+
+colon後は既存`recognize_introduced_body_layout(with_base, ...)`と同じ判定を使う。
+
+| post-colon maximal trivia | result / owner |
+| --- | --- |
+| physical newlineなし（emptyを含む） | inline。exactly one canonical `Statement`をparseする |
+| newlineあり、following indent `> with_base` | indented。first line indentを`block_indent`として`IndentedStatementBlock`をparseする |
+| newlineあり、following indent `<= with_base` | body missing。probeをrollbackし、newline / following tokenをouter statement ownerへ返す |
+| opaque lexical region内部だけのnewline | trivia classifierへ出ないためlayout branchへ影響しない |
+
+indented branchは`StatementSequencePolicy::Indented`とdefault `IndentedStatementBlockOptions`をそのまま使う。
+separatorはnewline / semicolon、bodyはnon-empty、dedentはconsumeしない。`if`の`elsif` / `else` companion-stopを使わない。
+With専用のpolicy variant、second statement parser、raw indent counterを作らない。recovery identityだけをowner-specificにするため、
+existing Indented policy / optionsへ`StatementRecoveryOwner::WithBody`相当のclosed typed ownerを渡す。
+
+inline branchもcanonical `Statement` entryを一回だけ呼ぶ。Yulang2と同様、statement直後のliteral semicolon一個は
+`WithBodyTail`がterminal markerとしてconsumeしてよい。semicolon後のtriviaはouter statement sequenceへ返す。
+comma、matching close、dedent、equal-or-shallower newlineはWith bodyがconsumeしない。
+
+current `yu-syntax::grammar::expression::Statement`はexpression statementだけを持ち、declaration statementsはroot-ownedである。
+本追補の最初のimplementation sliceはこのcurrent canonical subsetを再利用し、With専用に`my` / `our` / `impl`等をparseしない。
+将来canonical `Statement`がexisting binding / use / operator definitionその他へ拡張されれば、With body、colon block、if / case / catch
+bodyは同じshared entryから一緒に受け取る。Yulang2 fixtureのinner `my y = 1` acceptanceはそのshared statement expansion gateへ
+明示的にdeferする。
+
+### CST vocabularyとshape
+
+新しいnode kindは次の一個だけである。
+
+```text
+SyntaxKind::WithBodyTail
+```
+
+既存`WithKw`、`Colon`、`Semicolon`、`Statement`、`IndentedStatementBlock`、`Missing`、`Error`、trivia tokenを再利用する。
+generic `WithBlock`、`ColonClause`、inline-body wrapper、target-owning application nodeは追加しない。
+
+inline formを次で固定する。
+
+```text
+OperatorChain
+  IdentifierExpression "value"
+  Whitespace " "
+  WithBodyTail
+    WithKw "with"
+    Whitespace " "
+    Colon ":"
+    Whitespace " "
+    Statement
+      OperatorChain
+        IdentifierExpression "cleanup"
+    Semicolon ";"                 # sourceにある場合だけ
+```
+
+indented formを次で固定する。
+
+```text
+OperatorChain
+  IdentifierExpression "value"
+  Whitespace " "
+  WithBodyTail
+    WithKw "with"
+    Colon ":"
+    IndentedStatementBlock
+      BlockOpeningTrivia
+      Statement
+        OperatorChain
+          IdentifierExpression "prepare"
+      BlockStatementSeparator
+      Statement
+        OperatorChain
+          IdentifierExpression "cleanup"
+```
+
+physical newline separatorはexisting raw trivia ownershipに従い、sourceにないempty `Separator` tokenを作らない。
+`WithBodyTail` normal rangeは`WithKw.start`からinline statement / optional semicolon end、またはindented block endまでである。
+leading `ChainContinuingTrivia`とpost-terminal-semicolon triviaを含めない。全source byteを一回だけ所有し、
+`green.to_string() == source`を維持する。
+
+### Parser-side surface AST
+
+existing placeholderを次へ具体化する。
+
+```rust
+pub(crate) enum TerminalOuterTail<'source> {
+    ColonApplication(ColonApplicationTail<'source>),
+    WithBody(WithBodyTail<'source>),
+    // Assignment remains separately reserved.
+}
+
+pub(crate) struct WithBodyTail<'source> {
+    keyword: WordSpan<'source>,
+    colon: Recovered<Range<usize>>,
+    body: Recovered<WithBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum WithBody<'source> {
+    Inline {
+        statement: Box<Statement<'source>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+target field、numeric BP、inline semicolon marker、triviaをASTへduplicateしない。`colon`と`body`を別`Recovered` slotにすることで、
+missing colon後にsame-position body retryが成功したcaseと、colonはcompleteだがbodyがmissingなcaseを区別する。
+`WithBodyTail.range`はrecovery時もlast committed keyword / colon / body episodeまでを表し、preceding targetを含めない。
+
+### Typed recovery contract
+
+Yulang2のempty / non-empty `InvalidToken`をそのまま移植せず、session-wide mandatory-slot disciplineを適用する。
+typed vocabularyへ次を追加する。
+
+```text
+GrammarRole::WithBody(
+    WithBodyRole::{Introducer, Body, IndentedStatement}
+)
+
+ExpectedSyntax::Punctuation(Colon)
+ExpectedSyntax::Statement
+```
+
+`Missing`はzero-width、`Error`はmaximal non-empty、one recovery node = one committed diagnosticとする。
+accepted exact `with`後はcutし、colon / bodyがmalformedでもtailとouter chainを必ずfinishする。
+
+| source situation | recovery / ownership |
+| --- | --- |
+| `value with: body` | complete inline body。diagnosticなし |
+| `value with:\n  body` | complete non-empty `IndentedStatementBlock`。diagnosticなし |
+| `value with` + EOF | `WithKw`を保持し、EOFへzero-width `Missing(Introducer: Colon)`一件。same-causeのbody Missingを重ねず、colon / body AST slotはIncomplete |
+| `value with body` | `body`直前へzero-width `Missing(Introducer: Colon)`一件、同じpositionからinline `Statement`をretryしてcompleteする |
+| `value with :: body` | `::`を`:`へsplitしない。`::`直前へMissing colon一件、longer punctuationはbody / outer recoveryへ残す |
+| `value with: ` + EOF | horizontal triviaをtailへ保持し、EOFへzero-width `Missing(Body: Statement)`一件 |
+| `value with:\nnext`で`indent(next) <= with_base` | post-colon trivia probeをrollbackし、colon直後へzero-width Missing body一件。newline / `next`をouter ownerへ返す |
+| `value with:\n  ` + EOF | `IndentedStatementBlock`とopening triviaを保持し、block EOFへzero-width `Missing(IndentedStatement)`一件 |
+| `value with: ;` | semicolon直前へzero-width Missing body一件、literal semicolonをterminal markerとしてtailへ保持する |
+| `value with: @ body`で`@`がstatement startでない | `@`までをone maximal non-empty `Error(Body)`にし、同じbody slotを`body`からretryする |
+| missing colon後にmalformed run、続いてvalid statement | Missing colon一件とcausally distinctなmaximal Error body一件を作り、valid startからsame-slot retryする |
+| inline body後のcomma / matching close | bodyをfinishし、boundaryをconsumeせずouter sequence ownerへ返す |
+| indented body内のmalformed statement | shared statement recoveryへWith owner roleを渡し、next sibling / dedentへ同期する。With layerはduplicate diagnosticを出さない |
+| body内部のcolon / nested with recovery | nested tail ownerだけがdiagnosticをcommitし、outer With bodyは同じrangeへMissing / Errorを重ねない |
+
+missing colonとbody absenceが同じEOF / owner boundaryに由来するcaseでは、keyword accept後にcolon用Missing一件だけを置く。
+二mandatory slotを同一positionへcascadeさせない。colonがsourceに存在する場合はbody absenceだけをBody roleで記録する。
+invalid-run recoveryはsemicolon、comma、matching close、equal-or-shallower newline、dedent、active owner stop、EOF、valid
+statement retry pointをconsumeしない。probe failureはsink / recovery recordを変更せずinputと全local scopeをrollbackする。
+
+### ColonApplicationTail、ML、outer ownerとのinteraction
+
+`WithBodyTail`はplain colonから始まらないため、normal two-token candidateを`ColonApplicationTail`へ分割しない。
+keyword accept後のinternal colonはWith ownerが保持する。body内ではordinary colon tailを許す。
+
+```text
+a with: b: c
+
+outer OperatorChain
+  Primary(a)
+  WithBodyTail
+    Statement
+      nested OperatorChain
+        Primary(b)
+        ColonApplicationTail(c)
+```
+
+`a: b with: c`ではouter colon tailがterminalだが、そのRHS argumentであるnested chainが`b with: c`を所有できる。
+どちらもsame outer chain上に二terminal tailを並べるshapeではない。
+
+`with`前triviaがML separator条件も満たす場合、exact contextual `with` authorityが先に判定される。`f with: body`は
+with target `f`であり、ML argument `with`ではない。一方、nested `ml_arg` parserはnon-empty triviaでargumentを終了し、
+with keywordをconsumeせずouter loopへ返す。equal-or-shallower newline前の`with`はcurrent chainを終了し、outer statement ownerが読む。
+
+outer comma / semicolon / matching closeはWith inline bodyのstop setに継承する。Withはcomma listを持たず、commaを
+ColonApplicationTailのように条件付き所有しない。inline terminal semicolonだけはhistorical With branchと同様にbody terminatorとして
+一個consumeする。indented block内semicolonはexisting statement sequenceが所有する。
+
+### Generic-expression-only scope boundary
+
+本追補は次を設計・実装しない。
+
+- `struct` / `enum` / `type` / `error` / `act`その他declaration head / bodyの後に付くcompanion `with:`。
+- declaration parserが受けた`with { ... }` brace companion body。generic expression `expr with { ... }`は本追補ではinvalidである。
+- `derives` special companion item、receiver method binding、multiple `impl`、nested companion declarationの専用classification。
+- companion moduleのname resolution、visibility、method attachment、receiver inference、associated type / impl semantics。
+- current expression-only canonical `Statement`をdeclaration statement familyへ拡張すること。
+
+future declaration-companion addendumは、各declaration ownerが`StopKind::With`でkeywordを予約し、declaration node直下に
+どのCST nodeを置くか、colon / brace body、companion item sequence、recoveryを個別に固定する。generic `WithBodyTail`を
+declaration nodeへ無条件reuseしたり、declaration companionをgeneric expression targetへdesugarしたCSTにしたりしない。
+共有してよいのはexact keyword / colon scanner、introduced-body layout primitive、canonical statement-sequence coreだけである。
+
+### Explicit Yulang2 divergences
+
+本追補の意図的な差を次で固定する。
+
+1. Yulang2 node名`WithBlock`を、flat chain roleとterminalityが明示された`WithBodyTail`へ置き換える。target-free source acceptanceの差ではない。
+2. Yulang2はaccepted `with`後にcolonがない場合、EOFならnodeをearly finishし、non-colon tokenならそのtoken自体を
+   non-empty `InvalidToken`にした。Yulang3はaccepted keywordとfollowing body candidateを保持し、zero-width Missing colon +
+   same-position body retryにする。mandatory-slot localityとone diagnostic per causeを得るrecovery shape / acceptance divergenceである。
+3. Yulang2 empty `InvalidToken` / generic invalid recoveryをtyped `WithBodyRole` Missing / Errorへ置き換える。
+   source byte ownershipとowner safe pointは維持する。
+4. Yulang2のgeneric `parse_statement`はdeclaration statementsも含み、fixture `my x = y with:\n  my y = 1`を受理した。
+   Yulang3 first sliceはcurrent shared expression-statement subsetだけを使い、inner binding acceptanceをcanonical Statement expansionへ
+   deferする。With専用declaration parserを作らず、全block ownerのstatement surfaceを一authorityで拡張するための一時的source acceptance差である。
+5. Yulang2 declaration companion pathsとbrace bodyを本追補へ含めない。trigger declaration grammarがcurrent Yulang3に存在せず、
+   outer CST ownerをgeneric tailから推測しないためのscope divergenceである。
+6. Yulang2のtriviaを含む`Lex` emissionをそのまま再現せず、leading chain trivia、introducer trivia、block opening trivia、
+   post-semicolon triviaをYulang3のtyped nearest-owner ruleで分ける。`green.to_string() == source`を維持するCST ownership差である。
+
+次はYulang2と一致する。generic word LED、same-line / deeper-newline前置継続、keyword-colon間trivia許容、inline one statement、
+strict deeper-indent block、equal-or-shallower newline rejection、optional inline terminal semicolon、terminal tail behaviorを維持する。
+
+### Implementation boundary and gates
+
+最初のimplementation sliceはexpression grammarのgeneric tailだけを変更する。`SyntaxKind::WithBodyTail`、surface AST、
+contextual LED recognition、inline / indented body、typed recovery、statement-sequence owner wiring、lossless fixturesを含む。
+declaration companion recognition、HIR semantics、canonical Statement declaration expansionは別sliceである。
+
+implementation gateを次で固定する。
+
+1. AST / direct-CSTが同じexact contextual word、colon、layout recognizerを使い、BP-only table changeでshape / range / recoveryが不変である。
+2. `value with: body`、`value/*c*/with : body`、`value\n  with:\n    body`をacceptし、equal-or-shallower newline前の`with`をouter ownerへ返す。
+3. `withx` / `with?`をsplitせず、operator tableに`with` word spellingがあってもexact `with` tail authorityを維持する。
+4. `f with: body`をML argument + colon tailへsplitせず、`f x with: body`では`f x`までをouter With target segmentにする。
+5. inline one Statementとoptional terminal semicolon、strict deeper non-empty `IndentedStatementBlock`、newline / semicolon block separatorを固定する。
+6. outer comma / close / equal-or-shallower newline / dedentをconsumeせず、body内colon / nested with recoveryをduplicateしない。
+7. missing colon、missing inline body、wrong indent、empty indented body、malformed body + retry、immediate semicolonをrecovery table通り固定する。
+8. all recoveryでMissing zero-width、Error non-empty、one node = one diagnostic、scope exact restore、lossless round tripを満たす。
+9. `a + b with: body`がtarget-free flat terminal siblingになり、with accept後のsame outer chain continuationを0件にする。
+10. `a with: b: c`と`a: b with: c`がterminal tailを別nested chainへ置き、同じchainへtwo terminal tailsを並べない。
+11. braced / parenthesized / call / index / projection item、record-pattern default、statement、if / case / catch body内でowner stop、
+    indentation baseline、ml_arg、delimiter / stop scopesをexact restoreする。
+12. `struct S {} with:`等をgeneric expression fixtureでaccidentally validにせず、declaration-companion node / `with {}`を生成しない。
+
+### Closed decisions and review focus
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- generic `with:`はtarget-free、BP-neutral、terminal `WithBodyTail`である。
+- normal introducerはcontextual exact `WithKw G* Colon`であり、dynamic word operator / ML / lone colonより一個のstructural ownerを優先する。
+- bodyはinline exactly one canonical Statement、またはstrict deeper non-empty existing `IndentedStatementBlock`である。
+- layout / separator algorithmへnew policy variantを作らず、existing Indented policyへtyped recovery ownerだけを渡す。
+- missing colonはzero-width Missing + same-position body retry、missing / malformed bodyはowner-safe typed recoveryにする。
+- declaration companion `with:`、brace companion、companion-only items / semanticsはfuture declaration addendumへ残す。
+- first sliceのStatement surfaceはcurrent expression subsetであり、historical inner declaration acceptanceはshared Statement expansionへ残す。
+
+Claude reviewでは、特にexact `with`のdynamic word operator / MLに対するpriority、missing-colon recovery commit、
+keyword-colon間newline、inline semicolon ownership、current Statement subset divergence、declaration-companion scope boundaryを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-23、generic-expression WithBodyTail追補案）。
