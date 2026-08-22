@@ -9692,9 +9692,9 @@ nested delimiter frame、no synthetic Separator node、all recovery exitのframe
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、layout-aware comma-or-newline delimited sequence authority追補案）。
 
-## 追補案: call / field / path / ML applicationのfixed OperatorChain tail
+## call / field / path / ML applicationのfixed OperatorChain tail
 
-Status: Claude review / exact wordingのfinal sign-off待ち。
+Status: Authoritative（ユーザ承認済み、2026-08-22）。
 
 ### Scopeと既存architectureへの関係
 
@@ -10178,5 +10178,5 @@ Claude reviewでは、特にcallのhistorical semicolon、call base capture、`f
 `MlNud`からの明示的 divergence、ml_arg中のnon-empty-trivia stop、delimited frameとのbaseline composition、DotField token split、
 bare-dot recoveryのlongest-spelling guard、colon terminality、Index / Projection scope exclusionを確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、call / field / path / ML application fixed-tail追補案）。
