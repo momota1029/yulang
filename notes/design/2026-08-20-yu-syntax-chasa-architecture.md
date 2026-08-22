@@ -10183,7 +10183,7 @@ bare-dot recoveryのlongest-spelling guard、colon terminality、Index / Project
 
 ## IndexTail / ProjectionTail fixed OperatorChain tail追補案
 
-Status: Claude review / exact wordingのfinal sign-off待ち。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 Date: 2026-08-23。
 
@@ -10656,5 +10656,5 @@ Claude reviewでは、特にrecord projection contentがgeneral expressionであ
 Index / Projectionへ認める先行文言のclarification、projection dot前triviaとdot-opener adjacencyの区別、distinct tuple / record CST、
 record-only spread、exact DotDot divergence、Yulang2 group wrapper削除、all close / separator recoveryのowner-safe restoreを確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、IndexTail / ProjectionTail fixed-tail追補案）。
