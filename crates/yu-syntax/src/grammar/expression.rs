@@ -831,6 +831,13 @@ where
             if let Some(argument) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
                 arguments.push(argument);
             } else {
+                if let Some(range) = call_argument_error_retry_ast(table, i) {
+                    arguments.push(OperatorChain::new(
+                        vec![OperatorChainItem::Error { range: range.clone() }],
+                        range,
+                    ));
+                    continue;
+                }
                 let at = i.pos();
                 if let Some(_) = i.run(recognize_call_separator) {
                     arguments.push(OperatorChain::new(
@@ -860,6 +867,37 @@ where
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
     CallTail { open: open.clone(), arguments, close, range: open.start..i.pos() }
+}
+
+/// AST-side counterpart to [`call_argument_error_retry`].  The CallTail owns
+/// malformed bytes only when a later shared NUD can retry the same argument
+/// slot; otherwise its delimiter owner remains responsible for the boundary.
+fn call_argument_error_retry_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        let Some(character) = i.input.remainder().chars().next() else {
+            return None;
+        };
+        if matches!(character, ')' | ']' | '}' | ',' | ';') {
+            return None;
+        }
+        i.input.next()?;
+        let end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if expression_nud_candidate_input(table, i) {
+            return Some(start..end);
+        }
+    }
 }
 
 fn recognize_call_separator<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
@@ -1782,7 +1820,7 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
             break;
         }
     }
-    match commit_parenthesized_close(committed) {
+    match commit_call_close(committed) {
         ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
         ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
     }
@@ -3716,6 +3754,31 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    commit_parenthesized_close_for_owner(committed, parenthesized_close_role())
+}
+
+fn commit_call_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParenthesizedClose
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_parenthesized_close_for_owner(committed, call_close_role())
+}
+
+fn commit_parenthesized_close_for_owner<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+) -> ParenthesizedClose
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     loop {
         if parenthesized_close_absent_boundary(committed) {
             return ParenthesizedClose::Missing {
@@ -3730,11 +3793,11 @@ where
                     return ParenthesizedClose::Matched(punctuation.range());
                 }
                 PunctuationKind::Close(actual @ (Delimiter::Bracket | Delimiter::Brace)) => {
-                    emit_parenthesized_close_error(committed, punctuation.range(), actual);
+                    emit_parenthesized_close_error(committed, role, punctuation.range(), actual);
                 }
                 _ => emit_parenthesized_error(
                     committed,
-                    parenthesized_close_role(),
+                    role,
                     punctuation.range(),
                 ),
             }
@@ -3763,7 +3826,7 @@ where
                 }
             })
             .expect("a non-boundary parenthesized-close position must consume invalid source");
-        emit_parenthesized_error(committed, parenthesized_close_role(), range);
+        emit_parenthesized_error(committed, role, range);
     }
 }
 
@@ -3825,6 +3888,13 @@ where
 fn parenthesized_close_role() -> GrammarRole {
     GrammarRole::ClosingDelimiter {
         owner: ConstructRole::ExpressionGroup,
+        delimiter: Delimiter::Parenthesis,
+    }
+}
+
+fn call_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::ArgumentList,
         delimiter: Delimiter::Parenthesis,
     }
 }
@@ -3937,7 +4007,7 @@ fn emit_call_close_missing<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input(); let at = i.pos();
-        let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::ArgumentList, delimiter: Delimiter::Parenthesis };
+        let role = call_close_role();
         CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
     });
     committed.emit_missing(record);
@@ -4470,13 +4540,13 @@ fn emit_parenthesized_missing<'parse, 'source, 'local, E, O>(
 
 fn emit_parenthesized_close_error<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
     range: Range<usize>,
     actual: Delimiter,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = parenthesized_close_role();
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
@@ -5018,6 +5088,33 @@ mod tests {
             [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. }))]
                 if matches!(arguments.as_slice(), [OperatorChain { items, .. }, _] if matches!(items.as_slice(), [OperatorChainItem::MissingOperand { .. }]))
         ));
+
+        let chain = parse("f(@a)", &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. })),
+            ] if matches!(
+                arguments.as_slice(),
+                [
+                    OperatorChain { items: malformed, range: malformed_range },
+                    OperatorChain { items: valid, .. },
+                ] if matches!(malformed.as_slice(), [OperatorChainItem::Error { range }]
+                    if *range == (2..3) && *malformed_range == (2..3))
+                    && matches!(valid.as_slice(), [OperatorChainItem::Primary(PrimaryExpression::Identifier(word))]
+                        if word.text() == "a")
+            )
+        ));
+
+        let (root, recoveries) = parse_direct_recovered("f(a]", &canonical_operator_table());
+        assert_eq!(root.to_string(), "f(a]");
+        assert!(recoveries.iter().all(|record| matches!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter { owner: ConstructRole::ArgumentList, delimiter: Delimiter::Parenthesis }
+        )));
+        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Error && record.site.range == (3..4)));
+        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
     }
 
     #[test]
@@ -5054,6 +5151,16 @@ mod tests {
     fn ml_arguments_split_on_trivia_but_keep_adjacent_fixed_tails_and_colon_terminality() {
         let chain = parse("f x y", &canonical_operator_table());
         assert!(matches!(chain.items(), [OperatorChainItem::Primary(_), OperatorChainItem::MlArgument { .. }, OperatorChainItem::MlArgument { .. }]));
+        let root = parse_direct("f x y", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        let ml_arguments = chain.children().filter(|node| node.kind() == SyntaxKind::MlArgument).collect::<Vec<_>>();
+        assert_eq!(ml_arguments.len(), 2);
+        for argument in ml_arguments {
+            let nested = only_child(&argument, SyntaxKind::OperatorChain);
+            assert_eq!(nested.children().count(), 1);
+            assert_eq!(nested.first_child().unwrap().kind(), SyntaxKind::IdentifierExpression);
+        }
+
         let root = parse_direct("f x.field(y)::z", &canonical_operator_table());
         assert_eq!(root.to_string(), "f x.field(y)::z");
         let ml = root.descendants().find(|node| node.kind() == SyntaxKind::MlArgument).unwrap();
@@ -5085,6 +5192,36 @@ mod tests {
             assert!(ml_after_identifier(source).is_none(), "{source:?}");
         }
         assert!(ml_after_identifier("f\n  (x)").is_some());
+    }
+
+    #[test]
+    fn call_tail_restores_each_enclosing_owner_frame() {
+        let cases = [
+            ("(f(a), b)", 1, Some(SyntaxKind::ParenthesizedExpression)),
+            ("f(g(x))", 2, None),
+            ("case value: { field = f(a) } -> body", 1, Some(SyntaxKind::RecordPattern)),
+            ("run:\n  f(a)\n  g(b)", 2, Some(SyntaxKind::IndentedStatementBlock)),
+            ("case x: p -> f(a), q -> g(b)", 2, Some(SyntaxKind::CaseArm)),
+            ("catch x { p -> f(a), q -> g(b) }", 2, Some(SyntaxKind::CatchArm)),
+        ];
+
+        for (source, expected_calls, enclosing_owner) in cases {
+            let _ = parse(source, &canonical_operator_table());
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(),
+                expected_calls,
+                "{source:?}",
+            );
+            if let Some(owner) = enclosing_owner {
+                assert!(root.descendants().any(|node| node.kind() == owner), "{source:?}");
+            }
+            assert!(
+                root.descendants().all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+                "{source:?}",
+            );
+        }
     }
 
     #[test]
