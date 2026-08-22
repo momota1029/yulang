@@ -1035,8 +1035,18 @@ fn commit_mod_colon_body<'parse, 'source, 'local, E, O>(
     }
     committed.emit_trivia(&trivia);
     if !commit_canonical_statement(operators, LeadingTrivia::None, committed) {
-        emit_mod_missing(committed, ModRole::Body, ExpectedSyntax::Statement);
-        return;
+        match mod_body_error_retry(operators, committed) {
+            Some(true) => {
+                commit_canonical_statement(operators, LeadingTrivia::None, committed)
+                    .then_some(())
+                    .expect("a retried Mod colon body must commit");
+            }
+            Some(false) => return,
+            None => {
+                emit_mod_missing(committed, ModRole::Body, ExpectedSyntax::Statement);
+                return;
+            }
+        }
     }
     if let Some(semicolon) = commit_character(committed, ';') {
         committed.token(SyntaxKind::Semicolon, semicolon);
@@ -1457,6 +1467,69 @@ where
                 SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: range.clone(), sources: source },
                 SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range, sources: source },
             ]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+    Some(retry)
+}
+
+/// Recover one malformed inline colon-body episode without consuming the
+/// caller's statement boundary.  A subsequent canonical statement retries
+/// the same body slot.
+fn mod_body_error_retry<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let character = probe.input().input.remainder().chars().next()?;
+            if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':') {
+                return (start < end).then_some((start..end, false));
+            }
+            {
+                let i = probe.input();
+                i.input.next()?;
+                end = i.pos();
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            if crate::grammar::expression::direct_canonical_statement_candidate(
+                operators,
+                LeadingTrivia::None,
+                probe,
+            ) {
+                return Some((start..end, true));
+            }
+        }
+    })?;
+    let (range, retry) = recovered;
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Body));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Statement,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
             0,
         )
     });
@@ -4561,7 +4634,8 @@ where
         None => (None, Some(Recovered::Incomplete)),
     };
 
-    let body = parse_mod_body_ast(table, mod_base, &mut i)
+    let identity_missing = matches!(name, Some(Recovered::Incomplete));
+    let body = parse_mod_body_ast(table, mod_base, !identity_missing, &mut i)
         .map_or(Recovered::Incomplete, Recovered::Complete);
     let end = match &body {
         Recovered::Complete(ModBody::Bodyless { semicolon }) => semicolon.end,
@@ -4575,6 +4649,7 @@ where
 fn parse_mod_body_ast<'source, E>(
     table: &crate::operator::OperatorTable,
     mod_base: usize,
+    allow_missing_colon_retry: bool,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<ModBody<'source>>
 where
@@ -4582,17 +4657,31 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let start = i.pos();
     let checkpoint = i.checkpoint();
     let _trivia = mod_trivia(mod_base, i)?;
     let punctuation = i.run(scan_punctuation);
     let Some(punctuation) = punctuation else {
+        if !allow_missing_colon_retry {
+            i.rollback(checkpoint);
+            return None;
+        }
         if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
             return Some(ModBody::Colon {
                 colon: Recovered::Incomplete,
                 body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
             });
         }
-        i.rollback(checkpoint);
+        if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
+            let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)))?;
+            return Some(ModBody::Colon {
+                colon: Recovered::Incomplete,
+                body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+            });
+        }
+        if i.pos() == start {
+            i.rollback(checkpoint);
+        }
         return None;
     };
     match punctuation.kind() {
@@ -4607,6 +4696,22 @@ where
         }),
         _ => {
             i.rollback(checkpoint);
+            if !allow_missing_colon_retry {
+                return None;
+            }
+            if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+                return Some(ModBody::Colon {
+                    colon: Recovered::Incomplete,
+                    body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                });
+            }
+            if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
+                let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)))?;
+                return Some(ModBody::Colon {
+                    colon: Recovered::Incomplete,
+                    body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
+                });
+            }
             None
         }
     }
@@ -4635,12 +4740,49 @@ where
             block: parse_indented_mod_body(table, trivia, mod_base, block_indent, i),
         });
     }
-    let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)))?;
+    let statement = if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i)) ) {
+        statement
+    } else if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
+        i.run(from_fn(|i| parse_canonical_statement(table, i)))?
+    } else {
+        return None;
+    };
     let terminal = i.checkpoint();
     if i.run(scan_punctuation).is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon) {
         i.rollback(terminal);
     }
     Some(ModColonBody::Inline { statement: Box::new(statement) })
+}
+
+/// AST parsing keeps recovery diagnostics in the direct-CST channel, but it
+/// must consume and retry the same malformed episode so both paths agree on
+/// the following statement boundary and the recovered Mod body shape.
+fn mod_statement_error_retry_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}' | '{' | ':') {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        let checkpoint = i.checkpoint();
+        let candidate = i.run(from_fn(|i| parse_canonical_statement(table, i))).is_some();
+        i.rollback(checkpoint);
+        if candidate {
+            return Some(true);
+        }
+    }
 }
 
 fn mod_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
@@ -8557,6 +8699,114 @@ mod tests {
     }
 
     #[test]
+    fn mod_ast_retries_malformed_introducer_and_colon_body_to_the_same_statement_slot() {
+        for source in [
+            "mod outer @my value = 1",
+            "mod outer: @my value = 1",
+        ] {
+            let (declaration, remainder) = parse_mod(source);
+            assert_eq!(remainder, "", "{source}");
+            let Recovered::Complete(ModBody::Colon { body, .. }) = declaration.body else {
+                panic!("a recovered colon body was expected for {source}");
+            };
+            assert!(matches!(
+                body,
+                Recovered::Complete(ModColonBody::Inline { statement })
+                    if matches!(*statement, crate::grammar::expression::Statement::Binding(_))
+            ), "{source}");
+        }
+    }
+
+    #[test]
+    fn mod_direct_retries_malformed_introducer_and_colon_body_under_their_own_roles() {
+        let table = crate::operator::OperatorTable::empty();
+        for (source, role) in [
+            ("mod outer = my value = 1", ModRole::BodyIntroducer),
+            ("mod outer: @my value = 1", ModRole::Body),
+        ] {
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source}");
+            assert_eq!(
+                output.committed_recoveries().iter().filter(|record| {
+                    record.kind == RecoveryKind::Error
+                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(role))
+                }).count(),
+                1,
+                "{source}: {:?}",
+                output.committed_recoveries(),
+            );
+            assert!(!output.committed_recoveries().iter().any(|record| {
+                record.kind == RecoveryKind::Missing
+                    && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(role))
+            }), "{source}: {:?}", output.committed_recoveries());
+        }
+    }
+
+    #[test]
+    fn mod_identity_recovery_leaves_brace_statement_boundaries_to_the_outer_owner() {
+        let table = crate::operator::OperatorTable::empty();
+        for source in [
+            "mod outer { mod inner, next }",
+            "mod outer { mod inner\nnext }",
+            "mod outer { mod inner }",
+        ] {
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source}");
+            let body_records = output.committed_recoveries().iter().filter(|record| {
+                record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+            }).count();
+            assert_eq!(body_records, 1, "{source}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ModDeclaration).count(), 2, "{source}");
+        }
+    }
+
+    #[test]
+    fn mod_colon_body_missing_keeps_outer_comma_and_close_available() {
+        let table = crate::operator::OperatorTable::empty();
+        for source in [
+            "mod outer:",
+            "mod outer { mod inner:, next }",
+            "mod outer { mod inner: }",
+        ] {
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source}");
+            assert_eq!(
+                output.committed_recoveries().iter().filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Body))
+                }).count(),
+                1,
+                "{source}: {:?}",
+                output.committed_recoveries(),
+            );
+        }
+    }
+
+    #[test]
+    fn mod_brace_body_reuses_the_shared_owner_safe_close_recovery() {
+        let table = crate::operator::OperatorTable::empty();
+        for (source, kind, range) in [
+            ("mod outer { item", RecoveryKind::Missing, 16..16),
+            ("mod outer { item ]", RecoveryKind::Error, 17..18),
+        ] {
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source}");
+            assert!(output.committed_recoveries().iter().any(|record| {
+                record.kind == kind
+                    && record.site.range == range
+                    && record.site.role == GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::BracedStatementBlockExpression,
+                        delimiter: Delimiter::Brace,
+                    }
+            }), "{source}: {:?}", output.committed_recoveries());
+        }
+    }
+
+    #[test]
     fn direct_mod_indented_body_keeps_its_statement_recovery_under_mod_owner() {
         let table = crate::operator::OperatorTable::empty();
         let output = parse_direct_root_candidate("mod outer:\n  ", &table, &[]);
@@ -8648,6 +8898,26 @@ mod tests {
         assert!(header.operators().is_empty());
     }
 
+    #[test]
+    fn mod_identity_and_body_discriminator_are_binding_power_invariant() {
+        let source = "mod outer { a + b }";
+        let table = |power: crate::operator::BindingPower| {
+            crate::operator::OperatorTable::from_declarations([
+                crate::operator::OperatorDeclaration::new(
+                    "+",
+                    crate::operator::OperatorFixities::new().with_infix(power.clone(), power),
+                ),
+            ])
+            .expect("operator table")
+        };
+        let low = table(crate::operator::BindingPower::scalar(1));
+        let high = table(crate::operator::BindingPower::scalar(99));
+        assert_eq!(
+            parse_direct_root_candidate(source, &low, &[]).green(),
+            parse_direct_root_candidate(source, &high, &[]).green(),
+        );
+    }
+
     fn parse_mod(source: &str) -> (ModDeclaration<'_>, &str) {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
@@ -8703,7 +8973,7 @@ mod tests {
 
     #[test]
     fn binding_indented_body_reuses_the_canonical_statement_dispatch() {
-        let source = "our item =\n  my nested = value\n  use std";
+        let source = "our item =\n  my nested = value\n  use std\n  mod nested;";
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();
@@ -8725,6 +8995,7 @@ mod tests {
         assert!(matches!(block.statements(), [
             Recovered::Complete(crate::grammar::expression::Statement::Binding(_)),
             Recovered::Complete(crate::grammar::expression::Statement::Use(_)),
+            Recovered::Complete(crate::grammar::expression::Statement::Mod(_)),
         ]));
         assert_eq!(i.input.remainder(), "");
     }

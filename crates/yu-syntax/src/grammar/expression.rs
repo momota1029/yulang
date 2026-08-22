@@ -5906,7 +5906,7 @@ mod tests {
         SyntaxKind, SyntaxNode,
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
-        session::{CommittedRecoveryRecord, FullCstOutput, ParseLocal, Probe},
+        session::{CommittedRecoveryRecord, FullCstOutput, ModRole, ParseLocal, Probe},
     };
 
     #[test]
@@ -7484,6 +7484,19 @@ mod tests {
     }
 
     #[test]
+    fn malformed_mod_in_an_indented_if_body_returns_the_companion_to_its_owner() {
+        let source = "if condition:\n  mod inner\nelse: 0";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::Declaration(DeclarationRole::Mod(ModRole::BodyIntroducer))
+        ));
+    }
+
+    #[test]
     fn if_expression_is_binding_power_invariant() {
         let source = "if x + y: a + b else: c + d";
         let low = colon_operator_table(BindingPower::scalar(1));
@@ -7596,8 +7609,12 @@ mod tests {
             ("case value:\n  item ->\n    my nested = value", true, false, false),
             ("catch action:\n  error ->\n    use std", false, true, false),
             ("a with: mod inner;", false, false, true),
+            ("a with:\n  mod inner;", false, false, true),
+            ("a:\n  mod inner;", false, false, true),
             ("if condition:\n  mod inner;", false, false, true),
             ("case value:\n  item ->\n    mod inner;", false, false, true),
+            ("catch action:\n  error ->\n    mod inner;", false, false, true),
+            ("{\n  mod inner;\n}", false, false, true),
         ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
