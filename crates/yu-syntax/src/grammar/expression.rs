@@ -958,7 +958,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let start = i.pos();
     let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
     i.local.push_stop_set(stops);
-    let pattern = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+    let pattern = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let guard = parse_case_guard_ast(table, i);
     let arrow = parse_arm_arrow(i).map_or(Recovered::Incomplete, Recovered::Complete);
@@ -974,13 +974,13 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let start = i.pos();
     let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere).with(StopKind::Comma);
     i.local.push_stop_set(stops);
-    let pattern = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+    let pattern = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
     assert_eq!(i.local.pop_stop_set(), Some(stops));
     let handler = if let Some(_) = i.run(recognize_parenthesized_comma) {
         consume_trivia(i).expect("trivia scanning is total");
         let stops = active_stop_set(i).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere);
         i.local.push_stop_set(stops);
-        let handler = i.run(parse_pattern).map_or(Recovered::Incomplete, Recovered::Complete);
+        let handler = i.run(from_fn(|i| parse_pattern(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
         assert_eq!(i.local.pop_stop_set(), Some(stops));
         Some(handler)
     } else { None };
@@ -2586,13 +2586,13 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     committed.start_node(family.arm_kind());
     let stops = committed.probe(|probe| { let mut stops = active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere); if family == CaseLikeFamily::Catch { stops = stops.with(StopKind::Comma); } stops });
     committed.probe(|probe| probe.input().local.push_stop_set(stops));
-    if parse_direct_pattern(LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern); }
+    if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Pattern, ExpectedSyntax::Pattern); }
     committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     if family == CaseLikeFamily::Catch && let Some(comma) = committed.probe(|probe| probe.input().run(recognize_parenthesized_comma)) {
         committed.token(SyntaxKind::Comma, comma);
         let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
         let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Arrow).with(StopKind::ArmGuardIf).with(StopKind::ArmGuardWhere)); committed.probe(|probe| probe.input().local.push_stop_set(stops));
-        if parse_direct_pattern(LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern); }
+        if parse_direct_pattern(table, LeadingTrivia::None, committed).is_none() { emit_case_like_missing(committed, CaseLikeRole::Handler, ExpectedSyntax::Pattern); }
         committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
     }
     commit_arm_guard(table, family, committed);

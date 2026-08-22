@@ -17,8 +17,9 @@ use chasa::{
 use crate::{
     grammar::{
         declaration::Recovered,
-        expression::{IntegerLiteral, parse_integer_literal},
+        expression::{IntegerLiteral, OperatorChain, parse_direct_expression_with_operators, parse_expression_with_operators, parse_integer_literal},
     },
+    operator::OperatorTable,
     scan::{
         operator::LeadingTrivia,
         punctuation::{PunctuationKind, scan_punctuation},
@@ -53,6 +54,7 @@ enum PatternPrecedence {
 enum PatternDelimitedPolicy {
     Parenthesized,
     List,
+    Record,
 }
 
 impl PatternDelimitedPolicy {
@@ -60,6 +62,7 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => Delimiter::Parenthesis,
             Self::List => Delimiter::Bracket,
+            Self::Record => Delimiter::Brace,
         }
     }
 
@@ -67,6 +70,7 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => StopKind::RightParenthesis,
             Self::List => StopKind::RightBracket,
+            Self::Record => StopKind::RightBrace,
         }
     }
 
@@ -74,6 +78,7 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => SyntaxKind::RParen,
             Self::List => SyntaxKind::RBracket,
+            Self::Record => SyntaxKind::RBrace,
         }
     }
 
@@ -86,6 +91,10 @@ impl PatternDelimitedPolicy {
             Self::List => GrammarRole::ClosingDelimiter {
                 owner: ConstructRole::ListPattern,
                 delimiter: Delimiter::Bracket,
+            },
+            Self::Record => GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::RecordPattern,
+                delimiter: Delimiter::Brace,
             },
         }
     }
@@ -105,6 +114,7 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => pattern_nud_candidate_input(i),
             Self::List => exact_dot_dot_pending_input(i) || pattern_nud_candidate_input(i),
+            Self::Record => exact_dot_dot_pending_input(i) || pattern_name_pending_input(i),
         }
     }
 
@@ -117,6 +127,7 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => false,
             Self::List => recover_list_separator_or_close_ast(i),
+            Self::Record => recover_list_separator_or_close_ast(i),
         }
     }
 
@@ -124,6 +135,16 @@ impl PatternDelimitedPolicy {
         match self {
             Self::Parenthesized => PatternRole::ParenthesizedSeparator,
             Self::List => PatternRole::ListSeparator,
+            Self::Record => PatternRole::RecordSeparator,
+        }
+    }
+
+    fn separator_expected(self) -> ExpectedSyntax {
+        match self {
+            Self::Record => ExpectedSyntax::DelimitedSequenceSeparator,
+            Self::Parenthesized | Self::List => {
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma)
+            }
         }
     }
 }
@@ -151,6 +172,7 @@ pub(crate) enum PatternPrimary<'source> {
     Symbol(SymbolPattern<'source>),
     Parenthesized(ParenthesizedPattern<'source>),
     List(ListPattern<'source>),
+    Record(RecordPattern<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -234,6 +256,58 @@ pub(crate) struct ListPatternSpreadItem<'source> {
     range: Range<usize>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecordPattern<'source> {
+    open: Range<usize>,
+    items: Vec<Recovered<RecordPatternItem<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+impl RecordPattern<'_> {
+    pub(crate) fn items(&self) -> &[Recovered<RecordPatternItem<'_>>] { &self.items }
+    pub(crate) fn trailing_comma(&self) -> Option<Range<usize>> { self.trailing_comma.clone() }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RecordPatternItem<'source> {
+    Field(RecordPatternField<'source>),
+    Spread(RecordPatternSpreadItem<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecordPatternField<'source> {
+    name: PatternNameSpan<'source>,
+    form: RecordPatternFieldForm<'source>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum RecordPatternFieldForm<'source> {
+    Shorthand,
+    Nested {
+        colon: Range<usize>,
+        pattern: Recovered<Box<Pattern<'source>>>,
+        default: Option<RecordPatternDefault<'source>>,
+    },
+    Default(RecordPatternDefault<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecordPatternDefault<'source> {
+    equals: Range<usize>,
+    expression: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecordPatternSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<Pattern<'source>>>,
+    range: Range<usize>,
+}
+
 impl ParenthesizedPattern<'_> {
     pub(crate) fn elements(&self) -> &[Recovered<Pattern<'_>>] {
         &self.elements
@@ -265,19 +339,23 @@ pub(crate) struct PatternAlternationTail<'source> {
 
 /// Parses a standalone pattern AST.  Consumers will own surrounding stops and
 /// delimiters in later grammar slices.
-pub(crate) fn parse_pattern<'source, E>(i: SynIn<'_, 'source, '_, E>) -> Option<Pattern<'source>>
+pub(crate) fn parse_pattern<'source, E>(
+    table: &OperatorTable,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<Pattern<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_pattern_bp(i, PatternPrecedence::Lowest)
+    parse_pattern_bp(table, i, PatternPrecedence::Lowest)
 }
 
 /// Direct-CST counterpart of [`parse_pattern`].  `leading` is currently
 /// retained only for the shared entrypoint shape: patterns do not use it for
 /// fixed NUD recognition.
 pub(crate) fn parse_direct_pattern<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     _leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedPattern<O::Checkpoint>>
@@ -287,7 +365,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_direct_pattern_bp(PatternPrecedence::Lowest, PatternRole::Primary, committed)
+    parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::Primary, committed)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -309,6 +387,7 @@ impl<C> ParsedPattern<C> {
 }
 
 fn parse_pattern_bp<'source, E>(
+    table: &OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
     minimum: PatternPrecedence,
 ) -> Option<Pattern<'source>>
@@ -319,12 +398,12 @@ where
 {
     let start = i.pos();
     let head = match i.run(from_fn(recognize_pattern_nud)) {
-        Some(nud) => Recovered::Complete(parse_pattern_primary(nud, &mut i)),
+        Some(nud) => Recovered::Complete(parse_pattern_primary(table, nud, &mut i)),
         None if recover_pattern_primary_ast(&mut i) => {
             let nud = i
                 .run(from_fn(recognize_pattern_nud))
                 .expect("AST recovery stops at a pattern primary");
-            Recovered::Complete(parse_pattern_primary(nud, &mut i))
+            Recovered::Complete(parse_pattern_primary(table, nud, &mut i))
         }
         None => Recovered::Incomplete,
     };
@@ -350,7 +429,7 @@ where
                 consume_trivia(&mut i);
                 let rhs = i
                     .run(from_fn(|i| {
-                        parse_pattern_bp(i, PatternPrecedence::Alternation)
+                        parse_pattern_bp(table, i, PatternPrecedence::Alternation)
                     }))
                     .map(|pattern| Recovered::Complete(Box::new(pattern)))
                     .unwrap_or(Recovered::Incomplete);
@@ -384,6 +463,7 @@ where
 }
 
 fn parse_pattern_primary<'source, E>(
+    table: &OperatorTable,
     nud: PatternNudRecognition<'source>,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> PatternPrimary<'source>
@@ -406,9 +486,10 @@ where
             name: Recovered::Incomplete,
         }),
         PatternNudRecognition::Parenthesized { open } => {
-            PatternPrimary::Parenthesized(parse_parenthesized_pattern(open, i))
+            PatternPrimary::Parenthesized(parse_parenthesized_pattern(table, open, i))
         }
-        PatternNudRecognition::List { open } => PatternPrimary::List(parse_list_pattern(open, i)),
+        PatternNudRecognition::List { open } => PatternPrimary::List(parse_list_pattern(table, open, i)),
+        PatternNudRecognition::Record { open } => PatternPrimary::Record(parse_record_pattern(table, open, i)),
     }
 }
 
@@ -419,10 +500,12 @@ fn primary_range(primary: &PatternPrimary<'_>) -> Range<usize> {
         PatternPrimary::Symbol(symbol) => symbol.range.clone(),
         PatternPrimary::Parenthesized(parenthesized) => parenthesized.range.clone(),
         PatternPrimary::List(list) => list.range.clone(),
+        PatternPrimary::Record(record) => record.range.clone(),
     }
 }
 
 fn parse_list_pattern<'source, E>(
+    table: &OperatorTable,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> ListPattern<'source>
@@ -438,7 +521,7 @@ where
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
     let (items, trailing_comma, close) =
-        parse_pattern_delimited_items_ast(policy, layout, i, parse_list_item_ast);
+        parse_pattern_delimited_items_ast(policy, layout, i, |i| parse_list_item_ast(table, i));
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
@@ -448,7 +531,7 @@ where
     ListPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
 }
 
-fn parse_list_item_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ListPatternItem<'source>>
+fn parse_list_item_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ListPatternItem<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -456,15 +539,141 @@ where
 {
     if let Some(marker) = i.run(scan_exact_dot_dot) {
         consume_trivia(i);
-        let rhs = i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+        let rhs = i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
             .map(|pattern| Recovered::Complete(Box::new(pattern)))
             .unwrap_or(Recovered::Incomplete);
         let end = match &rhs { Recovered::Complete(pattern) => pattern.range.end, Recovered::Incomplete => marker.end };
         return Recovered::Complete(ListPatternItem::Spread(ListPatternSpreadItem { marker: marker.clone(), rhs, range: marker.start..end }));
     }
-    i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+    i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
         .map(|pattern| Recovered::Complete(ListPatternItem::Pattern(pattern)))
         .unwrap_or(Recovered::Incomplete)
+}
+
+fn parse_record_pattern<'source, E>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> RecordPattern<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let policy = PatternDelimitedPolicy::Record;
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    push_pattern_delimited_scope(policy, i);
+    let opening_trivia = consume_trivia(i);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
+    push_pattern_layout_baseline(layout, i);
+    let (items, trailing_comma, close) =
+        parse_pattern_delimited_items_ast(policy, layout, i, |i| parse_record_item_ast(table, i));
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    pop_pattern_layout_baseline(layout, i);
+    pop_pattern_delimited_scope(policy, i);
+    RecordPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
+}
+
+fn parse_record_item_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<RecordPatternItem<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(marker) = i.run(scan_exact_dot_dot) {
+        consume_trivia(i);
+        let rhs = i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
+            .map(|pattern| Recovered::Complete(Box::new(pattern)))
+            .unwrap_or(Recovered::Incomplete);
+        let end = match &rhs { Recovered::Complete(pattern) => pattern.range.end, Recovered::Incomplete => marker.end };
+        return Recovered::Complete(RecordPatternItem::Spread(RecordPatternSpreadItem { marker: marker.clone(), rhs, range: marker.start..end }));
+    }
+    let Some(name) = i.run(scan_pattern_name) else {
+        return Recovered::Incomplete;
+    };
+    let field_start = name.range().start;
+    let checkpoint = i.checkpoint();
+    let trailing = consume_trivia(i);
+    if !trivia_has_physical_newline(&trailing) {
+        if let Some(colon) = i.run(recognize_colon) {
+            consume_trivia(i);
+            let stops = active_stop_set(i).with(StopKind::Equal);
+            i.local.push_stop_set(stops);
+            let pattern = i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
+                .map(|pattern| Recovered::Complete(Box::new(pattern)))
+                .unwrap_or(Recovered::Incomplete);
+            assert_eq!(i.local.pop_stop_set(), Some(stops));
+            let default = parse_record_default_ast(table, i);
+            let end = default.as_ref().map_or_else(
+                || match &pattern { Recovered::Complete(pattern) => pattern.range.end, Recovered::Incomplete => colon.end },
+                |default| default.range.end,
+            );
+            return Recovered::Complete(RecordPatternItem::Field(RecordPatternField {
+                name,
+                form: RecordPatternFieldForm::Nested { colon, pattern, default },
+                range: field_start..end,
+            }));
+        }
+        if let Some(equals) = i.run(scan_exact_equals) {
+            consume_trivia(i);
+            let default = parse_record_default_expression_ast(table, equals, i);
+            let end = default.range.end;
+            return Recovered::Complete(RecordPatternItem::Field(RecordPatternField {
+                name,
+                form: RecordPatternFieldForm::Default(default),
+                range: field_start..end,
+            }));
+        }
+    }
+    i.rollback(checkpoint);
+    Recovered::Complete(RecordPatternItem::Field(RecordPatternField {
+        name: name.clone(),
+        form: RecordPatternFieldForm::Shorthand,
+        range: field_start..name.range().end,
+    }))
+}
+
+fn parse_record_default_ast<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<RecordPatternDefault<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    if trivia_has_physical_newline(&trivia) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let equals = i.run(scan_exact_equals)?;
+    consume_trivia(i);
+    Some(parse_record_default_expression_ast(table, equals, i))
+}
+
+fn parse_record_default_expression_ast<'source, E>(
+    table: &OperatorTable,
+    equals: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> RecordPatternDefault<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let expression = i.run(from_fn(|i| parse_expression_with_operators(table, i)))
+        .map(|expression| Recovered::Complete(Box::new(expression)))
+        .unwrap_or(Recovered::Incomplete);
+    let end = match &expression { Recovered::Complete(expression) => expression.range().end, Recovered::Incomplete => equals.end };
+    RecordPatternDefault { equals: equals.clone(), expression, range: equals.start..end }
 }
 
 fn recover_list_separator_or_close_ast<E>(i: &mut SynIn<E>) -> bool
@@ -491,6 +700,7 @@ where
 }
 
 fn parse_parenthesized_pattern<'source, E>(
+    table: &OperatorTable,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> ParenthesizedPattern<'source>
@@ -506,7 +716,7 @@ where
     let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
     push_pattern_layout_baseline(layout, i);
     let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(policy, layout, i, |i| {
-        i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+        i.run(from_fn(|i| parse_pattern_bp(table, i, PatternPrecedence::Lowest)))
             .map_or(Recovered::Incomplete, Recovered::Complete)
     });
     let end = match &close {
@@ -636,6 +846,9 @@ enum PatternNudRecognition<'source> {
     List {
         open: Range<usize>,
     },
+    Record {
+        open: Range<usize>,
+    },
 }
 
 fn recognize_pattern_nud<'source, E>(
@@ -655,6 +868,9 @@ where
     if active_stop_set(&i).contains(StopKind::Colon) && colon_pending(&mut i) {
         return None;
     }
+    if active_stop_set(&i).contains(StopKind::Equal) && exact_equals_pending_input(&mut i) {
+        return None;
+    }
     if let Some(colon) = i.run(recognize_colon) {
         return Some(PatternNudRecognition::MalformedSymbol { colon });
     }
@@ -663,6 +879,7 @@ where
         parse_integer_literal.map(PatternNudRecognition::Integer),
         recognize_open_parenthesis.map(|open| PatternNudRecognition::Parenthesized { open }),
         recognize_open_bracket.map(|open| PatternNudRecognition::List { open }),
+        recognize_open_brace.map(|open| PatternNudRecognition::Record { open }),
     ))
 }
 
@@ -819,6 +1036,15 @@ where
     (punctuation.kind() == PunctuationKind::Open(Delimiter::Bracket)).then(|| punctuation.range())
 }
 
+fn recognize_open_brace<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let punctuation = i.run(scan_punctuation)?;
+    (punctuation.kind() == PunctuationKind::Open(Delimiter::Brace)).then(|| punctuation.range())
+}
+
 /// Accepts a spread marker only when its maximal operator-shaped spelling is
 /// exactly `..`.  This is independent of declared operators and deliberately
 /// refuses to split `...` or `..+` into a marker plus a remainder.
@@ -844,6 +1070,28 @@ where
     Some(start..end)
 }
 
+fn scan_exact_equals<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) {
+        i.input.next()?;
+    }
+    let end = i.pos();
+    if &i.input.source()[start..end] != "=" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
+}
+
 fn is_operator_shaped_character(character: char) -> bool {
     !character.is_whitespace()
         && !character.is_ascii_digit()
@@ -860,6 +1108,30 @@ where
 {
     let checkpoint = i.checkpoint();
     let pending = i.run(scan_exact_dot_dot).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn exact_equals_pending_input<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_exact_equals).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn pattern_name_pending_input<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_pattern_name).is_some();
     i.rollback(checkpoint);
     pending
 }
@@ -932,6 +1204,12 @@ where
     i.run(scan_trivia).expect("trivia scanning is total")
 }
 
+fn trivia_has_physical_newline(trivia: &TriviaRun) -> bool {
+    trivia.parts().iter().any(|part| {
+        matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline)
+    })
+}
+
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet
 where
     E: ErrorSink<usize>,
@@ -979,6 +1257,7 @@ where
 }
 
 fn parse_direct_pattern_bp<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     minimum: PatternPrecedence,
     primary_role: PatternRole,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -992,13 +1271,14 @@ where
     let start = committed_position(committed);
     committed.start_node(SyntaxKind::Pattern);
     if let Some(nud) = committed.probe(probe_pattern_nud) {
-        commit_direct_primary(nud, committed);
+        commit_direct_primary(table, nud, committed);
     } else if committed.probe(pipe_pending) {
         // The RHS of `A | | B` owns a missing primary at the second pipe;
         // leaving that pipe lets this same Pattern consume its nested tail.
         emit_pattern_missing(committed, primary_role, ExpectedSyntax::Pattern);
     } else if direct_pattern_primary_error_retry(committed, primary_role) {
         commit_direct_primary(
+            table,
             committed
                 .probe(probe_pattern_nud)
                 .expect("recovery retried a pattern NUD"),
@@ -1046,6 +1326,7 @@ where
                 let rhs_trivia = consume_direct_trivia(committed);
                 committed.emit_trivia(&rhs_trivia);
                 parse_direct_pattern_bp(
+                    table,
                     PatternPrecedence::Alternation,
                     PatternRole::AlternationRhs,
                     committed,
@@ -1101,6 +1382,21 @@ where
     pending
 }
 
+fn pattern_name_pending<'parse, 'source, 'local, E>(
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_pattern_name).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
 fn pipe_pending<'parse, 'source, 'local, E>(probe: &mut Probe<'parse, 'source, 'local, E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -1128,6 +1424,7 @@ where
 }
 
 fn commit_direct_primary<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     nud: PatternNudRecognition<'source>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1169,13 +1466,15 @@ fn commit_direct_primary<'parse, 'source, 'local, E, O>(
             committed.finish_node();
         }
         PatternNudRecognition::Parenthesized { open } => {
-            commit_direct_parenthesized_pattern(open, committed)
+            commit_direct_parenthesized_pattern(table, open, committed)
         }
-        PatternNudRecognition::List { open } => commit_direct_list_pattern(open, committed),
+        PatternNudRecognition::List { open } => commit_direct_list_pattern(table, open, committed),
+        PatternNudRecognition::Record { open } => commit_direct_record_pattern(table, open, committed),
     }
 }
 
 fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1194,10 +1493,11 @@ fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(policy, layout, outer_stops, committed);
+    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
 }
 
 fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1211,16 +1511,175 @@ fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
         committed.probe(|probe| probe.input().cut());
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
-        parse_direct_pattern_bp(PatternPrecedence::Lowest, PatternRole::ListSpreadRhs, committed)
+        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::ListSpreadRhs, committed)
             .expect("a committed spread owns a total RHS pattern");
         committed.finish_node();
     } else {
-        parse_direct_pattern_bp(PatternPrecedence::Lowest, PatternRole::ListItem, committed)
+        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::ListItem, committed)
             .expect("a list mandatory item is total after recovery");
     }
 }
 
+fn commit_direct_record_pattern<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let policy = PatternDelimitedPolicy::Record;
+    let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    committed.start_node(SyntaxKind::RecordPattern);
+    committed.token(SyntaxKind::LBrace, open);
+    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
+    let initial = consume_direct_trivia(committed);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
+    committed.emit_trivia(&initial);
+    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
+}
+
+#[derive(Clone, Debug)]
+enum RecordFieldIntroducer {
+    Colon { leading: TriviaRun, range: Range<usize> },
+    Equals { leading: TriviaRun, range: Range<usize> },
+}
+
+fn record_field_introducer<E>(i: &mut SynIn<E>) -> Option<RecordFieldIntroducer>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let leading = consume_trivia(i);
+    if trivia_has_physical_newline(&leading) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    if let Some(range) = i.run(recognize_colon) {
+        return Some(RecordFieldIntroducer::Colon { leading, range });
+    }
+    if let Some(range) = i.run(scan_exact_equals) {
+        return Some(RecordFieldIntroducer::Equals { leading, range });
+    }
+    i.rollback(checkpoint);
+    None
+}
+
+fn commit_direct_record_item<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(marker) = committed.probe(|probe| probe.input().run(scan_exact_dot_dot)) {
+        committed.start_node(SyntaxKind::RecordPatternSpreadItem);
+        committed.token(SyntaxKind::DotDot, marker);
+        committed.probe(|probe| probe.input().cut());
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::RecordSpreadRhs, committed)
+            .expect("a committed record spread owns a total RHS pattern");
+        committed.finish_node();
+        return;
+    }
+    let Some(name) = committed.probe(|probe| probe.input().run(scan_pattern_name)) else {
+        emit_pattern_missing(committed, PatternRole::RecordItem, ExpectedSyntax::Identifier);
+        return;
+    };
+    committed.start_node(SyntaxKind::RecordPatternField);
+    let kind = match name.lexical_kind() {
+        PatternNameKind::Ordinary => SyntaxKind::Identifier,
+        PatternNameKind::Sigil => SyntaxKind::SigilIdentifier,
+    };
+    committed.token(kind, name.range());
+    if let Some(introducer) = committed.probe(|probe| record_field_introducer(probe.input())) {
+        match introducer {
+            RecordFieldIntroducer::Colon { leading, range } => {
+                committed.emit_trivia(&leading);
+                committed.token(SyntaxKind::Colon, range);
+                let trivia = consume_direct_trivia(committed);
+                committed.emit_trivia(&trivia);
+                let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Equal));
+                committed.probe(|probe| probe.input().local.push_stop_set(stops));
+                parse_direct_pattern_bp(table, PatternPrecedence::Lowest, PatternRole::RecordNestedPattern, committed)
+                    .expect("a committed record colon owns a total nested pattern");
+                committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stops)));
+                commit_direct_record_default(table, committed);
+            }
+            RecordFieldIntroducer::Equals { leading, range } => {
+                committed.emit_trivia(&leading);
+                commit_direct_record_default_after_equals(table, range, committed);
+            }
+        }
+    }
+    committed.finish_node();
+}
+
+fn commit_direct_record_default<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some((leading, range)) = committed.probe(|probe| record_default_introducer(probe.input())) else {
+        return;
+    };
+    committed.emit_trivia(&leading);
+    commit_direct_record_default_after_equals(table, range, committed);
+}
+
+fn record_default_introducer<E>(i: &mut SynIn<E>) -> Option<(TriviaRun, Range<usize>)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let leading = consume_trivia(i);
+    if trivia_has_physical_newline(&leading) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(range) = i.run(scan_exact_equals) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    Some((leading, range))
+}
+
+fn commit_direct_record_default_after_equals<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    equals: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.token(SyntaxKind::Equals, equals);
+    let trivia = consume_direct_trivia(committed);
+    let leading = if trivia.is_empty() { LeadingTrivia::None } else { LeadingTrivia::Present };
+    committed.emit_trivia(&trivia);
+    if parse_direct_expression_with_operators(table, leading, committed).is_none() {
+        emit_pattern_missing(committed, PatternRole::RecordDefaultExpression, ExpectedSyntax::Expression);
+    }
+}
+
 fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1239,12 +1698,13 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
     committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(policy, layout, outer_stops, committed);
+    commit_direct_pattern_delimited_items(table, policy, layout, outer_stops, committed);
 }
 
 /// Runs the comma/close/retry control flow shared by parenthesized and list
 /// patterns.  The policy selects the item grammar and its recovery boundary.
 fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     policy: PatternDelimitedPolicy,
     layout: LayoutDelimitedFrame,
     outer_stops: StopSet,
@@ -1261,7 +1721,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     }
 
     loop {
-        commit_direct_pattern_delimited_item(policy, committed);
+        commit_direct_pattern_delimited_item(table, policy, committed);
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
         if let Some(comma) = direct_comma(committed) {
@@ -1285,7 +1745,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             emit_pattern_missing(
                 committed,
                 policy.separator_role(),
-                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                policy.separator_expected(),
             );
             continue;
         }
@@ -1298,6 +1758,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
 }
 
 fn commit_direct_pattern_delimited_item<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1307,8 +1768,9 @@ fn commit_direct_pattern_delimited_item<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match policy {
-        PatternDelimitedPolicy::Parenthesized => commit_parenthesized_element(committed),
-        PatternDelimitedPolicy::List => commit_direct_list_item(committed),
+        PatternDelimitedPolicy::Parenthesized => commit_parenthesized_element(table, committed),
+        PatternDelimitedPolicy::List => commit_direct_list_item(table, committed),
+        PatternDelimitedPolicy::Record => commit_direct_record_item(table, committed),
     }
 }
 
@@ -1326,6 +1788,9 @@ where
         PatternDelimitedPolicy::Parenthesized => committed.probe(pattern_nud_candidate),
         PatternDelimitedPolicy::List => {
             committed.probe(exact_dot_dot_pending) || committed.probe(pattern_nud_candidate)
+        }
+        PatternDelimitedPolicy::Record => {
+            committed.probe(exact_dot_dot_pending) || committed.probe(pattern_name_pending)
         }
     }
 }
@@ -1347,10 +1812,12 @@ where
             false
         }
         PatternDelimitedPolicy::List => recover_list_separator_or_close(policy, outer_stops, committed),
+        PatternDelimitedPolicy::Record => recover_record_separator_or_close(policy, outer_stops, committed),
     }
 }
 
 fn commit_parenthesized_element<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1362,6 +1829,7 @@ fn commit_parenthesized_element<'parse, 'source, 'local, E, O>(
     // must perform it itself.  Probing here would consume an accepted primary
     // before that continuation can emit it.
     parse_direct_pattern_bp(
+        table,
         PatternPrecedence::Lowest,
         PatternRole::ParenthesizedElement,
         committed,
@@ -1617,6 +2085,59 @@ where
                     start..end,
                     ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
                 );
+            }
+            return true;
+        }
+        let range = committed.probe(|probe| {
+            let i = probe.input();
+            let start = i.pos();
+            i.input.next()?;
+            let end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            Some(start..end)
+        });
+        if let Some(range) = range {
+            start.get_or_insert(range.start);
+        }
+    }
+}
+
+fn recover_record_separator_or_close<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
+    outer_stops: StopSet,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut start = None;
+    loop {
+        if committed.probe(|probe| probe.input().input.remainder().is_empty())
+            || committed.probe(|probe| outer_arm_stop_pending(outer_stops, probe.input()))
+        {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(committed, PatternRole::RecordSeparator, start..end, ExpectedSyntax::DelimitedSequenceSeparator);
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
+            return false;
+        }
+        if direct_pattern_delimited_close(policy, committed) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(committed, PatternRole::RecordSeparator, start..end, ExpectedSyntax::DelimitedSequenceSeparator);
+            }
+            return false;
+        }
+        if committed.probe(exact_dot_dot_pending) || committed.probe(pattern_name_pending) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(committed, PatternRole::RecordSeparator, start..end, ExpectedSyntax::DelimitedSequenceSeparator);
             }
             return true;
         }
@@ -2177,7 +2698,7 @@ mod tests {
     #[test]
     fn excluded_forms_remain_unconsumed_after_a_first_slice_pattern() {
         for source in [
-            "{a}", "\"a\"", "x: T", "A::B", "A.field", "Some(x)", "Some x",
+            "\"a\"", "x: T", "A::B", "A.field", "Some(x)", "Some x",
         ] {
             assert!(!parse_direct_prefix(source, false).is_empty(), "{source:?}");
         }
@@ -2201,6 +2722,54 @@ mod tests {
         assert_eq!(root.to_string(), "[head, ..middle, tail]");
     }
 
+    #[test]
+    fn record_patterns_keep_field_forms_spreads_layout_and_recovery_local() {
+        let source = "{a, width: local_width = 1, height = fallback, ..rest,}";
+        let pattern = parse(source);
+        let Recovered::Complete(PatternPrimary::Record(record)) = &pattern.head else {
+            panic!("record source must produce a record primary");
+        };
+        assert_eq!(record.items().len(), 4);
+        assert!(matches!(record.items()[0], Recovered::Complete(RecordPatternItem::Field(RecordPatternField { form: RecordPatternFieldForm::Shorthand, .. }))));
+        assert!(matches!(record.items()[1], Recovered::Complete(RecordPatternItem::Field(RecordPatternField { form: RecordPatternFieldForm::Nested { default: Some(_), .. }, .. }))));
+        assert!(matches!(record.items()[2], Recovered::Complete(RecordPatternItem::Field(RecordPatternField { form: RecordPatternFieldForm::Default(_), .. }))));
+        assert!(matches!(record.items()[3], Recovered::Complete(RecordPatternItem::Spread(_))));
+        assert!(record.trailing_comma().is_some());
+
+        for source in [
+            "{}",
+            "{a\nb}",
+            "{a,\n b}",
+            "{\n  a\n  b\n}",
+            "{..left, a, ..right}",
+            "{a b}",
+            "{a\n  b}",
+            "{a; b}",
+            "{,a}",
+            "{a:}",
+            "{a: = 1}",
+            "{a =}",
+            "{a == value}",
+            "{..}",
+            "{...a}",
+            "{outer: {x = 1} = fallback, value = (a, b)}",
+        ] {
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root.descendants().any(|node| node.kind() == SyntaxKind::RecordPattern));
+        }
+
+        let (root, recoveries) = parse_direct_recovered("{a b}");
+        let record = root.descendants().find(|node| node.kind() == SyntaxKind::RecordPattern).expect("record");
+        assert_eq!(record.children().filter(|node| node.kind() == SyntaxKind::RecordPatternField).count(), 2);
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::Pattern(PatternRole::RecordSeparator)
+                    && site.range == (3..3)
+        ));
+    }
+
     fn parse<'source>(source: &'source str) -> Pattern<'source> {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
@@ -2212,7 +2781,8 @@ mod tests {
             IsCut::new(&mut is_cut),
         )
         .set_local(&mut local);
-        let pattern = i.run(from_fn(parse_pattern)).expect("pattern AST");
+        let table = OperatorTable::default();
+        let pattern = i.run(from_fn(|i| parse_pattern(&table, i))).expect("pattern AST");
         assert_eq!(i.input.remainder(), "");
         pattern
     }
@@ -2261,7 +2831,8 @@ mod tests {
         .set_local(&mut local);
         let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
-        parse_direct_pattern(LeadingTrivia::None, &mut committed).expect("direct pattern");
+        let table = OperatorTable::default();
+        parse_direct_pattern(&table, LeadingTrivia::None, &mut committed).expect("direct pattern");
         let remainder = committed.probe(|probe| probe.input().input.remainder());
         let recoveries = committed.into_output().committed_recoveries().to_vec();
         if remainder.is_empty() {
@@ -2282,7 +2853,8 @@ mod tests {
             .set_local(&mut local);
             let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
-            parse_direct_pattern(LeadingTrivia::None, &mut committed).expect("direct pattern");
+            let table = OperatorTable::default();
+            parse_direct_pattern(&table, LeadingTrivia::None, &mut committed).expect("direct pattern");
             committed.finish_node();
             let output = committed.into_output();
             return (

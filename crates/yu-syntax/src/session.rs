@@ -427,6 +427,7 @@ pub(crate) enum StopKind {
     RightParenthesis,
     RightBracket,
     RightBrace,
+    Equal,
     Arrow,
     ArmGuardIf,
     ArmGuardWhere,
@@ -607,6 +608,7 @@ pub(crate) enum ConstructRole {
     BracedStatementBlockExpression,
     ParenthesizedPattern,
     ListPattern,
+    RecordPattern,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -661,6 +663,12 @@ pub(crate) enum PatternRole {
     ListItem,
     ListSpreadRhs,
     ListSeparator,
+    RecordItem,
+    RecordFieldName,
+    RecordNestedPattern,
+    RecordDefaultExpression,
+    RecordSpreadRhs,
+    RecordSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -757,6 +765,7 @@ pub(crate) enum ExpectedSyntax {
     OperatorName,
     BindingPower,
     InlineTrivia,
+    DelimitedSequenceSeparator,
     Keyword(KeywordEvidence),
     Punctuation(PunctuationEvidence),
 }
