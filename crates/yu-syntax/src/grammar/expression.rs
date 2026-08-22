@@ -5076,6 +5076,31 @@ mod tests {
         let high = colon_operator_table(BindingPower::scalar(99));
         assert_eq!(parse(source, &low), parse(source, &high));
         assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+
+        let range_table = range_operator_table();
+        for (source, operator_kind) in [
+            ("xs[2..]", SyntaxKind::SuffixOperatorUse),
+            ("xs[..2]", SyntaxKind::PrefixOperatorUse),
+        ] {
+            let chain = parse(source, &range_table);
+            let [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Index(IndexTail { items, .. })),
+            ] = chain.items() else {
+                panic!("expected an index tail for {source:?}");
+            };
+            assert!(matches!(items.as_slice(), [OperatorChain { items, .. }] if matches!(
+                items.as_slice(),
+                [OperatorChainItem::Primary(_), OperatorChainItem::SuffixUse(_)]
+                    | [OperatorChainItem::PrefixUse(_), OperatorChainItem::Primary(_)]
+            )));
+
+            let root = parse_direct(source, &range_table);
+            assert_eq!(root.to_string(), source);
+            let index = root.descendants().find(|node| node.kind() == SyntaxKind::IndexTail).unwrap();
+            assert_eq!(index.descendants().filter(|node| node.kind() == operator_kind).count(), 1);
+            assert!(!index.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+        }
     }
 
     #[test]
@@ -6505,6 +6530,15 @@ mod tests {
         .expect("canonical operators should be valid")
     }
 
+    fn range_operator_table() -> OperatorTable {
+        OperatorTable::from_declarations([OperatorDeclaration::new(
+            "..",
+            OperatorFixities::new()
+                .with_prefix(BindingPower::scalar(80))
+                .with_suffix(BindingPower::scalar(80)),
+        )])
+        .expect("range operator fixture should be valid")
+    }
 
     fn colon_operator_table(binding_power: BindingPower) -> OperatorTable {
         OperatorTable::from_declarations([OperatorDeclaration::new(
