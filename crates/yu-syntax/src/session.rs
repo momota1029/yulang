@@ -359,6 +359,7 @@ impl StopSet {
 pub(crate) enum StopKind {
     Newline,
     Comma,
+    Colon,
     RightParenthesis,
     RightBracket,
     RightBrace,
@@ -474,6 +475,7 @@ pub(crate) enum GrammarRole {
     },
     Statement(StatementRole),
     Expression(ExpressionRole),
+    ColonApplication(ColonApplicationRole),
     Pattern(PatternRole),
     Type(TypeRole),
     Layout(LayoutRole),
@@ -537,6 +539,12 @@ pub(crate) enum ConstructRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ExpressionRole {
     Nud,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ColonApplicationRole {
+    Rhs,
+    InlineArgument,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

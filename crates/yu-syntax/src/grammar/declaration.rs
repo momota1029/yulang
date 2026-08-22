@@ -112,6 +112,7 @@ pub(crate) struct ParsedBindingDeclaration<'source, C> {
 
 /// A committed continuation completed its CST regardless of whether it could
 /// produce the semantic value required by its caller.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Recovered<T> {
     Complete(T),
     Incomplete,

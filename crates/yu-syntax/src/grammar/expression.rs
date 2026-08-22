@@ -10,6 +10,7 @@ use chasa::{
 };
 
 use crate::{
+    grammar::declaration::Recovered,
     operator::OperatorTable,
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
@@ -18,7 +19,7 @@ use crate::{
         word::{WordSpan, scan_word},
     },
     session::{
-        CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
+        ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
         ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
@@ -54,8 +55,30 @@ pub(crate) enum OperatorChainItem<'source> {
     NullfixUse(OperatorUse<'source>),
     InfixUse(OperatorUse<'source>),
     SuffixUse(OperatorUse<'source>),
+    TerminalOuter(TerminalOuterTail<'source>),
     MissingOperand { range: Range<usize> },
     Error { range: Range<usize> },
+}
+
+/// A terminal structural continuation that is associated only after the
+/// preceding source-order dynamic operator segment has been reduced.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum TerminalOuterTail<'source> {
+    ColonApplication(ColonApplicationTail<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ColonApplicationTail<'source> {
+    colon: Range<usize>,
+    rhs: Recovered<ColonApplicationRhs<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ColonApplicationRhs<'source> {
+    Inline {
+        arguments: Vec<Recovered<OperatorChain<'source>>>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -245,7 +268,50 @@ where
         }
     }
 
-    while let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? {
+    loop {
+        if let Some(colon) = i.run(recognize_colon_application_tail) {
+            i.cut();
+            let colon_start = colon.colon.start;
+            if trivia_has_physical_newline(&colon.post_colon) {
+                items.push(OperatorChainItem::TerminalOuter(
+                    TerminalOuterTail::ColonApplication(ColonApplicationTail {
+                        colon: colon.colon.clone(),
+                        rhs: Recovered::Incomplete,
+                        range: colon_start..colon.colon.end,
+                    }),
+                ));
+                break;
+            }
+            let outer_owns_comma = active_stop_set(&i).contains(StopKind::Comma);
+            let arguments = if outer_owns_comma {
+                vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)]
+            } else {
+                let stop_set = active_stop_set(&i).with(StopKind::Comma);
+                i.local.push_stop_set(stop_set);
+                let arguments = parse_inline_colon_arguments(table, &mut i);
+                assert_eq!(i.local.pop_stop_set(), Some(stop_set));
+                arguments?
+            };
+            let end = arguments
+                .last()
+                .and_then(|argument| match argument {
+                    Recovered::Complete(chain) => Some(chain.range.end),
+                    Recovered::Incomplete => None,
+                })
+                .unwrap_or(colon.colon.end);
+            items.push(OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    colon: colon.colon,
+                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    range: colon_start..end,
+                },
+            )));
+            break;
+        }
+
+        let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? else {
+            break;
+        };
         match tail {
             LedRecognition::Infix { operator, .. } => {
                 i.cut();
@@ -278,6 +344,7 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         OperatorChainItem::PrefixUse(operator) | OperatorChainItem::NullfixUse(operator)
         | OperatorChainItem::InfixUse(operator) | OperatorChainItem::SuffixUse(operator) => operator.range.end,
         OperatorChainItem::Primary(primary) => primary.range().end,
+        OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => tail.range.end,
         OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
     }
 }
@@ -307,6 +374,95 @@ enum LedRecognition<'source> {
         leading: TriviaRun,
         operator: ScannedOperator<'source>,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ColonApplicationRecognition {
+    leading: TriviaRun,
+    colon: Range<usize>,
+    post_colon: TriviaRun,
+}
+
+fn parse_inline_colon_arguments<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Vec<Recovered<OperatorChain<'source>>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut arguments = vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)];
+    loop {
+        let trivia = consume_trivia(i)?;
+        let Some(_) = i.run(recognize_parenthesized_comma) else {
+            return Some(arguments);
+        };
+        consume_trivia(i)?;
+        arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
+        let _ = trivia;
+    }
+}
+
+/// Recognizes the one terminal fixed-punctuation continuation. `scan_punctuation`
+/// tries `::` before `:`, so a use-path separator can never be split here.
+fn recognize_colon_application_tail<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<ColonApplicationRecognition>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.local.ml_arg() || active_stop_set(&i).contains(StopKind::Colon) {
+        return None;
+    }
+
+    let checkpoint = i.checkpoint();
+    let leading = consume_trivia(&mut i)?;
+    if !trivia_continues_chain(&leading, &i) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() != PunctuationKind::Colon {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let post_colon = consume_trivia(&mut i)?;
+    Some(ColonApplicationRecognition {
+        leading,
+        colon: punctuation.range(),
+        post_colon,
+    })
+}
+
+fn active_stop_set<E>(i: &SynIn<E>) -> StopSet
+where
+    E: ErrorSink<usize>,
+{
+    i.local.stop_set().unwrap_or_default()
+}
+
+fn trivia_continues_chain<E>(trivia: &TriviaRun, i: &SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    !trivia_has_physical_newline(trivia)
+        || i.local.line().line_indent
+            > i.local
+                .indentation_baseline()
+                .map_or(0, |baseline| baseline.column)
+}
+
+fn trivia_has_physical_newline(trivia: &TriviaRun) -> bool {
+    trivia
+        .parts()
+        .iter()
+        .any(|part| matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline))
 }
 
 fn recognize_nud<'source, E>(
@@ -467,7 +623,18 @@ where
     }
     committed.start_node(SyntaxKind::OperatorChain);
     commit_direct_operand_slot_from(table, nud.expect("checked above"), committed)?;
-    while let Some(led) = committed.probe(|probe| probe_led(table, probe)) {
+    loop {
+        if let Some(colon) = committed.probe(|probe| {
+            probe.input().run(recognize_colon_application_tail)
+        }) {
+            cut_after_acceptance(committed);
+            commit_colon_application_tail(table, colon, committed);
+            break;
+        }
+
+        let Some(led) = committed.probe(|probe| probe_led(table, probe)) else {
+            break;
+        };
         cut_after_acceptance(committed);
         match led {
             LedRecognition::Infix { leading, operator } => {
@@ -503,6 +670,132 @@ where
     let end = committed_position(committed);
     committed.finish_node();
     Some(ParsedExpression::new(start..end))
+}
+
+/// Emits an accepted terminal colon tail. The target remains a sibling of this
+/// node in the enclosing flat chain; only the colon and its RHS live here.
+fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    colon: ColonApplicationRecognition,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.emit_trivia(&colon.leading);
+    committed.start_node(SyntaxKind::ColonApplicationTail);
+    committed.token(SyntaxKind::Colon, colon.colon);
+    committed.emit_trivia(&colon.post_colon);
+
+    if trivia_has_physical_newline(&colon.post_colon) {
+        // `IndentedStatementBlock` is deliberately deferred. Until that
+        // follow-up slice exists, newline-after-colon commits this tail but
+        // recovers its mandatory inline RHS instead of opening a block.
+        emit_colon_application_missing(committed, ColonApplicationRole::Rhs);
+        committed.finish_node();
+        return;
+    }
+
+    let outer_owns_comma = committed.probe(|probe| {
+        active_stop_set(probe.input()).contains(StopKind::Comma)
+    });
+    if outer_owns_comma {
+        commit_colon_inline_argument(
+            table,
+            leading_trivia(&colon.post_colon),
+            ColonApplicationRole::Rhs,
+            committed,
+        );
+    } else {
+        let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
+        committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+        commit_colon_inline_argument(
+            table,
+            leading_trivia(&colon.post_colon),
+            ColonApplicationRole::Rhs,
+            committed,
+        );
+
+        while let Some(comma) = commit_parenthesized_comma(committed) {
+            committed.token(SyntaxKind::Comma, comma);
+            let leading = commit_parenthesized_trivia(committed)
+                .expect("trivia scanning is total");
+            committed.emit_trivia(&leading);
+            commit_colon_inline_argument(
+                table,
+                leading_trivia(&leading),
+                ColonApplicationRole::InlineArgument,
+                committed,
+            );
+        }
+        committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+    }
+    committed.finish_node();
+}
+
+/// A colon-owned comma makes every following position mandatory; unlike a
+/// parenthesized list, a terminal comma has no valid trailing-comma marker.
+fn commit_colon_inline_argument<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    role: ColonApplicationRole,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if parse_direct_operator_chain(table, leading, committed).is_some() {
+        return;
+    }
+    if colon_inline_argument_error_retry(table, role, committed) {
+        parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+            .expect("a retried colon argument must commit its shared NUD candidate");
+    } else {
+        emit_colon_application_missing(committed, role);
+    }
+}
+
+fn colon_inline_argument_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    role: ColonApplicationRole,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, ')' | ']' | '}' | ';' | ',') {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return false;
+    };
+    emit_colon_application_error(committed, role, range);
+    retry
 }
 
 /// Probes a NUD candidate without granting access to the output sink.
@@ -1014,6 +1307,71 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_colon_application_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    colon_role: ColonApplicationRole,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ColonApplication(colon_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_colon_application_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    colon_role: ColonApplicationRole,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ColonApplication(colon_role);
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
 }
 
 fn emit_parenthesized_close_missing<'parse, 'source, 'local, E, O>(
@@ -1619,6 +1977,132 @@ mod tests {
     }
 
     #[test]
+    fn colon_application_ast_and_cst_keep_inline_arguments_in_the_terminal_tail() {
+        let chain = parse("f: x, y", &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(target)),
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                    ColonApplicationTail {
+                        colon,
+                        rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                        range,
+                    }
+                )),
+            ] if target.text() == "f" && *colon == (1..2) && arguments.len() == 2 && *range == (1..7)
+        ));
+
+        let root = parse_direct("f: x, y", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        let tail = chain.children().nth(1).expect("terminal colon tail");
+        assert_eq!(tail.kind(), SyntaxKind::ColonApplicationTail);
+        assert_eq!(
+            tail.children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Colon,
+                SyntaxKind::Whitespace,
+                SyntaxKind::OperatorChain,
+                SyntaxKind::Comma,
+                SyntaxKind::Whitespace,
+                SyntaxKind::OperatorChain,
+            ]
+        );
+    }
+
+    #[test]
+    fn parenthesized_outer_comma_limits_a_colon_tail_to_one_argument() {
+        let root = parse_direct("(f: x, y)", &canonical_operator_table());
+        let outer = only_child(&root, SyntaxKind::OperatorChain);
+        let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
+        let elements = group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .collect::<Vec<_>>();
+        assert_eq!(elements.len(), 2);
+        assert!(elements[0]
+            .children()
+            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail));
+        assert!(!elements[1]
+            .children()
+            .any(|node| node.kind() == SyntaxKind::ColonApplicationTail));
+    }
+
+    #[test]
+    fn colon_application_recovery_keeps_commas_and_retries_valid_values() {
+        let cases = [
+            ("f:", vec![(RecoveryKind::Missing, 2..2)]),
+            ("f: ,x", vec![(RecoveryKind::Missing, 3..3)]),
+            ("f: x,", vec![(RecoveryKind::Missing, 5..5)]),
+            ("f: @x", vec![(RecoveryKind::Error, 3..4)]),
+        ];
+
+        for (source, expected) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .map(|recovery| (recovery.kind, recovery.site.range.clone()))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source:?}"
+            );
+            assert!(recoveries.iter().all(|recovery| {
+                matches!(
+                    recovery.site.role,
+                    GrammarRole::ColonApplication(ColonApplicationRole::Rhs)
+                        | GrammarRole::ColonApplication(ColonApplicationRole::InlineArgument)
+                )
+            }));
+        }
+    }
+
+    #[test]
+    fn newline_after_colon_is_temporarily_a_missing_inline_rhs() {
+        let source = "my value = f:\n  x";
+        let output = crate::grammar::declaration::parse_direct_root_candidate(
+            source,
+            &canonical_operator_table(),
+            &[],
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("colon tail");
+        assert!(tail.children().any(|node| node.kind() == SyntaxKind::Missing));
+        assert!(tail
+            .children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Newline));
+        assert_eq!(tail.to_string(), ":\n  ");
+        assert_eq!(root.to_string(), source);
+    }
+
+    #[test]
+    fn colon_tail_stays_flat_before_and_after_binding_power_changes() {
+        let source = "a + b: x";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+
+        let root = parse_direct(source, &low);
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.children().map(|child| child.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::InfixOperatorUse,
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::ColonApplicationTail,
+            ]
+        );
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
+    }
+
+    #[test]
     fn binding_power_only_changes_do_not_change_surface_chain() {
         let source = "+!a+!b*c++";
         let low = canonical_operator_table();
@@ -1804,6 +2288,14 @@ mod tests {
             ),
         ])
         .expect("canonical operators should be valid")
+    }
+
+    fn colon_operator_table(binding_power: BindingPower) -> OperatorTable {
+        OperatorTable::from_declarations([OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(binding_power.clone(), binding_power),
+        )])
+        .expect("colon table should be valid")
     }
 
     fn parse<'source>(source: &'source str, table: &OperatorTable) -> OperatorChain<'source> {
