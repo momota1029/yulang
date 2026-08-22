@@ -3,6 +3,7 @@
 use std::ops::Range;
 
 use chasa::{
+    Back as _,
     ErrorSink,
     error::std::Unexpected,
     parser::SkipParserOnce as _,
@@ -51,6 +52,32 @@ where
     line.at_line_start = false;
     i.local.set_line(line);
 
+    Some(WordSpan {
+        text: &i.input.source()[start..end],
+        start,
+        end,
+    })
+}
+
+/// Consumes a name accepted after a path separator.  Ordinary words and the
+/// sigil-prefixed forms share the same lossless span representation.
+pub(crate) fn scan_path_segment<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<WordSpan<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    if let Some(word) = i.run(scan_word) {
+        return Some(word);
+    }
+    i.rollback(checkpoint);
+
+    i.maybe(one_of("$&'"))??;
+    i.run(scan_word)?;
+    let end = i.pos();
     Some(WordSpan {
         text: &i.input.source()[start..end],
         start,

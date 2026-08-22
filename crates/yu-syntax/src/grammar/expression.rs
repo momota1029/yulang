@@ -17,7 +17,7 @@ use crate::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::{TriviaRun, scan_trivia},
-        word::{WordSpan, scan_word},
+        word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
         BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
@@ -57,9 +57,48 @@ pub(crate) enum OperatorChainItem<'source> {
     NullfixUse(OperatorUse<'source>),
     InfixUse(OperatorUse<'source>),
     SuffixUse(OperatorUse<'source>),
+    FixedPostfix(FixedPostfixTail<'source>),
+    MlArgument(Recovered<OperatorChain<'source>>),
     TerminalOuter(TerminalOuterTail<'source>),
     MissingOperand { range: Range<usize> },
     Error { range: Range<usize> },
+}
+
+/// A fixed-spelling postfix continuation.  These remain flat source-order
+/// items beside dynamic operator uses; they never become target-owned nodes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum FixedPostfixTail<'source> {
+    Call(CallTail<'source>),
+    Field(FieldTail<'source>),
+    Path(PathTail<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CallTail<'source> {
+    open: Range<usize>,
+    arguments: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct FieldTail<'source> {
+    dot: Range<usize>,
+    name: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PathTail<'source> {
+    separator: Range<usize>,
+    segment: Recovered<PathSegment<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PathSegment<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
 }
 
 /// A terminal structural continuation that is associated only after the
@@ -437,6 +476,26 @@ where
     }
 
     loop {
+        if let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? {
+            match tail {
+                LedRecognition::Infix { operator, .. } => {
+                    i.cut();
+                    items.push(OperatorChainItem::InfixUse(operator_use(&operator, OperatorRole::Infix)));
+                    items.extend(i.run(from_fn(|i| parse_operator_chain_operand(table, i)))?);
+                }
+                LedRecognition::Suffix { operator, .. } => {
+                    items.push(OperatorChainItem::SuffixUse(operator_use(&operator, OperatorRole::Suffix)));
+                }
+            }
+            continue;
+        }
+
+        if let Some(tail) = i.run(recognize_fixed_postfix) {
+            i.cut();
+            items.push(OperatorChainItem::FixedPostfix(parse_fixed_postfix_tail(table, tail, &mut i)));
+            continue;
+        }
+
         if let Some(colon) = i.run(recognize_colon_application_tail) {
             i.cut();
             let colon_start = colon.colon.start;
@@ -495,20 +554,7 @@ where
             )));
             break;
         }
-
-        let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? else {
-            break;
-        };
-        match tail {
-            LedRecognition::Infix { operator, .. } => {
-                i.cut();
-                items.push(OperatorChainItem::InfixUse(operator_use(&operator, OperatorRole::Infix)));
-                items.extend(i.run(from_fn(|i| parse_operator_chain_operand(table, i)))?);
-            }
-            LedRecognition::Suffix { operator, .. } => {
-                items.push(OperatorChainItem::SuffixUse(operator_use(&operator, OperatorRole::Suffix)));
-            }
-        }
+        break;
     }
     let end = items.last().map_or(start, operator_chain_item_end);
     Some(OperatorChain::new(items, start..end))
@@ -531,6 +577,11 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         OperatorChainItem::PrefixUse(operator) | OperatorChainItem::NullfixUse(operator)
         | OperatorChainItem::InfixUse(operator) | OperatorChainItem::SuffixUse(operator) => operator.range.end,
         OperatorChainItem::Primary(primary) => primary.range().end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(tail)) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(tail)) => tail.range.end,
+        OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
+        OperatorChainItem::MlArgument(Recovered::Complete(argument)) => argument.range.end,
+        OperatorChainItem::MlArgument(Recovered::Incomplete) => 0,
         OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => tail.range.end,
         OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
     }
@@ -565,6 +616,138 @@ enum LedRecognition<'source> {
         leading: TriviaRun,
         operator: ScannedOperator<'source>,
     },
+}
+
+/// A recognized fixed continuation.  Call and ML application deliberately do
+/// not participate until their follow-up slice; this judge covers only the
+/// already-authoritative field and path forms.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FixedPostfixRecognition {
+    Field { leading: TriviaRun, dot: Range<usize> },
+    Path { leading: TriviaRun, separator: Range<usize> },
+}
+
+fn recognize_fixed_postfix<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<FixedPostfixRecognition>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let leading = consume_trivia(&mut i)?;
+    if !trivia_continues_chain(&leading, &i) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    match punctuation.kind() {
+        PunctuationKind::Dot if !matches!(i.input.remainder().chars().next(), Some('(' | '{')) => {
+            Some(FixedPostfixRecognition::Field { leading, dot: punctuation.range() })
+        }
+        PunctuationKind::ColonColon => {
+            Some(FixedPostfixRecognition::Path { leading, separator: punctuation.range() })
+        }
+        _ => {
+            i.rollback(checkpoint);
+            None
+        }
+    }
+}
+
+fn parse_fixed_postfix_tail<'source, E>(
+    table: &OperatorTable,
+    tail: FixedPostfixRecognition,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> FixedPostfixTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match tail {
+        FixedPostfixRecognition::Field { dot, .. } => {
+            let name = if let Some(name) = i.run(scan_word) {
+                Recovered::Complete(name)
+            } else {
+                let _ = consume_fixed_tail_invalid_run(table, i);
+                Recovered::Incomplete
+            };
+            FixedPostfixTail::Field(FieldTail {
+                dot: dot.clone(),
+                name,
+                range: dot.start..i.pos(),
+            })
+        }
+        FixedPostfixRecognition::Path { separator, .. } => {
+            consume_trivia(i).expect("trivia scanning is total");
+            let segment = if let Some(segment) = i.run(scan_path_segment) {
+                Recovered::Complete(path_segment(segment))
+            } else {
+                let _ = consume_fixed_tail_invalid_run(table, i);
+                Recovered::Incomplete
+            };
+            FixedPostfixTail::Path(PathTail {
+                separator: separator.clone(),
+                segment,
+                range: separator.start..i.pos(),
+            })
+        }
+    }
+}
+
+fn path_segment(word: WordSpan<'_>) -> PathSegment<'_> {
+    if matches!(word.text().chars().next(), Some('$' | '&' | '\''))
+        || (word.text().starts_with('_') && word.text() != "_")
+    {
+        PathSegment::SigilIdentifier(word)
+    } else {
+        PathSegment::Identifier(word)
+    }
+}
+
+/// Consume one maximal malformed fixed-tail RHS, leaving an owner boundary or
+/// a later fixed continuation for its same-position retry.
+fn consume_fixed_tail_invalid_run<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    while let Some(character) = i.input.remainder().chars().next() {
+        if fixed_tail_recovery_boundary(table, i, character) {
+            break;
+        }
+        i.input.next()?;
+    }
+    (start < i.pos()).then(|| start..i.pos())
+}
+
+fn fixed_tail_recovery_boundary<E>(
+    table: &OperatorTable,
+    i: &mut SynIn<E>,
+    character: char,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if character.is_whitespace() || matches!(character, ')' | ']' | '}' | ',' | ';' | ':' | '.') {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let dynamic = i.run(from_fn(|i| scan_led(table, i))).is_some();
+    i.rollback(checkpoint);
+    dynamic
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1327,6 +1510,55 @@ where
     committed.probe(|probe| consume_trivia(probe.input()).expect("trivia scanning is total"))
 }
 
+fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    tail: FixedPostfixRecognition,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match tail {
+        FixedPostfixRecognition::Field { leading, dot } => {
+            committed.emit_trivia(&leading);
+            committed.start_node(SyntaxKind::FieldTail);
+            committed.token(SyntaxKind::Dot, dot);
+            if let Some(name) = committed.probe(|probe| probe.input().run(scan_word)) {
+                committed.token(SyntaxKind::Identifier, name.range());
+            } else if let Some(range) = committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input())) {
+                emit_fixed_tail_error(committed, ExpressionRole::FieldName, range);
+            } else {
+                emit_fixed_tail_missing(committed, ExpressionRole::FieldName);
+            }
+            committed.finish_node();
+        }
+        FixedPostfixRecognition::Path { leading, separator } => {
+            committed.emit_trivia(&leading);
+            committed.start_node(SyntaxKind::PathTail);
+            committed.token(SyntaxKind::ColonColon, separator);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            if let Some(segment) = committed.probe(|probe| probe.input().run(scan_path_segment)) {
+                committed.token(path_segment_kind(segment), segment.range());
+            } else if let Some(range) = committed.probe(|probe| consume_fixed_tail_invalid_run(table, probe.input())) {
+                emit_fixed_tail_error(committed, ExpressionRole::PathSegment, range);
+            } else {
+                emit_fixed_tail_missing(committed, ExpressionRole::PathSegment);
+            }
+            committed.finish_node();
+        }
+    }
+}
+
+fn path_segment_kind(word: WordSpan<'_>) -> SyntaxKind {
+    match path_segment(word) {
+        PathSegment::Identifier(_) => SyntaxKind::Identifier,
+        PathSegment::SigilIdentifier(_) => SyntaxKind::SigilIdentifier,
+    }
+}
+
 fn leading_trivia(trivia: &TriviaRun) -> LeadingTrivia {
     if trivia.is_empty() {
         LeadingTrivia::None
@@ -1368,6 +1600,33 @@ where
     committed.start_node(SyntaxKind::OperatorChain);
     commit_direct_operand_slot_from(table, nud.expect("checked above"), committed)?;
     loop {
+        if let Some(led) = committed.probe(|probe| probe_led(table, probe)) {
+            cut_after_acceptance(committed);
+            match led {
+                LedRecognition::Infix { leading, operator } => {
+                    committed.emit_trivia(&leading);
+                    emit_operator_use(committed, SyntaxKind::InfixOperatorUse, &operator);
+                    committed.emit_trivia(operator.trailing_trivia());
+                    if commit_direct_operand_slot(table, committed, LeadingTrivia::None).is_none() {
+                        emit_expression_missing(committed);
+                        break;
+                    }
+                }
+                LedRecognition::Suffix { leading, operator } => {
+                    committed.emit_trivia(&leading);
+                    emit_operator_use(committed, SyntaxKind::SuffixOperatorUse, &operator);
+                    committed.emit_trivia(operator.trailing_trivia());
+                }
+            }
+            continue;
+        }
+
+        if let Some(tail) = committed.probe(|probe| probe.input().run(recognize_fixed_postfix)) {
+            cut_after_acceptance(committed);
+            commit_fixed_postfix_tail(table, tail, committed);
+            continue;
+        }
+
         if let Some(colon) = committed.probe(|probe| {
             probe.input().run(recognize_colon_application_tail)
         }) {
@@ -1375,27 +1634,7 @@ where
             commit_colon_application_tail(table, colon, committed);
             break;
         }
-
-        let Some(led) = committed.probe(|probe| probe_led(table, probe)) else {
-            break;
-        };
-        cut_after_acceptance(committed);
-        match led {
-            LedRecognition::Infix { leading, operator } => {
-                committed.emit_trivia(&leading);
-                emit_operator_use(committed, SyntaxKind::InfixOperatorUse, &operator);
-                committed.emit_trivia(operator.trailing_trivia());
-                if commit_direct_operand_slot(table, committed, LeadingTrivia::None).is_none() {
-                    emit_expression_missing(committed);
-                    break;
-                }
-            }
-            LedRecognition::Suffix { leading, operator } => {
-                committed.emit_trivia(&leading);
-                emit_operator_use(committed, SyntaxKind::SuffixOperatorUse, &operator);
-                committed.emit_trivia(operator.trailing_trivia());
-            }
-        }
+        break;
     }
     if let Some((leading, range, trailing)) = committed.probe(|probe| {
         let checkpoint = probe.input().checkpoint();
@@ -3319,6 +3558,65 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
+fn emit_fixed_tail_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Identifier,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_fixed_tail_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::Expression(expression_role);
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Identifier,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
 fn emit_parenthesized_separator_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -4225,6 +4523,117 @@ mod tests {
         let infix = chain.children().nth(1).unwrap();
         assert_eq!(direct_token_kinds(&infix), vec![SyntaxKind::Operator]);
         assert_eq!(infix.first_token().unwrap().text(), "+!");
+    }
+
+    #[test]
+    fn fixed_field_and_path_tails_are_flat_and_bp_neutral() {
+        let source = "x.foo::bar::baz";
+        let chain = parse(source, &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(x)),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(FieldTail { name: Recovered::Complete(field), .. })),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail { segment: Recovered::Complete(PathSegment::Identifier(bar)), .. })),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail { segment: Recovered::Complete(PathSegment::Identifier(baz)), .. })),
+            ] if x.text() == "x" && field.text() == "foo" && bar.text() == "bar" && baz.text() == "baz"
+        ));
+
+        let root = parse_direct(source, &canonical_operator_table());
+        let direct = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            direct.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::FieldTail,
+                SyntaxKind::PathTail,
+                SyntaxKind::PathTail,
+            ]
+        );
+        assert_eq!(root.to_string(), source);
+
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse(source, &low), parse(source, &high));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn fixed_path_accepts_sigil_segments_and_retries_after_a_missing_segment() {
+        let source = "x::::$name";
+        let chain = parse(source, &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail { segment: Recovered::Incomplete, .. })),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(PathTail { segment: Recovered::Complete(PathSegment::SigilIdentifier(name)), .. })),
+            ] if name.text() == "$name"
+        ));
+
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                if site.role == GrammarRole::Expression(ExpressionRole::PathSegment)
+                    && site.range == (3..3)
+        ));
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::PathTail).count(), 2);
+    }
+
+    #[test]
+    fn fixed_tail_recovery_keeps_missing_and_invalid_rhs_local() {
+        for (source, role, kind, range) in [
+            ("x.", ExpressionRole::FieldName, RecoveryKind::Missing, 2..2),
+            ("x.@", ExpressionRole::FieldName, RecoveryKind::Error, 2..3),
+            ("x::", ExpressionRole::PathSegment, RecoveryKind::Missing, 3..3),
+            ("x::123", ExpressionRole::PathSegment, RecoveryKind::Error, 3..6),
+        ] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(matches!(
+                recoveries.as_slice(),
+                [CommittedRecoveryRecord { kind: actual_kind, site, .. }]
+                    if *actual_kind == kind
+                        && site.role == GrammarRole::Expression(role)
+                        && site.range == range
+            ), "{source:?}: {recoveries:?}");
+        }
+
+        for source in ["x..", "x...", "x.(", "x.{"] {
+            assert!(fixed_tail_after_identifier(source).is_none(), "{source:?}");
+        }
+
+        let source = "x.@+! y";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role == GrammarRole::Expression(ExpressionRole::FieldName)
+                    && site.range == (2..3)
+        ));
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::InfixOperatorUse).count(), 1);
+    }
+
+    #[test]
+    fn fixed_tails_precede_the_terminal_colon_and_dynamic_operators() {
+        let colon = parse("x.foo: rhs", &canonical_operator_table());
+        assert!(matches!(
+            colon.items(),
+            [
+                OperatorChainItem::Primary(_),
+                OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(_)),
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_)),
+            ]
+        ));
+
+        let source = "a.b +! c.d";
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::FieldTail).count(), 2);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::InfixOperatorUse).count(), 1);
     }
 
     #[test]
@@ -5222,6 +5631,22 @@ mod tests {
         committed.finish_node();
 
         SyntaxNode::new_root(committed.into_output().finish_complete())
+    }
+
+    fn fixed_tail_after_identifier(source: &str) -> Option<FixedPostfixRecognition> {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut i = i;
+        i.run(scan_word).expect("leading identifier");
+        i.run(recognize_fixed_postfix)
     }
 
     fn parse_direct_recovered(

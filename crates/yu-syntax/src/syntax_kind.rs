@@ -58,6 +58,8 @@ pub enum SyntaxKind {
     Condition,
     OperatorChain,
     ColonApplicationTail,
+    FieldTail,
+    PathTail,
     IndentedStatementBlock,
     Statement,
     BlockStatementSeparator,
@@ -194,6 +196,8 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::ColonApplicationTail as u16 => {
                 SyntaxKind::ColonApplicationTail
             }
+            value if value == SyntaxKind::FieldTail as u16 => SyntaxKind::FieldTail,
+            value if value == SyntaxKind::PathTail as u16 => SyntaxKind::PathTail,
             value if value == SyntaxKind::IndentedStatementBlock as u16 => {
                 SyntaxKind::IndentedStatementBlock
             }

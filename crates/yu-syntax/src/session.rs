@@ -615,6 +615,11 @@ pub(crate) enum ConstructRole {
 pub(crate) enum ExpressionRole {
     Nud,
     ParenthesizedSeparator,
+    CallArgument,
+    CallArgumentSeparator,
+    FieldName,
+    PathSegment,
+    MlArgument,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
