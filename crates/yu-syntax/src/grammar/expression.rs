@@ -11,7 +11,7 @@ use chasa::{
 
 use crate::{
     grammar::declaration::Recovered,
-    grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern},
+    grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
     operator::OperatorTable,
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
@@ -860,6 +860,8 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
             arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
         } else if policy_newline_separator(policy, &trivia, i) {
             arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
+        } else if pattern_nud_candidate_input(i) {
+            arms.push(Recovered::Complete(parse_case_arm_ast(table, policy, i)));
         } else { i.rollback(checkpoint); break; }
     }
     ArmSequence { arms, trailing_comma }
@@ -878,6 +880,8 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
             if arm_sequence_boundary(policy, i) { trailing_comma = Some(comma); break; }
             arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
         } else if policy_newline_separator(policy, &trivia, i) {
+            arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
+        } else if pattern_nud_candidate_input(i) {
             arms.push(Recovered::Complete(parse_catch_arm_ast(table, policy, i)));
         } else { i.rollback(checkpoint); break; }
     }
@@ -2475,6 +2479,16 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
         }
         let newline = committed.probe(|probe| policy_newline_separator(policy, &trivia, probe.input()));
         if newline { committed.emit_trivia(&trivia); commit_one_arm(table, family, policy, committed); continue; }
+        if committed.probe(|probe| pattern_nud_candidate_input(probe.input())) {
+            committed.emit_trivia(&trivia);
+            emit_case_like_missing(
+                committed,
+                CaseLikeRole::Separator,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+            );
+            commit_one_arm(table, family, policy, committed);
+            continue;
+        }
         committed.probe(|probe| probe.input().rollback(checkpoint)); return;
     }
 }
@@ -5211,6 +5225,62 @@ mod tests {
                     .any(|child| child.kind() == SyntaxKind::Newline),
                 "the boundary newline belongs to the outer statement"
             );
+        }
+    }
+
+    #[test]
+    fn case_like_missing_arm_comma_retries_the_next_pattern() {
+        let cases = [
+            ("case x: 1 -> a 2 -> b", 15..15, SyntaxKind::CaseArm),
+            ("case x:\n  1 -> a 2 -> b", 17..17, SyntaxKind::CaseArm),
+            (
+                "catch action:\n  err -> recover _ -> fallback",
+                31..31,
+                SyntaxKind::CatchArm,
+            ),
+            (
+                "catch action { err -> recover _ -> fallback }",
+                30..30,
+                SyntaxKind::CatchArm,
+            ),
+        ];
+
+        for (source, separator_at, arm_kind) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::CaseLike(CaseLikeRole::Separator),
+                    separator_at,
+                )],
+                "{source:?}"
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == arm_kind)
+                    .count(),
+                2,
+                "{source:?}"
+            );
+        }
+
+        for source in ["case x: 1 -> a 2 -> b", "case x:\n  1 -> a 2 -> b"] {
+            let chain = parse(source, &canonical_operator_table());
+            let [OperatorChainItem::Primary(PrimaryExpression::Case(case))] = chain.items() else {
+                panic!("the AST path must recognize a case primary");
+            };
+            let Recovered::Complete(block) = &case.block else {
+                panic!("the AST path must retain the block");
+            };
+            let Recovered::Complete(arms) = &block.arms else {
+                panic!("the AST path must retain the arm sequence");
+            };
+            assert_eq!(arms.arms.len(), 2, "{source:?}");
         }
     }
 

@@ -384,7 +384,7 @@ where
     }
 }
 
-fn pattern_nud_candidate_input<E>(i: &mut SynIn<E>) -> bool
+pub(crate) fn pattern_nud_candidate_input<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
