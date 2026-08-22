@@ -1026,6 +1026,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     loop {
         if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(item); }
         else {
+            if let Some(range) = call_argument_error_retry_ast(table, i) {
+                items.push(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range));
+                continue;
+            }
             let at = i.pos();
             if i.run(recognize_call_separator).is_some() {
                 items.push(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at));
@@ -1043,6 +1047,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         }
         if let Some(close) = i.run(close) { return Recovered::Complete(close); }
         if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        if expression_nud_candidate_input(table, i) {
+            let at = i.pos();
+            items.push(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at));
+            continue;
+        }
         return Recovered::Incomplete;
     }
 }
@@ -1061,20 +1070,34 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let close = if let Some(close) = i.run(recognize_record_projection_close) { Recovered::Complete(close) } else { loop {
         if let Some(marker) = i.run(scan_exact_dot_dot) {
             let rhs_start = i.pos(); consume_trivia(i).expect("trivia scanning is total");
-            let rhs = i.run(from_fn(|i| parse_operator_chain(table, i))).map(Box::new).map_or(Recovered::Incomplete, Recovered::Complete);
+            let rhs = if let Some(rhs) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+                Recovered::Complete(Box::new(rhs))
+            } else if let Some(range) = call_argument_error_retry_ast(table, i) {
+                Recovered::Complete(Box::new(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range)))
+            } else { Recovered::Incomplete };
             items.push(ProjectionRecordItem::Spread(ProjectionRecordSpreadItem { marker: marker.clone(), rhs, range: marker.start..i.pos().max(rhs_start) }));
         } else if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(ProjectionRecordItem::Expression(item)); }
+        else if let Some(range) = call_argument_error_retry_ast(table, i) { items.push(ProjectionRecordItem::Expression(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range))); continue; }
         else { break Recovered::Incomplete; }
         let trivia = consume_trivia(i).expect("trivia scanning is total");
         if i.run(recognize_call_separator).is_some() { consume_trivia(i).expect("trivia scanning is total"); if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); } continue; }
         if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); }
         if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        if expression_nud_candidate_input(table, i) || exact_dot_dot_pending(i) {
+            let at = i.pos(); items.push(ProjectionRecordItem::Expression(OperatorChain::new(vec![OperatorChainItem::MissingOperand { range: at..at }], at..at))); continue;
+        }
         break Recovered::Incomplete;
     }};
     pop_layout_delimited_baseline(layout, i);
     assert_eq!(i.local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord));
     assert_eq!(i.local.pop_stop_set(), Some(stops)); assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
     ProjectionRecordTail { dot: dot.clone(), open, items, close, range: dot.start..i.pos() }
+}
+
+fn exact_dot_dot_pending<E>(i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint(); let pending = i.run(scan_exact_dot_dot).is_some(); i.rollback(checkpoint); pending
 }
 
 /// AST-side counterpart to [`call_argument_error_retry`].  The CallTail owns
@@ -1876,7 +1899,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 }
 
 fn is_operator_shaped_character(character: char) -> bool {
-    matches!(character, '!' | '#' | '$' | '%' | '&' | '*' | '+' | '-' | '.' | '/' | ':' | '<' | '=' | '>' | '?' | '@' | '\\' | '^' | '|' | '~')
+    !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && character != '_'
+        && !unicode_ident::is_xid_continue(character)
+        && !matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@')
 }
 
 fn recognize_braced_statement_block_open<'source, E>(
@@ -5664,6 +5691,29 @@ mod tests {
             assert_eq!(root.to_string(), source, "{source:?}");
             assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::ProjectionTupleTail | SyntaxKind::ProjectionRecordTail)), "{source:?}");
         }
+    }
+
+    #[test]
+    fn projection_tail_recovery_keeps_typed_slots_local() {
+        let cases = [
+            ("a.(,x)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Missing, 3..3),
+            ("a.(x,,y)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Missing, 5..5),
+            ("a.(@x)", ExpressionRole::ProjectionTupleItem, RecoveryKind::Error, 3..4),
+            ("a.{,x}", ExpressionRole::ProjectionRecordItem, RecoveryKind::Missing, 3..3),
+            ("a.{..}", ExpressionRole::ProjectionRecordSpreadRhs, RecoveryKind::Missing, 5..5),
+            ("a.{..@rest}", ExpressionRole::ProjectionRecordSpreadRhs, RecoveryKind::Error, 5..6),
+        ];
+        for (source, role, kind, range) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(recoveries.iter().any(|record| record.kind == kind && record.site.role == GrammarRole::Expression(role) && record.site.range == range), "{source:?}: {recoveries:?}");
+        }
+        for source in ["a.()", "a.(x,)", "a.(x;)", "a.(x\n)", "a.{}", "a.{..rest}", "a.{..left, middle, ..right}"] {
+            let (_, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert!(recoveries.is_empty(), "{source:?}: {recoveries:?}");
+        }
+        let (_, recoveries) = parse_direct_recovered("a.(x y)", &canonical_operator_table());
+        assert!(recoveries.is_empty(), "valid ML continuation stays one tuple item");
     }
 
     #[test]
