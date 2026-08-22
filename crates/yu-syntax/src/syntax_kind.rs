@@ -26,6 +26,7 @@ pub enum SyntaxKind {
     IdentifierExpression,
     ParenthesizedExpression,
     IfExpression,
+    BracedStatementBlockExpression,
     IfArm,
     ElseArm,
     Condition,
@@ -124,6 +125,9 @@ impl Language for YulangLanguage {
                 SyntaxKind::ParenthesizedExpression
             }
             value if value == SyntaxKind::IfExpression as u16 => SyntaxKind::IfExpression,
+            value if value == SyntaxKind::BracedStatementBlockExpression as u16 => {
+                SyntaxKind::BracedStatementBlockExpression
+            }
             value if value == SyntaxKind::IfArm as u16 => SyntaxKind::IfArm,
             value if value == SyntaxKind::ElseArm as u16 => SyntaxKind::ElseArm,
             value if value == SyntaxKind::Condition as u16 => SyntaxKind::Condition,

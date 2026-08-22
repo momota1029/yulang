@@ -19,7 +19,7 @@ use crate::{
         word::{WordSpan, scan_word},
     },
     session::{
-        ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
+        BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
         ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
@@ -101,6 +101,14 @@ pub(crate) struct IndentedStatementBlock<'source> {
     range: Range<usize>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BracedStatementBlockExpression<'source> {
+    open: Range<usize>,
+    statements: Vec<Recovered<Statement<'source>>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum OperatorRole {
     Prefix,
@@ -133,6 +141,7 @@ pub(crate) enum PrimaryExpression<'source> {
         range: Range<usize>,
     },
     If(IfExpression<'source>),
+    BracedStatementBlock(BracedStatementBlockExpression<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -192,6 +201,7 @@ impl PrimaryExpression<'_> {
             Self::Integer(integer) => integer.range(),
             Self::Parenthesized { range, .. } => range.clone(),
             Self::If(if_expression) => if_expression.range.clone(),
+            Self::BracedStatementBlock(block) => block.range.clone(),
         }
     }
 }
@@ -321,6 +331,13 @@ where
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
                     elements, trailing_comma, range: open.start..close.end,
                 }));
+                break;
+            }
+            NudRecognition::BracedStatementBlock { open } => {
+                i.cut();
+                items.push(OperatorChainItem::Primary(PrimaryExpression::BracedStatementBlock(
+                    parse_braced_statement_block_expression(table, open, &mut i),
+                )));
                 break;
             }
             NudRecognition::If { keyword, base_indent } => {
@@ -453,6 +470,7 @@ fn operator_use<'source>(operator: &ScannedOperator<'source>, role: OperatorRole
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum NudRecognition<'source> {
     Parenthesized { open: Range<usize> },
+    BracedStatementBlock { open: Range<usize> },
     If { keyword: WordSpan<'source>, base_indent: usize },
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
@@ -606,6 +624,7 @@ where
 {
     i.choice((
         recognize_parenthesized_open.map(|open| NudRecognition::Parenthesized { open }),
+        recognize_braced_statement_block_open.map(|open| NudRecognition::BracedStatementBlock { open }),
         from_fn(recognize_if_nud),
         from_fn(|i| {
             let scanned = scan_operator(OperatorSite::Nud, leading, table, i)?;
@@ -875,6 +894,36 @@ where
     close
 }
 
+fn recognize_braced_statement_block_open<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let punctuation = i.run(scan_punctuation)?;
+    matches!(punctuation.kind(), PunctuationKind::Open(Delimiter::Brace)).then(|| punctuation.range())
+}
+
+fn recognize_braced_statement_block_close<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let close = matches!(punctuation.kind(), PunctuationKind::Close(Delimiter::Brace))
+        .then(|| punctuation.range());
+    if close.is_none() {
+        i.rollback(checkpoint);
+    }
+    close
+}
+
 fn recognize_parenthesized_comma<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Range<usize>>
@@ -1133,24 +1182,14 @@ where
 {
     let start = opening_trivia.range().start;
     let scope = push_indented_statement_block_scope(i, block_indent);
-    let mut statements = Vec::new();
-
-    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
-        statements.push(Recovered::Complete(Statement { expression }));
-        while !options.companion_stop(i) {
-            let Some(separator) = recognize_indented_block_separator(i, block_indent) else { break; };
-            if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
-                break;
-            }
-            let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
-                statements.push(Recovered::Incomplete);
-                break;
-            };
-            statements.push(Recovered::Complete(Statement { expression }));
-        }
-    } else {
-        statements.push(Recovered::Incomplete);
-    }
+    let statements = parse_statement_sequence(
+        table,
+        StatementSequencePolicy::Indented {
+            block_indent,
+            options,
+        },
+        i,
+    );
 
     let end = i.pos();
     pop_indented_statement_block_scope(i, scope, block_indent);
@@ -1162,36 +1201,146 @@ where
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum IndentedBlockSeparator {
-    Newline { trivia: TriviaRun },
-    Semicolon {
-        leading_trivia: TriviaRun,
-        range: Range<usize>,
-        trailing_trivia: TriviaRun,
+/// The two current statement-sequence owners deliberately share this closed
+/// policy rather than exposing a general block-parser abstraction.  The
+/// indented wrapper still owns layout entry/exit; the brace wrapper will own
+/// delimiters and closing recovery.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StatementSequencePolicy {
+    Indented {
+        block_indent: usize,
+        options: IndentedStatementBlockOptions,
     },
+    BracedPrimary,
 }
 
-impl IndentedBlockSeparator {
-    fn is_semicolon(&self) -> bool {
-        matches!(self, Self::Semicolon { .. })
-    }
-
-    fn following_leading_trivia(&self) -> LeadingTrivia {
-        match self {
-            Self::Newline { trivia } => leading_trivia(trivia),
-            Self::Semicolon { trailing_trivia, .. } => leading_trivia(trailing_trivia),
-        }
-    }
+/// Parsed statements are the AST-side projection of the shared sequence core.
+struct ParsedStatementSequence<'source> {
+    statements: Vec<Recovered<Statement<'source>>>,
 }
 
-/// Consumes only a separator whose final physical line is the block's own
-/// indentation.  A dedent probe rolls its trivia back so the enclosing owner
-/// retains it.
-fn recognize_indented_block_separator<'source, E>(
+fn parse_statement_sequence<'source, E>(
+    table: &OperatorTable,
+    policy: StatementSequencePolicy,
     i: &mut SynIn<'_, 'source, '_, E>,
-    block_indent: usize,
-) -> Option<IndentedBlockSeparator>
+) -> Vec<Recovered<Statement<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if matches!(policy, StatementSequencePolicy::BracedPrimary) {
+        return parse_braced_statement_sequence(table, i);
+    }
+    let StatementSequencePolicy::Indented { block_indent, options } = policy else {
+        unreachable!("braced policy returns above");
+    };
+    let mut parsed = ParsedStatementSequence {
+        statements: Vec::new(),
+    };
+
+    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+        parsed.statements.push(Recovered::Complete(Statement { expression }));
+        while !options.companion_stop(i) {
+            let Some(separator) = recognize_statement_sequence_separator(i, policy) else { break; };
+            if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
+                break;
+            }
+            let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+                parsed.statements.push(Recovered::Incomplete);
+                break;
+            };
+            parsed.statements.push(Recovered::Complete(Statement { expression }));
+        }
+    } else {
+        parsed.statements.push(Recovered::Incomplete);
+    }
+
+    parsed.statements
+}
+
+fn parse_braced_statement_block_expression<'source, E>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> BracedStatementBlockExpression<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let scope = push_braced_statement_block_scope(i);
+    consume_trivia(i).expect("trivia scanning is total");
+    let statements = parse_statement_sequence(table, StatementSequencePolicy::BracedPrimary, i);
+    consume_trivia(i).expect("trivia scanning is total");
+    let close = i
+        .run(recognize_braced_statement_block_close)
+        .map_or(Recovered::Incomplete, Recovered::Complete);
+    let end = match &close {
+        Recovered::Complete(range) => range.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    pop_braced_statement_block_scope(i, scope);
+    BracedStatementBlockExpression {
+        open: open.clone(),
+        statements,
+        close,
+        range: open.start..end,
+    }
+}
+
+fn parse_braced_statement_sequence<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Vec<Recovered<Statement<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if braced_statement_block_close_pending(i) {
+        return Vec::new();
+    }
+    let mut statements = Vec::new();
+    let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+        return statements;
+    };
+    statements.push(Recovered::Complete(Statement { expression }));
+    loop {
+        if braced_statement_block_close_pending(i) {
+            break;
+        }
+        let Some(_) = recognize_statement_sequence_separator(i, StatementSequencePolicy::BracedPrimary) else {
+            break;
+        };
+        if braced_statement_block_close_pending(i) {
+            break;
+        }
+        let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+            statements.push(Recovered::Incomplete);
+            break;
+        };
+        statements.push(Recovered::Complete(Statement { expression }));
+    }
+    statements
+}
+
+fn braced_statement_block_close_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    consume_trivia(i).expect("trivia scanning is total");
+    let pending = i.run(recognize_braced_statement_block_close).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn recognize_braced_statement_separator<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<StatementSequenceSeparator>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1200,8 +1349,86 @@ where
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i)?;
     if trivia_has_physical_newline(&trivia) {
+        return Some(StatementSequenceSeparator::Newline { trivia });
+    }
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    let kind = punctuation.kind();
+    if !matches!(kind, PunctuationKind::Comma | PunctuationKind::Semicolon) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let trailing_trivia = consume_trivia(i)?;
+    Some(match kind {
+        PunctuationKind::Comma => StatementSequenceSeparator::Comma {
+            leading_trivia: trivia,
+            range: punctuation.range(),
+            trailing_trivia,
+        },
+        PunctuationKind::Semicolon => StatementSequenceSeparator::Semicolon {
+            leading_trivia: trivia,
+            range: punctuation.range(),
+            trailing_trivia,
+        },
+        _ => unreachable!("checked brace separator punctuation"),
+    })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum StatementSequenceSeparator {
+    Newline { trivia: TriviaRun },
+    Semicolon {
+        leading_trivia: TriviaRun,
+        range: Range<usize>,
+        trailing_trivia: TriviaRun,
+    },
+    Comma {
+        leading_trivia: TriviaRun,
+        range: Range<usize>,
+        trailing_trivia: TriviaRun,
+    },
+}
+
+impl StatementSequenceSeparator {
+    fn is_semicolon(&self) -> bool {
+        matches!(self, Self::Semicolon { .. })
+    }
+
+    fn following_leading_trivia(&self) -> LeadingTrivia {
+        match self {
+            Self::Newline { trivia } => leading_trivia(trivia),
+            Self::Semicolon { trailing_trivia, .. } | Self::Comma { trailing_trivia, .. } => {
+                leading_trivia(trailing_trivia)
+            }
+        }
+    }
+}
+
+/// Consumes only a separator whose final physical line is the block's own
+/// indentation.  A dedent probe rolls its trivia back so the enclosing owner
+/// retains it.
+fn recognize_statement_sequence_separator<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    policy: StatementSequencePolicy,
+) -> Option<StatementSequenceSeparator>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if matches!(policy, StatementSequencePolicy::BracedPrimary) {
+        return recognize_braced_statement_separator(i);
+    }
+    let StatementSequencePolicy::Indented { block_indent, .. } = policy else {
+        unreachable!("braced policy returns above");
+    };
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i)?;
+    if trivia_has_physical_newline(&trivia) {
         if i.local.line().line_indent == block_indent {
-            return Some(IndentedBlockSeparator::Newline { trivia });
+            return Some(StatementSequenceSeparator::Newline { trivia });
         }
         i.rollback(checkpoint);
         return None;
@@ -1220,13 +1447,13 @@ where
         && i.local.line().line_indent < block_indent
     {
         i.rollback(trailing_checkpoint);
-        return Some(IndentedBlockSeparator::Semicolon {
+        return Some(StatementSequenceSeparator::Semicolon {
             leading_trivia: trivia,
             range: punctuation.range(),
             trailing_trivia: TriviaRun::empty_at(punctuation.range().end),
         });
     }
-    Some(IndentedBlockSeparator::Semicolon {
+    Some(StatementSequenceSeparator::Semicolon {
         leading_trivia: trivia,
         range: punctuation.range(),
         trailing_trivia,
@@ -1258,6 +1485,44 @@ struct IndentedStatementBlockScope {
     inline: bool,
     ml_arg: bool,
     stop_set: StopSet,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct BracedStatementBlockScope {
+    inline: bool,
+    ml_arg: bool,
+}
+
+fn braced_statement_block_stop_set() -> StopSet {
+    StopSet::default()
+        .with(StopKind::Comma)
+        .with(StopKind::Semicolon)
+        .with(StopKind::RightBrace)
+}
+
+fn push_braced_statement_block_scope<E>(i: &mut SynIn<E>) -> BracedStatementBlockScope
+where
+    E: ErrorSink<usize>,
+{
+    let scope = BracedStatementBlockScope {
+        inline: i.local.inline(),
+        ml_arg: i.local.ml_arg(),
+    };
+    i.local.push_delimiter(Delimiter::Brace);
+    i.local.set_inline(true);
+    i.local.set_ml_arg(false);
+    i.local.push_stop_set(braced_statement_block_stop_set());
+    scope
+}
+
+fn pop_braced_statement_block_scope<E>(i: &mut SynIn<E>, scope: BracedStatementBlockScope)
+where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(i.local.pop_stop_set(), Some(braced_statement_block_stop_set()));
+    i.local.set_inline(scope.inline);
+    i.local.set_ml_arg(scope.ml_arg);
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
 }
 
 fn push_indented_statement_block_scope<E>(
@@ -1344,16 +1609,11 @@ fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
         push_indented_statement_block_scope(probe.input(), block_indent)
     });
 
-    commit_indented_block_statement(table, LeadingTrivia::None, committed);
-    while !committed.probe(|probe| options.companion_stop(probe.input())) {
-        let Some(separator) = commit_indented_block_separator(committed, block_indent) else { break; };
-        if separator.is_semicolon()
-            && committed.probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
-        {
-            break;
-        }
-        commit_indented_block_statement(table, separator.following_leading_trivia(), committed);
-    }
+    let policy = StatementSequencePolicy::Indented {
+        block_indent,
+        options,
+    };
+    commit_statement_sequence(table, policy, committed);
 
     committed.probe(|probe| {
         pop_indented_statement_block_scope(probe.input(), scope, block_indent)
@@ -1411,8 +1671,218 @@ impl IndentedBlockCompanionStop {
     }
 }
 
-fn commit_indented_block_statement<'parse, 'source, 'local, E, O>(
+fn commit_statement_sequence<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
+    policy: StatementSequencePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if matches!(policy, StatementSequencePolicy::BracedPrimary) {
+        commit_braced_statement_sequence(table, committed);
+        return;
+    }
+    let StatementSequencePolicy::Indented {
+        block_indent,
+        options,
+    } = policy else {
+        unreachable!("braced policy returns above");
+    };
+    commit_statement_sequence_statement(table, policy, LeadingTrivia::None, committed);
+    while !committed.probe(|probe| options.companion_stop(probe.input())) {
+        let Some(separator) = commit_statement_sequence_separator(policy, committed) else { break; };
+        if separator.is_semicolon()
+            && committed.probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
+        {
+            break;
+        }
+        commit_statement_sequence_statement(
+            table,
+            policy,
+            separator.following_leading_trivia(),
+            committed,
+        );
+    }
+}
+
+fn commit_braced_statement_block_expression<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::BracedStatementBlockExpression);
+    committed.token(SyntaxKind::LBrace, open);
+    let scope = committed.probe(|probe| push_braced_statement_block_scope(probe.input()));
+    let opening_trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    committed.emit_trivia(&opening_trivia);
+    commit_statement_sequence(table, StatementSequencePolicy::BracedPrimary, committed);
+    commit_braced_statement_block_close(committed);
+    committed.probe(|probe| pop_braced_statement_block_scope(probe.input(), scope));
+    committed.finish_node();
+}
+
+fn commit_braced_statement_sequence<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let policy = StatementSequencePolicy::BracedPrimary;
+    if braced_statement_slot_absent_boundary(committed) {
+        return;
+    }
+    commit_statement_sequence_statement(table, policy, LeadingTrivia::None, committed);
+    loop {
+        if braced_close_pending(committed) {
+            return;
+        }
+        if let Some(separator) = commit_statement_sequence_separator(policy, committed) {
+            if braced_statement_slot_absent_boundary(committed) {
+                return;
+            }
+            commit_statement_sequence_statement(
+                table,
+                policy,
+                separator.following_leading_trivia(),
+                committed,
+            );
+            continue;
+        }
+        if let Some(leading) = braced_next_statement_leading(table, committed) {
+            emit_braced_statement_separator_missing(committed);
+            commit_statement_sequence_statement(table, policy, leading, committed);
+            continue;
+        }
+        return;
+    }
+}
+
+fn braced_next_statement_leading<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<LeadingTrivia>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let _trivia = committed.probe(|probe| {
+        let checkpoint = probe.input().checkpoint();
+        let trivia = consume_trivia(probe.input()).expect("trivia scanning is total");
+        let leading = leading_trivia(&trivia);
+        let candidate = direct_expression_nud_candidate(table, leading, probe);
+        probe.input().rollback(checkpoint);
+        candidate.then_some(trivia)
+    })?;
+    let consumed = committed
+        .probe(|probe| consume_trivia(probe.input()))
+        .expect("the accepted statement-leading trivia remains available");
+    committed.emit_trivia(&consumed);
+    Some(leading_trivia(&consumed))
+}
+
+fn braced_close_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| braced_statement_block_close_pending(probe.input()))
+}
+
+fn braced_statement_slot_absent_boundary<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if braced_close_pending(committed) {
+        return true;
+    }
+    committed.probe(|probe| probe.input().input.remainder().is_empty())
+}
+
+fn commit_braced_statement_block_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trailing = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia scanning is total");
+    committed.emit_trivia(&trailing);
+    loop {
+        if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
+            emit_braced_close_missing(committed);
+            return;
+        }
+        let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation));
+        if let Some(punctuation) = punctuation {
+            match punctuation.kind() {
+                PunctuationKind::Close(Delimiter::Brace) => {
+                    committed.token(SyntaxKind::RBrace, punctuation.range());
+                    return;
+                }
+                PunctuationKind::Close(actual @ (Delimiter::Parenthesis | Delimiter::Bracket)) => {
+                    emit_braced_close_error(committed, punctuation.range(), actual);
+                }
+                _ => emit_braced_close_other_error(committed, punctuation.range()),
+            }
+            continue;
+        }
+        let range = committed.probe(|probe| {
+            let start = probe.input().pos();
+            let mut end = start;
+            loop {
+                let i = probe.input();
+                let Some(character) = i.input.remainder().chars().next() else {
+                    return (start < end).then_some(start..end);
+                };
+                if matches!(character, '}' | ')' | ']') {
+                    return (start < end).then_some(start..end);
+                }
+                i.input.next().expect("the scanned brace-close byte exists");
+                end = i.pos();
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+        });
+        if let Some(range) = range {
+            emit_braced_close_other_error(committed, range);
+        } else {
+            emit_braced_close_missing(committed);
+            return;
+        }
+    }
+}
+
+fn commit_statement_sequence_statement<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    policy: StatementSequencePolicy,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1423,13 +1893,13 @@ fn commit_indented_block_statement<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::Statement);
     if parse_direct_operator_chain(table, leading, committed).is_none() {
-        match block_statement_error_retry(table, committed) {
+        match statement_sequence_error_retry(table, policy, committed) {
             Some(true) => {
                 parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                     .expect("a retried block statement must commit its shared NUD candidate");
             }
             Some(false) => {}
-            None => emit_indented_statement_missing(committed),
+            None => emit_statement_sequence_missing(policy, committed),
         }
     }
     committed.finish_node();
@@ -1438,8 +1908,9 @@ fn commit_indented_block_statement<'parse, 'source, 'local, E, O>(
 /// A statement recovery records one non-empty invalid episode and retries the
 /// same statement slot only when the shared expression start judge finds a
 /// later candidate before a block boundary.
-fn block_statement_error_retry<'parse, 'source, 'local, E, O>(
+fn statement_sequence_error_retry<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
+    policy: StatementSequencePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<bool>
 where
@@ -1472,33 +1943,40 @@ where
     let Some((range, retry)) = recovered else {
         return None;
     };
-    emit_indented_statement_error(committed, range);
+    emit_statement_sequence_error(policy, committed, range);
     Some(retry)
 }
 
-fn commit_indented_block_separator<'parse, 'source, 'local, E, O>(
+fn commit_statement_sequence_separator<'parse, 'source, 'local, E, O>(
+    policy: StatementSequencePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    block_indent: usize,
-) -> Option<IndentedBlockSeparator>
+) -> Option<StatementSequenceSeparator>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let separator = committed.probe(|probe| {
-        recognize_indented_block_separator(probe.input(), block_indent)
-    })?;
+    let separator = committed.probe(|probe| recognize_statement_sequence_separator(probe.input(), policy))?;
     committed.start_node(SyntaxKind::BlockStatementSeparator);
     match &separator {
-        IndentedBlockSeparator::Newline { trivia } => committed.emit_trivia(trivia),
-        IndentedBlockSeparator::Semicolon {
+        StatementSequenceSeparator::Newline { trivia } => committed.emit_trivia(trivia),
+        StatementSequenceSeparator::Semicolon {
             leading_trivia,
             range,
             trailing_trivia,
         } => {
             committed.emit_trivia(leading_trivia);
             committed.token(SyntaxKind::Semicolon, range.clone());
+            committed.emit_trivia(trailing_trivia);
+        }
+        StatementSequenceSeparator::Comma {
+            leading_trivia,
+            range,
+            trailing_trivia,
+        } => {
+            committed.emit_trivia(leading_trivia);
+            committed.token(SyntaxKind::Comma, range.clone());
             committed.emit_trivia(trailing_trivia);
         }
     }
@@ -1663,6 +2141,11 @@ where
         NudRecognition::Parenthesized { open } => {
             cut_after_acceptance(committed);
             commit_parenthesized_nud(table, open, committed)?;
+            return Some(());
+        }
+        NudRecognition::BracedStatementBlock { open } => {
+            cut_after_acceptance(committed);
+            commit_braced_statement_block_expression(table, open, committed);
             return Some(());
         }
         NudRecognition::If { keyword, base_indent } => {
@@ -2400,7 +2883,8 @@ fn emit_colon_application_error<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-fn emit_indented_statement_missing<'parse, 'source, 'local, E, O>(
+fn emit_statement_sequence_missing<'parse, 'source, 'local, E, O>(
+    policy: StatementSequencePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -2409,7 +2893,7 @@ fn emit_indented_statement_missing<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
+        let role = statement_sequence_statement_role(policy);
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -2430,14 +2914,15 @@ fn emit_indented_statement_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_indented_statement_error<'parse, 'source, 'local, E, O>(
+fn emit_statement_sequence_error<'parse, 'source, 'local, E, O>(
+    policy: StatementSequencePolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     range: Range<usize>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
+    let role = statement_sequence_statement_role(policy);
     let record = committed.probe(|probe| {
         let i = probe.input();
         CommittedRecoveryRecord::new(
@@ -2454,6 +2939,143 @@ fn emit_indented_statement_error<'parse, 'source, 'local, E, O>(
             Arc::from([SyntaxExpectation {
                 role,
                 expected: ExpectedSyntax::Statement,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn statement_sequence_statement_role(policy: StatementSequencePolicy) -> GrammarRole {
+    match policy {
+        StatementSequencePolicy::Indented { .. } => {
+            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement)
+        }
+        StatementSequencePolicy::BracedPrimary => {
+            GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
+        }
+    }
+}
+
+fn braced_close_role() -> GrammarRole {
+    GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::BracedStatementBlockExpression,
+        delimiter: Delimiter::Brace,
+    }
+}
+
+fn emit_braced_statement_separator_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_braced_missing(
+        committed,
+        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator),
+        ExpectedSyntax::StatementSeparator,
+    );
+}
+
+fn emit_braced_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_braced_missing(
+        committed,
+        braced_close_role(),
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+    );
+}
+
+fn emit_braced_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_braced_close_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+    actual: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_braced_error(
+        committed,
+        braced_close_role(),
+        range.clone(),
+        UnexpectedCategory::Punctuation(crate::session::PunctuationEvidence::Close(actual)),
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+    );
+}
+
+fn emit_braced_close_other_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    emit_braced_error(
+        committed,
+        braced_close_role(),
+        range,
+        UnexpectedCategory::OtherCharacter,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+    );
+}
+
+fn emit_braced_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: GrammarRole,
+    range: Range<usize>,
+    category: UnexpectedCategory,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -3187,6 +3809,123 @@ mod tests {
         assert_eq!(block.block_indent, 2);
         assert_eq!(block.statements.len(), 2);
     }
+
+    #[test]
+    fn braced_statement_block_is_a_primary_with_all_separator_forms() {
+        for (source, statements, separator_token) in [
+            ("{}", 0, None),
+            ("{ }", 0, None),
+            ("{\n}", 0, None),
+            ("{x}", 1, None),
+            ("{x,y}", 2, Some(SyntaxKind::Comma)),
+            ("{x;y}", 2, Some(SyntaxKind::Semicolon)),
+            ("{x\ny}", 2, None),
+            ("{x,}", 1, Some(SyntaxKind::Comma)),
+            ("{x;}", 1, Some(SyntaxKind::Semicolon)),
+            ("{x\n}", 1, None),
+        ] {
+            let root = parse_direct(source, &canonical_operator_table());
+            let block = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                .expect("braced statement block");
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(),
+                statements,
+                "{source:?}"
+            );
+            if statements > 1 || separator_token.is_some() && source != "{ }" {
+                assert_eq!(
+                    block.children().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(),
+                    if statements > 1 { 1 } else { 1 },
+                    "{source:?}"
+                );
+            }
+            if let Some(token_kind) = separator_token {
+                assert!(block
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(|token| token.kind() == token_kind));
+            }
+            assert!(!block.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+        }
+    }
+
+    #[test]
+    fn braced_statement_block_ast_keeps_statement_count_close_and_range() {
+        let chain = parse("{x,y}", &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::BracedStatementBlock(block))] = chain.items()
+        else {
+            panic!("expected braced statement-block primary");
+        };
+        assert_eq!(block.open, 0..1);
+        assert_eq!(block.statements.len(), 2);
+        assert_eq!(block.close, Recovered::Complete(4..5));
+        assert_eq!(block.range, 0..5);
+    }
+
+    #[test]
+    fn braced_statement_block_is_binding_power_invariant_and_keeps_deeper_newlines_local() {
+        let source = "{x +\n  y\nz}";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
+
+        let root = parse_direct(source, &low);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .unwrap();
+        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
+        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(), 1);
+    }
+
+    #[test]
+    fn braced_statement_block_keeps_colon_arguments_and_outer_chain_flat() {
+        let root = parse_direct("+{x: 1, y: 2}*z", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::PrefixOperatorUse,
+                SyntaxKind::BracedStatementBlockExpression,
+                SyntaxKind::InfixOperatorUse,
+                SyntaxKind::IdentifierExpression,
+            ]
+        );
+        let block = chain
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .unwrap();
+        assert_eq!(block.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 2);
+        assert_eq!(block.descendants().filter(|node| node.kind() == SyntaxKind::BlockStatementSeparator).count(), 1);
+        assert_eq!(root.to_string(), "+{x: 1, y: 2}*z");
+    }
+
+    #[test]
+    fn braced_statement_block_recovers_mandatory_slots_and_close() {
+        let cases = [
+            ("{", vec![(RecoveryKind::Missing, 1..1)]),
+            ("{x", vec![(RecoveryKind::Missing, 2..2)]),
+            ("{x,", vec![(RecoveryKind::Missing, 3..3)]),
+            ("{x y}", vec![(RecoveryKind::Missing, 3..3)]),
+            ("{x,,y}", vec![(RecoveryKind::Missing, 3..3)]),
+            ("{x,@ y}", vec![(RecoveryKind::Error, 3..5)]),
+            ("{x]}", vec![(RecoveryKind::Error, 2..3)]),
+        ];
+        for (source, expected) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+                expected,
+                "{source:?}"
+            );
+        }
+    }
+
 
     #[test]
     fn indented_block_accepts_a_semicolon_separator() {

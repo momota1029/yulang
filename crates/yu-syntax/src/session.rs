@@ -359,6 +359,7 @@ impl StopSet {
 pub(crate) enum StopKind {
     Newline,
     Comma,
+    Semicolon,
     Colon,
     LeftBrace,
     Elsif,
@@ -480,6 +481,7 @@ pub(crate) enum GrammarRole {
     Expression(ExpressionRole),
     ColonApplication(ColonApplicationRole),
     IfExpression(IfExpressionRole),
+    BracedStatementBlock(BracedStatementBlockRole),
     Pattern(PatternRole),
     Type(TypeRole),
     Layout(LayoutRole),
@@ -538,6 +540,7 @@ pub(crate) enum ConstructRole {
     OperatorName,
     ExpressionGroup,
     ArgumentList,
+    BracedStatementBlockExpression,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -559,6 +562,12 @@ pub(crate) enum IfExpressionRole {
     Body,
     ElseBody,
     IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum BracedStatementBlockRole {
+    Statement,
+    Separator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -655,6 +664,7 @@ pub(crate) enum ExpectedSyntax {
     Path,
     Expression,
     Statement,
+    StatementSeparator,
     OperatorName,
     BindingPower,
     InlineTrivia,

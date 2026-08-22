@@ -273,6 +273,7 @@ where
     };
     match i.input.remainder().chars().next() {
         Some(',') => stops.contains(StopKind::Comma),
+        Some(';') => stops.contains(StopKind::Semicolon),
         Some(')') => stops.contains(StopKind::RightParenthesis),
         Some(']') => stops.contains(StopKind::RightBracket),
         Some('}') => stops.contains(StopKind::RightBrace),
