@@ -11082,3 +11082,541 @@ keyword-colon間newline、inline semicolon ownership、current Statement subset 
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、generic-expression WithBodyTail追補案）。
+
+## 追補案: canonical `Statement`のbinding / use declaration拡張
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-23。
+
+### Decision summary
+
+canonical `Statement`をexpression statementだけのstructから、次のclosed sumへ拡張する。
+
+```rust
+pub(crate) enum Statement<'source> {
+    Expression(OperatorChain<'source>),
+    Binding(BindingDeclaration<'source>),
+    Use(UseDeclaration<'source>),
+}
+```
+
+この変更は`IndentedStatementBlock`、`BracedStatementBlockExpression`、inline `WithBodyTail`が呼ぶ
+一個のstatement entryへ置く。colon / if / case / catch / withごとのdeclaration parserは作らない。
+各ownerは従来どおりlayout trigger、separator、dedent / matching close、companion stopだけを所有する。
+
+bindingはYulang2のactual grammarに合わせ、`my`だけのbare-name definitionから次へ拡張する。
+
+```text
+BindingDeclaration :=
+    VisibilityKw Gbind Pattern
+    [ Gbind Equals BindingBody ]
+
+VisibilityKw := MyKw | OurKw | PubKw
+
+BindingBody :=
+    G0* OperatorChain
+  | IndentedStatementBlock
+```
+
+`Gbind`はbinding starter時にcaptureした`binding_base`に対する`ChainContinuingTrivia`である。physical newlineが
+なければemptyを含めてacceptし、newlineがあればfollowing indentが`binding_base`よりstrictly deeperな場合だけ
+acceptする。equal-or-shallower newlineはouter statement boundaryへ返す。word同士を分離するために必要な場合を除き、
+syntheticなrequired whitespaceはgrammarへ入れない。`my(x) = value`のようにtoken境界が明白な形を
+spacing recoveryで拒否しない。`myx`はmaximal word一個でありbinding starterではない。
+
+`Equals BindingBody`全体はoptionalである。したがって`pub x`、`my [head, ..tail]`のようなbodyなしbindingは
+validであり、`Missing(Equals)`も`Missing(BindingBody)`も作らない。一方、literal exact `=`をacceptした場合は
+bodyがmandatoryになり、inline one `OperatorChain`またはstrict deeper `IndentedStatementBlock`のどちらかを
+total recovery込みで所有する。
+
+`use`は既存`UseDeclaration` grammar、CST、AST、recoveryを変更せずcanonical `Statement`へ接続する。
+bare `use`に加えて、既存の`my use` / `our use` / `pub use` visibility prefixを同じnodeで保持する。
+
+本追補はYulang2のfull statement familyを一度に移植しない。`mod`、`type`、`struct`、`enum`、`error`、
+`role`、`impl`、`cast`、`act`、`for`、operator definition、`where`、doc-comment declarationは
+named-but-unspecified future canonical-Statement variantsとして残す。
+
+### Yulang2 oracle re-verification
+
+Yulang2のstatement entryは`scan_stmt_head_nud`の結果をまずordinary expression parserへ渡し、headが
+statement stopなら同じentry内でdeclaration / control statementへdispatchした
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/mod.rs:52-98`)。indented blockは各itemを同じ
+`parse_statement`へ渡し、block専用subsetを持たなかった
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/block.rs:242-284`)。
+
+bindingのactual productionはoracle specにも次で明記されている。
+
+```text
+binding =
+  ("my" | "our" | "pub") pattern ("=" binding_body)?
+```
+
+`binding_body`はinline expressionまたはindent statement blockで、`pub x`のようなbodyなしbindingもvalidである
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:268-289`)。parser implementationも
+pattern parse中だけ`Equal` stopをpushし、exact equalを得た場合だけ`BindingBody`を開始する
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/binding.rs:16-128`)。body branchはbinding statementの
+active indentをsnapshotし、newline後のindentがstrictly deeperならordinary `parse_indent_stmt_block`、
+equal-or-shallowerならmissing、newlineなしならordinary `parse_expr`を呼ぶ
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/binding.rs:131-154`)。したがってindented bodyは
+where clauseやpost-definition companionではなく、複数canonical statementからなるbinding RHSである。
+
+`use`はroot用とnested用にparserを分けず、visibility dispatcherとbare `Use` branchのどちらからも
+同じ`parse_use_decl`を呼んだ
+(`yulang2-oracle@a58eefc3:crates/parser/src/stmt/mod.rs:64-85,159-268`、
+`yulang2-oracle@a58eefc3:crates/parser/src/stmt/use_decl.rs:12-64`)。parser-level source acceptance、
+CST shape、recoveryにnested/root差はない。
+
+fixture `my x = y with:\n  my y = 1`はgeneric with body内のbindingを、case arm fixtureは
+arrow body内の`my z2 = ...`を実際に受理する
+(`yulang2-oracle@a58eefc3:crates/parser/tests/stmt_grammar.rs:2522-2561,2851-2871`)。
+
+### Supersession boundary
+
+本追補は次の既決事項をsupersedeしない。
+
+- flat source-order `OperatorChain`とnumeric BPに依存しないCST shape。
+- `StatementSequencePolicy::{Indented, BracedPrimary}`が持つseparator / boundary ownership。
+- `IndentedStatementBlock`のstrict deeper trigger、non-empty contract、dedent非consume。
+- `BracedStatementBlockExpression`のempty / trailing separator validity、matching brace ownership。
+- `WithBodyTail`のinline exactly one canonical `Statement` / indented block distinctionとterminality。
+- existing recursive `UseDeclaration` / `UseTree` shape、visibility、header projection API。
+- existing `Pattern` owner、`StopKind::Equal`、record-pattern default expressionを含むpattern recovery。
+
+次は本追補が明示的にsupersedeする。
+
+- `Statement { expression: OperatorChain }`というexpression-only ASTを上のenumへ置き換える。
+- `BindingStatement := MyKw I+ Identifier I+ Equals I+ DirectExpression`
+  (`architecture.md:3311-3319`)という旧first-slice productionを、本追補のvisibility + Pattern + optional body grammarへ置き換える。
+- binding recovery vocabularyの`BindingRole::Name` / `Value`をpattern target / body単位へ拡張する。
+- nested declarationはroot-ownedである、というWithBodyTail first-sliceの一時的source acceptance差を、
+  binding / useの二familyについて閉じる。
+
+### Authoritative surface grammar
+
+```text
+Statement :=
+    ExpressionStatement
+  | BindingStatement
+  | UseStatement
+
+ExpressionStatement := OperatorChain
+
+BindingStatement :=
+    VisibilityKw Gbind Pattern
+    [ Gbind Equals BindingBody ]
+
+BindingBody :=
+    G0* OperatorChain
+  | BindingIndentedBody
+
+BindingIndentedBody := IndentedStatementBlock
+
+UseStatement := UseDeclaration
+
+Gbind :=
+    maximal trivia with no physical newline
+  | maximal trivia with a physical newline whose following indent is greater than binding_base
+```
+
+`Pattern`は`grammar/pattern.rs`のcanonical pattern entryそのものであり、binding専用name / tuple / list /
+record parserを作らない。binding ownerはcurrent lexical depthへ`StopKind::Equal`をpushし、patternが
+literal exact `=`をconsumeせず返した後だけoptional definition branchを判定する。`==`、`=>`、より長い
+operator spellingをlone `=`へ分割しない。pattern parseの全exit pathでstop stackをexact restoreする。
+
+current Pattern surfaceはidentifier、integer、symbol、parenthesized、list、record、alias、alternationである。
+将来type annotation、constructor/call/field/path/ML-application patternがcanonical Patternへ追加された場合、
+bindingはlocal branch追加なしで同じtarget slotから受理する。本追補はそれらfuture pattern formをstubしない。
+
+#### Binding body layout
+
+binding starterをstatement positionでacceptした時点、target parse前にactive indentation baselineを
+`binding_base`としてcaptureする。frameがなければ0である。`=`のvisual column、targetのfirst token、
+post-equals trivia後のline indentからbaseを逆算しない。
+
+exact `=`後のmaximal triviaを一度だけprobeし、次で分類する。
+
+| post-equals trivia | branch |
+| --- | --- |
+| physical newlineなし（emptyを含む） | inline。one canonical `OperatorChain`をparseする |
+| physical newlineあり、following indent `> binding_base` | indented。existing non-empty `IndentedStatementBlock`をparseする |
+| physical newlineあり、following indent `<= binding_base` | body missing。probeをrollbackし、newline / next tokenをouter statement ownerへ返す |
+
+indented branchはdefault `StatementSequencePolicy::Indented`を使う。if companion-stopやWith-specific recovery roleを
+継承せず、binding body専用のtyped statement roleだけを渡す。block内のbinding / useは同じcanonical
+`Statement`へ再帰し、`my x =\n  my y = 1\n  y`をone outer binding + two RHS statementsとして保持する。
+
+inline branchはexpressionだけであり、declaration statementを一個読むbranchではない。したがって
+`my x = my y = 1`のright sideをnested bindingとして解釈しない。nested declaration RHSにはstrict deeper
+indented bodyを使う。
+
+### CST vocabulary and shape
+
+次のnode kindを追加する。
+
+```text
+SyntaxKind::BindingHeader
+SyntaxKind::BindingBody
+```
+
+existing `Statement`、`BindingStatement`、`UseDeclaration`、`Pattern`、`OperatorChain`、
+`IndentedStatementBlock`、`Missing`、`Error`とtoken kindは再利用する。
+
+nested canonical statementは必ず一個の`Statement` wrapperを持ち、その直下に選ばれたowner nodeを一個だけ置く。
+
+```text
+Statement
+  OperatorChain
+
+Statement
+  BindingStatement
+    BindingHeader
+      VisibilityKw
+      Gbind
+      Pattern
+      [ Gbind Equals ]
+    [ BindingBody
+        G0* OperatorChain
+      | IndentedStatementBlock ]
+
+Statement
+  UseDeclaration
+```
+
+`BindingHeader`はvisibility、target pattern、optional exact equalsまでを所有する。`BindingBody`は`=`後に
+branchが存在する場合だけ作り、inline trivia + chainまたはone `IndentedStatementBlock`を持つ。
+bodyなしbindingにempty `BindingBody`を作らない。`=`をacceptしたがbodyがmissingの場合は`BindingBody`を開き、
+mandatory slot位置へzero-width `Missing`を置いて閉じる。
+
+`Statement` wrapperはnested sequence / inline-Withにおけるitem occurrence ownerである。root full parseは既決通り
+`BindingStatement` / `UseDeclaration`を`Root`直下に置き、追加の`Statement` wrapperを作らない。
+この差はchild declaration shapeの差ではなく、root loopとnested sequenceのcontainer ownership差である。
+
+既存WithBodyTail addendumのinline CST例どおり、inline bodyも`WithBodyTail > Statement > selected child`にする。
+direct-CST implementationはinline Withで`parse_direct_operator_chain`を直接呼ぶcurrent shortcutを廃止し、
+sequenceと同じcanonical statement commit entryを呼ぶ。if / case / catchのinline arm bodyは既決通り
+`OperatorChain` ownerであり、本追補によってdeclaration statementへ変えない。それらのindented bodyだけが
+shared sequence経由でexpanded Statementを受け取る。
+
+trivia ownershipは次で固定する。
+
+1. visibilityとPatternの間、Patternとaccepted `=`の間のinline triviaは`BindingHeader`直下。
+2. optional `=` probeが不成立なら、probeしたtriviaをrollbackし、outer statement separator / containerへ返す。
+3. `=`後のinline triviaは`BindingBody`直下。indented branchのopening triviaはexisting
+   `IndentedStatementBlock`の先頭childとして一度だけemitする。
+4. statement終端newline、outer semicolon / comma、matching close、dedent-leading triviaはbinding / useへ入れない。
+5. `Statement.range`とwrapper extentはselected childのsemantic extentと同じで、separator triviaを含めない。
+
+### Parser-side surface AST
+
+valid / locally recovered surface ASTを次で固定する。
+
+```rust
+pub(crate) enum Statement<'source> {
+    Expression(OperatorChain<'source>),
+    Binding(BindingDeclaration<'source>),
+    Use(UseDeclaration<'source>),
+}
+
+pub(crate) struct BindingDeclaration<'source> {
+    visibility: Visibility,
+    target: Recovered<Pattern<'source>>,
+    definition: Option<BindingDefinition<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct BindingDefinition<'source> {
+    equals: Range<usize>,
+    body: Recovered<BindingBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum BindingBody<'source> {
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`Visibility::Private`はbindingではliteral `my`、`Our`は`our`、`Public`は`pub`に一対一で対応する。
+bindingにはvisibility prefix absenceがない。`UseDeclaration`では既決通りprefix absenceとexplicit `my`の
+semantic visibilityはどちらもPrivateだが、range / CST tokenがsource spellingを保持する。
+
+`definition: None`はvalid bodyなしbinding、`Some { body: Incomplete }`は`=`をsourceでacceptしたがbodyを
+recoverできなかったbindingであり、両者を潰さない。target missing後もaccepted binding authorityとrecovery rangeを
+AST上で保持できるよう`target`を`Recovered`にする。outer `Vec<Recovered<Statement>>`の`Incomplete`は、
+starterすら選べずstatement item全体を構築できないepisodeに残す。
+
+`BindingDeclaration.range`はVisibilityKw.startから、definitionなしならlast committed target / target recovery episode、
+definitionありならbody / body recovery episodeのendまでである。`BindingDefinition.range`はEquals.startから
+body episode endまで。separatorとdedentは含めない。
+
+direct-CST pathはCSTからこのASTを再構築しない。root / nested callerがsemantic ASTを必要とするpathでは同じscannerと
+continuationから同時に値を作り、direct full CSTだけのpathではcheckpoint / range metadata carrierを使ってよい。
+observable field distinctionとrecovery identityは両pathで一致させる。
+
+### Root declarationとのrelationship and nested `use` semantics
+
+root `Declaration::{Binding, Use}`とnested `Statement::{Binding, Use}`は同じ`BindingDeclaration` /
+`UseDeclaration` AST型、同じ`BindingStatement` / `UseDeclaration` CST node kind、同じcontinuationを共有する。
+root/nested用に型、node、recovery tableをforkしない。
+
+差はcaller authorityだけである。
+
+| caller | wrapper / side effect |
+| --- | --- |
+| header discovery | existing source-leading `UseDeclaration`だけをheader factへprojectする。bindingはheaderを終了させる |
+| full root loop | declaration nodeを`Root`直下へemitし、complete root useだけを既決のheader parity / projection対象にする |
+| nested Statement owner | `Statement` wrapper内へsame declaration nodeをemitする。syntax parse中に`HeaderInfo`、immutable `OperatorTable`、source-leading import setを変更しない |
+
+nested `use`のlexical import scope、module resolution、visibility export semanticsはsyntax tree shapeから分離した
+name-resolution / HIR ownerが決める。本追補はnested useをheader factへ昇格させず、逆にroot-only semantic assumptionを
+理由にsyntaxを拒否しない。Yulang2がroot / nestedで同じparserを使ったsource acceptanceとCST factを再現しつつ、
+Yulang3のtwo-phase immutable syntax environmentを壊さない境界である。このsemantic phase boundaryは
+implementationをblockするopen questionではない。
+
+### Statement recognition and dispatch authority
+
+Yulang2の`parse_statement`はcode上`parse_expr_from_nud`を先に呼ぶが、直前の`scan_stmt_head_nud`がreserved
+statement headを`Stop`として分類するため、そのkeywordをordinary identifier expressionとしてconsumeしてから
+declarationへbacktrackするわけではない。Yulang3も同じobservable judgeをsink-free exact-word probeで表す。
+
+canonical statement entryの順序を次で固定する。
+
+1. caller-owned EOF、dedent、matching close、separator後のvalid trailing boundary、if companion stop等を先に判定し、
+   boundaryをconsumeしない。
+2. current positionのmaximal `scan_word`をsink-freeにprobeする。`my` / `our` / `pub`ならvisibility-led branch、
+   bare exact `use`ならUse branchのauthorityを得る。`myx` / `our_value` / `useful`をsplitしない。
+3. visibility-led branchはfollowing `Gbind`とnext maximal wordをprobeする。scope内のspecified declaration headが
+   `use`で、existing contextual-use candidateを満たす場合はUse。future declaration headとして下で列挙したwordが
+   owner固有candidateを満たす場合は本sliceのBindingへ吸収せず、reserved-unimplemented statementとしてouter recoveryへ渡す。
+   それ以外はBindingをacceptする。
+4. declaration branchがacceptされなければ、same positionからordinary `OperatorChain` NUD judgeへfall throughする。
+5.どのcandidateもなければcaller-specific statement recoveryへ渡す。
+
+Yulang2 / current Y3のcontextual collisionを次で固定する。
+
+| source head | classification |
+| --- | --- |
+| `use path` | Use |
+| `my use path` | explicit-private Use |
+| `our use path` / `pub use path` | visibility-prefixed Use |
+| `my use = value` | Binding whose Pattern begins with identifier `use` |
+| `my lazy = value` / `my infix = value` | Binding in this slice。future operator-definition ownerと混同しない |
+| `our name ...` / `pub name ...` | Binding unless the following word is `use` or a reserved future declaration head with its own candidate |
+| any non-reserved maximal word | Expression |
+
+`my use`のUse / Binding判定はexisting contextual candidate rule、すなわち`use`後にvalid UseTree starterが
+sink-freeに見える場合だけUseにする。`=`やowner boundaryならbinding target `use`へrollbackする。
+`our` / `pub`後の`use`はYulang2のvisibility scannerと同じくUse authorityを持つ。
+
+starter accept後はcutし、mandatory target / use tree / accepted definition bodyのrecoveryまでtotal continuationにする。
+probe中にCST / diagnostic sinkへ書かない。AST pathとdirect-CST pathは同じintro classification resultを使う。
+
+### Delimiter, stop, and statement-owner scope
+
+binding targetをparseする間だけ、incoming current-depth stop setへ`StopKind::Equal`を追加する。
+outer comma、semicolon、matching close、Arrow、arm guard / companion stop等は消さない。nested pattern delimiterへ入った
+outer stopはexisting delimiter stack ruleでsuspendし、nested default expressionの`=`をouter bindingへ漏らさない。
+
+binding inline bodyはincoming statement ownerのstop / delimiterを継承する。indented bodyはexisting block scopeをpushし、
+`inline = false`、`ml_arg = false`、indentation baseline、stop setをnormal / recovery全exit pathでexact restoreする。
+
+root-hard-coded newline / semicolon scannerをnested continuationへcopyしない。declaration continuationへcallerの
+typed owner-boundary queryを渡す。conceptual ownerは次のclosed familyである。
+
+```rust
+enum CanonicalStatementOwner {
+    Root,
+    Indented(StatementSequencePolicy),
+    Braced(StatementSequencePolicy),
+    InlineWith,
+}
+```
+
+concrete enum placementや`StatementSequencePolicy` referenceの持ち方はcurrent module splitへ合わせてよい。
+ただしrecovery helperがraw character listや「rootから呼ばれたか」のbooleanで境界を再実装してはならない。
+owner queryはcurrent lexical depthで次を返す。
+
+- EOF。
+- current ownerが保持するsemicolon / comma。
+- matching close。
+- indented ownerのequal-or-shallower newline / dedent、companion stop。
+- inline Withへ返すouter comma / close / newline。
+
+boundaryはdeclaration recoveryがconsumeしない。statement sequence / root / With ownerが一度だけcommitする。
+
+### Typed recovery contract
+
+binding vocabularyを次へ拡張する。
+
+```text
+GrammarRole::Declaration(DeclarationRole::Binding(
+    BindingRole::{Target, Body, IndentedStatement}
+))
+
+ExpectedSyntax::Pattern
+ExpectedSyntax::Expression
+ExpectedSyntax::Statement
+```
+
+`BindingRole::Name`は`Target`へ、`Value`は`Body`へsupersedeする。bodyなしdefinitionがvalidなので、
+optional exact `=`のabsence自体にrecoveryは作らない。旧`DefinitionIntroducer`もbindingではretireする。
+`==`等のlonger spellingはoptional equalsのmalformed mandatory slotではなく、binding完了後のordinary trailing input / future
+operator territoryであり、lone EqualsへのMissing / Errorをbinding ownerが作らない。
+
+Useはexisting `DeclarationRole::Import(ImportRole::{Path,GroupEntry,Alias})`、layout role、closing delimiter roleを
+そのまま使う。nested/rootでdiagnostic identityを変えない。
+
+#### Binding recovery table
+
+| source situation | recovery / continuation |
+| --- | --- |
+| `my` / `our` / `pub` + EOF or owner boundary | target位置へzero-width `Missing(Target: Pattern)`一件。boundaryをconsumeしない |
+| visibility後のsame-lineまたはdeeper `Gbind` + valid Pattern NUD | normal target parse。sourceにないwhitespaceを要求しない |
+| visibility後のequal-or-shallower newline | target位置へzero-width `Missing(Target)`一件。trivia / next statementをouterへ返す |
+| target slotのinvalid run後にvalid Pattern NUD | maximal non-empty `Error(Target)`一件、same-slot retry |
+| target slotのinvalid runがexact `=` / owner boundaryまで続く | maximal non-empty `Error(Target)`一件をrecovered slotとし、同じcauseのMissingを追加しない。`=`はbody branchがconsumeできる |
+| exact `=`がtarget前にある | targetのzero-width `Missing`一件を置き、同じ`=`をbinding headerがconsumeしてbodyへ進む |
+| complete target後にexact `=`なし | valid bodyなしbinding。equals / body recoveryなし |
+| exact `=` + EOF / semicolon / comma / matching close | `BindingBody`内へzero-width `Missing(Body: Expression)`一件。boundaryをconsumeしない |
+| exact `=` + equal-or-shallower newline | post-equals trivia probeをrollbackし、equals直後へzero-width `Missing(Body)`。newline / next statementをouterへ返す |
+| exact `=` + inline invalid run後にvalid expression NUD | maximal non-empty `Error(Body)`一件、same-slotからOperatorChain retry |
+| exact `=` + inline invalid runがowner boundaryまで続く | maximal non-empty `Error(Body)`一件をrecovered slotとし、同じcauseのMissingを追加しない |
+| exact `=` + deeper newline but empty / malformed first block statement | existing non-empty IndentedStatementBlock recoveryを`IndentedStatement` roleで一件commit |
+| body内nested binding / use malformed | inner declaration ownerが一件commitし、outer binding body / sequenceはduplicateしない |
+| target / body中のnested delimiter | nested delimiter ownerがclose / separatorを所有し、outer binding recoveryは中のbyteへ同期しない |
+
+`=`とbodyが同じEOF / owner-boundary causeから両方欠落したように見えても、definitionはoptionalなので
+equals Missingを作らず、bodyなしbindingとして閉じる。literal `=`がsourceにある場合だけbody Missingを作る。
+このruleによりone causeからtwo mandatory-slot Missingsをcascadeさせない。
+
+#### Use recovery in nested owners
+
+existing use recovery tableを維持し、root boundaryだけをtyped caller boundaryへ一般化する。
+
+| source situation | recovery / continuation |
+| --- | --- |
+| accepted `use`後にpathなし | zero-width `Missing(ImportRole::Path)`、owner boundaryをconsumeしない |
+| malformed path / suffix後にlocal valid use candidate | maximal non-empty existing Import Error、same-slot retry |
+| group separator後itemなし | group-owned zero-width Missing。outer statement separatorと混同しない |
+| missing / mismatched nested use-group close | use group ownerがrecoverし、outer brace statement closeをnested closeへ流用しない |
+| use declaration完了後にsame-line next Statement candidate、separatorなし | declarationを閉じ、shared sequence coreがzero-width `Missing(StatementSeparator)`を置いてsame-position retry |
+
+all recoveryで`Missing`はzero-width、`Error`はnon-empty maximal run、one committed recovery record = one recovery node、
+`green.to_string() == source`、node balance、scope exact restoreを満たす。
+
+### Interaction with existing Statement consumers
+
+expanded canonical entryを次の全siteから共有する。
+
+| owner | effect |
+| --- | --- |
+| ColonApplicationTail indented RHS | binding / useをordinary block siblingとしてaccept。inline colon argumentsはOperatorChain listのまま |
+| IfExpression indented arm | binding / useをaccept。inline arm OperatorChainは変更なし |
+| CaseExpression / CatchExpression indented arm body | binding / useをaccept。pattern / guard / arrow ownerは変更なし |
+| BracedStatementBlockExpression | binding / useをstatement itemとしてacceptし、comma / semicolon / newline separatorをbrace ownerが保持 |
+| WithBodyTail inline | exactly one Statementとしてexpression / binding / useをacceptし、optional terminal semicolon ownershipを維持 |
+| WithBodyTail indented | binding / useをzero-or-moreではなくexisting non-empty statement sequenceのitemとしてaccept |
+| BindingBody indented |同じcanonical Statementへ再帰する |
+
+各consumerにdeclaration-specific分岐を追加しない。`parse_canonical_statement` /
+`recognize_canonical_statement` / `commit_canonical_statement`相当のshared entryだけをstatement-sequence coreと
+inline Withが呼ぶ。
+
+### Explicit scope boundary
+
+本追補は次のnested statement formを設計・実装しない。
+
+- `mod` declaration。
+- `type` declaration。
+- `struct` declaration。
+- `enum` declaration。
+- `error` declaration。
+- `role` declaration。
+- `impl` declaration。
+- `cast` declaration。
+- `act` declaration。
+- `for` statement。
+- `lazy` / `prefix` / `infix` / `suffix` / `nullfix` operator definitions。
+- `where` clause statement。
+- doc-comment declaration。
+
+これらのexact wordを本追補のBinding / Use branchへ吸収したり、empty placeholder nodeを作ったりしない。
+future addendumはcanonical `Statement` enumへowner固有variantを追加し、同じshared statement sequenceへ接続する。
+
+次も本追補のscope外である。
+
+- pattern type annotation、constructor/call/field/path/ML-application等、canonical Pattern自体のfuture surface。
+- nested useのname-resolution scope、import shadowing、export、module loading、HIR semantics。
+- binding destructuring semantics、visibility semantics、body result / recursive scope、lowering。
+- declaration-companion `with:`、derives、method attachment。
+- root header discoveryのaccepted family拡張。nested binding / useをsource-leading header factへ推測昇格しない。
+
+### Explicit Yulang2 divergences
+
+本追補の意図的または一時的な差を次で固定する。
+
+1. Yulang2のCSTは`Binding`直下に`BindingHeader`とoptional `BindingBody`を置いた。本追補は同じsemantic splitを
+   `BindingStatement > BindingHeader / BindingBody`として表し、Yulang3既存node名`BindingStatement`を維持する。
+2. Yulang2はfull statement dispatcherに本追補でdeferした全declaration / control familyを持った。Yulang3は
+   binding + useだけをacceptするfirst expansionであり、残りのexact statement wordsのsource acceptanceは未達である。
+3. binding targetはcanonical Y3 Patternのcurrent surfaceに限られる。Yulang2 fixture `our f x = x`のML-application
+   patternなどはPattern ownerのfuture expansionまで未達だが、binding専用ad-hoc parserで埋めない。
+4. Yulang2 parserはroot / nested useをsyntax上同一に扱った。本追補もCST / ASTを同一にするが、Yulang3の
+   source-leading header fact projectionはroot/header callerだけに残す。nested lexical import semanticsは後段へdeferする。
+5. Yulang2のgeneric InvalidToken / empty invalid recoveryを、Yulang3のtyped zero-width Missing / non-empty Error、
+   owner-safe retryへ置き換える。valid source acceptanceを狭める差ではない。
+6. Yulang2のtrivia-bearing Lex emissionを再現せず、BindingHeader / BindingBody / StatementSequenceのnearest-owner
+   trivia ruleを使う。lossless byte orderは維持する。
+
+### Implementation boundary and gates
+
+最初のimplementation sliceはcanonical Statementの三variant、shared AST/direct-CST dispatch、expanded binding、
+nested use wiring、typed recovery、全existing statement owner fixtureを含む。HIR / resolver変更は含めない。
+
+implementation gateを次で固定する。
+
+1. AST / direct-CSTが同じsink-free statement intro classificationを使い、`my` / `our` / `pub` / `use`の
+   exact maximal word authorityとexpression fallbackが一致する。
+2. valid bodyなしbinding、inline expression body、strict deeper multi-statement bodyを三shapeとして固定する。
+3. identifier、parenthesized、list、record、alias、alternationをbinding targetのcanonical Patternとしてacceptし、
+   exact `=`をnested default / longer spellingから誤ってclaimしない。
+4. `my use = value`はBinding、`my use path` / `our use path` / `pub use path`はUseになる。
+5. rootとnestedでBindingStatement / UseDeclaration child shape、AST value、range、recovery identityが一致し、
+   差はnested `Statement` wrapperとroot-only header projectionだけである。
+6. colon / if / case / catch indented body、braced block、With inline / indented body、nested binding bodyの全siteで
+   binding / useをacceptする。inline expression-only arm / colon-argument grammarは変えない。
+7. statement separator、dedent、matching close、companion stop、outer commaをdeclaration recoveryがconsumeしない。
+8. binding target / body、use path / group / suffixのrecovery tableをMissing zero-width、Error non-empty、
+   one node = one record、same-slot retryで固定する。
+9. bodyなしbindingへMissing Equals / Bodyを作らず、literal equals後のmissing bodyだけを一件recoverする。
+10. nested binding/use後のsame-line missing statement separator、newline / semicolon / comma separator、terminal separatorを
+    shared sequence coreが従来どおり所有する。
+11. Pattern Equal stop、indentation baseline、inline / ml_arg、delimiter / stop stackをnormal / recovery全exit pathでexact restoreする。
+12. BP-only operator table changeでbinding target CST、statement dispatch、Use CSTは変わらず、binding inline / block内
+    OperatorChainだけが同じflat source item列を維持する。
+13. all fixturesでAST/direct parity、lossless round trip、node balance、no sink call during probe、no CST replayを満たす。
+14. deferred `mod` / type-family / impl-family / for / operator / where / doc-comment nodeを本sliceで生成しない。
+
+### Closed decisions and review focus
+
+本追補でsyntax implementationをblockするopen questionはない。次を確定する。
+
+- canonical StatementはExpression / Binding / Useのclosed sumへなる。
+- binding visibilityは`my` / `our` / `pub`、targetはcanonical Pattern、definitionはoptional exact `=` + mandatory bodyである。
+- binding bodyはinline OperatorChainまたはstrict deeper non-empty IndentedStatementBlockである。
+- root / nested declarationはsame child CST / AST / continuationを共有し、nested occurrenceだけStatement wrapperを持つ。
+- nested useはsyntax上validだがheader factへprojectせず、semantic lexical import scopeはfuture resolver authorityである。
+- declaration continuationはtyped caller boundaryへ同期し、root-specific newline scannerをnested blockへcopyしない。
+- 他のYulang2 statement familyとfuture Pattern surfaceは明示的future scopeである。
+
+Claude reviewでは、特にoptional bodyなしbinding、`my use` contextual split、BindingHeader / BindingBody追加による
+旧root production supersession、nested useのheader projection禁止、inline Withのcanonical Statement wrapper、
+Pattern Equal stopとouter statement boundaryのexact restoreを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、canonical Statement binding / use declaration拡張追補案）。
