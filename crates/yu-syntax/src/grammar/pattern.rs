@@ -27,7 +27,8 @@ use crate::{
     },
     session::{
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, Probe, RecoveryKind,
+        ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind,
+        LayoutDelimitedBoundary, LayoutDelimitedFrame, PatternRole, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
     },
@@ -431,14 +432,18 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::List;
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
     push_pattern_delimited_scope(policy, i);
-    consume_trivia(i);
+    let opening_trivia = consume_trivia(i);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
+    push_pattern_layout_baseline(layout, i);
     let (items, trailing_comma, close) =
-        parse_pattern_delimited_items_ast(policy, i, parse_list_item_ast);
+        parse_pattern_delimited_items_ast(policy, layout, i, parse_list_item_ast);
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
+    pop_pattern_layout_baseline(layout, i);
     pop_pattern_delimited_scope(policy, i);
     ListPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
 }
@@ -495,9 +500,12 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let policy = PatternDelimitedPolicy::Parenthesized;
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
     push_pattern_delimited_scope(policy, i);
-    consume_trivia(i);
-    let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(policy, i, |i| {
+    let opening_trivia = consume_trivia(i);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening_trivia, i.local.line().line_indent);
+    push_pattern_layout_baseline(layout, i);
+    let (elements, trailing_comma, close) = parse_pattern_delimited_items_ast(policy, layout, i, |i| {
         i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
             .map_or(Recovered::Incomplete, Recovered::Complete)
     });
@@ -505,6 +513,7 @@ where
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
+    pop_pattern_layout_baseline(layout, i);
     pop_pattern_delimited_scope(policy, i);
     ParenthesizedPattern {
         open: open.clone(),
@@ -519,6 +528,7 @@ where
 /// containers.  The caller keeps ownership of its item grammar and AST shape.
 fn parse_pattern_delimited_items_ast<'source, E, Item>(
     policy: PatternDelimitedPolicy,
+    layout: LayoutDelimitedFrame,
     i: &mut SynIn<'_, 'source, '_, E>,
     mut parse_item: impl FnMut(&mut SynIn<'_, 'source, '_, E>) -> Recovered<Item>,
 ) -> (
@@ -538,7 +548,7 @@ where
     } else {
         loop {
             items.push(parse_item(i));
-            consume_trivia(i);
+            let trivia = consume_trivia(i);
             if let Some(comma) = i.run(recognize_comma) {
                 consume_trivia(i);
                 if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
@@ -549,6 +559,9 @@ where
             }
             if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
                 break Recovered::Complete(close);
+            }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
+                continue;
             }
             if policy.ast_next_item_pending(i) {
                 continue;
@@ -942,6 +955,29 @@ where
     assert_eq!(i.local.pop_stop_set(), Some(policy.stop_set()));
 }
 
+fn push_pattern_layout_baseline<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: layout.base_indent(),
+        kind: IndentationBaselineKind::Introducer,
+    });
+}
+
+fn pop_pattern_layout_baseline<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: layout.base_indent(),
+            kind: IndentationBaselineKind::Introducer,
+        })
+    );
+}
+
 fn parse_direct_pattern_bp<'parse, 'source, 'local, E, O>(
     minimum: PatternPrecedence,
     primary_role: PatternRole,
@@ -1150,12 +1186,15 @@ fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
 {
     let policy = PatternDelimitedPolicy::List;
     let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     committed.start_node(SyntaxKind::ListPattern);
     committed.token(SyntaxKind::LBracket, open);
     committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
     let initial = consume_direct_trivia(committed);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(policy, outer_stops, committed);
+    commit_direct_pattern_delimited_items(policy, layout, outer_stops, committed);
 }
 
 fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
@@ -1192,18 +1231,22 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
 {
     let policy = PatternDelimitedPolicy::Parenthesized;
     let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
     committed.start_node(SyntaxKind::ParenthesizedPattern);
     committed.token(SyntaxKind::LParen, open);
     committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
     let initial = consume_direct_trivia(committed);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &initial, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_pattern_layout_baseline(layout, probe.input()));
     committed.emit_trivia(&initial);
-    commit_direct_pattern_delimited_items(policy, outer_stops, committed);
+    commit_direct_pattern_delimited_items(policy, layout, outer_stops, committed);
 }
 
 /// Runs the comma/close/retry control flow shared by parenthesized and list
 /// patterns.  The policy selects the item grammar and its recovery boundary.
 fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
+    layout: LayoutDelimitedFrame,
     outer_stops: StopSet,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -1213,7 +1256,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     if direct_pattern_delimited_close(policy, committed) {
-        finish_pattern_delimited_scope(policy, committed);
+        finish_pattern_delimited_scope(policy, layout, committed);
         return;
     }
 
@@ -1226,14 +1269,17 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
             let trivia = consume_direct_trivia(committed);
             committed.emit_trivia(&trivia);
             if direct_pattern_delimited_close(policy, committed) {
-                finish_pattern_delimited_scope(policy, committed);
+                finish_pattern_delimited_scope(policy, layout, committed);
                 return;
             }
             continue;
         }
         if direct_pattern_delimited_close(policy, committed) {
-            finish_pattern_delimited_scope(policy, committed);
+            finish_pattern_delimited_scope(policy, layout, committed);
             return;
+        }
+        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline {
+            continue;
         }
         if direct_pattern_delimited_item_pending(policy, committed) {
             emit_pattern_missing(
@@ -1246,7 +1292,7 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
         if recover_pattern_delimited_separator_or_close(policy, outer_stops, committed) {
             continue;
         }
-        finish_pattern_delimited_scope(policy, committed);
+        finish_pattern_delimited_scope(policy, layout, committed);
         return;
     }
 }
@@ -1608,11 +1654,13 @@ where
 
 fn finish_pattern_delimited_scope<'parse, 'source, 'local, E, O>(
     policy: PatternDelimitedPolicy,
+    layout: LayoutDelimitedFrame,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
+    committed.probe(|probe| pop_pattern_layout_baseline(layout, probe.input()));
     committed.probe(|probe| pop_pattern_delimited_scope(policy, probe.input()));
     committed.finish_node();
 }
@@ -1843,13 +1891,15 @@ mod tests {
     }
 
     #[test]
-    fn parenthesized_patterns_are_uniform_and_comma_only() {
-        for (source, elements, trailing) in [
-            ("()", 0, false),
-            ("(a)", 1, false),
-            ("(a,)", 1, true),
-            ("(a,b)", 2, false),
-            ("(a,b,)", 2, true),
+    fn parenthesized_patterns_accept_comma_or_layout_newline_boundaries() {
+        for (source, elements, commas) in [
+            ("()", 0, 0),
+            ("(a)", 1, 0),
+            ("(a,)", 1, 1),
+            ("(a,b)", 2, 1),
+            ("(a,b,)", 2, 2),
+            ("(a\nb)", 2, 0),
+            ("(\n  a\n  b\n)", 2, 0),
         ] {
             let root = parse_direct(source);
             let group = root
@@ -1869,26 +1919,26 @@ mod tests {
                     .children_with_tokens()
                     .filter(|item| item.kind() == SyntaxKind::Comma)
                     .count(),
-                usize::from(trailing) + elements.saturating_sub(1),
+                commas,
                 "{source:?}"
             );
         }
-        let (_, recoveries) = parse_direct_recovered("(a\nb)");
-        assert!(
-            recoveries.iter().any(|record| record.site.role
-                == GrammarRole::Pattern(PatternRole::ParenthesizedSeparator))
-        );
+        let (root, recoveries) = parse_direct_recovered("(a\nb)");
+        assert_eq!(root.to_string(), "(a\nb)");
+        assert!(recoveries.is_empty());
     }
 
     #[test]
-    fn list_patterns_are_uniform_comma_delimited_and_keep_spread_items() {
-        for (source, items, trailing) in [
-            ("[]", 0, false),
-            ("[a]", 1, false),
-            ("[a,]", 1, true),
-            ("[a,b]", 2, false),
-            ("[a,b,]", 2, true),
-            ("[a,\n b]", 2, false),
+    fn list_patterns_accept_comma_or_layout_newline_and_keep_spread_items() {
+        for (source, items, commas) in [
+            ("[]", 0, 0),
+            ("[a]", 1, 0),
+            ("[a,]", 1, 1),
+            ("[a,b]", 2, 1),
+            ("[a,b,]", 2, 2),
+            ("[a,\n b]", 2, 1),
+            ("[a\nb]", 2, 0),
+            ("[\n  head\n  ..middle\n  tail\n]", 3, 0),
         ] {
             let root = parse_direct(source);
             let list = root
@@ -1896,13 +1946,18 @@ mod tests {
                 .find(|node| node.kind() == SyntaxKind::ListPattern)
                 .expect("list");
             assert_eq!(
-                list.children().filter(|node| node.kind() == SyntaxKind::Pattern).count(),
+                list
+                    .children()
+                    .filter(|node| {
+                        matches!(node.kind(), SyntaxKind::Pattern | SyntaxKind::ListPatternSpreadItem)
+                    })
+                    .count(),
                 items,
                 "{source:?}"
             );
             assert_eq!(
                 list.children_with_tokens().filter(|item| item.kind() == SyntaxKind::Comma).count(),
-                items.saturating_sub(1) + usize::from(trailing),
+                commas,
                 "{source:?}"
             );
         }

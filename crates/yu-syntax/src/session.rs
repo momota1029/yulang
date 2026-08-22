@@ -9,6 +9,66 @@ use crate::{
     scan::trivia::TriviaRun, sink::RowanSink, syntax_kind::SyntaxKind,
 };
 
+/// One delimiter-owned layout boundary frame.
+///
+/// The base is fixed immediately after the opener's maximal trivia run.  It
+/// is intentionally independent of the first item so nested containers and
+/// recovery cannot accidentally recalculate it from later source.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct LayoutDelimitedFrame {
+    base_indent: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LayoutDelimitedBoundary {
+    ImplicitNewline,
+    DeeperNewline,
+    None,
+}
+
+impl LayoutDelimitedFrame {
+    pub(crate) fn after_opening_trivia(
+        incoming_base: usize,
+        trivia: &TriviaRun,
+        following_indent: usize,
+    ) -> Self {
+        let base_indent = if trivia_has_physical_newline(trivia) && following_indent > incoming_base {
+            following_indent
+        } else {
+            incoming_base
+        };
+        Self { base_indent }
+    }
+
+    pub(crate) fn inline(incoming_base: usize) -> Self {
+        Self { base_indent: incoming_base }
+    }
+
+    pub(crate) fn base_indent(self) -> usize {
+        self.base_indent
+    }
+
+    pub(crate) fn boundary_after_trivia(
+        self,
+        trivia: &TriviaRun,
+        following_indent: usize,
+    ) -> LayoutDelimitedBoundary {
+        if !trivia_has_physical_newline(trivia) {
+            LayoutDelimitedBoundary::None
+        } else if following_indent <= self.base_indent {
+            LayoutDelimitedBoundary::ImplicitNewline
+        } else {
+            LayoutDelimitedBoundary::DeeperNewline
+        }
+    }
+}
+
+fn trivia_has_physical_newline(trivia: &TriviaRun) -> bool {
+    trivia.parts().iter().any(|part| {
+        matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline)
+    })
+}
+
 pub(crate) type SynIn<'a, 'source, 'b, E> = In<'a, SourceInput<'source>, (), &'b mut ParseLocal, E>;
 
 /// The chasa input made available to shared grammar recognition.

@@ -23,7 +23,7 @@ use crate::{
         BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
-        RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
+        LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
@@ -350,8 +350,15 @@ where
             }
             NudRecognition::Parenthesized { open } => {
                 i.cut();
+                let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
                 push_parenthesized_expression_scope(&mut i);
-                consume_trivia(&mut i).expect("trivia scanning is total");
+                let opening_trivia = consume_trivia(&mut i).expect("trivia scanning is total");
+                let layout = LayoutDelimitedFrame::after_opening_trivia(
+                    incoming_base,
+                    &opening_trivia,
+                    i.local.line().line_indent,
+                );
+                push_layout_delimited_baseline(layout, &mut i);
                 let mut elements = Vec::new();
                 let mut trailing_comma = None;
                 let close = if let Some(close) = i.run(recognize_parenthesized_close) {
@@ -359,17 +366,26 @@ where
                 } else {
                     loop {
                         elements.push(i.run(from_fn(|i| parse_operator_chain(table, i)))?);
-                        consume_trivia(&mut i).expect("trivia scanning is total");
-                        let Some(comma) = i.run(recognize_parenthesized_comma) else {
-                            break i.run(recognize_parenthesized_close)?;
-                        };
-                        consume_trivia(&mut i).expect("trivia scanning is total");
+                        let trivia = consume_trivia(&mut i).expect("trivia scanning is total");
+                        if let Some(comma) = i.run(recognize_parenthesized_comma) {
+                            consume_trivia(&mut i).expect("trivia scanning is total");
+                            if let Some(close) = i.run(recognize_parenthesized_close) {
+                                trailing_comma = Some(comma);
+                                break close;
+                            }
+                            continue;
+                        }
                         if let Some(close) = i.run(recognize_parenthesized_close) {
-                            trailing_comma = Some(comma);
                             break close;
+                        }
+                        match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
+                            LayoutDelimitedBoundary::ImplicitNewline => continue,
+                            LayoutDelimitedBoundary::DeeperNewline => break i.run(recognize_parenthesized_close)?,
+                            LayoutDelimitedBoundary::None => break i.run(recognize_parenthesized_close)?,
                         }
                     }
                 };
+                pop_layout_delimited_baseline(layout, &mut i);
                 pop_parenthesized_expression_scope(&mut i);
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
                     elements, trailing_comma, range: open.start..close.end,
@@ -428,8 +444,8 @@ where
                     (Recovered::Incomplete, colon.colon.end)
                 }
                 ColonApplicationRhsRecognition::Inline { .. } => {
-                    let outer_owns_comma = active_stop_set(&i).contains(StopKind::Comma);
-                    let arguments = if outer_owns_comma {
+                    let outer_owns_sequence = outer_owns_inline_argument_sequence(&i);
+                    let arguments = if outer_owns_sequence {
                         vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)]
                     } else {
                         let stop_set = active_stop_set(&i).with(StopKind::Comma);
@@ -568,6 +584,11 @@ enum ColonApplicationRhsRecognition {
     WrongIndent,
 }
 
+enum InlineColonSeparator {
+    Comma { leading: TriviaRun, comma: Range<usize>, trailing: TriviaRun },
+    Newline(TriviaRun),
+}
+
 fn parse_inline_colon_arguments<'source, E>(
     table: &OperatorTable,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -577,15 +598,26 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let layout = LayoutDelimitedFrame::inline(
+        i.local.indentation_baseline().map_or(0, |baseline| baseline.column),
+    );
     let mut arguments = vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)];
     loop {
+        let checkpoint = i.checkpoint();
         let trivia = consume_trivia(i)?;
-        let Some(_) = i.run(recognize_parenthesized_comma) else {
-            return Some(arguments);
-        };
-        consume_trivia(i)?;
-        arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
-        let _ = trivia;
+        if i.run(recognize_parenthesized_comma).is_some() {
+            consume_trivia(i)?;
+            arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
+            continue;
+        }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+            == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
+            continue;
+        }
+        i.rollback(checkpoint);
+        return Some(arguments);
     }
 }
 
@@ -651,6 +683,15 @@ where
     E: ErrorSink<usize>,
 {
     i.local.stop_set().unwrap_or_default()
+}
+
+/// An outer comma sequence owns both comma and qualifying-newline boundaries.
+/// A colon tail therefore makes one ownership decision before its inline loop.
+fn outer_owns_inline_argument_sequence<E>(i: &SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+{
+    active_stop_set(i).contains(StopKind::Comma)
 }
 
 fn trivia_continues_chain<E>(trivia: &TriviaRun, i: &SynIn<E>) -> bool
@@ -1394,10 +1435,10 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
         ),
         ColonApplicationRhsRecognition::Inline { trivia } => {
             committed.emit_trivia(&trivia);
-            let outer_owns_comma = committed.probe(|probe| {
-                active_stop_set(probe.input()).contains(StopKind::Comma)
+            let outer_owns_sequence = committed.probe(|probe| {
+                outer_owns_inline_argument_sequence(probe.input())
             });
-            if outer_owns_comma {
+            if outer_owns_sequence {
                 commit_colon_inline_argument(
                     table,
                     leading_trivia(&trivia),
@@ -1405,6 +1446,9 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                     committed,
                 );
             } else {
+                let layout = committed.probe(|probe| LayoutDelimitedFrame::inline(
+                    probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column),
+                ));
                 let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
                 committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
                 commit_colon_inline_argument(
@@ -1414,17 +1458,47 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                     committed,
                 );
 
-                while let Some(comma) = commit_parenthesized_comma(committed) {
-                    committed.token(SyntaxKind::Comma, comma);
-                    let leading = commit_parenthesized_trivia(committed)
-                        .expect("trivia scanning is total");
-                    committed.emit_trivia(&leading);
-                    commit_colon_inline_argument(
-                        table,
-                        leading_trivia(&leading),
-                        ColonApplicationRole::InlineArgument,
-                        committed,
-                    );
+                while let Some(separator) = committed.probe(|probe| {
+                    let i = probe.input();
+                    let checkpoint = i.checkpoint();
+                    let leading = consume_trivia(i).expect("trivia scanning is total");
+                    if let Some(comma) = i.run(recognize_parenthesized_comma) {
+                        return Some(InlineColonSeparator::Comma {
+                            leading,
+                            comma,
+                            trailing: consume_trivia(i).expect("trivia scanning is total"),
+                        });
+                    }
+                    if layout.boundary_after_trivia(&leading, i.local.line().line_indent)
+                        == LayoutDelimitedBoundary::ImplicitNewline
+                    {
+                        return Some(InlineColonSeparator::Newline(leading));
+                    }
+                    i.rollback(checkpoint);
+                    None
+                }) {
+                    match separator {
+                        InlineColonSeparator::Comma { leading, comma, trailing } => {
+                            committed.emit_trivia(&leading);
+                            committed.token(SyntaxKind::Comma, comma);
+                            committed.emit_trivia(&trailing);
+                            commit_colon_inline_argument(
+                                table,
+                                leading_trivia(&trailing),
+                                ColonApplicationRole::InlineArgument,
+                                committed,
+                            );
+                        }
+                        InlineColonSeparator::Newline(trivia) => {
+                            committed.emit_trivia(&trivia);
+                            commit_colon_inline_argument(
+                                table,
+                                LeadingTrivia::None,
+                                ColonApplicationRole::InlineArgument,
+                                committed,
+                            );
+                        }
+                    }
                 }
                 committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
             }
@@ -2898,9 +2972,20 @@ where
 {
     committed.start_node(SyntaxKind::ParenthesizedExpression);
     committed.token(SyntaxKind::LParen, open.clone());
+    let incoming_base = committed.probe(|probe| {
+        probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column)
+    });
     push_direct_parenthesized_expression_scope(committed);
 
     let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming_base,
+            &leading,
+            probe.input().local.line().line_indent,
+        )
+    });
+    committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     committed.emit_trivia(&leading);
     let mut delayed_initial_element_missing = None;
 
@@ -2917,19 +3002,34 @@ where
             }
         }
 
-        while let Some(comma) = commit_parenthesized_comma(committed) {
-            committed.token(SyntaxKind::Comma, comma);
-            let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
-            committed.emit_trivia(&leading);
+        loop {
+            let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+            committed.emit_trivia(&trivia);
+            if let Some(comma) = commit_parenthesized_comma(committed) {
+                committed.token(SyntaxKind::Comma, comma);
+                let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+                committed.emit_trivia(&leading);
+                if parenthesized_close_pending(committed) {
+                    break;
+                }
+                if commit_parenthesized_element(table, leading_trivia(&leading), committed).is_none() {
+                    emit_expression_missing(committed);
+                }
+                continue;
+            }
             if parenthesized_close_pending(committed) {
                 break;
             }
-
-            let element =
-                commit_parenthesized_element(table, leading_trivia(&leading), committed);
-            if element.is_none() {
-                emit_expression_missing(committed);
+            let boundary = committed.probe(|probe| {
+                layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+            });
+            if boundary == LayoutDelimitedBoundary::ImplicitNewline {
+                if commit_parenthesized_element(table, LeadingTrivia::None, committed).is_none() {
+                    emit_expression_missing(committed);
+                }
+                continue;
             }
+            break;
         }
     }
 
@@ -2937,6 +3037,7 @@ where
     match close {
         ParenthesizedClose::Matched(range) => {
             committed.token(SyntaxKind::RParen, range.clone());
+            committed.probe(|probe| pop_layout_delimited_baseline(layout, probe.input()));
             pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
             Some(())
@@ -2947,6 +3048,7 @@ where
             } else {
                 emit_parenthesized_close_missing(committed, at);
             }
+            committed.probe(|probe| pop_layout_delimited_baseline(layout, probe.input()));
             pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
             Some(())
@@ -3774,6 +3876,29 @@ where
     );
 }
 
+fn push_layout_delimited_baseline<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: layout.base_indent(),
+        kind: IndentationBaselineKind::Introducer,
+    });
+}
+
+fn pop_layout_delimited_baseline<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: layout.base_indent(),
+            kind: IndentationBaselineKind::Introducer,
+        })
+    );
+}
+
 fn push_direct_parenthesized_expression_scope<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
@@ -3872,6 +3997,70 @@ mod tests {
             assert_eq!(*trailing_comma, expected_trailing_comma, "{source:?}");
             assert_eq!(*range, expected_range, "{source:?}");
         }
+    }
+
+    #[test]
+    fn parenthesized_layout_boundaries_preserve_ast_direct_shape_and_trivia() {
+        for (source, element_count, trailing_comma, literal_commas) in [
+            ("(a\nb)", 2, None, 0),
+            ("(a,\nb\nc)", 3, None, 1),
+            ("(a\n)", 1, None, 0),
+            ("(a,\nb)", 2, None, 1),
+        ] {
+            let chain = parse(source, &canonical_operator_table());
+            let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+                elements,
+                trailing_comma: actual_trailing_comma,
+                ..
+            })] = chain.items()
+            else {
+                panic!("expected a parenthesized expression for {source:?}");
+            };
+            assert_eq!(elements.len(), element_count, "{source:?}");
+            assert_eq!(*actual_trailing_comma, trailing_comma, "{source:?}");
+
+            let root = parse_direct(source, &canonical_operator_table());
+            let outer = only_child(&root, SyntaxKind::OperatorChain);
+            let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
+            assert_eq!(group.to_string(), source, "{source:?}");
+            assert_eq!(
+                group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(),
+                element_count,
+                "{source:?}"
+            );
+            assert_eq!(
+                group.children_with_tokens().filter(|child| child.kind() == SyntaxKind::Comma).count(),
+                literal_commas,
+                "{source:?}"
+            );
+            assert!(!group.descendants().any(|node| node.kind() == SyntaxKind::Missing));
+        }
+
+        let source = "(a\nb)";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse(source, &low), parse(source, &high));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn parenthesized_layout_keeps_deeper_newlines_and_same_line_recovery_local() {
+        let (root, recoveries) = parse_direct_recovered("(a\n  b)", &canonical_operator_table());
+        let outer = only_child(&root, SyntaxKind::OperatorChain);
+        let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
+        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
+        assert!(!recoveries.is_empty());
+
+        let (root, recoveries) = parse_direct_recovered("(a b)", &canonical_operator_table());
+        assert_eq!(root.to_string(), "(a b)");
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ExpressionGroup,
+                    delimiter: Delimiter::Parenthesis,
+                } && site.range == (3..4)
+        ));
     }
 
     #[test]
@@ -4216,6 +4405,77 @@ mod tests {
                 SyntaxKind::OperatorChain,
             ]
         );
+    }
+
+    #[test]
+    fn colon_inline_newline_arguments_have_ast_direct_and_bp_parity() {
+        let source = "f: a\nb";
+        let chain = parse(source, &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(_)),
+                OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                    ColonApplicationTail {
+                        rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                        ..
+                    }
+                )),
+            ] if arguments.len() == 2
+        ));
+
+        let root = parse_direct(source, &canonical_operator_table());
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("colon tail");
+        assert_eq!(tail.to_string(), ": a\nb");
+        assert_eq!(tail.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
+        assert_eq!(root.to_string(), source);
+
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse(source, &low), parse(source, &high));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn outer_parenthesized_sequence_owns_colon_newline_boundary() {
+        let source = "(f: a\nb)";
+        let chain = parse(source, &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. })] = chain.items()
+        else {
+            panic!("expected parenthesized expression");
+        };
+        assert_eq!(elements.len(), 2);
+        let [
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    ..
+                }
+            )),
+        ] = elements[0].items()
+        else {
+            panic!("expected colon tail in first outer element");
+        };
+        assert_eq!(arguments.len(), 1);
+
+        let root = parse_direct(source, &canonical_operator_table());
+        let outer = only_child(&root, SyntaxKind::OperatorChain);
+        let group = only_child(&outer, SyntaxKind::ParenthesizedExpression);
+        let elements = group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+            .collect::<Vec<_>>();
+        assert_eq!(elements.len(), 2);
+        let tail = elements[0]
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("first outer element owns the colon tail");
+        assert!(!tail.children_with_tokens().any(|child| child.kind() == SyntaxKind::Newline));
+        assert_eq!(group.to_string(), source);
     }
 
     #[test]
