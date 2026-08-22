@@ -145,9 +145,11 @@ pub(crate) struct ParseLocal {
     indentation_baselines: RollbackStack<IndentationBaseline>,
     inline: bool,
     ml_arg: bool,
+    type_ml_arg: bool,
     stop_sets: RollbackStack<StopSet>,
     delimiters: RollbackStack<Delimiter>,
     expression_delimited_owners: RollbackStack<ExpressionDelimitedOwner>,
+    type_delimited_owners: RollbackStack<TypeDelimitedOwner>,
     lexical_modes: RollbackStack<EmbeddedLexicalMode>,
     staged_header_facts: Vec<StagedHeaderFact>,
     operator_probes: Vec<OperatorCandidateProbe>,
@@ -163,9 +165,11 @@ impl ParseLocal {
             indentation_baselines: RollbackStack::new(),
             inline: false,
             ml_arg: false,
+            type_ml_arg: false,
             stop_sets: RollbackStack::new(),
             delimiters: RollbackStack::new(),
             expression_delimited_owners: RollbackStack::new(),
+            type_delimited_owners: RollbackStack::new(),
             lexical_modes: RollbackStack::new(),
             staged_header_facts: Vec::new(),
             operator_probes: Vec::new(),
@@ -194,9 +198,11 @@ impl ParseLocal {
             indentation_baselines: self.indentation_baselines.checkpoint(),
             inline: self.inline,
             ml_arg: self.ml_arg,
+            type_ml_arg: self.type_ml_arg,
             stop_sets: self.stop_sets.checkpoint(),
             delimiters: self.delimiters.checkpoint(),
             expression_delimited_owners: self.expression_delimited_owners.checkpoint(),
+            type_delimited_owners: self.type_delimited_owners.checkpoint(),
             lexical_modes: self.lexical_modes.checkpoint(),
             staged_header_facts_len: self.staged_header_facts.len(),
             operator_probes_len: self.operator_probes.len(),
@@ -211,10 +217,13 @@ impl ParseLocal {
             .rollback(checkpoint.indentation_baselines);
         self.inline = checkpoint.inline;
         self.ml_arg = checkpoint.ml_arg;
+        self.type_ml_arg = checkpoint.type_ml_arg;
         self.stop_sets.rollback(checkpoint.stop_sets);
         self.delimiters.rollback(checkpoint.delimiters);
         self.expression_delimited_owners
             .rollback(checkpoint.expression_delimited_owners);
+        self.type_delimited_owners
+            .rollback(checkpoint.type_delimited_owners);
         self.lexical_modes.rollback(checkpoint.lexical_modes);
         self.staged_header_facts
             .truncate(checkpoint.staged_header_facts_len);
@@ -261,6 +270,14 @@ impl ParseLocal {
         self.ml_arg
     }
 
+    pub(crate) fn set_type_ml_arg(&mut self, type_ml_arg: bool) {
+        self.type_ml_arg = type_ml_arg;
+    }
+
+    pub(crate) fn type_ml_arg(&self) -> bool {
+        self.type_ml_arg
+    }
+
     pub(crate) fn push_stop_set(&mut self, stop_set: StopSet) {
         self.stop_sets.push(stop_set);
     }
@@ -299,6 +316,18 @@ impl ParseLocal {
 
     pub(crate) fn expression_delimited_owner(&self) -> Option<ExpressionDelimitedOwner> {
         self.expression_delimited_owners.last().copied()
+    }
+
+    pub(crate) fn push_type_delimited_owner(&mut self, owner: TypeDelimitedOwner) {
+        self.type_delimited_owners.push(owner);
+    }
+
+    pub(crate) fn pop_type_delimited_owner(&mut self) -> Option<TypeDelimitedOwner> {
+        self.type_delimited_owners.pop()
+    }
+
+    pub(crate) fn type_delimited_owner(&self) -> Option<TypeDelimitedOwner> {
+        self.type_delimited_owners.last().copied()
     }
 
     pub(crate) fn push_lexical_mode(&mut self, mode: EmbeddedLexicalMode) {
@@ -385,9 +414,11 @@ pub(crate) struct ParseLocalCheckpoint {
     indentation_baselines: StackCheckpoint,
     inline: bool,
     ml_arg: bool,
+    type_ml_arg: bool,
     stop_sets: StackCheckpoint,
     delimiters: StackCheckpoint,
     expression_delimited_owners: StackCheckpoint,
+    type_delimited_owners: StackCheckpoint,
     lexical_modes: StackCheckpoint,
     staged_header_facts_len: usize,
     operator_probes_len: usize,
@@ -470,6 +501,13 @@ pub(crate) enum ExpressionDelimitedOwner {
     Index,
     ProjectionTuple,
     ProjectionRecord,
+}
+
+/// The type-list owner that authorizes ML type application within one item.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TypeDelimitedOwner {
+    Call,
+    ParenthesizedGroup,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -656,6 +694,8 @@ pub(crate) enum ConstructRole {
     ParenthesizedPattern,
     ListPattern,
     RecordPattern,
+    TypeCall,
+    ParenthesizedTypeGroup,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -739,7 +779,14 @@ pub(crate) enum PatternRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum TypeRole {
-    Type,
+    Primary,
+    PathSegment,
+    CallArgument,
+    CallArgumentSeparator,
+    ApplyArgument,
+    ArrowRhs,
+    ParenthesizedItem,
+    ParenthesizedSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -826,6 +873,8 @@ pub(crate) enum ExpectedSyntax {
     Path,
     Expression,
     Pattern,
+    TypeExpression,
+    TypePathSegment,
     Statement,
     StatementSeparator,
     OperatorName,
