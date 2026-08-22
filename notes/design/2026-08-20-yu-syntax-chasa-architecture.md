@@ -12151,3 +12151,715 @@ visibility-led `mod`とBindingのcollision、missing name / body no-cascade、mi
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Statement / root Declaration `mod` declaration追補案）。
+
+## 追補案: standalone foundational `TypeExpression` core grammar
+
+Status: Claude review反映済み、ユーザ承認待ち（2026-08-23）。
+
+### Scope and authority
+
+本追補は、Yulang3 / `yu-syntax`にまだ存在しないtype-expression grammarの独立ownerを
+初めて定義する。実装対象は次のcore surfaceに限定する。
+
+- identifier / sigil identifier / numeric atomによるtype reference。
+- `::`によるpath qualification。
+- no-leading-trivia `(`によるadjacent `TypeCallTail`。
+- non-empty triviaによるML-style `TypeApplyArgument`。
+- fixedかつright-associativeな`->`。
+- parenthesized / tuple-like type group。
+
+`for`によるforall / universal quantifier、named record type、polymorphic variant type、effect row type、
+bracket-row typeは本追補のauthorityに含めない。これらは本追補の末尾で
+named-but-unspecified future ownerとして明示する。
+
+本grammarは`expression.rs`の`OperatorChain`やdynamic `OperatorTable`を内部で呼ばない。
+`Pattern`がexpression grammarから独立したfixed-precedence grammarであるのと同じく、
+`TypeExpression`はown primary / fixed-tail loop / stop contract / recovery roleを持つ。将来の
+struct field、enum payload、cast / role / where / act signature、pattern annotationはこのcanonical
+entry pointを呼ぶが、それらuse-siteへのwiring自体は本追補では設計しない。
+
+### Yulang2 oracle facts
+
+Yulang2のtype parserは`crates/parser/src/typ/{parse,scan}.rs`にあり、expressionのdynamic
+operator tableとは別のfixed tail loopであった。`parse_type_from_nud`はprimary後に
+arrow / path / call / row / ML applyを固定順序でscanし、user-declared binding powerを照会しない
+（`yulang2-oracle:crates/parser/src/typ/parse.rs:194-340`）。
+
+- primary atomはcontextual identifier、sigil identifier、numberであり、`for`のみがtype NUDで
+  special authorityを持った（`typ/scan.rs:35-63`）。
+- parenthesized groupは`TypeParenGroup`として独立NUDでparseされた
+  （`typ/parse.rs:36-44`）。
+- `::`は`PathSep`としてtail loop内で繰り返された
+  （`typ/parse.rs:225-278`）。
+- `(`はleading triviaが`TriviaInfo::None`のときだけ`TypeCall`になった
+  （`typ/scan.rs:106-121`、`typ/parse.rs:279-284`）。
+- whitespace applicationはone argumentごとにone `TypeApply`を作り、argument内のtype parserだけ
+  `ml_arg = true`で走らせた（`typ/parse.rs:320-338`、
+  `crates/parser/tests/type_grammar.rs:311-346`）。
+- arrowはRHSをfull type parserへ再帰した後にcurrent tail loopからreturnし、
+  `A -> B -> C`を`A -> (B -> C)`とした（`typ/parse.rs:211-224`、
+  `tests/type_grammar.rs:271-308`）。
+- type callとparenthesized groupのitem listはshared delimited machineを用い、comma、semicolon、
+  base-indent以下のimplicit newlineをseparatorにした（`typ/parse.rs:343-366,400-430`、
+  `crates/parser/src/parse/mod.rs:21-77`）。
+- ML argument内はnext tail前のnon-empty triviaでstopし、outer tail loopは
+  equal-or-shallower newlineでstop、deeper newlineをcontinuationとした
+  （`typ/parse.rs:194-340`）。
+
+oracleのpath RHSは`scan_typ_nud`の`Atom`をそのまま再利用しており、identifier / sigil
+identifierだけでなくnumberもsegmentとしてacceptし得た。これはfixtureで意図が
+固定されたpath surfaceではなく、primary-atom scannerの過広な再利用による。
+Yulang3は下記のようにprimaryのnumeric atomは保つが、`::`後はname-shaped segmentに限定する。
+
+### Architectural invariants
+
+1. `TypeExpression`はstandalone grammar ownerであり、`OperatorChain`のvariantではない。
+2. type syntaxにdynamic binding-power tableは存在しない。path / call / applyはfixed postfix、arrowは
+   unique fixed low-precedence terminal tailである。
+3. CSTはsource orderを保ち、path / call / applyをtarget-owned left-nested nodeに再構成しない。
+4. arrowのright associativityはprecedence-driven CST rewriteではなく、RHSのnested `TypeExpression`で表す。
+5. AST pathとdirect-CST pathは同sink-free recognition、layout classification、cut point、recovery siteを用いる。
+6. optional probeはinput / sink / delimiter / stop / layout / type-ML scopeを変更しない。authorityを
+   acceptした後だけtotal parse / recoveryへcutする。
+
+### Authoritative surface grammar
+
+```text
+TypeExpression :=
+    TypePrimary
+    { TypeTightTail | TypeApplyArgument }
+    [ TypeArrowTail ]
+
+TypePrimary :=
+    TypeAtom
+  | ParenthesizedTypeGroup
+
+TypeAtom :=
+    Identifier
+  | SigilIdentifier
+  | Number
+
+TypeTightTail :=
+    TypePathTail
+  | TypeCallTail
+
+TypePathTail :=
+    TypeChainTrivia ColonColon TypeChainTrivia TypePathSegment
+
+TypePathSegment :=
+    Identifier
+  | SigilIdentifier
+
+TypeCallTail :=
+    LParen OpeningTrivia
+    [
+        TypeExpression
+        { TypeDelimitedSeparator TypeExpression }
+        [ TypeDelimitedSeparator ]
+    ]
+    RParen
+
+TypeApplyArgument :=
+    TypeApplyBoundary TypeExpressionInTypeMlScope
+
+TypeApplyBoundary :=
+    NonEmptyTriviaWithoutPhysicalNewline
+  | NonEmptyTriviaWithDeeperFollowingIndent
+
+TypeArrowTail :=
+    TypeChainTrivia Arrow TypeChainTrivia TypeExpression
+
+TypeChainTrivia :=
+    EmptyTrivia
+  | SameLineTrivia
+  | TriviaWithDeeperFollowingIndent
+
+ParenthesizedTypeGroup :=
+    LParen OpeningTrivia
+    [
+        TypeExpression
+        { TypeDelimitedSeparator TypeExpression }
+        [ TypeDelimitedSeparator ]
+    ]
+    RParen
+
+TypeDelimitedSeparator :=
+    ExplicitTypeSeparatorBoundary
+  | ImplicitNewlineBoundary(type_delimited_base)
+
+ExplicitTypeSeparatorBoundary :=
+    CommaBoundary
+  | SemicolonBoundary
+```
+
+`Number`はYulang2のatomic type surfaceを保つ。ただしnumberは`TypePathSegment`ではない。
+`A::123`はvalid pathにせず、`::`が既にauthorityを得たならtyped malformed / missing segment
+recoveryの対象にする。
+
+`TypeExpression` grammar自体は先頭 / 末尾triviaを無制限に所有しない。callerまたは
+enclosing delimited ownerがcandidate開始前triviaをclassifyし、accepted primaryからrangeが始まる。
+path separator前のtriviaは後述のchain-continuation ruleを満たすときだけcurrent typeに属する。
+`TypeChainTrivia`は一回のmaximal trivia clusterをclassifyした結果であり、unbounded `G*`ではない。
+physical newlineがactive baseline以下ならproductionに渡さず、tail judgeまたはaccepted punctuation後の
+mandatory-slot recoveryがそのnewline前で止まる。したがって`A\n::B`や`A ->\nB`のequal-or-shallower
+newlineをpath / arrowのtriviaとしてswallowしない。
+
+### CST vocabulary and shape
+
+次のkindをtype grammarのown vocabularyとして追加する。
+
+```text
+SyntaxKind::TypeExpression
+SyntaxKind::ParenthesizedTypeGroup
+SyntaxKind::TypePathTail
+SyntaxKind::TypeCallTail
+SyntaxKind::TypeApplyArgument
+SyntaxKind::TypeArrowTail
+```
+
+generic `TypeTail`、`TypePrimary`、`TypeArgumentList`というredundant CST wrapperは作らない。
+primary atom tokenは`TypeExpression`直下、parenthesized primaryは`ParenthesizedTypeGroup`、fixed continuationは
+source orderの直接childになる。
+
+```text
+List(Int)::Result Arg -> Out -> Final
+
+TypeExpression
+  Identifier "List"
+  TypeCallTail
+    LParen
+    TypeExpression
+      Identifier "Int"
+    RParen
+  TypePathTail
+    ColonColon
+    Identifier "Result"
+  TypeApplyArgument
+    Whitespace " "
+    TypeExpression
+      Identifier "Arg"
+  TypeArrowTail
+    Whitespace " "
+    Arrow
+    Whitespace " "
+    TypeExpression
+      Identifier "Out"
+      TypeArrowTail
+        Whitespace " "
+        Arrow
+        Whitespace " "
+        TypeExpression
+          Identifier "Final"
+```
+
+delimited-sequence separatorのliteral comma / semicolonとそのboundaryに属するall raw triviaは
+containerの直下にsource orderで一度だけemitする。
+implicit newlineにempty `Separator`、synthetic comma / semicolon、source-absent wrapperをemitしない。
+Missingはzero-width `Missing`、malformed bytesはnon-empty `Error`であり、どちらもone node =
+one committed recovery recordを保つ。
+
+`TypeApplyBoundary`のmaximal trivia clusterは`TypeApplyArgument`のfirst CST childである。
+`TypeApplyArgument` rangeはそのboundary triviaのfirst byteからnested `TypeExpression`のendまでを含む。
+上のworked exampleはspaceをTypeApply / Arrow ownerの直下にすべて示しており、sourceの
+every byteがexactly one CST homeを持つ。arrow前後の`TypeChainTrivia`は`TypeArrowTail`直下である。
+
+`ParenthesizedTypeGroup`のone-element grouping / tuple classificationにはliteral trailing separatorが意味を持つ。
+`(A)`はone grouped type、`(A,)`と`(A;)`はone-element tuple-like group、`(A, B)`はmultiple groupである。
+qualifying trailing implicit newlineはvalid sequence terminatorだがexplicit trailing separatorではなく、one-element
+groupをtuple-like shapeに変えない。
+
+### Parser-side surface AST
+
+parser-side ASTは次のshapeを持つ。lifetime / `Range<usize>` / `Recovered<T>`の記法は
+existing `Pattern`、`OperatorChain`、delimited-tail AST conventionに合わせる。
+
+```rust
+pub struct TypeExpression<'source> {
+    pub primary: TypePrimary<'source>,
+    pub postfix: Vec<TypePostfixTail<'source>>,
+    pub arrow: Option<TypeArrowTail<'source>>,
+    pub range: Range<usize>,
+}
+
+pub enum TypePrimary<'source> {
+    Atom(TypeAtom<'source>),
+    Parenthesized(ParenthesizedTypeGroup<'source>),
+}
+
+pub enum TypeAtom<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+    Number(TypeNumberAtom<'source>),
+}
+
+pub struct TypeNumberAtom<'source> {
+    pub text: &'source str,
+    pub range: Range<usize>,
+}
+
+pub enum TypePostfixTail<'source> {
+    Path(TypePathTail<'source>),
+    Call(TypeCallTail<'source>),
+    Apply(TypeApplyArgument<'source>),
+}
+
+pub struct TypePathTail<'source> {
+    pub separator: Range<usize>,
+    pub segment: Recovered<TypePathSegment<'source>>,
+    pub range: Range<usize>,
+}
+
+pub enum TypePathSegment<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+}
+
+pub struct TypeCallTail<'source> {
+    pub open: Range<usize>,
+    pub arguments: Vec<Recovered<TypeExpression<'source>>>,
+    pub close: Recovered<Range<usize>>,
+    pub range: Range<usize>,
+}
+
+pub struct TypeApplyArgument<'source> {
+    pub boundary: Range<usize>,
+    pub argument: Box<TypeExpression<'source>>,
+    pub range: Range<usize>,
+}
+
+pub struct TypeArrowTail<'source> {
+    pub arrow: Range<usize>,
+    pub rhs: Recovered<Box<TypeExpression<'source>>>,
+    pub range: Range<usize>,
+}
+
+pub struct ParenthesizedTypeGroup<'source> {
+    pub open: Range<usize>,
+    pub elements: Vec<Recovered<TypeExpression<'source>>>,
+    pub trailing_explicit_separator: Option<TypeExplicitSeparator>,
+    pub close: Recovered<Range<usize>>,
+    pub range: Range<usize>,
+}
+
+pub enum TypeExplicitSeparator {
+    Comma(Range<usize>),
+    Semicolon(Range<usize>),
+}
+```
+
+`TypeNumberAtom`はtype grammarのparser-side valueであり、expression用`IntegerLiteral`をASTとして
+importしない。decimal scannerのmechanicsだけはshared lexical primitiveへ切り出して再利用してよい。
+`TypeCallTail.open / close`と`ParenthesizedTypeGroup.open / close`はexisting Call / Index / Pattern
+delimited AST conventionと同じslotである。missing / mismatched close recovery tableの
+`ClosingDelimiter(TypeCall)` / `ClosingDelimiter(ParenthesizedTypeGroup)` recordはそれぞれの
+`close: Recovered<Range<usize>>`に対応する。
+
+`TypeApplyArgument.boundary`はaccept済みmaximal `TypeApplyBoundary` triviaのexact rangeである。
+ASTでもこのfieldがboundary ownershipとsource rangeを保持し、`argument`はtriviaの後に始まる。
+`TypeCallTail`はseparatorをsemantic ASTに保持しない。groupのみ、one-element grouping / tuple-like
+classificationに必要なfinal literal separatorを保持する。all separator bytesはCSTに常に残る。
+`TypeApplyArgument.argument`はrecognition前のshared primary candidate probeが成功したときだけ作られるため、
+outer slotとして`Recovered` wrapped missing argumentを持たない。accepted nested primary後のrecoveryは
+nested `TypeExpression`のown rolesで表す。
+
+### Fixed precedence and right-associative arrow
+
+precedenceは次のfixed structural layersである。数値binding powerもdeclaration-time operator tableも存在しない。
+
+```text
+tightest inside one no-trivia type segment:
+    TypePrimary, then adjacent TypePathTail / TypeCallTail
+next:
+    TypeApplyArgument, one argument per sibling tail
+outer-continuing postfix:
+    trivia-separated TypePathTail after a completed ML argument
+loosest:
+    TypeArrowTail, at most one at the current TypeExpression level
+```
+
+pathの「tightest」はno-trivia pathがcurrent ML argument内で先に所有されることを指す。
+trivia-separated `::`は`type_ml_arg`のnon-empty-trivia stopを越えない。その場合はouter typeの
+completed apply chainに対するpathになる。これは単一のnumerical precedence表ではなく、adjacencyと
+typed ML scopeで決まるfixed structural precedenceである。
+
+arrowをacceptした後はRHSをcanonical full `TypeExpression`でparseし、current levelのtail loopを終了する。
+したがって次を固定する。
+
+```text
+A -> B -> C       == A -> (B -> C)
+F A -> B          == (F A) -> B
+F A->B            == F (A -> B)
+F A::B            == F (A::B)
+F A ::B           == (F A)::B
+List(A)::Out -> B == (List(A)::Out) -> B
+```
+
+middle four examplesはML scopeのtrivia stopから導かれる。`F A -> B`のnested ML argument parserは
+arrow前spaceでstopし、outer type tailがarrowを受け取る。`F A->B`はargument内のarrow前に
+triviaがないためnested typeがそれを所有する。この決定はYulang2の`ml_arg` stopを
+surface invariantとして保存する。
+
+Yulang2にapply + path専用fixtureはないが、oracleのtail loopは`ml_arg && leading_info != None`を
+LED scanより先に判定する（`yulang2-oracle:crates/parser/src/typ/parse.rs:194-206`）。そのため
+`F A::B`は`A`後triviaがemptyでnested argumentがpathを所有し、`F A ::B`は`A`後spaceで
+nested argumentが終了した後にouter typeがpathを所有する。Yulang3もこのboundaryを固定する。
+
+### Tail judge order and TypeCall / TypeApply adjacency
+
+operand-complete type tail judgeを次の順序で固定する。
+
+1. current lexical depthのactive owner stop、matching delimiter、type-delimited implicit newline、
+   equal-or-shallower statement / caller newlineを先に判定し、そのboundaryをconsumeしない。
+2. leading triviaがemptyなら、exact `->`、adjacent `(`、exact `::`の順にprobeする。
+   accept後はそれぞれArrow / Call / Path authorityへcutする。これにより`type_ml_arg`内でも
+   `A->B`、`A(B)`、`A::B`はcurrent nested argumentに残る。
+3. current type parseが`type_ml_arg`であり、next tail candidate前triviaがnon-emptyならnested
+   typeをその位置で終了する。このstopはtrivia-separated arrow / pathをprobeする前である。
+4. `TypeChainTrivia`を満たすnon-empty trivia後のexact `->`をfixed terminal arrowとして
+   probeし、accept後はcutする。
+5. `TypeChainTrivia`を満たすnon-empty trivia後のexact `::`を`TypePathTail`として
+   acceptしcutする。
+6. non-empty triviaがTypeApply boundary tableを満たし、その後にshared TypePrimary NUD
+   candidateがあるときだけ`TypeApplyArgument`をacceptする。
+7. 何もacceptしなければtrivia / tokenを所有せずcallerへreturnする。
+
+step 4 / 5の先行triviaは`TypeChainTrivia`であり、same-line trivia、comment、またはactive
+baselineよりstrictly deeperなnewlineだけをcurrent typeへ連結する。equal-or-shallower newlineは
+step 1でcallerへ返す。no-leading-trivia callはstep 2でのみ認識する。
+
+| source | classification |
+| --- | --- |
+| `List(Int)` | one adjacent `TypeCallTail` |
+| `List (Int)` | one `TypeApplyArgument`、argument primaryは`ParenthesizedTypeGroup` |
+| `List/*c*/(Int)` | one `TypeApplyArgument`、commentはapply boundary |
+| `Dict String Int` | sibling `TypeApplyArgument(String)` / `TypeApplyArgument(Int)` |
+| `F A::B` | one Apply whose nested argument owns `TypePathTail(B)` |
+| `F A ::B` | one Apply followed by outer sibling `TypePathTail(B)` |
+| root-base-0のdeep newline | `List` + one deeper-newline `TypeApplyArgument(Int)` |
+| root-base-0のequal newline | `List`でtype終了、newline / `Int`はcaller-owned |
+| `List(Int)(String)::Out` | sibling Call / Call / Path tails |
+
+`with` / dynamic operatorのようなexpression-specific candidateはTypePrimary candidateに含めない。
+in-scope shared candidateはIdentifier、SigilIdentifier、Number、`(`である。将来のforall / record /
+variant / row primaryは、それぞれのaddendumがcanonical TypePrimary candidateに追加する。
+
+### Type ML scope and layout composition
+
+`TypeApplyArgument`はown delimiter pairもown `LayoutDelimitedFrame`もpushしない。nested
+`TypeExpression`の間だけsession-local `type_ml_arg = true`をpushし、normal / recovery / rollbackの
+全exit pathでexact restoreする。expression用`ml_arg`と別のflag / typed scopeにし、一方の
+grammar entryが他方のstop ruleを漏らさない。
+
+type-delimited ownerは次のtyped frameを持つ。
+
+```text
+TypeDelimitedOwner := Call | ParenthesizedGroup
+```
+
+frameは`LayoutDelimitedFrame`のbase、delimiter depth、comma / semicolon / implicit-newline authorityと同期し、
+current lexical depthのML eligibilityとowner-safe separator / close queryを一箇所で答える。将来のnamed
+record / variant / row ownerを今回先回りでenumに追加しない。そのaddendumが新ownerとして追加する。
+
+root / non-delimited typeはnearest caller / block indentation baseline、なければ0を読む。
+TypeApplyのprospective newlineがcurrent top `LayoutDelimitedFrame` base以下ならcontainer separatorとして
+outer ownerへ返し、strictly deeperならtype continuationとしてeligibleになる。raw indentのad-hoc
+comparison、delimiter kindの推測、comma / newline別booleanを作らない。
+
+### Type-delimited call and parenthesized-group layout
+
+`TypeCallTail`と`ParenthesizedTypeGroup`はopener accept / cut後にopening triviaを一度consumeし、
+existing `LayoutDelimitedSequence`と同じ式でbaseをcaptureする。
+
+```text
+incoming_base := current lexical-depth indentation baseline, or 0
+type_delimited_base :=
+    if OpeningTrivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+item間boundaryは次のexhaustive classificationにする。
+
+1. current-depth literal commaまたはsemicolonがあればexplicit boundaryである。
+2. literal separatorがなく、physical newlineのfollowing indent `<= type_delimited_base`ならimplicit
+   newline boundaryである。
+3. following indent `> type_delimited_base`ならitem continuationであり、shared TypePrimaryが続くなら
+   current itemのTypeApplyになる。
+4. newlineもliteral separatorもなくvalid next-item candidateがある場合、そのcandidateがcurrent
+   itemのvalid TypeApply continuationにならないときだけzero-width missing separatorをemitし、
+   same-position retryする。
+
+comma / semicolonとnewlineが同じgapにあればliteral punctuationがone boundaryのauthorityを持ち、
+newline triviaを二重boundaryにしない。empty list / groupはvalidである。literal trailing comma /
+semicolonまたはqualifying trailing implicit newlineは、post-boundary trivia後にmatching closeが実在する
+ときだけvalid trailing boundaryである。matching closeよりEOF / owner boundaryが先ならmissing item
+である。repeated punctuationはmissing item recoveryである。
+
+### Typed recovery contract
+
+sessionに少なくとも次のtyped vocabularyを追加する。exact enum nestingは実装時のexisting
+`GrammarRole` / `ConstructRole` namingに合わせるが、こで定めるsemantic distinctionを畳まない。
+
+```text
+GrammarRole::Type(TypeRole::Primary)
+GrammarRole::Type(TypeRole::PathSegment)
+GrammarRole::Type(TypeRole::CallArgument)
+GrammarRole::Type(TypeRole::CallArgumentSeparator)
+GrammarRole::Type(TypeRole::ApplyArgument)
+GrammarRole::Type(TypeRole::ArrowRhs)
+GrammarRole::Type(TypeRole::ParenthesizedItem)
+GrammarRole::Type(TypeRole::ParenthesizedSeparator)
+
+ConstructRole::TypeCall
+ConstructRole::ParenthesizedTypeGroup
+
+ExpectedSyntax::TypeExpression
+ExpectedSyntax::TypePathSegment
+ExpectedSyntax::DelimitedSequenceSeparator
+```
+
+existing identifier / closing-delimiter expected vocabulary、`Delimiter::Parenthesis`、
+`RecoveryKind::{Missing, Error}`は再利用する。`TypePathSegment`のexpected vocabularyはidentifier /
+sigil-identifierの合取を表すため専用variantとする。
+
+recovery scannerは常にcurrent lexical depthのEOF、active stop、matching / mismatched close、comma、semicolon、
+qualifying newline、valid retry candidateをsafe pointとして止まる。outer punctuation / newline / closeを
+Error内へ取り込まない。AST / direct-CSTは同じsafe-point predicateを使う。
+
+#### Primary and path recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| optional standalone probeでTypePrimary candidateなし | no match、no diagnostic | same positionでcallerへreturn |
+| mandatory type slotでEOF / active owner boundary | zero-width `Missing(Type::Primary, TypeExpression)` one record | boundaryをconsumeせずcallerへreturn |
+| mandatory type slotでmalformed bytes後にvalid primary | maximal non-empty `Error(Type::Primary)` | valid primaryでsame-slot retry |
+| identifier / sigil / number primary | valid | fixed tail judgeへ |
+| `::` + valid identifier / sigil | valid `TypePathTail` | shared tail judgeへreturn |
+| `::` + EOF / owner boundary / next fixed-tail boundary | zero-width `Missing(Type::PathSegment, TypePathSegment)` inside tail | boundaryをconsumeせずtypetailをclose |
+| `::::Name` | first tailにzero-width Missing segment | second `::`をsame-position retryしnext `TypePathTail(Name)` |
+| `::` + malformed non-empty bytes + valid segment | maximal non-empty `Error(Type::PathSegment)` | valid segmentでsame-slot retry |
+| `::123` | non-empty `Error(Type::PathSegment)`; numberをvalid segmentにしない | owner-safe safe pointまでconsume |
+| lone `:` / longer non-`::` punctuation | no path authority | tokenをconsumeせずcaller / future ownerへ |
+
+mandatory slotのouter callerは、`Pattern`のcompletely-missing overrideと同じく、top-level primaryが一度も
+acceptされなかったtype recoveryだけをcaller-specific `GrammarRole`へoverrideできる。
+nested call / group / arrow / applyのinternal recovery roleはremapしない。
+
+#### TypeCallTail recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| `T()` | valid empty call | closeをCall ownerがconsume |
+| `T(A)` / `T(A,B)` / `T(A;B)` / qualifying newline list | valid | itemsはgeneral `TypeExpression` |
+| literal trailing comma / semicolon / qualifying implicit newline後にmatching `)`が実在 | valid trailing boundary | empty argumentを作らない |
+| leading comma / semicolon | zero-width `Missing(Type::CallArgument, TypeExpression)` | literal separatorをconsumeしnext slotへ |
+| repeated comma / semicolon | repeated boundaryごとにone zero-width Missing argument | current punctuationからsame-position sequence retry |
+| same-line valid next-item candidate without separator | zero-width `Missing(Type::CallArgumentSeparator, DelimitedSequenceSeparator)` | same positionでnext item retry |
+| same-line / deeper trivia + valid TypeApply candidate | no missing separator; current argumentのapply continuation | one argumentのまま |
+| malformed argument bytes後にvalid TypePrimary | maximal non-empty `Error(Type::CallArgument)` | valid primaryでsame-slot retry |
+| explicitまたはqualifying implicit separator後、matching `)`より先にEOF / owner boundary | trailing boundaryとしてはclassifyせずzero-width Missing argument one record | boundaryをconsumeしない。続けてdistinct close slotをmissing-close rowで処理 |
+| missing `)` at EOF / owner boundary | zero-width `Missing(ClosingDelimiter(TypeCall))` | owner boundaryをconsumeしない |
+| mismatched close | maximal non-empty `Error(ClosingDelimiter(TypeCall))` only when not outer-owned | matching `)` / outer safe pointへretry |
+| comma / semicolonとnewlineが同一gap | literal punctuation authorityのone boundary | duplicate Missing / itemなし |
+
+adjacent `(`がacceptされた時点でCall authorityはcutされる。missing closeで`(`を
+ParenthesizedTypeGroupへreinterpretしたり、triviaが後から見つかったことにしてTypeApplyへ変えたりしない。
+explicit separatorはpost-separator trivia後にmatching `)`を実際にprobeできたときだけtrailingになる。
+したがって`T(A,)`はvalid trailing separator、`T(A,` + EOFはmissing argumentであり、同じ
+separator episodeへ両rowを適用しない。後者のmissing closeはdistinct `close` slotの一件である。
+
+#### TypeApplyArgument recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| non-empty same-line trivia + shared primary candidate | accept one `TypeApplyArgument` | nested typeのみ`type_ml_arg` scope |
+| deeper newline + shared primary candidate | accept one argument | active baselineを更新しない |
+| equal-or-shallower newline | no apply authority | newline / candidateをcallerへreturn |
+| separator triviaの後にprimary candidateなし | no apply authority, no Missing argument | trivia / tokenをcallerへreturn |
+| separator後がEOF / owner boundary | no apply authority, no recovery | boundaryをconsumeしない |
+| accepted nested argument内のmalformed / missing site | nested type ownerのordinary typed recovery | outer Apply roleをduplicateしない |
+
+TypeApplyはtriviaだけでcutしない。sink-free shared TypePrimary candidate probeが成功したときだけ
+argument authorityを得る。したがって「Missing ApplyArgument」はordinary boundaryでは生じない。
+`TypeRole::ApplyArgument`はaccepted nested slotのouter recovery identityとfuture primaryの拡張に備えるが、
+no-candidate caseをsynthetic missingにしない。
+
+#### TypeArrowTail recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| exact `->` + valid RHS | accept terminal `TypeArrowTail` | RHSはfull canonical `TypeExpression` |
+| `->` + EOF / active owner boundary | zero-width `Missing(Type::ArrowRhs, TypeExpression)` | boundaryをconsumeせずcurrent typeをclose |
+| `->` + equal-or-shallower newline | zero-width Missing ArrowRhs | newline / next statementをouter ownerへreturn |
+| `->` + malformed bytes後にvalid TypePrimary | maximal non-empty `Error(Type::ArrowRhs)` | valid primaryでsame-slot retry |
+| longer / different punctuation (`-`, `-->`) | exact-arrow scannerがcomplete spellingをacceptしなければno authority | caller / malformed outer recoveryへ |
+| RHS内のanother `->` | nested RHSがown arrowをaccept | right-associative shape |
+
+literal arrowがacceptされた後はRHS mandatoryである。ただしcurrent callerが所有するequal-or-shallower
+newline / delimiter / stopをRHS recoveryが越えない。これはYulang2のuntyped scannerがnewline後の
+next atomをRHSとして読み得た動作からの意図的owner-safety差である。
+
+#### ParenthesizedTypeGroup recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| `()` | valid empty group | no recovery |
+| `(A)` | valid grouped type | no explicit trailing separator |
+| `(A,)` / `(A;)`（matching `)` present） | valid one-element tuple-like group | final literal separatorをASTに保持 |
+| `(A,B)` / `(A;B)` / implicit-newline list | valid multi-element group | general TypeExpression items |
+| qualifying trailing implicit newline後にmatching `)`が実在 | valid boundary | tuple-like classificationを変えない |
+| leading comma / semicolon | zero-width `Missing(Type::ParenthesizedItem, TypeExpression)` | separatorをconsumeしnext slotへ |
+| repeated comma / semicolon | repeated boundaryごとにone Missing item | same-position sequence retry |
+| explicitまたはqualifying implicit separator後、matching `)`より先にEOF / owner boundary | trailing boundaryにせずzero-width Missing item | 続けてdistinct `close` slotをmissing-close rowで処理 |
+| same-line valid next-item candidate without separator | zero-width `Missing(Type::ParenthesizedSeparator, DelimitedSequenceSeparator)` | same positionでnext item retry |
+| same-line / deeper trivia + valid TypeApply candidate | no Missing separator; current item continuation | one itemのまま |
+| malformed item bytes後にvalid TypePrimary | maximal non-empty `Error(Type::ParenthesizedItem)` | valid primaryでsame-slot retry |
+| missing `)` at EOF / owner boundary | zero-width `Missing(ClosingDelimiter(ParenthesizedTypeGroup))` | boundaryをconsumeしない |
+| mismatched close | maximal non-empty `Error(ClosingDelimiter(ParenthesizedTypeGroup))` only if not outer-owned | matching `)` / safe pointへretry |
+
+group openerがNUDとしてacceptされた後はcutされ、missing / mismatched closeでそのauthorityを取り消さない。
+AST / direct-CSTはleading / repeated separator、malformed Error retry、same-line missing separator、close retryで
+同じsafe-position predicateを用いる。
+
+### Standalone parser entry contract
+
+type grammarは将来callerに次の二段entryを提供する。正確なRust関数名は実装moduleの
+existing namingに合わせるが、AST / direct-CSTの契約は一つである。
+
+```text
+probe_type_expression_candidate(i) -> Option<TypePrimaryRecognition>
+
+parse_type_expression(i, TypeParseOptions) -> Recovered<TypeExpression>
+commit_direct_type_expression(i, TypeParseOptions) -> ParseStatus
+```
+
+`probe_type_expression_candidate`はsink-free / recovery-free / state-neutralである。mandatory slotを所有するcallerは
+`TypeParseOptions` equivalentで次だけを渡す。
+
+- current lexical depthでtype parseが尊重するactive stop / delimiter / indentation owner。
+- completely missing top-level typeのone recovery siteに対するoptional outer `GrammarRole` override。
+
+overrideはprimaryが一度もacceptされなかったoutermost missing siteだけに適用する。path / call /
+apply / arrow / parenthesized group内部のroleをcaller roleへ全体remapしない。overrideがなければ
+`GrammarRole::Type(TypeRole::Primary)`をdefaultにする。これはbinding targetがcanonical Pattern
+entryへouter roleを渡すexisting precedentと同じ限定されたmechanismである。
+
+standalone type entryは`&OperatorTable`を受け取らない。future callerがexpressionとtypeの両方を
+parseする場合も、operator tableはexpression / pattern default-expression側だけへ渡し、typeの
+shapeをoperator declarationで変化させない。
+
+### Interaction with future use sites
+
+本追補のimplementationはstandalone `TypeExpression` module / entryだけを作る。次のownerは将来の個別
+addendumで自分のintroducer / stop / missing-role authorityを定め、canonical type entryを呼ぶ。
+
+| future owner | expected integration boundary, not designed here |
+| --- | --- |
+| struct field | field-name後のcolon ownerがtype slotを所有 |
+| enum / error payload | variant-specific delimiter / payload ownerがtype slotを所有 |
+| cast declaration | `cast (pattern) :` ownerがtype slotとdefinition boundaryを所有 |
+| role / act signature | signature colon / declaration boundaryがtype slotを所有 |
+| where predicate | predicate間colonのleft / right type slotをwhere ownerが区別 |
+| pattern annotation | pattern grammarのcolon tail ownerがRHS type slotを所有 |
+
+type grammarのown `->`とcaller grammarのarrow / colon / equalを、文字列だけで区別しない。
+accepted lexical depth、active stop set、delimiter owner、callerが渡したmandatory-slot contextでauthorityを決める。
+それぞれのuse-site addendumがこのboundaryを明記するまでwiringしない。
+
+### Explicit deferred forms
+
+次のYulang2 type formsは存在を確認済みだが、本追補でgrammar / CST / AST / recoveryを
+設計しない。それぞれnamed-but-unspecified future authorityとする。
+
+1. forall / universal quantifier type: `for 'a 'b: T`
+   （`yulang2-oracle:crates/parser/src/typ/parse.rs:153-191`）。
+2. named record type: `{a: A, b: B}`。fieldはname + colon + mandatory typeでありshorthandではない
+   （`typ/parse.rs:368-377,443-494`）。
+3. polymorphic variant type: `:{A Int, B}`
+   （`typ/parse.rs:379-397,507-562`）。
+4. effect row type: `'[e]`等（`typ/parse.rs:53-79`）。
+5. bracket-row type: leading / trailing `[...]`がarrowと結びつくfamily
+   （`typ/parse.rs:80-146,285-319`）。
+
+Yulang2のtype tailにunion / intersection operatorはなく、`|`はこれらdeferred formでもない。
+本追補は`|`をhidden future operatorとして予約せず、ordinary no-match / caller-owned tokenとする。
+
+### Explicit Yulang2 divergences and architecture-local decisions
+
+1. Yulang2のimplicit newline separatorはempty `Separator` CST nodeをemitした。Yulang3はapproved
+   `LayoutDelimitedFrame`契約に合わせ、raw triviaだけを保持しsynthetic separatorを作らない。
+2. Yulang2のtype recoveryはgeneric empty / non-empty `InvalidToken`が中心で、type-specific tableを
+   持たなかった。Yulang3はtyped zero-width Missing、maximal non-empty Error、same-slot retry、
+   one node = one record、owner-safe boundaryに置き換える。
+3. Yulang2 path RHSはgeneric `Atom`を再利用したためnumberも読み得た。Yulang3はatomic
+   numeric typeは保つ一方、`TypePathSegment`をIdentifier / SigilIdentifierに限定する。
+   namespace-like path segmentのsemantic categoryをscanner accidentで広げないための意図的source acceptance差である。
+4. Yulang2 arrow RHS scannerはaccepted arrow後のequal-or-shallower newlineを越えてnext atomを
+   RHSにし得た。Yulang3はcurrent lexical-depth outer ownerの newline / stop / delimiterを優先し、
+   dangling arrowのMissing RHSをemitしboundaryを返す。
+5. Yulang2 CSTの`TypeParenGroup`、`TypeCall`、`TypeApply`、`PathSep`、`Arrow`のshapeは
+   historical generic-group wrapperに依存した。Yulang3はowning `TypeExpression`直下にtyped source-order
+   tail nodeを置き、redundant generic list wrapperやprecedence-driven left nestingを作らない。
+6. Yulang2の`ml_arg` / indentationはparser-local bool / raw indentであった。Yulang3は
+   `type_ml_arg`とtyped `TypeDelimitedOwner`をexpression scopeから分離し、existing layout baseline
+   stackとcomposeする。
+7. Yulang2はcurrent parse functionをuse-siteから直接呼び、completely missing typeのcaller roleを
+   区別しなかった。Yulang3はstandalone entryにone-site outer-role overrideを持ち、future
+   declaration / pattern ownerがtyped mandatory slotを記録できる。
+
+### Implementation boundary and gates
+
+first implementation sliceはstandalone `TypeExpression` module / entry、core CST / AST、type-specific session scope、
+typed recovery、AST/direct-CST parity fixtureだけを含む。declaration / pattern use-site wiringとdeferred primaryは含めない。
+
+implementation gateを次で固定する。
+
+1. `TypeExpression`は`OperatorTable`を受け取らず、operator tableのみを変えてもbyte-identical
+   CST / equal ASTを作る。
+2. Identifier / SigilIdentifier / Number primary、Identifier / SigilIdentifier path segmentを個別fixtureで
+   固定し、`A::123`をvalid pathにしない。
+3. `List(Int)` / `List (Int)` / comment-separated / same-line ML / deeper-newline ML /
+   equal-or-shallower stopのadjacency tableをAST / CST両方で固定する。
+4. `Dict String Int`をtwo sibling `TypeApplyArgument`にし、nested argumentのnon-empty-trivia stopを
+   exact restoreする。
+5. path / call / applyの混合chainがflat source-order siblingであり、dynamic BPでleft nestingしない。
+6. `A -> B -> C`のright association、`F A -> B`対`F A->B`、`F A::B`対`F A ::B`の
+   scope-sensitive shapeを固定する。
+7. empty / one / one-trailing-comma / one-trailing-semicolon / multiple / comma / semicolon / implicit-newline /
+   mixed-boundary parenthesized groupを固定する。
+8. TypeCallとParenthesizedTypeGroupが同じbase capture / boundary classifierを使い、implicit newlineに
+   synthetic Separatorをemitしない。
+9. primary / path / call / apply / arrow / groupの各recovery-table rowをtyped role / kind / exact rangeで検証する。
+10. missing / mismatched close、malformed Error retry、same-line Missing separatorがouter comma / semicolon /
+    matching close / active stop / equal-or-shallower newlineをconsumeしない。
+11. layout frame、delimiter / stop stack、type-delimited owner、`type_ml_arg`がnormal / recovery / rollbackの
+    全exit pathでexact restoreされる。
+12. optional candidate probeはsink / recovery / stateを変更せず、mandatory entryのouter missing-role overrideは
+    completely missing top-level primaryにだけ適用される。
+13. all fixtureでAST/direct-CST parity、lossless round trip、balanced nodes、no CST replayを満たす。
+14. forall / named record / polymorphic variant / effect row / bracket rowと、struct / enum / cast / role /
+    where / act / pattern annotation wiringを本sliceで実装しない。
+
+### Closed decisions and review focus
+
+本追補でcore syntax implementationをblockするopen questionはない。次を確定する。
+
+- type grammarはstandalone fixed grammar ownerであり、dynamic `OperatorChain` / `OperatorTable`の一部ではない。
+- primaryはIdentifier / SigilIdentifier / Number / ParenthesizedTypeGroup、path segmentはname-shaped
+  Identifier / SigilIdentifierだけである。
+- adjacent `(`はTypeCall、trivia + shared primaryはone-argument-per-tail TypeApplyである。
+- no-trivia path / callはcurrent type segment内でapplyよりtightで、trivia-separated path / arrowは
+  `type_ml_arg` stop後にouter typeが所有する。arrowはfull RHS recursionでright-associativeになる。
+- TypeCall / ParenthesizedTypeGroupはcomma / semicolon / implicit newlineをshared typed layout frameで所有する。
+- recoveryはtyped owner-safe tableを用い、Yulang2のgeneric InvalidToken / silent closeを再現しない。
+- use-siteはcanonical standalone entryを呼ぶが、そのwiringとcaller-specific introducerは個別のfuture addendumが所有する。
+- forall / named record / polymorphic variant / effect row / bracket rowはreserved-but-unspecifiedのままである。
+
+Claude reviewでは、特にnumeric primaryを保ちつつnumeric path segmentを除外する明示差、
+TypeCall / TypeApply adjacency、`F A -> B`対`F A->B`、semicolon acceptance、one-element groupの
+trailing implicit newline classification、arrow RHSのowner-safe newline差、standalone entryのouter missing-role overrideを
+確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確認
+（2026-08-23、standalone foundational TypeExpression core grammar追補案）。
