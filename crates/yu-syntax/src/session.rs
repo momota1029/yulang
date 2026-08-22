@@ -592,6 +592,7 @@ pub(crate) enum DeclarationRole {
     Import(ImportRole),
     OperatorHeader(OperatorHeaderRole),
     Binding(BindingRole),
+    Mod(ModRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -615,6 +616,7 @@ pub(crate) enum StatementKind {
     UseDeclaration,
     OperatorDefinition,
     BindingDeclaration,
+    ModDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -628,6 +630,15 @@ pub(crate) enum StatementRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum BindingRole {
     Target,
+    Body,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum ModRole {
+    Name,
+    TestName,
+    BodyIntroducer,
     Body,
     IndentedStatement,
 }

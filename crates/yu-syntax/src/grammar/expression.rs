@@ -11,9 +11,10 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        BindingDeclaration, Recovered, StatementIntro, UseDeclaration,
+        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, UseDeclaration,
         commit_binding_declaration, commit_use_declaration, parse_binding_declaration_with_operators,
-        parse_use_declaration, recognize_statement_intro,
+        commit_mod_declaration, parse_mod_declaration_with_operators, parse_use_declaration,
+        recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
     operator::OperatorTable,
@@ -201,6 +202,7 @@ pub(crate) enum Statement<'source> {
     Expression(OperatorChain<'source>),
     Binding(BindingDeclaration<'source>),
     Use(UseDeclaration<'source>),
+    Mod(ModDeclaration<'source>),
 }
 
 impl<'source> Statement<'source> {
@@ -209,6 +211,7 @@ impl<'source> Statement<'source> {
             Self::Expression(expression) => expression.range(),
             Self::Binding(binding) => binding.range(),
             Self::Use(declaration) => declaration.range(),
+            Self::Mod(declaration) => declaration.range(),
         }
     }
 }
@@ -232,6 +235,10 @@ pub(crate) struct BracedStatementBlockExpression<'source> {
     statements: Vec<Recovered<Statement<'source>>>,
     close: Recovered<Range<usize>>,
     range: Range<usize>,
+}
+
+impl<'source> BracedStatementBlockExpression<'source> {
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1395,7 +1402,7 @@ where
 /// The shared AST statement entry used by every statement-sequence owner.
 /// Declaration starters are exact maximal words; all other input falls back
 /// to the ordinary expression-chain NUD path at the same position.
-fn parse_canonical_statement<'source, E>(
+pub(crate) fn parse_canonical_statement<'source, E>(
     table: &OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Statement<'source>>
@@ -1412,6 +1419,9 @@ where
             .run(from_fn(|i| parse_binding_declaration_with_operators(table, i)))
             .map(Statement::Binding),
         Some(StatementIntro::Use(_)) => i.run(parse_use_declaration).map(Statement::Use),
+        Some(StatementIntro::Mod(_)) => i
+            .run(from_fn(|i| parse_mod_declaration_with_operators(table, i)))
+            .map(Statement::Mod),
         _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
     }
 }
@@ -2919,6 +2929,31 @@ where
     )
 }
 
+pub(crate) fn parse_indented_mod_body<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            companion_stop: None,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
+        },
+        i,
+    )
+}
+
 fn parse_indented_statement_block_with_options<'source, E>(
     table: &OperatorTable,
     opening_trivia: TriviaRun,
@@ -3011,7 +3046,7 @@ where
     parsed.statements
 }
 
-fn parse_braced_statement_block_expression<'source, E>(
+pub(crate) fn parse_braced_statement_block_expression<'source, E>(
     table: &OperatorTable,
     open: Range<usize>,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -3365,6 +3400,31 @@ pub(crate) fn commit_indented_binding_body<'parse, 'source, 'local, E, O>(
     );
 }
 
+pub(crate) fn commit_indented_mod_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions {
+            companion_stop: None,
+            statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
+        },
+        committed,
+    );
+}
+
 /// Shared colon-body block loop.  Owners can supply a companion-stop policy
 /// without copying statement/separator/recovery ownership.
 fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
@@ -3490,7 +3550,7 @@ fn commit_statement_sequence<'parse, 'source, 'local, E, O>(
     }
 }
 
-fn commit_braced_statement_block_expression<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_braced_statement_block_expression<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     open: Range<usize>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -3692,7 +3752,7 @@ fn commit_statement_sequence_statement<'parse, 'source, 'local, E, O>(
 /// canonical statement entry.  A declaration intro consumes its already
 /// classified prefix only after the statement wrapper has been opened; every
 /// other input remains owned by the expression-chain path.
-fn commit_canonical_statement<'parse, 'source, 'local, E, O>(
+pub(crate) fn commit_canonical_statement<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -3707,7 +3767,7 @@ where
         let i = probe.input();
         let checkpoint = i.checkpoint();
         let intro = i.run(recognize_statement_intro);
-        if !matches!(intro, Some(StatementIntro::Binding(_) | StatementIntro::Use(_))) {
+        if !matches!(intro, Some(StatementIntro::Binding(_) | StatementIntro::Use(_) | StatementIntro::Mod(_))) {
             i.rollback(checkpoint);
             return None;
         }
@@ -3722,13 +3782,17 @@ where
             let _ = commit_use_declaration(committed, intro);
             true
         }
+        Some(StatementIntro::Mod(intro)) => {
+            let _ = commit_mod_declaration(table, committed, intro);
+            true
+        }
         Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
         }
     }
 }
 
-fn direct_canonical_statement_candidate<'parse, 'source, 'local, E>(
+pub(crate) fn direct_canonical_statement_candidate<'parse, 'source, 'local, E>(
     table: &OperatorTable,
     leading: LeadingTrivia,
     probe: &mut Probe<'parse, 'source, 'local, E>,
@@ -3742,7 +3806,7 @@ where
     let checkpoint = i.checkpoint();
     let declaration = matches!(
         i.run(recognize_statement_intro),
-        Some(StatementIntro::Binding(_) | StatementIntro::Use(_))
+        Some(StatementIntro::Binding(_) | StatementIntro::Use(_) | StatementIntro::Mod(_))
     );
     i.rollback(checkpoint);
     declaration || direct_expression_nud_candidate(table, leading, probe)
@@ -7500,6 +7564,12 @@ mod tests {
         }))] = binding_inline.items() else { panic!("expected inline binding statement"); };
         assert!(matches!(statement.as_ref(), Statement::Binding(_)));
 
+        let mod_inline = parse("a with: mod inner;", &canonical_operator_table());
+        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+            body: Recovered::Complete(WithBody::Inline { statement }), ..
+        }))] = mod_inline.items() else { panic!("expected inline mod statement"); };
+        assert!(matches!(statement.as_ref(), Statement::Mod(_)));
+
         let nested = parse("a: b with: c", &canonical_operator_table());
         let [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
             ColonApplicationTail { rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }), .. }
@@ -7518,13 +7588,16 @@ mod tests {
             assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::WithBodyTail));
         }
 
-        for (source, binding, use_declaration) in [
-            ("a with: my item = value", true, false),
-            ("a with:\n  our item = value\n  use std", true, true),
-            ("{\n  pub item = value\n  use std\n}", true, true),
-            ("if condition:\n  my item = value", true, false),
-            ("case value:\n  item ->\n    my nested = value", true, false),
-            ("catch action:\n  error ->\n    use std", false, true),
+        for (source, binding, use_declaration, mod_declaration) in [
+            ("a with: my item = value", true, false, false),
+            ("a with:\n  our item = value\n  use std", true, true, false),
+            ("{\n  pub item = value\n  use std\n}", true, true, false),
+            ("if condition:\n  my item = value", true, false, false),
+            ("case value:\n  item ->\n    my nested = value", true, false, false),
+            ("catch action:\n  error ->\n    use std", false, true, false),
+            ("a with: mod inner;", false, false, true),
+            ("if condition:\n  mod inner;", false, false, true),
+            ("case value:\n  item ->\n    mod inner;", false, false, true),
         ] {
             let root = parse_direct(source, &canonical_operator_table());
             assert_eq!(root.to_string(), source, "{source:?}");
@@ -7536,6 +7609,11 @@ mod tests {
             assert_eq!(
                 root.descendants().any(|node| node.kind() == SyntaxKind::UseDeclaration),
                 use_declaration,
+                "{source:?}",
+            );
+            assert_eq!(
+                root.descendants().any(|node| node.kind() == SyntaxKind::ModDeclaration),
+                mod_declaration,
                 "{source:?}",
             );
         }

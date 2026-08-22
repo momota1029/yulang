@@ -24,6 +24,8 @@ pub enum SyntaxKind {
     BindingStatement,
     BindingHeader,
     BindingBody,
+    ModDeclaration,
+    TestModuleMarker,
     IntegerLiteral,
     IdentifierExpression,
     ParenthesizedExpression,
@@ -163,6 +165,8 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::BindingStatement as u16 => SyntaxKind::BindingStatement,
             value if value == SyntaxKind::BindingHeader as u16 => SyntaxKind::BindingHeader,
             value if value == SyntaxKind::BindingBody as u16 => SyntaxKind::BindingBody,
+            value if value == SyntaxKind::ModDeclaration as u16 => SyntaxKind::ModDeclaration,
+            value if value == SyntaxKind::TestModuleMarker as u16 => SyntaxKind::TestModuleMarker,
             value if value == SyntaxKind::IntegerLiteral as u16 => SyntaxKind::IntegerLiteral,
             value if value == SyntaxKind::IdentifierExpression as u16 => {
                 SyntaxKind::IdentifierExpression
