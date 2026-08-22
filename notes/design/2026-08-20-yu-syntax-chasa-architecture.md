@@ -10180,3 +10180,481 @@ bare-dot recoveryのlongest-spelling guard、colon terminality、Index / Project
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、call / field / path / ML application fixed-tail追補案）。
+
+## IndexTail / ProjectionTail fixed OperatorChain tail追補案
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-23。
+
+### Scopeと先行追補への関係
+
+本追補は、precedence-neutral `OperatorChain` architectureでnamed-but-unspecifiedだった次の二形式を具体化する。
+
+```text
+IndexTail                 # a[i]
+ProjectionTupleTail       # a.(x, y)
+ProjectionRecordTail      # a.{x: y, ..rest}
+```
+
+先行call / field / path / ML追補の`FixedPostfixTail`、flat source-order placement、BP-neutral fixed-tail recognition、
+`ColonApplicationTail` terminalityを維持する。同追補が`IndexTail` / `ProjectionTail`のbody、adjacency、recoveryをfuture
+authorityへ留保した箇所を、本追補が初めて具体化する。`IndexTail` / projection tailのtarget expressionをtail node内へ
+left-nestせず、preceding `OperatorChainItem`とsource-order siblingにする。
+
+call追補の「semicolonはCallTailだけ」という文言は、その時点で実装対象だったcallと先行五constructの比較として読む。
+Yulang2でIndex / Projectionも同じsemicolon-aware expression-list machineを使っていたため、本追補はIndexと両Projectionにも
+semicolonを明示的に認める。先行五`LayoutDelimitedSequence` constructへsemicolonを追加する変更ではない。
+
+### Yulang2 oracle evidenceの再確認
+
+historical acceptance / structureのauthorityを次で固定する。
+
+- Indexはleading triviaなしの`[`だけを`ExprLedTag::IndexStart`にし、`SyntaxKind::Index`内で`Bracket` delimited groupをparse後、
+  dynamic BP比較なしでshared tail loopへ戻った
+  （`yulang2-oracle@a58eefc3:crates/parser/src/expr/scan.rs:239-255`,
+  `crates/parser/src/expr/tail.rs:109-113`）。fixtureは`a[0]`、`xs[2..]`、`xs[..2]`を固定する
+  （`crates/parser/tests/expr_grammar.rs:756-821`）。
+- Projectionは`scan_projection_dot`がexact `".("` / `".{"` lookahead成立時だけdotをscanし、LED branchがopener NUDに応じて
+  `ProjectionTuple + Paren`または`ProjectionRecord + BraceGroup`を選んだ。どちらもparse後shared tail loopへ戻り、dynamic
+  BP比較を行わない
+  （`crates/parser/src/scan/mod.rs:130-137`, `crates/parser/src/expr/scan.rs:213-263`,
+  `crates/parser/src/expr/tail.rs:60-82`）。
+- Index、tuple projection、record projectionはいずれも`ExprListMachine`を使い、ordinary expression item、comma / semicolon、
+  equal-or-shallower implicit newlineを受けた。brace groupだけ`allow_spread = true`で`ExprSpread`を追加した
+  （`crates/parser/src/expr/group.rs:13-28,48-117`, `crates/parser/src/parse/mod.rs:21-77`）。
+- projection contentはfield-name listではない。`a.(x, y(arg))`の二itemはordinary expressionであり、
+  `a.{ x: y, y: z(arg) }`の各itemは`ApplyColon`を含むordinary expressionである
+  （`crates/parser/tests/expr_grammar.rs:138-215`）。record projectionのcolonはspecial field bindingではない。
+- Yulang2 projection LEDはdot前のsame-line triviaを拒否するguardを持たず、tail loop共通のequal-or-shallower newline stopだけを
+  先に適用した。一方、dotとopenerの間はscannerのexact lookaheadにより常にadjacentだった
+  （`crates/parser/src/expr/tail.rs:21-45`, `crates/parser/src/scan/mod.rs:130-137`）。
+
+### Authoritative surface grammar
+
+`G*`はphysical newlineを含み得るmaximal lossless trivia runである。`ChainContinuingTrivia`は先行fixed-tail追補と同じく、
+same-line non-empty triviaまたはactive indentation baselineよりdeeperなnewlineであり、equal-or-shallower newlineを含まない。
+`OperatorChain`はcurrent operator tableを使うexisting expression chainである。
+
+```text
+FixedPostfixTail += IndexTail | ProjectionTail
+
+IndexTail :=
+    LBracket IndexOpeningTrivia
+    [ IndexItem { IndexSeparator IndexItem } [ IndexSeparator ] ]
+    RBracket
+
+IndexItem := OperatorChain
+
+ProjectionTail := ProjectionTupleTail | ProjectionRecordTail
+
+ProjectionTupleTail :=
+    Dot LParen ProjectionTupleOpeningTrivia
+    [ ProjectionTupleItem
+      { ProjectionTupleSeparator ProjectionTupleItem }
+      [ ProjectionTupleSeparator ]
+    ]
+    RParen
+
+ProjectionTupleItem := OperatorChain
+
+ProjectionRecordTail :=
+    Dot LBrace ProjectionRecordOpeningTrivia
+    [ ProjectionRecordItem
+      { ProjectionRecordSeparator ProjectionRecordItem }
+      [ ProjectionRecordSeparator ]
+    ]
+    RBrace
+
+ProjectionRecordItem := OperatorChain | ProjectionRecordSpreadItem
+ProjectionRecordSpreadItem := DotDot G* OperatorChain
+
+IndexSeparator := ExplicitIndexSeparator | ImplicitNewlineBoundary(index_base)
+ProjectionTupleSeparator := ExplicitProjectionSeparator | ImplicitNewlineBoundary(tuple_projection_base)
+ProjectionRecordSeparator := ExplicitProjectionSeparator | ImplicitNewlineBoundary(record_projection_base)
+
+ExplicitIndexSeparator := Comma | Semicolon
+ExplicitProjectionSeparator := Comma | Semicolon
+
+IndexOpeningTrivia := G*
+ProjectionTupleOpeningTrivia := G*
+ProjectionRecordOpeningTrivia := G*
+```
+
+`Dot LParen` / `Dot LBrace`には間の`G*`を置かない。`a.(x)` / `a.{x}`だけがprojection introducerであり、
+`a. (x)` / `a. {x}`はprojectionではない。Indexも`a[i]`のようにpreceding operandと`[`の間がtrivia-freeの場合だけtailである。
+
+Index / tuple projectionの`..`はspread markerではない。ordinary `OperatorChain`内でcurrent operator tableがprefix / suffix /
+infixとしてacceptした場合だけdynamic operatorになるため、historical `xs[2..]` / `xs[..2]`を保持する。record projectionの
+item-required positionだけexact `DotDot`がfixed spread authorityを持つ。
+
+### Adjacencyとcontinuation recognition
+
+shared operand-complete tail judgeのpriorityを次で固定する。
+
+1. active owner stop、matching outer delimiter、equal-or-shallower newlineを先に判定し、そのboundaryをconsumeしない。
+2. canonical dynamic LED judgeがaccepted infix / suffix spellingを返せばdynamic roleがauthorityを持つ。fixed recoveryがaccepted
+   operator spellingをshorter dot / bracketへsplitしない。
+3. leading triviaなしの`(`はexisting `CallTail`、leading triviaなしの`[`は`IndexTail`としてacceptしてcutする。
+4. `ChainContinuingTrivia`後またはtriviaなしのpositionで、dotと次byteがexact `".("` / `".{"`ならrespectively
+   `ProjectionTupleTail` / `ProjectionRecordTail`としてacceptしてcutする。このprobeをordinary `FieldTail` dotより先に行う。
+5. projection lookahead不成立ならexisting Field / Path judge、qualifying ML judge、terminal Colon judgeへ進む。
+
+Projectionのdot前triviaはexisting `FieldTail`と同じ`ChainContinuingTrivia` ruleを採用する。したがって`a .{x}`と
+`a/*comment*/.{x}`はsame-line projection、base 0の`a\n  .{x}`はdeeper continuation projection、`a\n.{x}`はchain stopである。
+dot前triviaは`OperatorChain`直下にraw triviaとして残し、projection tail rangeには含めない。
+
+このdecisionはYulang2のactual acceptanceと一致し、current yu-syntax fixed-tail judgeを再利用できる。projectionだけpre-dot
+adjacencyを要求すると、oracle divergenceに加えてField / Projection間で同じdot continuation boundaryが二種類になり、
+judge orderを不必要に分岐させる。一方、dotとopenerのadjacencyはprojection spellingそのものなので緩めない。
+
+### Layout base、separator、CST boundary
+
+三constructはaccepted opener直後にopening triviaを一回consumeし、`LayoutDelimitedFrame`と同じ式でbaseをcaptureする。
+
+```text
+incoming_base := current lexical-depth indentation baseline, or 0
+container_base :=
+    if OpeningTrivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+`index_base`、`tuple_projection_base`、`record_projection_base`はいずれもこの式の`container_base`であり、first itemから導出しない。
+implicit newlineはmaximal trivia runがphysical newlineを含み、following-line indentがcontainer base以下の場合だけseparatorになる。
+deeper newlineはseparatorではなくcurrent `OperatorChain` continuationである。
+
+comma / semicolonとqualifying newlineが同じinter-item gapにある場合、literal punctuationがauthorityを持つone boundary clusterである。
+newlineを二個目のseparatorとして数えない。qualifying trailing newline、trailing comma、trailing semicolonはいずれもvalidで、
+empty itemを作らない。
+
+Yulang2のexplicit `Separator` wrapperとimplicit newline用empty `Separator` nodeは移植しない。comma / semicolonはtail直下のraw token、
+physical newline / comment / whitespaceはordinary triviaであり、valid implicit boundaryにはsynthetic node、token、Missingを作らない。
+
+### Delimiter / stop scopeとcolon ownership
+
+accepted openerでconstruct固有frameをpushする。
+
+```text
+IndexTail:
+    delimiter = Bracket
+    local stops += { Comma, Semicolon, RightBracket }
+
+ProjectionTupleTail:
+    delimiter = Parenthesis
+    local stops += { Comma, Semicolon, RightParenthesis }
+
+ProjectionRecordTail:
+    delimiter = Brace
+    local stops += { Comma, Semicolon, RightBrace }
+```
+
+各frameはmatching close / outer safe point / EOFを含む全exit pathで一回だけpopし、incoming delimiter、stop set、indentation baseline、
+`ml_arg`をexact restoreする。recursive item内のcall / index / projection / parenthesized / braced primaryはown nested frameをpushし、
+inner punctuationがouter separator / closeをconsumeしない。
+
+三constructはColonApplicationTailの`outer_owns_inline_argument_sequence` queryに対するouter sequence ownerである。item内の
+`x: y, next` / `x: y; next` / qualifying newlineではcolonがexactly one inline argumentだけparseし、comma / semicolon / newlineを
+container ownerへ返す。colon applicationを含むrecord projection itemをfield grammarへreinterpretしない。
+
+同時に、existing ML context queryをcall専用判定からtyped **expression-delimited owner**判定へ一般化する。CallTail、IndexTail、
+ProjectionTupleTail、ProjectionRecordTailのitem内ではsame-line / deeper trivia + shared NUDをordinary `MlArgument`として許し、
+equal-or-shallower newlineだけをcontainer separatorへ返す。したがって`a[i j]`、`a.(f x)`、`a.{left: f x}`の内側はそれぞれ
+one ordinary itemになり得る。delimiter kindやComma / Semicolon stopの有無だけで判定してはならない。ParenthesizedExpressionと
+ProjectionTupleTail、BracedStatementBlockとProjectionRecordTailは同じdelimiterを使うが、ML ownership policyはtyped frame ownerで
+区別する。probe / normal exit / recovery / rollbackでこのowner frameもexact restoreする。
+
+```text
+ExpressionDelimitedOwner := Call | Index | ProjectionTuple | ProjectionRecord
+```
+
+`ParseLocal`はcurrent lexical depthのtop ownerをtyped stack / frameとして保持する。四ownerはML eligibilityとcolon outer-sequence
+ownershipを一個のqueryで答え、comma用boolean、newline用boolean、brace special-caseを別々に持たない。public APIへこのenumを
+露出する必要はない。
+
+### CST vocabularyとshape
+
+本追補は次のkindを追加する。
+
+```text
+SyntaxKind::IndexTail
+SyntaxKind::ProjectionTupleTail
+SyntaxKind::ProjectionRecordTail
+SyntaxKind::ProjectionRecordSpreadItem
+```
+
+既存architectureのconceptual `ProjectionTail`予約はAST sum type名として維持するが、CSTにはgeneric `ProjectionTail` wrapperを作らない。
+tuple / recordはdelimiter、spread acceptance、closing recovery ownerが異なるため、Yulang2と同様にdistinct node kindとする。
+`ProjectionTupleTail` / `ProjectionRecordTail`を同じgeneric nodeへ畳み、first childを再走査してownerを復元してはならない。
+
+Yulang2のredundant `Index > Bracket`、`ProjectionTuple > Paren`、`ProjectionRecord > BraceGroup`二層は移植しない。Yulang3 tail nodeが
+opener、items、separator、closeを直接所有する。ordinary itemはdirect `OperatorChain` child、record spreadだけはmarkerとmandatory
+RHS ownershipを示す`ProjectionRecordSpreadItem` wrapperを持つ。
+
+```text
+a[i; j].(x, y).{left: value, ..rest}
+
+OperatorChain
+  IdentifierExpression "a"
+  IndexTail
+    LBracket "["
+    OperatorChain "i"
+    Semicolon ";"
+    Whitespace " "
+    OperatorChain "j"
+    RBracket "]"
+  ProjectionTupleTail
+    Dot "."
+    LParen "("
+    OperatorChain "x"
+    Comma ","
+    Whitespace " "
+    OperatorChain "y"
+    RParen ")"
+  ProjectionRecordTail
+    Dot "."
+    LBrace "{"
+    OperatorChain
+      IdentifierExpression "left"
+      ColonApplicationTail ": value"
+    Comma ","
+    Whitespace " "
+    ProjectionRecordSpreadItem
+      DotDot ".."
+      OperatorChain "rest"
+    RBrace "}"
+```
+
+empty / one / many item、separator spelling、spread countによってouter kindを変えない。全source byteを一回だけemitし、
+`green.to_string() == source`を維持する。
+
+### Parser-side surface AST
+
+existing fixed postfix sumへ二variantを追加し、projection内部はdistinct typed sumにする。
+
+```rust
+pub(crate) enum FixedPostfixTail<'source> {
+    Call(CallTail<'source>),
+    Index(IndexTail<'source>),
+    Field(FieldTail<'source>),
+    Projection(ProjectionTail<'source>),
+    Path(PathTail<'source>),
+}
+
+pub(crate) struct IndexTail<'source> {
+    open: Range<usize>,
+    items: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ProjectionTail<'source> {
+    Tuple(ProjectionTupleTail<'source>),
+    Record(ProjectionRecordTail<'source>),
+}
+
+pub(crate) struct ProjectionTupleTail<'source> {
+    dot: Range<usize>,
+    open: Range<usize>,
+    items: Vec<OperatorChain<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct ProjectionRecordTail<'source> {
+    dot: Range<usize>,
+    open: Range<usize>,
+    items: Vec<ProjectionRecordItem<'source>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ProjectionRecordItem<'source> {
+    Expression(OperatorChain<'source>),
+    Spread(ProjectionRecordSpreadItem<'source>),
+}
+
+pub(crate) struct ProjectionRecordSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<OperatorChain<'source>>>,
+    range: Range<usize>,
+}
+```
+
+ordinary mandatory item absenceはzero-width `MissingOperand`を含むtotal `OperatorChain`で表し、source-order `items` slotを失わない。
+accepted spreadとordinary missing itemを区別するため、spread RHSだけは`Recovered::Incomplete`を保持できる。ASTはseparator token / triviaを
+複製せず、lossless spellingはCSTをauthorityとする。
+
+### Record projection spread authority
+
+`ProjectionRecordSpreadItem`はexact `..`とmandatory full `OperatorChain` RHSを所有する。`..rhs`と`.. rhs`を受け、RHS extentは
+record projection frameのComma / Semicolon / qualifying newline / RightBraceまでである。position / multiplicityはsurface grammarで
+制限しない。
+
+```text
+a.{..left, middle, ..right}
+a.{head, ..middle, tail}
+a.{..only}
+```
+
+いずれもparser-validである。spread count / positionにsemantic制約を採用する場合、projection lowering / validationが全item列を一度
+検査する。first / later spreadでCST kindやrecovery pathを変えない。
+
+marker probeはpattern spreadと同じmaximal operator-shaped spelling ruleを使い、candidateがexact `..`の場合だけacceptする。
+`...`、`..+`、`..<`等を`DotDot` + remainderへsplitしない。reject時はinput / line stateをexact rollbackする。このhelperのscanner
+mechanicsは共有できるが、`ProjectionRecordSpreadItem`をpattern spread nodeへ統合しない。outer grammarとRHS familyが異なる。
+
+### Typed recovery contract
+
+session vocabularyへconceptually次を追加する。具体enum配置はcurrent namingへ合わせてよいが、site distinctionを失ってはならない。
+
+```text
+ConstructRole::{IndexTail, ProjectionTupleTail, ProjectionRecordTail}
+
+ExpressionRole::{
+    IndexItem,
+    IndexSeparator,
+    ProjectionTupleItem,
+    ProjectionTupleSeparator,
+    ProjectionRecordItem,
+    ProjectionRecordSpreadRhs,
+    ProjectionRecordSeparator,
+}
+```
+
+existing `ExpectedSyntax::{Expression, DelimitedSequenceSeparator, Punctuation(...)}`、zero-width `Missing`、maximal non-empty `Error`、
+one committed recovery node = one diagnosticを使う。accepted introducer後はcutし、malformed contentをnew primary / dynamic tailへ
+reinterpretしない。matching owner close、captured outer close / stop、equal-or-shallower newline、EOFをinvalid runへconsumeしない。
+AST / direct-CSTはsame candidate probe、same recovery site、same-position retryを共有する。
+
+#### IndexTail recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `a[]` | valid empty IndexTail。Missingなし |
+| `a[i,]` / `a[i;]` / qualifying trailing newline | valid trailing boundary。empty itemなし |
+| `a[,i]` / `a[;i]` | first punctuation前にzero-width `OperatorChain > Missing(IndexItem)`一件。punctuationを保持して`i`をretry |
+| `a[i,,j]` / mixed repeated explicit separator | second separator前にzero-width missing item一件。literal separatorを保持してnext itemをretry |
+| same-line next NUD candidate without boundary | zero-width `Missing(IndexSeparator)`、same-position retry。ただしwhitespaceがvalid ML applicationとしてcurrent itemへ属する場合はone itemでありMissingなし |
+| malformed item bytes then valid NUD | next NUD直前までone maximal non-empty `OperatorChain > Error(IndexItem)`、same item slotをretry |
+| `a[i` + EOF / caller-owned boundary | itemを保持し、boundaryをconsumeせずzero-width missing `RBracket`一件 |
+| stray mismatched close | caller-owned outer closeならconsumeせずmissing `RBracket`。otherwise close tokenをone non-empty Errorにしてsame close slotを続行 |
+| comma / semicolon + qualifying newline | one literal-authoritative boundary。duplicate item / diagnosticなし |
+| deeper newline in item | Index separatorへ昇格しない。current OperatorChain continuation / recoveryが所有 |
+
+#### ProjectionTupleTail recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `a.()` | valid empty tuple projection。Missingなし |
+| valid / trailing comma、semicolon、qualifying newline | IndexTailと同じboundary contract。empty itemなし |
+| leading / repeated explicit separator | separator前にzero-width `Missing(ProjectionTupleItem)`一件、literalを保持してretry |
+| same-line next NUD without boundary | zero-width `Missing(ProjectionTupleSeparator)`、same-position retry。valid ML continuation caveatはIndexと同じ |
+| malformed item bytes then valid NUD | one maximal non-empty `Error(ProjectionTupleItem)`、same item slotをretry |
+| missing `)` at EOF / caller-owned boundary | boundaryをconsumeせずzero-width missing close一件 |
+| stray mismatched close | caller-owned outer closeを守る。otherwise non-empty closing Error後same slotを続行 |
+
+#### ProjectionRecordTail recovery table
+
+| situation | CST / recovery |
+| --- | --- |
+| `a.{}` | valid empty record projection。Missingなし |
+| ordinary expression / comma / semicolon / implicit newline / trailing boundary | tuple / Indexと同じboundary contract |
+| leading / repeated explicit separator | separator前にzero-width `Missing(ProjectionRecordItem)`一件、literalを保持してretry |
+| same-line ordinary NUD / exact spread candidate without boundary | candidate直前へzero-width `Missing(ProjectionRecordSeparator)`、same-position retry。current ordinary itemがvalid ML applicationを所有する場合はsplitしない |
+| malformed item bytes then ordinary NUD / exact spread | boundary直前までone maximal non-empty `Error(ProjectionRecordItem)`、same item slotをretry |
+| `a.{..rest}` | complete `ProjectionRecordSpreadItem`。RHSはfull OperatorChain |
+| `a.{..}` / `a.{.., next}` | markerを保持したspread node内へzero-width `Missing(ProjectionRecordSpreadRhs)`一件。close / separatorをconsumeしない |
+| `a.{..@rest}` | `@`をspread RHSのone maximal non-empty Errorにし、same RHS slotを`rest`からretry |
+| `a.{...rest}` / `a.{..+rest}` | longer operator-shaped spellingをDotDotへsplitせずordinary malformed item / dynamic operator authorityへ渡す |
+| multiple / non-final spread | parser-valid。position / multiplicity diagnosticなし |
+| missing `}` / mismatched close | tuple / Indexと同じowner-safe close recoveryをBrace roleで行う |
+| malformed colon application inside ordinary item | nested ColonApplicationTailが一回だけrecoverし、projection layerはduplicate Missing / Errorを出さない |
+
+invalid-run recoveryはmatching close、explicit separator、implicit boundary、ordinary shared NUD、record exact spread、captured outer safe point、
+EOFをconsumeしない。same-position retryはitem commit、zero-width mandatory-slot insertion、またはnon-empty recovery consumptionのいずれかで
+必ずprogressする。missing separatorを同じpositionへ二度emitしない。
+
+### Chaining、dynamic operator、ColonApplicationTail
+
+Index / tuple projection / record projectionはaccepted後numeric BPを比較せずshared operand-complete tail loopへ戻る。call / field / path /
+ML / dynamic suffixと任意順でinterleaveし、CST / parser-side ASTは常にsource-order flat siblingを維持する。
+
+```text
+a[i].field(x).(left, right).{value: f(x), ..rest}::name y: rhs
+
+OperatorChain
+  Primary(a)
+  IndexTail
+  FieldTail
+  CallTail
+  ProjectionTupleTail
+  ProjectionRecordTail
+  PathTail
+  MlArgument(y)
+  ColonApplicationTail(rhs)
+```
+
+HIR associatorはcurrent association cursorへIndex / Projectionをreserved structural postfixとしてsource orderで適用する。
+item内部のdynamic precedence associationは各nested `OperatorChain`だけで行い、そのsemantic treeをsurface CSTへ書き戻さない。
+
+Index / Projectionは`ColonApplicationTail`より前に何個でも現れてよい。colonをacceptした後、同じOperatorChainへIndex / Projectionを含む
+fixed / ML / dynamic continuationを追加してはならない。colon RHS内部はown nested chainとしてIndex / Projectionを普通に含められる。
+colon application resultへtailを付けるsourceは`(f: rhs)[i]` / `(f: rhs).{x}`のようにparenthesizeし、新しいouter chainを開始する。
+
+### Explicit Yulang2 divergences
+
+本追補の意図的な差を次で固定する。
+
+1. Yulang2 `Index > Bracket`、`ProjectionTuple > Paren`、`ProjectionRecord > BraceGroup`の二層group wrapperを移植せず、Yulang3の
+   typed tail nodeがdelimiter / items / closeを直接所有する。target-free flat tail familyと既存CallTail shapeへ合わせ、delimiter ownerを
+   一意にするCST差である。
+2. Yulang2 explicit separator wrapperとimplicit newline用empty `Separator`を移植しない。raw comma / semicolon tokenとraw triviaだけを
+   保持する。approved `LayoutDelimitedFrame` syntax-as-written contractの適用である。
+3. Yulang2 generic empty / non-empty `InvalidToken` recoveryをtyped zero-width Missing / maximal non-empty Errorへ置き換える。
+   accepted bytes、retry boundary、source ownershipは変えず、one recovery node = one diagnosticを満たすshape差である。
+4. Yulang2 record spread scannerは`..`後の一部spellingだけをguardし、longer operator-shaped spellingをmarker + remainderへsplitし得た。
+   Yulang3はpattern spreadで確定済みのexact maximal spelling ruleを使い、`...` / `..+`等をsplitしない。longest-spelling authorityと
+   recovery localityを守るlexical acceptance差である。
+5. Yulang2 node名`Index` / `ProjectionTuple` / `ProjectionRecord`をYulang3のchain roleが明示された`IndexTail` /
+   `ProjectionTupleTail` / `ProjectionRecordTail`へ改名する。source acceptanceの差ではない。
+
+次はYulang2と一致するためdivergenceではない。Indexのno-leading-trivia bracket、projectionのdot前ChainContinuingTrivia許容、
+dot-opener adjacency、general expression content、Index / tupleのno-spread、recordのspread、全三constructのsemicolon acceptance、
+BP-neutral shared-tail chainingを維持する。
+
+### Implementation gates
+
+1. AST / direct-CSTが同じIndex / Projection recognitionを使い、tail outer shape / recoveryはBP-only table changeで不変である。
+2. `a[i]`対`a [i]`、`a.{x}`対`a. {x}`、`a .{x}`、comment / deeper / equal-or-shallower newlineのadjacency tableをfixture化する。
+3. Indexのsingle / multiple / comma / semicolon / implicit newline / trailing boundary、`xs[2..]` / `xs[..2]`を固定する。
+4. tuple projectionのempty / multiple general expression / nested call / all separator formsを固定する。
+5. record projectionがfield-name grammarでなくgeneral OperatorChainを持ち、colon application、nested call、spreadを同じitem列へ保持する。
+6. record spreadのfirst / middle / last / multiple、missing RHS、longer spelling guardを固定する。Index / tupleにspread nodeを作らない。
+7. all three layout frameとtyped expression-delimited ownerがouter call / parenthesized / index / projection / record-pattern default /
+   statement / arm frameからexact restoreされる。
+8. `.(` / `.{`がFieldTail + Missingへsplitされず、accepted dynamic dot operatorがprojectionへstealされないjudge orderを固定する。
+9. mixed call / index / field / projection / path / ML / prefix / infix / suffixのflat CSTとseparate HIR association fixtureを固定する。
+10. item内ColonApplicationTailがouter comma / semicolon / qualifying newlineをconsumeせず、exactly one inline RHSを持つfixtureを固定する。
+11. recovery全行でMissing zero-width、Error non-empty、node / diagnostic一対一、owner boundary unconsumed、scope balance、lossless round-tripを満たす。
+12. Index / Projectionの後にterminal colonを許し、colon後のsame-chain continuationを0件にする。nested colon RHS tailは別chainに残す。
+
+### Closed decisions and review focus
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- Indexはno-leading-trivia bracketのBP-neutral fixed tailで、general OperatorChain listを持つ。
+- Projectionはdotとopenerがadjacentで、dot前はFieldTailと同じChainContinuingTriviaを許す。
+- tuple / record projectionはdistinct CST node、ASTではtyped `ProjectionTail` sumである。
+- projection contentはgeneral OperatorChainであり、record field grammarではない。
+- Index / tuple / recordはcomma、semicolon、implicit newlineを受け、approved base formulaとraw-trivia CSTを使う。
+- record projectionだけexact `.. OperatorChain` spread itemを持ち、position / multiplicityをparserで制限しない。
+- Index / Projectionはsource-order flat fixed tailとしてColonApplicationTail前にchainし、colon後にはchainしない。
+
+Claude reviewでは、特にrecord projection contentがgeneral expressionであること、`x: y`のcolon outer ownership、semicolonを
+Index / Projectionへ認める先行文言のclarification、projection dot前triviaとdot-opener adjacencyの区別、distinct tuple / record CST、
+record-only spread、exact DotDot divergence、Yulang2 group wrapper削除、all close / separator recoveryのowner-safe restoreを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、IndexTail / ProjectionTail fixed-tail追補案）。
