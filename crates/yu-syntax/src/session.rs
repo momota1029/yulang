@@ -449,6 +449,7 @@ pub(crate) enum StopKind {
     Arrow,
     ArmGuardIf,
     ArmGuardWhere,
+    With,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -575,6 +576,7 @@ pub(crate) enum GrammarRole {
     Statement(StatementRole),
     Expression(ExpressionRole),
     ColonApplication(ColonApplicationRole),
+    WithBody(WithBodyRole),
     IfExpression(IfExpressionRole),
     CaseLike(CaseLikeRole),
     BracedStatementBlock(BracedStatementBlockRole),
@@ -667,6 +669,13 @@ pub(crate) enum ExpressionRole {
 pub(crate) enum ColonApplicationRole {
     Rhs,
     InlineArgument,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum WithBodyRole {
+    Introducer,
+    Body,
     IndentedStatement,
 }
 

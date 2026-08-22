@@ -25,7 +25,7 @@ use crate::{
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
+        UnexpectedSyntax, WithBodyRole,
     },
     syntax_kind::SyntaxKind,
 };
@@ -157,6 +157,21 @@ pub(crate) enum PathSegment<'source> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TerminalOuterTail<'source> {
     ColonApplication(ColonApplicationTail<'source>),
+    WithBody(WithBodyTail<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct WithBodyTail<'source> {
+    keyword: WordSpan<'source>,
+    colon: Recovered<Range<usize>>,
+    body: Recovered<WithBody<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum WithBody<'source> {
+    Inline { statement: Box<Statement<'source>> },
+    Indented { block: IndentedStatementBlock<'source> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -527,6 +542,13 @@ where
     }
 
     loop {
+        if let Some(with) = i.run(recognize_with_body_tail) {
+            i.cut();
+            let tail = parse_with_body_tail(table, with, &mut i);
+            items.push(OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(tail)));
+            break;
+        }
+
         if let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? {
             match tail {
                 LedRecognition::Infix { operator, .. } => {
@@ -649,6 +671,7 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
         OperatorChainItem::MlArgument { range, .. } => range.end,
         OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => tail.range.end,
+        OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(tail)) => tail.range.end,
         OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
     }
 }
@@ -1241,6 +1264,131 @@ struct ColonApplicationRecognition {
     leading: TriviaRun,
     colon: Range<usize>,
     rhs: ColonApplicationRhsRecognition,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct WithBodyRecognition<'source> {
+    leading: TriviaRun,
+    keyword: WordSpan<'source>,
+    introducer_trivia: TriviaRun,
+    colon: Option<Range<usize>>,
+    layout: Option<ArmBodyLayout>,
+    base_indent: usize,
+}
+
+fn recognize_with_body_tail<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<WithBodyRecognition<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.local.ml_arg() || active_stop_set(&i).contains(StopKind::With) {
+        return None;
+    }
+    let checkpoint = i.checkpoint();
+    let leading = consume_trivia(&mut i)?;
+    if !trivia_continues_chain(&leading, &i) {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(keyword) = i.run(scan_word) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if keyword.text() != "with" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let base_indent = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let introducer_trivia = consume_trivia(&mut i)?;
+    let colon_checkpoint = i.checkpoint();
+    let colon = i.run(scan_punctuation).and_then(|punctuation| {
+        (punctuation.kind() == PunctuationKind::Colon).then(|| punctuation.range())
+    });
+    if colon.is_none() {
+        i.rollback(colon_checkpoint);
+    }
+    let layout = colon.as_ref().map(|_| recognize_introduced_body_layout(base_indent, &mut i));
+    Some(WithBodyRecognition { leading, keyword, introducer_trivia, colon, layout, base_indent })
+}
+
+fn parse_with_body_tail<'source, E>(
+    table: &OperatorTable,
+    with: WithBodyRecognition<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> WithBodyTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = with.keyword.range().start;
+    let colon = with.colon.clone().map_or(Recovered::Incomplete, Recovered::Complete);
+    let inline_layout = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }));
+    let body = match with.layout {
+        Some(ArmBodyLayout::Indented { opening_trivia, block_indent }) => Recovered::Complete(WithBody::Indented {
+            block: parse_indented_statement_block_with_options(
+                table, opening_trivia, with.base_indent, block_indent, IndentedStatementBlockOptions::with_body(), i,
+            ),
+        }),
+        Some(ArmBodyLayout::Inline { .. }) | None => parse_with_inline_statement(table, i)
+            .map(|statement| Recovered::Complete(WithBody::Inline { statement: Box::new(statement) }))
+            .unwrap_or(Recovered::Incomplete),
+        Some(ArmBodyLayout::WrongIndent) => Recovered::Incomplete,
+    };
+    let mut terminal_semicolon_end = None;
+    if matches!(body, Recovered::Complete(_)) || (with.colon.is_some() && inline_layout) {
+        let checkpoint = i.checkpoint();
+        if i.run(recognize_semicolon).is_some() {
+            terminal_semicolon_end = Some(i.pos());
+        } else { i.rollback(checkpoint); }
+    }
+    let end = terminal_semicolon_end.unwrap_or_else(|| match &body {
+        Recovered::Complete(WithBody::Inline { statement }) => statement.expression.range.end,
+        Recovered::Complete(WithBody::Indented { block }) => block.range.end,
+        Recovered::Incomplete => with.colon.unwrap_or_else(|| with.keyword.range()).end,
+    });
+    WithBodyTail { keyword: with.keyword, colon, body, range: start..end }
+}
+
+fn parse_with_inline_statement<'source, E>(
+    table: &OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Statement<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+        return Some(Statement { expression });
+    }
+    let range = call_argument_error_retry_ast(table, i)?;
+    let expression = i.run(from_fn(|i| parse_operator_chain(table, i)))?;
+    let end = expression.range.end;
+    let mut items = vec![OperatorChainItem::Error { range: range.clone() }];
+    items.extend(expression.items);
+    Some(Statement { expression: OperatorChain::new(items, range.start..end) })
+}
+
+fn recognize_semicolon<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let semicolon = i.run(scan_punctuation)
+        .filter(|punctuation| punctuation.kind() == PunctuationKind::Semicolon)
+        .map(|punctuation| punctuation.range());
+    if semicolon.is_none() {
+        i.rollback(checkpoint);
+    }
+    semicolon
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2402,6 +2550,12 @@ where
     committed.start_node(SyntaxKind::OperatorChain);
     commit_direct_operand_slot_from(table, nud.expect("checked above"), committed)?;
     loop {
+        if let Some(with) = committed.probe(|probe| probe.input().run(recognize_with_body_tail)) {
+            cut_after_acceptance(committed);
+            commit_with_body_tail(table, with, committed);
+            break;
+        }
+
         if let Some(led) = committed.probe(|probe| probe_led(table, probe)) {
             cut_after_acceptance(committed);
             match led {
@@ -2468,6 +2622,102 @@ where
     let end = committed_position(committed);
     committed.finish_node();
     Some(ParsedExpression::new(start..end))
+}
+
+fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    with: WithBodyRecognition<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.emit_trivia(&with.leading);
+    committed.start_node(SyntaxKind::WithBodyTail);
+    committed.token(SyntaxKind::WithKw, with.keyword.range());
+    committed.emit_trivia(&with.introducer_trivia);
+    let Some(colon) = with.colon else {
+        emit_with_missing(committed, WithBodyRole::Introducer, ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon));
+        if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+            if with_body_error_retry(table, committed) {
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    .expect("a retried with body must commit");
+            } else if !with_body_absent_boundary(committed) {
+                emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement);
+            }
+        }
+        committed.finish_node();
+        return;
+    };
+    committed.token(SyntaxKind::Colon, colon);
+    match with.layout.expect("a consumed colon has body layout") {
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => commit_indented_statement_block_with_options(
+            table, opening_trivia, with.base_indent, block_indent, IndentedStatementBlockOptions::with_body(), committed,
+        ),
+        ArmBodyLayout::Inline { trivia } => {
+            committed.emit_trivia(&trivia);
+            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+                if with_body_error_retry(table, committed) {
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                        .expect("a retried with body must commit");
+                } else {
+                    emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement);
+                    if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
+                        committed.token(SyntaxKind::Semicolon, semicolon);
+                    }
+                }
+            } else if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
+                committed.token(SyntaxKind::Semicolon, semicolon);
+            }
+        }
+        ArmBodyLayout::WrongIndent => emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement),
+    }
+    committed.finish_node();
+}
+
+fn with_body_absent_boundary<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.probe(|probe| {
+        probe.input().input.remainder().is_empty()
+            || matches!(probe.input().input.remainder().chars().next(), Some(')' | ']' | '}' | ',' | ';'))
+    })
+}
+
+fn with_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else { return None; };
+            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') { return None; }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+        }
+    });
+    let Some(range) = recovered else { return false; };
+    emit_with_error(committed, range);
+    true
 }
 
 /// Emits an accepted terminal colon tail. The target remains a sibling of this
@@ -3056,11 +3306,16 @@ fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct IndentedStatementBlockOptions {
     companion_stop: Option<IndentedBlockCompanionStop>,
+    statement_role: Option<GrammarRole>,
 }
 
 impl IndentedStatementBlockOptions {
     fn if_arm(base_indent: usize) -> Self {
-        Self { companion_stop: Some(IndentedBlockCompanionStop::ArmKeyword { base_indent }) }
+        Self { companion_stop: Some(IndentedBlockCompanionStop::ArmKeyword { base_indent }), statement_role: None }
+    }
+
+    fn with_body() -> Self {
+        Self { companion_stop: None, statement_role: Some(GrammarRole::WithBody(WithBodyRole::IndentedStatement)) }
     }
 
     /// This is deliberately a sink-free, owner-provided hook.  The generic
@@ -4852,6 +5107,62 @@ fn emit_colon_application_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
+fn emit_with_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    with_role: WithBodyRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::WithBody(with_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_with_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::WithBody(WithBodyRole::Body);
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local,
+        RecoverySiteKey { role, range: range.clone() },
+        RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }]),
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Statement,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    ));
+    committed.emit_error(record);
+}
+
 fn emit_colon_application_error<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     colon_role: ColonApplicationRole,
@@ -4953,9 +5264,9 @@ fn emit_statement_sequence_error<'parse, 'source, 'local, E, O>(
 
 fn statement_sequence_statement_role(policy: StatementSequencePolicy) -> GrammarRole {
     match policy {
-        StatementSequencePolicy::Indented { .. } => {
+        StatementSequencePolicy::Indented { options, .. } => options.statement_role.unwrap_or(
             GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement)
-        }
+        ),
         StatementSequencePolicy::BracedPrimary => {
             GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement)
         }
@@ -6997,6 +7308,104 @@ mod tests {
                 "{source:?}",
             );
         }
+    }
+
+    #[test]
+    fn with_body_tail_is_terminal_and_reuses_inline_and_indented_statement_bodies() {
+        let inline = parse("a with: b", &canonical_operator_table());
+        assert!(matches!(
+            inline.items(),
+            [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+                colon: Recovered::Complete(_),
+                body: Recovered::Complete(WithBody::Inline { .. }),
+                ..
+            }))]
+        ));
+        let root = parse_direct("a with: b", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with: b");
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+
+        let root = parse_direct("a with:\n  b\n  c", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with:\n  b\n  c");
+        let tail = root.descendants().find(|node| node.kind() == SyntaxKind::WithBodyTail).unwrap();
+        let block = only_child(&tail, SyntaxKind::IndentedStatementBlock);
+        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
+
+        let nested = parse("a with: b: c", &canonical_operator_table());
+        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(WithBodyTail {
+            body: Recovered::Complete(WithBody::Inline { statement }), ..
+        }))] = nested.items() else { panic!("expected terminal with body"); };
+        assert!(matches!(statement.expression.items(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]));
+
+        let nested = parse("a: b with: c", &canonical_operator_table());
+        let [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+            ColonApplicationTail { rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }), .. }
+        ))] = nested.items() else { panic!("expected outer colon tail"); };
+        assert!(matches!(arguments.as_slice(), [Recovered::Complete(OperatorChain { items, .. })]
+            if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::TerminalOuter(TerminalOuterTail::WithBody(_))])));
+
+        for source in ["value/*c*/with : body", "value\n  with:\n    body", "f with: body", "f x with: body"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1, "{source:?}");
+        }
+        for source in ["a withx", "a with?"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source);
+            assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::WithBodyTail));
+        }
+        for source in ["f(a with:b)", "a[b with:c]", "a.(b with:c)"] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+        }
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse("a+b with:c", &low), parse("a+b with:c", &high));
+        assert_eq!(parse_direct("a+b with:c", &low).green(), parse_direct("a+b with:c", &high).green());
+        let semicolon = parse("a with: b;", &canonical_operator_table());
+        assert_eq!(semicolon.range(), 0..10, "terminal semicolon belongs to the tail range");
+    }
+
+    #[test]
+    fn with_body_tail_missing_colon_is_single_typed_recovery_and_retries_body() {
+        let (root, recoveries) = parse_direct_recovered("a with", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with");
+        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (6..6)));
+
+        let (root, recoveries) = parse_direct_recovered("a with b", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with b");
+        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Introducer) && site.range == (7..7)));
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::WithBodyTail).count(), 1);
+
+        let (_, recoveries) = parse_direct_recovered("a with @ b", &canonical_operator_table());
+        assert!(matches!(recoveries.as_slice(), [
+            CommittedRecoveryRecord { kind: RecoveryKind::Missing, site: introducer, .. },
+            CommittedRecoveryRecord { kind: RecoveryKind::Error, site: body, .. },
+        ] if introducer.role == GrammarRole::WithBody(WithBodyRole::Introducer)
+            && body.role == GrammarRole::WithBody(WithBodyRole::Body)));
+
+        let (root, recoveries) = parse_direct_recovered("a with: @ b", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with: @ b");
+        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Body) && site.range.start < site.range.end));
+
+        let (root, recoveries) = parse_direct_recovered("a with: ;", &canonical_operator_table());
+        assert_eq!(root.to_string(), "a with: ;");
+        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::Body)));
+
+        let (_, recoveries) = parse_direct_recovered("a with:\n  ", &canonical_operator_table());
+        assert!(matches!(recoveries.as_slice(), [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+            if site.role == GrammarRole::WithBody(WithBodyRole::IndentedStatement)));
+
+        let (root, recoveries) = parse_direct_recovered("(a with:\nb)", &canonical_operator_table());
+        assert_eq!(root.to_string(), "(a with:\nb)");
+        assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::WithBody(WithBodyRole::Body)));
+        let group = root.descendants().find(|node| node.kind() == SyntaxKind::ParenthesizedExpression).unwrap();
+        assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
     }
 
     fn canonical_operator_table() -> OperatorTable {
