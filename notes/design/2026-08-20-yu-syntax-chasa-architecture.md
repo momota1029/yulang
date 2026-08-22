@@ -34,6 +34,10 @@ Revision note (colon-application closure): precedence-neutral chain追補が予�
 `ColonApplicationTail`について、inline expression list、indented statement block、outer comma ownership、
 terminal-chain integration、recoveryを末尾の「lone `:`によるcolon application」追補で確定した。
 
+Revision note (`if`-expression closure): `if` / `elsif` / `else`をterminal colon tailではなく
+NUD-positionの`PrimaryExpression`として位置づけ、condition stop、colon-owned single body、既存
+`IndentedStatementBlock` reuse、arm continuation、recoveryを末尾の`if`-expression追補で確定した。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -5416,7 +5420,8 @@ HIR gateを次で固定する。
 本追補は次を設計しない。各ownerは`StopKind::Colon`でgeneric tailを止め、future addendumでtoken ownership、
 inline / block body、recoveryを個別に固定する。
 
-- `if` / `else`、`catch`、`case` arm、`for`、`sub` / lambdaなどcontrol-expression / statement body introducer。
+- `if` / `elsif` / `else`は末尾の`if`-expression追補が所有する。`catch`、`case` arm、`for`、
+  `sub` / lambdaなど残りのcontrol-expression / statement body introducerはfuture scopeである。
 - `impl`、`where`、`mod`、`role`、`struct`、`enum`、`type`、`error`、`act`、castなどdeclaration head / body。
 - struct field、enum variant payload、act member、where predicateなどdeclaration-internal separator / annotation。
 - pattern type annotation、pattern field / named slot、polymorphic-variant-like colon starterなどpattern grammar。
@@ -5444,3 +5449,601 @@ CST hierarchy、phase boundaryは変更しない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、generic colon application / indented block boundary追補案）。
+
+## 追補案: NUD-primary `if` / `elsif` / `else` expression grammar
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3の`if` expressionは、`ParenthesizedExpression`と同じNUD-positionの
+`PrimaryExpression`としてparseする。completed operandの後ろへ付く
+`TerminalOuterContinuation`でも、generic `ColonApplicationTail`でもない。したがって`if` expressionは
+operandを開始できる全位置に現れ、condition / arm body内部のdynamic operator列はそれぞれflat
+`OperatorChain`のまま保持される。outer prefix / infix / suffix / fixed structural continuationは、完成した
+`IfExpression` primaryの周囲へordinary chain itemとして続く。
+
+一個の`IfExpression` CST nodeは、最初の`IfKw`を持つ`IfArm`、zero-or-moreの`ElsifKw`を持つ同じ
+`IfArm` node kind、optionalな`ElseArm`をsource orderに持つ。`elsif`は`else if`へrewriteしない独立keywordである。
+各`if` / `elsif` conditionは`Condition` nodeで包み、arm-owned lone `:`の直前でcurrent-depth
+`OperatorChain`を止める。armのcolonは`IfArm` / `ElseArm`が直接所有し、
+`ColonApplicationTail` wrapperを作らない。
+
+最初のimplementation sliceは次のbody formを採用する。
+
+- `if` / `elsif`: colon + exactly one inline `OperatorChain`、またはcolon + one
+  `IndentedStatementBlock`。
+- `else`: 上のcolon formに加え、colonなしのexactly one bare `OperatorChain`。
+- colon後のinline bodyをcomma-separated argument listにはしない。
+- brace bodyは採用しない。current `yu-syntax`に`BraceGroup` primary / body grammarがなく、token kindだけを
+  先行させてもlossless body ownershipを確定できないためである
+  (`crates/yu-syntax/src/syntax_kind.rs:6-76`,
+  `crates/yu-syntax/src/grammar/expression.rs:125-145,395-403`)。brace group実装後の
+  別sliceへdeferする。
+
+`IndentedStatementBlock`はsingle-expression専用nodeではない。colon applicationが実装済みの同じnode、
+strict indent trigger、statement loop、separator / dedent ownershipを再利用する。したがってarmのbody slotは
+inlineでは一個のexpression、indented formでは一個のblockであり、そのblockは複数の`Statement` childを
+持ち得る。current `Statement`の実装範囲はexpression statement subsetであり、declaration statementの追加は
+block grammar側のfuture expansionである。
+
+このshapeはYulang2のsurface grammarを基準にする。Yulang2は`if`をprimary expressionとして列挙し
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:762-787`)、scannerで`if` / `else` / `elsif`を
+別keyword tokenにした
+(`yulang2-oracle@a58eefc3:crates/parser/src/scan/mod.rs:263-269`)。parserは一個の`IfExpr`内へ
+`IfArm*`とoptional `ElseArm`を置き、各conditionを`Cond`で包んだ
+(`crates/parser/src/expr/control.rs:365-430,432-457,484-518`)。Yulang3はこのarm hierarchyを維持するが、
+child expressionをPratt treeではなくprecedence-neutral `OperatorChain`にする。
+
+### Architectural placement: NUD primary, not terminal continuation
+
+precedence-neutral chain追補のgrammarを次のように具体化する。
+
+```text
+OperandSlot :=
+    { PrefixUse G* }
+    Value
+
+Value :=
+    PrimaryExpression
+  | NullfixUse
+
+PrimaryExpression :=
+    IdentifierExpression
+  | IntegerLiteral
+  | ParenthesizedExpression
+  | IfExpression
+  | future primary forms
+
+TerminalOuterContinuation :=
+    ColonApplicationTail
+  | AssignmentTail
+  | WithBodyTail
+```
+
+`IfExpression`は`PrimaryExpression` branchであり、最後のproductionには入らない。たとえばprefix useの後、
+parenthesized element、colon applicationのinline argument、indented blockのexpression statement、将来のcall
+argumentのいずれでもordinary operand valueとして認識できる。`IfExpression`がfinishした後は、同じouter
+`OperatorChain`がsuffix / infix / fixed structural tailを認識する。
+
+この位置づけはYulang2 specのprimary classificationと一致するが、implementationはYulang2のPratt ownershipを
+復元しない。condition、inline body、bare else body、block statementに現れる各operator chainのassociationは、
+既決通りdedicated pre-HIR associator / HIR loweringが所有する。`IfExpression`というcontrol-flow hierarchyの
+構築はsyntax lowering、branch result typeの統一はtype inferenceの責務であり、numeric BPによるtree shapeを
+`yu-syntax`へ戻さない。
+
+### Valid grammar for the first slice
+
+`G*`はmaximal lossless trivia run、`G0`はphysical newlineを含まないmaximal trivia runである。
+`Gcont`はcurrent expression baseに対するordinary continuation layoutを満たすtrivia runを表す。
+`ArmContinuation`だけは後述のif-chain専用base-indent ruleを使う。
+
+```text
+IfExpression :=
+    IfArm
+    { ArmContinuation ElsifArm }
+    [ ArmContinuation ElseArm ]
+
+IfArm :=
+    IfKw G* Condition Gcont ColonIntroducedArmBody
+
+ElsifArm :=
+    ElsifKw G* Condition Gcont ColonIntroducedArmBody
+
+Condition :=
+    OperatorChain
+    under current-depth StopSet { Colon, LeftBrace, Elsif, Else }
+
+ColonIntroducedArmBody :=
+    Colon G0 InlineArmExpression
+  | Colon IndentedStatementBlock
+
+InlineArmExpression :=
+    OperatorChain under IfContinuationStop
+
+ElseArm :=
+    ElseKw Gcont
+    (
+        ColonIntroducedArmBody
+      | BareElseExpression
+    )
+
+BareElseExpression :=
+    OperatorChain under ordinary NUD-start layout and IfContinuationStop
+
+ArmContinuation :=
+    HorizontalTrivia
+  | NewlineTrivia where next_indent >= if_base_indent
+
+IfContinuationStop :=
+    current outer StopSet plus Elsif plus Else
+
+Colon := the lone fixed punctuation token ":"
+```
+
+`IfArm`と`ElsifArm`はBNF上のkeyword制約を読みやすく分けた名前であり、CST node kindはどちらも
+`SyntaxKind::IfArm`である。最初のarmだけが`IfKw`、二個目以降が`ElsifKw`を持つ。
+
+`ColonIntroducedArmBody`は説明用nonterminalであり、CST wrapper nodeを要求しない。normal CSTではcolon tokenと
+inline `OperatorChain`または`IndentedStatementBlock`をarm直下へ置く。generic colon applicationと違い、
+inline comma loop、target-before-tail、terminal `OperatorChainItem`のどれも持たない。
+
+`else if ...`は`elsif`の別spellingではない。bare else bodyのprimaryとしてnested `IfExpression`を持つため
+validになり得るが、CSTは`ElseArm(ElseKw, OperatorChain(IfExpression(...)))`である。
+`ElsifKw`を持つsibling `IfArm`とは異なるliteral shapeを保持する。
+
+### Keyword recognition and NUD routing
+
+current word scannerはkeywordをlexical token classとして先決せず、maximal identifier-shaped spellingとrangeだけを
+返す。この原則を維持し、sink-free NUD judgeがexact word `if`をrecognizeしてから
+`NudRecognition::If { keyword, base_indent }`をacceptする。`ifx`、`if?`など別のmaximal wordをsplitしない。
+accept後にcutし、direct CST側で`IfKw` tokenを一度emitしてrecovery込みの`IfExpression` continuationを完走する。
+
+`elsif`と`else`はgeneric NUD alternativeではない。active `IfExpression` ownerがarm boundaryでexact spellingを
+recognizeしたときだけ、それぞれ`ElsifKw` / `ElseKw`としてcommitする。dynamic word-operator、ML argument、
+identifier expressionよりowner stopを優先し、前arm bodyへ吸収させない。word scanningのcontextual natureと、
+CST token kindとしてkeyword factを保存することは両立する。
+
+required syntax vocabularyを次で固定する。
+
+```text
+SyntaxKind::IfExpression
+SyntaxKind::IfArm
+SyntaxKind::ElseArm
+SyntaxKind::Condition
+SyntaxKind::IfKw
+SyntaxKind::ElsifKw
+SyntaxKind::ElseKw
+```
+
+separate `SyntaxKind::ElsifArm`、generic `ColonClause`、arm-owned `ColonApplicationTail`は追加しない。
+
+### Condition boundary and scoped stops
+
+condition parse前にincoming stop setをcopyし、current-depth local frameへ次を加える。
+
+```text
+StopKind::Colon
+StopKind::LeftBrace
+StopKind::Elsif
+StopKind::Else
+```
+
+`StopKind::Colon`によりconditionのcompleted `OperatorChain`はlone colon直前でreturnし、generic
+`recognize_colon_application_tail`はそのcolonをconsumeしない。これはYulang2がcondition local stopへ
+`Colon`と`BraceL`を入れてownerへ返したboundaryと同じである
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:432-457`)。current flat-chain implementationでは
+numeric minimum BPを渡す必要はなく、stopだけがboundary authorityになる。
+
+`StopKind::LeftBrace`はbrace bodyをfirst sliceでacceptするためではない。future `BraceGroup` primaryが追加された
+とき、condition extentが暗黙に変わってbrace bodyをcondition operandとして飲み込まないためのforward-compatible
+reservationである。first sliceでcurrent-depth `{`に到達した場合はconditionをそこで止め、unsupported bodyを
+generic expressionとしてconsumeしない。brace tokenはouter recoveryへ残す。
+
+`Elsif` / `Else` stopはmissing condition / body recoveryとinline arm boundaryを守る。delimiter、string、comment、
+heredoc、interpolation、rule literal、Yumarkなどnested lexical region内部の同じspelling / colon / braceには
+反応しない。parenthesizedなどnested expression ownerは自分のstop frameをpushし、そのdelimiter内部のcolon
+applicationを通常どおり許す。全frameはComplete / Incompleteの両pathでpopする。
+
+### Colon body and `IndentedStatementBlock` reuse
+
+arm-owned colonをrecognizeした後のinline / indent branch判定は、colon applicationで実装済みの一個のlayout
+primitiveを再利用する。
+
+```text
+has_physical_newline(post_colon_trivia)
+&& block_indent > if_base_indent
+    => IndentedStatementBlock
+
+no_physical_newline(post_colon_trivia)
+    => exactly one inline OperatorChain
+
+has_physical_newline(post_colon_trivia)
+&& block_indent <= if_base_indent
+    => missing body; leave newline/dedent to the outer owner
+```
+
+`if_base_indent`は最初の`if`をparseし始めたcurrent expression / statement baselineであり、colon tokenのvisual
+columnではない。post-colon trivia scan前にsnapshotし、wrong-indent判定ではcheckpointへrollbackする。
+このstrict inequalityはYulang2 specのindent block triggerと一致する
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:195-205`)。
+
+inline branchは一個のflat `OperatorChain`だけをparseする。generic colon applicationの
+`InlineColonArguments := OperatorChain (Comma OperatorChain)*`を呼ばない。したがって`if x: a, b`のcommaは
+arm bodyのargument separatorではなく、incoming outer list ownerへ返るか、そのcontextのrecovery対象になる。
+
+indented branchは既存`SyntaxKind::IndentedStatementBlock`と同じstatement loopを使う。Yulang2のshared
+`parse_inline_or_indent`もdeep-newline branchで`parse_indent_stmt_block`を呼び
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:22-35,460-469,497-506`)、そのblock parserは
+dedentまで`parse_statement`を反復した
+(`crates/parser/src/stmt/block.rs:242-283`)。fixtureのblockに一個の`1`しかないこと
+(`crates/parser/tests/expr_grammar.rs:1755-1784`)は、block arityを一に制限する証拠ではない。
+Yulang3側にも`statements: Vec<Recovered<Statement>>`を持つblock projectionとdirect statement loopが実装済みである
+(`crates/yu-syntax/src/grammar/expression.rs:88-102,830-908,1011-1077`)。
+
+reuseはnode / trigger / loop / separator ownershipのreuseであって、diagnostic roleの流用ではない。
+shared block continuationはowner-specific recovery roleとoptional companion-stop probeを受け取れる形にする。
+if armの場合、次statementをcommitする前にcurrent lexical depthの`elsif` / `else` candidateをsink-freeにprobeし、
+candidateならboundary triviaとkeywordをconsumeせずblockをfinishする。colon application用
+`GrammarRole::ColonApplication`でif-body diagnosticを発行しない。
+
+### `elsif` / `else` chain continuation and layout ownership
+
+`IfExpression`開始時に`if_base_indent`をsnapshotする。各arm bodyがreturnした位置で、次のcandidateを次の順で
+probeする。
+
+1. physical newlineを含まないhorizontal triviaの直後にexact `elsif` / `else`があれば同じchainへ入れる。
+2. physical newlineを含む場合、next lineのindentが`if_base_indent`以上で、次のnon-trivia tokenがexact
+   `elsif` / `else`のときだけ同じchainへ入れる。
+3. indentが`if_base_indent`未満、または次tokenがarm keywordでない場合はprobe前へrollbackし、triviaとtokenを
+   outer ownerへ残して`IfExpression`をfinishする。
+4. `ElseArm`を一個commitした後はchainを必ずfinishする。後続`elsif` / `else`を同じnodeへ追加しない。
+
+この`>=`は「initial `if`とexact same indentだけ」という新規制約ではない。Yulang2 parserは
+`base_indent`を一度保存し、horizontal spaceまたは`indent >= base_indent`のnewlineだけをcontinuation候補にし、
+newlineではさらにnext tokenが`Elsif` / `Else`かをpeekした
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:365-420`)。specも同じruleを明記する
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:207-208,1075-1077`)。
+
+ordinary expression tailはequal-indent newlineで止まるが、arm continuationはこの専用probeに限って
+equal-indent keywordを拾う。`if x:\n  1\nelse: 0`のdedent-leading triviaをblockがconsumeせず、
+`IfExpression`が`ElseKw`とともに所有する。Yulang2 fixtureもこの一node shapeを固定していた
+(`yulang2-oracle@a58eefc3:crates/parser/tests/expr_grammar.rs:1755-1784`)。
+
+### CST shape and byte ownership
+
+inline multi-arm formは次のshapeを持つ。
+
+```text
+OperatorChain
+  IfExpression
+    IfArm
+      IfKw "if"
+      Whitespace " "
+      Condition
+        OperatorChain
+          IdentifierExpression "x"
+      Colon ":"
+      Whitespace " "
+      OperatorChain
+        IntegerLiteral "1"
+    Whitespace " "
+    IfArm
+      ElsifKw "elsif"
+      Whitespace " "
+      Condition
+        OperatorChain
+          IdentifierExpression "y"
+      Colon ":"
+      Whitespace " "
+      OperatorChain
+        IntegerLiteral "2"
+    Whitespace " "
+    ElseArm
+      ElseKw "else"
+      Colon ":"
+      Whitespace " "
+      OperatorChain
+        IntegerLiteral "0"
+```
+
+indented bodyはcolonの直後へ同じblock nodeを直接置く。
+
+```text
+IfExpression
+  IfArm
+    IfKw
+    Condition
+      OperatorChain
+    Colon
+    IndentedStatementBlock
+      BlockOpeningTrivia
+      Statement
+        OperatorChain
+      BlockStatementSeparator
+      Statement
+        OperatorChain
+  InterArmTrivia
+  ElseArm
+    ElseKw
+    Colon
+    OperatorChain
+```
+
+`Condition`はconditionのexpression bytesだけを所有する。conditionとcolonの間のtrivia、colon、body、arm間の
+triviaは最小の共通ownerである`IfArm` / `ElseArm` / `IfExpression`直下へsource orderで置く。
+`IfExpression.range`はinitial `IfKw.start`からlast committed/recovered arm endまで、各arm rangeはkeyword startから
+body endまでである。dedent後のnon-arm trivia、outer comma / close、次statement starterをrangeへ含めない。
+全byteを一回だけemitし、`green.to_string() == source`を維持する。
+
+generic `ColonApplicationTail`はこのtreeに現れない。arm conditionをtargetにしたcolon applicationへreshapeせず、
+inline bodyをgeneric colon argument listへreshapeしない。これはYulang2 fixtureの
+`IfExpr(IfArm(If, Cond(...), Colon, Expr(...)), ElseArm(...))` shapeとも一致する
+(`yulang2-oracle@a58eefc3:crates/parser/tests/expr_grammar.rs:1723-1751`)。
+
+### Parser-side AST shape
+
+precedence-neutral surface ASTを次で固定する。
+
+```rust
+pub(crate) enum PrimaryExpression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Parenthesized {
+        elements: Vec<OperatorChain<'source>>,
+        trailing_comma: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+    If(IfExpression<'source>),
+}
+
+pub(crate) struct IfExpression<'source> {
+    // Invariant: non-empty; first is If, remaining entries are Elsif.
+    arms: Vec<IfArm<'source>>,
+    else_arm: Option<ElseArm<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
+
+pub(crate) struct IfArm<'source> {
+    keyword: IfArmKeyword<'source>,
+    condition: Recovered<OperatorChain<'source>>,
+    body: Recovered<ColonIntroducedArmBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum IfArmKeyword<'source> {
+    If(WordSpan<'source>),
+    Elsif(WordSpan<'source>),
+}
+
+pub(crate) struct ElseArm<'source> {
+    keyword: WordSpan<'source>,
+    body: Recovered<ElseArmBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ElseArmBody<'source> {
+    Colon(ColonIntroducedArmBody<'source>),
+    Bare(Box<OperatorChain<'source>>),
+}
+
+pub(crate) struct ColonIntroducedArmBody<'source> {
+    colon: Recovered<Range<usize>>,
+    rhs: Recovered<ArmBodyRhs<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ArmBodyRhs<'source> {
+    Inline(Box<OperatorChain<'source>>),
+    Indented(IndentedStatementBlock<'source>),
+}
+```
+
+`Recovered<Range<usize>>`はnormal colon token rangeまたはmissing introducerをsurface projectionへ伝えるための
+typed slotであり、CST token / `Missing` nodeの別authorityにはならない。concrete implementationでexisting
+`Recovered<T>`がrange payloadを持てない場合、equivalentな`ColonSlot`型へ分けてよいが、normal colonとrecovered
+colonを同じarm variantで表すこと、body shapeを推測しないことは変更しない。
+
+condition / bodyの`OperatorChain`はassociation済みtreeではない。HIR loweringは各chainをcanonical associatorへ
+一度渡した後、一個のconditional HIR nodeを構築する。type inferenceはbranch type / effectを扱うが、arm count、
+colon ownership、operator association、inline / block classificationを再判定しない。
+
+### Recognition / commit control flow
+
+direct parserのcontrolを次で固定する。
+
+```text
+at an operand-required NUD site:
+    sink-free scan one maximal word
+    if the exact spelling is not "if":
+        reject and rollback the whole candidate
+    accept NudRecognition::If and cut
+    start IfExpression
+    snapshot if_base_indent
+
+parse initial IfArm:
+    emit IfKw
+    start Condition
+    push incoming stops + Colon + LeftBrace + Elsif + Else
+    parse or recover one flat OperatorChain
+    pop condition stops
+    finish Condition
+    recognize and commit the arm-owned colon
+    select inline / indented body with the shared post-colon layout probe
+    parse or recover exactly one body slot
+    finish IfArm
+
+after each IfArm:
+    sink-free probe ArmContinuation + exact ElsifKw / ElseKw
+    if no candidate, rollback the trivia and finish IfExpression
+    if ElsifKw, cut and parse another IfArm total continuation
+    if ElseKw, cut and parse one ElseArm total continuation, then finish
+
+finish IfExpression
+return it as one completed PrimaryExpression to the enclosing OperandSlot
+continue the enclosing flat OperatorChain normally
+```
+
+probe中はRowan sink、committed recovery list、header factへ触れない。`IfKw`、`ElsifKw`、`ElseKw`のいずれかを
+owner positionでacceptした後はcutし、missing condition / colon / bodyを含めてそのarm continuationを必ず閉じる。
+accepted `elsif`をrollbackしてidentifierやoperatorへ読み替えない。
+
+AST-only pathとdirect-CST pathは同じword / stop / layout / continuation recognizerを使う。CST-specific emissionを
+surface AST parserへ逆流させず、二pathのarm count、ranges、inline / indented branch、recovery outcomeをfixtureで
+一致させる。
+
+### Mandatory-slot recovery
+
+新しいrecovery primitiveを作らない。typed vocabularyへ次を追加する。
+
+```text
+GrammarRole::IfExpression(
+    IfExpressionRole::{Condition, BodyIntroducer, Body, ElseBody, IndentedStatement}
+)
+
+ExpectedSyntax::Keyword(If | Elsif | Else)
+ExpectedSyntax::Punctuation(Colon)
+ExpectedSyntax::Expression
+ExpectedSyntax::Statement
+```
+
+rangeがrecovery identityを区別するため、initial / elsifごとのindexをroleへ埋め込まない。
+block statement recoveryはshared algorithmへowner roleを渡し、colon application diagnosticとして記録しない。
+`Missing`はzero-width、`Error`はnon-empty、one recovery node = one committed diagnosticを維持する。
+
+代表caseを次で固定する。
+
+| source situation | recovery / ownership |
+| --- | --- |
+| `if : 1` | `Condition`内のcolon直前へcondition用`Missing`一件。colonとbodyをnormal commitする |
+| `if` + EOF | `Condition`へ一個の`Missing`を置き、同じEOFへcolon / bodyの連鎖`Missing`を重ねずincomplete armを閉じる |
+| `if x` + EOF | conditionを保持し、body-introducer / body absenceを一個のarm-body `Missing`へ集約する |
+| `if x:` + EOF | colonを保持し、body用zero-width `Missing`一件でarmを閉じる |
+| `if x:\nnext`で`indent(next) <= if_base_indent` | post-colon trivia probeをrollbackし、colon直後にbody `Missing`。newlineと`next`はouter ownerへ残す |
+| `if x: @ y`で`@`がvalue startでない | maximal invalid runを一個のnon-empty `Error`にし、同じbody slotを`y`からretryする |
+| `if x: 1 elsif : 2` | `ElsifKw`を保持し、その`Condition`内へ一個の`Missing`。second armを同じ`IfExpression`内で完走する |
+| `if x: 1 else` + EOF | `ElseKw`を保持し、else body用`Missing`一件。optional elseを消してrollbackしない |
+| `if x: 1 else: ` + EOF | colonを保持し、else body用`Missing`一件 |
+| `if x: 1 else: 0 else: 2` | first `ElseArm`後に`IfExpression`を閉じ、second `else`をouter recoveryへ残す |
+| continuation keywordのnewline indentが`if_base_indent`未満 | trivia / keywordをconsumeせずcurrent `IfExpression`を閉じる |
+| current-depth `{` after condition | condition stopがbraceを保持する。first sliceはbrace bodyへcommitせず、incomplete armを閉じてbraceをouter recoveryへ残す |
+| indented body内のmalformed statement | shared block recoveryで一個の`Error` / `Missing`を作り、next sibling、arm companion、またはdedentへ同期する |
+
+missing colon recoveryのために`if x y`をcondition `x` + inferred body `y`へ分割しない。ML applicationやfuture
+primary adjacencyを含むvalid condition extentと区別できないためである。fixed colonを挿入できるのはfollowing
+slot / owner boundaryがgrammar上unambiguousなmandatory-slot caseだけとし、EOFまたはcontinuation keywordでcolonと
+bodyが同じcauseから欠ける場合は一個のbody-owned recoveryへ集約する。
+
+optional `ElseArm`がないことはerrorではない。`elsif` / `else` keywordをacceptする前のprobe failureもdiagnosticを
+作らない。associator / HIR loweringは全`Recovered` slotをtyped error expression / error blockへtotalにlowerし、
+parser diagnosticを複製しない。
+
+### Existing architecture principlesとの整合
+
+- **precedence-neutral chain:** condition、inline arm body、bare else body、block statementはflat
+  `OperatorChain`である。`IfExpression`はprimary hierarchyだけを所有し、numeric BPでarm / body CSTを変えない。
+- **rollback discipline:** exact keyword、condition delimiter、post-colon layout、arm continuationをsink-freeにprobeする。
+  keyword accept後はcutし、mandatory recovery込みのtotal continuationにする。
+- **direct CST / no event buffer:** `IfExpression`をprimary開始位置からforward-onlyにemitする。completed childを
+  wrap / replayせず、source-wide event bufferを作らない。
+- **immutable operator table / oracle judge:** condition / body chainは同じimmutable tableとfixity-role judgeを使う。
+  `if` / `elsif` / `else`はowner-recognized keywordでありdynamic operator tableへ追加しない。
+- **stop-set ownership:** conditionはincoming setへ`Colon` / `LeftBrace` / arm keywordsを加え、bodyはincoming setへ
+  arm keywordsを加える。outer setをin-place mutationせず、nested scope終了時にexact popする。
+- **colon-application boundary:** arm-owned colon位置ではactive `StopKind::Colon`がgeneric tailを止める。
+  sharedするのはpost-colon layout primitiveと`IndentedStatementBlock`であり、`ColonApplicationTail` node、inline
+  comma arity、terminal-chain semanticsではない。
+- **layout state:** `LineState` / `IndentationBaseline`を唯一のindent authorityにし、if専用raw whitespace counterを
+  作らない。arm continuationだけがdocumented `indent >= if_base_indent` exceptionを所有する。
+- **lexical-region-aware scanning:** nested delimiter / string / comment / heredoc / interpolation / rule / Yumark内の
+  colon、brace、`elsif`、`else`をouter condition stopやarm continuationへ誤分類しない。
+- **single block authority:** `IndentedStatementBlock`のtrigger、opening trivia、statement separator、dedent、recoveryを
+  colon application実装から共通化する。if専用block loopをcopyしない。
+- **association boundary:** pre-HIR associatorが全child chainを処理し、syntax-to-HIR loweringがconditional hierarchyを
+  作る。type inferenceへsurface parse / association decisionを移さない。
+
+### Implementation boundary and required gates
+
+最初の`yu-syntax` sliceは次を一changeとして含む。
+
+1. exact `if` NUD recognition、`IfExpression` / arm continuation、keyword token emission。
+2. `SyntaxKind::{IfExpression,IfArm,ElseArm,Condition,IfKw,ElsifKw,ElseKw}`とsurface AST shape。
+3. `StopKind::{LeftBrace,Elsif,Else}`、conditionの`Colon` reservation、outer stop preservation。
+4. colon-owned exactly-one inline bodyとexisting `IndentedStatementBlock` reuse。
+5. shared block loopへのowner-specific recovery role / arm-companion stop hook。block algorithmのcopyは不可。
+6. colonなしbare else body。
+7. mandatory-slot recovery、lossless direct CST、AST/direct parity fixture。
+
+brace group、case-like abstraction、HIR conditional loweringを同じimplementation changeへ混ぜない。
+
+`yu-syntax` gateを次で固定する。
+
+1. `if x: 1 else: 0`がone `IfExpression`、one `IfArm`、one `ElseArm`を持ち、colon tail nodeを持たない。
+2. `if x: 1 elsif y: 2 elsif z: 3 else: 0`がfirst / subsequent keywordを保ったthree sibling `IfArm`になる。
+3. `elsif`は一tokenであり、`else if`はbare else body内のnested `IfExpression`になる。
+4. `if x:\n  1\n  2\nelse: 0`がif arm直下のone `IndentedStatementBlock`にtwo `Statement`を持ち、dedent
+   `else`がsame `IfExpression`へ入る。
+5. inlineまたは`indent >= if_base_indent`のnewlineだけがarm continuationを認め、non-keyword / shallower lineで
+   boundary triviaをconsumeしない。
+6. block statement boundaryの`elsif` / `else`をError statementへせず、ownerへ返す。
+7. condition colonは`ColonApplicationTail`にならず、nested parenthesized condition内のordinary colon applicationは
+   local delimiter scope内で引き続き有効である。
+8. inline arm bodyは一expressionであり、generic colon inline-list loopを呼ばない。
+9. whole `IfExpression`の前後にprefix / infix / suffix useを置いても一個のprimary chain itemとしてflat orderを保つ。
+10. condition / body operator BPだけを変えてもIf CST hierarchy、ranges、recovery、diagnosticsがexact一致する。
+11. missing condition / body / colon、wrong indent、malformed later arm、duplicate elseをrecovery table通り固定する。
+12. all recoveryで`Missing` zero-width、`Error` non-empty、node / diagnostic一対一、node balance、
+    `green.to_string() == source`を満たす。
+13. candidate probe中sink call 0、accepted keywordのemission一回、all scope framesのbalanced popを満たす。
+
+HIR gateは別sliceで次を満たす。
+
+1. condition / body / block statement chainをcanonical associatorへ一度だけ渡し、surface CSTへtreeを書き戻さない。
+2. source-order arm list、optional else、inline / indented / bare shape、ranges、recoveryをconditional HIRへ保持する。
+3. recovered armをpanic / hangなしでdeterministic error HIRへlowerし、parser diagnosticsを複製しない。
+4. branch type / effect統一だけをtype inferenceへ渡し、syntax classificationを再実行しない。
+
+### Explicit future scope
+
+本追補は次を設計または実装しない。
+
+- `if` / `elsif` / `else`のbrace body。`BraceGroup` primary / expression-list grammarが完成した後、
+  `IfArm` / `ElseArm`直下のalternativeとして別sliceで追加する。Yulang2ではこれはstatement blockではなく
+  expression-list `BraceGroup`だった
+  (`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:1047-1073`)。
+- `IndentedStatementBlock`内のdeclaration / full statement family。current expression-statement subsetの拡張は
+  canonical `Statement` grammarが所有する。
+- `case` / `catch`のcase-like arm / guard grammar。Yulang2でも`parse_if_expr`はshared case-like machineryを
+  呼ばず、共有したのはlow-level inline / indent helperだけだった
+  (`yulang2-oracle@a58eefc3:crates/parser/src/expr/control.rs:365-519,521-571`)。
+- `for`、`sub` / lambda、declaration body、pattern / type annotationなど他のcolon-owner family。
+- conditional HIR、short-circuit / effect semantics、branch result typing、exhaustiveness。これらはsyntax addendumの
+  ownerではない。
+
+generic colon-application追補のfuture-scope listにあった`if` / `else` slotは本追補が具体化する。
+他のcolon familyは引き続きそれぞれのowner addendumを必要とし、一個のshared `ColonClause`へ統合しない。
+
+### Closed decisions and review focus
+
+本追補のimplementation directionをblockするopen questionはない。次を確定する。
+
+- `if`はNUD-position `PrimaryExpression`であり、terminal tailではない。
+- `elsif`は独立keyword、CSTではsubsequent sibling `IfArm`である。
+- first sliceはcolon inline / indented bodyとbare `else expr`を含み、brace bodyだけをdeferする。
+- indented bodyはmultiple statementを持てるexisting `IndentedStatementBlock`そのものである。
+- conditionはcurrent-depth colon / future brace boundaryをstopでownerへ返す。
+- arm continuationはhorizontalまたはnewline `indent >= if_base_indent` + exact keywordである。
+- arm colonはdirect childであり、`ColonApplicationTail`とinline comma-list semanticsを再利用しない。
+- condition / body associationはpre-HIR associator、conditional hierarchy loweringはHIR、branch typingはinferenceが
+  それぞれ所有する。
+
+Claude reviewでは、特にowner-specific block terminator hookがnested `if`を誤停止しないこと、incoming stop setを
+condition / body scopeが失わないこと、same-position recovery aggregationが既存mandatory-slot contractと一致することを
+確認対象にする。これらはconcrete helper signature / diagnostic display wordingの調整余地であり、上のgrammar arity、
+CST hierarchy、layout inequality、phase boundaryをopenに戻さない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、NUD-primary `if` / `elsif` / `else` expression grammar追補案）。
