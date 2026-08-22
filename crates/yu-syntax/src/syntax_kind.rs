@@ -25,6 +25,10 @@ pub enum SyntaxKind {
     IntegerLiteral,
     IdentifierExpression,
     ParenthesizedExpression,
+    IfExpression,
+    IfArm,
+    ElseArm,
+    Condition,
     OperatorChain,
     ColonApplicationTail,
     IndentedStatementBlock,
@@ -49,6 +53,9 @@ pub enum SyntaxKind {
     PrefixKw,
     SuffixKw,
     NullfixKw,
+    IfKw,
+    ElsifKw,
+    ElseKw,
     Identifier,
     Integer,
     Version,
@@ -116,6 +123,10 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::ParenthesizedExpression as u16 => {
                 SyntaxKind::ParenthesizedExpression
             }
+            value if value == SyntaxKind::IfExpression as u16 => SyntaxKind::IfExpression,
+            value if value == SyntaxKind::IfArm as u16 => SyntaxKind::IfArm,
+            value if value == SyntaxKind::ElseArm as u16 => SyntaxKind::ElseArm,
+            value if value == SyntaxKind::Condition as u16 => SyntaxKind::Condition,
             value if value == SyntaxKind::OperatorChain as u16 => SyntaxKind::OperatorChain,
             value if value == SyntaxKind::ColonApplicationTail as u16 => {
                 SyntaxKind::ColonApplicationTail
@@ -146,6 +157,9 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::PrefixKw as u16 => SyntaxKind::PrefixKw,
             value if value == SyntaxKind::SuffixKw as u16 => SyntaxKind::SuffixKw,
             value if value == SyntaxKind::NullfixKw as u16 => SyntaxKind::NullfixKw,
+            value if value == SyntaxKind::IfKw as u16 => SyntaxKind::IfKw,
+            value if value == SyntaxKind::ElsifKw as u16 => SyntaxKind::ElsifKw,
+            value if value == SyntaxKind::ElseKw as u16 => SyntaxKind::ElseKw,
             value if value == SyntaxKind::Identifier as u16 => SyntaxKind::Identifier,
             value if value == SyntaxKind::Integer as u16 => SyntaxKind::Integer,
             value if value == SyntaxKind::Version as u16 => SyntaxKind::Version,

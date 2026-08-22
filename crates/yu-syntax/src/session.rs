@@ -360,6 +360,9 @@ pub(crate) enum StopKind {
     Newline,
     Comma,
     Colon,
+    LeftBrace,
+    Elsif,
+    Else,
     RightParenthesis,
     RightBracket,
     RightBrace,
@@ -476,6 +479,7 @@ pub(crate) enum GrammarRole {
     Statement(StatementRole),
     Expression(ExpressionRole),
     ColonApplication(ColonApplicationRole),
+    IfExpression(IfExpressionRole),
     Pattern(PatternRole),
     Type(TypeRole),
     Layout(LayoutRole),
@@ -545,6 +549,15 @@ pub(crate) enum ExpressionRole {
 pub(crate) enum ColonApplicationRole {
     Rhs,
     InlineArgument,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum IfExpressionRole {
+    Condition,
+    BodyIntroducer,
+    Body,
+    ElseBody,
     IndentedStatement,
 }
 
@@ -661,6 +674,9 @@ pub(crate) enum KeywordEvidence {
     Infix,
     Suffix,
     Nullfix,
+    If,
+    Elsif,
+    Else,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]

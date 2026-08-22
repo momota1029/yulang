@@ -20,7 +20,7 @@ use crate::{
     },
     session::{
         ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IndentationBaseline,
+        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
@@ -132,6 +132,55 @@ pub(crate) enum PrimaryExpression<'source> {
         trailing_comma: Option<Range<usize>>,
         range: Range<usize>,
     },
+    If(IfExpression<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct IfExpression<'source> {
+    arms: Vec<IfArm<'source>>,
+    else_arm: Option<ElseArm<'source>>,
+    base_indent: usize,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct IfArm<'source> {
+    keyword: IfArmKeyword<'source>,
+    condition: Recovered<OperatorChain<'source>>,
+    body: Recovered<ColonIntroducedArmBody<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum IfArmKeyword<'source> {
+    If(WordSpan<'source>),
+    Elsif(WordSpan<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ElseArm<'source> {
+    keyword: WordSpan<'source>,
+    body: Recovered<ElseArmBody<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ElseArmBody<'source> {
+    Colon(ColonIntroducedArmBody<'source>),
+    Bare(Box<OperatorChain<'source>>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ColonIntroducedArmBody<'source> {
+    colon: Recovered<Range<usize>>,
+    rhs: Recovered<ArmBodyRhs<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ArmBodyRhs<'source> {
+    Inline(Box<OperatorChain<'source>>),
+    Indented(IndentedStatementBlock<'source>),
 }
 
 pub(crate) type Expression<'source> = PrimaryExpression<'source>;
@@ -142,6 +191,7 @@ impl PrimaryExpression<'_> {
             Self::Identifier(identifier) => identifier.range(),
             Self::Integer(integer) => integer.range(),
             Self::Parenthesized { range, .. } => range.clone(),
+            Self::If(if_expression) => if_expression.range.clone(),
         }
     }
 }
@@ -273,6 +323,13 @@ where
                 }));
                 break;
             }
+            NudRecognition::If { keyword, base_indent } => {
+                i.cut();
+                items.push(OperatorChainItem::Primary(PrimaryExpression::If(
+                    parse_if_expression(table, keyword, base_indent, &mut i),
+                )));
+                break;
+            }
             NudRecognition::Identifier(identifier) => {
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier)));
                 break;
@@ -396,6 +453,7 @@ fn operator_use<'source>(operator: &ScannedOperator<'source>, role: OperatorRole
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum NudRecognition<'source> {
     Parenthesized { open: Range<usize> },
+    If { keyword: WordSpan<'source>, base_indent: usize },
     Identifier(WordSpan<'source>),
     Integer(IntegerLiteral<'source>),
     Prefix(ScannedOperator<'source>),
@@ -490,9 +548,6 @@ where
         column: base_indent,
         kind: IndentationBaselineKind::Introducer,
     });
-    let post_colon_checkpoint = i.checkpoint();
-    let post_colon = consume_trivia(&mut i)?;
-    let block_indent = i.local.line().line_indent;
     assert_eq!(
         i.local.pop_indentation_baseline(),
         Some(IndentationBaseline {
@@ -500,19 +555,12 @@ where
             kind: IndentationBaselineKind::Introducer,
         })
     );
-    let rhs = if trivia_has_physical_newline(&post_colon) {
-        if block_indent > base_indent {
-            ColonApplicationRhsRecognition::Indented {
-                opening_trivia: post_colon,
-                base_indent,
-                block_indent,
-            }
-        } else {
-            i.rollback(post_colon_checkpoint);
-            ColonApplicationRhsRecognition::WrongIndent
+    let rhs = match recognize_post_colon_body_layout(base_indent, &mut i) {
+        ArmBodyLayout::Inline { trivia } => ColonApplicationRhsRecognition::Inline { trivia },
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => {
+            ColonApplicationRhsRecognition::Indented { opening_trivia, base_indent, block_indent }
         }
-    } else {
-        ColonApplicationRhsRecognition::Inline { trivia: post_colon }
+        ArmBodyLayout::WrongIndent => ColonApplicationRhsRecognition::WrongIndent,
     };
     Some(ColonApplicationRecognition {
         leading,
@@ -558,6 +606,7 @@ where
 {
     i.choice((
         recognize_parenthesized_open.map(|open| NudRecognition::Parenthesized { open }),
+        from_fn(recognize_if_nud),
         from_fn(|i| {
             let scanned = scan_operator(OperatorSite::Nud, leading, table, i)?;
             match scanned.fixity() {
@@ -569,6 +618,226 @@ where
         parse_identifier.map(NudRecognition::Identifier),
         parse_integer_literal.map(NudRecognition::Integer),
     ))
+}
+
+/// `if` stays a contextual word: this NUD judge accepts only the exact
+/// maximal spelling, leaving `ifx` and `if?` to the ordinary identifier path.
+fn recognize_if_nud<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<NudRecognition<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let word = i.run(scan_word)?;
+    (word.text() == "if").then(|| NudRecognition::If {
+        keyword: word,
+        base_indent: i.local.indentation_baseline().map_or(0, |baseline| baseline.column),
+    })
+}
+
+fn parse_if_expression<'source, E>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IfExpression<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = keyword.range().start;
+    let mut arms = vec![parse_if_arm(table, IfArmKeyword::If(keyword), base_indent, i)];
+    let mut else_arm = None;
+    while let Some(keyword) = recognize_if_arm_continuation(base_indent, i) {
+        match keyword {
+            IfContinuationKeyword::Elsif { keyword, .. } => {
+                arms.push(parse_if_arm(table, IfArmKeyword::Elsif(keyword), base_indent, i));
+            }
+            IfContinuationKeyword::Else { keyword, .. } => {
+                else_arm = Some(parse_else_arm(table, keyword, base_indent, i));
+                break;
+            }
+        }
+    }
+    let end = else_arm.as_ref().map_or_else(
+        || arms.last().expect("if has an initial arm").range.end,
+        |arm| arm.range.end,
+    );
+    IfExpression { arms, else_arm, base_indent, range: start..end }
+}
+
+fn parse_if_arm<'source, E>(
+    table: &OperatorTable,
+    keyword: IfArmKeyword<'source>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IfArm<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = match keyword { IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().start };
+    consume_trivia(i).expect("trivia scanning is total");
+    let condition_stop = active_stop_set(i)
+        .with(StopKind::Colon)
+        .with(StopKind::LeftBrace)
+        .with(StopKind::Elsif)
+        .with(StopKind::Else);
+    i.local.push_stop_set(condition_stop);
+    let condition = i.run(from_fn(|i| parse_operator_chain(table, i))).map_or(Recovered::Incomplete, Recovered::Complete);
+    assert_eq!(i.local.pop_stop_set(), Some(condition_stop));
+    let colon = recognize_arm_colon(i);
+    let body = colon.map_or(Recovered::Incomplete, |colon| {
+        Recovered::Complete(parse_colon_introduced_arm_body(table, colon, base_indent, i))
+    });
+    let end = match &body {
+        Recovered::Complete(body) => body.range.end,
+        Recovered::Incomplete => condition_end(&condition).unwrap_or_else(|| keyword_end(keyword)),
+    };
+    IfArm { keyword, condition, body, range: start..end }
+}
+
+fn parse_else_arm<'source, E>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ElseArm<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_trivia(i).expect("trivia scanning is total");
+    let body = if let Some(colon) = recognize_arm_colon(i) {
+        Recovered::Complete(ElseArmBody::Colon(parse_colon_introduced_arm_body(table, colon, base_indent, i)))
+    } else {
+        let stop_set = active_stop_set(i).with(StopKind::Elsif).with(StopKind::Else);
+        i.local.push_stop_set(stop_set);
+        let body = i.run(from_fn(|i| parse_operator_chain(table, i))).map(|chain| ElseArmBody::Bare(Box::new(chain)));
+        assert_eq!(i.local.pop_stop_set(), Some(stop_set));
+        body.map_or(Recovered::Incomplete, Recovered::Complete)
+    };
+    let end = match &body {
+        Recovered::Complete(ElseArmBody::Colon(body)) => body.range.end,
+        Recovered::Complete(ElseArmBody::Bare(chain)) => chain.range.end,
+        Recovered::Incomplete => keyword.range().end,
+    };
+    ElseArm { keyword, body, range: keyword.range().start..end }
+}
+
+fn condition_end(condition: &Recovered<OperatorChain<'_>>) -> Option<usize> {
+    match condition { Recovered::Complete(chain) => Some(chain.range.end), Recovered::Incomplete => None }
+}
+
+fn keyword_end(keyword: IfArmKeyword<'_>) -> usize {
+    match keyword { IfArmKeyword::If(word) | IfArmKeyword::Elsif(word) => word.range().end }
+}
+
+fn recognize_arm_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let colon = (punctuation.kind() == PunctuationKind::Colon).then(|| punctuation.range());
+    if colon.is_none() { i.rollback(checkpoint); }
+    colon
+}
+
+fn parse_colon_introduced_arm_body<'source, E>(
+    table: &OperatorTable,
+    colon: Range<usize>,
+    base_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ColonIntroducedArmBody<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = recognize_post_colon_body_layout(base_indent, i);
+    let rhs = match layout {
+        ArmBodyLayout::Inline { trivia: _ } => {
+            let chain = i.run(from_fn(|i| parse_operator_chain(table, i)));
+            chain.map(|chain| ArmBodyRhs::Inline(Box::new(chain))).map_or(Recovered::Incomplete, Recovered::Complete)
+        }
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBodyRhs::Indented(
+            parse_indented_statement_block_with_options(
+                table,
+                opening_trivia,
+                base_indent,
+                block_indent,
+                IndentedStatementBlockOptions::if_arm(base_indent),
+                i,
+            ),
+        )),
+        ArmBodyLayout::WrongIndent => Recovered::Incomplete,
+    };
+    let end = match &rhs {
+        Recovered::Complete(ArmBodyRhs::Inline(chain)) => chain.range.end,
+        Recovered::Complete(ArmBodyRhs::Indented(block)) => block.range.end,
+        Recovered::Incomplete => colon.end,
+    };
+    ColonIntroducedArmBody { colon: Recovered::Complete(colon.clone()), rhs, range: colon.start..end }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ArmBodyLayout {
+    Inline { trivia: TriviaRun },
+    Indented { opening_trivia: TriviaRun, block_indent: usize },
+    WrongIndent,
+}
+
+/// The post-colon layout decision is shared by colon application and if arms.
+fn recognize_post_colon_body_layout<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> ArmBodyLayout
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i).expect("trivia scanning is total");
+    if !trivia_has_physical_newline(&trivia) {
+        return ArmBodyLayout::Inline { trivia };
+    }
+    let block_indent = i.local.line().line_indent;
+    if block_indent > base_indent {
+        ArmBodyLayout::Indented { opening_trivia: trivia, block_indent }
+    } else {
+        i.rollback(checkpoint);
+        ArmBodyLayout::WrongIndent
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum IfContinuationKeyword<'source> {
+    Elsif { keyword: WordSpan<'source>, trivia: TriviaRun },
+    Else { keyword: WordSpan<'source>, trivia: TriviaRun },
+}
+
+fn recognize_if_arm_continuation<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> Option<IfContinuationKeyword<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i)?;
+    if trivia_has_physical_newline(&trivia) && i.local.line().line_indent < base_indent {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(word) = i.run(scan_word) else { i.rollback(checkpoint); return None; };
+    let keyword = match word.text() {
+        "elsif" => IfContinuationKeyword::Elsif { keyword: word, trivia },
+        "else" => IfContinuationKeyword::Else { keyword: word, trivia },
+        _ => { i.rollback(checkpoint); return None; }
+    };
+    Some(keyword)
 }
 
 fn recognize_parenthesized_open<'source, E>(
@@ -839,13 +1108,37 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    parse_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        base_indent,
+        block_indent,
+        IndentedStatementBlockOptions::default(),
+        i,
+    )
+}
+
+fn parse_indented_statement_block_with_options<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    options: IndentedStatementBlockOptions,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = opening_trivia.range().start;
     let scope = push_indented_statement_block_scope(i, block_indent);
     let mut statements = Vec::new();
 
     if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
         statements.push(Recovered::Complete(Statement { expression }));
-        while let Some(separator) = recognize_indented_block_separator(i, block_indent) {
+        while !options.companion_stop(i) {
+            let Some(separator) = recognize_indented_block_separator(i, block_indent) else { break; };
             if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
                 break;
             }
@@ -1020,6 +1313,31 @@ fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    commit_indented_statement_block_with_options(
+        table,
+        opening_trivia,
+        _base_indent,
+        block_indent,
+        IndentedStatementBlockOptions::default(),
+        committed,
+    );
+}
+
+/// Shared colon-body block loop.  Owners can supply a companion-stop policy
+/// without copying statement/separator/recovery ownership.
+fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    _base_indent: usize,
+    block_indent: usize,
+    options: IndentedStatementBlockOptions,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     committed.start_node(SyntaxKind::IndentedStatementBlock);
     committed.emit_trivia(&opening_trivia);
     let scope = committed.probe(|probe| {
@@ -1027,7 +1345,8 @@ fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
     });
 
     commit_indented_block_statement(table, LeadingTrivia::None, committed);
-    while let Some(separator) = commit_indented_block_separator(committed, block_indent) {
+    while !committed.probe(|probe| options.companion_stop(probe.input())) {
+        let Some(separator) = commit_indented_block_separator(committed, block_indent) else { break; };
         if separator.is_semicolon()
             && committed.probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
         {
@@ -1040,6 +1359,56 @@ fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
         pop_indented_statement_block_scope(probe.input(), scope, block_indent)
     });
     committed.finish_node();
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct IndentedStatementBlockOptions {
+    companion_stop: Option<IndentedBlockCompanionStop>,
+}
+
+impl IndentedStatementBlockOptions {
+    fn if_arm(base_indent: usize) -> Self {
+        Self { companion_stop: Some(IndentedBlockCompanionStop::ArmKeyword { base_indent }) }
+    }
+
+    /// This is deliberately a sink-free, owner-provided hook.  The generic
+    /// block loop knows neither `if` nor its arm grammar; it only asks whether
+    /// its owner retains the following boundary.
+    fn companion_stop<'source, E>(self, i: &mut SynIn<'_, 'source, '_, E>) -> bool
+    where
+        E: ErrorSink<usize>,
+        Unexpected<char>: Into<E::Error>,
+        UnexpectedEndOfInput: Into<E::Error>,
+    {
+        let Some(stop) = self.companion_stop else { return false; };
+        stop.matches(i)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum IndentedBlockCompanionStop {
+    ArmKeyword { base_indent: usize },
+}
+
+impl IndentedBlockCompanionStop {
+    fn matches<'source, E>(self, i: &mut SynIn<'_, 'source, '_, E>) -> bool
+    where
+        E: ErrorSink<usize>,
+        Unexpected<char>: Into<E::Error>,
+        UnexpectedEndOfInput: Into<E::Error>,
+    {
+        let checkpoint = i.checkpoint();
+        let result = match self {
+            Self::ArmKeyword { base_indent } => {
+                let trivia = consume_trivia(i).expect("trivia scanning is total");
+                trivia_has_physical_newline(&trivia)
+                    && i.local.line().line_indent >= base_indent
+                    && matches!(i.run(scan_word).map(|word| word.text()), Some("elsif" | "else"))
+            }
+        };
+        i.rollback(checkpoint);
+        result
+    }
 }
 
 fn commit_indented_block_statement<'parse, 'source, 'local, E, O>(
@@ -1296,6 +1665,11 @@ where
             commit_parenthesized_nud(table, open, committed)?;
             return Some(());
         }
+        NudRecognition::If { keyword, base_indent } => {
+            cut_after_acceptance(committed);
+            commit_if_expression(table, keyword, base_indent, committed);
+            return Some(());
+        }
         NudRecognition::Identifier(identifier) => {
             let range = identifier.range();
             committed.start_node(SyntaxKind::IdentifierExpression);
@@ -1322,6 +1696,159 @@ where
             return Some(());
         }
         }
+    }
+}
+
+fn commit_if_expression<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::IfExpression);
+    commit_if_arm(table, IfArmKeyword::If(keyword), base_indent, committed);
+    loop {
+        let Some(continuation) = committed.probe(|probe| {
+            recognize_if_arm_continuation(base_indent, probe.input())
+        }) else { break; };
+        match continuation {
+            IfContinuationKeyword::Elsif { keyword, trivia } => {
+                cut_after_acceptance(committed);
+                committed.emit_trivia(&trivia);
+                commit_if_arm(table, IfArmKeyword::Elsif(keyword), base_indent, committed);
+            }
+            IfContinuationKeyword::Else { keyword, trivia } => {
+                cut_after_acceptance(committed);
+                committed.emit_trivia(&trivia);
+                commit_else_arm(table, keyword, base_indent, committed);
+                break;
+            }
+        }
+    }
+    committed.finish_node();
+}
+
+fn commit_if_arm<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    keyword: IfArmKeyword<'source>,
+    base_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::IfArm);
+    let (token_kind, range) = match keyword {
+        IfArmKeyword::If(word) => (SyntaxKind::IfKw, word.range()),
+        IfArmKeyword::Elsif(word) => (SyntaxKind::ElsifKw, word.range()),
+    };
+    committed.token(token_kind, range);
+    let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+    committed.emit_trivia(&trivia);
+    let stop_set = committed.probe(|probe| {
+        active_stop_set(probe.input())
+            .with(StopKind::Colon)
+            .with(StopKind::LeftBrace)
+            .with(StopKind::Elsif)
+            .with(StopKind::Else)
+    });
+    committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+    committed.start_node(SyntaxKind::Condition);
+    let has_condition = parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_some();
+    if !has_condition {
+        emit_if_missing(committed, IfExpressionRole::Condition, ExpectedSyntax::Expression);
+    }
+    committed.finish_node();
+    committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+
+    let colon = committed.probe(|probe| recognize_arm_colon(probe.input()));
+    let Some(colon) = colon else {
+        if has_condition {
+            // At EOF the introducer and its body share one absence cause.
+            emit_if_missing(committed, IfExpressionRole::Body, ExpectedSyntax::Expression);
+        }
+        committed.finish_node();
+        return;
+    };
+    committed.token(SyntaxKind::Colon, colon);
+    commit_colon_introduced_if_body(table, base_indent, IfExpressionRole::Body, committed);
+    committed.finish_node();
+}
+
+fn commit_else_arm<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    keyword: WordSpan<'source>,
+    base_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::ElseArm);
+    committed.token(SyntaxKind::ElseKw, keyword.range());
+    let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
+    committed.emit_trivia(&trivia);
+    if let Some(colon) = committed.probe(|probe| recognize_arm_colon(probe.input())) {
+        committed.token(SyntaxKind::Colon, colon);
+        commit_colon_introduced_if_body(table, base_indent, IfExpressionRole::ElseBody, committed);
+    } else {
+        let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Elsif).with(StopKind::Else));
+        committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+        if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+            emit_if_missing(committed, IfExpressionRole::ElseBody, ExpectedSyntax::Expression);
+        }
+        committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+    }
+    committed.finish_node();
+}
+
+fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    base_indent: usize,
+    role: IfExpressionRole,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let layout = committed.probe(|probe| recognize_post_colon_body_layout(base_indent, probe.input()));
+    match layout {
+        ArmBodyLayout::Inline { trivia } => {
+            committed.emit_trivia(&trivia);
+            let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Elsif).with(StopKind::Else));
+            committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+            if parse_direct_operator_chain(table, leading_trivia(&trivia), committed).is_none() {
+                if if_body_error_retry(table, role, committed) {
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                        .expect("a retried if body must commit its shared NUD candidate");
+                } else {
+                    emit_if_missing(committed, role, ExpectedSyntax::Expression);
+                }
+            }
+            committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+        }
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => {
+            commit_indented_statement_block_with_options(
+                table,
+                opening_trivia,
+                base_indent,
+                block_indent,
+                IndentedStatementBlockOptions::if_arm(base_indent),
+                committed,
+            );
+        }
+        ArmBodyLayout::WrongIndent => emit_if_missing(committed, role, ExpectedSyntax::Expression),
     }
 }
 
@@ -1709,6 +2236,103 @@ fn emit_expression_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_if_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    if_role: IfExpressionRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::IfExpression(if_role);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn if_body_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    role: IfExpressionRole,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = recovered else { return false; };
+    emit_if_error(committed, role, range);
+    retry
+}
+
+fn emit_if_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    if_role: IfExpressionRole,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::IfExpression(if_role);
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
 }
 
 fn emit_colon_application_missing<'parse, 'source, 'local, E, O>(
@@ -2857,6 +3481,104 @@ mod tests {
         assert_eq!(tokens, source);
         assert_eq!(root.to_string(), source);
         assert_eq!(root.kind(), SyntaxKind::Root);
+    }
+
+    #[test]
+    fn if_expression_owns_arm_colons_without_colon_application_tails() {
+        let root = parse_direct("if x: 1 else: 0", &canonical_operator_table());
+        assert_eq!(root.to_string(), "if x: 1 else: 0");
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+    }
+
+    #[test]
+    fn if_expression_keeps_elsif_arms_as_siblings() {
+        let root = parse_direct(
+            "if x: 1 elsif y: 2 elsif z: 3 else: 0",
+            &canonical_operator_table(),
+        );
+        let if_expression = root.descendants().find(|node| node.kind() == SyntaxKind::IfExpression).unwrap();
+        assert_eq!(
+            if_expression.children().filter(|node| node.kind() == SyntaxKind::IfArm).count(),
+            3,
+        );
+        assert_eq!(
+            if_expression.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::ElsifKw).count(),
+            2,
+        );
+    }
+
+    #[test]
+    fn else_if_is_a_nested_if_primary_not_an_elsif_arm() {
+        let root = parse_direct("if x: 1 else if y: 2", &canonical_operator_table());
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 2);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElsifKw).count(), 0);
+    }
+
+    #[test]
+    fn indented_if_body_returns_dedent_else_to_its_owner() {
+        let root = parse_direct("if x:\n  1\n  2\nelse: 0", &canonical_operator_table());
+        let block = root.descendants().find(|node| node.kind() == SyntaxKind::IndentedStatementBlock).unwrap();
+        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 2);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+    }
+
+    #[test]
+    fn indented_block_companion_stop_precedes_a_same_indent_else_statement() {
+        let root = parse_direct("if x:\n  1\n  else: 0", &canonical_operator_table());
+        let block = root.descendants().find(|node| node.kind() == SyntaxKind::IndentedStatementBlock).unwrap();
+        assert_eq!(block.children().filter(|node| node.kind() == SyntaxKind::Statement).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
+    }
+
+    #[test]
+    fn if_expression_is_binding_power_invariant() {
+        let source = "if x + y: a + b else: c + d";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
+    }
+
+    #[test]
+    fn if_condition_keeps_nested_parenthesized_colon_application_local() {
+        let root = parse_direct("if (f: x): 1", &canonical_operator_table());
+        let condition = root.descendants().find(|node| node.kind() == SyntaxKind::Condition).unwrap();
+        assert_eq!(condition.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 1);
+        let arm = root.descendants().find(|node| node.kind() == SyntaxKind::IfArm).unwrap();
+        assert_eq!(arm.children().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+    }
+
+    #[test]
+    fn if_is_an_ordinary_parenthesized_primary() {
+        let root = parse_direct("(if x: 1 else: 0)", &canonical_operator_table());
+        let parenthesized = root.descendants().find(|node| node.kind() == SyntaxKind::ParenthesizedExpression).unwrap();
+        assert_eq!(parenthesized.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 1);
+    }
+
+    #[test]
+    fn if_recovery_preserves_committed_keywords_and_body_retry() {
+        let cases = [
+            ("if : 1", vec![(RecoveryKind::Missing, 3..3)]),
+            ("if", vec![(RecoveryKind::Missing, 2..2)]),
+            ("if x", vec![(RecoveryKind::Missing, 4..4)]),
+            ("if x:", vec![(RecoveryKind::Missing, 5..5)]),
+            ("if x: @ y", vec![(RecoveryKind::Error, 6..8)]),
+            ("if x: 1 elsif : 2", vec![(RecoveryKind::Missing, 14..14)]),
+            ("if x: 1 else", vec![(RecoveryKind::Missing, 12..12)]),
+        ];
+        for (source, expected) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+                expected,
+                "{source:?}",
+            );
+        }
     }
 
     fn canonical_operator_table() -> OperatorTable {
