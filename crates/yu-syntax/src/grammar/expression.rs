@@ -1,6 +1,6 @@
 //! Minimal expression grammar shared by declaration values and Pratt parsing.
 
-use std::{ops::Range, sync::Arc};
+use std::{marker::PhantomData, ops::Range, sync::Arc};
 
 use chasa::{
     Back as _, ErrorSink, Input as _,
@@ -10,7 +10,7 @@ use chasa::{
 };
 
 use crate::{
-    operator::{BindingPower, OperatorTable},
+    operator::OperatorTable,
     scan::{
         operator::{LeadingTrivia, OperatorSite, ScannedFixity, ScannedOperator, scan_operator},
         punctuation::{PunctuationKind, scan_punctuation},
@@ -26,68 +26,83 @@ use crate::{
     syntax_kind::SyntaxKind,
 };
 
-/// One expression accepted by the shared minimal and Pratt grammars.
+/// A precedence-neutral source-order dynamic operator chain.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum Expression<'source> {
-    Identifier(WordSpan<'source>),
-    Integer(IntegerLiteral<'source>),
-    Parenthesized {
-        elements: Vec<Expression<'source>>,
-        trailing_comma: Option<Range<usize>>,
-        range: Range<usize>,
-    },
-    PrefixApplication {
-        operator: OperatorApplication<'source>,
-        operand: Box<Expression<'source>>,
-    },
-    NullfixApplication {
-        operator: OperatorApplication<'source>,
-    },
-    SuffixApplication {
-        operand: Box<Expression<'source>>,
-        operator: OperatorApplication<'source>,
-    },
-    InfixApplication {
-        left: Box<Expression<'source>>,
-        operator: OperatorApplication<'source>,
-        right: Box<Expression<'source>>,
-    },
-}
-
-impl Expression<'_> {
-    pub(crate) fn range(&self) -> Range<usize> {
-        match self {
-            Self::Identifier(identifier) => identifier.range(),
-            Self::Integer(integer) => integer.range(),
-            Self::Parenthesized { range, .. } => range.clone(),
-            Self::PrefixApplication { operator, operand } => {
-                operator.range.start..operand.range().end
-            }
-            Self::NullfixApplication { operator } => operator.range.clone(),
-            Self::SuffixApplication { operand, operator } => {
-                operand.range().start..operator.range().end
-            }
-            Self::InfixApplication { left, right, .. } => left.range().start..right.range().end,
-        }
-    }
-}
-
-/// One site-aware operator use accepted by the immutable session table.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct OperatorApplication<'source> {
-    text: &'source str,
+pub(crate) struct OperatorChain<'source> {
+    items: Vec<OperatorChainItem<'source>>,
     range: Range<usize>,
 }
 
-impl<'source> OperatorApplication<'source> {
-    pub(crate) fn text(&self) -> &'source str {
-        self.text
+impl<'source> OperatorChain<'source> {
+    fn new(items: Vec<OperatorChainItem<'source>>, range: Range<usize>) -> Self {
+        Self { items, range }
+    }
+
+    pub(crate) fn items(&self) -> &[OperatorChainItem<'source>] {
+        &self.items
     }
 
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum OperatorChainItem<'source> {
+    PrefixUse(OperatorUse<'source>),
+    Primary(PrimaryExpression<'source>),
+    NullfixUse(OperatorUse<'source>),
+    InfixUse(OperatorUse<'source>),
+    SuffixUse(OperatorUse<'source>),
+    MissingOperand { range: Range<usize> },
+    Error { range: Range<usize> },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OperatorRole {
+    Prefix,
+    Infix,
+    Suffix,
+    Nullfix,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OperatorUse<'source> {
+    text: &'source str,
+    range: Range<usize>,
+    role: OperatorRole,
+}
+
+impl<'source> OperatorUse<'source> {
+    pub(crate) fn text(&self) -> &'source str { self.text }
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn role(&self) -> OperatorRole { self.role }
+}
+
+/// A primary expression; dynamic operator structure lives in [`OperatorChain`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PrimaryExpression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Parenthesized {
+        elements: Vec<OperatorChain<'source>>,
+        trailing_comma: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+}
+
+pub(crate) type Expression<'source> = PrimaryExpression<'source>;
+
+impl PrimaryExpression<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        match self {
+            Self::Identifier(identifier) => identifier.range(),
+            Self::Integer(integer) => integer.range(),
+            Self::Parenthesized { range, .. } => range.clone(),
+        }
+    }
+}
+
 
 /// The source extent of one decimal integer literal.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -123,30 +138,25 @@ where
 pub(crate) fn parse_expression_with_operators<'source, E>(
     table: &OperatorTable,
     i: SynIn<'_, 'source, '_, E>,
-) -> Option<Expression<'source>>
+) -> Option<OperatorChain<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let minimum = BindingPower::scalar(i8::MIN);
-    parse_expression_bp(table, &minimum, i)
+    parse_operator_chain(table, i)
 }
 
-/// Minimal metadata retained by the direct Pratt continuation.
-///
-/// The checkpoint identifies the first emitted child of the expression, so an
-/// accepted LED can wrap that complete left operand with `start_node_at`
-/// without an event buffer or a second traversal.
+/// Minimal metadata retained by the direct flat-chain continuation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ParsedExpression<C> {
-    checkpoint: C,
     range: Range<usize>,
+    marker: PhantomData<C>,
 }
 
 impl<C> ParsedExpression<C> {
-    fn new(checkpoint: C, range: Range<usize>) -> Self {
-        Self { checkpoint, range }
+    fn new(range: Range<usize>) -> Self {
+        Self { range, marker: PhantomData }
     }
 
     pub(crate) fn range(&self) -> Range<usize> {
@@ -170,109 +180,110 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let minimum = BindingPower::scalar(i8::MIN);
-    parse_direct_expression_bp(table, &minimum, leading, committed)
+    parse_direct_operator_chain(table, leading, committed)
 }
 
-fn parse_expression_bp<'source, E>(
+fn parse_operator_chain<'source, E>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<Expression<'source>>
+) -> Option<OperatorChain<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let leading = leading_trivia(&consume_trivia(&mut i)?);
-    let nud = i.run(from_fn(|i| recognize_nud(table, leading, i)))?;
-    let mut left = match nud {
-        NudRecognition::Parenthesized { open } => {
-            i.cut();
-            push_parenthesized_expression_scope(&mut i);
-            let inner_minimum = BindingPower::scalar(i8::MIN);
-            consume_trivia(&mut i).expect("trivia scanning is total");
-
-            let mut elements = Vec::new();
-            let mut trailing_comma = None;
-            let close = if let Some(close) = i.run(recognize_parenthesized_close) {
-                close
-            } else {
-                loop {
-                    let element =
-                        match i.run(from_fn(|i| parse_expression_bp(table, &inner_minimum, i))) {
-                            Some(element) => element,
-                            None => {
-                                pop_parenthesized_expression_scope(&mut i);
-                                return None;
-                            }
-                        };
-                    elements.push(element);
-                    consume_trivia(&mut i).expect("trivia scanning is total");
-
-                    let Some(comma) = i.run(recognize_parenthesized_comma) else {
-                        break match i.run(recognize_parenthesized_close) {
-                            Some(close) => close,
-                            None => {
-                                pop_parenthesized_expression_scope(&mut i);
-                                return None;
-                            }
-                        };
-                    };
-                    consume_trivia(&mut i).expect("trivia scanning is total");
-                    if let Some(close) = i.run(recognize_parenthesized_close) {
-                        trailing_comma = Some(comma);
-                        break close;
-                    }
-                }
-            };
-            pop_parenthesized_expression_scope(&mut i);
-            Expression::Parenthesized {
-                elements,
-                trailing_comma,
-                range: open.start..close.end,
+    let start = i.pos();
+    let mut items = Vec::new();
+    let mut leading = leading_trivia(&consume_trivia(&mut i)?);
+    loop {
+        let nud = i.run(from_fn(|i| recognize_nud(table, leading, i)))?;
+        match nud {
+            NudRecognition::Prefix(operator) => {
+                items.push(OperatorChainItem::PrefixUse(operator_use(&operator, OperatorRole::Prefix)));
+                leading = LeadingTrivia::None;
             }
-        }
-        NudRecognition::Identifier(identifier) => Expression::Identifier(identifier),
-        NudRecognition::Integer(integer) => Expression::Integer(integer),
-        NudRecognition::Prefix(operator) => {
-            i.cut();
-            let operand = i.run(from_fn(|i| {
-                parse_expression_bp(table, prefix_right_binding_power(&operator)?, i)
-            }))?;
-            Expression::PrefixApplication {
-                operator: operator_application(&operator),
-                operand: Box::new(operand),
-            }
-        }
-        NudRecognition::Nullfix(operator) => Expression::NullfixApplication {
-            operator: operator_application(&operator),
-        },
-    };
-
-    while let Some(tail) = i.run(from_fn(|i| recognize_led(table, minimum, i)))? {
-        match tail {
-            LedRecognition::Infix {
-                operator, right, ..
-            } => {
+            NudRecognition::Parenthesized { open } => {
                 i.cut();
-                let right = i.run(from_fn(|i| parse_expression_bp(table, &right, i)))?;
-                left = Expression::InfixApplication {
-                    left: Box::new(left),
-                    operator: operator_application(&operator),
-                    right: Box::new(right),
+                push_parenthesized_expression_scope(&mut i);
+                consume_trivia(&mut i).expect("trivia scanning is total");
+                let mut elements = Vec::new();
+                let mut trailing_comma = None;
+                let close = if let Some(close) = i.run(recognize_parenthesized_close) {
+                    close
+                } else {
+                    loop {
+                        elements.push(i.run(from_fn(|i| parse_operator_chain(table, i)))?);
+                        consume_trivia(&mut i).expect("trivia scanning is total");
+                        let Some(comma) = i.run(recognize_parenthesized_comma) else {
+                            break i.run(recognize_parenthesized_close)?;
+                        };
+                        consume_trivia(&mut i).expect("trivia scanning is total");
+                        if let Some(close) = i.run(recognize_parenthesized_close) {
+                            trailing_comma = Some(comma);
+                            break close;
+                        }
+                    }
                 };
+                pop_parenthesized_expression_scope(&mut i);
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
+                    elements, trailing_comma, range: open.start..close.end,
+                }));
+                break;
             }
-            LedRecognition::Suffix { operator, .. } => {
-                left = Expression::SuffixApplication {
-                    operand: Box::new(left),
-                    operator: operator_application(&operator),
-                };
+            NudRecognition::Identifier(identifier) => {
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier)));
+                break;
+            }
+            NudRecognition::Integer(integer) => {
+                items.push(OperatorChainItem::Primary(PrimaryExpression::Integer(integer)));
+                break;
+            }
+            NudRecognition::Nullfix(operator) => {
+                items.push(OperatorChainItem::NullfixUse(operator_use(&operator, OperatorRole::Nullfix)));
+                break;
             }
         }
     }
 
-    Some(left)
+    while let Some(tail) = i.run(from_fn(|i| recognize_led(table, i)))? {
+        match tail {
+            LedRecognition::Infix { operator, .. } => {
+                i.cut();
+                items.push(OperatorChainItem::InfixUse(operator_use(&operator, OperatorRole::Infix)));
+                items.extend(i.run(from_fn(|i| parse_operator_chain_operand(table, i)))?);
+            }
+            LedRecognition::Suffix { operator, .. } => {
+                items.push(OperatorChainItem::SuffixUse(operator_use(&operator, OperatorRole::Suffix)));
+            }
+        }
+    }
+    let end = items.last().map_or(start, operator_chain_item_end);
+    Some(OperatorChain::new(items, start..end))
+}
+
+fn parse_operator_chain_operand<'source, E>(
+    table: &OperatorTable,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<Vec<OperatorChainItem<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    Some(parse_operator_chain(table, i)?.items)
+}
+
+fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
+    match item {
+        OperatorChainItem::PrefixUse(operator) | OperatorChainItem::NullfixUse(operator)
+        | OperatorChainItem::InfixUse(operator) | OperatorChainItem::SuffixUse(operator) => operator.range.end,
+        OperatorChainItem::Primary(primary) => primary.range().end,
+        OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
+    }
+}
+
+fn operator_use<'source>(operator: &ScannedOperator<'source>, role: OperatorRole) -> OperatorUse<'source> {
+    OperatorUse { text: operator.text(), range: operator.range(), role }
 }
 
 /// Sink-free NUD result shared by AST tests and the direct continuation.
@@ -291,13 +302,10 @@ enum LedRecognition<'source> {
     Infix {
         leading: TriviaRun,
         operator: ScannedOperator<'source>,
-        left: BindingPower,
-        right: BindingPower,
     },
     Suffix {
         leading: TriviaRun,
         operator: ScannedOperator<'source>,
-        left: BindingPower,
     },
 }
 
@@ -380,7 +388,6 @@ where
 
 fn recognize_led<'source, E>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<Option<LedRecognition<'source>>>
 where
@@ -388,12 +395,11 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    i.maybe(from_fn(|i| scan_led(table, minimum, i)))
+    i.maybe(from_fn(|i| scan_led(table, i)))
 }
 
 fn scan_led<'source, E>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<LedRecognition<'source>>
 where
@@ -405,22 +411,10 @@ where
     let leading_presence = leading_trivia(&leading);
     let scanned = scan_operator(OperatorSite::Led, leading_presence, table, i)?;
 
-    match scanned.fixity().clone() {
-        ScannedFixity::Infix { left, right } if left >= *minimum => Some(LedRecognition::Infix {
-            leading,
-            operator: scanned,
-            left,
-            right,
-        }),
-        ScannedFixity::Suffix { left } if left >= *minimum => Some(LedRecognition::Suffix {
-            leading,
-            operator: scanned,
-            left,
-        }),
-        ScannedFixity::Prefix { .. }
-        | ScannedFixity::Infix { .. }
-        | ScannedFixity::Suffix { .. }
-        | ScannedFixity::Nullfix => None,
+    match scanned.fixity() {
+        ScannedFixity::Infix { .. } => Some(LedRecognition::Infix { leading, operator: scanned }),
+        ScannedFixity::Suffix { .. } => Some(LedRecognition::Suffix { leading, operator: scanned }),
+        ScannedFixity::Prefix { .. } | ScannedFixity::Nullfix => None,
     }
 }
 
@@ -441,27 +435,8 @@ fn leading_trivia(trivia: &TriviaRun) -> LeadingTrivia {
     }
 }
 
-fn operator_application<'source>(
-    operator: &ScannedOperator<'source>,
-) -> OperatorApplication<'source> {
-    OperatorApplication {
-        text: operator.text(),
-        range: operator.range(),
-    }
-}
-
-fn prefix_right_binding_power<'operator, 'source>(
-    operator: &'operator ScannedOperator<'source>,
-) -> Option<&'operator BindingPower> {
-    let ScannedFixity::Prefix { right } = operator.fixity() else {
-        return None;
-    };
-    Some(right)
-}
-
-fn parse_direct_expression_bp<'parse, 'source, 'local, E, O>(
+fn parse_direct_operator_chain<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedExpression<O::Checkpoint>>
@@ -471,22 +446,63 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let left_checkpoint = committed.checkpoint();
-    let nud = committed.probe(|probe| probe_nud(table, leading, probe))?;
-    if matches!(
-        &nud,
-        NudRecognition::Prefix(_) | NudRecognition::Parenthesized { .. }
-    ) {
+    let start = committed_position(committed);
+    let nud = committed.probe(|probe| probe_nud(table, leading, probe));
+    if nud.is_none() {
+        let (range, trailing) = committed.probe(|probe| {
+            let checkpoint = probe.input().checkpoint();
+            let recovered = probe_dangling_prefix(table, probe);
+            if recovered.is_none() {
+                probe.input().rollback(checkpoint);
+            }
+            recovered
+        })?;
         cut_after_acceptance(committed);
+        committed.start_node(SyntaxKind::OperatorChain);
+        emit_operator_range(committed, SyntaxKind::PrefixOperatorUse, range);
+        committed.emit_trivia(&trailing);
+        emit_expression_missing(committed);
+        committed.finish_node();
+        return Some(ParsedExpression::new(start..committed_position(committed)));
     }
-    let mut left = commit_nud(table, nud, left_checkpoint, committed)?;
-
-    while let Some(led) = committed.probe(|probe| probe_led(table, minimum, probe)) {
+    committed.start_node(SyntaxKind::OperatorChain);
+    commit_direct_operand_slot_from(table, nud.expect("checked above"), committed)?;
+    while let Some(led) = committed.probe(|probe| probe_led(table, probe)) {
         cut_after_acceptance(committed);
-        left = commit_led(table, led, left, committed)?;
+        match led {
+            LedRecognition::Infix { leading, operator } => {
+                committed.emit_trivia(&leading);
+                emit_operator_use(committed, SyntaxKind::InfixOperatorUse, &operator);
+                committed.emit_trivia(operator.trailing_trivia());
+                if commit_direct_operand_slot(table, committed, LeadingTrivia::None).is_none() {
+                    emit_expression_missing(committed);
+                    break;
+                }
+            }
+            LedRecognition::Suffix { leading, operator } => {
+                committed.emit_trivia(&leading);
+                emit_operator_use(committed, SyntaxKind::SuffixOperatorUse, &operator);
+                committed.emit_trivia(operator.trailing_trivia());
+            }
+        }
     }
-
-    Some(left)
+    if let Some((leading, range, trailing)) = committed.probe(|probe| {
+        let checkpoint = probe.input().checkpoint();
+        let recovered = probe_dangling_infix(table, probe);
+        if recovered.is_none() {
+            probe.input().rollback(checkpoint);
+        }
+        recovered
+    }) {
+        cut_after_acceptance(committed);
+        committed.emit_trivia(&leading);
+        emit_operator_range(committed, SyntaxKind::InfixOperatorUse, range);
+        committed.emit_trivia(&trailing);
+        emit_expression_missing(committed);
+    }
+    let end = committed_position(committed);
+    committed.finish_node();
+    Some(ParsedExpression::new(start..end))
 }
 
 /// Probes a NUD candidate without granting access to the output sink.
@@ -531,7 +547,6 @@ where
 /// Probes a LED candidate and rolls back its trivia with every rejection.
 fn probe_led<'parse, 'source, 'local, E>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     probe: &mut Probe<'parse, 'source, 'local, E>,
 ) -> Option<LedRecognition<'source>>
 where
@@ -541,7 +556,7 @@ where
 {
     probe
         .input()
-        .run(from_fn(|i| recognize_led(table, minimum, i)))?
+        .run(from_fn(|i| recognize_led(table, i)))?
 }
 
 fn cut_after_acceptance<'parse, 'source, 'local, E, O>(
@@ -553,56 +568,150 @@ fn cut_after_acceptance<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| probe.input().cut());
 }
 
-fn commit_nud<'parse, 'source, 'local, E, O>(
+fn commit_direct_operand_slot<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
-    accepted: NudRecognition<'source>,
-    checkpoint: O::Checkpoint,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<ParsedExpression<O::Checkpoint>>
+    leading: LeadingTrivia,
+) -> Option<()>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    match accepted {
+    let accepted = committed.probe(|probe| probe_nud(table, leading, probe))?;
+    commit_direct_operand_slot_from(table, accepted, committed)
+}
+
+fn commit_direct_operand_slot_from<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    mut accepted: NudRecognition<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<()>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        match accepted {
         NudRecognition::Parenthesized { open } => {
-            commit_parenthesized_nud(table, open, checkpoint, committed)
+            cut_after_acceptance(committed);
+            commit_parenthesized_nud(table, open, committed)?;
+            return Some(());
         }
         NudRecognition::Identifier(identifier) => {
             let range = identifier.range();
             committed.start_node(SyntaxKind::IdentifierExpression);
             committed.token(SyntaxKind::Identifier, range.clone());
             committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, range))
+            return Some(());
         }
         NudRecognition::Integer(integer) => {
             let range = integer.range();
             committed.start_node(SyntaxKind::IntegerLiteral);
             committed.token(SyntaxKind::Integer, range.clone());
             committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, range))
+            return Some(());
         }
-        NudRecognition::Prefix(operator) => {
-            let range_start = operator.range().start;
-            let right = prefix_right_binding_power(&operator)?;
-            committed.start_node(SyntaxKind::PrefixExpression);
-            committed.token(SyntaxKind::Operator, operator.range());
+            NudRecognition::Prefix(operator) => {
+            cut_after_acceptance(committed);
+            emit_operator_use(committed, SyntaxKind::PrefixOperatorUse, &operator);
             committed.emit_trivia(operator.trailing_trivia());
-            let operand = parse_direct_expression_bp(table, right, LeadingTrivia::None, committed)?;
-            let range = range_start..operand.range.end;
-            committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, range))
+            accepted = committed.probe(|probe| probe_nud(table, LeadingTrivia::None, probe))?;
         }
         NudRecognition::Nullfix(operator) => {
-            let range = operator.range();
-            committed.start_node(SyntaxKind::NullfixExpression);
-            committed.token(SyntaxKind::Operator, range.clone());
+            emit_operator_use(committed, SyntaxKind::NullfixOperatorUse, &operator);
             committed.emit_trivia(operator.trailing_trivia());
-            committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, range))
+            return Some(());
+        }
         }
     }
+}
+
+fn emit_operator_use<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    kind: SyntaxKind,
+    operator: &ScannedOperator<'source>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.start_node(kind);
+    committed.token(SyntaxKind::Operator, operator.range());
+    committed.finish_node();
+}
+
+fn emit_operator_range<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    kind: SyntaxKind,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.start_node(kind);
+    committed.token(SyntaxKind::Operator, range);
+    committed.finish_node();
+}
+
+/// Recovery-only recognition preserves one unambiguous dangling infix use.
+fn probe_dangling_infix<'parse, 'source, 'local, E>(
+    table: &OperatorTable,
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> Option<(TriviaRun, Range<usize>, TriviaRun)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let leading = consume_trivia(i)?;
+    let remainder = i.input.remainder();
+    let entry = table
+        .entries_with_sites()
+        .map(|(entry, _)| entry)
+        .filter(|entry| remainder.starts_with(entry.spelling()))
+        .max_by_key(|entry| entry.spelling().len())?;
+    let fixities = entry.fixities();
+    (fixities.infix().is_some() && fixities.suffix().is_none()).then_some(())?;
+    let start = i.pos();
+    for _ in entry.spelling().chars() {
+        i.input.next()?;
+    }
+    let end = i.pos();
+    let trailing = consume_trivia(i)?;
+    (i.input.remainder().is_empty() || i.input.remainder().starts_with(')')).then_some(())?;
+    Some((leading, start..end, trailing))
+}
+
+fn probe_dangling_prefix<'parse, 'source, 'local, E>(
+    table: &OperatorTable,
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> Option<(Range<usize>, TriviaRun)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let remainder = i.input.remainder();
+    let entry = table
+        .entries_with_sites()
+        .map(|(entry, _)| entry)
+        .filter(|entry| remainder.starts_with(entry.spelling()))
+        .max_by_key(|entry| entry.spelling().len())?;
+    let fixities = entry.fixities();
+    (fixities.prefix().is_some() && !fixities.is_nullfix()).then_some(())?;
+    let start = i.pos();
+    for _ in entry.spelling().chars() {
+        i.input.next()?;
+    }
+    let end = i.pos();
+    let trailing = consume_trivia(i)?;
+    (i.input.remainder().is_empty() || i.input.remainder().starts_with(')')).then_some(())?;
+    Some((start..end, trailing))
 }
 
 /// Completes an accepted parenthesized expression without returning to the
@@ -611,34 +720,32 @@ where
 fn commit_parenthesized_nud<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     open: Range<usize>,
-    checkpoint: O::Checkpoint,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<ParsedExpression<O::Checkpoint>>
+) -> Option<()>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.start_node_at(checkpoint, SyntaxKind::ParenthesizedExpression);
+    committed.start_node(SyntaxKind::ParenthesizedExpression);
     committed.token(SyntaxKind::LParen, open.clone());
     push_direct_parenthesized_expression_scope(committed);
 
     let leading = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
     committed.emit_trivia(&leading);
-    let minimum = BindingPower::scalar(i8::MIN);
     let mut delayed_initial_element_missing = None;
 
     if !parenthesized_close_pending(committed) && !parenthesized_close_absent_boundary(committed) {
         let element_start = committed_position(committed);
         let element =
-            commit_parenthesized_element(table, &minimum, leading_trivia(&leading), committed);
+            commit_parenthesized_element(table, leading_trivia(&leading), committed);
         if element.is_none() {
             let at = committed_position(committed);
             if element_start < at && parenthesized_close_absent_boundary(committed) {
                 delayed_initial_element_missing = Some(at);
             } else {
-                emit_parenthesized_element_missing(committed);
+                emit_expression_missing(committed);
             }
         }
 
@@ -651,9 +758,9 @@ where
             }
 
             let element =
-                commit_parenthesized_element(table, &minimum, leading_trivia(&leading), committed);
+                commit_parenthesized_element(table, leading_trivia(&leading), committed);
             if element.is_none() {
-                emit_parenthesized_element_missing(committed);
+                emit_expression_missing(committed);
             }
         }
     }
@@ -664,7 +771,7 @@ where
             committed.token(SyntaxKind::RParen, range.clone());
             pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, open.start..range.end))
+            Some(())
         }
         ParenthesizedClose::Missing { at } => {
             if delayed_initial_element_missing == Some(at) {
@@ -674,14 +781,13 @@ where
             }
             pop_direct_parenthesized_expression_scope(committed);
             committed.finish_node();
-            Some(ParsedExpression::new(checkpoint, open.start..at))
+            Some(())
         }
     }
 }
 
 fn commit_parenthesized_element<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
-    minimum: &BindingPower,
     leading: LeadingTrivia,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> Option<ParsedExpression<O::Checkpoint>>
@@ -691,9 +797,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    parse_direct_expression_bp(table, minimum, leading, committed).or_else(|| {
+    parse_direct_operator_chain(table, leading, committed).or_else(|| {
         parenthesized_element_error_retry(table, committed).then(|| {
-            parse_direct_expression_bp(table, minimum, LeadingTrivia::None, committed)
+            parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                 .expect("a retried parenthesized element must commit its shared NUD candidate")
         })
     })
@@ -880,7 +986,7 @@ fn parenthesized_close_role() -> GrammarRole {
     }
 }
 
-fn emit_parenthesized_element_missing<'parse, 'source, 'local, E, O>(
+fn emit_expression_missing<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1122,51 +1228,6 @@ fn pop_direct_parenthesized_expression_scope<'parse, 'source, 'local, E, O>(
     committed.probe(|probe| pop_parenthesized_expression_scope(probe.input()));
 }
 
-/// Emits one accepted LED after its probe has committed.
-fn commit_led<'parse, 'source, 'local, E, O>(
-    table: &OperatorTable,
-    accepted: LedRecognition<'source>,
-    left: ParsedExpression<O::Checkpoint>,
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<ParsedExpression<O::Checkpoint>>
-where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    match accepted {
-        LedRecognition::Infix {
-            leading,
-            operator,
-            right,
-            ..
-        } => {
-            let operator_range = operator.range();
-            committed.start_node_at(left.checkpoint, SyntaxKind::InfixExpression);
-            committed.emit_trivia(&leading);
-            committed.token(SyntaxKind::Operator, operator_range.clone());
-            committed.emit_trivia(operator.trailing_trivia());
-            let right = parse_direct_expression_bp(table, &right, LeadingTrivia::None, committed)?;
-            let range = left.range.start..right.range.end;
-            committed.finish_node();
-            Some(ParsedExpression::new(left.checkpoint, range))
-        }
-        LedRecognition::Suffix {
-            leading, operator, ..
-        } => {
-            let operator_range = operator.range();
-            let range = left.range.start..operator_range.end;
-            committed.start_node_at(left.checkpoint, SyntaxKind::SuffixExpression);
-            committed.emit_trivia(&leading);
-            committed.token(SyntaxKind::Operator, operator_range);
-            committed.emit_trivia(operator.trailing_trivia());
-            committed.finish_node();
-            Some(ParsedExpression::new(left.checkpoint, range))
-        }
-    }
-}
-
 fn parse_atom<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Expression<'source>>
 where
     E: ErrorSink<usize>,
@@ -1218,12 +1279,12 @@ mod tests {
     use crate::{
         SyntaxKind, SyntaxNode,
         input::SourceInput,
-        operator::{OperatorDeclaration, OperatorFixities},
+        operator::{BindingPower, OperatorDeclaration, OperatorFixities},
         session::{CommittedRecoveryRecord, FullCstOutput, ParseLocal, Probe},
     };
 
     #[test]
-    fn pratt_ast_preserves_parenthesized_element_counts_and_trailing_commas() {
+    fn operator_chain_ast_preserves_parenthesized_element_counts_and_trailing_commas() {
         let cases = [
             ("()", 0, None, 0..2),
             ("(a)", 1, None, 0..3),
@@ -1233,190 +1294,130 @@ mod tests {
         ];
 
         for (source, expected_element_count, expected_trailing_comma, expected_range) in cases {
-            let expression = parse(source, &canonical_operator_table());
-            let Expression::Parenthesized {
+            let chain = parse(source, &canonical_operator_table());
+            let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
                 elements,
                 trailing_comma,
                 range,
-            } = expression
+            })] = chain.items()
             else {
                 panic!("expected parenthesized expression for {source:?}");
             };
 
             assert_eq!(elements.len(), expected_element_count, "{source:?}");
-            assert_eq!(trailing_comma, expected_trailing_comma, "{source:?}");
-            assert_eq!(range, expected_range, "{source:?}");
+            assert_eq!(*trailing_comma, expected_trailing_comma, "{source:?}");
+            assert_eq!(*range, expected_range, "{source:?}");
         }
     }
 
     #[test]
-    fn pratt_ast_builds_nested_parenthesized_expressions() {
-        let expression = parse("((a))", &canonical_operator_table());
-
-        let Expression::Parenthesized {
+    fn operator_chain_ast_builds_nested_parenthesized_expressions() {
+        let chain = parse("((a))", &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
             elements,
             trailing_comma,
             range,
-        } = expression
+        })] = chain.items()
         else {
             panic!("expected outer parenthesized expression");
         };
-        assert_eq!(range, 0..5);
-        assert_eq!(trailing_comma, None);
-        let [
-            Expression::Parenthesized {
+        assert_eq!(*range, 0..5);
+        assert_eq!(*trailing_comma, None);
+        let [OperatorChain {
+            items,
+            range: inner_chain_range,
+        }] = elements.as_slice() else {
+            panic!("expected one nested chain");
+        };
+        assert_eq!(*inner_chain_range, 1..4);
+        let [OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
                 elements,
                 trailing_comma,
                 range,
-            },
-        ] = elements.as_slice()
+            })] = items.as_slice()
         else {
             panic!("expected one nested parenthesized element");
         };
         assert_eq!(*range, 1..4);
         assert_eq!(*trailing_comma, None);
-        assert!(matches!(elements.as_slice(), [Expression::Identifier(_)]));
+        assert!(matches!(
+            elements.as_slice(),
+            [OperatorChain { items, .. }]
+                if matches!(items.as_slice(), [OperatorChainItem::Primary(PrimaryExpression::Identifier(_))])
+        ));
     }
 
     #[test]
-    fn pratt_nud_splits_long_infix_into_prefix_nullfix_chain() {
+    fn nud_role_selection_splits_long_infix_into_prefix_and_nullfix_uses() {
         let table = canonical_operator_table();
-        let expression = parse("+!a", &table);
-
-        let Expression::PrefixApplication { operator, operand } = expression else {
-            panic!("expected outer prefix application");
-        };
-        assert_eq!(operator.text(), "+");
-        assert_eq!(operator.range(), 0..1);
-
-        let Expression::PrefixApplication { operator, operand } = *operand else {
-            panic!("expected nested prefix/nullfix-capable application");
-        };
-        assert_eq!(operator.text(), "!");
-        assert_eq!(operator.range(), 1..2);
-
-        let Expression::Identifier(identifier) = *operand else {
-            panic!("expected identifier operand");
-        };
-        assert_eq!(identifier.text(), "a");
-        assert_eq!(identifier.range(), 2..3);
+        let chain = parse("+!a", &table);
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::PrefixUse(plus),
+                OperatorChainItem::PrefixUse(bang),
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(identifier)),
+            ] if plus.text() == "+" && plus.range() == (0..1)
+                && bang.text() == "!" && bang.range() == (1..2)
+                && identifier.text() == "a" && identifier.range() == (2..3)
+        ));
     }
 
     #[test]
-    fn pratt_led_keeps_long_infix_operator() {
+    fn led_role_selection_keeps_the_long_infix_use() {
         let table = canonical_operator_table();
-        let expression = parse("a+!b", &table);
-
-        let Expression::InfixApplication {
-            left,
-            operator,
-            right,
-        } = expression
-        else {
-            panic!("expected infix application");
-        };
-        assert_eq!(operator.text(), "+!");
-        assert_eq!(operator.range(), 1..3);
-
-        let Expression::Identifier(left) = *left else {
-            panic!("expected left identifier");
-        };
-        let Expression::Identifier(right) = *right else {
-            panic!("expected right identifier");
-        };
-        assert_eq!(left.text(), "a");
-        assert_eq!(right.text(), "b");
+        let chain = parse("a+!b", &table);
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(left)),
+                OperatorChainItem::InfixUse(operator),
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(right)),
+            ] if left.text() == "a" && operator.text() == "+!" && operator.range() == (1..3)
+                && right.text() == "b"
+        ));
     }
 
     #[test]
-    fn pratt_binding_power_returns_a_weaker_tail_to_its_caller() {
-        let table = canonical_operator_table();
-        let expression = parse("a+!b+!c", &table);
-
-        let Expression::InfixApplication {
-            left,
-            right: outer_right,
-            ..
-        } = expression
-        else {
-            panic!("expected outer infix application");
-        };
-        let Expression::InfixApplication { left, right, .. } = *left else {
-            panic!("expected weaker trailing operator to associate outside the RHS");
-        };
-        let Expression::Identifier(left) = *left else {
-            panic!("expected first identifier");
-        };
-        let Expression::Identifier(right) = *right else {
-            panic!("expected second identifier");
-        };
-        let Expression::Identifier(rightmost) = *outer_right else {
-            panic!("expected third identifier");
-        };
-        assert_eq!(
-            (left.text(), right.text(), rightmost.text()),
-            ("a", "b", "c")
-        );
-    }
-
-    #[test]
-    fn direct_pratt_nud_emits_nested_prefix_nodes_after_candidate_fallback() {
+    fn direct_nud_role_selection_emits_flat_prefix_uses_after_candidate_fallback() {
         let root = parse_direct("+!a", &canonical_operator_table());
-        let outer = only_child(&root, SyntaxKind::PrefixExpression);
-        assert_eq!(direct_token_kinds(&outer), vec![SyntaxKind::Operator]);
-        assert_eq!(outer.first_token().expect("prefix operator").text(), "+");
-
-        let inner = only_child(&outer, SyntaxKind::PrefixExpression);
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
-            inner.first_token().expect("nested prefix operator").text(),
-            "!"
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::PrefixOperatorUse, SyntaxKind::PrefixOperatorUse, SyntaxKind::IdentifierExpression]
         );
-        let identifier = only_child(&inner, SyntaxKind::IdentifierExpression);
-        assert_eq!(identifier.text().to_string(), "a");
+        assert_eq!(chain.children().nth(0).unwrap().first_token().unwrap().text(), "+");
+        assert_eq!(chain.children().nth(1).unwrap().first_token().unwrap().text(), "!");
         assert_eq!(root.to_string(), "+!a");
     }
 
     #[test]
-    fn direct_pratt_led_wraps_the_left_operand_at_its_checkpoint() {
+    fn direct_led_role_selection_emits_a_flat_infix_use() {
         let root = parse_direct("a+!b", &canonical_operator_table());
-        let infix = only_child(&root, SyntaxKind::InfixExpression);
-        let children = infix.children_with_tokens().collect::<Vec<_>>();
-
-        assert_eq!(children[0].kind(), SyntaxKind::IdentifierExpression);
-        assert_eq!(children[1].kind(), SyntaxKind::Operator);
-        assert_eq!(children[2].kind(), SyntaxKind::IdentifierExpression);
-        assert_eq!(children[1].as_token().expect("infix operator").text(), "+!");
-        assert_eq!(infix.to_string(), "a+!b");
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::IdentifierExpression, SyntaxKind::InfixOperatorUse, SyntaxKind::IdentifierExpression]
+        );
+        let infix = chain.children().nth(1).unwrap();
+        assert_eq!(direct_token_kinds(&infix), vec![SyntaxKind::Operator]);
+        assert_eq!(infix.first_token().unwrap().text(), "+!");
     }
 
     #[test]
-    fn direct_pratt_returns_a_weaker_led_to_the_caller_without_emitting_it() {
-        let root = parse_direct("a+!b+!c", &canonical_operator_table());
-        let outer = only_child(&root, SyntaxKind::InfixExpression);
-        let inner = outer
-            .children()
-            .next()
-            .expect("outer infix has a left operand");
-
-        assert_eq!(inner.kind(), SyntaxKind::InfixExpression);
-        assert_eq!(inner.to_string(), "a+!b");
-        assert_eq!(outer.to_string(), "a+!b+!c");
-    }
-
-    #[test]
-    fn direct_pratt_assigns_accepted_led_trivia_to_the_application_once() {
+    fn direct_chain_assigns_accepted_led_trivia_once() {
         let root = parse_direct("a +! b", &canonical_operator_table());
-        let infix = only_child(&root, SyntaxKind::InfixExpression);
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
 
         assert_eq!(
-            infix
+            chain
                 .children_with_tokens()
                 .map(|child| child.kind())
                 .collect::<Vec<_>>(),
             vec![
                 SyntaxKind::IdentifierExpression,
                 SyntaxKind::Whitespace,
-                SyntaxKind::Operator,
+                SyntaxKind::InfixOperatorUse,
                 SyntaxKind::Whitespace,
                 SyntaxKind::IdentifierExpression,
             ]
@@ -1425,31 +1426,33 @@ mod tests {
     }
 
     #[test]
-    fn direct_pratt_emits_suffix_and_nullfix_application_nodes() {
+    fn direct_chain_emits_suffix_and_nullfix_use_nodes() {
         let table = canonical_operator_table();
 
         let suffix_root = parse_direct("a++", &table);
-        let suffix = only_child(&suffix_root, SyntaxKind::SuffixExpression);
-        assert_eq!(suffix.to_string(), "a++");
+        let suffix_chain = only_child(&suffix_root, SyntaxKind::OperatorChain);
+        let suffix = suffix_chain.children().nth(1).unwrap();
+        assert_eq!(suffix.kind(), SyntaxKind::SuffixOperatorUse);
+        assert_eq!(suffix_chain.to_string(), "a++");
         assert_eq!(
             suffix
-                .children_with_tokens()
-                .map(|child| child.kind())
-                .collect::<Vec<_>>(),
-            vec![SyntaxKind::IdentifierExpression, SyntaxKind::Operator]
+                .children_with_tokens().map(|child| child.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::Operator]
         );
 
         let nullfix_root = parse_direct("!", &table);
-        let nullfix = only_child(&nullfix_root, SyntaxKind::NullfixExpression);
-        assert_eq!(nullfix.to_string(), "!");
+        let nullfix_chain = only_child(&nullfix_root, SyntaxKind::OperatorChain);
+        let nullfix = only_child(&nullfix_chain, SyntaxKind::NullfixOperatorUse);
+        assert_eq!(nullfix_chain.to_string(), "!");
         assert_eq!(direct_token_kinds(&nullfix), vec![SyntaxKind::Operator]);
     }
 
     #[test]
-    fn direct_pratt_emits_parenthesized_trivia_and_nested_nodes_losslessly() {
+    fn direct_chain_emits_parenthesized_trivia_and_nested_nodes_losslessly() {
         let source = "(\n/* note */ (a), b, \n)";
         let root = parse_direct(source, &canonical_operator_table());
-        let parenthesized = only_child(&root, SyntaxKind::ParenthesizedExpression);
+        let outer_chain = only_child(&root, SyntaxKind::OperatorChain);
+        let parenthesized = only_child(&outer_chain, SyntaxKind::ParenthesizedExpression);
 
         assert_eq!(parenthesized.to_string(), source);
         assert_eq!(
@@ -1462,10 +1465,10 @@ mod tests {
                 SyntaxKind::Newline,
                 SyntaxKind::BlockComment,
                 SyntaxKind::Whitespace,
-                SyntaxKind::ParenthesizedExpression,
+                SyntaxKind::OperatorChain,
                 SyntaxKind::Comma,
                 SyntaxKind::Whitespace,
-                SyntaxKind::IdentifierExpression,
+                SyntaxKind::OperatorChain,
                 SyntaxKind::Comma,
                 SyntaxKind::Whitespace,
                 SyntaxKind::Newline,
@@ -1473,24 +1476,20 @@ mod tests {
             ]
         );
         assert_eq!(
-            parenthesized
-                .children()
-                .next()
-                .expect("nested parenthesized expression")
-                .kind(),
-            SyntaxKind::ParenthesizedExpression
+            parenthesized.children().next().unwrap().children().next().unwrap().kind(),
+            SyntaxKind::ParenthesizedExpression,
         );
     }
 
     #[test]
-    fn direct_pratt_uses_one_parenthesized_node_for_every_valid_list_shape() {
+    fn direct_chain_uses_one_parenthesized_node_for_every_valid_list_shape() {
         let cases = [
             ("()", vec![SyntaxKind::LParen, SyntaxKind::RParen]),
             (
                 "(a)",
                 vec![
                     SyntaxKind::LParen,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::RParen,
                 ],
             ),
@@ -1498,7 +1497,7 @@ mod tests {
                 "(a,)",
                 vec![
                     SyntaxKind::LParen,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::Comma,
                     SyntaxKind::RParen,
                 ],
@@ -1507,9 +1506,9 @@ mod tests {
                 "(a,b)",
                 vec![
                     SyntaxKind::LParen,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::Comma,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::RParen,
                 ],
             ),
@@ -1517,9 +1516,9 @@ mod tests {
                 "(a,b,)",
                 vec![
                     SyntaxKind::LParen,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::Comma,
-                    SyntaxKind::IdentifierExpression,
+                    SyntaxKind::OperatorChain,
                     SyntaxKind::Comma,
                     SyntaxKind::RParen,
                 ],
@@ -1528,7 +1527,8 @@ mod tests {
 
         for (source, expected_children) in cases {
             let root = parse_direct(source, &canonical_operator_table());
-            let parenthesized = only_child(&root, SyntaxKind::ParenthesizedExpression);
+            let chain = only_child(&root, SyntaxKind::OperatorChain);
+            let parenthesized = only_child(&chain, SyntaxKind::ParenthesizedExpression);
             assert_eq!(parenthesized.to_string(), source, "{source:?}");
             assert_eq!(
                 parenthesized
@@ -1542,46 +1542,140 @@ mod tests {
     }
 
     #[test]
-    fn parenthesized_expression_resets_binding_power_and_returns_to_the_outer_led_loop() {
+    fn parenthesized_primary_continues_to_outer_infix_and_suffix_uses() {
         let expression = parse("(a+!b)*c", &canonical_operator_table());
-
-        let Expression::InfixApplication {
-            left,
-            operator,
-            right,
-        } = expression
-        else {
-            panic!("expected outer infix application");
-        };
-        assert_eq!(operator.text(), "*");
-        let Expression::Parenthesized { elements, .. } = *left else {
-            panic!("expected parenthesized left operand");
-        };
         assert!(matches!(
-            elements.as_slice(),
-            [Expression::InfixApplication { .. }]
+            expression.items(),
+            [
+                OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. }),
+                OperatorChainItem::InfixUse(operator),
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(_)),
+            ] if operator.text() == "*" && matches!(elements.as_slice(), [OperatorChain { items, .. }]
+                if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::InfixUse(_), OperatorChainItem::Primary(_)]))
         ));
-        assert!(matches!(*right, Expression::Identifier(_)));
-
         let root = parse_direct("(a+!b)*c", &canonical_operator_table());
-        let outer = only_child(&root, SyntaxKind::InfixExpression);
+        let outer = only_child(&root, SyntaxKind::OperatorChain);
         assert_eq!(
             outer.children().next().expect("left operand").kind(),
             SyntaxKind::ParenthesizedExpression
         );
-        assert_eq!(outer.to_string(), "(a+!b)*c");
+        assert_eq!(outer.children().nth(1).unwrap().kind(), SyntaxKind::InfixOperatorUse);
 
         let suffix = parse_direct("(a)++", &canonical_operator_table());
-        let suffix = only_child(&suffix, SyntaxKind::SuffixExpression);
+        let suffix = only_child(&suffix, SyntaxKind::OperatorChain);
         assert_eq!(
-            suffix
-                .children()
-                .next()
+            suffix.children().next()
                 .expect("parenthesized operand")
                 .kind(),
             SyntaxKind::ParenthesizedExpression
         );
-        assert_eq!(suffix.to_string(), "(a)++");
+        assert_eq!(suffix.children().nth(1).unwrap().kind(), SyntaxKind::SuffixOperatorUse);
+    }
+
+    #[test]
+    fn operator_chain_ast_preserves_source_order_without_application_edges() {
+        let chain = parse("+!a+!b++", &canonical_operator_table());
+        assert_eq!(chain.range(), 0..8);
+        assert!(matches!(
+            chain.items(),
+            [
+                OperatorChainItem::PrefixUse(prefix),
+                OperatorChainItem::PrefixUse(nested_prefix),
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(_)),
+                OperatorChainItem::InfixUse(infix),
+                OperatorChainItem::Primary(PrimaryExpression::Identifier(_)),
+                OperatorChainItem::SuffixUse(suffix),
+            ] if prefix.text() == "+" && nested_prefix.text() == "!" && infix.text() == "+!" && suffix.text() == "++"
+        ));
+    }
+
+    #[test]
+    fn direct_chain_emits_role_nodes_and_keeps_operator_trivia_outside_them() {
+        let root = parse_direct("+!a +! b++", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(chain.to_string(), "+!a +! b++");
+        assert_eq!(
+            chain.children_with_tokens().map(|child| child.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::PrefixOperatorUse,
+                SyntaxKind::PrefixOperatorUse,
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::Whitespace,
+                SyntaxKind::InfixOperatorUse,
+                SyntaxKind::Whitespace,
+                SyntaxKind::IdentifierExpression,
+                SyntaxKind::SuffixOperatorUse,
+            ]
+        );
+        for use_kind in [
+            SyntaxKind::PrefixOperatorUse,
+            SyntaxKind::InfixOperatorUse,
+            SyntaxKind::SuffixOperatorUse,
+        ] {
+            for node in chain.children().filter(|node| node.kind() == use_kind) {
+                assert_eq!(direct_token_kinds(&node), vec![SyntaxKind::Operator]);
+            }
+        }
+    }
+
+    #[test]
+    fn binding_power_only_changes_do_not_change_surface_chain() {
+        let source = "+!a+!b*c++";
+        let low = canonical_operator_table();
+        let high = OperatorTable::from_declarations([
+            OperatorDeclaration::new("+!", OperatorFixities::new().with_infix(BindingPower::scalar(99), BindingPower::scalar(-99))),
+            OperatorDeclaration::new("+", OperatorFixities::new().with_prefix(BindingPower::scalar(-90))),
+            OperatorDeclaration::new("!", OperatorFixities::new().with_prefix(BindingPower::scalar(100)).with_nullfix()),
+            OperatorDeclaration::new("++", OperatorFixities::new().with_suffix(BindingPower::scalar(-80))),
+            OperatorDeclaration::new("*", OperatorFixities::new().with_infix(BindingPower::scalar(-70), BindingPower::scalar(70))),
+        ]).expect("same recognition table");
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
+    }
+
+    #[test]
+    fn parenthesized_elements_are_operator_chains_and_outer_continues_flatly() {
+        let chain = parse("(a+!b)*c", &canonical_operator_table());
+        assert!(matches!(chain.items(), [
+            OperatorChainItem::Primary(PrimaryExpression::Parenthesized { elements, .. }),
+            OperatorChainItem::InfixUse(_),
+            OperatorChainItem::Primary(PrimaryExpression::Identifier(_)),
+        ] if matches!(elements.as_slice(), [OperatorChain { items, .. }] if matches!(items.as_slice(), [OperatorChainItem::Primary(_), OperatorChainItem::InfixUse(_), OperatorChainItem::Primary(_)]))));
+        let root = parse_direct("(a+!b)*c", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(chain.children().next().expect("primary").kind(), SyntaxKind::ParenthesizedExpression);
+    }
+
+    #[test]
+    fn dangling_infix_preserves_the_use_and_emits_one_zero_width_missing_operand() {
+        let (root, recoveries) = parse_direct_recovered("a+!", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert!(chain.children().any(|node| node.kind() == SyntaxKind::InfixOperatorUse));
+        assert_eq!(
+            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            vec![(RecoveryKind::Missing, 3..3)]
+        );
+    }
+
+    #[test]
+    fn dangling_prefix_preserves_the_use_and_emits_one_zero_width_missing_operand() {
+        let (root, recoveries) = parse_direct_recovered("+", &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert!(chain.children().any(|node| node.kind() == SyntaxKind::PrefixOperatorUse));
+        assert_eq!(
+            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            vec![(RecoveryKind::Missing, 1..1)]
+        );
+    }
+
+    #[test]
+    fn dangling_infix_stops_before_parenthesis_close() {
+        let (root, recoveries) = parse_direct_recovered("(a+!)", &canonical_operator_table());
+        assert_eq!(root.to_string(), "(a+!)");
+        assert_eq!(
+            recoveries.iter().map(|record| (record.kind, record.site.range.clone())).collect::<Vec<_>>(),
+            vec![(RecoveryKind::Missing, 4..4)]
+        );
     }
 
     #[test]
@@ -1712,7 +1806,7 @@ mod tests {
         .expect("canonical operators should be valid")
     }
 
-    fn parse<'source>(source: &'source str, table: &OperatorTable) -> Expression<'source> {
+    fn parse<'source>(source: &'source str, table: &OperatorTable) -> OperatorChain<'source> {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
         let mut expectations = chasa::LatestSink::new();

@@ -5303,7 +5303,7 @@ mod tests {
             [
                 SyntaxKind::UseDeclaration,
                 SyntaxKind::OperatorHeader,
-                SyntaxKind::IdentifierExpression,
+                SyntaxKind::OperatorChain,
                 SyntaxKind::BindingStatement,
             ],
         );
@@ -5339,11 +5339,12 @@ mod tests {
             SyntaxKind::UseDeclaration,
             SyntaxKind::OperatorHeader,
             SyntaxKind::BindingStatement,
+            SyntaxKind::OperatorChain,
             SyntaxKind::IdentifierExpression,
-            SyntaxKind::PrefixExpression,
-            SyntaxKind::NullfixExpression,
-            SyntaxKind::SuffixExpression,
-            SyntaxKind::InfixExpression,
+            SyntaxKind::PrefixOperatorUse,
+            SyntaxKind::NullfixOperatorUse,
+            SyntaxKind::SuffixOperatorUse,
+            SyntaxKind::InfixOperatorUse,
         ] {
             assert!(
                 root.descendants().any(|node| node.kind() == kind),
@@ -5681,13 +5682,14 @@ mod tests {
 
             let shape = root
                 .descendants()
-                .filter(|node| node.kind() == SyntaxKind::InfixExpression)
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                .filter(|node| syntax_range(node.text_range()).start >= value_start)
                 .map(|node| {
                     let range = syntax_range(node.text_range());
                     range.start - value_start..range.end - value_start
                 })
                 .collect::<Vec<_>>();
-            assert_eq!(shape, [0..13, 6..13], "{name}");
+            assert_eq!(shape, [0..13], "{name}");
 
             let operators = root
                 .descendants_with_tokens()
@@ -5731,11 +5733,7 @@ mod tests {
             root.descendants()
                 .any(|node| node.kind() == SyntaxKind::OperatorHeader)
         );
-        assert!(
-            !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::InfixExpression)
-        );
+        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::OperatorChain));
         assert!(
             !root
                 .descendants_with_tokens()
@@ -5837,11 +5835,7 @@ mod tests {
         assert!(root.descendants().any(|node| {
             node.kind() == SyntaxKind::Error && syntax_range(node.text_range()) == (16..25)
         }));
-        assert!(
-            !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::InfixExpression)
-        );
+        assert!(root.descendants().any(|node| node.kind() == SyntaxKind::OperatorChain));
         assert!(
             !root
                 .descendants_with_tokens()
@@ -6038,23 +6032,23 @@ mod tests {
         assert_eq!(root.kind(), SyntaxKind::BindingStatement);
         assert_eq!(root.to_string(), source);
         assert_eq!(
-            root.children()
-                .filter_map(|node| (node.kind() == SyntaxKind::PrefixExpression).then_some(node))
+            root.descendants()
+                .filter_map(|node| (node.kind() == SyntaxKind::PrefixOperatorUse).then_some(node))
                 .count(),
             1
         );
     }
 
     #[test]
-    fn direct_binding_and_operator_body_emit_all_canonical_pratt_shapes() {
+    fn direct_binding_and_operator_body_share_operator_chain_authority() {
         let operators = root_candidate_operator_table();
         let cases = [
-            ("value", SyntaxKind::IdentifierExpression),
-            ("123", SyntaxKind::IntegerLiteral),
-            ("+!a", SyntaxKind::PrefixExpression),
-            ("!", SyntaxKind::NullfixExpression),
-            ("a++", SyntaxKind::SuffixExpression),
-            ("a+!b", SyntaxKind::InfixExpression),
+            ("value", SyntaxKind::OperatorChain),
+            ("123", SyntaxKind::OperatorChain),
+            ("+!a", SyntaxKind::OperatorChain),
+            ("!", SyntaxKind::OperatorChain),
+            ("a++", SyntaxKind::OperatorChain),
+            ("a+!b", SyntaxKind::OperatorChain),
         ];
 
         for (value, kind) in cases {
@@ -6319,7 +6313,7 @@ mod tests {
         let children = root.children().collect::<Vec<_>>();
         assert_eq!(
             children.iter().map(|node| node.kind()).collect::<Vec<_>>(),
-            [SyntaxKind::OperatorHeader, SyntaxKind::IdentifierExpression],
+            [SyntaxKind::OperatorHeader, SyntaxKind::OperatorChain],
         );
         assert_eq!(children[0].text().to_string(), "infix (<+>) 50 51 =");
         assert_eq!(children[1].text().to_string(), "left");
@@ -6431,7 +6425,7 @@ mod tests {
             [
                 SyntaxKind::OperatorHeader,
                 SyntaxKind::Error,
-                SyntaxKind::IdentifierExpression,
+                SyntaxKind::OperatorChain,
             ],
         );
     }
