@@ -27,6 +27,9 @@ pub enum SyntaxKind {
     ParenthesizedExpression,
     OperatorChain,
     ColonApplicationTail,
+    IndentedStatementBlock,
+    Statement,
+    BlockStatementSeparator,
     PrefixOperatorUse,
     InfixOperatorUse,
     SuffixOperatorUse,
@@ -116,6 +119,13 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::OperatorChain as u16 => SyntaxKind::OperatorChain,
             value if value == SyntaxKind::ColonApplicationTail as u16 => {
                 SyntaxKind::ColonApplicationTail
+            }
+            value if value == SyntaxKind::IndentedStatementBlock as u16 => {
+                SyntaxKind::IndentedStatementBlock
+            }
+            value if value == SyntaxKind::Statement as u16 => SyntaxKind::Statement,
+            value if value == SyntaxKind::BlockStatementSeparator as u16 => {
+                SyntaxKind::BlockStatementSeparator
             }
             value if value == SyntaxKind::PrefixOperatorUse as u16 => SyntaxKind::PrefixOperatorUse,
             value if value == SyntaxKind::InfixOperatorUse as u16 => SyntaxKind::InfixOperatorUse,

@@ -20,7 +20,8 @@ use crate::{
     },
     session::{
         ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter,
-        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, Probe, RecoveryKind,
+        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IndentationBaseline,
+        IndentationBaselineKind, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax,
     },
@@ -79,6 +80,25 @@ pub(crate) enum ColonApplicationRhs<'source> {
     Inline {
         arguments: Vec<Recovered<OperatorChain<'source>>>,
     },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+
+/// The currently-supported statement subset for an indented colon RHS.
+/// Declaration statements remain root-owned until their colon-body grammar is
+/// specified separately.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Statement<'source> {
+    expression: OperatorChain<'source>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct IndentedStatementBlock<'source> {
+    base_indent: usize,
+    block_indent: usize,
+    statements: Vec<Recovered<Statement<'source>>>,
+    range: Range<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -272,37 +292,56 @@ where
         if let Some(colon) = i.run(recognize_colon_application_tail) {
             i.cut();
             let colon_start = colon.colon.start;
-            if trivia_has_physical_newline(&colon.post_colon) {
-                items.push(OperatorChainItem::TerminalOuter(
-                    TerminalOuterTail::ColonApplication(ColonApplicationTail {
-                        colon: colon.colon.clone(),
-                        rhs: Recovered::Incomplete,
-                        range: colon_start..colon.colon.end,
-                    }),
-                ));
-                break;
-            }
-            let outer_owns_comma = active_stop_set(&i).contains(StopKind::Comma);
-            let arguments = if outer_owns_comma {
-                vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)]
-            } else {
-                let stop_set = active_stop_set(&i).with(StopKind::Comma);
-                i.local.push_stop_set(stop_set);
-                let arguments = parse_inline_colon_arguments(table, &mut i);
-                assert_eq!(i.local.pop_stop_set(), Some(stop_set));
-                arguments?
+            let (rhs, end) = match colon.rhs {
+                ColonApplicationRhsRecognition::WrongIndent => {
+                    (Recovered::Incomplete, colon.colon.end)
+                }
+                ColonApplicationRhsRecognition::Inline { .. } => {
+                    let outer_owns_comma = active_stop_set(&i).contains(StopKind::Comma);
+                    let arguments = if outer_owns_comma {
+                        vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)]
+                    } else {
+                        let stop_set = active_stop_set(&i).with(StopKind::Comma);
+                        i.local.push_stop_set(stop_set);
+                        let arguments = parse_inline_colon_arguments(table, &mut i);
+                        assert_eq!(i.local.pop_stop_set(), Some(stop_set));
+                        arguments?
+                    };
+                    let end = arguments
+                        .last()
+                        .and_then(|argument| match argument {
+                            Recovered::Complete(chain) => Some(chain.range.end),
+                            Recovered::Incomplete => None,
+                        })
+                        .unwrap_or(colon.colon.end);
+                    (
+                        Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                        end,
+                    )
+                }
+                ColonApplicationRhsRecognition::Indented {
+                    opening_trivia,
+                    base_indent,
+                    block_indent,
+                } => {
+                    let block = parse_indented_statement_block(
+                        table,
+                        opening_trivia,
+                        base_indent,
+                        block_indent,
+                        &mut i,
+                    );
+                    let end = block.range.end;
+                    (
+                        Recovered::Complete(ColonApplicationRhs::Indented { block }),
+                        end,
+                    )
+                }
             };
-            let end = arguments
-                .last()
-                .and_then(|argument| match argument {
-                    Recovered::Complete(chain) => Some(chain.range.end),
-                    Recovered::Incomplete => None,
-                })
-                .unwrap_or(colon.colon.end);
             items.push(OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
                 ColonApplicationTail {
                     colon: colon.colon,
-                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    rhs,
                     range: colon_start..end,
                 },
             )));
@@ -380,7 +419,18 @@ enum LedRecognition<'source> {
 struct ColonApplicationRecognition {
     leading: TriviaRun,
     colon: Range<usize>,
-    post_colon: TriviaRun,
+    rhs: ColonApplicationRhsRecognition,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ColonApplicationRhsRecognition {
+    Inline { trivia: TriviaRun },
+    Indented {
+        opening_trivia: TriviaRun,
+        base_indent: usize,
+        block_indent: usize,
+    },
+    WrongIndent,
 }
 
 fn parse_inline_colon_arguments<'source, E>(
@@ -432,11 +482,42 @@ where
         i.rollback(checkpoint);
         return None;
     }
+    let base_indent = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: base_indent,
+        kind: IndentationBaselineKind::Introducer,
+    });
+    let post_colon_checkpoint = i.checkpoint();
     let post_colon = consume_trivia(&mut i)?;
+    let block_indent = i.local.line().line_indent;
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: base_indent,
+            kind: IndentationBaselineKind::Introducer,
+        })
+    );
+    let rhs = if trivia_has_physical_newline(&post_colon) {
+        if block_indent > base_indent {
+            ColonApplicationRhsRecognition::Indented {
+                opening_trivia: post_colon,
+                base_indent,
+                block_indent,
+            }
+        } else {
+            i.rollback(post_colon_checkpoint);
+            ColonApplicationRhsRecognition::WrongIndent
+        }
+    } else {
+        ColonApplicationRhsRecognition::Inline { trivia: post_colon }
+    };
     Some(ColonApplicationRecognition {
         leading,
         colon: punctuation.range(),
-        post_colon,
+        rhs,
     })
 }
 
@@ -687,52 +768,373 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
     committed.emit_trivia(&colon.leading);
     committed.start_node(SyntaxKind::ColonApplicationTail);
     committed.token(SyntaxKind::Colon, colon.colon);
-    committed.emit_trivia(&colon.post_colon);
-
-    if trivia_has_physical_newline(&colon.post_colon) {
-        // `IndentedStatementBlock` is deliberately deferred. Until that
-        // follow-up slice exists, newline-after-colon commits this tail but
-        // recovers its mandatory inline RHS instead of opening a block.
-        emit_colon_application_missing(committed, ColonApplicationRole::Rhs);
-        committed.finish_node();
-        return;
-    }
-
-    let outer_owns_comma = committed.probe(|probe| {
-        active_stop_set(probe.input()).contains(StopKind::Comma)
-    });
-    if outer_owns_comma {
-        commit_colon_inline_argument(
-            table,
-            leading_trivia(&colon.post_colon),
-            ColonApplicationRole::Rhs,
-            committed,
-        );
-    } else {
-        let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
-        committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
-        commit_colon_inline_argument(
-            table,
-            leading_trivia(&colon.post_colon),
-            ColonApplicationRole::Rhs,
-            committed,
-        );
-
-        while let Some(comma) = commit_parenthesized_comma(committed) {
-            committed.token(SyntaxKind::Comma, comma);
-            let leading = commit_parenthesized_trivia(committed)
-                .expect("trivia scanning is total");
-            committed.emit_trivia(&leading);
-            commit_colon_inline_argument(
-                table,
-                leading_trivia(&leading),
-                ColonApplicationRole::InlineArgument,
-                committed,
-            );
+    match colon.rhs {
+        ColonApplicationRhsRecognition::WrongIndent => {
+            emit_colon_application_missing(committed, ColonApplicationRole::Rhs);
         }
-        committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+        ColonApplicationRhsRecognition::Indented {
+            opening_trivia,
+            base_indent,
+            block_indent,
+        } => commit_indented_statement_block(
+            table,
+            opening_trivia,
+            base_indent,
+            block_indent,
+            committed,
+        ),
+        ColonApplicationRhsRecognition::Inline { trivia } => {
+            committed.emit_trivia(&trivia);
+            let outer_owns_comma = committed.probe(|probe| {
+                active_stop_set(probe.input()).contains(StopKind::Comma)
+            });
+            if outer_owns_comma {
+                commit_colon_inline_argument(
+                    table,
+                    leading_trivia(&trivia),
+                    ColonApplicationRole::Rhs,
+                    committed,
+                );
+            } else {
+                let stop_set = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma));
+                committed.probe(|probe| probe.input().local.push_stop_set(stop_set));
+                commit_colon_inline_argument(
+                    table,
+                    leading_trivia(&trivia),
+                    ColonApplicationRole::Rhs,
+                    committed,
+                );
+
+                while let Some(comma) = commit_parenthesized_comma(committed) {
+                    committed.token(SyntaxKind::Comma, comma);
+                    let leading = commit_parenthesized_trivia(committed)
+                        .expect("trivia scanning is total");
+                    committed.emit_trivia(&leading);
+                    commit_colon_inline_argument(
+                        table,
+                        leading_trivia(&leading),
+                        ColonApplicationRole::InlineArgument,
+                        committed,
+                    );
+                }
+                committed.probe(|probe| assert_eq!(probe.input().local.pop_stop_set(), Some(stop_set)));
+            }
+        }
     }
     committed.finish_node();
+}
+
+/// Parses the expression-statement subset of a colon-introduced block.  The
+/// root statement dispatcher remains intentionally separate: colon bodies do
+/// not yet own declarations.
+fn parse_indented_statement_block<'source, E>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    base_indent: usize,
+    block_indent: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> IndentedStatementBlock<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = opening_trivia.range().start;
+    let scope = push_indented_statement_block_scope(i, block_indent);
+    let mut statements = Vec::new();
+
+    if let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+        statements.push(Recovered::Complete(Statement { expression }));
+        while let Some(separator) = recognize_indented_block_separator(i, block_indent) {
+            if separator.is_semicolon() && indented_block_terminal_boundary(i, block_indent) {
+                break;
+            }
+            let Some(expression) = i.run(from_fn(|i| parse_operator_chain(table, i))) else {
+                statements.push(Recovered::Incomplete);
+                break;
+            };
+            statements.push(Recovered::Complete(Statement { expression }));
+        }
+    } else {
+        statements.push(Recovered::Incomplete);
+    }
+
+    let end = i.pos();
+    pop_indented_statement_block_scope(i, scope, block_indent);
+    IndentedStatementBlock {
+        base_indent,
+        block_indent,
+        statements,
+        range: start..end,
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum IndentedBlockSeparator {
+    Newline { trivia: TriviaRun },
+    Semicolon {
+        leading_trivia: TriviaRun,
+        range: Range<usize>,
+        trailing_trivia: TriviaRun,
+    },
+}
+
+impl IndentedBlockSeparator {
+    fn is_semicolon(&self) -> bool {
+        matches!(self, Self::Semicolon { .. })
+    }
+
+    fn following_leading_trivia(&self) -> LeadingTrivia {
+        match self {
+            Self::Newline { trivia } => leading_trivia(trivia),
+            Self::Semicolon { trailing_trivia, .. } => leading_trivia(trailing_trivia),
+        }
+    }
+}
+
+/// Consumes only a separator whose final physical line is the block's own
+/// indentation.  A dedent probe rolls its trivia back so the enclosing owner
+/// retains it.
+fn recognize_indented_block_separator<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    block_indent: usize,
+) -> Option<IndentedBlockSeparator>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i)?;
+    if trivia_has_physical_newline(&trivia) {
+        if i.local.line().line_indent == block_indent {
+            return Some(IndentedBlockSeparator::Newline { trivia });
+        }
+        i.rollback(checkpoint);
+        return None;
+    }
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() != PunctuationKind::Semicolon {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let trailing_checkpoint = i.checkpoint();
+    let trailing_trivia = consume_trivia(i)?;
+    if trivia_has_physical_newline(&trailing_trivia)
+        && i.local.line().line_indent < block_indent
+    {
+        i.rollback(trailing_checkpoint);
+        return Some(IndentedBlockSeparator::Semicolon {
+            leading_trivia: trivia,
+            range: punctuation.range(),
+            trailing_trivia: TriviaRun::empty_at(punctuation.range().end),
+        });
+    }
+    Some(IndentedBlockSeparator::Semicolon {
+        leading_trivia: trivia,
+        range: punctuation.range(),
+        trailing_trivia,
+    })
+}
+
+fn indented_block_terminal_boundary<E>(i: &mut SynIn<E>, block_indent: usize) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() {
+        return true;
+    }
+    if matches!(i.input.remainder().chars().next(), Some(')' | ']' | '}')) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i).expect("trivia scanning is total");
+    let terminal = trivia_has_physical_newline(&trivia)
+        && i.local.line().line_indent < block_indent;
+    i.rollback(checkpoint);
+    terminal
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct IndentedStatementBlockScope {
+    inline: bool,
+    ml_arg: bool,
+    stop_set: StopSet,
+}
+
+fn push_indented_statement_block_scope<E>(
+    i: &mut SynIn<E>,
+    block_indent: usize,
+) -> IndentedStatementBlockScope
+where
+    E: ErrorSink<usize>,
+{
+    let scope = IndentedStatementBlockScope {
+        inline: i.local.inline(),
+        ml_arg: i.local.ml_arg(),
+        stop_set: active_stop_set(i),
+    };
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: block_indent,
+        kind: IndentationBaselineKind::Block,
+    });
+    i.local.set_inline(false);
+    i.local.set_ml_arg(false);
+    i.local.push_stop_set(scope.stop_set);
+    scope
+}
+
+fn pop_indented_statement_block_scope<E>(
+    i: &mut SynIn<E>,
+    scope: IndentedStatementBlockScope,
+    block_indent: usize,
+) where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(i.local.pop_stop_set(), Some(scope.stop_set));
+    i.local.set_inline(scope.inline);
+    i.local.set_ml_arg(scope.ml_arg);
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: block_indent,
+            kind: IndentationBaselineKind::Block,
+        })
+    );
+}
+
+fn commit_indented_statement_block<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    opening_trivia: TriviaRun,
+    _base_indent: usize,
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::IndentedStatementBlock);
+    committed.emit_trivia(&opening_trivia);
+    let scope = committed.probe(|probe| {
+        push_indented_statement_block_scope(probe.input(), block_indent)
+    });
+
+    commit_indented_block_statement(table, LeadingTrivia::None, committed);
+    while let Some(separator) = commit_indented_block_separator(committed, block_indent) {
+        if separator.is_semicolon()
+            && committed.probe(|probe| indented_block_terminal_boundary(probe.input(), block_indent))
+        {
+            break;
+        }
+        commit_indented_block_statement(table, separator.following_leading_trivia(), committed);
+    }
+
+    committed.probe(|probe| {
+        pop_indented_statement_block_scope(probe.input(), scope, block_indent)
+    });
+    committed.finish_node();
+}
+
+fn commit_indented_block_statement<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    leading: LeadingTrivia,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::Statement);
+    if parse_direct_operator_chain(table, leading, committed).is_none() {
+        match block_statement_error_retry(table, committed) {
+            Some(true) => {
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    .expect("a retried block statement must commit its shared NUD candidate");
+            }
+            Some(false) => {}
+            None => emit_indented_statement_missing(committed),
+        }
+    }
+    committed.finish_node();
+}
+
+/// A statement recovery records one non-empty invalid episode and retries the
+/// same statement slot only when the shared expression start judge finds a
+/// later candidate before a block boundary.
+fn block_statement_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ')' | ']' | '}' | ';' | ',') {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) {
+                return Some((start..end, true));
+            }
+        }
+    });
+    let Some((range, retry)) = recovered else {
+        return None;
+    };
+    emit_indented_statement_error(committed, range);
+    Some(retry)
+}
+
+fn commit_indented_block_separator<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    block_indent: usize,
+) -> Option<IndentedBlockSeparator>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let separator = committed.probe(|probe| {
+        recognize_indented_block_separator(probe.input(), block_indent)
+    })?;
+    committed.start_node(SyntaxKind::BlockStatementSeparator);
+    match &separator {
+        IndentedBlockSeparator::Newline { trivia } => committed.emit_trivia(trivia),
+        IndentedBlockSeparator::Semicolon {
+            leading_trivia,
+            range,
+            trailing_trivia,
+        } => {
+            committed.emit_trivia(leading_trivia);
+            committed.token(SyntaxKind::Semicolon, range.clone());
+            committed.emit_trivia(trailing_trivia);
+        }
+    }
+    committed.finish_node();
+    Some(separator)
 }
 
 /// A colon-owned comma makes every following position mandatory; unlike a
@@ -1365,6 +1767,69 @@ fn emit_colon_application_error<'parse, 'source, 'local, E, O>(
             Arc::from([SyntaxExpectation {
                 role,
                 expected: ExpectedSyntax::Expression,
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_indented_statement_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: at..at,
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Statement,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_indented_statement_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Error,
+            Arc::from([UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Statement,
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
             }]),
@@ -2061,8 +2526,60 @@ mod tests {
     }
 
     #[test]
-    fn newline_after_colon_is_temporarily_a_missing_inline_rhs() {
-        let source = "my value = f:\n  x";
+    fn colon_application_parses_an_indented_statement_block() {
+        let source = "my value = f:\n  x\n  y";
+        let output = crate::grammar::declaration::parse_direct_root_candidate(
+            source,
+            &canonical_operator_table(),
+            &[],
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("indented statement block");
+        assert_eq!(block.to_string(), "\n  x\n  y");
+        assert_eq!(
+            block.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Statement,
+                SyntaxKind::BlockStatementSeparator,
+                SyntaxKind::Statement,
+            ]
+        );
+        assert_eq!(root.to_string(), source);
+
+        let chain = parse("f:\n  x\n  y", &canonical_operator_table());
+        let [_, OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+            ColonApplicationTail {
+                rhs: Recovered::Complete(ColonApplicationRhs::Indented { block }),
+                ..
+            }
+        ))] = chain.items()
+        else {
+            panic!("expected an indented colon RHS");
+        };
+        assert_eq!(block.base_indent, 0);
+        assert_eq!(block.block_indent, 2);
+        assert_eq!(block.statements.len(), 2);
+    }
+
+    #[test]
+    fn indented_block_accepts_a_semicolon_separator() {
+        let root = parse_direct("f:\n  x; y", &canonical_operator_table());
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("indented block");
+        assert!(block
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::BlockStatementSeparator));
+        assert_eq!(root.to_string(), "f:\n  x; y");
+    }
+
+    #[test]
+    fn equal_indent_after_colon_leaves_newline_with_the_outer_owner() {
+        let source = "my value = f:\nx";
         let output = crate::grammar::declaration::parse_direct_root_candidate(
             source,
             &canonical_operator_table(),
@@ -2074,11 +2591,93 @@ mod tests {
             .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
             .expect("colon tail");
         assert!(tail.children().any(|node| node.kind() == SyntaxKind::Missing));
-        assert!(tail
+        assert!(!tail
             .children_with_tokens()
             .any(|child| child.kind() == SyntaxKind::Newline));
-        assert_eq!(tail.to_string(), ":\n  ");
+        assert_eq!(tail.to_string(), ":");
         assert_eq!(root.to_string(), source);
+    }
+
+    #[test]
+    fn dedent_ends_an_indented_block_without_consuming_the_boundary() {
+        let source = "my value = f:\n  x\nz";
+        let output = crate::grammar::declaration::parse_direct_root_candidate(
+            source,
+            &canonical_operator_table(),
+            &[],
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("indented block");
+        assert_eq!(block.to_string(), "\n  x");
+        assert_eq!(root.to_string(), source);
+    }
+
+    #[test]
+    fn indented_block_recovers_a_missing_or_malformed_statement_once() {
+        let cases = [
+            ("f:\n  ", vec![(RecoveryKind::Missing, 5..5)]),
+            ("f:\n  @x", vec![(RecoveryKind::Error, 5..6)]),
+        ];
+        for (source, expected) in cases {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .map(|record| (record.kind, record.site.range.clone()))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source:?}"
+            );
+            assert!(recoveries.iter().all(|record| {
+                record.site.role
+                    == GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement)
+            }));
+        }
+    }
+
+    #[test]
+    fn indented_block_restores_layout_and_parenthesized_scopes() {
+        let source = "f:\n  (x)";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        {
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_expression_with_operators(
+                &canonical_operator_table(),
+                LeadingTrivia::None,
+                &mut committed,
+            )
+            .expect("nested block expression");
+            committed.finish_node();
+            let root = SyntaxNode::new_root(committed.into_output().finish_complete());
+            assert_eq!(root.to_string(), source);
+        }
+        assert_eq!(local.indentation_baseline(), None);
+        assert!(!local.inline());
+        assert!(!local.ml_arg());
+        assert_eq!(local.stop_set(), None);
+    }
+
+    #[test]
+    fn colon_block_surface_is_binding_power_independent() {
+        let source = "f:\n  x\n  y";
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+        assert_eq!(parse(source, &low), parse(source, &high));
     }
 
     #[test]

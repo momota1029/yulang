@@ -545,6 +545,7 @@ pub(crate) enum ExpressionRole {
 pub(crate) enum ColonApplicationRole {
     Rhs,
     InlineArgument,
+    IndentedStatement,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -640,6 +641,7 @@ pub(crate) enum ExpectedSyntax {
     Identifier,
     Path,
     Expression,
+    Statement,
     OperatorName,
     BindingPower,
     InlineTrivia,

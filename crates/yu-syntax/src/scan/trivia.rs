@@ -41,6 +41,10 @@ impl TriviaRun {
     pub(crate) fn is_empty(&self) -> bool {
         self.parts.is_empty()
     }
+
+    pub(crate) fn empty_at(at: usize) -> Self {
+        Self::new(at..at, TriviaParts::default())
+    }
 }
 
 /// Typed parts of one maximal trivia run.
