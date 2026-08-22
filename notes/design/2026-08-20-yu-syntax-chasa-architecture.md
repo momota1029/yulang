@@ -30,6 +30,10 @@ checkpoint、`Expression::{Prefix,Infix,Suffix}Application`をcurrent designと�
 「dynamic operatorのprecedence-neutral surface chainとassociation境界」追補がsupersedeする。operator
 spelling / fixity roleのoracle judge、immutable table、sink-free probe、direct emissionは維持する。
 
+Revision note (colon-application closure): precedence-neutral chain追補が予約した
+`ColonApplicationTail`について、inline expression list、indented statement block、outer comma ownership、
+terminal-chain integration、recoveryを末尾の「lone `:`によるcolon application」追補で確定した。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -4587,7 +4591,8 @@ application loweringはHIR側が行う。
 `as` / `:` / `=` / `with:`はdynamic operator useではなく、既存通りdedicated keyword / punctuation
 continuationである。`as`はouter-only association barrierとして、その直前までのpending dynamic segmentを
 後段でassociateしてからannotationを適用し、同じflat chainのcontinuationを再開する。`:` / `=` / `with:`は
-同じflush後にconstruct固有RHSを適用し、chainを終了する。これらのexact RHS arityとblock ownershipは
+同じflush後にconstruct固有RHSを適用し、chainを終了する。`ColonApplicationTail`のexact RHS arityと
+block ownershipは末尾のcolon-application追補で確定する。assignmentと`with:`のdetailは引き続き
 各grammar familyのaddendumが所有する。本追補が固定するのは、numeric operator BPをparserが読んで境界を
 決めたり、dynamic operator-use nodeへ偽装したりしないことである。pipeline `|`のようにoperator tableへ
 登録されるformはfixed structural tailではなく、普通の`InfixOperatorUse`としてflat chainへ入る。
@@ -4984,8 +4989,458 @@ HIR association sliceのgateを次で固定する。
 ML applicationのexact whitespace / newline acceptance tableだけは、current `yu-syntax`に未実装なので
 future construct-specific addendumでoracle fixtureとともに具体化する。そのaddendumが選べるのは
 `MlArgument`のargument boundary / trivia ownership / recovery safe pointであり、dynamic numeric BPで
-CST application treeを作る案へ戻すことはできない。call / field / index / colon / assignment / `with` / `as`も、
-各constructのfuture recovery detailは追加できるが、本追補のBP-neutral layer分類を変更しない。
+CST application treeを作る案へ戻すことはできない。colon applicationのdetailは直後の追補で確定済みである。
+call / field / index / assignment / `with` / `as`は各constructのfuture recovery detailを追加できるが、
+本追補のBP-neutral layer分類を変更しない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、precedence-neutral dynamic operator chain / association boundary追補案）。
+
+## 追補案: lone `:`によるcolon applicationのsurface grammarとblock境界
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3のgeneric colon applicationは、precedence-neutral chain追補が予約した
+`TerminalOuterContinuation::ColonApplicationTail`を次の一productionとして実体化する。
+
+```text
+ColonApplication := completed OperatorChainPrefix ":"
+                    (InlineExpressionList | IndentedStatementBlock)
+```
+
+RHSはYulang2と同じく、one-or-moreのcomma-separated inline expression listとindented statement blockの
+両方を最初のimplementation sliceから採用する。inline-onlyにもsingle-expression-onlyにも狭めない。
+colonの主要な設計目的は、Python-likeなblock introductionとHaskell-likeなlow-parenthesis applicationを
+一つのsurface formへ接続することだからである
+(`yulang2-oracle@a58eefc3:notes/design/old-zenn-yulang.md:57,203-215`)。block branchを後回しにすると
+`ColonApplicationRhs`、CST child shape、layout recoveryを後で作り直すことになり、foundational tailの
+小さいsliceにはならない。
+
+Yulang2のactual parserも、outermost tailのlone colonを`ApplyColon`としてcommitし
+(`crates/parser/src/expr/tail.rs:115-137`)、RHSをindent blockまたはinline comma loopへ分けていた
+(`expr/tail.rs:304-349`)。fixtureは`f: x + y`、`f: x, y + z`、`f:\n  x\n  y`をそれぞれ固定する
+(`crates/parser/tests/expr_grammar.rs:1041-1089,1295-1313`)。Yulang3はそのsurface capabilityを維持するが、
+RHS expressionはassociated Pratt treeではなくflat `OperatorChain`として保存する。
+
+parserが決めるのは、lone `:` tokenのownership、inline / indentedというliteral layout branch、inline argument
+countとcomma ownership、block statement boundary、recovery rangeだけである。preceding chainをどのapplication
+treeへassociateするか、colon-applied bodyをordinary call sugar、block argument、またはconstruct-specific
+operationのどれとしてHIRへlowerするかは`yu-syntax`の責務ではない。
+
+### Scope boundary: generic colon applicationだけを所有する
+
+Yulang2にはlone `:`を使うgrammar familyが多数あるが、一個のshared "colon clause" productionはない。
+本追補が所有するのは、completed expressionのLED-continuation siteに現れるgeneric colon applicationだけである。
+`if` conditionの終端、declaration headの終端、pattern / type内部など、active ownerがcolonを予約した位置では
+generic tailをprobeしない。
+
+このroutingを型付きにするため、stop vocabularyへ`StopKind::Colon`を追加する。construct-specific parserは
+自分のcolonを読む範囲でこのstopをpushし、flat chain parserはcolonをconsumeせずownerへ返す。
+stopがなく、`ml_arg` scopeでもなく、operand-complete stateにいる場合だけ`ColonApplicationTail`候補になる。
+`::`はfixed punctuation scannerがlone `:`より先にlongest matchするため、path separatorをcolon applicationへ
+分割しない。
+
+### Valid grammar
+
+`G0`はphysical newlineを含まないmaximal trivia run、`G*`はnewlineを含み得るmaximal trivia runである。
+`Statement`はroot / brace bodyと同じcanonical statement grammarを指し、colon専用statement subsetを作らない。
+
+```text
+DirectExpression := OperatorChain
+
+OperatorChain :=
+    OperandSlot
+    {
+        FixedPostfixContinuation
+      | G* SuffixUse
+      | G* InfixUse G* OperandSlot
+      | MlApplicationContinuation
+      | G* TypeAnnotationContinuation
+    }
+    [ G* TerminalOuterContinuation ]
+
+TerminalOuterContinuation :=
+    ColonApplicationTail
+  | AssignmentTail
+  | WithBodyTail
+
+ColonApplicationTail :=
+    Colon G0 InlineColonArguments
+  | Colon IndentedStatementBlock
+
+InlineColonArguments :=
+    OperatorChain
+    { G* Comma G* OperatorChain }
+
+IndentedStatementBlock :=
+    BlockOpeningTrivia
+    Statement
+    { BlockStatementSeparator Statement }
+    [ Semicolon ]
+
+Colon := the lone fixed punctuation token ":"
+```
+
+BNFのinline comma loopは、incoming ownerがcurrent-depth commaを予約していない場合のshapeである。
+`InlineColonArguments`は最低一argumentを要求し、terminal trailing commaをvalid formとして認めない。
+semicolonはinline argument separatorではない。
+
+colon前の`G*`にはordinary LED-continuation layout ruleを適用する。physical newline後のcolonは、そのlineの
+indentがcurrent expression baseより深いcontinuation lineである場合だけ同じchainへ属する。equal / lower
+indentのnewlineではchainをcolon前で終了し、colonを次ownerへ残す。post-colon blockの`base_indent`は
+colon tokenのvisual columnではなく、引き続きそのcurrent expression baseである。
+
+colon直後のtriviaにphysical newlineがなければinline branchだけを試す。physical newlineがあればinline branchへ
+戻らず、indent ruleを満たすときだけindented branchになる。したがって`f:\n  x`をsingle inline expressionが
+偶然newline越しに始まったcaseとして扱わない。
+
+### IndentedStatementBlockのtriggerとlayout ownership
+
+colonをrecognizeした時点、post-colon triviaを読む前に、current expression / statement ownerの
+`base_indent`をsnapshotする。post-colon triviaが一個以上のphysical newlineを含み、そのtrivia後のlineの
+indentation column `block_indent`が`base_indent`よりstrictly greaterなら`IndentedStatementBlock`を開始する。
+
+```text
+has_physical_newline(post_colon_trivia)
+&& block_indent > base_indent
+    => IndentedStatementBlock
+```
+
+これはYulang2 specのtriggerと同じである
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:195-199`)。blockは
+`block_indent`未満の次lineで終了し、同じindent以上のlineをcanonical statement parserへ渡す。各statement
+内部のcontinuation / nested layoutはそのstatement grammarが所有し、colon block scannerがraw line textを
+statementへ分割しない。
+
+`base_indent`はpost-colon triviaをscanした後の`LineState.line_indent`から逆算しない。active
+`IndentationBaseline`のcolumnを使い、rootにframeがなければ0とする。colon continuationは判定中に
+`IndentationBaselineKind::Introducer { column: base_indent }`相当のscopeを持ち、block accept後は
+`IndentationBaselineKind::Block { column: block_indent }`相当のframeをpushする。実際のenumは既存通り
+kindとcolumnを別fieldに持ってよい。全frame、`inline = false`、`ml_arg = false`、stop set変更は
+Complete / Incompleteの全pathでpopし、probe rejectionではinputと一緒にrollbackする。
+
+current `yu-syntax`はlayout grammarを持たないわけではないが、block continuationはまだ完成していない。
+`ParseLocal`にはrollback-awareな`LineState`、`indentation_baselines`、`inline`、`ml_arg`があり
+(`crates/yu-syntax/src/session.rs:83-196,306-340`)、trivia scannerはnewline後の`line_indent`を更新する
+(`scan/trivia.rs:206-214`)。operator value-start judgeもactive baselineより深いnewlineだけを継続として認める
+(`scan/operator.rs:184-233`)。一方、production `IndentedStatementBlock` nodeとstatement-loop grammarは
+まだ存在せず、current root statement introもuse / binding / operator definitionに限られる
+(`grammar/declaration.rs:68-72,217-243`)。本追補はinline-onlyへ縮めず、最初のcolon implementation sliceに、
+この既存stateを使う最小のreusable indented-statement continuationとordinary expression-statement entryを
+含める。他のcontrol / declaration colon formを同時に実装する意味ではない。
+
+`BlockOpeningTrivia`はcolon後のnewline、blank line、comment、accepted first statementまでのindent triviaを
+losslessに持つ。sink-free probeでblock branchを確定してから`IndentedStatementBlock`を開始し、そのtriviaを
+blockの先頭childとして一度emitする。block内のinter-statement triviaもblock直下に置く。dedentを示す
+boundary-leading triviaはconsumeせずouter ownerへ返す。
+
+`BlockStatementSeparator`はcanonical statement loopと同じphysical newlineまたはexplicit semicolonである。
+newlineはlossless triviaとして保持し、sourceにないseparator tokenを合成しない。semicolonはliteral
+`Semicolon` tokenをblockが所有し、terminal semicolonもvalidとする。より深いlineが前statementのcontinuationか次statement starterかは
+canonical statement / expression grammarが判定し、indent scannerだけでsynthetic siblingを作らない。
+
+### Inline comma ownership
+
+inline argument listのcomma ownershipはinner-winsではなく、既存ownerを優先する。
+
+1. incoming active `StopSet`が`StopKind::Comma`を含まない場合、colon tailがlocal comma stopをpushし、
+   `OperatorChain (Comma OperatorChain)*`を所有する。
+2. incoming active `StopSet`がすでに`StopKind::Comma`を含む場合、そのcommaはparenthesized / brace / callなど
+   outer list ownerのseparatorである。colon tailは一argumentだけをparseしてcomma直前で終了し、commaを
+   consumeしない。
+3. colon tail自身がcommaを所有するcaseでcommaをconsumeした後は、次argumentがmandatoryである。
+   trailing comma markerは持たない。
+
+これはYulang2の`parse_apply_colon_inline_args`がincoming comma stopを検査し、outer commaがない場合だけ
+local separator loopを有効にしたruleを明文化したものである
+(`yulang2-oracle@a58eefc3:crates/parser/src/expr/tail.rs:322-349`)。
+
+したがってrootの`f: x, y`は二argument colon applicationである。一方、`(f: x, y)`はparenthesized listの
+二element、`f: x`と`y`であり、`{x: 1, y: 2}`のcommaもbrace ownerが保持する。colon側がouter commaを
+横取りしてrecord-like fieldを一個のmulti-argument colon tailへまとめない。
+
+### Precedence-neutral OperatorChainとのintegration
+
+recognition / commit controlを次で固定する。
+
+Yulang2も`:`をinfix RHS / ML argument内ではparentへ返し、outermost tailだけでacceptした
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:818-819`)。flat chainではinfix RHSの
+recursive parser自体がなくなるため、pending infix列を保持した同じouter chainがcolonをterminal itemとして
+acceptする。nested `MlArgument`とconstruct-owner stopだけは明示的にcolonをparentへ返す。
+
+```text
+while OperatorChain is operand-complete:
+    if active StopKind::Colon or ml_arg scope reserves this position:
+        stop before colon and return it to the owner
+    probe fixed punctuation with longest-match (:: before :)
+    if lone Colon is absent:
+        continue the ordinary structural/dynamic continuation judge
+    if lone Colon is present:
+        accept ColonApplicationTail and cut
+        snapshot base_indent
+        choose inline or indented RHS from post-colon trivia
+        parse or recover the mandatory RHS
+        finish ColonApplicationTail
+        finish OperatorChain; no later chain item is accepted
+```
+
+colon candidateとpost-colon trivia / indent branchはcommit前までsink-freeである。lone colonを
+`ColonApplicationTail`としてacceptした後は、RHSがmalformedでもoperator branchやouter expression armへ
+戻らない。RHS recoveryを含むtotal continuationとしてtailとchainを必ず閉じる。
+
+surface CSTではcolon tailより前の`Primary` / prefix / infix / suffix / structural itemをtailのchildへ移さない。
+たとえば`a + b: x`は常に次のsource-order shapeを持つ。
+
+```text
+OperatorChain
+  IdentifierExpression "a"
+  InfixOperatorUse "+"
+  IdentifierExpression "b"
+  ColonApplicationTail
+    Colon ":"
+    Whitespace " "
+    OperatorChain
+      IdentifierExpression "x"
+```
+
+HIR associatorはcolon tailに到達した時点で直前までのpending dynamic segmentを全てreduceし、そのresultを
+colon applicationのtargetにする。colon RHS内の各`OperatorChain`も同じassociation authorityでassociateする。
+numeric BPだけが変わっても上のCST hierarchy、colon range、inline / block branch、recoveryは変わらない。
+colon tailはdynamic operator useでもbinding-power sentinelでもなく、association後に適用されるterminal
+structural operationである。
+
+### CST shape
+
+新しいnode kindを次で固定する。
+
+```text
+SyntaxKind::ColonApplicationTail
+SyntaxKind::IndentedStatementBlock
+```
+
+`SyntaxKind::Colon` tokenは既存fixed punctuation kindを使う。inline branch専用のlist wrapperやgeneric
+`ColonClause` nodeは作らない。
+
+inline formは次になる。
+
+```text
+ColonApplicationTail
+  Colon
+  G0
+  OperatorChain
+  G*
+  Comma
+  G*
+  OperatorChain
+```
+
+indented formは次になる。
+
+```text
+ColonApplicationTail
+  Colon
+  IndentedStatementBlock
+    BlockOpeningTrivia
+    Statement
+    BlockStatementSeparator
+    Statement
+```
+
+`ColonApplicationTail`のnormal rangeはcolon startからlast inline argumentまたはblock endまでである。
+target expressionはrangeにもchildrenにも含めない。inlineのtrivia / commaはtail直下、block openingと
+inter-statement triviaは`IndentedStatementBlock`直下にsource orderで置く。全source byteを一回だけ所有し、
+`green.to_string() == source`を維持する。
+
+### Parser-side AST shape
+
+precedence-neutral chain追補のplaceholderを次へ具体化する。
+
+```rust
+pub(crate) enum OperatorChainItem<'source> {
+    // Primary / operator-use / other structural items...
+    TerminalOuter(TerminalOuterTail<'source>),
+    MissingOperand { range: Range<usize> },
+    Error { range: Range<usize> },
+}
+
+pub(crate) enum TerminalOuterTail<'source> {
+    ColonApplication(ColonApplicationTail<'source>),
+    Assignment(AssignmentTail<'source>),
+    WithBody(WithBodyTail<'source>),
+}
+
+pub(crate) struct ColonApplicationTail<'source> {
+    colon: Range<usize>,
+    rhs: Recovered<ColonApplicationRhs<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum ColonApplicationRhs<'source> {
+    Inline {
+        // Invariant: non-empty in Complete; recovered form may contain Missing/Error.
+        arguments: Vec<Recovered<OperatorChain<'source>>>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+
+pub(crate) struct IndentedStatementBlock<'source> {
+    base_indent: usize,
+    block_indent: usize,
+    // Invariant: non-empty in Complete; recovered form may contain Missing/Error.
+    statements: Vec<Recovered<Statement<'source>>>,
+    range: Range<usize>,
+}
+```
+
+`ColonApplicationTail`にtarget fieldを置かない。targetは同じouter `OperatorChain`の先行item列からassociatorが
+作る。ASTのindent columnはlayout lowering / test projection用であり、lossless whitespace authorityはCSTである。
+inline comma tokenもASTへduplicateせず、argument countとrecovery itemだけを渡す。
+
+### BraceGroup内のrecord-literal-looking form
+
+`{x: 1}`にrecord-literal専用CST nodeを追加しない。braceがexpression primaryとして現れてもcanonical
+statement blockの`BraceGroup`であり、その中の`x: 1`がordinary `OperatorChain` +
+`ColonApplicationTail`になる。Yulang2もこのshapeを明示していた
+(`yulang2-oracle@a58eefc3:spec/2026-06-06-syntax-design.md:793-795`、
+`crates/parser/tests/expr_grammar.rs:1093-1124`)。spreadを含む`{..base, x: 1, ..tail}`もbrace itemと
+generic colon applicationのcompositionであり、colon parserがrecord field semanticsを選ばない
+(`crates/parser/tests/expr_grammar.rs:1128-1145`)。
+
+後段がbrace statement列をrecord value、block value、または別のconstructとして解釈する場合も、
+`yu-syntax`は`ColonApplicationTail`を`RecordField`へrename / reshapeしない。同じ`x: 1` surface formは
+brace外でも同じcolon tail authorityを使う。
+
+### Mandatory RHS recovery
+
+colon accept後のRHSはmandatory slotであり、新しいrecovery primitiveを作らない。typed recovery vocabularyには
+`GrammarRole::ColonApplication(ColonApplicationRole::{Rhs, InlineArgument, IndentedStatement})`を追加し、
+期待値は既存`ExpectedSyntax::Expression`と、block item用に追加するtyped
+`ExpectedSyntax::Statement`を使う。`Missing`はzero-width、`Error`はnon-empty、one recovery node = one
+committed diagnosticを維持する。
+
+代表caseを次で固定する。
+
+| source situation | recovery / ownership |
+| --- | --- |
+| `f:` + EOF | colonを保持し、EOFにRHS用zero-width `Missing`一件。tail / chainをfinishする |
+| `f:   ` + EOF | horizontal triviaをtailへ保持し、EOFに同じ`Missing`一件 |
+| `f:\nnext`で`indent(next) <= base_indent` | post-colon newline probeをrollbackし、colon直後に`Missing`。newlineと`next`はouter ownerへ残す |
+| `f:\n  ` + EOFでwritten indentがbaseより深い | `IndentedStatementBlock`とopening triviaを保持し、block内EOFにstatement用`Missing`一件 |
+| `f: , x`でcolonがcomma owner | first argument位置に`Missing`、commaを保持し、`x`をsecond argumentとしてretryする |
+| `f: x,` + EOFでcolonがcomma owner | comma後にnext-argument用`Missing`一件。trailing commaをvalid markerへ変えない |
+| commaをouter ownerが予約 | colonはcommaをconsumeせず、missing RHSが必要ならcomma直前に一件置いてouterへ返す |
+| inline invalid run後にvalid value start | run全体を一個のnon-empty `Error`にし、同じargument slotをvalid startからretryする |
+| block内のmalformed statement | canonical statement recoveryで`Error` / `Missing`を一件作り、次sibling indentまたはdedentへ同期する |
+
+wrong-indent newline、outer comma、matching close、dedent、statement/root boundaryはowner safe pointとして
+consumeしない。invalid bytesを一byteずつの`Error`へ分割せず、block recoveryが作ったdiagnosticをcolon tailや
+後段associatorが重複発行しない。recovered `ColonApplicationRhs`はHIR associatorがtyped error target/bodyへ
+totalにlowerできなければならない。
+
+### Interpretation boundary
+
+association / lowering orderを次で固定する。
+
+1. colonより前のouter flat item列をdedicated HIR associatorが一個のtarget expressionへassociateする。
+2. inline RHSの各`OperatorChain`、またはblock内statement expressionを同じauthorityでassociateする。
+3. syntax-to-HIR loweringはinline / indented shape、source range、recoveryを保持したneutral colon-application
+   operationを作る。
+4. function-call sugar、block argument、brace composition、construct固有desugaringなどのsemantic interpretationを
+   後段ownerが決める。
+
+type inferenceはoperator associationもcolon surface classificationも行わない。parserもtarget type、callee
+arity、record field name、block result typeを見てCST shapeを変えない。
+
+### Existing architecture principlesとの整合
+
+- **rollback discipline:** `:` / `::`、post-colon trivia、inline / block branch、outer comma ownershipを
+  sink-freeにprobeする。colon accept後はcutし、RHS recovery込みでtotal continuationにする。
+- **direct CST / no event buffer:** branch確定後、colon、trivia、argument chain / block、recoveryをsource orderで
+  一度emitする。preceding targetをwrapせず、event replayを置かない。
+- **precedence-neutral chain:** colonはnumeric BPを読まずterminal structural itemになる。associatorだけが
+  preceding pending segmentをflushする。BP-only changeでcolon CSTをreparseしない。
+- **immutable operator table / oracle judge:** lone colonはfixed punctuationでoperator tableに追加しない。
+  continuation judgeは`::`、owner stop、call/path-sensitive ruleを先に裁定し、dynamic operator spellingと競合させない。
+- **stop-set ownership:** `StopKind::Colon`はconstruct owner予約、`StopKind::Comma`はinline-list ownershipに使う。
+  nested scopeはpush / popし、outer setをin-place mutationして漏らさない。
+- **layout state:** `LineState`と`IndentationBaseline`だけをindent authorityにし、colon専用raw whitespace counterを
+  作らない。input checkpointと同時にbaseline / inline / ml_arg / stop stateをrollbackする。
+- **lexical-region-aware recovery:** string、comment、heredoc、interpolation、rule literal、Yumark、fence内のcolon /
+  comma / newlineをtail、separator、dedentへ誤分類しない。
+- **single grammar authority:** inline argumentとblock statementはcanonical `OperatorChain` / `Statement`を呼ぶ。
+  colon専用expression parser、record-field parser、second Pratt parserを作らない。
+
+### Implementation boundary and required gates
+
+最初のyu-syntax implementation sliceは、lone-colon LED recognition、`ColonApplicationTail`、inline argument loop、
+reusable `IndentedStatementBlock` continuation、typed recovery、lossless CST / parser-side AST testまでを含む。
+HIR association / colon desugaringは別sliceだが、target-free chain itemとfixture expected shapeを先に固定する。
+assignment、`with:`、その他colon grammar familyを同じchangeへ混ぜない。
+
+current implementationでは`scan/punctuation.rs`が`PunctuationKind::Colon`をlossless rangeとしてrecognizeするが、
+expression continuationはまだlone colonをconsumeせず、grammarで使われるcolon spellingはuse pathの`::`だけである。
+したがってこのsliceはscanner追加ではなく、既存fixed tokenをchain continuationとlayout ownerへ接続するchangeになる。
+
+yu-syntax gateを次で固定する。
+
+1. current `PunctuationKind::Colon`をoperand-complete continuationだけがconsumeし、`::`を分割しない。
+2. `f: x + y`がterminal `ColonApplicationTail` + one flat RHS chain、`f: x, y + z`がtwo argument chainになる。
+3. colonより前後のdynamic BPだけを変えてもgreen CST、surface AST、diagnostic、rangeがexact一致する。
+4. `a + b: x`でpreceding itemをtailへnestせず、colon後に同じchainのitemを受理しない。
+5. `f:\n  x\n  y`がone `IndentedStatementBlock`を持ち、equal / lower indentでblockを開始しない。
+6. first statementのindentを`block_indent`に固定し、dedent boundaryをconsumeせず、baseline / inline / ml_arg /
+   stop scopeを全exit pathでrestoreする。
+7. root `f: x, y`ではcolonがcommaを所有し、`(f: x, y)`と`{x: 1, y: 2}`ではouter ownerがcommaを保持する。
+8. `{x: 1}` / `{..base, x: 1, ..tail}`がdedicated record CSTなしでBraceGroup + ordinary colon tailになる。
+9. EOF、horizontal-trivia EOF、wrong indent、empty indented block、leading / trailing comma、invalid run、malformed
+   block statementをrecovery table通り固定する。
+10. all recoveryで`Missing` zero-width、`Error` non-empty、node / diagnostic一対一、owner boundary unconsumed、
+    node balanced、`green.to_string() == source`を満たす。
+11. candidate probe中のsink callは0、colon commit後のemissionは一回、source-wide buffer / replayは0である。
+
+HIR gateを次で固定する。
+
+1. preceding flat segmentをassociateしてからcolon targetへ使い、surface CSTへtreeを書き戻さない。
+2. inline全argumentとblock内expressionをassociateし、source order / rangeを失わない。
+3. inline / indented shapeを保持するneutral colon HIRを作り、type inferenceへsyntax decisionを移さない。
+4. recovered RHSをpanic / hang / unconsumed itemなしでdeterministic error HIRへlowerし、parser diagnosticを複製しない。
+
+### Other lone-colon grammar families: explicit future scope
+
+本追補は次を設計しない。各ownerは`StopKind::Colon`でgeneric tailを止め、future addendumでtoken ownership、
+inline / block body、recoveryを個別に固定する。
+
+- `if` / `else`、`catch`、`case` arm、`for`、`sub` / lambdaなどcontrol-expression / statement body introducer。
+- `impl`、`where`、`mod`、`role`、`struct`、`enum`、`type`、`error`、`act`、castなどdeclaration head / body。
+- struct field、enum variant payload、act member、where predicateなどdeclaration-internal separator / annotation。
+- pattern type annotation、pattern field / named slot、polymorphic-variant-like colon starterなどpattern grammar。
+- type field / named argument、polymorphic-variant-like colon starterなどtype grammar。
+- `with:`の二token structural continuation。これは`WithBodyTail` ownerであり、generic colon applicationではない。
+
+`{x: 1}`だけはfuture record grammarではない。本追補で決めたBraceGroup + generic colon application reuseが
+current surface decisionである。後段semantic record interpretationを追加してもCST ownerは変えない。
+
+### Closed decisions and remaining implementation detail
+
+本追補のimplementation directionをblockするopen questionはない。次を確定する。
+
+- full RHS scope: non-empty inline comma list **and** indented statement block。
+- strict `block_indent > base_indent` triggerとdedent boundary。
+- target-free terminal `ColonApplicationTail`、no dynamic BP、no following same-chain item。
+- outer comma ownership優先、colon-owned trailing comma禁止。
+- BraceGroup内のrecord-like reuseとdedicated record CST禁止。
+- existing mandatory-slot / `Missing` / `Error` / typed diagnostic machineryによるtotal recovery。
+- generic colon applicationと他colon grammar familyの`StopKind::Colon`境界。
+
+future implementationで詰めてよいのは、canonical `Statement` enumのconcrete module split、AST collectionの
+small-vector choice、diagnostic display wordingである。inline / block acceptance、indent inequality、comma owner、
+CST hierarchy、phase boundaryは変更しない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-22、generic colon application / indented block boundary追補案）。
