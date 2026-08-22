@@ -8594,5 +8594,5 @@ parenthesized mechanics共有がtype-erased over-generalizationにならない�
 typed diagnostic enumの具体名はcurrent sourceへ合わせて調整してよいが、surface grammar、CST shape、separator scope、
 semantic deferralをopenに戻さない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、comma-delimited `ListPattern`とspread item grammar追補案）。
