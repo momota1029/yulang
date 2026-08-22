@@ -6614,5 +6614,5 @@ separatorをmandatory statement recoveryより先に判定すること、brace-l
 確認対象にする。これらのhelper signatureは調整してよいが、node name、valid separator set、empty / trailing rule、
 scope boundaryをopenに戻さない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-22、NUD-primary brace-delimited statement-block expression追補案）。
