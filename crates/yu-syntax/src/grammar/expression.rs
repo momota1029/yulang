@@ -5104,6 +5104,28 @@ mod tests {
     }
 
     #[test]
+    fn list_patterns_keep_case_and_catch_arm_commas_outside_brackets() {
+        for source in [
+            "case xs: [head, ..tail] -> head",
+            "catch x: [a,b], handler -> body",
+        ] {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ListPattern).count(), 1);
+            assert!(root.descendants().all(|node| node.kind() != SyntaxKind::Missing && node.kind() != SyntaxKind::Error));
+        }
+    }
+
+    #[test]
+    fn missing_list_close_returns_the_case_arrow_to_its_arm_owner() {
+        let source = "case xs: [a -> body";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants_with_tokens().filter_map(|element| element.into_token()).filter(|token| token.kind() == SyntaxKind::Arrow).count(), 1);
+        assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter { owner: ConstructRole::ListPattern, .. })));
+    }
+
+    #[test]
     fn case_like_missing_arrow_retries_the_body_from_the_same_position() {
         let source = "case x: n yes";
         let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());

@@ -43,6 +43,59 @@ enum PatternPrecedence {
     Alias = 2,
 }
 
+/// The two pattern primaries with the same comma-delimited container contract.
+///
+/// This stays a closed policy rather than becoming a generic public AST: the
+/// delimiters share recovery mechanics, but their item grammars and semantic
+/// projections remain distinct.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PatternDelimitedPolicy {
+    Parenthesized,
+    List,
+}
+
+impl PatternDelimitedPolicy {
+    fn delimiter(self) -> Delimiter {
+        match self {
+            Self::Parenthesized => Delimiter::Parenthesis,
+            Self::List => Delimiter::Bracket,
+        }
+    }
+
+    fn close_stop(self) -> StopKind {
+        match self {
+            Self::Parenthesized => StopKind::RightParenthesis,
+            Self::List => StopKind::RightBracket,
+        }
+    }
+
+    fn close_syntax_kind(self) -> SyntaxKind {
+        match self {
+            Self::Parenthesized => SyntaxKind::RParen,
+            Self::List => SyntaxKind::RBracket,
+        }
+    }
+
+    fn close_role(self) -> GrammarRole {
+        match self {
+            Self::Parenthesized => GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ParenthesizedPattern,
+                delimiter: Delimiter::Parenthesis,
+            },
+            Self::List => GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::ListPattern,
+                delimiter: Delimiter::Bracket,
+            },
+        }
+    }
+
+    fn stop_set(self) -> StopSet {
+        StopSet::default()
+            .with(StopKind::Comma)
+            .with(self.close_stop())
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Pattern<'source> {
     head: Recovered<PatternPrimary<'source>>,
@@ -65,6 +118,7 @@ pub(crate) enum PatternPrimary<'source> {
     Integer(IntegerLiteral<'source>),
     Symbol(SymbolPattern<'source>),
     Parenthesized(ParenthesizedPattern<'source>),
+    List(ListPattern<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -113,6 +167,38 @@ pub(crate) struct ParenthesizedPattern<'source> {
     elements: Vec<Recovered<Pattern<'source>>>,
     trailing_comma: Option<Range<usize>>,
     close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ListPattern<'source> {
+    open: Range<usize>,
+    items: Vec<Recovered<ListPatternItem<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+impl ListPattern<'_> {
+    pub(crate) fn items(&self) -> &[Recovered<ListPatternItem<'_>>] {
+        &self.items
+    }
+
+    pub(crate) fn trailing_comma(&self) -> Option<Range<usize>> {
+        self.trailing_comma.clone()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ListPatternItem<'source> {
+    Pattern(Pattern<'source>),
+    Spread(ListPatternSpreadItem<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ListPatternSpreadItem<'source> {
+    marker: Range<usize>,
+    rhs: Recovered<Box<Pattern<'source>>>,
     range: Range<usize>,
 }
 
@@ -290,6 +376,7 @@ where
         PatternNudRecognition::Parenthesized { open } => {
             PatternPrimary::Parenthesized(parse_parenthesized_pattern(open, i))
         }
+        PatternNudRecognition::List { open } => PatternPrimary::List(parse_list_pattern(open, i)),
     }
 }
 
@@ -299,6 +386,96 @@ fn primary_range(primary: &PatternPrimary<'_>) -> Range<usize> {
         PatternPrimary::Integer(integer) => integer.range(),
         PatternPrimary::Symbol(symbol) => symbol.range.clone(),
         PatternPrimary::Parenthesized(parenthesized) => parenthesized.range.clone(),
+        PatternPrimary::List(list) => list.range.clone(),
+    }
+}
+
+fn parse_list_pattern<'source, E>(
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> ListPattern<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let policy = PatternDelimitedPolicy::List;
+    push_pattern_delimited_scope(policy, i);
+    consume_trivia(i);
+    let mut items = Vec::new();
+    let mut trailing_comma = None;
+    let close = if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
+        Recovered::Complete(close)
+    } else {
+        loop {
+            items.push(parse_list_item_ast(i));
+            consume_trivia(i);
+            if let Some(comma) = i.run(recognize_comma) {
+                consume_trivia(i);
+                if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
+                    trailing_comma = Some(comma);
+                    break Recovered::Complete(close);
+                }
+                continue;
+            }
+            if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
+                break Recovered::Complete(close);
+            }
+            if exact_dot_dot_pending_input(i) || pattern_nud_candidate_input(i) {
+                continue;
+            }
+            if !recover_list_separator_or_close_ast(i) {
+                break Recovered::Incomplete;
+            }
+        }
+    };
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    pop_pattern_delimited_scope(policy, i);
+    ListPattern { open: open.clone(), items, trailing_comma, close, range: open.start..end }
+}
+
+fn parse_list_item_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ListPatternItem<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(marker) = i.run(scan_exact_dot_dot) {
+        consume_trivia(i);
+        let rhs = i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+            .map(|pattern| Recovered::Complete(Box::new(pattern)))
+            .unwrap_or(Recovered::Incomplete);
+        let end = match &rhs { Recovered::Complete(pattern) => pattern.range.end, Recovered::Incomplete => marker.end };
+        return Recovered::Complete(ListPatternItem::Spread(ListPatternSpreadItem { marker: marker.clone(), rhs, range: marker.start..end }));
+    }
+    i.run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+        .map(|pattern| Recovered::Complete(ListPatternItem::Pattern(pattern)))
+        .unwrap_or(Recovered::Incomplete)
+}
+
+fn recover_list_separator_or_close_ast<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        let Some(character) = i.input.remainder().chars().next() else {
+            return false;
+        };
+        if matches!(character, ']' | ')' | '}') || arm_stop_pending(i) {
+            return false;
+        }
+        i.input.next().expect("the inspected character exists");
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if exact_dot_dot_pending_input(i) || pattern_nud_candidate_input(i) {
+            return true;
+        }
     }
 }
 
@@ -311,40 +488,44 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    push_parenthesized_scope(i);
+    let policy = PatternDelimitedPolicy::Parenthesized;
+    push_pattern_delimited_scope(policy, i);
     consume_trivia(i);
     let mut elements = Vec::new();
     let mut trailing_comma = None;
-    let close = if let Some(close) = i.run(recognize_close_parenthesis) {
-        Recovered::Complete(close)
-    } else {
-        loop {
-            let element = i
-                .run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
-                .map_or(Recovered::Incomplete, Recovered::Complete);
-            elements.push(element);
-            consume_trivia(i);
-            if let Some(comma) = i.run(recognize_comma) {
+    let close =
+        if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
+            Recovered::Complete(close)
+        } else {
+            loop {
+                let element = i
+                    .run(from_fn(|i| parse_pattern_bp(i, PatternPrecedence::Lowest)))
+                    .map_or(Recovered::Incomplete, Recovered::Complete);
+                elements.push(element);
                 consume_trivia(i);
-                if let Some(close) = i.run(recognize_close_parenthesis) {
-                    trailing_comma = Some(comma);
-                    break Recovered::Complete(close);
+                if let Some(comma) = i.run(recognize_comma) {
+                    consume_trivia(i);
+                    if let Some(close) =
+                        i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i)))
+                    {
+                        trailing_comma = Some(comma);
+                        break Recovered::Complete(close);
+                    }
+                    continue;
                 }
-                continue;
+                if pattern_nud_candidate_input(i) {
+                    continue;
+                }
+                break i
+                    .run(from_fn(|i| recognize_pattern_delimited_close(policy, i)))
+                    .map_or(Recovered::Incomplete, Recovered::Complete);
             }
-            if pattern_nud_candidate_input(i) {
-                continue;
-            }
-            break i
-                .run(recognize_close_parenthesis)
-                .map_or(Recovered::Incomplete, Recovered::Complete);
-        }
-    };
+        };
     let end = match &close {
         Recovered::Complete(close) => close.end,
         Recovered::Incomplete => i.pos(),
     };
-    pop_parenthesized_scope(i);
+    pop_pattern_delimited_scope(policy, i);
     ParenthesizedPattern {
         open: open.clone(),
         elements,
@@ -410,6 +591,9 @@ enum PatternNudRecognition<'source> {
     Parenthesized {
         open: Range<usize>,
     },
+    List {
+        open: Range<usize>,
+    },
 }
 
 fn recognize_pattern_nud<'source, E>(
@@ -436,14 +620,20 @@ where
         from_fn(scan_pattern_name).map(PatternNudRecognition::Name),
         parse_integer_literal.map(PatternNudRecognition::Integer),
         recognize_open_parenthesis.map(|open| PatternNudRecognition::Parenthesized { open }),
+        recognize_open_bracket.map(|open| PatternNudRecognition::List { open }),
     ))
 }
 
 fn arm_stop_pending<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
 {
     let stops = active_stop_set(i);
-    if stops.contains(StopKind::Arrow) && i.input.remainder().starts_with("->") { return true; }
+    if stops.contains(StopKind::Arrow) && i.input.remainder().starts_with("->") {
+        return true;
+    }
     let checkpoint = i.checkpoint();
     let word = i.run(scan_word).map(|word| word.text());
     i.rollback(checkpoint);
@@ -578,18 +768,72 @@ where
     .then(|| punctuation.range())
 }
 
-fn recognize_close_parenthesis<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+fn recognize_open_bracket<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+{
+    let punctuation = i.run(scan_punctuation)?;
+    (punctuation.kind() == PunctuationKind::Open(Delimiter::Bracket)).then(|| punctuation.range())
+}
+
+/// Accepts a spread marker only when its maximal operator-shaped spelling is
+/// exactly `..`.  This is independent of declared operators and deliberately
+/// refuses to split `...` or `..+` into a marker plus a remainder.
+fn scan_exact_dot_dot<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) {
+        i.input.next()?;
+    }
+    let end = i.pos();
+    if &i.input.source()[start..end] != ".." {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
+}
+
+fn is_operator_shaped_character(character: char) -> bool {
+    !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && character != '_'
+        && !unicode_ident::is_xid_continue(character)
+        && !matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@')
+}
+
+fn exact_dot_dot_pending_input<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_exact_dot_dot).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn recognize_pattern_delimited_close<'source, E>(
+    policy: PatternDelimitedPolicy,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
     let close = i.run(scan_punctuation).and_then(|punctuation| {
-        matches!(
-            punctuation.kind(),
-            PunctuationKind::Close(Delimiter::Parenthesis)
-        )
-        .then(|| punctuation.range())
+        (punctuation.kind() == PunctuationKind::Close(policy.delimiter()))
+            .then(|| punctuation.range())
     });
     if close.is_none() {
         i.rollback(checkpoint);
@@ -653,26 +897,20 @@ where
     i.local.stop_set().unwrap_or_default()
 }
 
-fn parenthesized_stop_set() -> StopSet {
-    StopSet::default()
-        .with(StopKind::Comma)
-        .with(StopKind::RightParenthesis)
-}
-
-fn push_parenthesized_scope<E>(i: &mut SynIn<E>)
+fn push_pattern_delimited_scope<E>(policy: PatternDelimitedPolicy, i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
 {
-    i.local.push_delimiter(Delimiter::Parenthesis);
-    i.local.push_stop_set(parenthesized_stop_set());
+    i.local.push_delimiter(policy.delimiter());
+    i.local.push_stop_set(policy.stop_set());
 }
 
-fn pop_parenthesized_scope<E>(i: &mut SynIn<E>)
+fn pop_pattern_delimited_scope<E>(policy: PatternDelimitedPolicy, i: &mut SynIn<E>)
 where
     E: ErrorSink<usize>,
 {
-    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
-    assert_eq!(i.local.pop_stop_set(), Some(parenthesized_stop_set()));
+    assert_eq!(i.local.pop_delimiter(), Some(policy.delimiter()));
+    assert_eq!(i.local.pop_stop_set(), Some(policy.stop_set()));
 }
 
 fn parse_direct_pattern_bp<'parse, 'source, 'local, E, O>(
@@ -783,6 +1021,21 @@ where
     candidate
 }
 
+fn exact_dot_dot_pending<'parse, 'source, 'local, E>(
+    probe: &mut Probe<'parse, 'source, 'local, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let i = probe.input();
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_exact_dot_dot).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
 fn pipe_pending<'parse, 'source, 'local, E>(probe: &mut Probe<'parse, 'source, 'local, E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -853,6 +1106,86 @@ fn commit_direct_primary<'parse, 'source, 'local, E, O>(
         PatternNudRecognition::Parenthesized { open } => {
             commit_direct_parenthesized_pattern(open, committed)
         }
+        PatternNudRecognition::List { open } => commit_direct_list_pattern(open, committed),
+    }
+}
+
+fn commit_direct_list_pattern<'parse, 'source, 'local, E, O>(
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let policy = PatternDelimitedPolicy::List;
+    let outer_stops = committed.probe(|probe| active_stop_set(probe.input()));
+    committed.start_node(SyntaxKind::ListPattern);
+    committed.token(SyntaxKind::LBracket, open);
+    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
+    let initial = consume_direct_trivia(committed);
+    committed.emit_trivia(&initial);
+
+    if direct_pattern_delimited_close(policy, committed) {
+        finish_pattern_delimited_scope(policy, committed);
+        return;
+    }
+
+    loop {
+        commit_direct_list_item(committed);
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        if let Some(comma) = direct_comma(committed) {
+            committed.token(SyntaxKind::Comma, comma);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            if direct_pattern_delimited_close(policy, committed) {
+                finish_pattern_delimited_scope(policy, committed);
+                return;
+            }
+            continue;
+        }
+        if direct_pattern_delimited_close(policy, committed) {
+            finish_pattern_delimited_scope(policy, committed);
+            return;
+        }
+        if committed.probe(exact_dot_dot_pending) || committed.probe(pattern_nud_candidate) {
+            emit_pattern_missing(
+                committed,
+                PatternRole::ListSeparator,
+                ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+            );
+            continue;
+        }
+        if recover_list_separator_or_close(policy, outer_stops, committed) {
+            continue;
+        }
+        finish_pattern_delimited_scope(policy, committed);
+        return;
+    }
+}
+
+fn commit_direct_list_item<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(marker) = committed.probe(|probe| probe.input().run(scan_exact_dot_dot)) {
+        committed.start_node(SyntaxKind::ListPatternSpreadItem);
+        committed.token(SyntaxKind::DotDot, marker);
+        committed.probe(|probe| probe.input().cut());
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        parse_direct_pattern_bp(PatternPrecedence::Lowest, PatternRole::ListSpreadRhs, committed)
+            .expect("a committed spread owns a total RHS pattern");
+        committed.finish_node();
+    } else {
+        parse_direct_pattern_bp(PatternPrecedence::Lowest, PatternRole::ListItem, committed)
+            .expect("a list mandatory item is total after recovery");
     }
 }
 
@@ -865,14 +1198,15 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let policy = PatternDelimitedPolicy::Parenthesized;
     committed.start_node(SyntaxKind::ParenthesizedPattern);
     committed.token(SyntaxKind::LParen, open);
-    committed.probe(|probe| push_parenthesized_scope(probe.input()));
+    committed.probe(|probe| push_pattern_delimited_scope(policy, probe.input()));
     let initial = consume_direct_trivia(committed);
     committed.emit_trivia(&initial);
 
-    if direct_close_parenthesis(committed) {
-        finish_parenthesized_scope(committed);
+    if direct_pattern_delimited_close(policy, committed) {
+        finish_pattern_delimited_scope(policy, committed);
         return;
     }
 
@@ -884,14 +1218,14 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::Comma, comma);
             let trivia = consume_direct_trivia(committed);
             committed.emit_trivia(&trivia);
-            if direct_close_parenthesis(committed) {
-                finish_parenthesized_scope(committed);
+            if direct_pattern_delimited_close(policy, committed) {
+                finish_pattern_delimited_scope(policy, committed);
                 return;
             }
             continue;
         }
-        if direct_close_parenthesis(committed) {
-            finish_parenthesized_scope(committed);
+        if direct_pattern_delimited_close(policy, committed) {
+            finish_pattern_delimited_scope(policy, committed);
             return;
         }
         if committed.probe(pattern_nud_candidate) {
@@ -902,8 +1236,8 @@ fn commit_direct_parenthesized_pattern<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
-        recover_parenthesized_close(committed);
-        finish_parenthesized_scope(committed);
+        recover_pattern_delimited_close(policy, committed);
+        finish_pattern_delimited_scope(policy, committed);
         return;
     }
 }
@@ -1029,7 +1363,8 @@ where
     committed.probe(|probe| probe.input().run(recognize_comma))
 }
 
-fn direct_close_parenthesis<'parse, 'source, 'local, E, O>(
+fn direct_pattern_delimited_close<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -1037,11 +1372,14 @@ where
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
 {
-    let Some(close) = committed.probe(|probe| probe.input().run(recognize_close_parenthesis))
-    else {
+    let Some(close) = committed.probe(|probe| {
+        probe
+            .input()
+            .run(from_fn(|i| recognize_pattern_delimited_close(policy, i)))
+    }) else {
         return false;
     };
-    committed.token(SyntaxKind::RParen, close);
+    committed.token(policy.close_syntax_kind(), close);
     true
 }
 
@@ -1057,7 +1395,8 @@ where
     committed.probe(|probe| consume_trivia(probe.input()))
 }
 
-fn recover_parenthesized_close<'parse, 'source, 'local, E, O>(
+fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1067,18 +1406,19 @@ fn recover_parenthesized_close<'parse, 'source, 'local, E, O>(
 {
     loop {
         if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
-            emit_pattern_close_missing(committed);
+            emit_pattern_delimited_close_missing(policy, committed);
             return;
         }
         let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation));
         if let Some(punctuation) = punctuation {
             match punctuation.kind() {
-                PunctuationKind::Close(Delimiter::Parenthesis) => {
-                    committed.token(SyntaxKind::RParen, punctuation.range());
+                PunctuationKind::Close(delimiter) if delimiter == policy.delimiter() => {
+                    committed.token(policy.close_syntax_kind(), punctuation.range());
                     return;
                 }
-                PunctuationKind::Close(actual @ (Delimiter::Bracket | Delimiter::Brace)) => {
-                    emit_pattern_close_error(
+                PunctuationKind::Close(actual) => {
+                    emit_pattern_delimited_close_error(
+                        policy,
                         committed,
                         punctuation.range(),
                         UnexpectedCategory::Punctuation(
@@ -1086,7 +1426,8 @@ fn recover_parenthesized_close<'parse, 'source, 'local, E, O>(
                         ),
                     );
                 }
-                _ => emit_pattern_close_error(
+                _ => emit_pattern_delimited_close_error(
+                    policy,
                     committed,
                     punctuation.range(),
                     UnexpectedCategory::OtherCharacter,
@@ -1106,18 +1447,111 @@ fn recover_parenthesized_close<'parse, 'source, 'local, E, O>(
             Some(start..end)
         });
         if let Some(range) = range {
-            emit_pattern_close_error(committed, range, UnexpectedCategory::OtherCharacter);
+            emit_pattern_delimited_close_error(
+                policy,
+                committed,
+                range,
+                UnexpectedCategory::OtherCharacter,
+            );
         }
     }
 }
 
-fn finish_parenthesized_scope<'parse, 'source, 'local, E, O>(
+/// Consumes one separator error episode, leaving the next item candidate or
+/// closing boundary untouched.  A caller-owned arm boundary is an escape only
+/// for a missing list close; it is never consumed by the list owner.
+fn recover_list_separator_or_close<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
+    outer_stops: StopSet,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut start = None;
+    loop {
+        if committed.probe(|probe| probe.input().input.remainder().is_empty())
+            || committed.probe(|probe| outer_arm_stop_pending(outer_stops, probe.input()))
+        {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::ListSeparator,
+                    start..end,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                );
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
+            return false;
+        }
+        if direct_pattern_delimited_close(policy, committed) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::ListSeparator,
+                    start..end,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                );
+            }
+            return false;
+        }
+        if committed.probe(exact_dot_dot_pending) || committed.probe(pattern_nud_candidate) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::ListSeparator,
+                    start..end,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                );
+            }
+            return true;
+        }
+        let range = committed.probe(|probe| {
+            let i = probe.input();
+            let start = i.pos();
+            i.input.next()?;
+            let end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            Some(start..end)
+        });
+        if let Some(range) = range {
+            start.get_or_insert(range.start);
+        }
+    }
+}
+
+fn outer_arm_stop_pending<E>(stops: StopSet, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if stops.contains(StopKind::Arrow) && i.input.remainder().starts_with("->") {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let word = i.run(scan_word).map(|word| word.text());
+    i.rollback(checkpoint);
+    matches!(word, Some("if") if stops.contains(StopKind::ArmGuardIf))
+        || matches!(word, Some("where") if stops.contains(StopKind::ArmGuardWhere))
+}
+
+fn finish_pattern_delimited_scope<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
 {
-    committed.probe(|probe| pop_parenthesized_scope(probe.input()));
+    committed.probe(|probe| pop_pattern_delimited_scope(policy, probe.input()));
     committed.finish_node();
 }
 
@@ -1192,14 +1626,8 @@ fn emit_pattern_error<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-fn parenthesized_close_role() -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::ParenthesizedPattern,
-        delimiter: Delimiter::Parenthesis,
-    }
-}
-
-fn emit_pattern_close_missing<'parse, 'source, 'local, E, O>(
+fn emit_pattern_delimited_close_missing<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1208,7 +1636,7 @@ fn emit_pattern_close_missing<'parse, 'source, 'local, E, O>(
     let record = committed.probe(|probe| {
         let i = probe.input();
         let at = i.pos();
-        let role = parenthesized_close_role();
+        let role = policy.close_role();
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -1220,7 +1648,7 @@ fn emit_pattern_close_missing<'parse, 'source, 'local, E, O>(
             Arc::from([SyntaxExpectation {
                 role,
                 expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
-                    Delimiter::Parenthesis,
+                    policy.delimiter(),
                 )),
                 range: at..at,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
@@ -1231,7 +1659,8 @@ fn emit_pattern_close_missing<'parse, 'source, 'local, E, O>(
     committed.emit_missing(record);
 }
 
-fn emit_pattern_close_error<'parse, 'source, 'local, E, O>(
+fn emit_pattern_delimited_close_error<'parse, 'source, 'local, E, O>(
+    policy: PatternDelimitedPolicy,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     range: Range<usize>,
     category: UnexpectedCategory,
@@ -1241,7 +1670,7 @@ fn emit_pattern_close_error<'parse, 'source, 'local, E, O>(
 {
     let record = committed.probe(|probe| {
         let i = probe.input();
-        let role = parenthesized_close_role();
+        let role = policy.close_role();
         CommittedRecoveryRecord::new(
             i.local,
             RecoverySiteKey {
@@ -1256,7 +1685,7 @@ fn emit_pattern_close_error<'parse, 'source, 'local, E, O>(
             Arc::from([SyntaxExpectation {
                 role,
                 expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(
-                    Delimiter::Parenthesis,
+                    policy.delimiter(),
                 )),
                 range,
                 sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
@@ -1390,6 +1819,85 @@ mod tests {
     }
 
     #[test]
+    fn list_patterns_are_uniform_comma_delimited_and_keep_spread_items() {
+        for (source, items, trailing) in [
+            ("[]", 0, false),
+            ("[a]", 1, false),
+            ("[a,]", 1, true),
+            ("[a,b]", 2, false),
+            ("[a,b,]", 2, true),
+            ("[a,\n b]", 2, false),
+        ] {
+            let root = parse_direct(source);
+            let list = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::ListPattern)
+                .expect("list");
+            assert_eq!(
+                list.children().filter(|node| node.kind() == SyntaxKind::Pattern).count(),
+                items,
+                "{source:?}"
+            );
+            assert_eq!(
+                list.children_with_tokens().filter(|item| item.kind() == SyntaxKind::Comma).count(),
+                items.saturating_sub(1) + usize::from(trailing),
+                "{source:?}"
+            );
+        }
+
+        let (root, recoveries) = parse_direct_recovered("[head, ..middle, tail]");
+        assert_eq!(root.to_string(), "[head, ..middle, tail]");
+        assert!(recoveries.is_empty());
+        assert_eq!(
+            root.descendants().filter(|node| node.kind() == SyntaxKind::ListPatternSpreadItem).count(),
+            1
+        );
+
+        let (root, recoveries) = parse_direct_recovered("[..a, b, ..c]");
+        assert!(recoveries.is_empty());
+        assert_eq!(
+            root.descendants().filter(|node| node.kind() == SyntaxKind::ListPatternSpreadItem).count(),
+            2
+        );
+
+        let root = parse_direct("[..a | b, c]");
+        let spread = root.descendants().find(|node| node.kind() == SyntaxKind::ListPatternSpreadItem).expect("spread");
+        assert!(spread.descendants().any(|node| node.kind() == SyntaxKind::PatternAlternationTail));
+    }
+
+    #[test]
+    fn list_pattern_recovery_preserves_item_and_separator_boundaries() {
+        for (source, role) in [
+            ("[,a]", PatternRole::ListItem),
+            ("[a,,b]", PatternRole::ListItem),
+            ("[a b]", PatternRole::ListSeparator),
+            ("[a ..b]", PatternRole::ListSeparator),
+            ("[a; b]", PatternRole::ListSeparator),
+            ("[a, @ b]", PatternRole::ListItem),
+            ("[..]", PatternRole::ListSpreadRhs),
+            ("[..,a]", PatternRole::ListSpreadRhs),
+            ("[..@tail]", PatternRole::ListSpreadRhs),
+        ] {
+            let (root, recoveries) = parse_direct_recovered(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Pattern(role)), "{source:?}: {recoveries:#?}");
+        }
+
+        for source in ["[...,a]", "[..+,a]"] {
+            let (root, recoveries) = parse_direct_recovered(source);
+            assert_eq!(root.to_string(), source);
+            assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Error));
+            assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::ListPatternSpreadItem));
+        }
+
+        for source in ["[a", "[a)"] {
+            let (root, recoveries) = parse_direct_recovered(source);
+            assert_eq!(root.to_string(), source);
+            assert!(recoveries.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter { owner: ConstructRole::ListPattern, .. })));
+        }
+    }
+
+    #[test]
     fn alias_and_alternation_follow_the_fixed_pratt_order() {
         let root = parse_direct("A | B as c");
         let outer = only_child(&root, SyntaxKind::Pattern);
@@ -1458,16 +1966,26 @@ mod tests {
         let low = OperatorTable::from_declarations([OperatorDeclaration::new(
             "|",
             OperatorFixities::new().with_infix(BindingPower::scalar(1), BindingPower::scalar(1)),
+        ), OperatorDeclaration::new(
+            "..",
+            OperatorFixities::new().with_infix(BindingPower::scalar(1), BindingPower::scalar(1)),
         )])
         .unwrap();
         let high = OperatorTable::from_declarations([OperatorDeclaration::new(
             "|",
+            OperatorFixities::new().with_infix(BindingPower::scalar(99), BindingPower::scalar(99)),
+        ), OperatorDeclaration::new(
+            "..",
             OperatorFixities::new().with_infix(BindingPower::scalar(99), BindingPower::scalar(99)),
         )])
         .unwrap();
         assert_eq!(
             parse_direct_ignoring_operator_table("A | B as c", &low).green(),
             parse_direct_ignoring_operator_table("A | B as c", &high).green()
+        );
+        assert_eq!(
+            parse_direct_ignoring_operator_table("[a, ..tail]", &low).green(),
+            parse_direct_ignoring_operator_table("[a, ..tail]", &high).green()
         );
         // The direct entrypoint does not receive either table; this check pins
         // that API boundary in addition to the identical CST assertion.
@@ -1517,7 +2035,7 @@ mod tests {
     #[test]
     fn excluded_forms_remain_unconsumed_after_a_first_slice_pattern() {
         for source in [
-            "[a]", "{a}", "\"a\"", "x: T", "A::B", "A.field", "Some(x)", "Some x",
+            "{a}", "\"a\"", "x: T", "A::B", "A.field", "Some(x)", "Some x",
         ] {
             assert!(!parse_direct_prefix(source, false).is_empty(), "{source:?}");
         }
@@ -1530,6 +2048,15 @@ mod tests {
         assert!(matches!(pattern.tails(), [PatternTail::Alternation(_)]));
         let root = parse_direct("(:foo, _bar,) | 42 as name");
         assert_eq!(root.to_string(), "(:foo, _bar,) | 42 as name");
+
+        let list = parse("[head, ..middle, tail]");
+        let Recovered::Complete(PatternPrimary::List(list)) = &list.head else {
+            panic!("list source must produce a list primary");
+        };
+        assert_eq!(list.items().len(), 3);
+        assert!(matches!(list.items()[1], Recovered::Complete(ListPatternItem::Spread(_))));
+        let root = parse_direct("[head, ..middle, tail]");
+        assert_eq!(root.to_string(), "[head, ..middle, tail]");
     }
 
     fn parse<'source>(source: &'source str) -> Pattern<'source> {

@@ -546,6 +546,7 @@ pub(crate) enum ConstructRole {
     ArgumentList,
     BracedStatementBlockExpression,
     ParenthesizedPattern,
+    ListPattern,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -596,6 +597,9 @@ pub(crate) enum PatternRole {
     AlternationRhs,
     ParenthesizedElement,
     ParenthesizedSeparator,
+    ListItem,
+    ListSpreadRhs,
+    ListSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
