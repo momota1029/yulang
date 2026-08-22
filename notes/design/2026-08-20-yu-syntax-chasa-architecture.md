@@ -24,6 +24,12 @@ Revision note (direct full-parse closure): shared recognition core を rollback 
 trivia run、direct Rowan emission、Pratt NUD / LED の probe / commit、canonical `OperatorTable` の
 session 構築、および最初の vertical slice に必要な `SyntaxKind` vocabulary を decision として固定した。
 
+Revision note (precedence-neutral operator chain): 2026-08-22 の決定により、dynamic prefix / infix /
+suffix operator のbinding powerはCST hierarchyを決めない。本文中のPratt-shaped CST、left-wrap
+checkpoint、`Expression::{Prefix,Infix,Suffix}Application`をcurrent designとして述べる箇所は、末尾の
+「dynamic operatorのprecedence-neutral surface chainとassociation境界」追補がsupersedeする。operator
+spelling / fixity roleのoracle judge、immutable table、sink-free probe、direct emissionは維持する。
+
 調査対象は `chasa 0.5.0` と、annotated tag `yulang2-oracle` が指す commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`（以下 `yulang2-oracle@a58eefc3`）である。
 `chasa` の source は local Cargo registry cache に展開済みだったため、network access は
@@ -34,6 +40,11 @@ session 構築、および最初の vertical slice に必要な `SyntaxKind` voc
 `crates/yu-syntax` の full parser は、source 全体を先に
 `Vec<LexedToken>` へ materialize する構成を廃止し、`chasa` の `Input<Item = char>` を
 grammar が直接消費する構成へ置き換える。
+
+> **Status: 2026-08-22 superseded.**
+> 直後のPratt / precedence-climbing維持という段落は、最初のdirect-expression sliceのhistorical decisionである。
+> current decisionではNUD / LED positionとoracle judgeによるoperator role recognitionだけを維持し、
+> numeric binding powerによるapplication treeの構築はHIR lowering前後のdedicated associatorへ移す。
 
 expression parser は Yulang2 の tagged predictive NUD / LED dispatch と Pratt /
 precedence climbing を維持する。ただし operator token は独立 lexer が確定せず、現在の
@@ -531,6 +542,11 @@ trailing trivia を `ScannedOperator` として返す。caller の predictive br
 
 ### Expression parser
 
+> **Status: 2026-08-22 partially superseded.**
+> 以下はYulang2のactual algorithmを記録するhistorical調査として維持する。ただし
+> 「Yulang2のalgorithmを維持する」というYulang3 decisionは末尾のprecedence-neutral chain追補が
+> supersedeする。operator role scannerとoracle judgeだけを引き継ぎ、Pratt CST shapeは引き継がない。
+
 Yulang2 の algorithm は維持する。
 
 1. `parse_expr_bp` が NUD scanner を呼ぶ。
@@ -615,6 +631,10 @@ full parse は `HeaderInfo` の range を使って pre-tokenized source を node
 `HeaderInfo` は expected parity input と syntax planning product であり、full CST grammar の代替ではない。
 
 ### Direct Rowan sink without parse-event buffering
+
+> **Status: 2026-08-22 partially superseded.**
+> direct sink、commit後だけのemission、event buffer / replay禁止は維持する。下記のうち
+> Pratt left operandを`start_node_at`でapplication nodeへ包む用途だけを末尾のflat-chain追補がsupersedeする。
 
 `ParseEvent` enum、event buffer、parse 後の Rowan replay layer は作らない。full grammar は branch
 decision が確定した後だけ、専用 direct sink を通じて `GreenNodeBuilder::start_node`、`token`、
@@ -1225,7 +1245,9 @@ accepted branch は commit 後の continuation が source order で一度だけ 
 shared recognition core に残す責務は次に限定する。
 
 - character input と rollback-aware `ParseLocal` を読み、現在位置で成立し得る local grammar role を判定する。
-- scanner が確定した source byte range、contextual tag、fixity、binding power、delimiter / layout 情報を返す。
+- scanner が確定した source byte range、contextual tag、fixity role、delimiter / layout 情報を返す。
+  operator header scanner は別途 parsed `BindingPower` を返すが、body expression recognition result は
+  numeric binding power を持たない。
 - `choice`、`maybe`、`lookahead`、`longest_match_then` の候補探索と、その候補内で生じた
   `LatestSink` expectation を所有する。
 - candidate rejection では input、`ParseLocal`、expectation を checkpoint へ戻し、public fact、CST、
@@ -1243,6 +1265,11 @@ commit continuation は次を所有する。
 - syntax AST / fact projection に必要な semantic value を、scanner result から同時に組み立てる。
 - recovery site ごとに `LatestSink` の最遠 typed candidate union を一度だけ committed record へ凍結する。
 - completed use / operator declaration を header fact へ投影し、full mode では frozen `HeaderInfo` と照合する。
+
+> **Status: 2026-08-22 partially superseded.**
+> 次段落のoutput-generic Pratt control、boxed application AST、left-wrap checkpoint、shared precedence
+> controlはhistorical implementation shapeである。current expression projectionはflat `OperatorChain`を作り、
+> production CSTとtest用surface ASTが同じordered chain authorityを共有する。
 
 ここで「同時に AST を組み立てる」は CST 復元用 token buffer を作るという意味ではない。`UseTree` と
 `OperatorHeaderDeclaration` は header fact / parity の semantic input として必要なので、commit
@@ -1373,6 +1400,12 @@ continuationとし、別declarationへ戻らない。header modeはbinding intro
 止まり、full modeだけがbinding continuationを実行する。
 
 ### Pratt NUD / LED の probe / commit
+
+> **Status: 2026-08-22 superseded.**
+> この節はlanded Pratt direct-CST sliceのhistorical control flowを記録する。minimum binding powerの
+> probe、recursive RHS parse、`InfixExpression` / `SuffixExpression`へのleft wrapping、prefix operandの
+> BP-driven ownershipは、末尾のprecedence-neutral chain追補が全てsupersedeする。sink-free operator
+> candidate probe、oracle judge、accepted後のcut、triviaのlossless emissionだけを維持する。
 
 current `parse_expression_bp`のprecedence controlとoracle judge tableは維持するが、現在の
 `parse_infix_tail`のようにRHSをASTへ読み切ってからtailを返す形はdirect CST pathで使わない。
@@ -1543,8 +1576,9 @@ source orderでmergeする。同じspellingの異なるfixityは一entryへ集�
 `ConflictingFixity`とする。errorはspelling、fixity、old origin / range、new origin / rangeを保持するため、
 canonical entryはfixityごとのorigin metadataを失わない形へevolveする。
 
-buildに成功したtableは`FullParseSession` / `ParseEnv`が所有または`Arc`で固定し、scannerとPratt parserは
-同じreferenceだけを見る。full parse中のinsert、overlay、lazy rebuild、HeaderInfo / CST再走査は置かない。
+buildに成功したtableは`FullParseSession` / `ParseEnv`が所有または`Arc`で固定し、operator-role scannerと
+後段のassociation queryは同じrevisionに属するreferenceだけを見る。full parse中のinsert、overlay、
+lazy rebuild、HeaderInfo / CST再走査は置かない。
 `SyntaxEnvironment`内のimported tableも、個々のexpression entrypointで再compileしない。
 
 cross-source conflictをどのsyntax-planning diagnosticへ写し、table build failure後に`parse_file`がどの
@@ -1575,6 +1609,11 @@ contextual keywordはscanner-wide keyword tableで先に固定せず、accepted 
 持ち、最初からfull-fixityを保つという決定に合わせてvocabularyへ含める。実装がsuffix LEDを後回しにする
 場合も`Unknown`や`InfixExpression`へ潰さない。
 
+> **Status: 2026-08-22 superseded for the expression row.**
+> `PrefixExpression` / `InfixExpression` / `SuffixExpression` / `NullfixExpression`をsemantic application
+> nodeとして使うvocabularyと上の説明はhistoricalである。replacementの`OperatorChain`とrole-specific
+> operator-use nodeは末尾の追補で固定する。header / use / punctuation / trivia rowは変更しない。
+
 ### Header / full parity と diagnostics
 
 headerとfullは同じstatement intro、use transition、operator-header slot recognizerを使う。違うのはcommit
@@ -1599,7 +1638,8 @@ anchorのheader projection fieldをschema v0へ暗黙に追加しない。
 2. actual chasa inputを包む`Probe` / `Committed` capabilityとoutput-generic commit continuation skeleton。
 3. shared statement introとuse / operator-header continuation。header fact parityとdirect declaration CST。
 4. canonical `OperatorTable`のpublic type一本化とfull session開始前merge。
-5. NUD / LED probeとdirect Pratt continuation。`start_node_at`によるprefix / infix / suffix / nullfix CST。
+5. NUD / LED role probeとprecedence-neutral `OperatorChain` continuation。prefix / infix / suffix / nullfixの
+   role-specific use nodeをsource orderでdirect emitし、application treeは作らない。
 6. binding statementを含むroot statement loop、committed recovery、whole-file lossless invariant。
 
 各sliceは次を満たす。
@@ -1661,6 +1701,11 @@ header grammar が残り、parity failure を隠すためである。移行中�
 新 vertical slice が成立する同じ change で削除し、long-lived feature-flagged fallback を残さない。
 
 ## Required implementation tests
+
+> **Status: 2026-08-22 partially superseded.**
+> 下記1の`+!a` / `a+!b` tree-shape assertionはassociation-phase testへ移す。yu-syntax testは同じ
+> oracle judge resultとrole-specific flat item列をassertする。2以降のscanner rollback、full-fixity table、
+> header/full parity、lossless / recovery contractは維持する。
 
 最初の implementation slice で少なくとも次を固定する。
 
@@ -1782,14 +1827,14 @@ architecture-level gate と question 7 / 8 の diagnostic detail は上の resol
 
 - `chasa` が crates.io の normal dependency として `=0.5.0` に exact pin され、source の vendor / copy
   や workspace member / path dependency を使わない。
-- `chasa` input から shared declaration grammar と最小 Pratt expression grammar が直接 source を読む。
+- `chasa` input から shared declaration grammar と最小precedence-neutral operator-chain grammarが直接sourceを読む。
 - 通常の alternation は `choice` / `or` を使い、明示的 rollback は構造的に必要な operator-candidate
   区間へ限定される。
 - `lex() -> Vec<LexedToken>` と `scan_symbol_end` を production path から除去する。
 - `HeaderInfo` と immutable `OperatorTable` が `BpVec` 相当の prefix / infix / suffix / nullfix を
   最初から持ち、full parse 中に table mutation がない。
-- canonical full-fixity fixture の `+!a` / `a+!b` が oracle judge table のまま user-confirmed tree
-  shape を持つ。
+- canonical full-fixity fixture の `+!a` / `a+!b` がoracle judge tableのまま確定したoperator roleと
+  source-order flat chain shapeを持つ。precedence-shaped treeはassociation-phase fixtureが固定する。
 - `scan_header` と full parse が同じ declaration grammar を使い、fixture で parity が成立する。
 - speculative branch は direct sink を呼べず、commit 後だけ Rowan node / token を書く。parse-event
   buffer と final replay layer がない。
@@ -1910,8 +1955,9 @@ trivia の concrete parent は次で固定する。
 inter-child trivia は最小の共通 parent の直下に置く。旧 `FullCstBuilder` のように trivia を declaration range
 内へ lossless に残しつつ、どの subtree が separator / suffix trivia を所有するかも一意になる。
 
-この convention は declaration continuation に限定する。既決の expression operator scanner が返す
-`ScannedOperator.trailing_trivia` は trailing result のままであり、Pratt CST の所有規則を変更しない。
+この convention は declaration continuation に限定する。expression operator scanner が返す
+`ScannedOperator.trailing_trivia` は trailing result のままだが、flat `OperatorChain`ではoperator-use nodeを
+閉じた後にchain直下のinter-item triviaとしてemitする。role nodeが後続operandを所有する形にはしない。
 Rowan 上ではどちらも source-order の sibling token であり、旧 `FullCstBuilder` と同じく token text の
 順序や coverage に差はない。
 
@@ -2531,7 +2577,7 @@ pub struct OperatorTable {
 - `fixities.is_nullfix() == sites.nullfix.is_some()`
 
 `OperatorFixities` の `PrefixFixity` / `InfixFixity` / `SuffixFixity` を origin wrapper で包み直さない。
-NUD / LED scanner と Pratt parser が読む hot `OperatorEntry` は現在の shape のままにし、build error と
+NUD / LED role scannerと後段associatorが読むhot `OperatorEntry`は現在のshapeのままにし、build errorと
 diagnostic だけが読む metadata を `OperatorTable` の parallel side table に置くためである。既存
 `AccumulatedOperator` の四つの `*_range` は `OperatorFixitySites` へ置き換え、build 完了時に
 `entries` と同じ order の `sites` vector へ移す。
@@ -2754,9 +2800,9 @@ local merge の結果は次の通りである。
 `OperatorTable::from_header_operators` は empty imported table + local declarations という同じ builder path
 へ委譲し、別の conflict rule を持たない。
 
-build 成功後、full parse session が完成 table を所有するか `Arc` で固定し、`ParseEnv::full`、operator
-scanner、Pratt parser はその一 reference だけを見る。header declaration continuation は full parse 中に
-table insert を行わない。
+build成功後、full parse sessionが完成tableを所有するか`Arc`で固定し、`ParseEnv::full`とoperator-role
+scannerはその一referenceだけを見る。後段associatorも`ParsedFile`と同じsyntax-environment revisionのtableを
+参照する。header declaration continuationはfull parse中にtable insertを行わない。
 
 ### Non-obvious choices の根拠
 
@@ -2871,7 +2917,7 @@ entrypointを新pipelineへ切り替える決定ではない。切り替え可�
 - full rootは`Root`を一度だけ開き、root-owned trivia / semicolonをemitしながら、sink-free
   `StatementIntro` probe、committed continuation、root recoveryをEOFまで繰り返す。
 - accepted statement familyは`UseDeclaration`、`OperatorDefinition`、`BindingDeclaration`の三つである。
-  operator definitionは既決の`OperatorHeader` nodeと、その後ろのdirect Pratt expression bodyを一つの
+  operator definitionは既決の`OperatorHeader` nodeと、その後ろのdirect precedence-neutral expression bodyを一つの
   statement control episodeとして扱うが、新しいwrapper nodeは追加しない。
 - introがcommitした後のcontinuationはtotalである。mandatory slot failureを`Option::None`でouter
   statement choiceへ返さず、`Complete(T)`または`Incomplete`を返しながら`Missing` / `Error`と
@@ -3301,7 +3347,8 @@ source-visible fieldとの対応は次の通りである。
 | `value` | operator-aware direct expression subtreeと`ParsedExpression.range`。CSTからASTを復元しない |
 
 target expressionはidentifier / integerだけでなく、session tableが許すprefix / nullfix / suffix / infixを
-含む。`my value = +!a`と`my value = a+!b`はsub-slice 5と同じcandidate fallback / BP semanticsでparseする。
+含む。`my value = +!a`と`my value = a+!b`はsub-slice 5と同じcandidate fallback / judge semanticsでroleを
+確定し、flat item列としてparseする。numeric BP semanticsは後段associationが所有する。
 旧`FullCstBuilder`の`my <ident> = <integer>` token patternはcompatibility observationにすぎず、direct
 continuationのscope authorityにはしない。
 
@@ -3318,8 +3365,8 @@ siblingになり、diagnosticは生じない。
 
 bodyが欠落またはmalformedでも、name / fixity / BP / `=`までcompleteな`HeaderOperator` factは捨てない。
 body recoveryは`GrammarRole::Statement(StatementRole::OperatorDefinitionBody)`を持つfull-only eventであり、
-header fact parityのIDへ混ぜない。今回のvertical sliceが構造化するbody grammarはsub-slice 5のdirect Pratt
-domainまでである。将来block、pattern、type、Yumark statement familyを追加する際は`StatementIntro`と
+header fact parityのIDへ混ぜない。今回のvertical sliceが構造化するbody grammarはsub-slice 5のdirect
+precedence-neutral operator-chain domainまでである。将来block、pattern、type、Yumark statement familyを追加する際は`StatementIntro`と
 body grammarをclosed enumで拡張し、root raw fallbackを常設しない。
 
 ### `SyntaxDiagnostic`とoperator-table conflict
@@ -3482,7 +3529,7 @@ malformed sourceのempty nameはheader continuationの`Missing`になりfactをc
   `None`は構造balanceとdiagnostic ownershipの両方を曖昧にする。`Recovered<T>`はcomplete factの有無と
   CST完走を分ける。
 - bindingをold builderのinteger-only shapeへ合わせない。すでに一つのcanonical operator tableとdirect
-  Pratt authorityがあり、scopeを縮めるとAST/full CSTで別grammarになる。
+  expression authorityがあり、scopeを縮めるとsurface AST / full CSTで別grammarになる。
 - operator header bodyをroot unknown recoveryへ落とさない。`OperatorHeader`の既決rangeを広げずに、bodyを
   同statement episodeのdirect expression siblingとすることでvalid fixtureをdiagnosticなしで構造化できる。
 - conflict時にempty tableへfallbackしない。一つのduplicate fixityのために無関係なimported/local operatorを
@@ -4033,6 +4080,12 @@ fixture`header-full-diagnostic-identity`(26 bytes)の実byte内容とmetadataが
 
 ## 追補案: parenthesized expression-listのsurface CSTと推論境界
 
+> **Status: 2026-08-22 amended in place.**
+> element count、comma-only separator、terminal comma marker、uniform
+> `ParenthesizedExpression` node、unit / grouping / tupleを推論側で判定するruleは維持する。
+> grammar、AST sketch、control flowは末尾のprecedence-neutral operator-chain追補に合わせて
+> `elements: Vec<OperatorChain>`へ更新済みであり、各elementをcurrent-depth `Comma | RParen`までflatにparseする。
+
 この節は、直前のhistoricalなparenthesized grouped-expression追補のうち、
 single inner expressionを前提とするAST / CST shapeとrecoveryをsupersedeする。
 Yulang3のparenthesis NUDは、grouping、unit、tupleというsemantic formをparse時に選ばず、
@@ -4041,17 +4094,19 @@ sourceに書かれたparenthesis、expression列、comma、triviaを一つのuni
 直前の追補から次は維持する。
 
 - opening `(`はshared sink-free `recognize_nud`が認識し、accept後にcutする。
-- parenthesis内の各expressionは`BindingPower::scalar(i8::MIN)`でparseし、outer precedenceを
-  内側へ持ち込まない。
-- closing `)`後はcallerのoriginal `minimum`を使うLED loopへ、一つのcompleted left expressionとして戻る。
+- parenthesis内の各elementはcurrent-depth `Comma | RParen`をstop setとするflat
+  `OperatorChain`としてparseし、outer chainのoperator useを内側へ持ち込まない。
+- closing `)`後はcompleted `ParenthesizedExpression` primaryをouter `OperatorChain`の
+  operand-complete stateへ戻す。
 - speculative branchはRowan sinkへ書かず、commit後だけdirect CSTを一度emitする。
 - parenthesis内trivia、delimiter scope、closing-delimiter recovery、`Recovered<T>`によるtotal continuation、
   one committed recovery node = one recovery diagnosticの原則を維持する。
 
 変更するのは、parenthesis内部のcardinality、comma所有、surface node名、parser-side AST、
 empty formのvalidity、およびそれらからsemantic formを決めるphase boundaryである。
-この追補はdesignだけを固定する。現行`crates/yu-syntax`の`Expression::Grouped` /
-`SyntaxKind::GroupedExpression`実装はまだこのshapeへ移行しておらず、source / testの変更は別sliceとする。
+この追補のuniform `Expression::Parenthesized` / `SyntaxKind::ParenthesizedExpression`とcomma-list shapeは
+現行`crates/yu-syntax`へland済みである。ただし現行elementはfully-associated `Expression`であり、
+flat `OperatorChain` elementへの移行は末尾追補の別implementation sliceとする。
 
 ### Core invariant
 
@@ -4082,8 +4137,8 @@ valid sourceのgrammarを次で固定する。
 ParenthesizedExpression :=
     LParen G*
     [
-        DirectExpression G*
-        { Comma G* DirectExpression G* }
+        OperatorChain G*
+        { Comma G* OperatorChain G* }
         [ Comma G* ]
     ]
     RParen
@@ -4098,21 +4153,18 @@ element、commaの間に存在できるが、newline自体を次elementのsepara
 
 ### Parser-side ASTとCST shape
 
-parser-side ASTはsemanticな`Grouped`をやめ、surface syntaxをそのまま表す。
+parser-side ASTはsemanticな`Grouped`をやめ、surface syntaxをそのまま表す。dynamic operatorを
+precedence-neutralにする後続決定により、element typeはassociated `Expression`ではなくflat
+`OperatorChain`になる。
 
 ```rust
-pub(crate) enum Expression<'source> {
-    Identifier(WordSpan<'source>),
-    Integer(IntegerLiteral<'source>),
+pub(crate) enum PrimaryExpression<'source> {
     Parenthesized {
-        elements: Vec<Expression<'source>>,
+        elements: Vec<OperatorChain<'source>>,
         trailing_comma: Option<Range<usize>>,
         range: Range<usize>,
     },
-    PrefixApplication { /* existing fields */ },
-    NullfixApplication { /* existing fields */ },
-    SuffixApplication { /* existing fields */ },
-    InfixApplication { /* existing fields */ },
+    // other structural primary variants
 }
 ```
 
@@ -4197,7 +4249,7 @@ scan and emit leading TriviaRun
 if the next token is RParen:
     commit the valid zero-element form
 else:
-    parse or recover one element at scalar(i8::MIN)
+    parse or recover one flat OperatorChain until Comma | RightParenthesis
     loop:
         scan and emit TriviaRun
         if the next token is Comma:
@@ -4205,19 +4257,19 @@ else:
             scan and emit TriviaRun
             if the next token is RParen:
                 record this Comma as trailing_comma and leave the loop
-            parse or recover the next element at scalar(i8::MIN)
+            parse or recover the next flat OperatorChain until Comma | RightParenthesis
             continue
         leave the loop
 commit or recover RParen
 pop the stop / delimiter scope on every Complete / Incomplete path
 finish ParenthesizedExpression
-return one ParsedExpression to the caller's original LED loop
+return one completed primary to the outer OperatorChain's operand-complete state
 ```
 
 `StopKind::Comma`は既存のstop vocabularyとoperator scannerの
 `next_is_expression_stop`に存在する。parenthesized scopeは現在の
 `RightParenthesis`だけのstop setを`Comma | RightParenthesis`へ広げる。
-これにより各elementのPratt parserはcurrent-depth commaをconsumeせずlist continuationへ返す。
+これにより各elementのflat chain parserはcurrent-depth commaをconsumeせずlist continuationへ返す。
 
 commaはaccepted `(`後のcommitted list continuationが所有するfixed punctuationである。
 commaの後ろがmatching `)`か次elementかという判定に、semantic ASTやsubtree rollbackは使わない。
@@ -4252,9 +4304,9 @@ separator / closeと判定しない。既決のoperator-independent lexical-regi
   committedなfixed-punctuation loopとする。grammar subtreeの試行emit / rollbackを導入しない。
 - **immutable operator table:** full parse前に一度構築した`OperatorTable`を全element parseで共有する。
   element境界ごとにtable / mapを作り直さず、commaをoperator entryとして追加しない。
-- **BpVec-equivalent binding power:** 全elementをtop-levelと同じ
-  `BindingPower::scalar(i8::MIN)`でparseする。BpVec相当のfull-fixity capabilityとjudge tableは変更せず、
-  comma stopはbinding powerではなくdelimiter-local stop setで表す。
+- **BpVec-equivalent binding power:** body elementのrecognition / CST hierarchyではnumeric BPを読まない。
+  BpVec相当のfull-fixity capabilityとjudge tableは維持し、comma stopはbinding powerではなく
+  delimiter-local stop setで表す。numeric BPは後段associatorだけが使う。
 - **oracle judge table:** prefix / nullfix / infix / suffixのcandidate selection、whitespace judge、
   longest-match fallbackは各elementで既存authorityをそのまま使う。element countやtrailing commaを
   operator judgeへ入力しない。
@@ -4266,10 +4318,11 @@ separator / closeと判定しない。既決のoperator-independent lexical-regi
 
 ### Implementation boundary
 
-この追補を実装するyu-syntax sliceは、parser-side AST / CST、comma loop、stop scope、recovery、
-lossless fixtureだけを変更する。unit / grouping / tupleのHIRまたはconstraint生成、one-tupleのruntime表現、
-formatter policyは変更しない。後続のinfer-side sliceは
-`elements`と`trailing_comma`を受け取り、上で固定したsemantic ruleを一箇所で実装する。
+この追補を実装するyu-syntax sliceは、parser-side AST / CST、flat `OperatorChain` element、comma loop、
+stop scope、recovery、lossless fixtureだけを変更する。operator associationはdedicated pre-HIR associator、
+unit / grouping / tuple classificationは後続のinfer-side lowering / inferenceが所有する。one-tupleのruntime表現、
+formatter policyは変更しない。infer-side sliceはassociated `elements`と`trailing_comma`を受け取り、上で
+固定したsemantic ruleを一箇所で実装する。
 
 semicolon / implicit newline separator、record / list literal、call argument list、pattern / typeの
 parenthesized formは本追補へ含めない。それぞれが同じsurface invariantを必要とする場合も、
@@ -4295,3 +4348,644 @@ generic expression recovery、またはrootのtrailing-input recoveryがそのco
 新しいdiagnostic、recovery node、またはoperator-table外のtokenに対する特別扱いを追加しない。
 
 著者: ユーザー確認済みの決定（Claude Sonnet 5 との会話、2026-08-22）。
+
+## 追補案: dynamic operatorのprecedence-neutral surface chainとassociation境界
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-22。
+
+### Decision summary
+
+Yulang3の`yu-syntax`は、dynamic prefix / infix / suffix operatorのnumeric binding powerを
+CST hierarchyの決定に使わない。source-localなoperator chainは、同じoperator spellingとfixity role列を
+持つ限り、headerまたはimported syntax dependencyのbinding-power数値だけが変わっても同じouter node kind、
+同じparent / child relation、同じsource-order child列を持つ。
+
+parserが確定するのはoperator spellingとprefix / infix / suffix / nullfixという**fixity role**である。
+fixity roleは、現在位置がoperandを要求するNUD siteか、operand後のcontinuationを要求するLED siteか、
+operator capability、前後trivia、後続value-start、delimiter / layout boundaryから決まるsyntax factなので、
+oracle judge tableを使って`yu-syntax`が所有する。一方、prefixがどこまでをoperandに取るか、infixが左右の
+どのsubexpressionを所有するか、suffixがどのleft expressionへ適用されるかはnumeric binding powerから
+導かれるassociation factであり、CST node ownershipにはしない。
+
+全direct dynamic expressionは、operatorが一個もないidentifier / integerだけのcaseを含め、
+`SyntaxKind::OperatorChain`一種をouter surface nodeとして使う。prefix / infix / suffix / nullfix useは
+role-specific child nodeとしてsource orderに並ぶが、application subtreeを作らない。
+
+flat chainからprecedence-shaped expression treeを作るのは、`ParsedFile -> HirModule` transitionに属する
+dedicated associator、またはそのassociatorを呼ぶHIR loweringである。これはtype inferenceではなく、
+declared syntax factをHIRへ投影する前処理である。`yu-syntax`もtype inferenceもoperator associationの
+第二authorityを持たない。
+
+この設計はYulang2内部構造の復元ではない。`yulang2-oracle@a58eefc3`は
+`crates/parser/src/expr/core.rs:31-38,128-150`と`expr/tail.rs:226-271`でPratt binding-power比較を行い、
+stronger RHSをparser時にnested `Expr`へした。`crates/infer/src/lowering/expr/chain.rs:69-162`は
+そのparser-shaped CSTをleft foldしただけで、deferred precedence passではない。Yulang3はこのhistorical
+shapeと意図的に異なる、新しいsurface-CST boundaryを採用する。
+
+### Supersession scope
+
+本追補は、この文書の次のPratt-CST commitmentをsupersedeする。
+
+- Decision summaryの「Yulang2のPratt / precedence climbingを維持する」というexpression paragraph。
+- `yulang2-oracle`調査の`Expression parser`節にある「Yulang2のalgorithmを維持する」というYulang3側の結論。
+  Yulang2のactual behaviorを記録するhistorical evidence自体は維持する。
+- `Direct Rowan sink without parse-event buffering`節の、emitted leftを
+  `start_node_at`で`InfixExpression` / `SuffixExpression`へ包むparagraph。
+- `Recognition と commit continuation の境界`節のoutput-generic Pratt control、boxed application AST、
+  `ParsedExpression`のleft-wrap checkpoint。
+- `Pratt NUD / LED の probe / commit`節全体のminimum-BP rejection、recursive RHS parse、application node shape。
+- `SyntaxKind vocabulary`の`PrefixExpression` / `InfixExpression` / `SuffixExpression` /
+  `NullfixExpression`をsemantic application nodeとして使うexpression row。
+- implementation slice / gate / testにあるPratt tree shape、binding-power reset、weak LEDをcallerへ返すことを
+  CST acceptance条件にした箇所。
+- parenthesized expression-list追補の`elements: Vec<Expression>`、elementを
+  `BindingPower::scalar(i8::MIN)`でparseするcontrol、closing `)`後にoriginal minimumのLED loopへ戻す記述。
+
+次はsupersedeしない。
+
+- integrated character input、source-range authority、lossless CST、`green.to_string() == source`。
+- sink-free candidate probe、accepted後のcut、direct sink、event buffer / replay禁止。
+- immutable full-fixity `OperatorTable`、header/full parity、operator provenance。
+- longest-match spelling、boundary、whitespace、value-startを使うoracle judge table。
+- rollback-aware `ParseLocal`、stop / delimiter / lexical-region scope。
+- mandatory-slot recovery、`Recovered<T>`、zero-width `Missing`、non-empty `Error`、
+  one committed recovery node = one recovery diagnostic。
+
+### Strong surface invariant
+
+同じexpression source rangeと同じoperator spelling / selected fixity role列に対し、numeric binding powerだけが
+異なる二つのvalid `SyntaxEnvironment`を与えたとき、次が一致しなければならない。
+
+1. `OperatorChain`以下の`SyntaxKind`列。
+2. nodeのparent / child relation。
+3. token / triviaのsource-order ownership。
+4. `Missing` / `Error`を含むparse recovery shapeとparse diagnostic。
+5. parser-side surface ASTのvariant / item列 / source range。
+
+異なってよいのは、後段associatorが作るapplication tree、そこから作るHIR hash、そのHIRを読むsemantic
+diagnosticである。operator spelling、available fixity capability、visibilityが変わるcaseはscanner / judgeの
+入力自体が変わるため、このinvariantの「BP-only」caseには含めない。
+
+このinvariantは「parserが一切のgrammar decisionをしない」という意味ではない。delimiter、keyword、call、
+field、index、ML argument boundary、operator fixity role、recovery safe pointは引き続きsyntax grammarが決める。
+禁止するのは、numeric BP比較からsource-local CSTのapplication ownershipを作ることである。
+
+### Surface grammar
+
+dynamic operator部分のvalid grammarを次で固定する。`G*`はemptyでもよい一回のmaximal `TriviaRun`である。
+operator use前後の`G*`がrole judgeのpre / post whitespace factになるが、CSTでは
+`OperatorChain`直下のinter-item triviaとしてsource orderに置く。
+
+```text
+DirectExpression :=
+    OperatorChain
+
+OperatorChain :=
+    OperandSlot
+    {
+        FixedPostfixContinuation
+      | G* SuffixUse
+      | G* InfixUse G* OperandSlot
+      | MlApplicationContinuation
+      | G* TypeAnnotationContinuation
+    }
+    [ G* TerminalOuterContinuation ]
+
+OperandSlot :=
+    { PrefixUse G* }
+    Value
+
+Value :=
+    PrimaryHead
+  | NullfixUse
+
+FixedPostfixContinuation :=
+    CallTail
+  | IndexTail
+  | FieldTail
+  | ProjectionTail
+  | PathTail
+
+MlApplicationContinuation := MlArgumentSeparator MlArgument
+MlArgument := OperatorChain under the ml_arg stop scope
+
+TypeAnnotationContinuation := AsKw G* Type
+
+TerminalOuterContinuation :=
+    ColonApplicationTail
+  | AssignmentTail
+  | WithBodyTail
+
+PrefixUse := accepted operator spelling with selected role Prefix
+InfixUse  := accepted operator spelling with selected role Infix
+SuffixUse := accepted operator spelling with selected role Suffix
+NullfixUse := accepted operator spelling with selected role Nullfix
+```
+
+`OperatorChain`は最低一個の`OperandSlot`を要求する。`PrefixUse`は後続`Value`をCST childとして所有せず、
+`InfixUse`もleft / right subtreeを所有せず、`SuffixUse`もleft subtreeを所有しない。上のBNFにある
+`OperandSlot`はparser stateのmandatory slotを表すだけで、semantic application nodeではない。
+
+`FixedPostfixContinuation`の各ruleはconstruct固有のadjacency / punctuation条件をgrammar内部に含む。
+`MlArgumentSeparator`はML applicationを開始できるnon-empty whitespace / layout factであり、genericな
+`G*`ではない。`TypeAnnotationContinuation`は後続dynamic continuationを許すが、
+`TerminalOuterContinuation`はcurrent `OperatorChain`を必ず終了する。
+
+role-specific useは次のnode kindを使う。
+
+```text
+SyntaxKind::OperatorChain
+SyntaxKind::PrefixOperatorUse
+SyntaxKind::InfixOperatorUse
+SyntaxKind::SuffixOperatorUse
+SyntaxKind::NullfixOperatorUse
+SyntaxKind::CallTail
+SyntaxKind::IndexTail
+SyntaxKind::FieldTail
+SyntaxKind::ProjectionTail
+SyntaxKind::PathTail
+SyntaxKind::MlArgument
+SyntaxKind::TypeAnnotationTail
+SyntaxKind::ColonApplicationTail
+SyntaxKind::AssignmentTail
+SyntaxKind::WithBodyTail
+```
+
+各operator-use nodeのnormal childはexact source rangeを持つ`SyntaxKind::Operator` token一個だけである。
+leading / trailing triviaはoperator-use nodeへ押し込まず、最小の共通surface ownerである`OperatorChain`直下へ
+置く。これによりoperator-use nodeのrangeやchildrenがoperand ownershipを暗示しない。operator token自体の
+spellingとrole-specific node kindが、parserが確定したsurface factのauthorityになる。
+
+structural continuation nodeもtargetとなるleft expressionをchildにしない。call / index tailはdelimiter内の
+argument、field / projection / path tailはliteral punctuationとmandatory following slot、`MlArgument`は
+nested flat `OperatorChain`、type annotationは`Type`、terminal tailはconstruct固有RHSだけを所有する。
+targetは同じouter `OperatorChain`内でそのnodeより前にあるsource-order item列から後段が作る。
+
+operatorのない`a`も次のshapeを持つ。
+
+```text
+OperatorChain
+  IdentifierExpression "a"
+```
+
+たとえば`-a * b!`は、numeric BPに関係なく次のsource-order shapeを持つ。
+
+```text
+OperatorChain
+  PrefixOperatorUse
+    Operator "-"
+  IdentifierExpression "a"
+  InfixOperatorUse
+    Operator "*"
+  IdentifierExpression "b"
+  SuffixOperatorUse
+    Operator "!"
+```
+
+`a + b * c`の`+` / `*`のBPを入れ替えてもCSTは同じordered child列である。association結果だけが
+`a + (b * c)`と`(a + b) * c`の間で変わる。
+
+### `StructuralPrimary`とfixed structural tailの境界
+
+numeric binding powerを使わず、literal punctuation、adjacency、keyword、whitespace / layoutから境界が
+一意になるconstructも、dynamic operator useとsource順にinterleaveできるtailは同じflat
+`OperatorChain`へ置く。ただしrole-specific dynamic operator nodeへ偽装しない。分類を次で固定する。
+
+| construct | owner | BP-neutrality / shape rule |
+| --- | --- | --- |
+| identifier、number、string、rule literal、lambda、`if` / `case` / `catch`、brace / bracket form | `PrimaryHead` | construct固有starter / delimiterがnodeを決める。dynamic BPを読まない |
+| `ParenthesizedExpression` | `PrimaryHead` | elementごとにflat `OperatorChain`を持つ。unit / grouping / tuple解釈は別phase |
+| nullfix operator | `Value`としての`NullfixOperatorUse` | judgeがNullfix roleを確定するがoperand edgeを持たない |
+| no-space C-style call `(...)`、index `[...]` | `CallTail` / `IndexTail` chain item | delimiterとadjacencyがtailを決める。targetはCST childにせず、source positionでflat chainへ置く |
+| field / projection `.`、path `::` | corresponding fixed-postfix chain item | fixed punctuationとmandatory following slotを所有するがtarget edgeを持たない |
+| ML application | `MlArgument` chain item | whitespace / layoutと既存`ml_arg` stop scopeでargument boundaryを決める。各argument内部はflat `OperatorChain` |
+| type annotation `as Type` | non-terminal `TypeAnnotationTail` chain item | current pending dynamic segment全体をassociateした結果へ適用し、その後のchain continuationを許す |
+| colon application `:`、assignment `=`、`with:` body | terminal chain item | current pending dynamic segment全体をassociateした結果へ適用し、construct固有RHSの後でchainを終了する |
+
+tight structural head / tailは概念上次のlayerに属する。
+
+```text
+OperandSlot := { PrefixUse G* } (PrimaryHead | NullfixUse)
+FixedPostfixContinuation := CallTail | IndexTail | FieldTail | ProjectionTail | PathTail
+```
+
+call / index / field / projection / pathはdynamic suffixとinterleaveできるため、target込みのleft-nested CSTには
+しない。たとえば`a!()`でcallがtargetに取るassociated leftは`!`のBPと周囲のprefixによって変わり得るが、
+CSTは常に`PrimaryHead("a"), SuffixUse("!"), CallTail("()")`の同じ列である。fixed tail nodeの内部にある
+argument / field slot / delimiter shapeだけをconstruct grammarがnested CSTとして所有する。
+
+ML applicationはまだcurrent `yu-syntax`に実装されていないため、whitespaceとnewlineのexact acceptance tableは
+future ML-application addendumがoracle fixtureに基づいて固定する。ただしarchitecture decisionはopenに戻さない。
+ML applicationをdynamic BP operatorとしてPratt treeへ入れず、outer chainにsource-orderの`MlArgument`を
+一個ずつ置く。各argumentは既存`ml_arg` stop scopeで終わるnested flat `OperatorChain`であり、argument内の
+prefix / infix / suffix associationはHIR側へdeferする。`f x y`を`f (x y)`へsemantic nestingする判断を
+parserへ入れず、`PrimaryHead("f"), MlArgument("x"), MlArgument("y")`を保持し、fixed left-associative
+application loweringはHIR側が行う。
+
+`as` / `:` / `=` / `with:`はdynamic operator useではなく、既存通りdedicated keyword / punctuation
+continuationである。`as`はouter-only association barrierとして、その直前までのpending dynamic segmentを
+後段でassociateしてからannotationを適用し、同じflat chainのcontinuationを再開する。`:` / `=` / `with:`は
+同じflush後にconstruct固有RHSを適用し、chainを終了する。これらのexact RHS arityとblock ownershipは
+各grammar familyのaddendumが所有する。本追補が固定するのは、numeric operator BPをparserが読んで境界を
+決めたり、dynamic operator-use nodeへ偽装したりしないことである。pipeline `|`のようにoperator tableへ
+登録されるformはfixed structural tailではなく、普通の`InfixOperatorUse`としてflat chainへ入る。
+
+### Parser-side surface AST
+
+test projectionと将来のsyntax-to-HIR handoffに使うparser-side valueもprecedence-neutralにする。
+current `Expression::{PrefixApplication,InfixApplication,SuffixApplication,NullfixApplication}`は削除対象であり、
+次のshapeへ置き換える。
+
+```rust
+pub(crate) struct OperatorChain<'source> {
+    items: Vec<OperatorChainItem<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum OperatorChainItem<'source> {
+    PrefixUse(OperatorUse<'source>),
+    Primary(PrimaryExpression<'source>),
+    NullfixUse(OperatorUse<'source>),
+    InfixUse(OperatorUse<'source>),
+    SuffixUse(OperatorUse<'source>),
+    FixedPostfix(FixedPostfixTail<'source>),
+    MlArgument {
+        argument: Box<OperatorChain<'source>>,
+        range: Range<usize>,
+    },
+    TypeAnnotation(TypeAnnotationTail<'source>),
+    TerminalOuter(TerminalOuterTail<'source>),
+    MissingOperand { range: Range<usize> },
+    Error { range: Range<usize> },
+}
+
+pub(crate) struct OperatorUse<'source> {
+    text: &'source str,
+    range: Range<usize>,
+    role: OperatorRole,
+}
+
+pub(crate) enum OperatorRole {
+    Prefix,
+    Infix,
+    Suffix,
+    Nullfix,
+}
+
+pub(crate) enum FixedPostfixTail<'source> {
+    Call { group: CallArguments<'source>, range: Range<usize> },
+    Index { group: IndexArguments<'source>, range: Range<usize> },
+    Field { name: WordSpan<'source>, range: Range<usize> },
+    Projection { body: ProjectionSyntax<'source>, range: Range<usize> },
+    Path { segment: WordSpan<'source>, range: Range<usize> },
+}
+
+pub(crate) struct TypeAnnotationTail<'source> {
+    ty: TypeExpression<'source>,
+    range: Range<usize>,
+}
+
+pub(crate) enum TerminalOuterTail<'source> {
+    ColonApplication { rhs: ColonApplicationRhs<'source>, range: Range<usize> },
+    Assignment { rhs: AssignmentRhs<'source>, range: Range<usize> },
+    WithBody { body: WithBody<'source>, range: Range<usize> },
+}
+
+pub(crate) enum PrimaryExpression<'source> {
+    Identifier(WordSpan<'source>),
+    Integer(IntegerLiteral<'source>),
+    Parenthesized {
+        elements: Vec<OperatorChain<'source>>,
+        trailing_comma: Option<Range<usize>>,
+        range: Range<usize>,
+    },
+    Structural(StructuralHead<'source>),
+}
+```
+
+`CallArguments` / `IndexArguments` / `ProjectionSyntax` / type / terminal RHSの内部shapeは各construct grammarの
+authorityであり、このsketchはその既存またはfuture typed valueを参照する。concrete Rust module split、
+`Box` / `Arc` / small-vector choice、private field accessorはimplementation detailとして調整してよい。
+固定するのはordered item列、上のchain-item variant、parenthesized / ML argumentが`OperatorChain`であること、
+および全continuation variantがtarget application edgeを持たないことである。
+
+`OperatorUse`はnumeric binding power、parse-session-local table index、生pointerを保存しない。
+それらを保存するとBP-only environment changeでsurface AST valueまでinvalidateし、stale entryを別revisionで
+参照できるためである。associatorは`OperatorUse.text + role`と`ParsedFile`に対応するexact
+`OperatorAssociationKey`からcanonical operator definitionを解決する。必要なら将来stable operator-syntax keyを
+追加できるが、そのkeyもnumeric BP valueやoperand ownershipをsurface nodeへ複製してはならない。
+
+lossless CSTがtriviaとrecovery byteのauthorityであり、parser-side ASTはそれらを重複保持しない。
+`MissingOperand` / `Error`はassociationをtotalにするtyped surface projectionで、CSTのzero-width `Missing` /
+non-empty `Error`と同じrangeを参照する。ASTを作らないproduction pathでも、HIR loweringがCST child列から
+同じordered item streamを一回だけprojectできなければならない。
+
+### Role recognitionとparse control
+
+normal valid-source continuationを次で固定する。
+
+```text
+start OperatorChain
+expect OperandSlot
+
+while expecting OperandSlot:
+    consume zero or more accepted PrefixUse values in source order
+    accept one PrimaryHead or NullfixUse as Value
+    if Value is absent, run mandatory operand-slot recovery
+
+while an operand is complete:
+    probe one continuation at LED site without reading numeric BP
+    if a fixed call / index / field / projection / path tail is accepted:
+        emit its target-free tail node and remain in operand-complete state
+    if an ML argument boundary is accepted:
+        parse one nested flat OperatorChain under ml_arg scope,
+        emit MlArgument, and remain in operand-complete state
+    if TypeAnnotationContinuation is accepted:
+        emit TypeAnnotationTail and remain in operand-complete state
+    if TerminalOuterContinuation is accepted:
+        emit its target-free tail with construct-specific RHS and finish the chain
+    if Suffix role is accepted:
+        emit SuffixOperatorUse and remain in operand-complete state
+    if Infix role is accepted:
+        emit InfixOperatorUse and return to OperandSlot state
+    if no dynamic operator role is accepted:
+        stop before the unconsumed owner boundary / outer structural tail
+
+finish OperatorChain
+```
+
+`probe_nud` / `probe_led`というsite名は、operand expected / operand completeというjudge contextの名前として
+残してよい。削除するのは`minimum: &BindingPower` parameter、BP不足によるcandidate rejection、recursive
+`parse_expression_bp`、lower-precedence LEDのrollback / return、left-wrap checkpointである。
+
+fixed punctuation / keyword tail、ML argument、dynamic LED roleのcandidateは、既存oracleの
+call/path-sensitive ordering、whitespace / value-start rule、mode / stop scopeを一つのcontinuation judgeで
+裁定する。operator scannerの`is_call_or_path_sensitive` conditionを削除してoperator spellingが`(`/`:`を
+飲み込む形へ変えない。accepted structural continuationとoperator useのどちらも、commit前はsink-freeであり、
+role / punctuationが確定してからだけdirect sinkへ一度emitする。
+
+### Dangling / malformed operator recovery
+
+operator chainは、上のmandatory-slot共通規則を専用の第二recovery systemなしで適用する。
+operand slotのtyped expectationは既存の
+`GrammarRole::Expression(ExpressionRole::Nud)`と`ExpectedSyntax::Expression`を使う。
+chain-local candidateはprefix / nullfix / `PrimaryHead`であり、owner safe pointはactive stop set、matching
+delimiter、outer structural-tail introducer、statement separator / root boundary、EOFである。
+
+normal oracle judgeはvalid sourceのrole authorityのまま維持する。value-start不在のためnormal judgeが
+infix / prefix candidateを拒否した後、recoveryだけが同じcanonical trie / boundary scannerを使って
+**一意なdangling role**を認識してよい。これは次を全て満たす場合に限定する。
+
+1. current parser stateがinfixまたはprefix operandを要求するsiteを一意に定める。
+2. longest accepted spellingがtable上でそのrole capabilityを持つ。
+3. normal judgeが別のvalid role、特にsuffixまたはnullfixを選んでいない。
+4. spelling後がowner safe point、EOF、またはoperand recoveryが同期できるinvalid regionである。
+5. 複数roleが残る場合はroleを推測せず、既存generic `Error` recoveryへ渡す。
+
+recovery-only probeもsink-freeであり、numeric BPを読まない。roleが一意ならoperator-use nodeとtokenをcommitし、
+直後のoperand mandatory slotに既存`Missing` / `Error` ruleを適用する。unknown spellingは直前の
+「body内の未宣言 operator-shaped token」追補通りgeneric `Error`であり、role-specific use nodeを作らない。
+
+代表caseを次で固定する。
+
+| source situation | CST / recovery |
+| --- | --- |
+| `a <infix> EOF` | unique `InfixOperatorUse`を保持し、EOFにzero-width `MissingOperand`一件を置く |
+| `<prefix> EOF` | unique `PrefixOperatorUse`を保持し、EOFにzero-width `MissingOperand`一件を置く |
+| `a <infix> )` inside parenthesis | infix use後、`)`直前に`MissingOperand`を置き、`)`はparenthesized ownerへ残す |
+| `a <infix> <operator> b`で二個目がvalid prefix | 二個目を`PrefixOperatorUse`としてnormal parseし、errorにしない |
+| 同じ形で二個目がNUD roleを持たない | 次のNUD candidate `b`直前までを一個のnon-empty `Error`にし、同じoperand slotを`b`からretryする |
+| invalid runがowner safe pointまで続く | invalid runの`Error`をrecovered operand sentinelとして使い、同じcauseへ追加の`Missing`を重ねない |
+| suffixが連続する | judgeが各suffix roleをacceptする限りsource orderの`SuffixOperatorUse`列としてvalid |
+| undeclared operator-shaped run | roleを捏造せず、context既存のgeneric `Error` / trailing-input recovery |
+
+一個のinvalid runをbyteごとの複数`Error`へ分割しない。candidate retryが成功した場合、先行`Error`は
+source-preservation itemであってoperandではなく、後続primaryがoperand slotを満たす。candidateなしで
+safe pointへ到達した場合は、その`Error`自体をassociator用error operand sentinelとして扱い、同じ位置へ
+第二のabsence diagnosticを作らない。source byteを持たない純粋なabsenceだけが`MissingOperand`になる。
+
+accepted infix / prefix後のrecoveryはchain continuationを`Option::None`でabortしない。
+`Recovered<OperatorChain>`としてnodeを必ず閉じ、callerが同じpositionへbinding value / operator bodyの
+duplicate `Missing(expression)`を追加しない。`Missing` / `Error`一nodeにつき一committed recovery record、
+一parse diagnosticという既存bijectionを維持する。
+
+fixed structural continuationも同じcommit contractに従う。call open、index open、field / path punctuation、
+`as`、`:`、`=`、`with:`などのconstruct introducerをacceptした後はcutし、argument、name、type、RHS、closeの
+mandatory slotをそのconstructの既存`Missing` / `Error` ruleで回復する。malformed tailをdynamic operatorへ
+reinterpretしてbranch rollbackせず、targetとなるpreceding item列へsynthetic application edgeも追加しない。
+`MlArgumentSeparator`をcommitした後にargument headがないcaseも一個のmandatory operand recoveryとし、
+outer chainを同じsource位置から二重retryしない。
+
+### Association phase contract
+
+association ownerは`yu-hir`のsyntax-to-HIR lowering、または`yu-hir`が唯一呼ぶdedicated pre-HIR moduleとする。
+public phase boundaryは概念上次になる。
+
+```text
+ParsedFile + exact OperatorAssociationEnvironment
+    -> associate_operator_chains
+    -> HirModule containing precedence-shaped applications
+    -> type inference / solving
+```
+
+associatorは各`OperatorChain`をsource orderで一回読み、prefix right BP、infix left / right BP、suffix left BPを
+canonical tableから引き、vector-valued lexicographic comparisonでapplication treeを作る。同じpassが
+target-free structural continuationもassociated HIR operationへ変換する。recursive Pratt over the flat sequence
+でもoperator stackでもよいが、次のobservable contractを満たす。
+
+- 同じflat item列と同じassociation environmentからdeterministicに同じtreeを作る。
+- prefix / infix / suffix全roleを一つのassociation authorityで扱う。infixだけを後段化しない。
+- call / index / field / projection / pathと`MlArgument`は、dynamic minimumに関係なくcurrent association
+  cursorでacceptされるreserved structural postfixとして扱う。これは全dynamic BPより大きい数値をtableへ
+  捏造する意味ではなく、grammar-fixed continuationをdynamic comparisonより先に処理するruleである。
+- `TypeAnnotationTail`ではその直前までのpending dynamic segmentを全てreduceし、annotationを適用した結果を
+  次continuationのleft seedにする。terminal outer tailも同じreduce後のleftへ適用し、chainを終了する。
+- nested `MlArgument` chainを先にassociateし、outer leftへsource orderでfixed left applicationする。
+  `f x y`は`(f x) y`になるが、そのnestingをsurface CSTへ書き戻さない。
+- `OperatorUse`のsource rangeをassociated applicationとHIR provenanceへ直接渡し、CSTを後からrange探索しない。
+- `MissingOperand` / operand-position `Error`にはtyped error expressionを一個対応させ、全itemをconsumeして
+  total resultを返す。
+- recovery noiseの`Error`はsource order / provenanceへ残すが、後続retry operandと二重にoperand化しない。
+- parserがすでに発行したrecovery diagnosticを再発行せず、同じmalformed sourceからduplicate syntax
+  diagnosticを作らない。
+- operator entryがexact environmentで解決不能なcaseを型推論のunknown operatorへ偽装しない。
+  revision/key mismatchはcompiler invariant failure、既存syntax recovery itemはerror expressionとして扱う。
+- association resultをCSTへ書き戻さず、green treeやsurface ASTのparent / child relationをmutationしない。
+
+BindingPowerはtypeではなくdeclared syntax factなので、type inferenceがassociationを選ぶ余地はない。
+overload resolution、operator value identity、result type、lazy application semanticsはassociation後のHIR /
+inferenceが扱うが、tree shapeは`OperatorAssociationEnvironment`だけで確定する。
+
+### Parenthesized-expression reconciliation
+
+preceding `parenthesized expression-listのsurface CSTと推論境界`追補のsemantic decisionは維持し、
+element representationだけを次へ置き換える。
+
+```text
+ParenthesizedExpression :=
+    LParen G*
+    [
+        OperatorChain G*
+        { Comma G* OperatorChain G* }
+        [ Comma G* ]
+    ]
+    RParen
+```
+
+parser-side primary shapeは次になる。
+
+```rust
+PrimaryExpression::Parenthesized {
+    elements: Vec<OperatorChain<'source>>,
+    trailing_comma: Option<Range<usize>>,
+    range: Range<usize>,
+}
+```
+
+各elementはcurrent `ParenthesizedExpression` scopeの`StopSet { Comma, RightParenthesis }`までparseする。
+「inner minimumを`i8::MIN`へresetする」というoperationは存在しない。comma / closeによるliteral boundaryが
+flat chainを止める。closing `)`後、completed parenthesized primaryを同じouter `OperatorChain`の
+operand-complete stateへ返し、suffix / infix useをsource orderで続ける。
+
+`()`、`(a)`、`(a,)`、`(a,b)`、`(a,b,)`のelement count / trailing-comma table、comma-only scope、
+uniform `SyntaxKind::ParenthesizedExpression`、`(a,)`をone-tupleにするcorrectionは変更しない。
+downstream orderは次である。
+
+1. 各`OperatorChain`をHIR associatorがprecedence-shaped expressionへ変換する。
+2. parenthesized formはassociated element列とtrailing-comma markerを保持する。
+3. type inference / infer-side loweringが0 elementをunit、1 elementかつcommaなしをgrouping / identity、
+   それ以外をtupleと解釈する。
+
+operator associationはunit / grouping / tuple classificationを行わず、parenthesized inferenceはoperator BPを
+読まない。二つのdeferred decisionを一phaseへ混ぜない。
+
+current implementation testのうち、parenthesized elementが`Expression::InfixApplication`であること、
+`BindingPower::scalar(i8::MIN)`へのreset、closing後にPratt LED loopへ戻ることをassertするcaseは、
+flat child列と後段association resultを別々にassertするtestへ書き換える。uniform node、comma、trivia、
+delimiter recovery、lossless rangeのtestは維持する。
+
+### Incremental invalidation split
+
+`docs/yulang3-architecture.md` §7.1の
+`parse(FileId, source_hash, syntax_environment_hash)`と「operator name / fixity / binding power / visibilityで
+importer parseをinvalidateする」表は、本追補に合わせて将来二種類のkeyへ分割する。
+
+```text
+OperatorRecognitionKey includes:
+    available operator spelling
+    prefix / infix / suffix / nullfix capability presence
+    visibility / import selection needed to determine availability
+    boundary / judge-table-relevant syntax version
+
+OperatorAssociationKey includes:
+    OperatorRecognitionKey identity
+    numeric prefix right BP
+    numeric infix left / right BP
+    numeric suffix left BP
+    association-rule schema version
+```
+
+source textまたは`OperatorRecognitionKey`が変わればsurface parseをinvalidateする。
+`OperatorRecognitionKey`が同じで`OperatorAssociationKey`のnumeric BPだけが変わる場合、unchanged importerの
+green CSTとparse diagnosticは再利用し、association / HIR以降だけをinvalidateする。changed provider自身は
+header sourceが変わるため通常通りheader / full parse対象になり得る。
+
+現行`ParsedFile.syntax_environment: SyntaxEnvironmentKey`を二fieldへ直ちに分割するか、compiler queryが
+recognition projectionを別hashとして持つかはincremental implementation sliceが決めてよい。ただし
+BP-only changeをsurface CST rebuildのsemantic requirementとして扱わないこと、associatorが必ず
+`ParsedFile`と同じrevisionに対応するassociation keyを見ることはcontractである。
+
+operator bodyだけのchange、semantic public interfaceだけのchange、persistent cache policyは既存§7.1の
+invalidation ruleを変更しない。本追補はoperator syntax environment内のrecognition factとassociation factを
+分離するだけで、fine-grained owner schedulerやpersistent parse cacheを先行導入しない。
+
+### Existing architecture principlesとの整合
+
+- **rollback discipline:** longest spelling、boundary、whitespace、value-start、fixity roleのprobeだけを
+  rollback可能にする。accepted useとrecovery-only unique dangling roleはcut後にsource orderで一度emitする。
+  BP不足によるLED rollbackとrecursive subtree rollbackはなくなる。
+- **immutable operator table:** full parse前にcompileしたfull-fixity tableをmutationしない。parserはspelling /
+  capability / role selectionだけを読み、associatorは同じrevisionのnumeric BPを読む。expressionごとのtable
+  rebuildやCST再走査を置かない。
+- **BpVec / BindingPower:** vector representation、header parsing、validation、provenanceは維持する。
+  body `OperatorChain`のrecognition / CST hierarchyには使わず、association時のordering authorityとして使う。
+- **oracle judge table:** NUD / LEDというsite distinctionはoperand expected / operand completeのrole judgeとして
+  維持する。fixed structural continuation / ML argumentとの既存call/path-sensitive orderingも同じjudge
+  authorityに残す。dynamic judge resultをCST role nodeへ記録するが、judge後にminimum BP filterをかけない。
+- **direct CST / no event buffer:** `OperatorChain`を開始した後、primary、operator-use、structural continuation、
+  trivia、recovery nodeをsource orderで即時emitする。left wrap、forward parent、event replay、flat itemの
+  一時CST bufferは不要である。
+- **lexical-region-aware recovery:** operator / delimiter / outer-tail safe pointはactive lexical-region、delimiter、
+  stop-set scopeを共有する。string、comment、heredoc、interpolation、rule literal、Yumark、fence内のoperator-like
+  textをchain itemやrecovery boundaryへ誤分類するraw scanを作らない。
+- **single authority:** parser-side surface ASTとproduction CSTは同じrole recognition / chain continuationから
+  同時投影する。association testのために第二のPratt parserを`yu-syntax`へ残さない。
+
+### Implementation boundary and required gates
+
+本追補の最初のimplementation sliceは`yu-syntax`のsurface grammar / CST / parser-side AST / recovery / testを
+変更する。HIR associatorは別sliceだが、flat shapeをlandする前にそのinput contractとfixture expected treeを
+固定する。current Pratt pathをlong-lived feature flag / fallbackとして残さず、production expression authorityは
+一つにする。短命なtest-only differential prototypeは許すがpublic parse productへ二shapeを出さない。
+
+yu-syntax implementation gateを次で固定する。
+
+1. identifier-onlyとfixed-tail formを含む全direct expressionが一つの`OperatorChain` nodeを持つ。
+2. prefix / infix / suffix / nullfix useがrole-specific node + exact `Operator` tokenとしてsource orderに並び、
+   application childを持たない。
+3. call / index / field / projection / path / ML argument / type annotation / terminal outer tailがtarget-free
+   chain itemとしてdynamic useとsource orderに並び、nested argument / RHSだけを所有する。
+4. 同一source / spelling / capabilityに対してnumeric BPだけを変えた二tableで、green tree、surface AST、
+   recovery record、parse diagnosticがexact一致する。
+5. 同じflat chainに対するassociation fixtureはBP変更でexpected treeが変わり、parse fixtureとは別ownerになる。
+6. prefix extentを変えるfixture、mixed infix precedence、left / right associativity、suffix precedenceを全て含め、
+   yu-syntax側では同じflat shape、associator側では正しいtreeを固定する。
+7. `a!()`、`-a!()`、`a + b(x)`、`f x y`、`a + b as T + c`を含むstructural/dynamic interleaveで、
+   flat source-order shapeとreserved structural association ruleを別々に固定する。
+8. `+!a` / `a+!b` longest-candidate fixtureはoracle judgeとrole列を維持し、tree assertionだけをassociatorへ移す。
+9. `a <infix> EOF`、`<prefix> EOF`、parenthesis close前のdangling infix、valid second prefix、invalid
+   consecutive operator、undeclared operator-shaped runを上のrecovery table通り固定する。
+10. all recovery caseで`Missing`はzero-width、`Error`はnon-empty、node / diagnosticが一対一、owner boundaryを
+   consumeせず、chain / parenthesized / statement nodeがbalancedに閉じる。
+11. `ParenthesizedExpression.elements`はflat chainで、`()`, `(a)`, `(a,)`, `(a,b)`, `(a,b,)`のuniform node /
+   comma / trailing marker / inference classification contractを維持する。
+12. dynamic operator parsingで`start_node_at`によるapplication wrapがなく、candidate probe中のsink callは0、
+    commit後のrange coverageはgap / overlap / duplicateなし、`green.to_string() == source`である。
+13. binding valueとoperator definition bodyが同じflat chain authorityを使い、AST-only / direct-CST-onlyの
+    grammar divergenceを作らない。
+14. source-wide token/event buffer、parse後CST replay、parse中table mutation、BP-driven subtree recursion、
+    CSTからBP association用rangeを再探索する処理がない。
+
+HIR association sliceのgateを次で固定する。
+
+1. Yulang2 standard operator tableとcanonical yulang3 fixtureに対し、valid expressionのintended precedence /
+   associativity treeを作る。
+2. prefix / infix / suffixを同じauthorityでassociateし、nullfixをvalueとして扱う。fixed structural postfix、
+   ML argument、type annotation barrier、terminal outer tailも上のreserved ruleで同じordered passがlowerする。
+3. `MissingOperand` / `Error`を含む全flat fixtureでpanic / hang / unconsumed itemがなく、deterministic error HIRを返す。
+4. parser recovery diagnosticを複製せず、operator source rangeをHIR provenanceへ一回だけ渡す。
+5. BP-only environment changeでsurface CSTを再parseせずassociation / HIRだけを再計算した結果が、clean full
+   parse + associationと一致する。
+
+### Closed decisions and remaining provisional detail
+
+本追補のimplementation directionをblockするopen questionはない。次は確定である。
+
+- strong BP-neutral CST invariant。
+- prefix / infix / suffix全てのflat化とnullfix roleのsurface保存。
+- role-specific operator-use node、numeric BP / operand edgeを持たないsurface AST。
+- HIR-side single associator、type inferenceからの分離。
+- mandatory-slot recoveryとtotal error association。
+- BP-only invalidationをassociation / HIR以降へ限定するkey split。
+- parenthesized elementを`Vec<OperatorChain>`にするreconciliation。
+
+ML applicationのexact whitespace / newline acceptance tableだけは、current `yu-syntax`に未実装なので
+future construct-specific addendumでoracle fixtureとともに具体化する。そのaddendumが選べるのは
+`MlArgument`のargument boundary / trivia ownership / recovery safe pointであり、dynamic numeric BPで
+CST application treeを作る案へ戻すことはできない。call / field / index / colon / assignment / `with` / `as`も、
+各constructのfuture recovery detailは追加できるが、本追補のBP-neutral layer分類を変更しない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-22、precedence-neutral dynamic operator chain / association boundary追補案）。
