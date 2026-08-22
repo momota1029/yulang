@@ -145,6 +145,10 @@ where
             i.rollback(checkpoint);
             break;
         }
+        if type_active_tail_stop_pending(&mut i) {
+            i.rollback(checkpoint);
+            break;
+        }
 
         if trivia.is_empty() {
             if let Some(arrow_range) = scan_exact_arrow(&mut i) {
@@ -368,6 +372,10 @@ where
         i.rollback(checkpoint);
         return None;
     }
+    if type_active_tail_stop_pending(i) {
+        i.rollback(checkpoint);
+        return None;
+    }
     if leading.is_empty() {
         if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
         if let Some(open) = scan_open_parenthesis(i) { return Some(DirectTypeTail::Call { leading, open }); }
@@ -472,11 +480,18 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                     TypeDelimitedOwner::Call => TypeRole::CallArgument,
                     TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
                 };
-                if direct_type_item_error_retry(committed, role) {
-                    continue;
+                match direct_type_delimited_item_error_retry(committed, role) {
+                    Some(TypeDelimitedItemRecovery::Retry) => continue,
+                    // The malformed run reached a delimiter or a caller-owned
+                    // stop.  It is already represented by its Error node;
+                    // leave the boundary for the close/outer owner instead of
+                    // manufacturing a second missing item at that cause.
+                    Some(TypeDelimitedItemRecovery::Boundary) => break,
+                    None => {
+                        emit_type_missing(committed, GrammarRole::Type(role), ExpectedSyntax::TypeExpression);
+                        break;
+                    }
                 }
-                emit_type_missing(committed, GrammarRole::Type(role), ExpectedSyntax::TypeExpression);
-                break;
             }
             let trivia = consume_direct_trivia(committed);
             committed.emit_trivia(&trivia);
@@ -730,6 +745,12 @@ where
             }
             LayoutDelimitedBoundary::None => {
                 if let Some(range) = scan_close_parenthesis(i) { close = Recovered::Complete(range); break; }
+                if type_primary_candidate(i) {
+                    // A nested ML argument may intentionally stop before this
+                    // primary.  The direct path commits the separator Missing;
+                    // the source-free AST retains the same next-item slot.
+                    continue;
+                }
                 let _ = scan_mismatched_close(i);
                 close = Recovered::Incomplete;
                 break;
@@ -758,10 +779,13 @@ where
         if i.pos() > start && type_primary_candidate(i) {
             return true;
         }
+        if type_recovery_boundary_pending(i) {
+            return i.pos() > start;
+        }
         let Some(character) = i.input.remainder().chars().next() else {
             return i.pos() > start;
         };
-        if character.is_whitespace() || matches!(character, ')' | ']' | '}' | ',' | ';') {
+        if character.is_whitespace() || matches!(character, ':') {
             return i.pos() > start;
         }
         i.input.next();
@@ -1046,6 +1070,55 @@ fn emit_error_with_role<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDelimitedItemRecovery {
+    Retry,
+    Boundary,
+}
+
+/// Recover one malformed call/group item without crossing a delimiter or an
+/// active caller stop.  A non-empty Error run ending at a boundary is still a
+/// committed recovery site, but it is not an item retry and must not make the
+/// list synthesize a second Missing item from the same cause.
+fn direct_type_delimited_item_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: TypeRole,
+) -> Option<TypeDelimitedItemRecovery>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            if end > start && direct_type_primary_candidate(i) {
+                return Some((start..end, TypeDelimitedItemRecovery::Retry));
+            }
+            if type_recovery_boundary_pending(i) {
+                return (start < end).then_some((start..end, TypeDelimitedItemRecovery::Boundary));
+            }
+            let Some(_) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, TypeDelimitedItemRecovery::Boundary));
+            };
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    });
+    let Some((range, recovery)) = recovered else { return None; };
+    emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
+    Some(recovery)
+}
+
+/// Generic primary recovery used by the mandatory and arrow-RHS entries.
+/// Delimited calls and groups use the boundary-aware variant above because
+/// their close and separator slots need separate ownership.
 fn direct_type_item_error_retry<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: TypeRole,
@@ -1076,6 +1149,46 @@ where
     let Some(range) = recovered else { return false; };
     emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
     true
+}
+
+/// Boundaries are never consumed by a malformed item scanner.  Delimiter
+/// closers are handled by the local close slot; an active stop is returned to
+/// the caller that installed it.
+fn type_recovery_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let remainder = i.input.remainder();
+    let Some(character) = remainder.chars().next() else { return true; };
+    if matches!(character, ')' | ']' | '}' | ',' | ';') {
+        return true;
+    }
+    let stops = active_stop_set(i);
+    (character == ':' && stops.contains(StopKind::Colon))
+        || (character == '=' && stops.contains(StopKind::Equal))
+        || (character == '\n' && stops.contains(StopKind::Newline))
+        || (character == '\r' && stops.contains(StopKind::Newline))
+        || (remainder.starts_with("->") && stops.contains(StopKind::Arrow))
+}
+
+/// A type parser may be nested beneath an owner that reserves an arrow.  The
+/// structural tail judge must yield before accepting that arrow, just as its
+/// malformed-item scanner does.
+fn type_active_tail_stop_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !active_stop_set(i).contains(StopKind::Arrow) {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let pending = scan_exact_arrow(i).is_some();
+    i.rollback(checkpoint);
+    pending
 }
 
 fn consume_type_path_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
@@ -1126,7 +1239,7 @@ mod tests {
     use crate::{
         SyntaxNode,
         input::SourceInput,
-        session::{FullCstOutput, GrammarRole, ParseLocal, TypeRole},
+        session::{FullCstOutput, GrammarRole, ParseLocal, StopKind, StopSet, TypeRole},
     };
 
     fn parse<'source>(source: &'source str) -> TypeExpression<'source> {
@@ -1159,6 +1272,25 @@ mod tests {
         )
         .set_local(&mut local);
         let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix");
+        (i.input.remainder(), value)
+    }
+
+    fn parse_prefix_with_outer_stop<'source>(
+        source: &'source str,
+        stop: StopKind,
+    ) -> (&'source str, TypeExpression<'source>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(stop));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix with outer stop");
         (i.input.remainder(), value)
     }
 
@@ -1220,6 +1352,30 @@ mod tests {
         assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
         committed.finish_node();
         committed.into_output().committed_recoveries().to_vec()
+    }
+
+    fn parse_direct_prefix_with_outer_stop(
+        source: &str,
+        stop: StopKind,
+    ) -> (String, Vec<crate::session::CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(stop));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct type expression prefix with outer stop");
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+        let output = committed.into_output();
+        (remainder, output.committed_recoveries().to_vec())
     }
 
     #[test]
@@ -1371,6 +1527,206 @@ mod tests {
             GrammarRole::ClosingDelimiter { owner: crate::session::ConstructRole::TypeCall,
                 delimiter: crate::session::Delimiter::Parenthesis }
         ) && record.kind == crate::session::RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn call_and_group_retry_a_same_line_item_after_a_nested_ml_argument_stops() {
+        let call = parse("G T(F A)");
+        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(tail)]
+                if tail.arguments.len() == 2)));
+        let call_recoveries = parse_direct_recovered("G T(F A)");
+        assert!(matches!(call_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
+                && record.site.range == (6..6)
+                && record.kind == crate::session::RecoveryKind::Missing));
+
+        let group = parse("G (F A)");
+        assert!(matches!(group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                ref elements, ..
+            }) if elements.len() == 2)));
+        let group_recoveries = parse_direct_recovered("G (F A)");
+        assert!(matches!(group_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedSeparator)
+                && record.site.range == (5..5)
+                && record.kind == crate::session::RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn call_and_group_recovery_leave_outer_owned_boundaries_unconsumed() {
+        let (call_remainder, call_ast) = parse_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
+        assert_eq!(call_remainder, "]");
+        assert!(matches!(call_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Incomplete, ..
+        })]));
+        let (call_remainder, call_recoveries) = parse_direct_prefix_with_outer_stop("T(@]", StopKind::RightBracket);
+        assert_eq!(call_remainder, "]");
+        assert!(matches!(call_recoveries.as_slice(), [error, close]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.site.range == (2..3)
+                && error.kind == crate::session::RecoveryKind::Error
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::TypeCall,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (3..3)
+                && close.kind == crate::session::RecoveryKind::Missing));
+
+        let (group_remainder, group_ast) = parse_prefix_with_outer_stop("(@]", StopKind::RightBracket);
+        assert_eq!(group_remainder, "]");
+        assert!(matches!(group_ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            close: Recovered::Incomplete, ..
+        })));
+        let (group_remainder, group_recoveries) = parse_direct_prefix_with_outer_stop("(@]", StopKind::RightBracket);
+        assert_eq!(group_remainder, "]");
+        assert!(matches!(group_recoveries.as_slice(), [error, close]
+            if error.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && error.site.range == (1..2)
+                && error.kind == crate::session::RecoveryKind::Error
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (2..2)
+                && close.kind == crate::session::RecoveryKind::Missing));
+
+        let (arrow_remainder, arrow_ast) = parse_prefix_with_outer_stop("T(@->", StopKind::Arrow);
+        assert_eq!(arrow_remainder, "->");
+        assert!(matches!(arrow_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Incomplete, ..
+        })]));
+        let (arrow_remainder, arrow_recoveries) = parse_direct_prefix_with_outer_stop("T(@->", StopKind::Arrow);
+        assert_eq!(arrow_remainder, "->");
+        assert!(matches!(arrow_recoveries.as_slice(), [error, close]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.site.range == (2..3)
+                && error.kind == crate::session::RecoveryKind::Error
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::TypeCall,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (3..3)
+                && close.kind == crate::session::RecoveryKind::Missing));
+
+        let (call_separator_remainder, call_separator_ast) = parse_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
+        assert_eq!(call_separator_remainder, "]");
+        assert!(matches!(call_separator_ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        let (call_separator_remainder, call_separator_recoveries) = parse_direct_prefix_with_outer_stop("T(A,]", StopKind::RightBracket);
+        assert_eq!(call_separator_remainder, "]");
+        assert!(matches!(call_separator_recoveries.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && item.site.range == (4..4)
+                && item.kind == crate::session::RecoveryKind::Missing
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::TypeCall,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (4..4)
+                && close.kind == crate::session::RecoveryKind::Missing));
+
+        let (group_separator_remainder, group_separator_ast) = parse_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
+        assert_eq!(group_separator_remainder, "]");
+        assert!(matches!(group_separator_ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            ref elements, close: Recovered::Incomplete, ..
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        let (group_separator_remainder, group_separator_recoveries) = parse_direct_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
+        assert_eq!(group_separator_remainder, "]");
+        assert!(matches!(group_separator_recoveries.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && item.site.range == (3..3)
+                && item.kind == crate::session::RecoveryKind::Missing
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (3..3)
+                && close.kind == crate::session::RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn call_and_group_delimited_recovery_rows_keep_ast_and_direct_slots_in_lockstep() {
+        for source in ["T(A,)", "(A;)", "T(A,\n)", "(A;\n)"] {
+            assert!(parse_direct_recovered(source).is_empty(), "valid trailing boundary: {source}");
+        }
+        assert!(matches!(parse("(A,)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            trailing_explicit_separator: Some(TypeExplicitSeparator::Comma(_)), ..
+        })));
+
+        let call_leading = parse_direct_recovered("T(,,A)");
+        assert!(matches!(call_leading.as_slice(), [first, second]
+            if first.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && first.site.range == (2..2)
+                && second.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && second.site.range == (3..3)));
+        assert!(matches!(parse("T(,,A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+
+        let group_leading = parse_direct_recovered("(,,A)");
+        assert!(matches!(group_leading.as_slice(), [first, second]
+            if first.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && first.site.range == (1..1)
+                && second.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && second.site.range == (2..2)));
+        assert!(matches!(parse("(,,A)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            ref elements, ..
+        }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+
+        let call_eof = parse_direct_recovered("T(A,");
+        assert!(matches!(call_eof.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && item.site.range == (4..4)
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::TypeCall,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (4..4)));
+        assert!(matches!(parse("T(A,").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+
+        let group_eof = parse_direct_recovered("(A;");
+        assert!(matches!(group_eof.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && item.site.range == (3..3)
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && close.site.range == (3..3)));
+        assert!(matches!(parse("(A;").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            ref elements, close: Recovered::Incomplete, ..
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+
+        let group_malformed = parse_direct_recovered("(@A)");
+        assert!(matches!(group_malformed.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && record.site.range == (1..2)
+                && record.kind == crate::session::RecoveryKind::Error));
+        assert!(matches!(parse("(@A)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            ref elements, ..
+        }) if matches!(elements.as_slice(), [Recovered::Complete(_)])));
+
+        let group_close = parse_direct_recovered("(A]");
+        assert!(matches!(group_close.as_slice(), [error, missing]
+            if matches!(error.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && error.site.range == (2..3)
+                && error.kind == crate::session::RecoveryKind::Error
+                && matches!(missing.site.role, GrammarRole::ClosingDelimiter {
+                    owner: crate::session::ConstructRole::ParenthesizedTypeGroup,
+                    delimiter: crate::session::Delimiter::Parenthesis,
+                })
+                && missing.site.range == (3..3)
+                && missing.kind == crate::session::RecoveryKind::Missing));
+        assert!(matches!(parse("(A]").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            close: Recovered::Incomplete, ..
+        })));
     }
 
     #[test]
