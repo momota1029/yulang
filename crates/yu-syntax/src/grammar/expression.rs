@@ -58,7 +58,10 @@ pub(crate) enum OperatorChainItem<'source> {
     InfixUse(OperatorUse<'source>),
     SuffixUse(OperatorUse<'source>),
     FixedPostfix(FixedPostfixTail<'source>),
-    MlArgument(Recovered<OperatorChain<'source>>),
+    MlArgument {
+        argument: Box<OperatorChain<'source>>,
+        range: Range<usize>,
+    },
     TerminalOuter(TerminalOuterTail<'source>),
     MissingOperand { range: Range<usize> },
     Error { range: Range<usize> },
@@ -496,6 +499,19 @@ where
             continue;
         }
 
+        if let Some(_separator) = i.run(from_fn(|i| recognize_ml_argument(table, i))) {
+            i.cut();
+            let previous = i.local.ml_arg();
+            i.local.set_ml_arg(true);
+            let argument = i.run(from_fn(|i| parse_operator_chain(table, i)))
+                .or_else(|| parse_dangling_prefix_ast(table, &mut i));
+            i.local.set_ml_arg(previous);
+            let argument = argument?;
+            let range = argument.range();
+            items.push(OperatorChainItem::MlArgument { argument: Box::new(argument), range });
+            continue;
+        }
+
         if let Some(colon) = i.run(recognize_colon_application_tail) {
             i.cut();
             let colon_start = colon.colon.start;
@@ -580,8 +596,7 @@ fn operator_chain_item_end(item: &OperatorChainItem<'_>) -> usize {
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Field(tail)) => tail.range.end,
         OperatorChainItem::FixedPostfix(FixedPostfixTail::Path(tail)) => tail.range.end,
-        OperatorChainItem::MlArgument(Recovered::Complete(argument)) => argument.range.end,
-        OperatorChainItem::MlArgument(Recovered::Incomplete) => 0,
+        OperatorChainItem::MlArgument { range, .. } => range.end,
         OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(tail)) => tail.range.end,
         OperatorChainItem::MissingOperand { range } | OperatorChainItem::Error { range } => range.end,
     }
@@ -623,6 +638,7 @@ enum LedRecognition<'source> {
 /// already-authoritative field and path forms.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FixedPostfixRecognition {
+    Call { open: Range<usize> },
     Field { leading: TriviaRun, dot: Range<usize> },
     Path { leading: TriviaRun, separator: Range<usize> },
 }
@@ -646,6 +662,9 @@ where
         return None;
     };
     match punctuation.kind() {
+        PunctuationKind::Open(Delimiter::Parenthesis) if leading.is_empty() => {
+            Some(FixedPostfixRecognition::Call { open: punctuation.range() })
+        }
         PunctuationKind::Dot if !matches!(i.input.remainder().chars().next(), Some('(' | '{')) => {
             Some(FixedPostfixRecognition::Field { leading, dot: punctuation.range() })
         }
@@ -659,6 +678,92 @@ where
     }
 }
 
+fn recognize_ml_argument<'source, E>(
+    table: &OperatorTable,
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.local.ml_arg() || !ml_argument_context_allows(&i) {
+        return None;
+    }
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(&mut i)?;
+    if trivia.is_empty() || !trivia_continues_chain(&trivia, &i)
+        || !ml_argument_candidate_input(table, &mut i)
+    {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(trivia)
+}
+
+fn ml_argument_candidate_input<E>(table: &OperatorTable, i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    expression_nud_candidate_input(table, i) || dangling_prefix_candidate_input(table, i)
+}
+
+fn dangling_prefix_candidate_input<E>(table: &OperatorTable, i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let remainder = i.input.remainder();
+    let entry = table.entries_with_sites().map(|(entry, _)| entry)
+        .filter(|entry| remainder.starts_with(entry.spelling()))
+        .max_by_key(|entry| entry.spelling().len())
+        .filter(|entry| entry.fixities().prefix().is_some() && !entry.fixities().is_nullfix());
+    let accepted = entry.is_some_and(|entry| {
+        for _ in entry.spelling().chars() { if i.input.next().is_none() { return false; } }
+        let _ = consume_trivia(i);
+        i.input.remainder().is_empty() || matches!(i.input.remainder().chars().next(), Some(')' | ']' | '}' | ',' | ';' | ':'))
+    });
+    i.rollback(checkpoint);
+    accepted
+}
+
+fn parse_dangling_prefix_ast<'source, E>(table: &OperatorTable, i: &mut SynIn<'_, 'source, '_, E>) -> Option<OperatorChain<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    dangling_prefix_candidate_input(table, i).then_some(())?;
+    let start = i.pos();
+    let remainder = i.input.remainder();
+    let entry = table.entries_with_sites().map(|(entry, _)| entry)
+        .filter(|entry| remainder.starts_with(entry.spelling()))
+        .max_by_key(|entry| entry.spelling().len())?;
+    for _ in entry.spelling().chars() { i.input.next()?; }
+    let end = i.pos();
+    consume_trivia(i)?;
+    let missing_at = i.pos();
+    Some(OperatorChain::new(vec![
+        OperatorChainItem::PrefixUse(OperatorUse { text: &i.input.source()[start..end], range: start..end, role: OperatorRole::Prefix }),
+        OperatorChainItem::MissingOperand { range: missing_at..missing_at },
+    ], start..end))
+}
+
+fn ml_argument_context_allows<E>(i: &SynIn<E>) -> bool
+where E: ErrorSink<usize>,
+{
+    let stops = active_stop_set(i);
+    let call_argument_owner = matches!(i.local.delimiter(), Some(Delimiter::Parenthesis))
+        && stops.contains(StopKind::Comma)
+        && stops.contains(StopKind::Semicolon)
+        && stops.contains(StopKind::RightParenthesis);
+    if matches!(i.local.delimiter(), Some(Delimiter::Brace))
+        || (matches!(i.local.delimiter(), Some(Delimiter::Parenthesis)) && !call_argument_owner)
+        || ((stops.contains(StopKind::Comma) || stops.contains(StopKind::Semicolon)) && !call_argument_owner)
+    {
+        return false;
+    }
+    !stops.contains(StopKind::Colon)
+        && !stops.contains(StopKind::Arrow)
+        && !stops.contains(StopKind::Elsif)
+        && !stops.contains(StopKind::Else)
+}
+
 fn parse_fixed_postfix_tail<'source, E>(
     table: &OperatorTable,
     tail: FixedPostfixRecognition,
@@ -670,6 +775,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match tail {
+        FixedPostfixRecognition::Call { open } => FixedPostfixTail::Call(parse_call_tail(table, open, i)),
         FixedPostfixRecognition::Field { dot, .. } => {
             let name = if let Some(name) = i.run(scan_word) {
                 Recovered::Complete(name)
@@ -698,6 +804,72 @@ where
             })
         }
     }
+}
+
+fn parse_call_tail<'source, E>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> CallTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    i.local.push_delimiter(Delimiter::Parenthesis);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
+    i.local.push_stop_set(stops);
+    let opening = consume_trivia(i).expect("trivia scanning is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, i.local.line().line_indent);
+    push_layout_delimited_baseline(layout, i);
+    let mut arguments = Vec::new();
+    let close = if let Some(close) = i.run(recognize_parenthesized_close) {
+        Recovered::Complete(close)
+    } else {
+        loop {
+            if let Some(argument) = i.run(from_fn(|i| parse_operator_chain(table, i))) {
+                arguments.push(argument);
+            } else {
+                let at = i.pos();
+                if let Some(_) = i.run(recognize_call_separator) {
+                    arguments.push(OperatorChain::new(
+                        vec![OperatorChainItem::MissingOperand { range: at..at }],
+                        at..at,
+                    ));
+                    consume_trivia(i).expect("trivia scanning is total");
+                    if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
+                    continue;
+                }
+                break Recovered::Incomplete;
+            }
+            let trivia = consume_trivia(i).expect("trivia scanning is total");
+            if let Some(_) = i.run(recognize_call_separator) {
+                consume_trivia(i).expect("trivia scanning is total");
+                if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
+                continue;
+            }
+            if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent) == LayoutDelimitedBoundary::ImplicitNewline {
+                continue;
+            }
+            break Recovered::Incomplete;
+        }
+    };
+    pop_layout_delimited_baseline(layout, i);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+    CallTail { open: open.clone(), arguments, close, range: open.start..i.pos() }
+}
+
+fn recognize_call_separator<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    matches!(punctuation.kind(), PunctuationKind::Comma | PunctuationKind::Semicolon)
+        .then(|| punctuation.range())
+        .or_else(|| { i.rollback(checkpoint); None })
 }
 
 fn path_segment(word: WordSpan<'_>) -> PathSegment<'_> {
@@ -1193,8 +1365,22 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 fn parse_arm_arrow<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { consume_trivia(i)?; i.run(scan_exact_arrow) }
 fn parse_optional_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); consume_trivia(i)?; let semicolon = i.run(scan_punctuation).and_then(|punctuation| (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range())); if semicolon.is_none() { i.rollback(checkpoint); } semicolon }
-fn parse_arm_body_ast<'source, E>(table: &OperatorTable, _policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ArmBody<'source>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>, { let base_indent = i.local.line().line_indent; match recognize_introduced_body_layout(base_indent, i) { ArmBodyLayout::Inline { .. } => i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value)))).unwrap_or(Recovered::Incomplete), ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(table, opening_trivia, base_indent, block_indent, i))), ArmBodyLayout::WrongIndent => Recovered::Incomplete } }
+fn parse_arm_body_ast<'source, E>(table: &OperatorTable, policy: ArmSequencePolicy, i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<ArmBody<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let baseline = push_arm_body_baseline(policy, i);
+    let stops = arm_body_stop(policy, active_stop_set(i));
+    i.local.push_stop_set(stops);
+    let base_indent = i.local.line().line_indent;
+    let body = match recognize_introduced_body_layout(base_indent, i) {
+        ArmBodyLayout::Inline { .. } => i.run(from_fn(|i| parse_operator_chain(table, i))).map(|value| Recovered::Complete(ArmBody::Inline(Box::new(value)))).unwrap_or(Recovered::Incomplete),
+        ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBody::Indented(parse_indented_statement_block(table, opening_trivia, base_indent, block_indent, i))),
+        ArmBodyLayout::WrongIndent => Recovered::Incomplete,
+    };
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    pop_arm_body_baseline(baseline, i);
+    body
+}
 
 fn scan_exact_arrow<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let start = i.pos(); if !i.input.remainder().starts_with("->") || i.input.remainder().starts_with("->>") { return None; } i.input.next()?; i.input.next()?; let end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line); Some(start..end) }
 
@@ -1521,6 +1707,7 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     match tail {
+        FixedPostfixRecognition::Call { open } => commit_call_tail(table, open, committed),
         FixedPostfixRecognition::Field { leading, dot } => {
             committed.emit_trivia(&leading);
             committed.start_node(SyntaxKind::FieldTail);
@@ -1550,6 +1737,90 @@ fn commit_fixed_postfix_tail<'parse, 'source, 'local, E, O>(
             committed.finish_node();
         }
     }
+}
+
+fn commit_call_tail<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::CallTail);
+    committed.token(SyntaxKind::LParen, open);
+    let incoming_base = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
+    committed.probe(|probe| { probe.input().local.push_delimiter(Delimiter::Parenthesis); probe.input().local.push_stop_set(stops); });
+    let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
+
+    if !parenthesized_close_pending(committed) {
+        loop {
+            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+                if call_argument_error_retry(table, committed) {
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                        .expect("a retried call argument must commit its shared NUD candidate");
+                } else {
+                    emit_call_missing(committed, ExpressionRole::CallArgument, ExpectedSyntax::Expression);
+                }
+            }
+            let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
+            if let Some(separator) = commit_call_separator(committed) {
+                committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1);
+                let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
+                if parenthesized_close_pending(committed) { break; }
+                continue;
+            }
+            if parenthesized_close_pending(committed) { break; }
+            let boundary = committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent));
+            if boundary == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+            if boundary == LayoutDelimitedBoundary::None && parenthesized_element_pending(table, committed) {
+                emit_call_missing(committed, ExpressionRole::CallArgumentSeparator, ExpectedSyntax::DelimitedSequenceSeparator);
+                continue;
+            }
+            break;
+        }
+    }
+    match commit_parenthesized_close(committed) {
+        ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
+        ParenthesizedClose::Missing { .. } => emit_call_close_missing(committed),
+    }
+    committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); });
+    committed.finish_node();
+}
+
+fn call_argument_error_retry<'parse, 'source, 'local, E, O>(
+    table: &OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos(); let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else { return None; };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
+            i.input.next()?; end = i.pos();
+            let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+        }
+    });
+    let Some(range) = recovered else { return false; };
+    emit_call_error(committed, ExpressionRole::CallArgument, range);
+    true
+}
+
+fn commit_call_separator<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> Option<(bool, Range<usize>)>
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input(); let checkpoint = i.checkpoint();
+        let separator = i.run(scan_punctuation).and_then(|punctuation| match punctuation.kind() { PunctuationKind::Comma => Some((false, punctuation.range())), PunctuationKind::Semicolon => Some((true, punctuation.range())), _ => None });
+        if separator.is_none() { i.rollback(checkpoint); }
+        separator
+    })
 }
 
 fn path_segment_kind(word: WordSpan<'_>) -> SyntaxKind {
@@ -1624,6 +1895,19 @@ where
         if let Some(tail) = committed.probe(|probe| probe.input().run(recognize_fixed_postfix)) {
             cut_after_acceptance(committed);
             commit_fixed_postfix_tail(table, tail, committed);
+            continue;
+        }
+
+        if let Some(separator) = committed.probe(|probe| probe.input().run(from_fn(|i| recognize_ml_argument(table, i)))) {
+            cut_after_acceptance(committed);
+            committed.emit_trivia(&separator);
+            committed.start_node(SyntaxKind::MlArgument);
+            let previous = committed.probe(|probe| { let previous = probe.input().local.ml_arg(); probe.input().local.set_ml_arg(true); previous });
+            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+                emit_call_missing(committed, ExpressionRole::MlArgument, ExpectedSyntax::Expression);
+            }
+            committed.probe(|probe| probe.input().local.set_ml_arg(previous));
+            committed.finish_node();
             continue;
         }
 
@@ -2872,6 +3156,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 fn commit_arm_body<'parse, 'source, 'local, E, O>(table: &OperatorTable, family: CaseLikeFamily, policy: ArmSequencePolicy, committed: &mut Committed<'parse, 'source, 'local, E, O>)
 where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
+    let baseline = committed.probe(|probe| push_arm_body_baseline(policy, probe.input()));
     let base_indent = committed.probe(|probe| probe.input().local.line().line_indent);
     match committed.probe(|probe| recognize_introduced_body_layout(base_indent, probe.input())) {
         ArmBodyLayout::Inline { trivia } => {
@@ -2883,10 +3168,26 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
         ArmBodyLayout::Indented { opening_trivia, block_indent } => commit_indented_statement_block(table, opening_trivia, base_indent, block_indent, committed),
         ArmBodyLayout::WrongIndent => emit_case_like_missing(committed, CaseLikeRole::Body, ExpectedSyntax::Expression),
     }
+    committed.probe(|probe| pop_arm_body_baseline(baseline, probe.input()));
     let _ = family;
 }
 
 fn arm_body_stop(policy: ArmSequencePolicy, outer: StopSet) -> StopSet { match policy { ArmSequencePolicy::CaseInline | ArmSequencePolicy::Indented { .. } | ArmSequencePolicy::CatchBraced => outer.with(StopKind::Comma).with(StopKind::Semicolon), ArmSequencePolicy::CatchInlineSingle => outer.with(StopKind::Semicolon) } }
+
+fn push_arm_body_baseline<E>(policy: ArmSequencePolicy, i: &mut SynIn<E>) -> Option<IndentationBaseline>
+where E: ErrorSink<usize>,
+{
+    let ArmSequencePolicy::Indented { arm_indent, .. } = policy else { return None; };
+    let baseline = IndentationBaseline { column: arm_indent, kind: IndentationBaselineKind::Block };
+    i.local.push_indentation_baseline(baseline);
+    Some(baseline)
+}
+
+fn pop_arm_body_baseline<E>(baseline: Option<IndentationBaseline>, i: &mut SynIn<E>)
+where E: ErrorSink<usize>,
+{
+    if let Some(baseline) = baseline { assert_eq!(i.local.pop_indentation_baseline(), Some(baseline)); }
+}
 fn direct_semicolon<E>(i: &mut SynIn<E>) -> Option<Range<usize>> where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { let checkpoint = i.checkpoint(); let punctuation = i.run(scan_punctuation)?; let range = (punctuation.kind() == PunctuationKind::Semicolon).then(|| punctuation.range()); if range.is_none() { i.rollback(checkpoint); } range }
 
 fn commit_direct_operand_slot<'parse, 'source, 'local, E, O>(
@@ -3614,6 +3915,49 @@ fn emit_fixed_tail_error<'parse, 'source, 'local, E, O>(
             0,
         )
     });
+    committed.emit_error(record);
+}
+
+fn emit_call_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    expected: ExpectedSyntax,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos(); let role = GrammarRole::Expression(expression_role);
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected, range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_call_close_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input(); let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::ArgumentList, delimiter: Delimiter::Parenthesis };
+        CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Parenthesis)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_call_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    expression_role: ExpressionRole,
+    range: Range<usize>,
+) where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let role = GrammarRole::Expression(expression_role);
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local,
+        RecoverySiteKey { role, range: range.clone() },
+        RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
+        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]),
+        0,
+    ));
     committed.emit_error(record);
 }
 
@@ -4637,6 +4981,113 @@ mod tests {
     }
 
     #[test]
+    fn call_tail_uses_adjacent_opener_and_layout_boundaries() {
+        for (source, argument_count, literal_separators) in [
+            ("f()", 0, 0),
+            ("f(a,b;c)", 3, 2),
+            ("f(a\nb)", 2, 0),
+            ("f(a,\nb)", 2, 1),
+            ("f(a\n)", 1, 0),
+            ("f(a\n  b)", 1, 0),
+            ("f(a;)", 1, 1),
+        ] {
+            let chain = parse(source, &canonical_operator_table());
+            assert!(matches!(
+                chain.items(),
+                [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. }))]
+                    if arguments.len() == argument_count
+            ), "{source:?}");
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source);
+            let call = root.descendants().find(|node| node.kind() == SyntaxKind::CallTail).unwrap();
+            assert_eq!(call.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), argument_count, "{source:?}");
+            assert_eq!(call.children_with_tokens().filter(|child| matches!(child.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon)).count(), literal_separators, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn call_tail_recovers_missing_arguments_and_closing_delimiter() {
+        for (source, expected_missing) in [("f(,a)", 1), ("f(a,,b)", 1), ("f(a", 1)] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(recoveries.iter().filter(|record| record.kind == RecoveryKind::Missing).count(), expected_missing, "{source:?}");
+        }
+        let chain = parse("f(,a)", &canonical_operator_table());
+        assert!(matches!(
+            chain.items(),
+            [OperatorChainItem::Primary(_), OperatorChainItem::FixedPostfix(FixedPostfixTail::Call(CallTail { arguments, .. }))]
+                if matches!(arguments.as_slice(), [OperatorChain { items, .. }, _] if matches!(items.as_slice(), [OperatorChainItem::MissingOperand { .. }]))
+        ));
+    }
+
+    #[test]
+    fn call_and_ml_adjacency_keep_flat_source_order() {
+        let cases = [
+            ("f(x)", 1),
+            ("f (x)", 0),
+            ("f/*c*/(x)", 0),
+            ("f\n  (x)", 0),
+        ];
+        for (source, call_count) in cases {
+            let root = parse_direct(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source);
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(), call_count, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::MlArgument).count(), 1 - call_count, "{source:?}");
+        }
+
+        let source = "a.b(c)::d e";
+        let root = parse_direct(source, &canonical_operator_table());
+        let chain = only_child(&root, SyntaxKind::OperatorChain);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            vec![SyntaxKind::IdentifierExpression, SyntaxKind::FieldTail, SyntaxKind::CallTail, SyntaxKind::PathTail, SyntaxKind::MlArgument]
+        );
+
+        let low = colon_operator_table(BindingPower::scalar(1));
+        let high = colon_operator_table(BindingPower::scalar(99));
+        assert_eq!(parse(source, &low), parse(source, &high));
+        assert_eq!(parse_direct(source, &low).green(), parse_direct(source, &high).green());
+    }
+
+    #[test]
+    fn ml_arguments_split_on_trivia_but_keep_adjacent_fixed_tails_and_colon_terminality() {
+        let chain = parse("f x y", &canonical_operator_table());
+        assert!(matches!(chain.items(), [OperatorChainItem::Primary(_), OperatorChainItem::MlArgument { .. }, OperatorChainItem::MlArgument { .. }]));
+        let root = parse_direct("f x.field(y)::z", &canonical_operator_table());
+        assert_eq!(root.to_string(), "f x.field(y)::z");
+        let ml = root.descendants().find(|node| node.kind() == SyntaxKind::MlArgument).unwrap();
+        assert_eq!(ml.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
+        assert_eq!(ml.descendants().filter(|node| node.kind() == SyntaxKind::FieldTail).count(), 1);
+        assert_eq!(ml.descendants().filter(|node| node.kind() == SyntaxKind::CallTail).count(), 1);
+
+        let colon = parse("f x: rhs", &canonical_operator_table());
+        assert!(matches!(colon.items(), [OperatorChainItem::Primary(_), OperatorChainItem::MlArgument { .. }, OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(_))]));
+    }
+
+    #[test]
+    fn call_and_ml_recovery_keep_owner_boundaries_local() {
+        let (root, recoveries) = parse_direct_recovered("f(@a)", &canonical_operator_table());
+        assert_eq!(root.to_string(), "f(@a)");
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role == GrammarRole::Expression(ExpressionRole::CallArgument)
+                    && site.range == (2..3)
+        ));
+
+        let (root, recoveries) = parse_direct_recovered("f +", &canonical_operator_table());
+        assert_eq!(root.to_string(), "f +");
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::MlArgument).count(), 1);
+        assert!(recoveries.iter().any(|record| record.kind == RecoveryKind::Missing));
+
+        for source in ["f ", "f\n(x)"] {
+            assert!(ml_after_identifier(source).is_none(), "{source:?}");
+        }
+        assert!(ml_after_identifier("f\n  (x)").is_some());
+    }
+
+    #[test]
     fn direct_chain_assigns_accepted_led_trivia_once() {
         let root = parse_direct("a +! b", &canonical_operator_table());
         let chain = only_child(&root, SyntaxKind::OperatorChain);
@@ -5647,6 +6098,16 @@ mod tests {
         let mut i = i;
         i.run(scan_word).expect("leading identifier");
         i.run(recognize_fixed_postfix)
+    }
+
+    fn ml_after_identifier(source: &str) -> Option<TriviaRun> {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut)).set_local(&mut local);
+        i.run(scan_word).expect("leading identifier");
+        i.run(from_fn(|i| recognize_ml_argument(&canonical_operator_table(), i)))
     }
 
     fn parse_direct_recovered(
