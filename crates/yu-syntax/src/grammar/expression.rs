@@ -2089,7 +2089,10 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     commit_projection_items(table, committed, layout, ProjectionKind::Tuple);
-    if let Some(close) = committed.probe(|probe| probe.input().run(recognize_parenthesized_close)) { committed.token(SyntaxKind::RParen, close); } else { emit_projection_close_missing(committed, ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis); }
+    match commit_parenthesized_close_for_owner(committed, GrammarRole::ClosingDelimiter { owner: ConstructRole::ProjectionTupleTail, delimiter: Delimiter::Parenthesis }) {
+        ParenthesizedClose::Matched(close) => committed.token(SyntaxKind::RParen, close),
+        ParenthesizedClose::Missing { .. } => emit_projection_close_missing(committed, ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis),
+    }
     committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionTuple)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis)); }); committed.finish_node();
 }
 
@@ -2103,7 +2106,10 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     let opening = consume_direct_trivia(committed); committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming_base, &opening, probe.input().local.line().line_indent)); committed.probe(|probe| push_layout_delimited_baseline(layout, probe.input()));
     commit_projection_items(table, committed, layout, ProjectionKind::Record);
-    if let Some(close) = committed.probe(|probe| probe.input().run(recognize_record_projection_close)) { committed.token(SyntaxKind::RBrace, close); } else { emit_projection_close_missing(committed, ConstructRole::ProjectionRecordTail, Delimiter::Brace); }
+    match commit_record_projection_close(committed) {
+        IndexClose::Matched(close) => committed.token(SyntaxKind::RBrace, close),
+        IndexClose::Missing => emit_projection_close_missing(committed, ConstructRole::ProjectionRecordTail, Delimiter::Brace),
+    }
     committed.probe(|probe| { pop_layout_delimited_baseline(layout, probe.input()); assert_eq!(probe.input().local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::ProjectionRecord)); assert_eq!(probe.input().local.pop_stop_set(), Some(stops)); assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace)); }); committed.finish_node();
 }
 
@@ -2121,23 +2127,59 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
             committed.start_node(SyntaxKind::ProjectionRecordSpreadItem);
             committed.token(SyntaxKind::DotDot, marker);
             let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
-            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() { emit_projection_missing(committed, ExpressionRole::ProjectionRecordSpreadRhs, ExpectedSyntax::Expression); }
+            if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
+                if projection_item_error_retry(table, committed, ExpressionRole::ProjectionRecordSpreadRhs) {
+                    parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried spread rhs must commit");
+                } else { emit_projection_missing(committed, ExpressionRole::ProjectionRecordSpreadRhs, ExpectedSyntax::Expression); }
+            }
             committed.finish_node();
         } else if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
             let role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleItem, ProjectionKind::Record => ExpressionRole::ProjectionRecordItem };
-            emit_projection_missing(committed, role, ExpectedSyntax::Expression);
+            if projection_item_error_retry(table, committed, role) {
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried projection item must commit");
+            } else { emit_projection_missing(committed, role, ExpectedSyntax::Expression); }
         }
         let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
         if let Some(separator) = commit_call_separator(committed) { committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1); let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing); if close_pending(committed) { break; } continue; }
         if close_pending(committed) { break; }
         if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
+        let separator_role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleSeparator, ProjectionKind::Record => ExpressionRole::ProjectionRecordSeparator };
+        if parenthesized_element_pending(table, committed) { emit_projection_missing(committed, separator_role, ExpectedSyntax::DelimitedSequenceSeparator); continue; }
         break;
     }
+}
+
+fn projection_item_error_retry<'parse, 'source, 'local, E, O>(table: &OperatorTable, committed: &mut Committed<'parse, 'source, 'local, E, O>, role: ExpressionRole) -> bool
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos(); let mut end = start;
+        loop { let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
+            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
+            i.input.next()?; end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
+            if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
+        }
+    });
+    let Some(range) = recovered else { return false; }; emit_projection_error(committed, role, range); true
 }
 
 fn record_projection_close_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
 where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 { committed.probe(|probe| { let i = probe.input(); let checkpoint = i.checkpoint(); let pending = i.run(recognize_record_projection_close).is_some(); i.rollback(checkpoint); pending }) }
+
+fn commit_record_projection_close<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> IndexClose
+where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) { return IndexClose::Missing; }
+        if let Some(punctuation) = committed.probe(|probe| probe.input().run(scan_punctuation)) {
+            if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) { return IndexClose::Matched(punctuation.range()); }
+            emit_projection_close_error(committed, punctuation.range(), punctuation.kind()); continue;
+        }
+        let range = committed.probe(|probe| { let start = probe.input().pos(); let mut end = start; loop { let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); }; if matches!(character, ')' | ']' | '}' | ';') { return (start < end).then_some(start..end); } i.input.next()?; end = i.pos(); } }).expect("record close recovery consumes invalid source");
+        emit_projection_close_error(committed, range, PunctuationKind::Close(Delimiter::Brace));
+    }
+}
 
 fn commit_index_tail<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
@@ -4483,6 +4525,17 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>,
     }); committed.emit_missing(record);
 }
 
+fn emit_projection_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, expression_role: ExpressionRole, range: Range<usize>)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let role = GrammarRole::Expression(expression_role);
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
+        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Expression, range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
+    )); committed.emit_error(record);
+}
+
 fn emit_projection_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, owner: ConstructRole, delimiter: Delimiter)
 where E: ErrorSink<usize>, O: CommitOutput<'source>,
 {
@@ -4490,6 +4543,17 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>,
         let i = probe.input(); let at = i.pos(); let role = GrammarRole::ClosingDelimiter { owner, delimiter };
         CommittedRecoveryRecord::new(i.local, RecoverySiteKey { role, range: at..at }, RecoveryKind::Missing, Arc::from([]), Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(delimiter)), range: at..at, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0)
     }); committed.emit_missing(record);
+}
+
+fn emit_projection_close_error<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>, range: Range<usize>, _: PunctuationKind)
+where E: ErrorSink<usize>, O: CommitOutput<'source>,
+{
+    let role = GrammarRole::ClosingDelimiter { owner: ConstructRole::ProjectionRecordTail, delimiter: Delimiter::Brace };
+    let record = committed.probe(|probe| CommittedRecoveryRecord::new(
+        probe.input().local, RecoverySiteKey { role, range: range.clone() }, RecoveryKind::Error,
+        Arc::from([UnexpectedSyntax::Token { range: range.clone(), category: UnexpectedCategory::OtherCharacter }]),
+        Arc::from([SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)), range, sources: ExpectationSources::COMMITTED_RECOVERY_RULE }]), 0,
+    )); committed.emit_error(record);
 }
 
 fn emit_index_close_missing<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>)
