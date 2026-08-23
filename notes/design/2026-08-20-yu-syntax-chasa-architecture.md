@@ -14823,6 +14823,13 @@ rangeだけを`Error(PolymorphicVariantTagName, Identifier)`としてconsumeし�
 したがって`:{123}`はname Incomplete / zero payloadのone recovered tag、`:{123 Int}`は同じrecovered tagにone
 payload `Int`を持つ。`Int`をouter new-tag retryへ返さない。
 
+step 8のmalformed scannerはstep 5のplain Identifierだけでなく、step 6のnon-Identifier canonical
+TypePrimaryもsafe point / retry candidateとして扱う。どちらの場合もcandidate直前でscanを止め、malformed prefixだけへ
+`Error(PolymorphicVariantTag)`をcommitし、**同じwhole-tag slot**をcandidate位置からretryする。retry先がstep 6なら、
+candidate自身へ別の`Error(PolymorphicVariantTagName)`をcommitしてname Incompleteのtag skeletonを作る。これはone causeの
+cascadeではない。malformed prefixとwrong-kind primaryはnon-overlapping rangeを持つ二つの独立cause / recovery siteであり、
+それぞれone recordを持つ。prefix Errorがcandidate Errorをabsorb / supersedeせず、retryによってsecond tag slotも作らない。
+
 emptyとtrailing boundaryはactual close probeを先に行って排他的にする。commaまたはqualifying implicit newline後にactual
 `}`が実在するときだけvalid trailing boundaryである。comma後にEOF / owner boundaryならone missing tag slotを作り、
 distinct close slotを次のclose recoveryへ渡す。
@@ -14892,6 +14899,11 @@ additional boundary tracesを次で固定する。
   `A` / `B`の二件であり、`B`が`A`のrecovered payloadになることはない。
 - `:{123}`はwrong-kind primary branchがNumber range `123`だけをtag-name Errorにし、name Incomplete / payloads emptyの
   one tag skeletonを作る。`:{123 Int}`では同じskeletonのinner phaseがspace + `Int`をone payloadとしてacceptする。
+- `:{@123}`ではouter malformed scannerが`@`だけを`Error(PolymorphicVariantTag)`としてconsumeし、same whole-tag
+  slotを`123`位置からretryする。wrong-kind branchが`123`だけへsecond
+  `Error(PolymorphicVariantTagName)`をcommitするため、結果はname Incomplete / zero payloadの**one** recovered tagである。
+  `:{@123 Int}`も同じone tag slotを使い、retry後のinner phaseがspace + `Int`をone payloadとしてacceptする。
+  どちらも`@`と`123`の二つのError rangeは別causeであり、二件のtagやone combined `@123` Errorにはしない。
 - root `poly_variant_base = 0`の`:{@\n  B}`ではouter malformed-tag scannerが`@`だけを
   `Error(PolymorphicVariantTag)`にする。any physical newlineがscanner safe pointなのでnewlineを含めない。indent 2のnewlineは
   non-qualifyingであり、close Incomplete / Missing closeをnewline位置へ置いてnewlineと`B`をcallerへ返す。
@@ -15036,6 +15048,7 @@ outer separator-role Errorとしてのみconsumeする。
 | new-tag positionのplain Identifier | tag authorityへcut | name Complete、inner payload phaseへ |
 | new-tag位置のnon-Identifier TypePrimary | `Error(PolymorphicVariantTagName, Identifier)` on that primary range | Complete tag skeleton with name Incompleteを作りinner payload phaseへ。後続payload candidateがなければempty、`123 Int`なら`Int`をpayloadとしてownする。同じbytesへwhole-tag Errorを重ねない |
 | malformed non-empty bytes後にplain Identifier | maximal `Error(PolymorphicVariantTag)` | valid Identifierをsame whole-tag slotでretry。成功時AST tag Complete |
+| malformed non-empty bytes後にnon-Identifier canonical TypePrimary | malformed prefixだけへmaximal `Error(PolymorphicVariantTag)`、candidate直前でstop | same whole-tag slotをcandidate位置でretryし、wrong-kind branchがcandidate own rangeへ別の`Error(PolymorphicVariantTagName, Identifier)`をcommitする。ASTはname Incompleteのone Complete tag skeletonであり、second tag slotを作らない。二Errorはnon-overlappingな別causeなのでno-cascade違反ではない |
 | malformed non-empty bytes後にcomma / semicolon / close / any physical newline / owner boundary | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、boundaryをconsumeせず、same causeへMissing tagを重ねない。semicolonは次のouter separator Error、non-qualifying newlineはclose / caller boundaryへ |
 | current-depth semicolon | exact semicolon `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | malformed separator episodeとしてconsumeし、post-trivia位置でouter tag / close retry。Missing separatorを重ねない |
 | same-line plain Identifier without comma | current tagのpayload authority | Missing tag separatorをemitしない。`A Int B`はone tag + two payloads |
@@ -15104,7 +15117,7 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 8. nested delimited payload内newlineとtag-level newlineをowner depthで区別する。
 9. same-line Identifierはpayload authorityを持ち、false Missing tag separatorをemitしない。
 10. leading / repeated / trailing-before-EOF separator、wrong-kind / malformed tag name、semicolon、non-qualifying newline、
-    missing / mismatched closeをrole / range / retry / AST parityまでfixture化する。
+    malformed-prefix後のwrong-kind primary、missing / mismatched closeをrole / range / retry / AST parityまでfixture化する。
 11. missing / malformed payload boundary、malformed payload retry、payload-at-boundary no-cascadeをfixture化する。
 12. `F :{A}`がordinary TypeApply argument、variant後のpath / call / apply / arrowがordinary tailsになる。
 13. all worked examplesでlossless round trip、every trivia byte one home、balanced nodes、no synthetic Separatorを確認する。
@@ -15122,6 +15135,7 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 - same-line Identifier ambiguityはpayload authorityを優先し、Missing tag separatorでsplitしない。
 - current-depth semicolonはinnerのsafe pointであり、trivia有無にかかわらずouter separator Errorだけがownする。
 - new-tag位置のnon-Identifier canonical TypePrimaryはdedicated wrong-kind branchでtag skeletonへcutする。
+- malformed prefix後のnon-Identifier canonical TypePrimaryはprefixとcandidateを別safe-point Errorにし、same whole-tag slotでretryする。
 - payload wrapperはboundary / type recoveryの実在AST slotsを提供するsource-bearing nodeである。
 - polymorphic variantはordinary nonterminal TypePrimaryである。
 
@@ -15137,10 +15151,12 @@ final reviewでfour issue classをboth nesting levelsについて再点検した
    corresponding `Recovered` / optional fieldがある。separator roleだけはexisting list contractどおりcommitted diagnosticで、
    source-absent AST fieldを仮定しない。colon / openはcomplete pair accept後のactual rangesで、Missing roleをtableから
    参照しない。BNFの`TypeExpressionInTypeMlScope`はparse scopeだけを限定し、ASTの`type_expr` fieldが
-   `Box<TypeExpression>`であることと一致する。
+   `Box<TypeExpression>`であることと一致する。malformed prefix + wrong-kind primaryはone recovered tag slotを共有するが、
+   outer tag siteとmandatory name siteの別rangeへ各one Error recordを持つため、AST slotを二重生成しない。
 4. **recovery-row exclusivity:** outer actual-close-firstでvalid trailingとseparator-before-boundaryを分離した。innerは
    comma / semicolon / close / any newlineをmalformed scanより先にhandoffする。outerはplain Identifier、non-Identifier
-   TypePrimary、owner boundary、malformed runをdistinct branchesにする。same-line Identifierは常にpayload authorityであり
+   TypePrimary、owner boundary、malformed runをdistinct branchesにする。malformed run後もplain Identifier / non-Identifier
+   TypePrimaryを別retry rowにし、candidate byteをprefix Errorへ含めない。same-line Identifierは常にpayload authorityであり
    outer Missing separator rowと競合しない。semicolonはouter Error一件だけ、Errorとsame-slot Missingはno-cascadeである。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
