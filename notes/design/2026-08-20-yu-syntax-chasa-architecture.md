@@ -13427,3 +13427,554 @@ adjacent braceの扱いもfixture tableで固定した。そのうえで、残�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression named record type primary追補案）。
+
+## 追補案: standalone `TypeExpression`のforall / universal-quantifier type primary
+
+Status: Draft（Claude review / user approval待ち、2026-08-23）。
+
+本追補は、authoritativeなstandalone `TypeExpression` grammarへforall / universal-quantifier type
+`for 'a 'b: T`を追加する。これはstatement-level `for` loopでも、dynamic expressionのword primaryでもなく、
+type NUD positionだけでcontextual authorityを持つown primary grammarである。
+
+本追補が定める範囲は次だけである。
+
+- `TypePrimary::Forall(ForallType)`のCST / AST / recognition。
+- apostrophe-prefixed type-variable binderのordered non-empty repetition。
+- binder boundary、mandatory colon、full recursive type bodyのbounded layoutとtyped recovery。
+- canonical type NUDとTypeApply LED candidateにおけるcontextual `for`の区別。
+
+struct / enum / error payload、cast / role / where / act signature、pattern type annotationへのwiringは行わない。
+polymorphic variant、effect row、bracket-rowもreserved-but-unspecifiedのままである。original core addendumの
+deferred forms listではforallの項目だけを本追補がsupersedeし、残る三形式とall use-site integration boundaryは
+変更しない。
+
+### Yulang2 oracle facts and evidence limits
+
+Yulang2のtype NUD scannerはcontextual word `for`だけを`TypNudTag::Forall`へ分類し、
+`parse_type_from_nud`はそのtagを`parse_type_forall`へdispatchした
+（`yulang2-oracle:crates/parser/src/typ/scan.rs:35-63`、`typ/parse.rs:20-34`）。
+word kindはglobal reservationではなく、type NUD predicateがtrueの位置でだけ`SyntaxKind::For`になった
+（`crates/parser/src/scan/mod.rs:92-107,300-315,368-370`）。type LED word scannerはsyntax-keyword predicateを
+常にfalseとしており、同じspelling `for`をordinary ML atomとして扱った
+（同`:101-107`、`typ/scan.rs:65-92`）。
+
+`parse_type_forall`の実装から読み取れるsurfaceは次である
+（`yulang2-oracle:crates/parser/src/typ/parse.rs:153-191`）。
+
+```text
+ForallType := "for" SigilIdent+ ":" TypeExpression
+```
+
+- first binderはmandatoryであり、loopにはupper boundがない。
+- binder continuationは次tokenが`Atom`かつ`SigilIdent`かだけを判定し、comma branchを持たない。
+  binder間のraw triviaはpreceding lexemeのtrailing triviaとして運ばれる。
+- binderはone bare `SigilIdent` tokenであり、kind annotation、bound、constraint、defaultを持たない。
+- literal colon後は`scan_typ_nud`とfull `parse_type_from_nud`を呼ぶため、bodyはnarrow subsetでなく
+  recursive full `TypeExpression`である（同`:175-182`）。
+- forall branchはbody parse結果を返してouter `parse_tail`へ戻らない。raw forall primary自身へ
+  path / call / apply / arrow tailを後置せず、bodyのnested typeがown tailを持つ（同`:30-34,175-182`）。
+
+ただし、`yulang2-oracle:crates/parser/tests/type_grammar.rs`には`TypeForall`、forall spelling、
+`for 'a: T`のfixtureが一件もない。file内の`for`はRust test harness loopとdiagnostic proseだけである。
+parser test corpus全体で見つかる`for 'outer ...`はstatement-level loop fixtureだけで、type grammarとは無関係である
+（`crates/parser/tests/stmt_grammar.rs:382-403`）。したがって上記はparser codeから確定できる構造であり、
+concrete acceptance / recovery fixtureでhistorical intentまで固定されたsurfaceではない。本追補は以下で
+code-level factとYulang3 architecture-local decisionを明確に分ける。
+
+Yulang2のshared `scan_sigil_ident`は`$`、`&`、`_`、`'`の四prefixをone lexical kindへ畳んだ
+（`yulang2-oracle:crates/parser/src/scan/mod.rs:110-115`）。しかし、このlexical unionはsemantic unionではない。
+`$x`はstate-like variable source / readから`&x` referenceへ写像される
+（`crates/infer/src/lowering/expr_syntax.rs:295-324`）。`&x`はreference receiverを表す
+（`crates/infer/src/syntax.rs:249-258`）。一方type-variable抽出は`SigilIdent`からapostropheを除いてnameを得る
+（同`:845-858,938-953`）。current Yulang3 type scannerもapostropheだけを
+`TypeAtom::SigilIdentifier`とし、`$` / `&`をtype nameから除外している
+（`crates/yu-syntax/src/grammar/type_expr.rs:1183-1196`）。
+
+### Architectural invariants
+
+1. `ForallType`は`TypePrimary`のown nodeであり、`TypePostfixTail`やdynamic operatorではない。
+2. exact maximal word `for`はcanonical type NUD positionでだけcontextual authorityを持つ。
+   type LED / TypeApply candidateではordinary identifierのままである。
+3. binderはapostrophe-prefixed type variableだけであり、generic expression / pattern sigil categoryを再利用しない。
+4. binder repetitionはdelimiter / punctuation separatorを持たない。`LayoutDelimitedFrame`をpushせず、
+   ordered source sequenceとmandatory bounded trivia boundaryで表す。
+5. raw forall primaryはbodyをfull recursive `TypeExpression`として所有し、body parse後にouter fixed-tail loopへ戻らない。
+6. optional probesはinput / sink / recovery / delimiter / stop / layout stateを変えない。canonical NUDで
+   exact `for`をacceptした後だけtotal forall parse / recoveryへcutする。
+7. equal-or-shallower newline、active caller stop、matching outer closeはbinder / colon / body recoveryがconsumeしない。
+
+### Sigil-scope decision
+
+forall binderはapostrophe-prefixed type variableだけをacceptする。
+
+```text
+ApostropheTypeBinderName := Apostrophe UnicodeIdentifierBody
+```
+
+`'a`、`'state`、`'型`はmaximal one `SigilIdentifier` tokenになり、`$a`、`&a`、`_a`はbinderにならない。
+bare apostropheはidentifier bodyを欠くためcandidateではない。scanner mechanicsはcurrent
+`scan_type_name`がapostropheを`TypeName::SigilIdentifier`へ分類するexisting conventionを再利用し、
+forall専用にUnicode word-body ruleをcopyしない。
+
+このnarrowingは意図的である。Yulang2 parserがfour-sigil scannerをbinder slotへそのまま通したのはlexical categoryの
+再利用であり、forall-specific fixtureやsemantic treatmentによる裏付けがない。`$`はstate read、`&`はreference receiver、
+`_`-prefixed nameはpattern-side sigil / ordinary type identifierとの別境界を持つ。これらをuniversal type-variable binderへ
+広げると、type grammarがexpression-side semanticsを偶然importする。already-shipped TypeExpressionがapostropheだけを
+type sigilとしてacceptするsurfaceと一致させる方をauthoritative decisionとする。
+
+### Authoritative surface grammar and bounded trivia
+
+existing `TypePrimary`を次の一項だけ拡張する。
+
+```text
+TypePrimary :=
+    TypeAtom
+  | ParenthesizedTypeGroup
+  | NamedRecordType
+  | ForallType
+
+ForallType :=
+    ForKw
+    ForallTypeBinder
+    { ForallTypeBinder }
+    ForallColonTrivia
+    Colon
+    ForallBodyTrivia
+    TypeExpression
+
+ForallTypeBinder :=
+    ForallBinderBoundary
+    ApostropheTypeBinderName
+
+ForallBinderBoundary :=
+    NonEmptyTriviaWithoutPhysicalNewline
+  | NonEmptyTriviaWithDeeperFollowingIndent(forall_base)
+
+ForallColonTrivia :=
+    EmptyTrivia
+  | SameLineTrivia
+  | TriviaWithDeeperFollowingIndent(forall_base)
+
+ForallBodyTrivia :=
+    EmptyTrivia
+  | SameLineTrivia
+  | TriviaWithDeeperFollowingIndent(forall_base)
+```
+
+`forall_base`はexact `for`をacceptした直後、trailing triviaをconsumeする前のactive lexical-depth
+indentation baselineをsnapshotする。baselineがなければ0である。binder repetitionはこのbaseを更新しない。
+各trivia productionはone maximal trivia clusterをclassifyした結果であり、unbounded `G*`ではない。
+physical newlineのfollowing indentが`forall_base`以下ならproductionへ渡さず、そのnewline前でmandatory slot recoveryを
+行ってouter ownerへ返す。active caller stop / matching outer delimiterはtrivia probeより先に判定する。
+
+keyword-to-first-binderとbinder-to-binderにはnon-empty boundaryを要求する。したがってcanonical spellingは
+`for 'a 'b: T`である。same-line whitespace / commentsまたはstrictly deeper newlineはboundaryになり、comma / semicolonは
+binder separatorにならない。`for'a: T`と`for 'a'b: T`はvalid surfaceではなく、後述のzero-width
+`Missing(Type::ForallBinderBoundary)` recoveryでbinderをsame-position retryする。
+
+last binder-to-colonとcolon-to-bodyはempty triviaを許すため、`for 'a:T`、`for 'a: T`はともにvalidである。
+これらのgapでもequal-or-shallower newlineはconsumeしない。`for 'a:\n  T`はdeeper continuation、
+root base 0の`for 'a:\nT`はMissing bodyを持ってnewline / `T`をouter ownerへ返す。
+
+`ForallTypeBinder`はcomma-delimited listではないため`LayoutDelimitedFrame`、separator token、trailing-separator stateを
+持たない。各binder nodeが自分の直前のmandatory boundary triviaとnameをsource orderで所有する。
+これによりkeyword-to-first-binderとbinder-to-binderをone ruleで表し、missing boundaryを対応するbinderの実在AST slotへ
+関連付けられる。binder listはnon-emptyだが、recovery時にはfirst elementを`Recovered::Incomplete`として保持できる。
+
+accepted binder後のone maximal trivia clusterは、post-trivia tokenをsink-freeにjudgeするまでemitしない。
+next tokenがapostrophe binderならnext `ForallTypeBinder`のboundary、literal colonまたはmissing-colon body candidateなら
+`ForallType`直下の`ForallColonTrivia`になる。probe rollback後にchosen ownerがexactly once emitし、同じgapを
+binder boundaryとcolon triviaの両方へ置かない。
+
+### Primary recognition, contextual `for`, and terminality
+
+canonical TypePrimary NUD judgeを次の順序へ拡張する。
+
+1. active caller stop、matching delimiter、equal-or-shallower caller newlineを先に判定し、boundaryをconsumeしない。
+2. exact maximal word `for`をsink-freeにprobeする。accept時は`ForallType` authorityへcutする。
+3. existing Identifier / SigilIdentifier candidateをprobeする。
+4. Number、exact `(`、exact `{`をexisting orderでprobeする。
+5. candidateなしならinput / sink / local stateを変えずcallerへreturnする。
+
+`forx`、`forall`、`for_`はexact maximal word probeにmatchせずordinary Identifierである。canonical NUD位置のbare
+`for`はbinderが欠けていてもIdentifierへrollbackしない。Yulang2でもNUD scannerが先にForall tagを確定したためである。
+
+type LED / `TypeApplyArgument` candidate judgeはcanonical NUD judgeを無条件に再利用しない。Yulang2の
+`scan_typ_led_word`と同じく、LED位置のexact `for`はordinary Identifier primary recognitionとしてseedする。
+accepted TypeApplyはそのseed済みprimaryからnested type tailを続行し、canonical NUDとして`for`を再scanしない。
+AST / direct-CSTは同じcontext parameter / recognition enumを用い、parse後のCST再走査で分類を変えない。
+
+| source | classification |
+| --- | --- |
+| `for 'a: T` | canonical NUDのone `ForallType` primary |
+| `(for 'a: T)` | parenthesized item開始のcanonical NUDなのでforall primary |
+| `F(for 'a: T)` | TypeCall item開始のcanonical NUDなのでforall primary |
+| `A -> for 'a: T` | arrow RHS開始のcanonical NUDなのでforall primary |
+| `F for 'a: T` | outer `F`にsibling Apply(Identifier `for`) / Apply(SigilIdentifier `'a`)が続き、colon / `T`はcaller-owned。forallへreinterpretしない |
+| `forx 'a` | ordinary Identifier `forx` + TypeApplyArgument(`'a`) |
+
+raw `ForallType` branchはbodyをparseした後にcurrent levelのpath / call / apply / arrow judgeへ戻らない。
+したがって`for 'a: A -> B`のarrowはforall body内部にあり、outer forall primaryのsibling tailではない。
+raw forallへtailを付けたい場合は`(for 'a: A)::Result`のようにparenthesized primaryを明示する。
+これはYulang2 `parse_type_from_nud`のearly returnを保存するterminal-primary ruleであり、
+expression-side `WithBodyTail`のterminalityとは別ownerである。
+
+### CST vocabulary and byte ownership
+
+type grammar vocabularyへ次を追加する。
+
+```text
+SyntaxKind::ForallType
+SyntaxKind::ForallTypeBinder
+SyntaxKind::ForKw
+```
+
+`ForallBinderList`、generic `QuantifiedType`、synthetic separator wrapperは作らない。`ForallType`は
+`TypeExpression`直下のprimary childである。`ForKw`はcanonical NUDでcontextual authorityを得たexact wordだけにemitし、
+LED位置のsame spellingはexisting `Identifier` tokenを保つ。
+
+各`ForallTypeBinder`はleading `ForallBinderBoundary` raw triviaをfirst childrenとして持ち、続いて
+`SigilIdentifier`を持つ。last binder-to-colon trivia、colon token、colon-to-body triviaは`ForallType`直下に置く。
+body内部のtriviaはnested `TypeExpression`のexisting owner ruleへ従う。Missingはzero-width node、Errorは
+non-empty source rangeであり、one node = one committed recovery recordを保つ。
+
+single binder + arrow bodyのcomplete CSTを次で固定する。
+
+```text
+for 'a: A -> A
+
+TypeExpression
+  ForallType
+    ForKw "for"
+    ForallTypeBinder
+      Whitespace " "
+      SigilIdentifier "'a"
+    Colon ":"
+    Whitespace " "
+    TypeExpression
+      Identifier "A"
+      TypeArrowTail
+        Whitespace " "
+        Arrow "->"
+        Whitespace " "
+        TypeExpression
+          Identifier "A"
+```
+
+multiple binder + deeper-newline bodyのcomplete CSTを次で固定する。
+
+```text
+for
+  'a
+  'b:
+    Pair('a, 'b)
+
+TypeExpression
+  ForallType
+    ForKw "for"
+    ForallTypeBinder
+      Newline "\n"
+      Whitespace "  "
+      SigilIdentifier "'a"
+    ForallTypeBinder
+      Newline "\n"
+      Whitespace "  "
+      SigilIdentifier "'b"
+    Colon ":"
+    Newline "\n"
+    Whitespace "    "
+    TypeExpression
+      Identifier "Pair"
+      TypeCallTail
+        LParen "("
+        TypeExpression
+          SigilIdentifier "'a"
+        Comma ","
+        Whitespace " "
+        TypeExpression
+          SigilIdentifier "'b"
+        RParen ")"
+```
+
+上の二例はsourceのspace / newline / punctuationをすべて一度だけ列挙する。binder boundaryはbinder node、
+colon gapsはforall node、arrow / call triviaはnested type ownerにあり、byteの二重所有やsource-absent separatorはない。
+
+### Parser-side surface AST
+
+parser-side ASTを次のshapeへ拡張する。
+
+```rust
+pub enum TypePrimary<'source> {
+    Atom(TypeAtom<'source>),
+    Parenthesized(ParenthesizedTypeGroup<'source>),
+    Record(NamedRecordType<'source>),
+    Forall(ForallType<'source>),
+}
+
+pub struct ForallType<'source> {
+    pub keyword: Range<usize>,
+    pub binders: Vec<Recovered<ForallTypeBinder<'source>>>,
+    pub colon: Recovered<Range<usize>>,
+    pub body: Recovered<Box<TypeExpression<'source>>>,
+    pub range: Range<usize>,
+}
+
+pub struct ForallTypeBinder<'source> {
+    pub boundary: Recovered<Range<usize>>,
+    pub name: WordSpan<'source>,
+    pub range: Range<usize>,
+}
+```
+
+`keyword`はexact `for`をacceptしてからnodeへcutするためalways completeである。`binders`はsource orderを保つ
+non-empty repetitionで、valid binderはone complete itemになる。completely missing first binderまたはmalformed binder runは
+`Recovered::Incomplete` itemを置き、valid nameを含むbinderのtriviaだけが欠けた場合はcomplete binderの
+`boundary: Recovered::Incomplete`とする。boundaryがcompleteならrangeはそのmaximal trivia cluster、binder rangeは
+boundary startからname endまでである。
+
+direct CSTではcomplete / incompleteのどちらもone `ForallTypeBinder` nodeを持つ。missing binder nodeはowned bounded
+triviaがあればそれをemitしてzero-width Missingを置き、malformed binder nodeはowned bounded triviaの後にnon-empty Errorを
+置く。ASTのwhole itemが`Recovered::Incomplete`であっても、raw trivia / malformed bytesのCST homeをforall直下へ
+曖昧に戻さない。
+
+`colon`と`body`は実在mandatory slotsであり、後述のMissing / Error recovery roleに一対一で対応する。
+`ForallType`にはdelimiter close slotもseparator slotもない。recovery tableは存在しないclose fieldを仮定しない。
+zero-width missing slotはrangeを伸ばさず、node rangeはkeyword startから最後にconsumeしたbinder / colon / body / Errorのendまでとする。
+
+### Binder-list termination judge
+
+exact `for` accept後のparser stateを三phaseに分ける。AST / direct-CSTは同じsink-free candidate predicatesと
+safe-point predicateを使い、phaseをtoken spellingから後付け推測しない。
+
+```text
+FirstBinder
+  := no binder has been accepted
+
+BinderOrColon
+  := at least one binder has been accepted; next authority is binder or colon
+
+Body
+  := literal or recovered-missing colon has made the full TypeExpression body mandatory
+```
+
+`FirstBinder`ではapostrophe binderだけがbinder candidateである。literal colonはmissing-first-binder skeletonを
+確定する。ordinary Identifier / Number / `(`/`{` / exact canonical `for`はbody candidateへreinterpretせず、
+malformed first binder bytesとして扱う。body authorityはat least one binderまたはliteral colonによって
+identity phaseが終了した後だけ生じる。これによりbare `for T`へMissing binder + Missing colonを重ねない。
+
+`BinderOrColon` judgeはbounded gapをsink-freeにprobeし、次のexclusive orderを用いる。
+
+1. active owner boundaryまたはequal-or-shallower newlineならgapをrollbackし、Missing colonで終了する。
+2. exact colonがあればbinder listを終了し、Body phaseへ進む。
+3. apostrophe binder candidateがあればnext binderである。non-empty valid boundaryがあればcomplete、
+   adjacentならMissing binder boundaryを一件commitしてsame-position binder retryする。
+4. apostrophe以外のcanonical TypePrimary NUD candidateがあればbinder listを終了し、zero-width Missing colonを
+   commitしたうえでsame-position body retryする。exact canonical `for`もここではnested body candidateである。
+5. malformed non-empty bytesなら、最初に到達するsafe retry candidateでroleを決める。next binderへ到達するrunは
+   binder / boundary recovery、literal colonまたはnon-binder body candidateへ到達するrunはcolon recoveryである。
+6. EOF / safe boundaryならMissing colon一件で終了し、body Missingをcascadeしない。
+
+apostrophe primaryはcolon前では常にbinder authorityを持つ。したがって`for 'a 'b`はtwo binders + Missing colonであり、
+`'b`をcolon-missing bodyへreinterpretしない。apostrophe primaryをbodyにするには`for 'a: 'b`と書く。
+
+### Typed recovery vocabulary and safe points
+
+session vocabularyを次で固定する。
+
+```text
+GrammarRole::Type(TypeRole::ForallBinder)
+GrammarRole::Type(TypeRole::ForallBinderBoundary)
+GrammarRole::Type(TypeRole::ForallColon)
+GrammarRole::Type(TypeRole::ForallBody)
+
+ExpectedSyntax::ForallTypeBinder
+ExpectedSyntax::TypeBinderBoundary
+ExpectedSyntax::TypeExpression
+ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
+```
+
+`RecoveryKind::{Missing, Error}`、existing `ExpectedSyntax::TypeExpression`、colon punctuation evidenceを再利用する。
+forallはdelimiter constructでないため`ConstructRole` / `ClosingDelimiter` variantを追加しない。
+
+safe-point predicateはcurrent lexical depthのEOF、active caller stop、matching / outer-owned close、comma / semicolon、
+equal-or-shallower newline、exact colon、apostrophe binder candidate、canonical non-binder TypePrimary candidateを区別する。
+comma / semicolonはbinder separatorではないが、active outer ownerが所有する場合はErrorへ入れず返す。
+otherwiseのcomma / semicolonは後述のbinder-boundary Errorとしてexact punctuationだけをconsumeする。
+all recovery scannerはbounded triviaをError rangeへ含めず、retry candidate / owner boundaryのfirst byteで止まる。
+
+#### First-binder recovery table
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| `for 'a: T`、`for\n  'a: T` | valid first binder | one complete binder。boundaryはexact trivia range |
+| `for'a: T` | zero-width `Missing(Type::ForallBinderBoundary, TypeBinderBoundary)` | complete binderの`boundary = Incomplete`、same-position name retry |
+| `for` + EOF / active boundary / equal-or-shallower newline | zero-width `Missing(Type::ForallBinder, ForallTypeBinder)` one record | one Incomplete binder。boundaryをconsumeせずcolon / body diagnosticをcascadeしない |
+| `for : T` / `for: T` | zero-width `Missing(Type::ForallBinder, ForallTypeBinder)` | one Incomplete binder、literal colon / bodyはsame nodeで続行。boundary Missingを重ねない |
+| bounded gap後のcomma / semicolon以外のmalformed non-empty bytes + valid binder (`for @ 'a: T`) | maximal non-empty `Error(Type::ForallBinder)` | one Incomplete binder、valid binderをsame-position retry |
+| comma / semicolon以外のmalformed non-empty bytes + literal colon (`for @: T`) | maximal non-empty `Error(Type::ForallBinder)` | one Incomplete binder、literal colonからBody phaseへ。additional Missing binderなし |
+| comma / semicolon以外のnon-apostrophe name / type-shaped or malformed bytesがvalid binder / literal colonより先にsafe boundaryへ到達 (`for T` / `for $a` / `for &a` / `for _a`) | maximal non-empty `Error(Type::ForallBinder)` | one Incomplete binder item。bytesをbodyへreinterpretしない。EOFならcolon / body Missingをcascadeしない |
+| first-binder phaseのcomma / semicolon、かつactive outer stopでない | exact punctuation rangeへ`Error(Type::ForallBinder)` | one Incomplete binder item。punctuation separator nodeは作らず、next binder / literal colon / safe pointへretry |
+
+`for : T`ではliteral colonがmissing-binder skeletonを確定するので、first binder Missingとbinder-boundary Missingを
+同じ原因へ重ねない。`for T`ではbinderを一件もacceptしていないため、`T`をcolon-missing bodyへ昇格させない。
+この二つはliteral colonの有無でmutually exclusiveである。
+
+#### Binder continuation and colon recovery table
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| bounded non-empty gap + apostrophe binder | valid next binder | one complete binder |
+| adjacent apostrophe binder (`for 'a'b: T`) | zero-width `Missing(Type::ForallBinderBoundary, TypeBinderBoundary)` | next binder complete、boundary Incomplete、same-position retry |
+| exact colon after one or more binders | valid colon | `colon = Complete`、Body phaseへ |
+| one or more binders + EOF / active boundary / equal-or-shallower newline | zero-width `Missing(Type::ForallColon, Colon)` one record | `colon/body = Incomplete`、boundaryをconsumeせずMissing bodyをcascadeしない |
+| non-binder TypePrimary candidate after one or more binders (`for 'a T`) | zero-width `Missing(Type::ForallColon, Colon)` | `colon = Incomplete`、candidateをsame-position full body retry |
+| comma / semicolon以外のmalformed bytes followed by valid binder (`for 'a @ 'b: T`) | maximal non-empty `Error(Type::ForallBinder)` | one Incomplete binder item、valid binderでsame-position retry |
+| comma / semicolon followed by valid binder、active outer stopでない (`for 'a, 'b: T`) | exact punctuationへ`Error(Type::ForallBinderBoundary)` | following binder boundaryをRecovered Incompleteまたはfollowing trivia Completeとして一度だけ所有しbinder retry |
+| malformed bytes followed by literal colon (`for 'a @: T`) | maximal non-empty `Error(Type::ForallColon)` | literal colonをsame-slot retryして`colon = Complete(literal range)`。Error recordはmalformed rangeだけを保持し、Body phaseへ |
+| malformed bytes followed by non-binder TypePrimary (`for 'a @ T`) | maximal non-empty `Error(Type::ForallColon)` | `colon = Incomplete`、candidateをsame-position body retry。additional Missing colonなし |
+| malformed bytes followed by EOF / owner boundary | maximal non-empty `Error(Type::ForallColon)` one record | boundaryをconsumeせず、Missing colon / bodyをcascadeしない |
+
+malformed runのroleはretry targetで排他的に決める。earliest safe retryがapostrophe binderなら
+`ForallBinder`、literal colonまたはnon-binder canonical body candidateなら`ForallColon`である。
+same byte rangeへ両roleをcommitしない。comma / semicolonはvalid binder separatorでなく、outer-ownedでない場合だけ
+`ForallBinderBoundary` Errorになる。
+
+malformed-colon + literal-colon rowではnon-empty Error recordとretry後のcomplete literal colonを区別する。
+AST `colon`はactual accepted token rangeを`Complete`で保持し、CSTはError nodeの後にColon tokenをsource orderでemitする。
+literal colonがなくbody candidateへretryしたrowだけが`colon = Incomplete`である。これによりAST token slotと
+lossless CST tokenの有無を一致させる。
+
+#### Body recovery table
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| literal colon + valid canonical TypePrimary | valid full recursive body | `body = Complete(Box<TypeExpression>)` |
+| recovered-missing colon + valid non-binder TypePrimary | same-position full recursive body | colon Incomplete、body Complete |
+| literal colon + EOF / active boundary / equal-or-shallower newline | zero-width `Missing(Type::ForallBody, TypeExpression)` one record | body Incomplete、boundaryをconsumeしない |
+| literal colon + malformed bytes + valid TypePrimary | maximal non-empty `Error(Type::ForallBody)` | valid primaryをsame-position retryし`body = Complete`。Error recordはmalformed rangeだけを保持 |
+| literal colon + malformed bytes + EOF / owner boundary | maximal non-empty `Error(Type::ForallBody)` one record | boundaryをconsumeせずadditional Missing bodyなし |
+
+literal colonをacceptした時点でbodyはmandatoryである。colonがない場合にBody phaseへ入れるのは、at least one binder後に
+non-binder canonical TypePrimary candidateが実在しMissing colonをcommitしたcaseだけである。first binderが欠けた
+`for T`にはこのrowを適用しない。
+
+valid body candidateにはpath / call / apply / arrow / parenthesized / recordとcanonical NUDのnested `for`を含む。
+nested typeのinternal recoveryはexisting type roleまたはnested forall roleを保ち、outer `ForallBody`へremapしない。
+
+no-cascadeをphaseごとに固定する。
+
+- `for` + EOFはMissing binder一件だけであり、colon / body slotはIncompleteでもrecordを追加しない。
+- `for 'a` + EOFはMissing colon一件だけであり、body Missingを追加しない。
+- `for 'a:` + EOFはMissing body一件だけである。
+- `for @`、`for 'a @`、`for 'a: @`がEOFへ達したとき、各phaseのnon-empty Error一件だけであり、
+  same slotのzero-width Missingを積まない。
+- malformed binder itemとlater missing colon、missing colonとlater malformed bodyのように原因とslotが別なら、
+  each phaseでone recordを持てる。
+
+### Interaction with existing type grammar
+
+forall bodyはstandalone canonical type entryを一度呼び、`ForallBodyType` subsetを作らない。named recordのfield RHS、
+TypeCall / ParenthesizedGroup item、arrow RHSではcanonical NUD位置としてforallを開始できる。
+body内ではexisting `TypeDelimitedOwner`、NamedRecord next-field query、`type_ml_arg`、delimiter / stop stackをそのまま
+composeし、forall独自frameをpushしない。
+
+代表shapeを次で固定する。
+
+```text
+for 'a: List('a) -> {value: 'a}
+
+outer TypeExpression
+  primary = Forall
+    binders = ['a]
+    body = TypeExpression(
+      primary List,
+      postfix Call('a),
+      arrow Record({value: 'a})
+    )
+  postfix = []
+  arrow = None
+
+(for 'a: 'a)::Result
+
+outer TypeExpression
+  primary = ParenthesizedTypeGroup(Forall)
+  postfix = [TypePathTail(Result)]
+```
+
+forall primary additionはexisting path / call / apply / arrow precedenceを変更しない。唯一のcontextual boundaryは
+canonical NUD vs TypeApply LEDの`for` classificationであり、recognition enumのaccept前に決める。
+`OperatorTable` dependencyを追加しない。standalone entryのouter missing-role overrideはexact `for`がacceptされる前の
+completely missing typeだけに適用し、accepted forall内部のbinder / colon / body rolesをcaller roleへremapしない。
+
+### Explicit Yulang2 divergences and architecture-local decisions
+
+1. Yulang2 forallにはdedicated parser fixtureがない。本追補はparser codeで確定できるkeyword authority、binder repetition、
+   mandatory colon、full body recursion、terminal-primary behaviorを保存する一方、unverified edge caseを「historical fixture parity」
+   と主張しない。
+2. Yulang2 shared lexerは`$` / `&` / `_` / `'`をforall binderとして通し得た。Yulang3はsemantic type-variable conventionと
+   existing type scannerに合わせapostrophe-onlyへ限定する。これはintentional source acceptance differenceである。
+3. Yulang2 parserはbinder間のnon-empty triviaを明示検証せず、lexeme scannerのmaximalityだけに依存した。
+   Yulang3はone binder = one preceding bounded boundaryを要求し、adjacent bindersへtyped Missing boundary recoveryを行う。
+4. Yulang2のtrailing trivia / raw indentは`TriviaInfo`とparser-local indent比較であった。Yulang3は`forall_base` snapshotと
+   existing bounded trivia classifierを用い、equal-or-shallower newlineをouter ownerへ返す。
+5. Yulang2はinvalid binder / colon / bodyへgeneric `InvalidToken`をemitまたはEOFを`?`でpropagateした。
+   Yulang3はphase-specific typed Missing / Error、maximal non-empty run、same-position retry、no-cascadeを用いる。
+6. Yulang2 CSTは`TypeForall`直下へbinder tokenをflat emitした。Yulang3はmandatory boundary ownershipとper-binder recoveryを
+   表す`ForallTypeBinder` source-order childを追加し、synthetic list / separator wrapperは作らない。
+7. type LED位置の`for`をordinary Identifierとして扱う点とraw forallがouter tailへ戻らない点はYulang2を保存する。
+   Yulang3はこの差をcanonical / LED recognition contextとして型付けし、同じscannerの偶然に委ねない。
+
+### Implementation boundary and gates
+
+implementationは`type_expr.rs`のstandalone type grammar、必要な`SyntaxKind` / session vocabulary、同module testsだけを
+変更する。declaration / pattern / expression use-site wiringは行わない。
+
+implementation gateを次で固定する。
+
+1. exact maximal `for`だけがcanonical NUDでforall authorityを得て、`forx` / `forall` / `for_`はordinary Identifierになる。
+2. `'a` / multiple apostrophe bindersをacceptし、`$a` / `&a` / `_a` / bare apostropheをvalid binderにしない。
+3. single / multiple binder、same-line comment boundary、strictly deeper newline boundary、equal-or-shallower stopを
+   AST / direct-CSTで固定する。
+4. binder boundaryはnon-emptyかつboundedで、`for'a` / `'a'b`はzero-width Missing boundary + same-position retryになる。
+5. comma / semicolonをbinder separatorにせず、outer-owned punctuationはconsumeせず、otherwiseはtyped boundary Errorになる。
+6. `for 'a: A -> B`のarrowとall path / call / apply / parenthesized / record formsをforall bodyが所有し、
+   outer forallのpostfix / arrowはemptyになる。
+7. `(for 'a: T)::Result`だけがgroupを介してouter postfixを持ち、raw forall terminalityを固定する。
+8. canonical NUDの`for 'a: T`対TypeApply LEDの`F for 'a: T`をfixture化し、LED `for`をforallへ再scanしない。
+9. first-binder / continuation / colon / body recovery tableの各rowをrole / kind / exact range / Complete-Incomplete shapeで検証する。
+10. `for` / `for 'a` / `for 'a:` EOF三段階と各phaseのmalformed-to-EOFでno-cascadeを検証する。
+11. malformed retry targetによりBinder対Colon Errorが排他的になり、same byte rangeへ二roleをcommitしない。
+12. active stop、matching / outer-owned close、comma / semicolon、equal-or-shallower newlineをforall recoveryがconsumeしない。
+13. two worked examples相当のfixtureでall trivia byte ownership、lossless round trip、balanced nodes、no synthetic separatorを検証する。
+14. optional candidate probe、canonical-vs-LED recognition、AST/direct-CSTが同じcut / retry / rangeを持ち、
+    indentation / delimiter / stop / type-ML stateをnormal / recovery / rollbackでexact restoreする。
+15. existing TypeExpression path / call / apply / arrow / group / named-record fixturesをbyte-identical / equal ASTのまま保ち、
+    `OperatorTable` dependencyを追加しない。
+16. polymorphic variant / effect row / bracket rowとall use-site wiringを実装しない。
+
+### Closed decisions and internal consistency review
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- binder sigilはapostrophe-onlyである。
+- binder repetitionはnon-delimitedで、each binder owns one mandatory bounded leading boundary。
+- exact `for`はcanonical NUDでcutし、LEDではordinary Identifierである。
+- raw forall primaryはfull recursive bodyをownし、outer type tailへ戻らない。
+- at least one binder前はordinary TypePrimaryをbodyへreinterpretせず、literal colonだけがmissing-first-binder skeletonを確定する。
+- at least one binder後はapostrophe candidateがbinder、non-binder canonical candidateがmissing-colon bodyになる。
+- recovery roleはparse phaseとearliest retry targetで排他的に決まり、one causeへMissing / Errorをcascadeしない。
+
+final reviewで次のfour issue classをend-to-end再点検した。
+
+1. **bounded trivia vs newline contract:** production中にunbounded `G*`はない。binder boundary、colon gap、body gapは
+   `forall_base`へ対するsame-line / strictly-deeper classifierだけを使い、equal-or-shallower newlineをconsumeしない。
+2. **CST byte completeness:** single-binder arrow例とmultiple-binder newline例の全space / newline / punctuationを列挙し、
+   binder / forall / nested typeのhomeを一意にした。
+3. **AST / recovery-slot alignment:** binder boundary、whole binder、colon、bodyの全recovery roleに対応する
+   `Recovered` fieldまたは`Vec<Recovered<...>>` slotが実在し、存在しないclose / separator fieldをtableから参照しない。
+4. **recovery-row exclusivity:** FirstBinder / BinderOrColon / Body phaseを先に固定し、literal colon、apostrophe binder、
+   non-binder body candidate、owner boundaryをexclusive orderでjudgeする。malformed runはearliest retry targetでBinder / Colonを
+   一意に決め、EOF no-cascade rowと重ねない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、standalone TypeExpression forall / universal-quantifier type primary追補案）。
