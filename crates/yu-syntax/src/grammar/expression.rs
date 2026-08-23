@@ -7518,6 +7518,168 @@ mod tests {
     }
 
     #[test]
+    fn malformed_struct_in_indented_if_restores_sibling_and_companion_owners() {
+        let source = "if condition:\n  struct S { x: Int ]}\n  my sibling = value\nelse: 0";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("if body has its indented statement owner");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            2,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1,
+        );
+
+        let bad = source.find(']').expect("fixture has the local bad closer");
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructNamedFields,
+                    delimiter: Delimiter::Brace,
+                }
+                && site.range == (bad..(bad + 1))
+        ));
+    }
+
+    #[test]
+    fn struct_in_braced_statement_block_leaves_the_outer_close_for_its_owner() {
+        let source = "{ struct S { x: Int } ; my sibling = value }";
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .expect("braced statement block");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            2,
+        );
+        assert_eq!(
+            block
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::RBrace)
+                .map(|token| token.text().to_string())
+                .collect::<Vec<_>>(),
+            ["}"],
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn indented_struct_before_dedent_leaves_the_outer_else_boundary_intact() {
+        let source = "if condition:\n  struct S:\n    x: Int\nelse: 0";
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+            .expect("if body has its indented statement owner");
+        assert_eq!(
+            block
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Statement)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn malformed_root_struct_keeps_following_root_sibling_and_recovery_local() {
+        let source = "my before = value\nstruct S { x: Int ]}\nmy after = value";
+        let output = crate::grammar::declaration::parse_direct_root_candidate(
+            source,
+            &canonical_operator_table(),
+            &[],
+        );
+        let recoveries = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .map(|node| node.to_string())
+                .collect::<Vec<_>>(),
+            ["my before = value", "my after = value"],
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .count(),
+            1,
+        );
+
+        let bad = source.find(']').expect("fixture has the local bad closer");
+        assert!(matches!(
+            recoveries.as_slice(),
+            [CommittedRecoveryRecord { kind: RecoveryKind::Error, site, .. }]
+                if site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructNamedFields,
+                    delimiter: Delimiter::Brace,
+                }
+                && site.range == (bad..(bad + 1))
+        ));
+    }
+
+    #[test]
     fn if_expression_is_binding_power_invariant() {
         let source = "if x + y: a + b else: c + d";
         let low = colon_operator_table(BindingPower::scalar(1));
