@@ -1100,8 +1100,133 @@ where
         }
     }
     committed.token(SyntaxKind::StructKw, intro.struct_keyword.range());
+
+    if let Some(trivia) = committed.probe(|probe| {
+        struct_continuation_trivia(intro.struct_base, probe.input())
+    }) {
+        committed.emit_trivia(&trivia);
+    }
+
+    let mut name_incomplete = false;
+    let mut name_error = false;
+    if let Some(name) = commit_word(committed) {
+        committed.token(SyntaxKind::Identifier, name.range());
+    } else {
+        match struct_name_error_retry(committed) {
+            Some(true) => {
+                let name = commit_word(committed)
+                    .expect("a Struct name retry must leave its raw word at the cursor");
+                committed.token(SyntaxKind::Identifier, name.range());
+            }
+            Some(false) => {
+                name_incomplete = true;
+                name_error = true;
+            }
+            None => {
+                name_incomplete = true;
+                emit_struct_missing(committed, crate::session::StructRole::Name, ExpectedSyntax::Identifier);
+            }
+        }
+    }
+
+    let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
+    if !name_error && (!name_incomplete || body_starter_pending) {
+        if let Some(trivia) = committed.probe(|probe| {
+            struct_continuation_trivia(intro.struct_base, probe.input())
+        }) {
+            committed.emit_trivia(&trivia);
+        }
+        commit_struct_body_introducer(committed);
+    }
     committed.finish_node();
     Recovered::Complete(())
+}
+
+fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut starter = committed.probe(|probe| struct_body_starter(probe.input()));
+    if starter.is_none() && !commit_word_candidate(committed) {
+        if struct_body_introducer_error_retry(committed).is_some_and(|retry| retry) {
+            starter = committed.probe(|probe| struct_body_starter(probe.input()));
+        }
+    }
+
+    match starter {
+        Some(StructBodyStarter::Bodyless(range)) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("a selected Struct semicolon remains available");
+            debug_assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Semicolon, range);
+        }
+        Some(StructBodyStarter::NamedBraced(range)) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("a selected Struct brace remains available");
+            debug_assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::LBrace, range);
+        }
+        Some(StructBodyStarter::Tuple(range)) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("a selected Struct parenthesis remains available");
+            debug_assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::LParen, range);
+        }
+        Some(StructBodyStarter::NamedIndented(range)) => {
+            let punctuation = committed
+                .probe(|probe| probe.input().run(scan_punctuation))
+                .expect("a selected Struct colon remains available");
+            debug_assert_eq!(punctuation.range(), range);
+            committed.token(SyntaxKind::Colon, range);
+        }
+        None => emit_struct_body_introducer_missing(committed),
+    }
+}
+
+#[derive(Clone)]
+enum StructBodyStarter {
+    Bodyless(Range<usize>),
+    NamedBraced(Range<usize>),
+    Tuple(Range<usize>),
+    NamedIndented(Range<usize>),
+}
+
+fn struct_body_starter<E>(i: &mut SynIn<E>) -> Option<StructBodyStarter>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    let starter = match punctuation.kind() {
+        PunctuationKind::Semicolon => StructBodyStarter::Bodyless(punctuation.range()),
+        PunctuationKind::Open(Delimiter::Brace) => StructBodyStarter::NamedBraced(punctuation.range()),
+        PunctuationKind::Open(Delimiter::Parenthesis) => StructBodyStarter::Tuple(punctuation.range()),
+        PunctuationKind::Colon => StructBodyStarter::NamedIndented(punctuation.range()),
+        _ => {
+            i.rollback(checkpoint);
+            return None;
+        }
+    };
+    i.rollback(checkpoint);
+    Some(starter)
+}
+
+fn struct_body_starter_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_body_starter(i).is_some()
 }
 
 fn commit_mod_colon_body<'parse, 'source, 'local, E, O>(
@@ -1441,6 +1566,204 @@ fn emit_mod_body_introducer_missing<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_struct_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: crate::session::StructRole,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(role));
+        let at = i.pos();
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn emit_struct_body_introducer_missing<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(
+            crate::session::StructRole::BodyIntroducer,
+        ));
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis)), range: at..at, sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: at..at, sources: source },
+            ]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
+}
+
+fn struct_name_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_error_retry(
+        committed,
+        crate::session::StructRole::Name,
+        ExpectedSyntax::Identifier,
+        |i| struct_body_starter_pending(i),
+        |i| struct_word_pending(i),
+        |_| false,
+    )
+}
+
+fn struct_body_introducer_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_error_retry(
+        committed,
+        crate::session::StructRole::BodyIntroducer,
+        ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        |_| false,
+        |i| struct_body_starter_pending(i),
+        |i| struct_word_pending(i) || struct_double_colon_pending(i),
+    )
+}
+
+fn struct_word_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn struct_double_colon_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i
+        .run(scan_punctuation)
+        .is_some_and(|punctuation| punctuation.kind() == PunctuationKind::ColonColon);
+    i.rollback(checkpoint);
+    pending
+}
+
+fn struct_error_retry<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: crate::session::StructRole,
+    expected: ExpectedSyntax,
+    safe_boundary: impl Fn(&mut SynIn<E>) -> bool,
+    retry_after_error: impl Fn(&mut SynIn<E>) -> bool,
+    terminal_candidate: impl Fn(&mut SynIn<E>) -> bool,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let recovered = committed.probe(|probe| {
+        let start = probe.input().pos();
+        let mut end = start;
+        loop {
+            let i = probe.input();
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, false));
+            };
+            if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}')
+                || safe_boundary(i)
+                || terminal_candidate(i)
+            {
+                return (start < end).then_some((start..end, false));
+            }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+            if retry_after_error(i) {
+                return Some((start..end, true));
+            }
+        }
+    })?;
+    let (range, retry) = recovered;
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(role));
+        let source = ExpectationSources::COMMITTED_RECOVERY_RULE;
+        let expectations: Arc<[SyntaxExpectation]> = match role {
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::BodyIntroducer,
+            )) => Arc::from([
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Semicolon), range: range.clone(), sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Brace)), range: range.clone(), sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Open(Delimiter::Parenthesis)), range: range.clone(), sources: source },
+                SyntaxExpectation { role, expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon), range: range.clone(), sources: source },
+            ]),
+            _ => Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: source,
+            }]),
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            expectations,
+            0,
+        )
+    });
+    committed.emit_error(record);
+    Some(retry)
 }
 
 /// Recover one malformed raw-name episode without stealing a Mod body starter
@@ -4526,9 +4849,9 @@ where
     ))
 }
 
-/// Parses only the committed Struct prefix until the mandatory name and body
-/// continuation lands. Keeping these slots explicitly incomplete preserves
-/// Struct authority without claiming an unimplemented body grammar.
+/// Parses the committed Struct header and its body introducer. Field sequences
+/// remain deliberately unparsed until their dedicated declaration drivers
+/// land, but a recognized introducer fixes the body family immediately.
 pub(crate) fn parse_struct_declaration<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<StructDeclaration<'source>>
@@ -4538,12 +4861,172 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let intro = i.run(recognize_struct_statement_intro)?;
+    let _ = struct_continuation_trivia(intro.struct_base, &mut i);
+    let mut name_incomplete = false;
+    let mut name_error = false;
+    let name = if let Some(name) = i.run(scan_word) {
+        Recovered::Complete(name)
+    } else {
+        match struct_name_error_retry_ast(&mut i) {
+            Some(true) => Recovered::Complete(
+                i.run(scan_word)
+                    .expect("a Struct name retry must leave its raw word at the cursor"),
+            ),
+            Some(false) => {
+                name_incomplete = true;
+                name_error = true;
+                Recovered::Incomplete
+            }
+            None => {
+                name_incomplete = true;
+                Recovered::Incomplete
+            }
+        }
+    };
+    let body_starter_pending = struct_body_starter_pending(&mut i);
+    let body = if !name_error && (!name_incomplete || body_starter_pending) {
+        let _ = struct_continuation_trivia(intro.struct_base, &mut i);
+        parse_struct_body_ast(intro.struct_base, &mut i).map_or(Recovered::Incomplete, Recovered::Complete)
+    } else {
+        Recovered::Incomplete
+    };
+    let end = match &body {
+        Recovered::Complete(StructBody::Bodyless { semicolon }) => semicolon.end,
+        Recovered::Complete(StructBody::NamedBraced(body)) => body.range.end,
+        Recovered::Complete(StructBody::NamedIndented(body)) => body.range.end,
+        Recovered::Complete(StructBody::Tuple(body)) => body.range.end,
+        Recovered::Incomplete => match &name {
+            Recovered::Complete(name) => name.range().end,
+            Recovered::Incomplete => intro.struct_keyword.range().end,
+        },
+    };
     Some(StructDeclaration {
         visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
-        name: Recovered::Incomplete,
-        body: Recovered::Incomplete,
-        range: intro.start..intro.struct_keyword.range().end,
+        name,
+        body,
+        range: intro.start..end,
     })
+}
+
+fn parse_struct_body_ast<'source, E>(
+    struct_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<StructBody<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut starter = struct_body_starter(i);
+    if starter.is_none() && !struct_word_pending(i) {
+        if struct_body_introducer_error_retry_ast(i).is_some_and(|retry| retry) {
+            starter = struct_body_starter(i);
+        }
+    }
+    let starter = starter?;
+    let punctuation = i.run(scan_punctuation).expect("a selected Struct body starter remains available");
+    match starter {
+        StructBodyStarter::Bodyless(range) => {
+            debug_assert_eq!(punctuation.range(), range);
+            Some(StructBody::Bodyless { semicolon: range })
+        }
+        StructBodyStarter::NamedBraced(range) => {
+            debug_assert_eq!(punctuation.range(), range);
+            Some(StructBody::NamedBraced(StructNamedBracedBody {
+                open: range.clone(),
+                fields: Vec::new(),
+                trailing_comma: None,
+                close: Recovered::Incomplete,
+                range,
+            }))
+        }
+        StructBodyStarter::Tuple(range) => {
+            debug_assert_eq!(punctuation.range(), range);
+            Some(StructBody::Tuple(StructTupleBody {
+                open: range.clone(),
+                fields: Vec::new(),
+                trailing_comma: None,
+                close: Recovered::Incomplete,
+                range,
+            }))
+        }
+        StructBodyStarter::NamedIndented(range) => {
+            debug_assert_eq!(punctuation.range(), range);
+            Some(StructBody::NamedIndented(StructNamedIndentedBody {
+                colon: range.clone(),
+                base_indent: struct_base,
+                // The real driver captures the first field's indent. Until it
+                // exists, retaining the already-authoritative struct base
+                // avoids inventing a field-derived baseline.
+                block_indent: struct_base,
+                fields: Vec::new(),
+                trailing_comma: None,
+                range,
+            }))
+        }
+    }
+}
+
+fn struct_name_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_error_retry_ast(
+        i,
+        |i| struct_body_starter_pending(i),
+        |i| struct_word_pending(i),
+        |_| false,
+    )
+}
+
+fn struct_body_introducer_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    struct_error_retry_ast(
+        i,
+        |_| false,
+        |i| struct_body_starter_pending(i),
+        |i| struct_word_pending(i) || struct_double_colon_pending(i),
+    )
+}
+
+fn struct_error_retry_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    safe_boundary: impl Fn(&mut SynIn<'_, 'source, '_, E>) -> bool,
+    retry_after_error: impl Fn(&mut SynIn<'_, 'source, '_, E>) -> bool,
+    terminal_candidate: impl Fn(&mut SynIn<'_, 'source, '_, E>) -> bool,
+) -> Option<bool>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n' | ';' | ',' | ')' | ']' | '}')
+            || safe_boundary(i)
+            || terminal_candidate(i)
+        {
+            return (start < i.pos()).then_some(false);
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if retry_after_error(i) {
+            return Some(true);
+        }
+    }
 }
 
 /// Parses only declaration forms that are valid in the source-leading header.
@@ -5006,6 +5489,17 @@ where
         return None;
     }
     Some(trivia)
+}
+
+/// One maximal Struct continuation run. It may cross a newline only when the
+/// next line stays inside the baseline captured by the Struct introduction.
+fn struct_continuation_trivia<E>(struct_base: usize, i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    mod_trivia(struct_base, i)
 }
 
 fn parse_binding_body_ast<'source, E>(
@@ -9106,11 +9600,7 @@ mod tests {
                 .set_local(&mut local);
             matches!(
                 i.run(parse_declaration),
-                Some(Declaration::Struct(StructDeclaration {
-                    name: Recovered::Incomplete,
-                    body: Recovered::Incomplete,
-                    ..
-                }))
+                Some(Declaration::Struct(_))
             )
         };
         let parses_nested_struct = |source: &str| {
@@ -9171,6 +9661,118 @@ mod tests {
     }
 
     #[test]
+    fn struct_header_slots_and_bodyless_form_are_typed_on_both_paths() {
+        for (source, visibility, name_range, semicolon) in [
+            ("struct S;", Visibility::Private, 7..8, 8..9),
+            ("pub struct Marker;", Visibility::Public, 11..17, 17..18),
+        ] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(declaration.visibility, visibility, "{source:?}");
+            assert!(matches!(declaration.name, Recovered::Complete(ref name) if name.range() == name_range), "{source:?}");
+            assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon: ref range }) if *range == semicolon), "{source:?}");
+            assert_eq!(declaration.range, 0..semicolon.end, "{source:?}");
+            assert_eq!(remainder, "", "{source:?}");
+
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(output.committed_recoveries().len(), 0, "{source:?}");
+        }
+
+        let output = parse_direct_root_candidate(
+            "pub struct Marker;",
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        let tokens: Vec<_> = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .collect();
+        assert_eq!(tokens, vec![
+            (SyntaxKind::PubKw, "pub".to_owned(), 0..3),
+            (SyntaxKind::Whitespace, " ".to_owned(), 3..4),
+            (SyntaxKind::StructKw, "struct".to_owned(), 4..10),
+            (SyntaxKind::Whitespace, " ".to_owned(), 10..11),
+            (SyntaxKind::Identifier, "Marker".to_owned(), 11..17),
+            (SyntaxKind::Semicolon, ";".to_owned(), 17..18),
+        ]);
+
+        for (source, role, range) in [
+            ("struct", crate::session::StructRole::Name, 6..6),
+            ("struct;", crate::session::StructRole::Name, 6..6),
+            ("struct S", crate::session::StructRole::BodyIntroducer, 8..8),
+        ] {
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let [record] = output.committed_recoveries() else {
+                panic!("one typed recovery expected for {source:?}");
+            };
+            assert_eq!(record.kind, RecoveryKind::Missing, "{source:?}");
+            assert_eq!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Struct(role)),
+                "{source:?}"
+            );
+            assert_eq!(record.site.range, range, "{source:?}");
+        }
+
+        let (declaration, remainder) = parse_struct_for_test("struct;");
+        assert!(matches!(declaration.name, Recovered::Incomplete));
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (6..7)));
+        assert_eq!(remainder, "");
+
+        let (declaration, remainder) = parse_struct_for_test("struct @ S;");
+        assert!(matches!(declaration.name, Recovered::Complete(ref name) if name.range() == (9..10)));
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::Bodyless { semicolon }) if semicolon == (10..11)));
+        assert_eq!(remainder, "");
+        let output = parse_direct_root_candidate(
+            "struct @ S;",
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let [record] = output.committed_recoveries() else {
+            panic!("one Struct name error expected");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Name))
+        );
+        assert_eq!(record.site.range, 7..9);
+
+        for (source, expected_open) in [
+            ("struct S {", 9..10),
+            ("struct S(", 8..9),
+            ("struct S:", 8..9),
+        ] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(remainder, "", "{source:?}");
+            match declaration.body {
+                Recovered::Complete(StructBody::NamedBraced(body)) => {
+                    assert_eq!(body.open, expected_open);
+                    assert!(body.fields.is_empty());
+                    assert!(matches!(body.close, Recovered::Incomplete));
+                }
+                Recovered::Complete(StructBody::Tuple(body)) => {
+                    assert_eq!(body.open, expected_open);
+                    assert!(body.fields.is_empty());
+                    assert!(matches!(body.close, Recovered::Incomplete));
+                }
+                Recovered::Complete(StructBody::NamedIndented(body)) => {
+                    assert_eq!(body.colon, expected_open);
+                    assert!(body.fields.is_empty());
+                }
+                _ => panic!("expected a recognized incomplete Struct body for {source:?}"),
+            }
+        }
+
+        let (declaration, remainder) = parse_struct_for_test("struct S::");
+        assert!(matches!(declaration.body, Recovered::Incomplete));
+        assert_eq!(remainder, "::");
+    }
+
+    #[test]
     fn source_leading_mod_ends_header_discovery_without_header_projection() {
         let source: Arc<crate::SourceText> = Arc::from("mod outer;");
         let header = crate::scan_header(source);
@@ -9197,6 +9799,19 @@ mod tests {
             parse_direct_root_candidate(source, &low, &[]).green(),
             parse_direct_root_candidate(source, &high, &[]).green(),
         );
+    }
+
+    fn parse_struct_for_test<'source>(source: &'source str) -> (StructDeclaration<'source>, String) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let declaration = i
+            .run(parse_struct_declaration)
+            .expect("the Struct introduction must commit its header continuation");
+        (declaration, i.input.remainder().to_owned())
     }
 
     fn parse_mod(source: &str) -> (ModDeclaration<'_>, &str) {
