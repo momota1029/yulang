@@ -13024,9 +13024,9 @@ separator classificationは次のexhaustive orderである。
 1. current record depthのliteral commaがあればone explicit boundaryとしてacceptする。
 2. commaがなく、physical newlineのfollowing indent `<= named_record_base`ならone implicit boundaryとする。
 3. following indent `> named_record_base`ならfield内のtype continuation候補であり、separatorではない。
-4. newline / commaがなく、次位置に`Identifier TypeRecordFieldTrivia Colon`というcomplete field-head
-   candidateがあり、current RHSがそのtriviaをvalid TypeApplyとして所有していない場合だけ、zero-width
-   missing separatorをcommitしてsame-position field retryする。
+4. field RHSのtail judgeが後述のtyped owner-boundary queryによりsame-line triviaをconsumeせずreturnし、
+   そのpost-trivia位置に`Identifier TypeRecordFieldTrivia Colon`というcomplete field-head candidateが
+   実在するときだけ、zero-width missing separatorをcommitしてsame-position field retryする。
 5. どれにも該当しなければlistを終了し、close / owner-safe recoveryへ進む。
 
 commaとnewlineが同じgapにあればcommaがone boundaryのauthorityを持ち、post-comma newlineはそのboundaryの
@@ -13038,17 +13038,41 @@ record fieldはcomma / implicit newlineだけをacceptする。TypeCallTail / Pa
 separator setだけを`Comma`へparameterizeする。semicolonはrecord ownerがactive outer stopとして予約していれば
 consumeせず返し、そうでなければnon-empty malformed separator recoveryの対象になる。
 
-same-line missing separatorのcontextual probeはfield typeのordinary ML applyを壊さない。次を固定する。
+same-line missing separatorはsequence parserがcompleted RHSを後からguessしてsplitする規則ではない。
+existing type-delimited item mechanismを、typed `TypeDelimitedOwner::NamedRecord`の
+`next_item_candidate` queryでparameterizeする。field RHSとしてcanonical `TypeExpression`を呼ぶ間、
+top ownerはNamedRecordである。existing core tail judgeのstep 1--5は変更せず、step 6の
+trivia-owned `TypeApplyArgument` accept直前に次を行う。
+
+1. probed triviaにphysical newlineがなく、post-trivia位置のsink-free probeがcomplete
+   `Identifier TypeRecordFieldTrivia Colon`を認識すれば、NamedRecord owner boundaryがauthorityを得る。
+2. tail judgeはinput / sink / recoveryをcommitせず、trivia前へrollbackしてcurrent field RHSを終了する。
+3. record sequence ownerが同じtriviaをexactly once emitし、post-trivia field-head位置へzero-width
+   `Missing(Type::RecordFieldSeparator)`をcommitしてsame-position field retryする。
+4. complete headでなければowner queryはfalseを返し、original step 6のTypeApply candidate judgeをそのまま行う。
+
+これはCall / ParenthesizedGroupのlist loopがすでに担う「current item continuationかnext itemか」という
+責務をtyped owner-boundary queryへ集約し、そのNamedRecord caseをtail accept前にも参照可能にする拡張である。
+record用のpartial TypeExpression parserやparse後のCST再走査ではない。Call / ParenthesizedGroup caseは
+complete field-headのようなstronger next-item spellingを持たないため、このpre-TypeApply queryでは常にfalseを返し、
+bare TypePrimaryをvalid TypeApplyとして扱う既存挙動を変えない。nested call / parenthesized groupをparse中は
+top ownerがそのnested ownerなので、
+outer recordのfield-head queryは発火しない。deeper newlineはこのqueryの対象外でstep 3のtype continuation、
+equal-or-shallower newlineはstep 2のimplicit separatorである。
+
+このjudge orderによりfield typeのordinary ML applyを保ちながら、container-owned colonが後続するcomplete
+field headだけをcurrent itemから返せる。次を固定する。
 
 | source | classification |
 | --- | --- |
 | `{a: F B}` | one field、RHSは`F` + `TypeApplyArgument(B)` |
 | `{a: F B, c: C}` | first field RHSは`F B`、comma後にsecond field |
-| `{a: F b: B}` | `b:` complete field-head candidateがauthorityを得るため、first RHSは`F`で止まりMissing separator後にfield `b: B`をretry |
+| `{a: F b: B}` | TypeApply step直前のNamedRecord owner queryが`b:`をclaimするため、first RHSは`F`で止まりMissing separator後にfield `b: B`をretry |
 
 最後のrowはtyped recoveryのためのYulang3 ruleである。field-head probeはsink-free / recovery-freeで、
-plain identifierの後にbounded field triviaとliteral colonが実在するときだけ成功する。単なる次TypePrimaryだけを
-見てRHS TypeApplyを分割しない。
+plain identifierの後にbounded field triviaとliteral colonが実在するときだけ成功する。`F B`では`B`後に
+colonがないためqueryはfalseとなり、original TypeApply judgeがauthorityを保つ。prospective apply argumentを
+parseしてからcolonを見つけて巻き戻すのではなく、同じcandidate probeをAST / direct-CSTのaccept前に共有する。
 
 empty `{}`はvalidである。literal trailing commaとqualifying trailing implicit newlineは、boundary後のtriviaを
 probeした位置にmatching `}`が実在するときだけvalid trailing boundaryになる。trailing commaはASTの
@@ -13186,6 +13210,12 @@ TypeDelimitedOwner := Call | ParenthesizedGroup | NamedRecord
 semicolonはrecord-local separator stopへ追加しない。field RHSのcanonical TypeExpressionはtop frameを読み、
 current record separator / close / active caller stopを越えない。
 
+existing post-item candidate judgmentとtail-loop ownership judgmentが別規則へdriftしないよう、
+`TypeDelimitedOwner`はsink-free `next_item_candidate_after(trivia)` queryを一つ持つ。
+Call / ParenthesizedGroupはpre-TypeApply phaseで常にfalse、NamedRecordはphysical newlineを含まないbounded trivia後の
+complete `Identifier TypeRecordFieldTrivia Colon`だけtrueである。AST / direct-CSTのtail judgeとrecord sequence loopは
+このsame queryを共有する。queryはinput / sink / recovery / owner stackを変えず、true時はcallerがtrivia前へrollbackする。
+
 typed vocabularyを次で固定する。
 
 ```text
@@ -13213,6 +13243,24 @@ record-local comma、matching `}`、outer-owned mismatched close、active caller
 retry candidateの前で止まる。record-local comma / implicit newline / matching `}`はError bytesへ入れずrecord ownerが
 処理する。それ以外のactive outer boundaryはrecord parser自身がconsumeしない。
 
+sequence recoveryとfield-internal recoveryのcutを、field parser開始前に一度だけ決める。clean new item位置の
+sink-free field-authority probeがacceptするのは、(a) plain `Identifier`、(b) literal colon、または
+(c) separator / close / outer safe pointを越えず、途中にvalid Identifier tokenを含まないnon-empty malformed
+name runの直後にliteral colonが実在する場合、
+の三つだけである。(a)はordinary field、(b)はmissing-name field、(c)はmalformed-name fieldへcutする。
+cut後のname / colon / type recoveryは`TypeRecordField` internal roleだけを使い、sequence-level
+`Error(Type::RecordField)`へ戻らない。
+
+このprobeが失敗したnew item位置ではfield parseはまだ始まっていない。sequence recoveryだけがauthorityを持ち、
+complete `Identifier TypeRecordFieldTrivia Colon`、literal-colon missing-name skeleton、またはsafe pointまでの
+malformed bytesを
+`Error(Type::RecordField)`としてconsumeする。したがって`{@ a: A}`の`@`はrange `1..2`のwhole-field Error、
+続くspaceはrecord-owned raw trivia、`a: A`はsame-position retryされた別のcomplete fieldである。
+一方`{@: A}`ではliteral colonがfield skeletonを確定するため、`@`はrange `1..2`の
+`Error(Type::RecordFieldName)`となる。ASTは前者で`Recovered::Incomplete` fieldの後にcomplete fieldを持ち、
+後者でnameだけ`Recovered::Incomplete`のcomplete `TypeRecordField`を持つ。このcutにより同じbyte rangeへ
+field-level Errorとname-level Errorを重ねない。
+
 ### NamedRecordType sequence recovery table
 
 | input state | authority / recovery | retry / ownership |
@@ -13224,11 +13272,12 @@ retry candidateの前で止まる。record-local comma / implicit newline / matc
 | leading comma | zero-width `Missing(Type::RecordField, Identifier)` | commaをrecord ownerがconsumeしnext field slotへ |
 | repeated comma | comma boundaryごとにone zero-width Missing field | each punctuationからsame-position sequence retry |
 | commaとnewlineが同じgap | comma authorityのone separator | newlineはpost-comma trivia、duplicate boundary / Missingなし |
-| same-line complete field-head candidate without separator | zero-width `Missing(Type::RecordFieldSeparator, DelimitedSequenceSeparator)` | gap triviaはrecord直下、next field startでsame-position retry |
-| same-line / deeper trivia + TypePrimaryだがcomplete field-headでない | no Missing separator | current field RHSのvalid TypeApply continuation |
+| same-line complete field-head candidate without separator、かつfield RHS tailのNamedRecord owner queryがreturn | zero-width `Missing(Type::RecordFieldSeparator, DelimitedSequenceSeparator)` | rollbackされたgap triviaはrecord直下、next field startでsame-position retry |
+| same-line trivia + TypePrimaryだがcomplete field-headでない | no Missing separator | current field RHSのvalid TypeApply continuation |
+| deeper trivia + TypePrimary（complete field-head spellingを含む） | no same-line Missing separator | current field RHSのdeeper TypeApply continuation。implicit separatorにはならない |
 | literal commaまたはqualifying implicit separator後、matching `}`より先にEOF / active outer boundary | zero-width `Missing(Type::RecordField, Identifier)` | boundaryをconsumeせず、distinct close slotを次rowで処理 |
 | semicolon between fields、かつactive outer stopではない | maximal non-empty `Error(Type::RecordFieldSeparator, DelimitedSequenceSeparator)` | valid field-head / comma / closeへretry。valid separatorにはしない |
-| malformed field bytes後にvalid complete field-head | maximal non-empty `Error(Type::RecordField)` | valid headでsame-position field retry |
+| field-authority probeが失敗したnew item位置のmalformed bytes後にcomplete field-head / literal-colon skeleton (`{@ a: A}`) | maximal non-empty `Error(Type::RecordField)` | whole field slotは`Recovered::Incomplete`。retryable skeletonでsame-position field retry |
 | missing `}` at EOF / active owner boundary | zero-width `Missing(ClosingDelimiter(NamedRecordType))` | boundaryをconsumeしない |
 | mismatched close not owned by outer delimiter | maximal non-empty `Error(ClosingDelimiter(NamedRecordType))` | matching `}` / outer safe pointへretry |
 | mismatched close owned by outer delimiter | no Error on outer close; zero-width Missing record close | outer closeをconsumeしない |
@@ -13249,7 +13298,7 @@ rollbackして返す。「Error scannerがconsumeしない」と「record-local 
 | --- | --- | --- |
 | `name : TypeExpression` | valid field | field endからsequence judgeへ |
 | literal colonがfield startにありnameなし (`{: A}`) | zero-width `Missing(Type::RecordFieldName, Identifier)` | colonをconsumeしsame fieldのtype slotへ |
-| malformed non-empty name bytes後にvalid Identifier | maximal non-empty `Error(Type::RecordFieldName)` | identifierでsame name slot retry |
+| field-authority probeがmalformed-name + literal colon skeletonをaccept (`{@: A}`) | maximal non-empty `Error(Type::RecordFieldName)` | nameは`Recovered::Incomplete`、literal colonからsame committed fieldを続行 |
 | accepted name後にliteral colonあり | valid colon slot | typeをmandatoryにする |
 | accepted name後、colonなし、same-line valid TypePrimaryあり (`{a A}`) | zero-width `Missing(Type::RecordFieldColon, Colon)` | same positionでtype slotをparse |
 | accepted name後、malformed colon bytes後にliteral colon | maximal non-empty `Error(Type::RecordFieldColon)` | literal colonでsame slot retry |
@@ -13260,8 +13309,12 @@ rollbackして返す。「Error scannerがconsumeしない」と「record-local 
 | accepted literal colon後にequal-or-shallower record newline | zero-width Missing field type | newlineをErrorへ入れずrecord separator判定へ返す |
 | accepted literal colon後にmalformed bytes + valid TypePrimary | maximal non-empty `Error(Type::RecordFieldType)` | valid primaryでsame type slot retry |
 | accepted literal colon後にmalformed bytes + owner boundary | maximal non-empty `Error(Type::RecordFieldType)` one record | boundaryをconsumeせず、same causeのMissing typeを追加しない |
-| sigil / number / path-shaped field head | valid field nameにしない | maximal non-empty name Error、next complete field-head / boundaryへretry |
-| `..Type` / shorthand / `name = value` | no special form authority | field/name/colon recoveryとして処理し、spread/default nodeを作らない |
+| sigil / number name bytesの直後にliteral colon (`{'a: A}` / `{1: A}`) | field-authority probeのmalformed-name skeleton | exact sigil / number rangeへ`Error(Type::RecordFieldName)`、name Incomplete、colon / RHSはsame fieldで続行 |
+| sigil / number bytesにliteral colon skeletonなし | field authorityなし | sequence-level `Error(Type::RecordField)`としてnext field candidate / safe pointへ |
+| path-shaped head `a::B` | first `a`でfield authority、exact-colon guardはlonger `::`をacceptしない | `::`のexact rangeへ`Error(Type::RecordFieldColon)`、`B`をtype slotでretry。path-qualified field nameにはしない |
+| spread spelling `{..Type}` | field authorityなし | matching close / comma / next complete field-headまでの`..Type`をone maximal `Error(Type::RecordField)`。AST field slotは`Recovered::Incomplete`、spread nodeなし |
+| shorthand `{name}` | Identifierでfield authority | name Complete、colon / type Incomplete。name endへzero-width `Missing(Type::RecordFieldColon)`一件だけ、matching closeはconsumeせず、shorthand nodeなし |
+| default spelling `{name = value}` | Identifierでfield authority | `=`のexact non-empty rangeへ`Error(Type::RecordFieldColon)`、colon Incomplete、`value`をsame-position `TypeExpression` retryしてtype Complete。default nodeなし、additional Missing colonなし |
 
 no-cascade ruleを次で固定する。
 
@@ -13274,9 +13327,11 @@ no-cascade ruleを次で固定する。
 
 ### Interaction with existing type grammar
 
-named recordはnew fixed primaryであり、dynamic operator tableを受け取らない。existing path / call / apply / arrowの
+named recordはnew fixed primaryであり、dynamic operator tableを受け取らない。existing path / call / arrowの
 precedence、`type_ml_arg` stop、TypeCall-vs-TypeApply adjacencyを変更しない。field RHSはcanonical entryを一度呼び、
-special `FieldTypeExpression` subsetを作らない。
+special `FieldTypeExpression` subsetを作らない。ただしtop `TypeDelimitedOwner::NamedRecord`は、same-line
+complete field-headをoriginal TypeApply step直前のcaller-owned next-item boundaryとして返す。これは
+container内item終端を答えるexisting typed owner queryの追加caseであり、global TypeExpression precedenceの変更ではない。
 
 代表shapeを次で固定する。
 
@@ -13309,7 +13364,8 @@ outer stop / missing-role overrideを渡しても、record internal rolesをcall
 3. Yulang2のgeneric LED fallbackはadjacent `F{...}`をML type applicationとしてacceptし得たが、専用fixtureはない。
    Yulang3はapproved core invariantを保ち、TypeApplyへnon-empty trivia boundaryを要求する。
 4. Yulang2ではmissing separator / field slotのsame-position typed retryを区別しなかった。Yulang3は
-   complete `Identifier ... Colon` headだけをcontextual retry pointとし、ordinary RHS TypeApplyを維持する。
+   top NamedRecord ownerのtail-boundary queryをTypeApply accept前に置き、complete same-line
+   `Identifier ... Colon` headだけをcontextual retry pointとする。colonのないordinary RHS TypeApplyは維持する。
 5. Yulang2のrecord separatorがcomma-onlyである点、empty / trailing comma、mandatory colon、no shorthand / no spreadは
    そのまま保存する。semicolonをcall/groupからrecordへ拡張しない。
 
@@ -13330,9 +13386,12 @@ implementation gateを次で固定する。
 6. `LayoutDelimitedFrame` base captureがopening trivia後のformulaを使い、comma / newline authorityが
    byte-loss / duplicate boundaryを起こさない。
 7. explicit-comma / implicit-newline fixtureでall trivia byteのCST home、no synthetic Separator、lossless round tripを検証する。
-8. leading / repeated comma、same-line Missing separator、separator-before-EOF / outer close、invalid semicolonを
-   typed role / kind / exact rangeで検証する。
-9. name / colon / type各mandatory slotのMissing / Error / same-position retryとno-cascadeを全row検証する。
+8. leading / repeated comma、`F B`対`F b: B`のowner-boundary judge、same-line Missing separator、
+   separator-before-EOF / outer close、invalid semicolonをtyped role / kind / exact rangeで検証する。
+9. `{@ a: A}`対`{@: A}`のfield / name recovery cut、name / colon / type各mandatory slotのMissing / Error /
+   same-position retryとno-cascadeを全row検証する。
+   `{..Type}` / `{name}` / `{name = value}`はそれぞれwhole-field Error / Missing colon / colon Errorの
+   specified AST / CST shapeを検証する。
 10. missing / mismatched closeが`NamedRecordType.close`と一致し、outer-owned close / active stop / newlineをconsumeしない。
 11. AST / direct-CSTが同じcandidate、safe point、field count、Complete / Incomplete slot shapeを持つ。
 12. delimiter / stop / layout / TypeDelimitedOwner frameがnormal / recovery / rollbackでexact restoreされる。
@@ -13351,17 +13410,20 @@ implementation gateを次で固定する。
 - actual matching closeのprobe結果によりvalid trailing commaとseparator-before-boundary recoveryを排他的に分ける。
 - recoveryはouter boundaryをErrorへ取り込まず、one slot = one recordとno-cascadeを守る。
 
-起案時self-reviewでは、original TypeExpression draftで問題になったprecedence / judge order矛盾が
-new primaryを加える本追補には非該当であることを確認した。new formはprecedence layerを増やさず、
-primary candidate追加位置とexisting tail loopへのreturnを明記し、adjacent braceの扱いもfixture tableで固定した。
-そのうえで、適用対象となる残り四issue classを次の通り再点検した。
+reviewで、new primary自体はprecedence layerを増やさない一方、record field RHSとnext fieldの境界が
+existing TypeApply judge orderへ影響することを確認した。これを「非該当」とせず、top
+`TypeDelimitedOwner::NamedRecord`のsame-line complete-field-head queryをoriginal tail judge step 6の
+TypeApply accept直前へ置く規則として固定した。`F B`ではquery false、`F b: B`ではquery trueであり、
+AST / direct-CSTは同じsink-free predicateをaccept前に使う。primary candidate追加位置、existing tail loopへのreturn、
+adjacent braceの扱いもfixture tableで固定した。そのうえで、残り四issue classを次の通り再点検した。
 
 1. trivia / newline boundary: unbounded field `G*`を置かず、OpeningTriviaの限定されたownershipと
    `TypeRecordFieldTrivia` / `RecordTypeSeparator`のbounded classificationを明記した。
 2. CST byte completeness: comma exampleとnewline exampleの全space / newline / punctuationをCSTへ列挙した。
 3. AST / recovery slot alignment: close、name、colon、typeの全recovery roleに対応する`Recovered` fieldがASTに存在する。
-4. recovery-row exclusivity: trailing commaはactual matching close、separator-before-boundaryはその不在で分岐し、
-   no-cascade規則とrecord-local / outer boundary authorityを明記した。
+4. recovery-row exclusivity: trailing commaはactual matching close、separator-before-boundaryはその不在で分岐した。
+   field-authority cutによりwhole-field / name Errorを排他化し、spread / shorthand / defaultのrole、AST slot、
+   range、retry先も個別に固定した。no-cascade規則とrecord-local / outer boundary authorityも維持する。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 （2026-08-23、standalone TypeExpression named record type primary追補案）。
