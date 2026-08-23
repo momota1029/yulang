@@ -956,7 +956,7 @@ where
         |i| forall_recovery_candidate(phase, i).is_some(),
         |i| forall_recovery_candidate_after_trivia(phase, i).is_some(),
         |i| forall_recovery_boundary_pending(phase, i),
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, |i| forall_recovery_boundary_pending(phase, i)),
         false,
     )?;
     let recovery = match recovery {
@@ -2415,6 +2415,25 @@ fn is_operator_shaped_character(character: char) -> bool {
 fn consume_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { i.run(scan_trivia).expect("trivia scanning is total") }
 
+/// Test whether trivia after malformed input leads straight to a boundary
+/// without assigning that trivia to the malformed Error range.
+fn type_item_boundary_after_trivia<E>(
+    i: &mut SynIn<E>,
+    boundary: impl FnOnce(&mut SynIn<E>) -> bool,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let boundary = !trivia.is_empty()
+        && (trivia_has_newline(&trivia) || boundary(i));
+    i.rollback(checkpoint);
+    boundary
+}
+
 fn consume_direct_trivia<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> TriviaRun
@@ -2553,7 +2572,7 @@ where
         direct_type_primary_candidate,
         |_| false,
         type_recovery_boundary_pending,
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, type_recovery_boundary_pending),
         false,
     )
 }
@@ -2858,15 +2877,32 @@ where
         record_field_head_candidate,
         record_field_head_candidate_after_trivia,
         record_invalid_boundary_pending,
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, record_invalid_boundary_pending),
         false,
     )?;
     let recovery = match recovery {
         TypeItemRecovery::Retry => RecordItemRecovery::Retry,
-        TypeItemRecovery::Boundary if record_comma_pending(i) => RecordItemRecovery::Separator,
+        TypeItemRecovery::Boundary
+            if record_comma_pending(i) || record_separator_after_trivia_pending(i) =>
+        {
+            RecordItemRecovery::Separator
+        }
         TypeItemRecovery::Boundary => RecordItemRecovery::Boundary,
     };
     Some((range, recovery))
+}
+
+fn record_separator_after_trivia_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let separator = !trivia.is_empty() && record_comma_pending(i);
+    i.rollback(checkpoint);
+    separator
 }
 
 fn consume_record_colon_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
@@ -3403,6 +3439,15 @@ mod tests {
             if error.site.role == GrammarRole::Type(TypeRole::Primary)
                 && error.site.range == (0..1)
                 && error.kind == crate::session::RecoveryKind::Error));
+
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@ )", None, None);
+        assert_eq!(remainder, " )");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.site.range == (0..1)
+                && error.kind == crate::session::RecoveryKind::Error));
+        assert_eq!(parse_required_prefix("@ )").0, " )");
     }
 
     #[test]
@@ -3862,6 +3907,33 @@ mod tests {
     }
 
     #[test]
+    fn named_record_invalid_run_leaves_boundary_trivia_unclaimed() {
+        let nested = parse_direct_recovered("'[{@ }]");
+        assert!(matches!(nested.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)), "{nested:#?}");
+        assert!(matches!(parse("'[{@ }]").primary, TypePrimary::EffectRow(EffectRowType {
+            close: Recovered::Complete(_),
+            items,
+            ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+            primary: TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }), ..
+        })] if matches!(fields.as_slice(), [Recovered::Incomplete]))));
+
+        let separator = parse_direct_recovered("{@ , a: A}");
+        assert!(matches!(separator.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (1..2)), "{separator:#?}");
+        assert!(matches!(parse("{@ , a: A}").primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Complete(_), ..
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+    }
+
+    #[test]
     fn named_record_malformed_runs_keep_the_pre_restructuring_ownership() {
         for source in ["{@]}", "{@;}"] {
             let records = parse_direct_recovered(source);
@@ -4075,7 +4147,8 @@ mod tests {
         assert!(malformed.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBody)
             && record.kind == RecoveryKind::Error && record.site.range == (8..9)), "{malformed:#?}");
 
-        let trailing_trivia = parse_direct_recovered("for 'a: @ ");
+        let (trailing_remainder, trailing_trivia) = parse_direct_prefix("for 'a: @ ");
+        assert_eq!(trailing_remainder, " ");
         assert!(matches!(trailing_trivia.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && record.kind == RecoveryKind::Error), "{trailing_trivia:#?}");
@@ -4102,6 +4175,20 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (8..9)), "{newline_recoveries:#?}");
+
+        for (source, expected_remainder) in [
+            ("for 'a: @ \nT", " \nT"),
+            ("for 'a: @ //x\nT", " //x\nT"),
+        ] {
+            let (ast_remainder, _) = parse_prefix(source);
+            let (direct_remainder, recoveries) = parse_direct_prefix(source);
+            assert_eq!(ast_remainder, direct_remainder, "AST/direct remainder: {source}");
+            assert_eq!(direct_remainder, expected_remainder, "{source}");
+            assert!(matches!(recoveries.as_slice(), [record]
+                if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
+                    && record.kind == RecoveryKind::Error
+                    && record.site.range == (8..9)), "{source}: {recoveries:#?}");
+        }
 
         let binder_trivia = parse_direct_recovered("for @ 'a: T");
         assert!(matches!(binder_trivia.as_slice(), [record]
