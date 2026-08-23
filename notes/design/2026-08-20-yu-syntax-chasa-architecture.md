@@ -13978,3 +13978,548 @@ final reviewで次のfour issue classをend-to-end再点検した。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression forall / universal-quantifier type primary追補案）。
+
+## 追補案: standalone `TypeExpression`のeffect row type primary
+
+Status: Proposed（Claude review / user approval待ち、2026-08-23）。
+
+### Scope and authority
+
+本追補は、authoritativeなstandalone `TypeExpression` grammarへeffect row type primaryを追加する。
+surface authorityは次のsyntaxだけに限定する。
+
+```text
+'[]
+'[e]
+'['e]
+'[a, b]
+'[tick; 'effect]
+```
+
+effect rowは`TypePrimary`であり、expression grammar、dynamic `OperatorTable`、declaration / pattern
+use-siteをownerにしない。existing `TypeCallTail` / `ParenthesizedTypeGroup`と同じ
+comma / semicolon / implicit-newline delimited sequence primitiveを再利用するが、introducerは
+adjacentな`Apostrophe LBracket` pairである。
+
+本追補はrowのopen / closed classification、row-tail variable、effect inference、annotation loweringを
+parser ASTへ入れない。`'[e]`と`'['e]`のsyntax上の差は、唯一のitemがordinary `Identifier`か
+`SigilIdentifier`かだけである。semicolon後のlast itemをrow tailとみなすsemantic ruleも、parserでは
+separator token以上の意味を持たない。これらの解釈はfuture lowering / HIR authorityへ明示的に留保する。
+
+polymorphic variant type、bracket-row type、およびstruct / enum / cast / role / where等の
+TypeExpression use-site wiringは本追補のscope外である。
+
+### Yulang2 oracle facts and evidence strength
+
+Yulang2のtype NUD scannerはbare apostrophe punctuationを`EffectRowStart`へ分類した
+（`yulang2-oracle:crates/parser/src/typ/scan.rs:35-63,94-103`）。parserはapostropheを
+`TypeEffectRow`へemitした後、次のtype NUDが`OpenBracket`ならgeneric `delimited` machineを
+`TypeRow`として呼んだ（`typ/parse.rs:53-79`）。bracket item machineはeach itemへfull
+`parse_type`を呼び、literal comma / semicolonをseparatorとして認めた
+（`typ/parse.rs:400-429`）。generic delimited machineはempty、matching-close前のtrailing
+separator、layout newline separatorを処理した（`crates/parser/src/parse/mod.rs:21-77`）。
+
+parser fixtureは次の三点を直接固定する。
+
+- `'[e]`は`TypeEffectRow > Apostrophe + TypeRow(TypeExpr(Ident e))`である
+  （`crates/parser/tests/type_grammar.rs:348-366`）。
+- `'['e]`も同じnode shapeで、item tokenだけが`SigilIdent 'e`である
+  （`type_grammar.rs:368-385`）。
+- `Foo '['e]`はouter `TypeApply`のnested argumentがeffect-row primaryになる。effect row自体が
+  special tailになるのではない（`type_grammar.rs:388-410`）。
+
+Yulang2 parserはopen / closed rowまたはtail slotをCSTで区別しなかった。annotation builderが
+`TypeRow` childとseparatorを後から読み、semicolon後のtype variableをtailにし、semicolonなしの
+single type variable rowもtail-only rowへ解釈した
+（`yulang2-oracle:crates/infer/src/annotation/builder.rs:281-342`）。fixtureでも`Foo '['e]`は
+empty items + tail `e`、`'[io]`はconcrete item `io`としてlowerされた
+（`infer/src/annotation/tests.rs:153-185`）。実sourceの`'[tick; 'effect]`もこのdownstream ruleを
+利用する（`infer/src/lowering/tests/case_07.rs:3462-3468`）。`| rest`専用syntax branchはなく、
+semicolonはparser上ordinary list separatorである。
+
+Yulang2 scannerではapostrophe lexemeのtrailing triviaを次のNUD scanへ渡したため、apostropheと
+`[`の間にdedicated no-trivia guardはなかった（`typ/parse.rs:55-76`）。一方、sigil identifier scannerは
+`'e`を一lexical tokenとしてapostropheとidentifier bodyのadjacencyを要求した
+（`crates/parser/src/scan/mod.rs:110-115`）。本追補は後述のとおり、この二つをYulang3で
+adjacent prefix-sigil conventionへ統一する。
+
+Yulang2はeffect row専用recovery tableを持たず、missing bracket NUDにはempty `InvalidToken`、
+non-bracket NUDにはgeneric invalid tokenをemitし、list内部とcloseはgeneric delimited recoveryへ委ねた
+（`typ/parse.rs:58-76`、`parse/mod.rs:35-77`）。したがってtyped recoveryのexact role / rangeは
+historical tableの移植ではなく、already-authoritativeなYulang3 `TypeCallTail` tableの構造的再利用である。
+
+### Architectural invariants
+
+1. effect rowはcanonical `TypePrimary`であり、type postfix tailではない。
+2. parser CST / ASTはrow itemのsource syntaxだけを表し、open / closed / tail semanticsを表さない。
+3. exact adjacent `Apostrophe LBracket` pair全体のsink-free probeが成功したときだけeffect-row authorityへcutする。
+4. cut後は`Delimiter::Bracket`、`TypeDelimitedOwner::EffectRow`、bracket-local stop set、
+   `LayoutDelimitedFrame`を一緒にpush / popし、normal / recovery / rollbackでexact restoreする。
+5. itemはcanonical full `TypeExpression`であり、effect-only item subsetを作らない。
+6. CSTはapostrophe、brackets、separator、all raw triviaをsource orderで一度だけemitする。
+   synthetic `Separator` / row-tail nodeは作らない。
+7. AST / direct-CSTは同じprimary candidate、list boundary、safe point、retry predicateを用いる。
+
+### Authoritative surface grammar and trivia ownership
+
+```text
+TypePrimary :=
+    TypeAtom
+  | ParenthesizedTypeGroup
+  | NamedRecordType
+  | ForallType
+  | EffectRowType
+
+EffectRowType :=
+    Apostrophe AdjacentLBracket EffectRowOpeningTrivia
+    [
+        TypeExpression
+        { EffectRowDelimitedBoundary TypeExpression }
+        [ EffectRowDelimitedBoundary ]
+    ]
+    RBracket
+
+AdjacentLBracket :=
+    LBracket whose first byte is exactly Apostrophe.end
+
+EffectRowDelimitedBoundary :=
+    EffectRowExplicitSeparatorBoundary
+  | ImplicitNewlineBoundary(effect_row_base)
+
+EffectRowExplicitSeparatorBoundary :=
+    CommaBoundary
+  | SemicolonBoundary
+```
+
+production中にunbounded `G*`を置かない。`Apostrophe AdjacentLBracket`間のtriviaはemptyでなければ
+ならない。`EffectRowOpeningTrivia`はaccepted `[`直後のone maximal trivia clusterであり、
+existing type-delimited opening ruleが所有する。これはtail continuation triviaではなく、すでに
+cut済みのbracket delimiter内部にあるためphysical newlineを含み得る。consume後に次式でlayout baseを
+一度だけ決める。
+
+```text
+incoming_base := current lexical-depth indentation baseline, or 0
+effect_row_base :=
+    if EffectRowOpeningTrivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+item間triviaは`LayoutDelimitedFrame`でexhaustiveに分類する。
+
+1. current bracket depthのliteral comma / semicolonがあればexplicit boundaryである。
+2. literal separatorがなく、physical newlineのfollowing indent `<= effect_row_base`なら
+   implicit boundaryである。
+3. following indent `> effect_row_base`ならcurrent itemのtype continuationである。
+4. physical newlineのないtrivia後にcanonical TypePrimaryが続く場合、nested itemが
+   `TypeApplyArgument`として所有できるならcurrent itemを継続する。nested typeがcandidateを返した
+   場合だけzero-width missing separator authorityをcontainerへ返す。
+
+matching `]`、active caller stop、outer-owned close、caller-owned equal-or-shallower newlineは
+recovery scannerのsafe pointであり、EffectRow ownerはconsumeしない。accepted bracket内の
+opening triviaとqualifying list-boundary newlineはEffectRow ownerのものなので、このouter-boundary
+ruleと競合しない。delimiter depthを確認してからnewline authorityを判定し、同じnewlineをopening、
+implicit separator、outer boundaryの二つ以上へ分類しない。
+
+empty `'[]`はvalidである。literal trailing comma / semicolonまたはqualifying trailing implicit newlineは、
+post-boundary trivia後にactual matching `]`をprobeできた場合だけvalid trailing boundaryになる。
+actual closeがないEOF / owner boundaryではtrailingと分類せず、missing-item rowとmissing-close rowを
+別slotとして適用する。
+
+### Primary recognition, adjacency, and cut
+
+canonical type-primary judgeのupdated orderを次で固定する。
+
+1. current lexical depthのactive stop、matching / outer-owned delimiter、caller-owned newlineを判定し、
+   boundaryをconsumeしない。
+2. exact maximal contextual word `for`をprobeし、canonical NUDならexisting Forall authorityへcutする。
+3. exact `Apostrophe`の直後にexact `LBracket`があるcompound spelling `"'["`をsink-freeにprobeする。
+   両tokenが連続して実在するときだけEffectRow authorityへcutする。
+4. existing `scan_type_name`でIdentifier / adjacent apostrophe `SigilIdentifier`、次にNumber、
+   `LParen`、`LBrace`をprobeする。
+5. 何もmatchしなければoptional entryはno match、mandatory entryはexisting completely-missing /
+   malformed `TypeRole::Primary` recoveryへ戻る。
+
+step 3をname scanより前に置くことで、`'[`はbare-apostrophe compound、`'e`はeffect probe失敗後の
+one `SigilIdentifier`として排他的に決まる。`'` + EOF、`'x`以外のnon-bracket malformed spelling、
+`' [`、`'\n[`はEffectRowへcutしない。bare apostropheだけからsynthetic missing `[`を作らず、
+outer mandatory TypePrimary recoveryがmalformed bytesをownする。
+
+apostrophe-to-bracketは**adjacent-only**とする。理由は三つある。
+
+- `'e`と同じprefix-sigil familyでlexical boundaryを一意にする。
+- trivia、特にequal-or-shallower newlineをapostrophe accept後にeffect-row recoveryが先取りしない。
+- `"'["`というcomplete compound introducerまでprobeしてからcutでき、optional candidateをstate-neutralに保てる。
+
+これはapostrophe trailing triviaを許したYulang2からのintentional narrowingである。commentsを含む
+`'/*c*/[e]`もeffect rowではない。commentを保存する必要はouter malformed-primary recovery / caller CSTの
+責務であり、EffectRow nodeへ移さない。
+
+effect row primaryはforallのようなterminal raw primaryではない。accept後はexisting fixed tail judgeへ戻る。
+したがって`'[e]::Result`はeffect-row primary + outer `TypePathTail`、`Foo '[e]`はouter
+`TypeApplyArgument`のargument primary、`'[e] -> Out`はordinary outer `TypeArrowTail`になる。
+TypeApply側にeffect-specific branchを追加しない。shared canonical TypePrimary candidateへstep 3が加わるだけである。
+
+### CST vocabulary and byte-exact shape
+
+own CST kindとして次だけを追加する。
+
+```text
+SyntaxKind::EffectRowType
+```
+
+`SyntaxKind::Apostrophe`、`LBracket`、`RBracket`、`Comma`、`Semicolon`、`TypeExpression`は再利用する。
+Yulang2の`TypeEffectRow > TypeRow`二重wrapperは作らず、`EffectRowType`直下にdelimiter、items、
+separator、triviaをflat source orderで置く。item wrapperやsynthetic Separator nodeも作らない。
+
+```text
+'[]
+
+TypeExpression
+  EffectRowType
+    Apostrophe "'"
+    LBracket "["
+    RBracket "]"
+```
+
+```text
+'[e]
+
+TypeExpression
+  EffectRowType
+    Apostrophe "'"
+    LBracket "["
+    TypeExpression
+      Identifier "e"
+    RBracket "]"
+```
+
+```text
+'['e]
+
+TypeExpression
+  EffectRowType
+    Apostrophe "'"
+    LBracket "["
+    TypeExpression
+      SigilIdentifier "'e"
+    RBracket "]"
+```
+
+outer apostropheとinner sigil identifierのapostropheは別source byteであり、それぞれexactly one token homeを
+持つ。第三例はopen row nodeではなく、single `SigilIdentifier` itemを持つ同じ`EffectRowType`である。
+
+```text
+'[
+  A, B;
+  C
+  D
+]
+
+TypeExpression
+  EffectRowType
+    Apostrophe "'"
+    LBracket "["
+    Newline "\n"
+    Whitespace "  "
+    TypeExpression
+      Identifier "A"
+    Comma ","
+    Whitespace " "
+    TypeExpression
+      Identifier "B"
+    Semicolon ";"
+    Newline "\n"
+    Whitespace "  "
+    TypeExpression
+      Identifier "C"
+    Newline "\n"
+    Whitespace "  "
+    TypeExpression
+      Identifier "D"
+    Newline "\n"
+    RBracket "]"
+```
+
+first newline + two spacesはopening trivia、comma後spaceとsemicolon後newline + spacesはexplicit
+boundary-owned trivia、`C`と`D`の間はimplicit newline boundary、`D`後newlineはactual `]`前のvalid
+trailing implicit boundaryである。いずれもEffectRowType直下へraw tokenとして一度だけemitし、
+empty separator nodeを作らない。
+
+### Parser-side surface AST
+
+```rust
+pub enum TypePrimary<'source> {
+    Atom(TypeAtom<'source>),
+    Parenthesized(ParenthesizedTypeGroup<'source>),
+    Record(NamedRecordType<'source>),
+    Forall(ForallType<'source>),
+    EffectRow(EffectRowType<'source>),
+}
+
+pub struct EffectRowType<'source> {
+    pub apostrophe: Range<usize>,
+    pub open: Range<usize>,
+    pub items: Vec<Recovered<TypeExpression<'source>>>,
+    pub close: Recovered<Range<usize>>,
+    pub range: Range<usize>,
+}
+```
+
+`apostrophe`と`open`はcompound candidate accept時にactual tokenが揃うため`Recovered`ではない。
+`close`はmissing / mismatched-close recoveryのmandatory slotなので`Recovered`である。
+`items`のeach slotはleading / repeated separator、missing / malformed itemのAST parityを持つ。
+
+separator kindはsemantic ASTへ保持しない。これはexisting `TypeCallTail`と同じであり、all punctuationは
+lossless CSTに残る。`ParenthesizedTypeGroup.trailing_explicit_separator`はone-element grouping / tuple-like
+classificationに必要な例外だが、effect rowには対応するparser-level classificationがない。
+特にsemicolonをrow-tail marker fieldへ昇格せず、future loweringがCST punctuationを読むか、future
+syntax-to-semantic layerが明示的なsemantic representationを作る。parser ASTからtail semanticsを推測しない。
+
+`EffectRowType.range`はapostrophe startからactual close endまでを含む。recovered missing closeでは最後に
+ownedしたsource byte endまでを含む。mismatched-close recovery後にactual `]`へ到達すればそのclose end、
+到達せずsafe pointで終了すれば最後にconsumeしたlocal Error endまでを含む。zero-width Missing / non-empty
+Errorのdiagnostic recordはrange外のsynthetic source byteを作らない。
+
+### Typed owner and recovery vocabulary
+
+existing vocabularyを次のように拡張する。
+
+```text
+TypeDelimitedOwner := Call | ParenthesizedGroup | NamedRecord | EffectRow
+
+SyntaxKind::EffectRowType
+
+GrammarRole::Type(TypeRole::EffectRowItem)
+GrammarRole::Type(TypeRole::EffectRowSeparator)
+
+ConstructRole::EffectRowType
+```
+
+close roleはexisting shapeを使う。
+
+```text
+GrammarRole::ClosingDelimiter {
+    owner: ConstructRole::EffectRowType,
+    delimiter: Delimiter::Bracket,
+}
+```
+
+`ExpectedSyntax::TypeExpression`、`ExpectedSyntax::DelimitedSequenceSeparator`、
+`ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))`、
+`Delimiter::Bracket`、`RecoveryKind::{Missing, Error}`を再利用し、新しいexpected wrapperは作らない。
+
+`EffectRowItem` recoveryは`items: Vec<Recovered<TypeExpression>>`のcurrent slotへ対応する。
+`EffectRowSeparator`はsource-absent punctuationのsemantic AST fieldではなく、existing TypeCallのseparator roleと
+同じcommitted recovery recordである。close recoveryは実在する`close: Recovered<Range<usize>>` slotへ対応する。
+
+### Delimited owner composition and item termination
+
+exact adjacent opener pairをacceptした後、次を一つのframe episodeとしてpushする。
+
+```text
+delimiter          = Delimiter::Bracket
+type owner         = TypeDelimitedOwner::EffectRow
+stops              = active stops + Comma + Semicolon + RightBracket
+layout             = LayoutDelimitedFrame(effect_row_base)
+explicit separator = Comma | Semicolon
+```
+
+pop順はexisting TypeCall / ParenthesizedGroup patternと対称にし、rollback checkpointには四stackすべてを含める。
+EffectRowはNamedRecordのcomplete-field-head queryを持たず、ordinary type item behaviorを用いる。
+
+one itemの終了判定はexisting TypeCallと同じ順序である。
+
+1. nested TypeExpressionがown no-trivia path / call、bounded path / arrow、valid whitespace TypeApplyを先に判定する。
+2. nested typeがreturnした位置でliteral comma / semicolon、actual `]`、implicit newline boundaryを判定する。
+3. separatorなしでsame-position canonical TypePrimary candidateが残ればMissing separatorをemitし、
+   same-position next item retryする。
+4. malformed bytesならitem Error recoveryをsafe pointまで行う。
+
+したがって`'[A B]`はone item `A` + `TypeApplyArgument(B)`でありmissing separatorを出さない。
+`'[A{}]`は`A`がno-trivia `{`をTypeApplyとして所有できないため、`{}`前へzero-width
+`Missing(Type::EffectRowSeparator)`をemitし、second record-type itemとしてsame-position retryする。
+このjudgeはad-hoc effect-row lookaheadではなく、already-shipped TypeCall delimited-item contractの再利用である。
+
+### EffectRowType recovery contract
+
+recovery scannerはcurrent bracket depthのmatching `]`、EOF、active caller stop、matching outer close、
+outer-owned mismatched close、comma、semicolon、qualifying implicit newline、valid canonical TypePrimary retry
+candidateをsafe pointにする。safe point byteはErrorへ含めない。local mismatched closerだけはclose roleの
+Errorとしてconsumeし、outer-owned closerはzero-width Missing closeをcommitしてcallerへ返す。
+
+tableはTypeCallTail recovery tableをdelimiter / roleだけ置換した構造である。各rowは次のjudge orderで排他的にする。
+
+1. actual matching `]`。
+2. literal comma / semicolon。
+3. implicit newline boundary。
+4. valid current / next item candidate。
+5. owner-safe boundary。
+6. malformed non-empty run。
+
+actual closeのprobeを先に行うためempty / valid trailingとmissing itemが競合しない。separatorをacceptしたepisodeでは、
+post-separator trivia後にactual matching closeがある場合だけtrailing rowへ進み、なければnext item slotを開始する。
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| `'[]` | valid empty row | `items = []`、close Complete |
+| `'[A]` / `'[A,B]` / `'[A;B]` / qualifying newline list | valid | each itemはgeneral TypeExpression |
+| literal trailing comma / semicolon後にactual `]`が実在 | valid trailing boundary | empty itemを作らず、separatorはCSTだけに保持 |
+| qualifying trailing implicit newline後にactual `]`が実在 | valid trailing boundary | empty itemを作らず、synthetic separatorなし |
+| leading comma / semicolon | separator位置へzero-width `Missing(Type::EffectRowItem, TypeExpression)` | one Incomplete item slot、literal separatorをconsumeしnext slotへ |
+| repeated comma / semicolon | repeated boundaryごとにone zero-width Missing item | each punctuationを一度consumeしてsame-position sequence retry |
+| same-line canonical next-item candidate without separator, nested itemがそのcandidateをTypeApplyとして所有しない | zero-width `Missing(Type::EffectRowSeparator, DelimitedSequenceSeparator)` | source byteをconsumeせずnext itemへsame-position retry |
+| same-line / deeper bounded trivia + valid TypeApply candidate | valid current-item continuation | Missing separatorなし、one itemのpostfix Apply |
+| malformed non-empty item bytes後にvalid TypePrimary | maximal non-empty `Error(Type::EffectRowItem)` | valid primaryをsame item slotでretry。retry成功時ASTにはComplete item、malformed bytesはCST Error / recordだけ |
+| malformed non-empty item bytes後にmatching `]` / owner boundary | maximal non-empty `Error(Type::EffectRowItem)` one item-site record | boundaryをconsumeせずAST current itemはIncomplete。same causeへMissing itemを追加しない |
+| explicitまたはqualifying implicit separator後、actual `]`より先にEOF / owner boundary | valid trailingとはclassifyせずzero-width `Missing(Type::EffectRowItem, TypeExpression)` | boundaryをconsumeしない。distinct close slotを次のmissing-close rowで処理 |
+| opener直後またはcomplete item直後のEOF / owner boundary、separator episodeなし | itemはoptional / completeなのでitem Missingなし | close slotだけをmissing-close rowで処理 |
+| missing `]` at EOF / active caller boundary / outer-owned close | zero-width `Missing(ClosingDelimiter(EffectRowType))` | `close = Incomplete`、boundaryをconsumeしない |
+| mismatched closeがcurrent EffectRow ownerにlocal | maximal non-empty `Error(ClosingDelimiter(EffectRowType))` | close-slot recovery episodeとしてmatching `]`またはnext safe pointへretry。later matching `]`が実在すれば`close = Complete(actual range)`、なければIncomplete。同episodeへMissing closeを重ねない |
+| comma / semicolonとnewlineがsame gap | literal punctuation authorityのone boundary | newline triviaを同boundaryへemitしduplicate item / Missingなし |
+
+trailing-separator rowsは**actual matching `]` present**、separator-followed-boundary rowは**actual matching `]`
+absent**で互いに排他的である。`'[A,]`はvalid、`'[A,` + EOFはMissing item + distinct Missing close、
+`'[A` + EOFはMissing closeだけ、`'[` + EOFもempty-item authorityを保ちMissing closeだけになる。
+
+same-line separator rowとTypeApply rowもnested TypeExpressionのreturn位置で排他的にする。`'[A B]`では
+nested parserが`B`をconsumeするためcontainerにcandidateが残らない。`'[A{}]`では`{`がsame-positionに残り、
+containerがMissing separatorをownする。同じcandidateへApplyとMissing separatorを両方commitしない。
+
+malformed item Errorのrangeはearliest valid TypePrimary、literal separator、matching / outer-owned close、active stop、
+EOFの直前までのmaximal non-empty bytesである。valid retry candidateをErrorへ含めない。malformed runがEOFへ
+達した場合はEffectRowItem Error一件とstructurally distinct missing-close一件を持ち得るが、同item slotへ
+zero-width Missingを重ねない。
+
+local mismatched-close Errorはclose slotをrecoverするone episodeである。Error後にactual `]`まで到達した場合は
+そのtokenをconsumeしてAST closeをCompleteにし、safe pointへ達してもactual closeがなければIncompleteにする。
+どちらの場合も同じmismatched-close episodeへadditional Missing closeをemitしない。これに対しseparator後の
+missing itemとclose absenceはdifferent mandatory slotsなので、table記載どおり二recordを持ち得る。
+
+`' [` / `'/*c*/[` / bare `'`はEffectRow authority前に失敗するため、このtableを使わない。mandatory outer
+TypeExpressionならexisting `TypeRole::Primary` malformed / missing recovery、optional probeならno matchである。
+
+### AST / direct-CST parity and standalone entry
+
+effect rowはstandalone type entryのcanonical primary candidateへ一variantを加えるだけである。caller-specific
+outer missing-role overrideはcompound `"'["` accept前のcompletely missing typeだけに作用し、accepted
+EffectRow内部のitem / separator / close roleをremapしない。
+
+AST pathとdirect-CST pathは次をshared helperまたは同一predicateで固定する。
+
+- exact adjacent apostrophe + bracket candidate probe。
+- opening layout-base capture。
+- explicit / implicit / trailing boundary classification。
+- TypeApply-vs-next-item judge。
+- owner-safe item Error stopとclose retry。
+
+ASTはError node自体を持たないが、同byteをadvanceし、same retry pointとComplete / Incomplete item / close shapeを
+持つ。direct-CSTだけがError / Missing nodeとcommitted typed recovery recordをemitする。どちらのpathも
+`OperatorTable`を受け取らない。
+
+### Interaction and non-semantic row policy
+
+代表shapeを次で固定する。
+
+```text
+Foo '['e]
+
+outer TypeExpression
+  primary = Atom(Identifier Foo)
+  postfix = [
+    Apply(
+      argument = TypeExpression(
+        primary = EffectRow(items = [SigilIdentifier 'e])
+      )
+    )
+  ]
+```
+
+```text
+'[tick; 'effect] -> Out
+
+TypeExpression
+  primary = EffectRow(items = [Identifier tick, SigilIdentifier 'effect])
+  postfix = []
+  arrow = TypeArrowTail(Out)
+```
+
+第二例のASTはsemicolonをtail markerに変換せず、CSTだけがliteral `Semicolon`を保持する。future semantic
+addendumが`'effect`をtailとして解釈する場合も、parser node kind / AST variantを変えず、CST punctuationと
+item syntaxからseparate semantic representationを構築する。single variable rowも同様で、`'['e]`をparserが
+自動的に`items = [] / tail = e`へrewriteしない。
+
+empty `'[]`、concrete row `'[e]`、sigil-item row `'['e]`、mixed separator rowは全て同じ
+`EffectRowType` familyである。wildcard / effect-set legalityやduplicate effect validationもparser recoveryではなく
+future semantic authorityである。
+
+### Explicit Yulang2 divergences and architecture-local decisions
+
+1. Yulang2はapostrophe trailing trivia後の`[`をEffectRowとしてacceptし得た。Yulang3はprefix-sigil consistencyと
+   boundary safetyのためexact adjacent `"'["`へ限定する。`' [e]` / `'/*c*/[e]`はintentional rejectionである。
+2. Yulang2 CSTは`TypeEffectRow > TypeRow`二層であった。Yulang3はone `EffectRowType` ownerへflattenし、
+   source-absent row / item / separator wrapperを作らない。
+3. Yulang2 generic delimited machineはimplicit boundaryへempty `Separator` nodeをemitし得た。Yulang3はraw newline /
+   triviaだけをcontainer直下へemitし、synthetic separatorを禁止する。
+4. Yulang2はeffect-row-specific typed recoveryを持たなかった。Yulang3はTypeCallと同形のowner-safe Missing / Error、
+   exact ranges、same-position retry、no-cascadeを用いる。
+5. open / closed / tail distinctionをparserへ持たない点はYulang2 parser behaviorを保存する。Yulang3はさらに
+   parser-side ASTでもsemicolon / singleton variableからsemantic tailへrewriteしないことを明文化する。
+6. EffectRow primaryがordinary TypeApply argumentになり、accept後にpath / call / apply / arrow tail loopへ戻る点は
+   Yulang2を保存する。effect-specific postfix ruleは追加しない。
+
+### Implementation boundary and gates
+
+implementationは`type_expr.rs` standalone grammar、必要な`SyntaxKind` / session vocabulary、同module testsだけを
+変更する。declaration / expression / pattern use-site、HIR / lowering / inferenceは変更しない。
+
+implementation gateを次で固定する。
+
+1. exact adjacent `"'["`だけがEffectRow authorityを得て、`'e`はSigilIdentifier、bare `'` / `' [` /
+   `'/*c*/[`はeffect rowにならない。
+2. `TypePrimary::EffectRow`、one `EffectRowType` CST node、apostrophe / open / items / recovered close AST slotsを持つ。
+3. `'[]`、`'[e]`、`'['e]`をacceptし、後二者の差をitem primaryだけに保つ。
+4. comma / semicolon / implicit newlineをacceptし、NamedRecordのcomma-only policyを誤って継承しない。
+5. empty、explicit trailing、implicit trailingをactual matching `]` presentの場合だけvalidにする。
+6. leading / repeated separator、same-line missing separator、malformed item、separator + EOFをrole / range /
+   retry / Complete-Incomplete shapeまでAST / direct-CSTで固定する。
+7. matching / mismatched / missing closeとouter-owned closeをfixture化し、close recoveryがreal AST slotへ対応する。
+8. `'[A B]`をone TypeApply item、`'[A{}]`をMissing separator + two itemsとしてjudge-orderを固定する。
+9. `Foo '['e]`がordinary TypeApply argument、`'[e]::Result`がordinary Path、`'[e] -> Out`がordinary Arrowになる。
+10. four worked examples相当のfixtureでevery trivia / punctuation byte ownership、lossless round trip、balanced nodes、
+    no synthetic Separatorを確認する。
+11. row-open / row-tail AST variant、tail flag、special semicolon node、`| rest` syntaxを追加しない。
+12. optional candidate probe、AST/direct-CST、normal / recovery / rollbackでdelimiter / stop / layout /
+    `TypeDelimitedOwner` / type-ML stateがexact restoreされる。
+13. existing path / call / apply / arrow / group / record / forall fixturesをbyte-identical / equal ASTのまま保ち、
+    `OperatorTable` dependencyを追加しない。
+14. polymorphic variant / bracket-row typesとall use-site wiringを実装しない。
+
+### Closed decisions and internal consistency review
+
+本追補でimplementationをblockするopen questionはない。次を確定する。
+
+- parser CST / ASTはopen / closed / tail row semanticsを区別しない。
+- introducerはexact adjacent `Apostrophe LBracket`であり、complete pair accept時だけcutする。
+- item sequenceはTypeCallと同じcomma / semicolon / implicit-newline policyである。
+- effect rowはordinary nonterminal TypePrimaryであり、existing fixed tail loopへ戻る。
+- separator choiceはCSTにのみ残し、semantic ASTへ昇格しない。
+- typed recoveryはTypeCall tableのbracket / EffectRow role specializationである。
+
+final reviewで次のfour issue classをend-to-end再点検した。
+
+1. **bounded trivia vs newline contract:** apostrophe-to-bracket triviaはempty、opening triviaはaccepted bracket-local
+   one maximal cluster、item triviaはone `LayoutDelimitedFrame` classifierだけが所有する。unbounded `G*`や
+   equal-or-shallower outer newlineをtail recoveryがconsumeするproductionはない。
+2. **CST byte completeness:** empty / ordinary item / sigil item / mixed explicit+implicit listのworked examplesで、
+   every apostrophe、bracket、space、newline、comma、semicolon、item byteへexactly one homeを示した。
+3. **AST / recovery-slot alignment:** item recoveryは`Vec<Recovered<TypeExpression>>`、close recoveryは
+   `close: Recovered<Range<usize>>`へ対応する。apostrophe / openはcomplete compound authorityなのでMissing roleを
+   tableに置かず、separator Missingはexisting Call同様committed recordである。
+4. **recovery-row exclusivity:** actual closeを先にprobeし、trailing boundaryはactual close present、missing-item rowは
+   actual close absentに限定した。nested TypeApplyがcandidateをconsumeした後だけcontainer separator judgeへ進み、
+   ApplyとMissing separatorを同じcandidateへcommitしない。malformed Errorとsame-slot Missingもno-cascadeである。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、standalone TypeExpression effect row type primary追補案）。
