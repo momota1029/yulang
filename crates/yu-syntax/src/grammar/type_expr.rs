@@ -647,6 +647,7 @@ trait TypeCloseSlotContext<'source> {
         &mut self,
         f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
     ) -> R;
+    fn emit_close_trivia(&mut self, trivia: &TriviaRun);
     fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>);
     fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax);
     fn emit_missing_close(&mut self, role: GrammarRole, expected: ExpectedSyntax);
@@ -671,6 +672,9 @@ where
     let expected = ExpectedSyntax::Punctuation(PunctuationEvidence::Close(spec.delimiter));
     let mut saw_mismatch = false;
     loop {
+        if let Some(trivia) = context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i)) {
+            context.emit_close_trivia(&trivia);
+        }
         if let Some(close) = context.with_input(|i| scan_close_for_delimiter(spec.delimiter, i)) {
             context.emit_matching_close(spec.matching_kind, close.clone());
             return Recovered::Complete(close);
@@ -684,6 +688,31 @@ where
             context.emit_missing_close(role, expected);
         }
         return Recovered::Incomplete;
+    }
+}
+
+/// Commit a gap only when it belongs to the local close slot.  In particular,
+/// trailing trivia before an outer stop remains available to that outer owner.
+fn consume_trivia_before_local_close<E>(
+    delimiter: Delimiter,
+    i: &mut SynIn<E>,
+) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let after_trivia = i.checkpoint();
+    let local_close_pending = scan_close_for_delimiter(delimiter, i).is_some()
+        || scan_mismatched_close_for(delimiter, i).is_some();
+    i.rollback(after_trivia);
+    if local_close_pending {
+        Some(trivia)
+    } else {
+        i.rollback(checkpoint);
+        None
     }
 }
 
@@ -701,6 +730,7 @@ where
         f(self)
     }
 
+    fn emit_close_trivia(&mut self, _trivia: &TriviaRun) {}
     fn emit_matching_close(&mut self, _kind: SyntaxKind, _range: Range<usize>) {}
     fn emit_mismatched_close(&mut self, _role: GrammarRole, _range: Range<usize>, _expected: ExpectedSyntax) {}
     fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {}
@@ -723,6 +753,10 @@ where
         f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
     ) -> R {
         self.committed.probe(|probe| f(probe.input()))
+    }
+
+    fn emit_close_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
     }
 
     fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>) {
@@ -1465,6 +1499,10 @@ where
         f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
     ) -> R {
         self.committed.probe(|probe| f(probe.input()))
+    }
+
+    fn emit_close_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
     }
 
     fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>) {
@@ -2381,6 +2419,7 @@ where
         f(self.i)
     }
 
+    fn emit_close_trivia(&mut self, _trivia: &TriviaRun) {}
     fn emit_matching_close(&mut self, _kind: SyntaxKind, _range: Range<usize>) {}
     fn emit_mismatched_close(&mut self, _role: GrammarRole, _range: Range<usize>, _expected: ExpectedSyntax) {}
     fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {}
@@ -4276,6 +4315,51 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Incomplete, ..
         })]));
+    }
+
+    #[test]
+    fn type_close_slot_retries_past_local_trivia() {
+        for (source, owner, delimiter, mismatch, close) in [
+            ("T(A] )", ConstructRole::TypeCall, Delimiter::Parenthesis, 3..4, 5..6),
+            ("(A] )", ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis, 2..3, 4..5),
+            ("{a:A] }", ConstructRole::NamedRecordType, Delimiter::Brace, 4..5, 6..7),
+            ("'[A) ]", ConstructRole::EffectRowType, Delimiter::Bracket, 3..4, 5..6),
+            ("T(A]/*c*/)", ConstructRole::TypeCall, Delimiter::Parenthesis, 3..4, 9..10),
+            (":{A] }", ConstructRole::PolymorphicVariantType, Delimiter::Brace, 3..4, 5..6),
+        ] {
+            let recoveries = parse_direct_recovered(source);
+            assert!(recoveries.iter().any(|record| matches!(record.site.role,
+                GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
+                    if found == owner && found_delimiter == delimiter
+            ) && record.kind == RecoveryKind::Error && record.site.range == mismatch),
+                "missing local mismatch for {source}: {recoveries:#?}");
+            assert!(!recoveries.iter().any(|record| matches!(record.site.role,
+                GrammarRole::ClosingDelimiter { owner: found, delimiter: found_delimiter }
+                    if found == owner && found_delimiter == delimiter
+            ) && record.kind == RecoveryKind::Missing),
+                "spurious missing close for {source}: {recoveries:#?}");
+            assert_eq!(parse_direct(source).to_string(), source, "lossless CST for {source}");
+            assert!(close.start < close.end);
+        }
+
+        assert!(matches!(parse("T(A] )").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Complete(close), ..
+        })] if *close == (5..6)));
+        assert!(matches!(parse("(A] )").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            close: Recovered::Complete(close), ..
+        }) if close == (4..5)));
+        assert!(matches!(parse("{a:A] }").primary, TypePrimary::Record(NamedRecordType {
+            close: Recovered::Complete(close), ..
+        }) if close == (6..7)));
+        assert!(matches!(parse("'[A) ]").primary, TypePrimary::EffectRow(EffectRowType {
+            close: Recovered::Complete(close), ..
+        }) if close == (5..6)));
+        assert!(matches!(parse("T(A]/*c*/)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Complete(close), ..
+        })] if *close == (9..10)));
+        assert!(matches!(parse(":{A] }").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Complete(close), ..
+        }) if close == (5..6)));
     }
 
     #[test]

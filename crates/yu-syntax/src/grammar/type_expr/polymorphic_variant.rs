@@ -146,6 +146,10 @@ where
         self.context.with_input(f)
     }
 
+    fn emit_close_trivia(&mut self, trivia: &TriviaRun) {
+        self.context.emit_trivia(trivia);
+    }
+
     fn emit_matching_close(&mut self, _kind: SyntaxKind, range: Range<usize>) {
         self.context.emit_close(range);
     }
