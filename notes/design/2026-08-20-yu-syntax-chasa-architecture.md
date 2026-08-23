@@ -12866,7 +12866,7 @@ trailing implicit newline classification、arrow RHSのowner-safe newline差、s
 
 ## 追補案: standalone `TypeExpression`のnamed record type primary
 
-Status: Proposal（Claude (Sonnet 5) が査読・確定、ユーザ承認待ち）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 本追補は、authoritativeなstandalone `TypeExpression` core grammarへnamed record type
 `{a: A, b: B}`を追加する。これはexisting dynamic expressionのrecord literalでも、
@@ -13425,5 +13425,5 @@ adjacent braceの扱いもfixture tableで固定した。そのうえで、残�
    field-authority cutによりwhole-field / name Errorを排他化し、spread / shorthand / defaultのrole、AST slot、
    range、retry先も個別に固定した。no-cascade規則とrecord-local / outer boundary authorityも維持する。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression named record type primary追補案）。
