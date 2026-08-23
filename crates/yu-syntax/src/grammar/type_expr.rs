@@ -2991,11 +2991,11 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         i,
         exact_colon_pending,
         |_| false,
-        record_colon_invalid_boundary_pending,
+        malformed_record_name_boundary_pending,
         |i| type_item_boundary_after_trivia_with_policy(
             i,
             newline_policy,
-            record_colon_invalid_boundary_pending,
+            malformed_record_name_boundary_pending,
         ),
     );
     let Some((range, TypeItemRecovery::Retry)) = recovered else {
@@ -3004,6 +3004,18 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     };
     let colon = scan_exact_colon(i).expect("record-name recovery stopped at a colon");
     Some((range, colon))
+}
+
+/// A valid field-name token belongs to the enclosing whole-field recovery,
+/// not this incomplete `name :` probe.  In particular, the inner probe must
+/// not consume `foo` in `@foo!: A` before the outer scanner can commit the
+/// field-level Error run.
+fn malformed_record_name_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let plain_identifier = scan_plain_type_identifier(i).is_some();
+    i.rollback(checkpoint);
+    plain_identifier || record_colon_invalid_boundary_pending(i)
 }
 
 fn named_record_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
@@ -3797,7 +3809,7 @@ where
     let mut recovery = scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
-        |i| record_field_head_candidate(i) || record_field_head_candidate_after_trivia(i),
+        record_field_head_candidate_after_trivia,
         record_invalid_boundary_pending,
     )?;
     if matches!(recovery.disposition, TypeInvalidRunDisposition::RetryCurrent)
@@ -5329,6 +5341,21 @@ mod tests {
         assert!(matches!(parse("{@ , a: A}").primary, TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+    }
+
+    #[test]
+    fn malformed_record_name_hands_plain_identifier_to_whole_field_recovery() {
+        let source = "{@foo!: A}";
+        let ast = parse(source);
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            ref fields, close: Recovered::Complete(_), ..
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete])), "{ast:#?}");
+
+        let recoveries = parse_direct_recovered(source);
+        assert!(matches!(recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (1..9)), "{recoveries:#?}");
     }
 
     #[test]
