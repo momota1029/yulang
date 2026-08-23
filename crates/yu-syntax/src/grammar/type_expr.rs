@@ -3363,6 +3363,9 @@ where
         TypeMalformedTriviaClassification::DeeperContinuation => false,
     };
     i.rollback(checkpoint);
+    if classification == TypeMalformedTriviaClassification::CallerBoundary {
+        mark_type_malformed_caller_boundary(i);
+    }
     boundary
 }
 
@@ -5745,6 +5748,69 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (1..9)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn legacy_after_trivia_marks_a_caller_boundary_fence() {
+        let source = "@ \n  field";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(StopKind::Newline));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        assert_eq!(i.input.next(), Some('@'));
+        assert!(type_item_boundary_after_trivia_with_policy(
+            &mut i,
+            TypeMalformedNewlinePolicy::AnyPhysicalHandoff,
+            |_| unreachable!("CallerBoundary resolves before the caller predicate"),
+        ));
+        assert_eq!(i.pos(), 1);
+        assert_eq!(
+            i.local.type_malformed_caller_boundary(),
+            Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 })
+        );
+    }
+
+    #[test]
+    fn malformed_record_name_speculation_rolls_back_a_caller_boundary_fence() {
+        let source = "@ \n  field:A";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(StopKind::Newline));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        // The legacy scanner reaches its after-trivia classifier after `@`.
+        // Its active newline is CallerBoundary, but the malformed-name
+        // skeleton rejects Boundary and must restore this outer checkpoint.
+        assert_eq!(scan_malformed_record_name_colon(&mut i), None);
+        assert_eq!(i.pos(), 0);
+        assert_eq!(i.local.type_malformed_caller_boundary(), None);
+
+        // The whole-field scanner now reprocesses the same bytes. Its fence
+        // is a new committed decision at the current trivia start, rather
+        // than stale state leaked from the speculative malformed-name probe.
+        let recovery = scan_record_invalid_run(&mut i).expect("whole-field recovery");
+        assert!(matches!(recovery.disposition, TypeInvalidRunDisposition::BoundaryCurrent));
+        assert_eq!(recovery.error_range, 0..1);
+        assert_eq!(i.pos(), 1);
+        assert_eq!(
+            i.local.type_malformed_caller_boundary(),
+            Some(TypeMalformedCallerBoundaryFence { trivia_start: 1 })
+        );
     }
 
     #[test]
