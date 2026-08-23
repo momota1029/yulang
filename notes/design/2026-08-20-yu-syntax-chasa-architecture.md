@@ -15182,7 +15182,7 @@ final reviewでfour issue classをboth nesting levelsについて再点検した
    `Box<TypeExpression>`であることと一致する。malformed prefix + wrong-kind primaryはone recovered tag slotを共有するが、
    outer tag siteとmandatory name siteの別rangeへ各one Error recordを持つため、AST slotを二重生成しない。`NT-2`はclose
    slotだけ、`NT-8`はtag slotだけ、`IT-3..4`はpayload slotsだけをshapeし、`NT-7` caller boundaryはclose Incomplete以外を
-   implicitに作らない。ただしexplicit `NT-3`後のtag-required sequence stateだけは、tableどおりdistinct Missing tag slotを
+   implicitに作らない。ただしexplicit `NT-3`後のtag-required stateだけは、tableどおりdistinct Missing tag slotを
    先に満たす。
 4. **recovery-row exclusivity and single source:** outer ordering / safe pointsを述べる箇所は`NT-1..8` / `NT-safe`のone block、
    inner ordering / safe pointsを述べる箇所は`IT-1..4` / `IT-safe`のone blockだけである。typed recovery tableはbranch outcome、
