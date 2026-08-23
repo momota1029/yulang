@@ -1099,19 +1099,22 @@ where
 
         // NT-5 owns only qualifying physical newlines.  A same-line gap is
         // emitted by the outer node, then the full NT judge starts again.
-        let (gap, gap_line_indent) = committed.probe(|probe| {
+        let (gap, gap_line_indent, gap_precedes_owner_boundary) = committed.probe(|probe| {
             let i = probe.input();
             let checkpoint = i.checkpoint();
             let trivia = consume_trivia(i);
             let line_indent = i.local.line().line_indent;
+            let owner_boundary = !trivia_has_newline(&trivia)
+                && polymorphic_variant_owner_boundary_pending(i);
             i.rollback(checkpoint);
-            (trivia, line_indent)
+            (trivia, line_indent, owner_boundary)
         });
         if !gap.is_empty() {
             if trivia_has_newline(&gap) {
                 let qualifying = layout.boundary_after_trivia(&gap, gap_line_indent)
                     == LayoutDelimitedBoundary::ImplicitNewline;
-                if !qualifying { break; }
+                let caller_owns_newline = active_stop_set_probe(committed, StopKind::Newline);
+                if !qualifying || caller_owns_newline { break; }
                 let consumed = consume_direct_trivia(committed);
                 committed.emit_trivia(&consumed);
                 if after_tag {
@@ -1121,36 +1124,52 @@ where
                 }
                 continue;
             }
+            if gap_precedes_owner_boundary { break; }
             let consumed = consume_direct_trivia(committed);
             committed.emit_trivia(&consumed);
             continue;
         }
 
         // NT-6.
-        if let Some(name) = committed.probe(|probe| scan_plain_type_identifier(probe.input())) {
-            commit_direct_polymorphic_variant_tag(name, committed);
+        if let Some(primary) = committed.probe(|probe| parse_type_primary_in_context(true, probe.input())) {
+            match primary {
+                TypePrimary::Atom(TypeAtom::Identifier(name)) => {
+                    commit_direct_polymorphic_variant_tag(name, committed);
+                }
+                primary => {
+                    committed.start_node(SyntaxKind::PolymorphicVariantTag);
+                    emit_type_error(
+                        committed,
+                        TypeRole::PolymorphicVariantTagName,
+                        primary_range(&primary),
+                        ExpectedSyntax::Identifier,
+                    );
+                    commit_direct_polymorphic_variant_payloads(committed);
+                    committed.finish_node();
+                }
+            }
             tag_required = false;
             required_filled = false;
             after_tag = true;
-        } else if let Some(range) = committed.probe(|probe| parse_type_primary_in_context(true, probe.input()).map(|primary| primary_range(&primary))) {
-            committed.start_node(SyntaxKind::PolymorphicVariantTag);
-            emit_type_error(committed, TypeRole::PolymorphicVariantTagName, range, ExpectedSyntax::Identifier);
-            commit_direct_polymorphic_variant_payloads(committed);
-            committed.finish_node();
-            tag_required = false;
-            required_filled = false;
-            after_tag = true;
-        } else if let Some(range) = committed.probe(|probe| consume_polymorphic_variant_invalid_run(probe.input(), false)) {
+        } else if let Some(range) = committed.probe(|probe| consume_polymorphic_variant_invalid_run(probe.input())) {
             // NT-8 keeps one tag node open across its same-slot NT-6 retry.
             committed.start_node(SyntaxKind::PolymorphicVariantTag);
             emit_type_error(committed, TypeRole::PolymorphicVariantTag, range, ExpectedSyntax::Identifier);
-            if let Some(name) = committed.probe(|probe| scan_plain_type_identifier(probe.input())) {
-                commit_direct_polymorphic_variant_tag_body(name, committed);
-            } else if let Some(name_range) = committed.probe(|probe| {
-                parse_type_primary_in_context(true, probe.input()).map(|primary| primary_range(&primary))
-            }) {
-                emit_type_error(committed, TypeRole::PolymorphicVariantTagName, name_range, ExpectedSyntax::Identifier);
-                commit_direct_polymorphic_variant_payloads(committed);
+            if let Some(primary) = committed.probe(|probe| parse_type_primary_in_context(true, probe.input())) {
+                match primary {
+                    TypePrimary::Atom(TypeAtom::Identifier(name)) => {
+                        commit_direct_polymorphic_variant_tag_body(name, committed);
+                    }
+                    primary => {
+                        emit_type_error(
+                            committed,
+                            TypeRole::PolymorphicVariantTagName,
+                            primary_range(&primary),
+                            ExpectedSyntax::Identifier,
+                        );
+                        commit_direct_polymorphic_variant_payloads(committed);
+                    }
+                }
             }
             committed.finish_node();
             tag_required = false;
@@ -1221,6 +1240,29 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     i.input.remainder().starts_with(';')
 }
 
+/// NT-7 leaves a same-line gap with its caller-owned boundary.  Comma and the
+/// matching brace are local to this owner, so they deliberately do not appear
+/// here even though the active frame contains their stop bits.
+fn polymorphic_variant_owner_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let remainder = i.input.remainder();
+    let Some(character) = remainder.chars().next() else { return true; };
+    let stops = active_stop_set(i);
+    match character {
+        ';' => stops.contains(StopKind::Semicolon),
+        ')' => stops.contains(StopKind::RightParenthesis),
+        ']' => stops.contains(StopKind::RightBracket),
+        ':' => stops.contains(StopKind::Colon),
+        '=' => stops.contains(StopKind::Equal),
+        '\n' | '\r' => stops.contains(StopKind::Newline),
+        _ => remainder.starts_with("->") && stops.contains(StopKind::Arrow),
+    }
+}
+
 fn commit_direct_polymorphic_variant_tag<'parse, 'source, 'local, E, O>(
     name: WordSpan<'source>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -1278,7 +1320,7 @@ fn commit_direct_polymorphic_variant_payloads<'parse, 'source, 'local, E, O>(
             let i = probe.input();
             let checkpoint = i.checkpoint();
             if !trivia.is_empty() { let _ = consume_trivia(i); }
-            let range = consume_polymorphic_variant_invalid_run(i, true);
+            let range = consume_polymorphic_variant_invalid_run(i);
             let retry = range.is_some() && type_primary_candidate(i);
             i.rollback(checkpoint);
             (range, retry)
@@ -1295,7 +1337,7 @@ fn commit_direct_polymorphic_variant_payloads<'parse, 'source, 'local, E, O>(
             committed.emit_trivia(&consumed);
             emit_type_error(committed, TypeRole::PolymorphicVariantPayload, range.clone(), ExpectedSyntax::TypeExpression);
         }
-        let consumed = committed.probe(|probe| consume_polymorphic_variant_invalid_run(probe.input(), true));
+        let consumed = committed.probe(|probe| consume_polymorphic_variant_invalid_run(probe.input()));
         debug_assert_eq!(consumed, Some(range.clone()));
         if retry {
             let saved = committed.probe(|probe| probe.input().local.type_ml_arg());
@@ -1938,7 +1980,10 @@ where
         let gap = consume_trivia(i);
         if !gap.is_empty() {
             if trivia_has_newline(&gap) {
-                if layout.boundary_after_trivia(&gap, i.local.line().line_indent) != LayoutDelimitedBoundary::ImplicitNewline {
+                let caller_owns_newline = active_stop_set(i).contains(StopKind::Newline);
+                if caller_owns_newline
+                    || layout.boundary_after_trivia(&gap, i.local.line().line_indent) != LayoutDelimitedBoundary::ImplicitNewline
+                {
                     i.rollback(checkpoint);
                     close = Recovered::Incomplete;
                     break;
@@ -1951,19 +1996,22 @@ where
                 }
                 continue;
             }
+            if polymorphic_variant_owner_boundary_pending(i) {
+                i.rollback(checkpoint);
+                close = Recovered::Incomplete;
+                break;
+            }
             continue;
         }
 
-        // NT-6: only plain identifiers own a normal tag name.
-        if let Some(name) = scan_plain_type_identifier(i) {
-            tags.push(Recovered::Complete(parse_polymorphic_variant_tag(name, i)));
-            tag_required = false;
-            required_filled = false;
-            after_tag = true;
-            continue;
-        }
+        // NT-6 lets the canonical primary judge give compound and contextual
+        // forms priority before classifying a plain identifier as a tag name.
         if let Some(primary) = parse_type_primary_in_context(true, i) {
-            tags.push(Recovered::Complete(parse_polymorphic_variant_wrong_kind_tag(primary, i)));
+            let tag = match primary {
+                TypePrimary::Atom(TypeAtom::Identifier(name)) => parse_polymorphic_variant_tag(name, i),
+                primary => parse_polymorphic_variant_wrong_kind_tag(primary, i),
+            };
+            tags.push(Recovered::Complete(tag));
             tag_required = false;
             required_filled = false;
             after_tag = true;
@@ -1976,11 +2024,13 @@ where
             break;
         }
         // NT-8 retries its one tag slot at a following canonical primary.
-        if consume_polymorphic_variant_invalid_run(i, false).is_some() {
-            if let Some(name) = scan_plain_type_identifier(i) {
-                tags.push(Recovered::Complete(parse_polymorphic_variant_tag(name, i)));
-            } else if let Some(primary) = parse_type_primary_in_context(true, i) {
-                tags.push(Recovered::Complete(parse_polymorphic_variant_wrong_kind_tag(primary, i)));
+        if consume_polymorphic_variant_invalid_run(i).is_some() {
+            if let Some(primary) = parse_type_primary_in_context(true, i) {
+                let tag = match primary {
+                    TypePrimary::Atom(TypeAtom::Identifier(name)) => parse_polymorphic_variant_tag(name, i),
+                    primary => parse_polymorphic_variant_wrong_kind_tag(primary, i),
+                };
+                tags.push(Recovered::Complete(tag));
             } else {
                 tags.push(Recovered::Incomplete);
             }
@@ -2070,7 +2120,7 @@ where
             }));
             continue;
         }
-        let malformed = consume_polymorphic_variant_invalid_run(i, true);
+        let malformed = consume_polymorphic_variant_invalid_run(i);
         let retry = malformed.is_some() && type_primary_candidate(i);
         let Some(range) = malformed else {
             i.rollback(checkpoint);
@@ -2114,7 +2164,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     remainder.is_empty() || matches!(remainder.chars().next(), Some(',' | ';' | '}' | ')' | ']')) || type_recovery_boundary_pending(i)
 }
 
-fn consume_polymorphic_variant_invalid_run<E>(i: &mut SynIn<E>, payload: bool) -> Option<Range<usize>>
+fn consume_polymorphic_variant_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let start = i.pos();
     let mut end = start;
@@ -2122,13 +2172,12 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         if end > start && type_primary_candidate(i) { return Some(start..end); }
         if polymorphic_variant_outer_boundary(i) { return (start < end).then_some(start..end); }
         let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
-        if character.is_whitespace() { return (start < end).then_some(start..end); }
+        if matches!(character, '\n' | '\r') { return (start < end).then_some(start..end); }
         i.input.next()?;
         end = i.pos();
         let mut line = i.local.line();
         line.at_line_start = false;
         i.local.set_line(line);
-        if payload && end > start && type_primary_candidate(i) { return Some(start..end); }
     }
 }
 
@@ -4068,6 +4117,14 @@ mod tests {
         assert_eq!(remainder, ";");
         assert!(!records.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)));
 
+        let (remainder, caller_close) = parse_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        assert!(matches!(caller_close.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, ref tags, ..
+        }) if tags.len() == 1));
+        let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+
         for source in [":{A;B}", ":{A ; B}"] {
             let parsed = parse(source);
             assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
@@ -4082,6 +4139,9 @@ mod tests {
             owner: ConstructRole::PolymorphicVariantType,
             delimiter: Delimiter::Brace,
         }) && record.kind == RecoveryKind::Error && record.site.range == (4..5)));
+        assert!(matches!(parse(":{A ]}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            tags, close: Recovered::Complete(close), ..
+        }) if tags.len() == 1 && close == (5..6)));
     }
 
     #[test]
@@ -4117,6 +4177,13 @@ mod tests {
                     && record.kind == RecoveryKind::Error).count(), 1);
         }
 
+        let direct = parse_direct(":{@123}");
+        let tags = direct.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
+            .collect::<Vec<_>>();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].descendants().filter(|node| node.kind() == SyntaxKind::Error).count(), 2);
+
         let parsed = parse(":{A@123}");
         assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
@@ -4135,6 +4202,57 @@ mod tests {
         assert_eq!(trailing.iter().filter(|record|
             record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
                 && record.kind == RecoveryKind::Missing).count(), 1);
+    }
+
+    #[test]
+    fn polymorphic_variant_nt6_and_malformed_scanners_use_canonical_primaries() {
+        let forall = parse(":{for 'a: T}");
+        assert!(matches!(forall.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            tags, ..
+        }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
+            name: Recovered::Incomplete,
+            payloads,
+            range,
+        })] if payloads.is_empty() && range == &(2..11))));
+        let records = parse_direct_recovered(":{for 'a: T}");
+        assert!(matches!(records.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..11)));
+
+        let malformed_tag = parse(":{@ 123}");
+        assert!(matches!(malformed_tag.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            tags, ..
+        }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
+            name: Recovered::Incomplete,
+            payloads,
+            ..
+        })] if payloads.is_empty())));
+        let records = parse_direct_recovered(":{@ 123}");
+        assert_eq!(records.iter().filter(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Error).count(), 1);
+        assert_eq!(records.iter().filter(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                && record.kind == RecoveryKind::Error).count(), 1);
+        let direct = parse_direct(":{@ 123}");
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag).count(), 1);
+
+        let malformed_payload = parse(":{A @ 123}");
+        assert!(matches!(malformed_payload.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
+                if matches!(payloads.as_slice(), [Recovered::Complete(PolymorphicVariantPayload {
+                    boundary: Recovered::Complete(_),
+                    type_expr: Recovered::Complete(_),
+                    ..
+                })]))));
+        let records = parse_direct_recovered(":{A @ 123}");
+        assert!(records.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..6)));
+        let direct = parse_direct(":{A @ 123}");
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload).count(), 1);
     }
 
 }
