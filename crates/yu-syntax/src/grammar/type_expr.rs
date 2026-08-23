@@ -13,7 +13,7 @@ use crate::{
     grammar::{declaration::Recovered, expression::parse_integer_literal},
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
-        trivia::{TriviaRun, scan_trivia},
+        trivia::{TriviaRun, scan_comment, scan_trivia},
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeRole, UnexpectedCategory, UnexpectedSyntax},
@@ -2305,7 +2305,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         exact_colon_pending,
         |_| false,
         record_colon_invalid_boundary_pending,
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, record_colon_invalid_boundary_pending),
     );
     let Some((range, TypeItemRecovery::Retry)) = recovered else {
         i.rollback(checkpoint);
@@ -2610,8 +2610,16 @@ where
         {
             return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
         }
-        // Trivia that neither resumes this slot nor reaches a boundary still
-        // belongs to the malformed run, but comments must remain opaque.
+        // A comment may be malformed content, but it must remain one opaque
+        // unit. Consume it separately so a following space or newline still
+        // receives this caller's ordinary boundary classification.
+        if i.run(scan_comment).is_some() {
+            end = i.pos();
+            continue;
+        }
+
+        // Non-comment trivia that neither resumes this slot nor reaches a
+        // boundary belongs to the malformed run.
         let trivia = consume_trivia(i);
         if !trivia.is_empty() {
             end = i.pos();
@@ -2846,7 +2854,7 @@ where
         type_name_pending,
         |_| false,
         type_path_invalid_boundary_pending,
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, type_path_invalid_boundary_pending),
     )
     .map(|(range, _)| range)
 }
@@ -2906,7 +2914,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         |i| exact_colon_pending(i) || type_primary_candidate(i),
         |_| false,
         record_colon_invalid_boundary_pending,
-        |_| false,
+        |i| type_item_boundary_after_trivia(i, record_colon_invalid_boundary_pending),
     )
     .map(|(range, _)| range)
 }
@@ -3808,6 +3816,42 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
             segment: Recovered::Complete(TypePathSegment::Identifier(_)), ..
         })]));
+    }
+
+    #[test]
+    fn comment_prefixed_path_and_record_colon_recovery_keep_their_boundaries() {
+        for (source, expected_remainder, expected_range) in [
+            ("A::@\nT", "\nT", 3..4),
+            ("A::@//x\nT", "//x\nT", 3..4),
+            ("A::@ B", "", 3..4),
+            ("A::@/*x*/ B", "", 3..9),
+        ] {
+            let (ast_remainder, ast) = parse_prefix(source);
+            let (direct_remainder, recoveries) = parse_direct_prefix(source);
+            assert_eq!(ast_remainder, expected_remainder, "AST {source}");
+            assert_eq!(direct_remainder, expected_remainder, "direct {source}");
+            assert!(matches!(ast.postfix.first(), Some(TypePostfixTail::Path(TypePathTail {
+                segment: Recovered::Incomplete, ..
+            }))), "AST shape {source}");
+            assert!(matches!(recoveries.as_slice(), [error]
+                if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
+                    && error.kind == RecoveryKind::Error
+                    && error.site.range == expected_range), "{source}: {recoveries:#?}");
+        }
+
+        for (source, expected_range) in [
+            ("{name @ A}", 6..7),
+            ("{name @/*x*/ A}", 6..12),
+        ] {
+            let (ast_remainder, _) = parse_prefix(source);
+            let (direct_remainder, recoveries) = parse_direct_prefix(source);
+            assert_eq!(ast_remainder, "A}", "AST {source}");
+            assert_eq!(direct_remainder, "A}", "direct {source}");
+            assert!(recoveries.iter().any(|error|
+                error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+                    && error.kind == RecoveryKind::Error
+                    && error.site.range == expected_range), "{source}: {recoveries:#?}");
+        }
     }
 
     #[test]
