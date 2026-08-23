@@ -26,7 +26,7 @@ use crate::{
             parse_pattern_with_outer_missing_role},
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
-            parse_required_type_expression_with_outer_missing_role,
+            parse_required_type_expression_with_outer_missing_role, parse_type_expression,
         },
     },
     input::SourceInput,
@@ -5001,13 +5001,37 @@ where
         if let Some(close) = scan_struct_close_brace(i) {
             break Recovered::Complete(close);
         }
+        if struct_outer_owned_mismatched_close_pending(i) {
+            break Recovered::Incomplete;
+        }
+        if scan_struct_mismatched_close(i).is_some() {
+            // A local mismatched closer belongs to this close slot.  Its
+            // following trivia must not manufacture an empty field before
+            // the retry reaches this frame's matching close.
+            let _ = i.run(scan_trivia).expect("trivia is total");
+            continue;
+        }
         if i.input.remainder().is_empty() {
             break Recovered::Incomplete;
         }
-        let Some(field) = parse_struct_named_field_ast(i) else {
+        if let Some(_comma) = scan_struct_comma(i) {
+            fields.push(Recovered::Incomplete);
+            let _ = i.run(scan_trivia).expect("trivia is total");
+            continue;
+        }
+        let field = if let Some(field) = parse_struct_named_field_ast(i) {
+            Recovered::Complete(field)
+        } else if scan_struct_field_invalid_run(false, i).is_some() {
+            let _ = i.run(scan_trivia).expect("trivia is total");
+            Recovered::Incomplete
+        } else {
             break Recovered::Incomplete;
         };
-        fields.push(Recovered::Complete(field));
+        fields.push(field);
+
+        if matches!(fields.last(), Some(Recovered::Incomplete)) {
+            continue;
+        }
 
         let trivia = i.run(scan_trivia).expect("trivia is total");
         if let Some(comma) = scan_struct_comma(i) {
@@ -5056,9 +5080,16 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
+    let name_recovery = if struct_word_pending(i) || struct_colon_pending(i) {
+        None
+    } else {
+        scan_struct_field_name_colon_recovery(i)
+    };
     let name = if let Some(name) = i.run(scan_word) {
         Recovered::Complete(name)
-    } else if scan_struct_colon(i).is_some() {
+    } else if struct_colon_pending(i) {
+        Recovered::Incomplete
+    } else if matches!(name_recovery, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Colon { .. }, .. })) {
         Recovered::Incomplete
     } else {
         return None;
@@ -5068,12 +5099,19 @@ where
         Recovered::Incomplete => start,
     };
     let _ = consume_struct_field_name_trivia(i);
+    let colon_recovery = if struct_colon_pending(i) || struct_field_boundary_pending(i) {
+        None
+    } else {
+        scan_struct_field_invalid_run(true, i)
+    };
     let colon = if let Some(colon) = scan_struct_colon(i) {
         Recovered::Complete(colon)
     } else {
         Recovered::Incomplete
     };
-    let type_expr = if matches!(colon, Recovered::Incomplete) && struct_field_boundary_pending(i) {
+    let type_expr = if matches!(colon_recovery, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Boundary, .. }))
+        || (matches!(colon, Recovered::Incomplete) && struct_field_boundary_pending(i))
+    {
         Recovered::Incomplete
     } else {
         let _ = consume_struct_field_type_trivia(i);
@@ -5144,13 +5182,50 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::RBrace, close);
             break;
         }
+        if committed.probe(|probe| struct_outer_owned_mismatched_close_pending(probe.input())) {
+            emit_struct_missing_close(committed);
+            break;
+        }
+        if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
+            emit_struct_mismatched_close(committed, range, actual);
+            // Keep recovery at the close slot: trivia after a consumed local
+            // mismatch precedes the next close retry, not a field slot.
+            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
+            committed.emit_trivia(&trivia);
+            continue;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
             emit_struct_missing_close(committed);
             break;
         }
+        if committed.probe(|probe| scan_struct_comma_pending(probe.input())) {
+            commit_empty_struct_named_field(committed);
+            let comma = committed
+                .probe(|probe| scan_struct_comma(probe.input()))
+                .expect("the empty Struct field slot is followed by its comma");
+            committed.token(SyntaxKind::Comma, comma);
+            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
+            committed.emit_trivia(&trivia);
+            continue;
+        }
         if !commit_struct_named_field(committed) {
-            emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
-            break;
+            if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
+                emit_struct_error(
+                    committed,
+                    crate::session::StructRole::Field,
+                    run.range,
+                    ExpectedSyntax::Identifier,
+                );
+                let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+                    .expect("trivia is total");
+                committed.emit_trivia(&trivia);
+                continue;
+            } else {
+                emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+                break;
+            }
         }
 
         let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
@@ -5190,6 +5265,14 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
+        if committed.probe(|probe| struct_outer_owned_mismatched_close_pending(probe.input())) {
+            emit_struct_missing_close(committed);
+            break;
+        }
+        if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
+            emit_struct_mismatched_close(committed, range, actual);
+            continue;
+        }
         emit_struct_missing_close(committed);
         break;
     }
@@ -5201,6 +5284,17 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
         assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
     });
     let _ = open;
+}
+
+fn commit_empty_struct_named_field<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.start_node(SyntaxKind::StructField);
+    emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+    committed.finish_node();
 }
 
 fn commit_struct_named_field<'parse, 'source, 'local, E, O>(
@@ -5218,7 +5312,12 @@ where
     } else {
         None
     };
-    if name.is_none() && colon_without_name.is_none() {
+    let malformed_name = if name.is_none() && colon_without_name.is_none() {
+        committed.probe(|probe| scan_struct_field_name_colon_recovery(probe.input()))
+    } else {
+        None
+    };
+    if name.is_none() && colon_without_name.is_none() && malformed_name.is_none() {
         return false;
     }
     committed.start_node(SyntaxKind::StructField);
@@ -5228,18 +5327,71 @@ where
             committed.emit_trivia(&trivia);
         }
     } else {
-        emit_struct_missing(committed, crate::session::StructRole::FieldName, ExpectedSyntax::Identifier);
+        match malformed_name {
+            Some(StructFieldInvalidRun {
+                range,
+                target: StructFieldInvalidTarget::Colon { trivia },
+            }) => {
+                emit_struct_error(
+                    committed,
+                    crate::session::StructRole::FieldName,
+                    range,
+                    ExpectedSyntax::Identifier,
+                );
+                if let Some(trivia) = trivia {
+                    committed.emit_trivia(&trivia);
+                }
+            }
+            _ => emit_struct_missing(committed, crate::session::StructRole::FieldName, ExpectedSyntax::Identifier),
+        }
     }
     let colon = colon_without_name.or_else(|| committed.probe(|probe| scan_struct_colon(probe.input())));
     if let Some(colon) = colon {
         committed.token(SyntaxKind::Colon, colon);
     } else {
-        emit_struct_missing(
-            committed,
-            crate::session::StructRole::FieldColon,
-            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
-        );
-        if committed.probe(|probe| struct_field_boundary_pending(probe.input())) {
+        let recovery = if committed.probe(|probe| struct_field_boundary_pending(probe.input())) {
+            None
+        } else {
+            committed.probe(|probe| scan_struct_field_invalid_run(true, probe.input()))
+        };
+        let type_expected = match recovery {
+            Some(StructFieldInvalidRun { range, target }) => {
+                emit_struct_error(
+                    committed,
+                    crate::session::StructRole::FieldColon,
+                    range,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+                );
+                match target {
+                    StructFieldInvalidTarget::Colon { trivia } => {
+                        if let Some(trivia) = trivia {
+                            committed.emit_trivia(&trivia);
+                        }
+                        let colon = committed
+                            .probe(|probe| scan_struct_colon(probe.input()))
+                            .expect("field-colon recovery stopped at a colon");
+                        committed.token(SyntaxKind::Colon, colon);
+                        true
+                    }
+                    StructFieldInvalidTarget::TypePrimary { trivia } => {
+                        if let Some(trivia) = trivia {
+                            committed.emit_trivia(&trivia);
+                        }
+                        true
+                    }
+                    StructFieldInvalidTarget::Boundary => false,
+                }
+            }
+            None => {
+                emit_struct_missing(
+                    committed,
+                    crate::session::StructRole::FieldColon,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+                );
+                !committed.probe(|probe| struct_field_boundary_pending(probe.input()))
+            }
+        };
+        if !type_expected {
             committed.finish_node();
             return true;
         }
@@ -5334,6 +5486,128 @@ where
     candidate
 }
 
+#[derive(Clone, Debug)]
+struct StructFieldInvalidRun {
+    range: Range<usize>,
+    target: StructFieldInvalidTarget,
+}
+
+#[derive(Clone, Debug)]
+enum StructFieldInvalidTarget {
+    Colon { trivia: Option<TriviaRun> },
+    TypePrimary { trivia: Option<TriviaRun> },
+    Boundary,
+}
+
+/// Scan one declaration-owned malformed field slot.  It is intentionally
+/// narrower than header recovery: a field name can recover only to a colon
+/// skeleton, while a field colon may also hand the same slot to a TypePrimary.
+fn scan_struct_field_invalid_run<E>(
+    allow_type_primary: bool,
+    i: &mut SynIn<E>,
+) -> Option<StructFieldInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end == start && (struct_colon_pending(i) || (allow_type_primary && struct_type_primary_pending(i))) {
+            return None;
+        }
+        if end > start {
+            if struct_colon_pending(i) {
+                return Some(StructFieldInvalidRun {
+                    range: start..end,
+                    target: StructFieldInvalidTarget::Colon { trivia: None },
+                });
+            }
+            if allow_type_primary && struct_type_primary_pending(i) {
+                return Some(StructFieldInvalidRun {
+                    range: start..end,
+                    target: StructFieldInvalidTarget::TypePrimary { trivia: None },
+                });
+            }
+
+            let checkpoint = i.checkpoint();
+            let trivia = i.run(scan_trivia).expect("trivia is total");
+            if !trivia.is_empty() {
+                if struct_trivia_has_newline(&trivia) {
+                    i.rollback(checkpoint);
+                    return Some(StructFieldInvalidRun { range: start..end, target: StructFieldInvalidTarget::Boundary });
+                }
+                if struct_colon_pending(i) {
+                    return Some(StructFieldInvalidRun {
+                        range: start..end,
+                        target: StructFieldInvalidTarget::Colon { trivia: Some(trivia) },
+                    });
+                }
+                if allow_type_primary && struct_type_primary_pending(i) {
+                    return Some(StructFieldInvalidRun {
+                        range: start..end,
+                        target: StructFieldInvalidTarget::TypePrimary { trivia: Some(trivia) },
+                    });
+                }
+                i.rollback(checkpoint);
+                return Some(StructFieldInvalidRun {
+                    range: start..end,
+                    target: StructFieldInvalidTarget::Boundary,
+                });
+            }
+            if struct_field_boundary_pending(i) || struct_mismatched_close_pending(i) {
+                return Some(StructFieldInvalidRun { range: start..end, target: StructFieldInvalidTarget::Boundary });
+            }
+        }
+
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < end).then_some(StructFieldInvalidRun {
+                range: start..end,
+                target: StructFieldInvalidTarget::Boundary,
+            });
+        }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+/// A malformed field name establishes field authority only if it reaches the
+/// literal-colon skeleton.  Other malformed input remains sequence-owned.
+fn scan_struct_field_name_colon_recovery<E>(
+    i: &mut SynIn<E>,
+) -> Option<StructFieldInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let recovered = scan_struct_field_invalid_run(false, i);
+    if matches!(recovered, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Colon { .. }, .. })) {
+        recovered
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn struct_type_primary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(parse_type_expression).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
 fn struct_field_boundary_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -5357,6 +5631,18 @@ where
     pending
 }
 
+fn struct_colon_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_struct_colon(i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
 fn struct_close_brace_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -5365,6 +5651,61 @@ where
 {
     let checkpoint = i.checkpoint();
     let pending = scan_struct_close_brace(i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn struct_mismatched_close_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        matches!(punctuation.kind(), PunctuationKind::Close(delimiter) if delimiter != Delimiter::Brace)
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn scan_struct_mismatched_close<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Delimiter)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    match punctuation.kind() {
+        PunctuationKind::Close(delimiter) if delimiter != Delimiter::Brace => {
+            Some((punctuation.range(), delimiter))
+        }
+        _ => {
+            i.rollback(checkpoint);
+            None
+        }
+    }
+}
+
+/// The Struct frame keeps incoming stops beneath its own matching brace.  A
+/// mismatched closer is therefore outer-owned exactly when its corresponding
+/// incoming stop remains active; it must remain untouched for that owner.
+fn struct_outer_owned_mismatched_close_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_struct_mismatched_close(i).is_some_and(|(_, delimiter)| {
+        let stop = match delimiter {
+            Delimiter::Parenthesis => StopKind::RightParenthesis,
+            Delimiter::Bracket => StopKind::RightBracket,
+            Delimiter::Brace => unreachable!("matching braces are not mismatched"),
+        };
+        i.local.stop_set().is_some_and(|stops| stops.contains(stop))
+    });
     i.rollback(checkpoint);
     pending
 }
@@ -5444,6 +5785,74 @@ fn emit_struct_missing_close<'parse, 'source, 'local, E, O>(
         )
     });
     committed.emit_missing(record);
+}
+
+fn emit_struct_mismatched_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    range: Range<usize>,
+    actual: Delimiter,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::StructNamedFields,
+            delimiter: Delimiter::Brace,
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::Punctuation(
+                    crate::session::PunctuationEvidence::Close(actual),
+                ),
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
+}
+
+fn emit_struct_error<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    role: crate::session::StructRole,
+    range: Range<usize>,
+    expected: ExpectedSyntax,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(role));
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            RecoveryKind::Error,
+            Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_error(record);
 }
 
 fn struct_name_error_retry_ast<'source, E>(
@@ -10348,6 +10757,174 @@ mod tests {
             panic!("expected named brace body");
         };
         assert_eq!(applied.fields.len(), 1);
+    }
+
+    #[test]
+    fn struct_named_fields_recover_colon_skeletons_without_cascading() {
+        let (declaration, remainder) = parse_struct_for_test("struct S { @: Int }");
+        assert_eq!(remainder, "");
+        let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+            panic!("expected named body");
+        };
+        let [Recovered::Complete(field)] = body.fields.as_slice() else {
+            panic!("one recovered field expected");
+        };
+        assert!(matches!(field.name, Recovered::Incomplete));
+        assert!(matches!(field.colon, Recovered::Complete(ref colon) if *colon == (12..13)));
+        assert!(matches!(field.type_expr, Recovered::Complete(_)));
+
+        let output = parse_direct_root_candidate(
+            "struct S { @: Int }",
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let records = output.committed_recoveries();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].kind, RecoveryKind::Error);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldName)),
+        );
+        assert_eq!(records[0].site.range, 11..12);
+
+        for (source, expected_range, colon_complete, type_complete) in [
+            ("struct S { x @: Int }", 13..14, true, true),
+            ("struct S { x @ Int }", 13..14, false, true),
+            ("struct S { x @ }", 13..14, false, false),
+        ] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(remainder, "", "{source:?}");
+            let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+                panic!("expected named body for {source:?}");
+            };
+            let [Recovered::Complete(field)] = body.fields.as_slice() else {
+                panic!("one recovered field expected for {source:?}");
+            };
+            assert_eq!(matches!(field.colon, Recovered::Complete(_)), colon_complete, "{source:?}");
+            assert_eq!(matches!(field.type_expr, Recovered::Complete(_)), type_complete, "{source:?}");
+
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let records = output.committed_recoveries();
+            assert_eq!(records.len(), 1, "{source:?}");
+            assert_eq!(records[0].kind, RecoveryKind::Error, "{source:?}");
+            assert_eq!(
+                records[0].site.role,
+                GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldColon)),
+                "{source:?}",
+            );
+            assert_eq!(records[0].site.range, expected_range, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn struct_named_field_sequence_owns_leading_and_repeated_empty_comma_slots() {
+        for (source, missing_ranges, field_count) in [
+            ("struct S { ,x: Int }", vec![11..11], 2),
+            ("struct S { x: Int,,y: Int }", vec![18..18], 3),
+        ] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(remainder, "", "{source:?}");
+            let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+                panic!("expected named body for {source:?}");
+            };
+            assert_eq!(body.fields.len(), field_count, "{source:?}");
+            assert_eq!(
+                body.fields.iter().filter(|field| matches!(field, Recovered::Incomplete)).count(),
+                missing_ranges.len(),
+                "{source:?}",
+            );
+
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let records: Vec<_> = output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
+                            crate::session::StructRole::Field,
+                        ))
+                })
+                .collect();
+            assert_eq!(records.len(), missing_ranges.len(), "{source:?}");
+            assert_eq!(
+                records.iter().map(|record| record.site.range.clone()).collect::<Vec<_>>(),
+                missing_ranges,
+                "{source:?}",
+            );
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(
+                root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(),
+                field_count,
+                "{source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn struct_named_brace_close_recovery_keeps_local_and_outer_closers_distinct() {
+        let source = "struct S { ] }";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+            if body.fields.is_empty() && matches!(body.close, Recovered::Complete(ref close) if *close == (13..14))));
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let [record] = output.committed_recoveries() else {
+            panic!("one local close error expected");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::StructNamedFields,
+                delimiter: Delimiter::Brace,
+            },
+        );
+        assert_eq!(record.site.range, 11..12);
+
+        let source = "struct S { @ ]";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let declaration = i.run(parse_struct_declaration).expect("Struct authority");
+        assert_eq!(i.input.remainder(), "]");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+            if matches!(body.fields.as_slice(), [Recovered::Incomplete])
+                && matches!(body.close, Recovered::Incomplete)));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        let intro = committed
+            .probe(|probe| probe.input().run(recognize_struct_statement_intro))
+            .expect("Struct introduction");
+        let _ = commit_struct_declaration(&mut committed, intro);
+        let output = committed.into_output();
+        let records = output.committed_recoveries();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].kind, RecoveryKind::Error);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Field)),
+        );
+        assert_eq!(records[0].site.range, 11..12);
+        assert_eq!(records[1].kind, RecoveryKind::Missing);
+        assert_eq!(
+            records[1].site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::StructNamedFields,
+                delimiter: Delimiter::Brace,
+            },
+        );
+        assert_eq!(records[1].site.range, 13..13);
     }
 
     #[test]
