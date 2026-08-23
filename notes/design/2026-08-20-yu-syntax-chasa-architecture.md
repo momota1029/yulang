@@ -15078,7 +15078,7 @@ authority orderとsafe-point membershipのsingle sourceは`CanonicalNewTagPositi
 | `NT-8`後にplain Identifier candidate | maximal prefix `Error(PolymorphicVariantTag)` | same whole-tag slotを`NT-6` normal-name resultへretry。成功時AST tag Complete |
 | `NT-8`後にnon-Identifier candidate | maximal prefix `Error(PolymorphicVariantTag)` | same slotを`NT-6` wrong-kind resultへretryしcandidate own rangeへ別のTagName Error。二Errorは別range / cause、second tag slotなし |
 | `NT-8`がnon-candidate `NT-safe`へ到達 | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、safe pointをconsumeせず`NT`へre-enter。同じcauseへMissing tagなし |
-| `NT-7`、separator-required stateでない | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | tag Missingなし、close Incomplete、boundary / gapをconsumeせずcallerへ返す |
+| `NT-7`、tag-required stateでない | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | tag Missingなし、close Incomplete、boundary / gapをconsumeせずcallerへ返す |
 | `NT-2` local mismatched closer | mismatched token own rangeへmaximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | mismatched token位置へMissing closeを重ねず、same close slotから`NT`へretryする。later `NT-1`ならclose Complete。actual closeを得ないままlater `NT-7`へ達した場合は、そのEOF / caller-boundary位置へcanonical zero-width Missing closeを置き、close Incomplete。tag Errorなし |
 | accepted tag内のsame-line Identifier | `IT-3` payload authority | Missing tag separatorなし。`A Int B`はone tag + two payloads |
 
