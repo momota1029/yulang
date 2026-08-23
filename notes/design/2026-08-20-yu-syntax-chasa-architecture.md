@@ -16297,7 +16297,7 @@ Pattern側にreserved-word list、separator parser、use-site-specific recovery 
 | Colon accepted、post-Colon `Gpta`後にvalid TypePrimary | `Some { type_expr: Complete(Box<TypeExpression>), .. }` | `PatternTypeAnnotation > TypeExpression` | canonical TypeExpressionを一回だけparse |
 | Colon accepted、next positionがEOF / active stop / any delimiter close / comma / semicolon / equal-or-shallower newline | `Some { type_expr: Incomplete, .. }` | zero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` inside empty `TypeExpression` | boundaryをconsumeせずenclosing ownerへreturn |
 | Colon accepted、maximal non-empty malformed run後にvalid TypePrimary | `Some { type_expr: Complete(Box<TypeExpression>), .. }` | one `Error(Type::Primary, TypeExpression)`後にone `TypeExpression` | valid primary位置でsame mandatory slotをretry |
-| Colon accepted、maximal non-empty malformed run後にboundary | `Some { type_expr: Incomplete, .. }` | one non-empty `Error(Type::Primary, TypeExpression)`、retry位置でone zero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` | Errorはboundary前で止まり、distinct retry positionからpreceding boundary rowへ入る |
+| Colon accepted、maximal non-empty malformed run後にboundary | `Some { type_expr: Incomplete, .. }` | one non-empty `Error(Type::Primary, TypeExpression)`のみ | Errorはboundary前で止まり、same-cause zero-width `Missing`を追加せずenclosing ownerへreturn |
 
 post-Colon `Gpta`がequal-or-shallower newlineでrejectされた場合、そのnewline位置がthird rowのboundaryである。
 same-line `Gpta`をacceptした後にowner stopがあればtriviaだけをannotation nodeへemitし、stop直前にMissingを置く。
@@ -16307,7 +16307,8 @@ qualifying newline、valid TypePrimaryをsafe pointとして止まり、boundary
 outer role overrideはzero-width completely-missing primaryだけへ適用する。malformed prefix Errorはshared
 `GrammarRole::Type(TypeRole::Primary)`、nested type recoveryは各existing `TypeRole`を保つ。one Missing / Error nodeは
 one committed recovery recordに対応する。four post-Colon rowsはfirst positionでvalid primary、boundary、malformedの
-三分類を行い、malformed後のretryだけが新しいpositionでvalid / boundaryへ分かれるため、同じdecision positionでは重ならない。
+三分類を行う。malformed後はvalid primaryだけをsame mandatory slotでretryし、boundaryならそのError一件でslotを閉じるため、
+同じ原因へMissingをcascadeしない。
 
 ### CST byte ownership and worked examples
 

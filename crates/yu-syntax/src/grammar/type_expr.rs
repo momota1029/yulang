@@ -709,22 +709,25 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
                 // A first-binder boundary is owned by its recovery item too.
                 committed.start_node(SyntaxKind::ForallTypeBinder);
                 committed.emit_trivia(trivia);
-                if let Some(range) = direct_forall_invalid_run(committed) {
-                    emit_type_error(committed, TypeRole::ForallBinder, range, ExpectedSyntax::ForallTypeBinder);
-                    recovered_malformed = true;
-                } else {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                match direct_forall_invalid_run(committed) {
+                    Some((range, recovery)) => {
+                        emit_type_error(committed, TypeRole::ForallBinder, range, ExpectedSyntax::ForallTypeBinder);
+                        recovered_malformed = recovery == ForallInvalidRecovery::Retry;
+                    }
+                    None => {
+                        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                    }
                 }
                 committed.finish_node();
             } else if direct_forall_colon_pending(committed) {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
                 emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
                 committed.finish_node();
-            } else if let Some(range) = direct_forall_invalid_run(committed) {
+            } else if let Some((range, recovery)) = direct_forall_invalid_run(committed) {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
                 emit_type_error(committed, TypeRole::ForallBinder, range, ExpectedSyntax::ForallTypeBinder);
                 committed.finish_node();
-                recovered_malformed = true;
+                recovered_malformed = recovery == ForallInvalidRecovery::Retry;
             } else {
                 committed.start_node(SyntaxKind::ForallTypeBinder);
                 emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
@@ -761,14 +764,17 @@ fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
             );
             continue;
         }
-        if let Some(range) = direct_forall_invalid_run(committed) {
+        if let Some((range, recovery)) = direct_forall_invalid_run(committed) {
             let role = if direct_forall_binder_after_invalid_pending(committed) {
                 TypeRole::ForallBinder
             } else {
                 TypeRole::ForallColon
             };
             emit_type_error(committed, role, range, ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
-            continue;
+            if recovery == ForallInvalidRecovery::Retry {
+                continue;
+            }
+            break;
         }
         emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
         break;
@@ -830,13 +836,19 @@ fn commit_direct_forall_body<'parse, 'source, 'local, E, O>(
         return;
     }
     if commit_direct_type_expression(committed).is_none() {
-        if let Some(range) = direct_forall_invalid_run(committed) {
-            emit_type_error(committed, TypeRole::ForallBody, range, ExpectedSyntax::TypeExpression);
-            if commit_direct_type_expression(committed).is_none() {
+        match direct_forall_invalid_run(committed) {
+            Some((range, ForallInvalidRecovery::Retry)) => {
+                emit_type_error(committed, TypeRole::ForallBody, range, ExpectedSyntax::TypeExpression);
+                if commit_direct_type_expression(committed).is_none() {
+                    emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+                }
+            }
+            Some((range, ForallInvalidRecovery::Boundary)) => {
+                emit_type_error(committed, TypeRole::ForallBody, range, ExpectedSyntax::TypeExpression);
+            }
+            None => {
                 emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
             }
-        } else {
-            emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
         }
     }
 }
@@ -897,7 +909,7 @@ where
 
 fn direct_forall_invalid_run<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<Range<usize>>
+) -> Option<(Range<usize>, ForallInvalidRecovery)>
 where
     E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
@@ -913,13 +925,17 @@ where
                     || scan_exact_colon(i).is_some()
                     || type_primary_candidate(i);
                 i.rollback(checkpoint);
-                if retry { return Some(start..end); }
+                if retry { return Some((start..end, ForallInvalidRecovery::Retry)); }
             }
             if type_recovery_boundary_pending(i) {
-                return (start < end).then_some(start..end);
+                return (start < end).then_some((start..end, ForallInvalidRecovery::Boundary));
             }
-            let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
-            if character.is_whitespace() { return (start < end).then_some(start..end); }
+            let Some(character) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, ForallInvalidRecovery::Boundary));
+            };
+            if character.is_whitespace() {
+                return (start < end).then_some((start..end, ForallInvalidRecovery::Retry));
+            }
             i.input.next()?;
             end = i.pos();
             let mut line = i.local.line();
@@ -927,6 +943,12 @@ where
             i.local.set_line(line);
         }
     })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ForallInvalidRecovery {
+    Retry,
+    Boundary,
 }
 
 fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
@@ -1893,25 +1915,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = i.pos();
-    loop {
-        if i.pos() > start && type_primary_candidate(i) {
-            return true;
-        }
-        if type_recovery_boundary_pending(i) {
-            return i.pos() > start;
-        }
-        let Some(character) = i.input.remainder().chars().next() else {
-            return i.pos() > start;
-        };
-        if character.is_whitespace() || matches!(character, ':') {
-            return i.pos() > start;
-        }
-        i.input.next();
-        let mut line = i.local.line();
-        line.at_line_start = false;
-        i.local.set_line(line);
-    }
+    scan_type_item_invalid_run(i).is_some()
 }
 
 fn recover_record_item_for_ast<E>(i: &mut SynIn<E>) -> bool
@@ -2396,6 +2400,46 @@ enum TypeDelimitedItemRecovery {
     Boundary,
 }
 
+/// A malformed mandatory item may either stop before another type primary or
+/// reach a boundary owned by its enclosing construct.  Both cases commit the
+/// Error run; only the first may retry the required slot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeItemRecovery {
+    Retry,
+    Boundary,
+}
+
+/// Scan the shared malformed run for every TypeExpression slot.  The AST and
+/// direct-CST paths deliberately share this cursor movement so a recovered
+/// primary begins at the same byte on both paths.
+fn scan_type_item_invalid_run<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, TypeItemRecovery)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start && direct_type_primary_candidate(i) {
+            return Some((start..end, TypeItemRecovery::Retry));
+        }
+        if type_recovery_boundary_pending(i)
+            || matches!(i.input.remainder().chars().next(), Some('\n' | '\r'))
+        {
+            return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
+        }
+        let Some(_) = i.input.remainder().chars().next() else {
+            return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
+        };
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
 /// Recover one malformed call/group item without crossing a delimiter or an
 /// active caller stop.  A non-empty Error run ending at a boundary is still a
 /// committed recovery site, but it is not an item retry and must not make the
@@ -2410,30 +2454,13 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let recovered = committed.probe(|probe| {
-        let start = probe.input().pos();
-        let mut end = start;
-        loop {
-            let i = probe.input();
-            if end > start && direct_type_primary_candidate(i) {
-                return Some((start..end, TypeDelimitedItemRecovery::Retry));
-            }
-            if type_recovery_boundary_pending(i) {
-                return (start < end).then_some((start..end, TypeDelimitedItemRecovery::Boundary));
-            }
-            let Some(_) = i.input.remainder().chars().next() else {
-                return (start < end).then_some((start..end, TypeDelimitedItemRecovery::Boundary));
-            };
-            i.input.next()?;
-            end = i.pos();
-            let mut line = i.local.line();
-            line.at_line_start = false;
-            i.local.set_line(line);
-        }
-    });
+    let recovered = committed.probe(|probe| scan_type_item_invalid_run(probe.input()));
     let Some((range, recovery)) = recovered else { return None; };
     emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
-    Some(recovery)
+    Some(match recovery {
+        TypeItemRecovery::Retry => TypeDelimitedItemRecovery::Retry,
+        TypeItemRecovery::Boundary => TypeDelimitedItemRecovery::Boundary,
+    })
 }
 
 /// Generic primary recovery used by the mandatory and arrow-RHS entries.
@@ -2449,39 +2476,10 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let recovered = committed.probe(|probe| {
-        let start = probe.input().pos();
-        let mut end = start;
-        loop {
-            let i = probe.input();
-            if end > start && direct_type_primary_candidate(i) {
-                return Some((start..end, TypeItemRecovery::Retry));
-            }
-            if type_recovery_boundary_pending(i) {
-                return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
-            }
-            let Some(_) = i.input.remainder().chars().next() else {
-                return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
-            };
-            i.input.next()?;
-            end = i.pos();
-            let mut line = i.local.line();
-            line.at_line_start = false;
-            i.local.set_line(line);
-        }
-    });
+    let recovered = committed.probe(|probe| scan_type_item_invalid_run(probe.input()));
     let Some((range, recovery)) = recovered else { return None; };
     emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
     Some(recovery)
-}
-
-/// A malformed mandatory item may either stop before another type primary or
-/// reach a boundary owned by its enclosing construct.  Both cases commit the
-/// Error run; only the first may retry the required slot.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum TypeItemRecovery {
-    Retry,
-    Boundary,
 }
 
 /// Boundaries are never consumed by a malformed item scanner.  Delimiter
@@ -3104,6 +3102,54 @@ mod tests {
     }
 
     #[test]
+    fn ast_type_item_recovery_scans_past_same_line_trivia() {
+        let (remainder, mandatory) = parse_required_prefix("@ A");
+        assert_eq!(remainder, "");
+        assert!(matches!(mandatory, Recovered::Complete(TypeExpression { range, .. }) if range == (2..3)));
+        let (remainder, mandatory_direct) =
+            parse_direct_mandatory_prefix_with_outer_stop("@ A", None, None);
+        assert_eq!(remainder, "");
+        assert!(matches!(mandatory_direct.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::Primary)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (0..2)));
+
+        assert!(matches!(parse("A ->@ B").arrow, Some(TypeArrowTail {
+            rhs: Recovered::Complete(rhs), ..
+        }) if rhs.range == (6..7)));
+        let arrow_direct = parse_direct_recovered("A ->@ B");
+        assert!(matches!(arrow_direct.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..6)));
+
+        assert!(matches!(parse("{name: @ A}").primary, TypePrimary::Record(NamedRecordType {
+            close: Recovered::Complete(_),
+            ref fields,
+            ..
+        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+            type_expr: Recovered::Complete(type_expr),
+            ..
+        })] if type_expr.range == (9..10))));
+        let record_direct = parse_direct_recovered("{name: @ A}");
+        assert!(matches!(record_direct.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordFieldType)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (7..9)));
+
+        assert!(matches!(parse("T(@ A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments,
+            close: Recovered::Complete(_),
+            ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { range, .. })] if *range == (4..5))));
+        let call_direct = parse_direct_recovered("T(@ A)");
+        assert!(matches!(call_direct.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..4)));
+    }
+
+    #[test]
     fn mandatory_type_recovery_leaves_an_active_outer_stop_unconsumed() {
         let (remainder, recoveries) = parse_direct_mandatory_prefix_with_outer_stop(
             "@=A",
@@ -3381,6 +3427,13 @@ mod tests {
         assert!(matches!(parse("A ->@B").arrow, Some(TypeArrowTail {
             rhs: Recovered::Complete(_), ..
         })));
+
+        let (remainder, boundary) = parse_direct_prefix("T -> @)");
+        assert_eq!(remainder, ")");
+        assert!(matches!(boundary.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (5..6)));
     }
 
     #[test]
@@ -3666,6 +3719,19 @@ mod tests {
         assert!(matches!(body.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && record.kind == RecoveryKind::Missing && record.site.range == (7..7)));
+
+        for (source, role, range) in [
+            ("for @", TypeRole::ForallBinder, 4..5),
+            ("for 'a @", TypeRole::ForallColon, 7..8),
+            ("for 'a: @", TypeRole::ForallBody, 8..9),
+        ] {
+            let recoveries = parse_direct_recovered(source);
+            assert_eq!(recoveries.len(), 1, "{source}: {recoveries:#?}");
+            let record = &recoveries[0];
+            assert_eq!(record.site.role, GrammarRole::Type(role), "{source}: {record:#?}");
+            assert_eq!(record.kind, RecoveryKind::Error, "{source}: {record:#?}");
+            assert_eq!(record.site.range, range, "{source}: {record:#?}");
+        }
         let malformed = parse_direct_recovered("for 'a: @T");
         assert!(malformed.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBody)
             && record.kind == RecoveryKind::Error && record.site.range == (8..9)), "{malformed:#?}");
