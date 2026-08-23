@@ -17396,3 +17396,961 @@ return-value propagationを避けるためのone rollback-owned cursor annotatio
 committed `TMN-CallerBoundary`だけがsame cursorへfenceをmarkする現設計を推奨する。
 
 評価: Codex gpt-5.6-sol（xhigh）（2026-08-24）。
+
+## 追補案: canonical `Statement` / root `Declaration`の`struct` declaration grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-24）。
+
+Date: 2026-08-24。
+
+### Scope and authority
+
+本追補は、Yulang3 / `yu-syntax`にまだ存在しない`struct` declarationを新しいgrammar ownerとして設計し、
+root `Declaration`とnested canonical `Statement`へ同じ`StructDeclaration`を接続する。対象は次だけである。
+
+- optional declaration visibility、exact `struct` keyword、mandatory raw name。
+- bodyless semicolon、named brace fields、named indented fields、tuple fieldsの四body branch。
+- named fieldの`Identifier : TypeExpression`とtuple fieldの`TypeExpression` mandatory slot。
+- all field sequenceのlayout / separator / close ownership、typed recovery、AST / direct-CST shape。
+- standalone canonical `TypeExpression` mandatory entryへのexact wiring。
+
+本追補はdeclaration-level generic / type parameter、`derives` clause、declaration-companion `with:`、struct method、
+associated declaration、constructor / field access semantics、HIR loweringを設計しない。これらをempty AST fieldや
+reserved CST wrapperとして先取りしない。
+
+本追補のBNF-equivalent grammarの唯一の正本は後述の`SD-G`である。recognition、AST、CST例、recovery、divergence、
+implementation gateは`SD-G`を参照し、別のproductionやseparator setを再定義しない。control-flow authorityは
+`SD-J`、TypeExpression integrationは`SD-T`、typed recoveryは`SD-R`に一度だけ定義する。
+
+### Re-verified Yulang2 oracle facts
+
+Yulang2のsurface authorityは`yulang2-oracle:crates/parser/src/stmt/struct_decl.rs`全282行と、
+`crates/parser/tests/stmt_grammar.rs`のstruct fixtureを再確認して固定する。
+
+1. statement dispatcherはbare `struct`とvisibility-prefixed `my` / `our` / `pub` `struct`を
+   `parse_struct_decl`へ渡した（`stmt/mod.rs:52-98,159-264`）。parserはvisibility、`struct`、plain nameの順に
+   `StructDecl`へemitした（`struct_decl.rs:14-34`）。`my struct S;`と`pub struct Foo;`は
+   `StructDecl > My/Pub, Struct, Ident, TypeVars, Semicolon`としてfixture化されている
+   （`stmt_grammar.rs:2268-2284,2362-2378`）。
+2. name後は`scan_decl_type_vars(..., false)`がsame-lineの`Ident | SigilIdent`をzero-or-moreで`TypeVars`へ入れた
+   （`type_decl.rs:210-249`）。実sourceは`struct box 'a { value: 'a }`、
+   `struct pair 'left 'right { ... }`を使う。角括弧やangle bracketはなく、whitespace-separated declaration type varsだった。
+3. named brace formは`{` / `}`間で`name : type`をparseし、literal separatorをcommaだけにした
+   （`struct_decl.rs:130-190,210-242`）。fixture `struct S { x: Int }`は
+   `StructDecl > BraceL > StructField > Ident Colon TypeExpr > BraceR`を固定する
+   （`stmt_grammar.rs:1354-1374`）。
+4. named indented formはheader colon後のstrictly deeper newlineから`IndentListMachine`へ入り、同じ
+   `name : type` field parserを使った。fixture `struct S:\n  x: Int\n  y: String`はcolonと二つの
+   sibling `StructField`を固定する（`struct_decl.rs:69-93,174-208`, `parse/mod.rs:97-110`,
+   `stmt_grammar.rs:2783-2810`）。前二者はactual indent-machine callとstrict-deeper checkも固定する。
+   explicit commaもindent listのfield separatorだった。
+5. tuple formは`(` / `)`間の各itemをname / colonなしの`StructField > TypeExpr`にした。separatorはcomma、
+   field typeはsame `parse_type_with_stops`だった（`struct_decl.rs:84-93,244-281`）。
+   `stmt_grammar.rs`にはtuple専用parser-tree fixtureがないが、downstream fixture
+   `struct Tuple(int)`、`struct tuple_pair(int, int)`、`struct meters(float)`がactual accepted surfaceを固定する
+   （`crates/infer/src/tests_root/mod.rs:295-296`,
+   `tests/yulang/regressions/runtime/derive_{eq,debug}_structural.yu`）。
+6. brace / tupleはshared `DelimitedListMachine`を使ったためempty、actual matching close前のtrailing comma、
+   `indent <= base_indent`のimplicit newlineを受理した。implicit newlineにはsource byteのないempty
+   `Separator` nodeをemitした（`crates/parser/src/parse/mod.rs:9-79`）。semicolonはstruct field separatorではなかった。
+7. indented formはpost-colon triviaがnewlineでない、またはfirst indentがbase以下ならempty `InvalidToken`をemitして
+   returnした。loopはEOF / dedentで終わり、comma stopは`Separator`、other stopは`InvalidToken`になった
+   （`parse/mod.rs:81-137`）。専用missing-field / wrong-indent roleはなかった。
+8. named fieldはname後のtriviaがnewlineならcolonをprobeせずfieldをcloseした。missing colonもfieldをsilent closeし、
+   accepted colon後のmissing / malformed typeはgeneric type parserと`InvalidToken`へ委ねた
+   （`struct_decl.rs:147-190`）。tuple itemもTypeExpr parse前に`StructField`を開き、generic recovery結果をそのまま包んだ。
+9. missing struct nameは`StructDecl`を即closeし、missing brace / parenthesisもlist machineがmatching closeを得られなければ
+   silent returnまたはempty/non-empty `InvalidToken`になった。struct-specific typed recovery tableは存在しなかった。
+10. bodyless `struct S;`はvalid fixtureである一方、EOF直前のbare `struct S`も
+    `finish_with_or_stmt_stop`がdiagnosticなしでreturnできた。後者がintentional valid surfaceかsilent incomplete recoveryかを
+    区別するfixtureはない（`type_decl.rs:280-326`）。
+11. `parse_header_derives`と`finish_with_or_stmt_stop`によりderivesをheader / post-bodyへ置け、`with:` companionも付けられた。
+    companion itemはmethod限定でなくderives、ordinary statement、nested declarationを含んだ。ただしこれらはfield-list
+    grammarとは別のdeclaration continuationだった（`struct_decl.rs:43-124`, `type_decl.rs:280-425`,
+    `stmt/mod.rs:32-50`）。
+12. `DocComment`はnamed-field parserからlist machineへstopとして返った。brace/list formだけは
+    `DelimitedListMachine`のspecial armがdoc-comment declaration parserへ渡した
+    （`struct_decl.rs:152-162,208-239`, `parse/mod.rs:51-57`）。indented formでは`IndentListMachine`の
+    non-comma stop pathが`InvalidToken`をemitした（`struct_decl.rs:191-206`, `parse/mod.rs:129-137`）。
+    current Yulang3ではcanonical doc-comment declaration自体がfuture Statement variantなので、本追補へfield itemとして先取りしない。
+
+### Supersession and preservation boundary
+
+本追補は次の既決事項を維持する。
+
+- canonical `Statement` / root `Declaration`のshared intro recognition、root / nested同一declaration child、nestedだけの
+  `Statement` wrapper。
+- source-leading header discoveryではsyntax declaration family全体をparseせず、Use / operator headerだけをfactへprojectする境界。
+- standalone `TypeExpression`のcore / exotic primary、mandatory outer missing-role override、TMN newline policy、
+  positional fence、AST / direct-CST parity。
+- NamedRecordTypeの`Identifier : TypeExpression` surfaceとlayout mechanics。ただしtype-level record node / role / close ownerを
+  declaration-level structへ流用しない。
+- canonical statement consumerのoperator-only inline slotとfull Statement slotの区別。
+
+次を本追補が限定してsupersedeする。
+
+- `Declaration` / `Statement`のclosed sumへ`Struct`を追加し、mod追補のfuture declaration listからstructを取り除く。
+- standalone TypeExpression core / NamedRecordType / Pattern-annotation追補がfuture use-siteとして予約した
+  「struct field ownerがfield-name後のcolonとtype slotを所有する」境界を、`SD-G` / `SD-T`で具体化する。
+- `SyntaxKind`、`DeclarationRole`、`StatementKind`のclosed vocabularyを本追補のstruct rolesまで拡張する。
+
+### `SD-G`: single canonical surface grammar and layout definition
+
+```text
+StructDeclaration :=
+    [ VisibilityKw Gstruct+ ]
+    StructKw Gstruct+ StructName Gstruct* StructBody
+
+VisibilityKw := MyKw | OurKw | PubKw
+
+StructName := Identifier
+
+StructBody :=
+    BodylessStructBody
+  | NamedBracedStructBody
+  | NamedIndentedStructBody
+  | TupleStructBody
+
+BodylessStructBody := Semicolon
+
+NamedBracedStructBody :=
+    LBrace StructOpeningTrivia
+    [
+        StructNamedField
+        { StructBracedFieldBoundary StructNamedField }
+        [ StructBracedFieldBoundary ]
+    ]
+    RBrace
+
+TupleStructBody :=
+    LParen StructOpeningTrivia
+    [
+        StructTupleField
+        { StructBracedFieldBoundary StructTupleField }
+        [ StructBracedFieldBoundary ]
+    ]
+    RParen
+
+NamedIndentedStructBody :=
+    Colon StructIndentedOpeningTrivia
+    StructNamedField
+    { StructIndentedFieldBoundary StructNamedField }
+    [ TrailingIndentedComma ]
+
+StructNamedField :=
+    Identifier Gfield-name Colon Gfield-type
+    RequiredTypeExpression(Struct::FieldType)
+
+StructTupleField :=
+    RequiredTypeExpression(Struct::FieldType)
+
+StructBracedFieldBoundary :=
+    ExplicitStructCommaBoundary
+  | ImplicitStructNewlineBoundary(struct_list_base)
+
+StructIndentedFieldBoundary :=
+    ExplicitStructCommaBoundary
+  | ImplicitIndentedFieldNewlineBoundary(block_indent)
+
+ExplicitStructCommaBoundary := CommaBoundary
+
+TrailingIndentedComma :=
+    CommaBoundary, only when followed by EOF, dedent, or active outer owner boundary
+
+StructIndentedOpeningTrivia :=
+    one maximal trivia run containing a physical newline whose following indent is > struct_base
+
+StructOpeningTrivia :=
+    one maximal current-lexical-depth trivia run
+
+Gstruct+ :=
+    one non-empty maximal StructContinuationTrivia run
+
+Gstruct* :=
+    EmptyTrivia | one maximal StructContinuationTrivia run
+
+StructContinuationTrivia :=
+    SameLineTrivia
+  | TriviaWithDeeperFollowingIndent(struct_base)
+
+Gfield-name := EmptyTrivia | SameLineTrivia
+
+struct_field_list_base :=
+    struct_list_base, when the active body is NamedBracedStructBody or TupleStructBody
+  | block_indent, when the active body is NamedIndentedStructBody
+
+Gfield-type :=
+    EmptyTrivia
+  | SameLineTrivia
+  | TriviaWithDeeperFollowingIndent(struct_field_list_base)
+```
+
+`StructKw` candidateのfirst starter（visibilityがあればvisibility word、なければ`struct`）をacceptした直後、
+そのfollowing triviaをconsumeする前にcurrent active indentation baselineを`struct_base`として一度だけcaptureする。
+baselineがなければ0である。keyword、name、body opener、first field、recovery位置から再計算しない。
+
+`Gstruct+` / `Gstruct*`はphysical newlineを含まなければacceptし、含むならfollowing indentが
+`struct_base`よりstrictly deeperなときだけacceptする。equal-or-shallower newlineならmaximal run全体をrollbackし、
+outer statement ownerへ返す。二つのidentifier-shaped word間ではmaximal-word scannerにより実質non-empty
+`Gstruct+`が必要であり、`mystruct` / `structPoint`をprefix splitしない。StructName-to-bodyはadjacent
+`Point{...}` / `Pair(...)`を保つため`Gstruct*`である。
+
+brace / tuple bodyはopener accept後、`StructOpeningTrivia`を一度consumeし、次でlist baseをcaptureする。
+
+```text
+incoming_base := struct_base
+struct_list_base :=
+    if StructOpeningTrivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+`ImplicitStructNewlineBoundary`はfollowing indent `<= struct_list_base`のphysical newlineである。
+following indent `> struct_list_base`はcurrent field typeのcontinuation候補でありboundaryではない。
+commaとnewlineが同じgapにあればcomma一個だけがboundary authorityを持ち、post-comma newlineはraw triviaである。
+empty listはvalid。literal trailing commaまたはqualifying trailing implicit newlineは、post-boundary trivia後に
+actual matching closeが実在するときだけvalid trailing boundaryになる。
+
+indented bodyはliteral colon後のone maximal trivia runをprobeし、physical newlineと
+`following indent > struct_base`が両方成立したときだけcommitする。first field lineのindentを`block_indent`とし、
+same block内のimplicit field boundaryはfollowing indent `== block_indent`である。`< block_indent`はdedentとして
+consumeせずbodyを終了し、`> block_indent`はfield type continuationである。explicit comma後はsame-lineまたは
+following indent `>= block_indent`のnext fieldを開始できる。indent bodyはnon-emptyである。
+
+`StructName`とnamed field nameはone raw unsigiled `scan_word`であり、grammar positionでcontextual keyword spellingも
+Identifierとして保持する。path、SigilIdentifier、numberをnameにしない。field colonはexact lone colonであり、`::`をsplitしない。
+tuple fieldはname / colonを持たずfull canonical TypeExpression一個である。
+
+`struct_field_list_base`はbody formがすでにcaptureした二つのbaseから選ぶper-body-form selectorであり、
+third baselineをcaptureするproductionではない。named braceの`Gfield-type`とtupleのmandatory TypeExpression slotは
+`struct_list_base`、named indentの`Gfield-type`は`block_indent`を使う。これにより`Gfield-type`を含む`SD-G`は
+未定義metavariableを持たない。
+
+### `SD-J`: statement recognition, authority, and body judge
+
+canonical Statement intro judgeはcurrent orderを次のように拡張する。
+
+1. EOF、dedent、matching outer close、valid statement separator、if companion stop等のcaller-owned boundaryを先に判定し、
+   byteをconsumeしない。
+2. current maximal wordをsink-freeにprobeする。bare exact `struct`ならStruct authorityを得る。
+   `structure` / `structural` / `my_struct`をsplitしない。
+3. `my` / `our` / `pub`ならexisting visibility-led branchに入り、accepted `Gstruct+`後のnext maximal wordが
+   exact `struct`ならStruct authorityを得る。name / body lookaheadの成功をauthority条件にしない。
+   `my struct = value`もBindingへrollbackせずmalformed Structとしてtotal recoveryへ入る。
+4. structでなければexisting Mod / Use / Binding / operator / expression orderを保つ。
+5. exact `StructKw`をacceptした時点でcutし、name、body、field、recoveryを含むcontinuationをtotalにfinishする。
+
+AST / direct-CSTはsame sink-free `StatementIntro::Struct(StructStatementIntro)` equivalentを使う。introはstart、
+optional visibility、visibility後trivia、StructKw、`struct_base`を保持し、name以降をcommitted continuationに残す。
+root / nested callerが別のstruct word judgeを持たない。
+
+completeまたはrecovered name後のbody judgeは`SD-G`のfour `StructBody` starterだけを次の順に判定する。
+
+1. exact `;`ならbodyless。
+2. exact `{`ならnamed brace。
+3. exact `(`ならtuple。
+4. exact lone `:`ならnamed indented。
+5. starterがなくinvalid bytes後にone starterが実在するなら`SD-R`のBodyIntroducer Error後にsame slot retry。
+6. otherwise body slotをIncompleteとしてouter boundaryへreturnする。
+
+following Identifier / TypePrimaryだけを根拠にmissing `{` / `(` / `:`を推測しない。`F A`はvalid TypeApplyにも、Yulang2型変数列にも
+なり得るため、container kindを一意に決められない。recoveryがsurface body familyを発明してはならない。
+complete name後、malformed byteを一個も挟まずこのcategoryが現れた場合はbody malformed-run scannerを開始せず、
+current token startをaccepted-name後のbody-slot boundaryとして扱う。`SD-R`どおりzero-width BodyIntroducer Missingだけをcommitし、
+current word / TypePrimaryはouter statement recoveryへ完全に返す。
+
+### Field-list machinery boundary
+
+NamedRecordTypeとstruct named brace bodyはpunctuation shapeが近いが、同じgrammar ownerではない。
+
+- reuseするのは`LayoutDelimitedFrame::after_opening_trivia`、maximal trivia scanner、delimiter / stop stack、
+  owner-safe close primitive、positional fenceを含むstandalone TypeExpression behaviorである。
+- `drive_type_delimited` / `classify_type_delimited_recovery`をdeclaration.rsからowner tagだけ偽装して直接呼ばない。
+  これらは`TypeRole`、type-owned item adapter、semicolon-enabled familyをencodeする。
+- `drive_type_close_slot`自体はすでに`CloseRecoverySpec`と`TypeCloseSlotContext` adapterでparameterizeされており、
+  statically NamedRecordをencodeしたprimitiveではない。Structがこれを共有する場合は、module boundary上必要ならneutralな場所へ
+  expose / moveし、`ConstructRole::StructNamedFields` / `StructTupleFields`を持つStruct固有specとdeclaration-side adapterを渡す。
+  NamedRecordのspec / output adapterをそのまま再利用しない。
+- struct側はone `drive_struct_field_sequence` equivalentを持ち、named-brace / tuple policyとAST / direct adapterを渡す。
+  close処理は`ConstructRole::StructNamedFields` / `StructTupleFields`を受けるdeclaration-specific adapterにする。
+  shared close primitiveを使ってもrole / CST ownerはStruct spec / adapterのparameterとして明示する。
+- named indented formはclose slotを持たないためseparate outer driverを使うが、named-field parser、comma scanner、
+  field-authority / retry predicateはbrace formと共有する。
+
+field list scopeはnormal / recovery / rollbackの全exitでdelimiter、stop set、`TypeDelimitedOwner`、indentation baseline、
+`type_ml_arg`をexact restoreする。TypeExpressionへ見せるscoped stop setは次のexact compositionにする。
+
+```text
+named_brace_stops := incoming_stops.without(Newline).with(Comma).with(RightBrace)
+tuple_stops       := incoming_stops.without(Newline).with(Comma).with(RightParenthesis)
+named_indent_stops := incoming_stops.without(Newline).with(Comma)
+```
+
+outer `StopKind::Newline`をscope内で外すのは、`SD-G`がdeeper newlineをfield type continuation、
+equal-or-shallower newlineをfield / dedent boundaryとしてlist baselineから判定するためである。保持したままでは
+standalone TypeExpressionのactive-Newline priorityがdeeper continuationまで無条件に止める。comma / matching closeは
+current top delimiter / Struct sequenceがown punctuationとして一度だけconsumeする。other incoming stopとouter-owned
+mismatched closeは保持してnon-consumeで返す。indented formは`block_indent` baselineをpushし、dedentをconsumeしない。
+
+### `SD-T`: exact standalone TypeExpression wiring
+
+named fieldのliteralまたはrecovered colon後と、tuple field item positionは、同じmandatory TypeExpression outer slotを使う。
+AST / direct-CSTのexact callは次である。
+
+```text
+AST:
+parse_required_type_expression_with_outer_missing_role(
+    Some(GrammarRole::Declaration(
+        DeclarationRole::Struct(StructRole::FieldType)
+    )),
+    i,
+)
+
+direct CST:
+commit_direct_type_expression_with_outer_missing_role(
+    Some(GrammarRole::Declaration(
+        DeclarationRole::Struct(StructRole::FieldType)
+    )),
+    committed,
+)
+```
+
+ownerはcall前に`SD-G`の`Gfield-type`またはlist-owned opening / post-separator triviaを一度だけconsumeし、
+field listのcomma、matching close、outer close、dedentをactive owner scopeへ入れる。TypeExpression内部のPathSegment、CallArgument、
+ArrowRhs、NamedRecord field、forall、effect row、polymorphic variant、bracket row roleをStruct roleへremapしない。
+outer overrideが効くのはcompletely missing outer primaryのzero-width siteだけである。non-empty malformed primaryは
+`GrammarRole::Type(TypeRole::Primary)`、nested recoveryはown TypeRoleを保つ。
+
+Pattern annotationが`RequiredTypeRecoveryContext::with_malformed_continuation_base`を必要とした理由は、Pattern entryで
+`max(current line indent, active baseline)`をcaptureした`pattern_continuation_base`がactive type baselineと異なり得たためである。
+Struct fieldはその形を持たない。brace / tupleでは`struct_list_base`、indentでは`block_indent`をfield parse前にactive
+indentation baselineへpushし、`Gfield-type`もmalformed TypeExpression scannerもそのsame baseを使う。
+従ってordinary `active_type_continuation_base`で十分であり、Structはrecovery-context variantを呼ばず、new continuation-base
+overrideやprivate contextを追加しない。explicit comma後のfieldがbaseよりdeeperなlineにあっても、Yulang2と同じく
+field-list baseをcontinuation authorityとし、field name columnからbaseを再計算しない。
+
+named field RHSではsame-line missing separatorだけにadditional boundary compositionが必要である。`x: F y: Y`で
+`y`を`F`のTypeApply argumentへcommitする前に、top ownerがcomplete next field headをclaimしなければならない。
+sessionのtype-delimited owner vocabularyを次のように拡張する。
+
+```text
+TypeDelimitedOwner :=
+    Call | ParenthesizedGroup | NamedRecord | EffectRow | PolymorphicVariant
+  | StructNamedFields
+```
+
+current sourceにgeneric `next_item_candidate_after` hookは存在しない。AST tailのTypeApply accept直前
+（`crates/yu-syntax/src/grammar/type_expr.rs:315-318`）とdirect-CST tailの同位置（同`:672-675`）が、
+NamedRecord専用`named_record_next_field_candidate`（同`:3148-3160`）を直接呼ぶ形である。実装はこの二つの
+pre-TypeApply siteを明示的に拡張し、NamedRecord helperとは別の
+`struct_named_fields_next_field_candidate` equivalentを呼ぶ。generic owner registration seamがあるものとして実装しない。
+
+Struct専用candidate checkは、leading triviaがnon-emptyかつphysical newlineなし、top ownerが
+`TypeDelimitedOwner::StructNamedFields`、current inputがcomplete raw `scan_word` + `Gfield-name` + exact lone colonを
+形成するときだけtrueにする。Struct grammarのcontextual-keyword Identifierと`::` non-splittingを保ち、probeの全pathで
+input checkpointをrollbackし、sink / recoveryを変更しない。trueならtail siteがleading trivia前へrollbackし、struct sequence ownerが
+gap triviaをemitしてzero-width Missing FieldSeparator後にsame-position field retryする。NamedRecord helperの
+`scan_plain_type_identifier` predicateやTypeRoleを流用しない。
+
+`TypeDelimitedOwner`は`session.rs:554-560`のenumなのでvariantを追加する。同時に
+`type_expr.rs:1454-1490`の`impl TypeDelimitedSpec`にはownerからtype item role / separator role / close specを作る
+exhaustive matchがある。`StructNamedFields`はTypeExpression tailのscope markerであって
+`drive_type_delimited`へ渡すownerではないため、これらのmappingにはStructをTypeRole / type ConstructRoleへ偽装せず、
+明示的なrejecting / `unreachable!` armを各owner matchへ追加する。wildcard policyでStructを暗黙受理しない。
+
+named brace / indent field RHSの間だけ`StructNamedFields`をpushする。tuple fieldsにはcolon-bearing stronger next-item spellingがなく、
+`Int Bool`はone valid TypeApply typeなのでこのownerをpushせずStruct candidate checkも呼ばない。この変更はmandatory recovery
+contextの追加ではなく、partial struct-field type parser、parse後のCST再走査、prospective TypeApplyのcommit後rollbackを作らない。
+
+### Parser-side surface AST
+
+root / nested共通ASTを次で固定する。
+
+```rust
+pub(crate) enum Declaration<'source> {
+    Use(UseDeclaration<'source>),
+    Binding(BindingDeclaration<'source>),
+    OperatorHeader(OperatorHeaderDeclaration<'source>),
+    Mod(ModDeclaration<'source>),
+    Struct(StructDeclaration<'source>),
+}
+
+pub(crate) enum Statement<'source> {
+    Expression(OperatorChain<'source>),
+    Binding(BindingDeclaration<'source>),
+    Use(UseDeclaration<'source>),
+    Mod(ModDeclaration<'source>),
+    Struct(StructDeclaration<'source>),
+}
+
+pub(crate) struct StructDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    body: Recovered<StructBody<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) enum StructBody<'source> {
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    NamedBraced(StructNamedBracedBody<'source>),
+    NamedIndented(StructNamedIndentedBody<'source>),
+    Tuple(StructTupleBody<'source>),
+}
+
+pub(crate) struct StructNamedBracedBody<'source> {
+    open: Range<usize>,
+    fields: Vec<Recovered<StructNamedField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct StructNamedIndentedBody<'source> {
+    colon: Range<usize>,
+    base_indent: usize,
+    block_indent: usize,
+    fields: Vec<Recovered<StructNamedField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct StructTupleBody<'source> {
+    open: Range<usize>,
+    fields: Vec<Recovered<StructTupleField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct StructNamedField<'source> {
+    name: Recovered<WordSpan<'source>>,
+    colon: Recovered<Range<usize>>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct StructTupleField<'source> {
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+```
+
+visibility prefix absenceとexplicit `my`はsemantic `Visibility::Private`へnormalizeしてよいが、CST / declaration rangeは
+source spellingを区別する。nameはalways mandatoryなのでModのanonymous-test用`Option` shapeを流用せず、
+`Recovered<WordSpan>`にする。
+
+body starterをacceptした後は`body = Complete`であり、internal close / fieldだけがIncompleteになれる。
+starter自体を選べなければ`body = Incomplete`である。brace / tupleのseparator-before-EOFではfieldsに
+`Recovered::Incomplete`を一件追加し、closeもdistinct Incompleteになる。indented bodyのmissing first fieldも
+fieldsにone Incomplete slotを持つ。
+
+`trailing_comma`はbrace / tupleではpost-comma trivia後にactual matching closeをprobeしたliteral commaだけ、
+indentではEOF / dedent / active outer boundary直前のliteral commaだけを保持する。implicit trailing newlineはraw CST triviaであり
+AST flagを作らない。
+
+`StructDeclaration.range`はsource visibilityがあればそのstart、なければStructKw.startから、bodyless semicolon、actual close、
+last complete / recovered field episodeのlongest committed endまでである。outer separator、dedent、unconsumed boundary triviaを含めない。
+named field rangeはname startからcomplete type end、type Incompleteならcolon end、colonもIncompleteならname end。
+tuple field rangeはcomplete type rangeであり、whole missing fieldは`Recovered::Incomplete`なので架空rangeを持たない。
+
+declaration type vars、derives、companion、methodsのAST fieldは置かない。
+
+### CST vocabulary and source-byte ownership
+
+新しいSyntaxKindは次の三個だけである。
+
+```text
+SyntaxKind::StructKw
+SyntaxKind::StructDeclaration
+SyntaxKind::StructField
+```
+
+existing visibility token、Identifier、Colon、Comma、Semicolon、LBrace / RBrace、LParen / RParen、TypeExpression、
+Missing、Error、trivia tokenを再利用する。`StructHeader`、`StructBody`、`StructFieldList`、`TypeVars`、
+synthetic `Separator` wrapperは追加しない。body variantはactual delimiter tokenとparser AST discriminantで決まり、
+source-absent wrapperをCSTへ作らない。
+
+`StructDeclaration`はheader trivia、opener / close、opening / inter-field / trailing trivia、literal commaをsource orderで所有する。
+named fieldはname-to-colon `Gfield-name`、colon、accepted colon-to-type `Gfield-type`、nested TypeExpressionを所有する。
+tuple `StructField`はnested TypeExpressionだけを所有し、list-owned leading / trailing gapを取り込まない。
+all source byteをexactly once emitし、`green.to_string() == source`を維持する。
+
+以下のworked exampleは`SD-G` / `SD-T` / `SD-R`の具体化であり、独立したgrammar ruleではない。
+rangeはUTF-8 byte offsetで、quoted sourceの全byteとall triviaを一度ずつ列挙する。
+
+#### Named brace fields, complete (`0..36`)
+
+```text
+struct Point { x: Int, y: List Int }
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "Point" 7..12
+  Whitespace " " 12..13
+  LBrace "{" 13..14
+  Whitespace " " 14..15
+  StructField
+    Identifier "x" 15..16
+    Colon ":" 16..17
+    Whitespace " " 17..18
+    TypeExpression
+      Identifier "Int" 18..21
+  Comma "," 21..22
+  Whitespace " " 22..23
+  StructField
+    Identifier "y" 23..24
+    Colon ":" 24..25
+    Whitespace " " 25..26
+    TypeExpression
+      Identifier "List" 26..30
+      TypeApplyArgument
+        Whitespace " " 30..31
+        TypeExpression
+          Identifier "Int" 31..34
+  Whitespace " " 34..35
+  RBrace "}" 35..36
+```
+
+#### Named indented fields, complete (`0..34`)
+
+```text
+struct Point:
+  x: Int
+  y: String
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "Point" 7..12
+  Colon ":" 12..13
+  Newline "\n" 13..14
+  Whitespace "  " 14..16
+  StructField
+    Identifier "x" 16..17
+    Colon ":" 17..18
+    Whitespace " " 18..19
+    TypeExpression
+      Identifier "Int" 19..22
+  Newline "\n" 22..23
+  Whitespace "  " 23..25
+  StructField
+    Identifier "y" 25..26
+    Colon ":" 26..27
+    Whitespace " " 27..28
+    TypeExpression
+      Identifier "String" 28..34
+```
+
+opening newline / indentとfield-boundary newline / indentはStructDeclaration直下であり、source-absent indent-block wrapperや
+implicit Separatorを作らない。
+
+#### Tuple fields, complete (`0..26`)
+
+```text
+struct Pair(Int, List Int)
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "Pair" 7..11
+  LParen "(" 11..12
+  StructField
+    TypeExpression
+      Identifier "Int" 12..15
+  Comma "," 15..16
+  Whitespace " " 16..17
+  StructField
+    TypeExpression
+      Identifier "List" 17..21
+      TypeApplyArgument
+        Whitespace " " 21..22
+        TypeExpression
+          Identifier "Int" 22..25
+  RParen ")" 25..26
+```
+
+#### Bodyless visibility form, complete (`0..18`)
+
+```text
+pub struct Marker;
+
+StructDeclaration
+  PubKw "pub" 0..3
+  Whitespace " " 3..4
+  StructKw "struct" 4..10
+  Whitespace " " 10..11
+  Identifier "Marker" 11..17
+  Semicolon ";" 17..18
+```
+
+#### Named brace malformed colon, recovered (`0..27`)
+
+```text
+struct S { x Int, y: Bool }
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "S" 7..8
+  Whitespace " " 8..9
+  LBrace "{" 9..10
+  Whitespace " " 10..11
+  StructField
+    Identifier "x" 11..12
+    Whitespace " " 12..13
+    Missing(Struct::FieldColon, Colon) "" 13..13
+    TypeExpression
+      Identifier "Int" 13..16
+  Comma "," 16..17
+  Whitespace " " 17..18
+  StructField
+    Identifier "y" 18..19
+    Colon ":" 19..20
+    Whitespace " " 20..21
+    TypeExpression
+      Identifier "Bool" 21..25
+  Whitespace " " 25..26
+  RBrace "}" 26..27
+```
+
+space `12..13`はfield-owned `Gfield-name`であり、zero-width Missingはvalid type primary直前に置く。
+
+#### Named indent missing type, recovered (`0..24`)
+
+```text
+struct S:
+  x:
+  y: Bool
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "S" 7..8
+  Colon ":" 8..9
+  Newline "\n" 9..10
+  Whitespace "  " 10..12
+  StructField
+    Identifier "x" 12..13
+    Colon ":" 13..14
+    TypeExpression
+      Missing(Struct::FieldType, TypeExpression) "" 14..14
+  Newline "\n" 14..15
+  Whitespace "  " 15..17
+  StructField
+    Identifier "y" 17..18
+    Colon ":" 18..19
+    Whitespace " " 19..20
+    TypeExpression
+      Identifier "Bool" 20..24
+```
+
+newline `14..15`は`Gfield-type`がrollbackし、first fieldのMissing後にStructDeclarationがimplicit field boundaryとしてownする。
+
+#### Tuple repeated comma, recovered (`0..23`)
+
+```text
+struct Pair(Int,, Bool)
+
+StructDeclaration
+  StructKw "struct" 0..6
+  Whitespace " " 6..7
+  Identifier "Pair" 7..11
+  LParen "(" 11..12
+  StructField
+    TypeExpression
+      Identifier "Int" 12..15
+  Comma "," 15..16
+  StructField
+    TypeExpression
+      Missing(Struct::FieldType, TypeExpression) "" 16..16
+  Comma "," 16..17
+  Whitespace " " 17..18
+  StructField
+    TypeExpression
+      Identifier "Bool" 18..22
+  RParen ")" 22..23
+```
+
+first commaはcompleted field後のboundary、second commaはmissing field slot後のboundaryであり、同じcommaを二度emitしない。
+
+### Root declaration, header discovery, and Statement consumers
+
+root / nested relationshipを次で固定する。
+
+| caller | Struct result |
+| --- | --- |
+| source-leading header discovery | Structをparse / projectせずcurrent leading header runを終了 |
+| full root loop | `Declaration::Struct`を選び`StructDeclaration`を`Root`直下へemit |
+| nested canonical Statement | `Statement::Struct`を選びsame nodeを`Statement`直下へemit |
+| field type | standalone TypeExpressionだけを呼びcanonical Statementを呼ばない |
+
+`HeaderDeclaration::Struct`や`HeaderInfo` factは追加しない。Structはimport routeもoperator BP factも作らない。
+namespace / constructor registration、field table、visibility / export、recursive type binderはfuture HIR / resolver authorityである。
+
+canonical Statementを受けるfull slotはlocal struct branchなしでStructを受け取る。root、colon / if / case / catchの
+indented body、braced statement block、WithBodyTail inline / indented body、binding indented body、Mod body、nested Struct以降が該当する。
+if / case / catch inline arm、binding inline RHS、ColonApplicationTail inline argument、ML argumentはOperatorChain-onlyのままであり、
+Structをexpression NUD / LEDにしない。
+
+Struct bodyのfield listはcanonical Statement sequenceではない。field間comma / newlineをstatement separator coreへ渡さず、
+Struct field driverが一度だけ所有する。nested struct declarationはsurrounding Statement ownerの再帰であり、field list内itemではない。
+
+### `SD-R`: typed recovery vocabulary and exhaustive contract
+
+typed vocabularyへ次を追加する。
+
+```text
+GrammarRole::Declaration(DeclarationRole::Struct(
+    StructRole::{Name, BodyIntroducer, Field, FieldName, FieldColon, FieldType, FieldSeparator}
+))
+
+ConstructRole::StructNamedFields
+ConstructRole::StructTupleFields
+
+StatementKind::StructDeclaration
+KeywordEvidence::Struct
+
+ExpectedSyntax::Identifier
+ExpectedSyntax::TypeExpression
+ExpectedSyntax::DelimitedSequenceSeparator
+ExpectedSyntax::Punctuation(Semicolon | Open(Brace) | Open(Parenthesis) | Colon)
+ExpectedSyntax::Punctuation(Close(Brace) | Close(Parenthesis))
+```
+
+`Missing`はzero-width、`Error`はmaximal non-empty、one recovery node = one committed recovery recordである。
+exact StructKw accept後はcutし、locally malformedでもone balanced StructDeclarationをfinishする。recovery scannerはcurrent lexical depthの
+EOF、valid retry candidate、own comma / matching close、outer-owned close、semicolon、dedent / equal-or-shallower newline、
+active statement boundaryをsafe pointとしてconsumeしない。
+
+#### Struct header / body recovery table
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `struct` + EOF / owner boundary | `name = Incomplete`、zero-width `Missing(Struct::Name, Identifier)`一件 | same causeのBodyIntroducer Missingをcascadeせずboundaryを返す |
+| `struct ;` / `struct {}` / `struct()` / `struct:` | starter直前へMissing Name一件 | same positionで`SD-J` body branch retry |
+| name slotのmalformed run後にvalid raw name | maximal `Error(Struct::Name)`、name Complete | valid nameからsame slot retry |
+| malformed name runがbody starter / boundaryまで続く | maximal `Error(Struct::Name)`、name Incomplete | starterをbody judgeへ返す。same-slot Missing Nameなし |
+| complete name + exact `;` | Complete Bodyless | diagnosticなし |
+| complete name + exact `{` / `(` | corresponding Complete body | list / close contractへ |
+| complete name + exact `:` + strict-deeper non-empty field block | Complete NamedIndented | diagnosticなし |
+| complete name + EOF / owner boundary / equal-or-shallower newline | `body = Incomplete`、zero-width `Missing(Struct::BodyIntroducer)`一件 | expectationは`;` / `{` / `(` / `:` union。boundary non-consume |
+| body-introducer malformed run後にexact starter | maximal `Error(Struct::BodyIntroducer)` | starterからsame-slot retry、additional Missingなし |
+| complete name後、malformed byteなしでstarterでないvalid word / TypePrimary (`struct S Foo`) | `body = Incomplete`、`Foo.start..Foo.start`（例では`9..9`）へzero-width `Missing(Struct::BodyIntroducer)`一件。Errorなし | accepted `Gstruct*` gap `8..9`だけはStruct所有。`Foo` `9..12`は一byteもconsumeせずcurrent cursorのままouter statement recoveryへ返す。expectationは`;` / `{` / `(` / `:` union、missing containerを作らない |
+| colon + EOF / same-line token / equal-or-shallower newline | NamedIndented bodyはaccepted、first `fields` slot Incomplete | zero-width `Missing(Struct::Field, Identifier)`一件。newline / tokenをouterへ返す |
+| colon + deeper opening trivia後にEOF | opening triviaをStructDeclarationへ保持しone Missing Field | no BodyIntroducer duplicate |
+| colon + deeper blockのmalformed first field後にvalid field | maximal `Error(Struct::Field)` | same block item位置からretry |
+
+bodyless valid productionはliteral semicolonを要求する。bare `struct S` + EOFはYulang2のsilent closeをvalidity evidenceとせず、
+BodyIntroducer Missingを持つincomplete declarationにする。
+
+#### Named field sequence recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| `{}` | valid empty named body | brace ownerがmatching closeをconsume |
+| comma / qualifying newline field list | valid | `SD-G`のone field formだけ |
+| actual matching close直前のliteral comma / qualifying newline | valid trailing boundary | no empty field、literal commaだけ`trailing_comma = Some` |
+| leading comma | empty `StructField`内にzero-width `Missing(Struct::Field, Identifier)` | commaをsequence ownerがconsumeしnext slotへ |
+| repeated comma | each missing slotへone Missing Field | punctuationごとにsame-position retry |
+| commaとnewlineが同じgap | comma authority一個 | newlineはpost-comma trivia、duplicate boundaryなし |
+| completed field RHS後、same-line complete `Identifier Gfield-name Colon`がseparatorなしで続く | zero-width `Missing(Struct::FieldSeparator, DelimitedSequenceSeparator)` | `SD-T`のStruct専用candidate checkがTypeApply前へrollbackし、next fieldをsame-position retry |
+| same-line / deeper TypePrimaryだがcomplete field headでない | Missing separatorなし | current RHSのvalid TypeApply continuation |
+| semicolon between fields | maximal `Error(Struct::FieldSeparator)` | next field / comma / closeへretry。valid separatorにしない |
+| field-authorityなしのmalformed bytes後にcomplete field head / literal-colon skeleton | maximal `Error(Struct::Field)`、whole field slot Incomplete | retryable skeletonからfield parserへ |
+| field-authorityなしのmalformed runがretryable skeletonなしでown matching closeまで続く (`struct S { @ }`) | `@`のexact `11..12`へmaximal non-empty `Error(Struct::Field, Identifier)`、`fields = [Recovered::Incomplete]`。same-cause Missing Fieldなし | post-Error gap `12..13`はsequence-owned raw trivia。scannerは`}` `13..14`をconsumeせずsequenceがclose slotへyieldし、closeはCompleteになる |
+| explicit / implicit separator後、matching closeより先にEOF / outer boundary | zero-width Missing Field one | boundaryをconsumeせずdistinct close slotへ |
+| missing `}` at EOF / outer boundary | zero-width `Missing(ClosingDelimiter(StructNamedFields))` | boundary non-consume |
+| local mismatched close | maximal non-empty `Error(ClosingDelimiter(StructNamedFields))` | matching `}` / outer safe pointへretry |
+| outer-owned mismatched close（outer delimiter stackが`]`をownする`struct S { @ ]`を含む） | `]`にはErrorを置かず、そのstart（例では`13..13`）へzero-width `Missing(ClosingDelimiter(StructNamedFields), Close(Brace))`。先行`@` `11..12`のwhole-field Error / Incomplete fieldとはdistinct close slotで、Missing Fieldは伴わない | post-Error gap後にsequenceが既存outer-owned-close ruleへyieldする。`]`は完全にnon-consumeでouter ownerへ返す |
+| indented bodyのdedent | valid list end | Missing closeなし、dedent non-consume |
+| indented trailing comma直後がEOF / dedent / outer boundary | valid `TrailingIndentedComma` | Missing Fieldを作らない |
+
+braceのtrailing commaはactual matching closeで証明し、separator-before-boundary rowとmutually exclusiveにする。
+indent formにはclose slotがないためEOF / dedentがtrailing commaを証明する。named braceとindentはsame field parser / authority cutを使うが、
+close cardinalityを共有しない。
+
+#### Named `StructField` internal recovery table
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `name : TypeExpression` | all slots Complete | field endからsequence judgeへ |
+| field startがliteral colon (`{: Int}`) | name Incomplete、zero-width `Missing(Struct::FieldName, Identifier)` | literal colonをconsumeしtypeへ |
+| malformed name + literal colon skeleton (`{@: Int}`) | maximal `Error(Struct::FieldName)` | name Incomplete、colon / typeはsame fieldで続行 |
+| accepted name後にliteral colon | colon Complete | mandatory type slotへ |
+| accepted name後、colonなし、same-line valid TypePrimary (`{x Int}`) | zero-width `Missing(Struct::FieldColon, Colon)` | same positionで`SD-T` mandatory type retry |
+| accepted name後、malformed colon bytes後にliteral colon | maximal `Error(Struct::FieldColon)` | literal colonからsame field継続 |
+| accepted name後、malformed colon bytes後にvalid TypePrimary | `Error(Struct::FieldColon)`、colon Incomplete | typeをsame position retry、additional Missing colonなし |
+| accepted name後、malformed colon runがliteral colon / valid TypePrimaryなしでcomma / close / EOF / implicit boundaryまで続く (`struct S { x @ }`) | `@`のexact `13..14`へmaximal non-empty `Error(Struct::FieldColon, Colon)`。field entry / nameはComplete、`colon` / `type_expr`はboth Incomplete。Missing FieldColon / FieldTypeなし | post-Error gap `14..15`はsequence-owned raw trivia。boundaryはnon-consumeでsequenceへ返し、例の`}` `15..16`はclose slotがconsumeする。same field slotを再retryしない |
+| accepted name後、colonなしでcomma / close / EOF / implicit boundary | zero-width Missing FieldColon一件 | colon / type both Incomplete、same-cause Missing typeなし |
+| accepted colon後にvalid TypePrimary | `SD-T` canonical entry、type Complete | full TypeExpression surface |
+| accepted colon後にEOF / comma / close / implicit boundary / dedent | type Incomplete、zero-width `Missing(Struct::FieldType, TypeExpression)` | boundary non-consume |
+| accepted colon後のmalformed bytes + valid TypePrimary | maximal `Error(Type::Primary, TypeExpression)` | canonical primaryをsame mandatory slot retry、type Complete |
+| accepted colon後のmalformed bytes + boundary | type Incomplete、one maximal `Error(Type::Primary)`のみ | same-cause Struct Missing typeを追加しない |
+| sigil / number name直後にliteral colon | `Error(Struct::FieldName)` | name Incomplete、colon / RHS継続 |
+| shorthand `{name}` | name Complete、colon / type Incomplete、Missing FieldColon一件 | shorthand nodeを作らずclose non-consume |
+| default `{name = value}` | exact `=` rangeへ`Error(Struct::FieldColon)` | colon Incomplete、`value`をTypeExpression retry。default nodeなし |
+| path-shaped `name::Type` | first nameでfield authority、`::`をlone colonにしない | `::`へFieldColon Error、TypeをRHS retry |
+
+field authority cutはNamedRecordTypeと同じ三categoryをStruct固有predicateで行う。(a) valid raw Identifier、
+(b) literal colon missing-name skeleton、(c) safe pointまでvalid Identifierを含まないmalformed name run + literal colon skeletonである。
+cut前のmalformed episodeはwhole Field role、cut後はFieldName / FieldColon / FieldType roleだけを使い、same byte rangeへ重ねない。
+
+#### Tuple field sequence and type recovery table
+
+| input state | authority / recovery | retry / ownership |
+| --- | --- | --- |
+| `()` | valid empty tuple body | matching `)` consume、no empty StructField |
+| `(A)` / `(A, B)` / qualifying newline list | valid | each itemはfull TypeExpression |
+| actual matching `)`直前のliteral comma / qualifying newline | valid trailing boundary | no empty field |
+| leading / repeated comma | empty StructField > empty TypeExpression内にzero-width `Missing(Struct::FieldType)` | comma consume、next slot retry |
+| `Int Bool` | one valid TypeApply TypeExpression | missing separatorを推測しない |
+| semicolon | maximal `Error(Struct::FieldSeparator)` | valid separatorにしない |
+| malformed primary + valid TypePrimary | one `Error(Type::Primary)` | same mandatory field type retry |
+| malformed primary + comma / close / boundary | one `Error(Type::Primary)`、field Incomplete | same-cause Struct Missing typeなし |
+| separator後、matching `)`より先にEOF / outer boundary | Missing FieldType one | distinct close slotへ |
+| missing `)` | `Missing(ClosingDelimiter(StructTupleFields))` | outer boundary non-consume |
+| local / outer-owned mismatched close | localだけclose Error、outer-ownedならMissing close | outer close non-consume |
+
+tuple same-line valid TypePrimary間にMissing separatorを挿入しないのはrecovery omissionではない。TypeExpressionのML applicationと
+surfaceが同一であり、`Pair(F A)`をtwo fieldsへsplitできないためである。
+
+#### No-cascade and positional-fence composition
+
+- StructKw後のsame boundaryでnameとbodyが欠けるときはName一件だけ。
+- field name accept後、colonとtypeがsame boundaryで欠けるときはFieldColon一件だけ。
+- literal / recovered colon accept後だけFieldTypeがmandatoryになる。
+- malformed bytesをErrorとしてboundaryまでconsumeしたslotへzero-width Missingを追加しない。whole-field ErrorにはMissing Field、
+  accepted-name後のFieldColon ErrorにはMissing FieldColon / FieldTypeを重ねない。
+- separator-before-EOFのfield slotとdelimited closeはdistinct AST slotなので、table記載どおり二件を持つ。
+- positional fenceがsame cursorにあるとき、Struct ownerはTypeExpression descendantのcommitted caller boundaryを越えてtriviaを
+  consumeしない。local comma / implicit field newlineとしてStruct自身がauthorityを持つと分類できた場合だけ、そのboundaryを
+  once commitしてnext fieldへ進む。fenceをbool returnやStruct-specific side channelへ複製しない。
+
+### Generics, derives, companion methods, and other explicit scope boundaries
+
+#### Declaration generics
+
+current Yulang3 designを全検索した結果、declaration-level generic parameter grammar / ASTは存在しない。
+approvedなのはstandalone TypeExpression内の`ForallType` binderだけであり、`type` / `enum` / function declarationに
+再利用できるheader binder syntaxはない。従ってYulang2のwhitespace-separated
+`struct box 'a { value: 'a }`を本追補だけで復元しない。
+
+`StructGenericParameters`、`TypeVars`、`<A, B>`、`[A, B]`を発明しない。Yulang2 surfaceを将来salvageするaddendumは
+type-like declaration共通のbinder syntax、scope、AST、recoveryを先に決め、StructNameと`StructBody`の間へ明示的に接続する。
+それまではtype-var-like bytesはvalid Struct grammarではなくBodyIntroducer recovery / outer trailing-inputの対象である。
+
+#### Derives and declaration companion
+
+current `notes/design/*.md`にderives-clause addendumは存在しない。generic-expression WithBodyTail追補は
+`architecture.md:10682-10686,10719-10729,11010-11023`で、declaration companion、derives special item、method attachmentを
+future declaration-owned authorityとして明示的に分離している。本追補はattachment pointやorderingを新たに決めない。
+
+従って`StructBody`完了後の`derives` / `with` wordをStructDeclarationがconsumeせず、current outer statement ownerへ返す。
+future addendumはYulang2にあったpre-body / post-body / companion内derivesを再調査し、StructDeclaration直下のCST、
+bodyとのcardinality、recoveryを一箇所で決める。本追補のfield-list driverへderives stopをad hocに入れない。
+
+`project_junction.md`というfileはcurrent yulang3 treeにも`yulang2-oracle` treeにも存在しなかった。struct method surfaceの
+current design authorityは上記WithBodyTail追補のfuture-boundaryだけである。`with: our p.method = ...`、companion brace、
+multiple impl、nested companion declaration、receiver / associated type semanticsを本追補へ含めない。
+
+#### Remaining exclusions
+
+- struct constructor / literal、field projection、visibility / export、layout / ABI、field duplicate validation。
+- field default、shorthand、spread、per-field visibility、mutable field、doc-comment field item。
+- derives lowering、method lookup、companion module creation、associated declaration、impl / role interaction。
+- generic binder lowering、variance、kind、recursive nominal type semantics。
+- formatting、diagnostic wording、HIR / resolver / inference。
+
+### Explicit Yulang2 divergences and preserved surface
+
+1. **Preserved main surface:** exact `struct`、optional `my` / `our` / `pub`、plain name、bodyless semicolon、three field-list forms、
+   named `name : type`、tuple full type、comma / layout newline、empty brace / tuple、trailing commaを保つ。
+2. **Temporary generic scope divergence:** Yulang2のsame-line `Ident | SigilIdent` TypeVarsを、共通declaration generic designなしに
+   Structだけへ移植しない。これはsurface redesignではなくnamed deferred salvageである。
+3. **Temporary companion / derives scope divergence:** Yulang2のheader / post-body derivesと`with:` companionはfuture
+   declaration-companion authorityへ残す。generic WithBodyTailへdesugarしない。
+4. **Doc-comment scope divergence:** Yulang2ではnamed brace field listだけがDocComment declaration parserを通し、
+   named indentのnon-comma pathは`InvalidToken`をemitした。Y3はcanonical doc-comment Statement設計まで前者を追加せず、
+   後者のgeneric InvalidTokenもtyped Struct field itemとして継承しない。
+5. **Bodyless completion divergence:** literal `struct S;`をvalidとし、fixtureのないbare `struct S` EOF silent closeは
+   Missing BodyIntroducerを持つincomplete declarationにする。
+6. **Recovery divergence:** Yulang2のsilent close / empty or non-empty InvalidTokenを、StructRole別Missing / Error、
+   same-slot retry、owner-safe boundary、no-cascadeへ置き換える。
+7. **CST divergence:** Yulang2 `StructDecl` / `TypeVars` / empty `Separator`を、Y3の`StructDeclaration` / raw triviaへ置き換える。
+   type varsはsourceにあるのにnode名だけ消すのではなくvalid grammar自体をdeferする。
+8. **Tuple empty recovery cleanup:** Yulang2 tuple machineはitem parse前にStructFieldを開いたためmatching close pathでempty fieldを
+   作り得た。Y3 `()`はvalid empty fieldsでありsource-absent StructFieldを作らない。
+9. **Type integration divergence:** field typeはYulang2 generic `parse_type_with_stops`でなくapproved standalone TypeExpression
+   mandatory entryとtyped outer roleを使う。valid full type surfaceを狭める差ではない。
+10. **Machinery boundary:** NamedRecordTypeとlayout primitivesは共有するが、type-level CST / TypeRole / close ownerをStructへ
+    偽装しない。`drive_type_close_slot`はalready parameterizedなので、共有時もStruct固有spec / declaration adapterを使う。
+    これはnew Y3 architectureに必要なownership divergenceである。
+11. **Owner-safe newline difference:** Yulang2 scannerがequal-or-shallower newline後のtokenをfield type / header continuationへ
+    読み得た箇所で、Y3は`SD-G` baselineとouter boundaryを優先しnext statement / next fieldをconsumeしない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへの本追補追加だけであり、`.rs` fileを変更しない。future implementation sliceは
+Struct syntax / AST / direct-CST / recovery / dispatchを一changeとして行い、generic / companion / derives / HIRを混ぜない。
+
+implementation gateを次で固定する。
+
+1. `StructKw` / `StructDeclaration` / `StructField`、`Declaration::Struct` / `Statement::Struct`、
+   `StatementIntro::Struct`、`StatementKind::StructDeclaration`、Struct roles / close ownersを追加する。
+2. AST / direct-CST / root / nestedがsame sink-free exact-word intro judgeを使い、bare / `my` / `our` / `pub`を
+   name / bodyの成否に依存せずcommitする。Bindingへのcollision fixtureを持つ。
+3. bodyless semicolon、empty / multi / trailing-comma named brace、strict-deeper non-empty named indent、
+   empty / multi / trailing-comma tupleを`SD-G`どおりacceptする。
+4. brace / tupleのcomma / implicit newlineとindentのcomma / block newlineをone shared struct decision driverで分類し、
+   comma + newlineをduplicate boundaryにしない。implicit Separator CSTを作らない。
+5. named / tuple type slotは`SD-T`のexact ordinary mandatory functionsと
+   `StructRole::FieldType` outer overrideを使う。`RequiredTypeRecoveryContext::with_malformed_continuation_base`や
+   Struct-specific TypeExpression subsetを使わない。
+6. `struct_list_base` / `block_indent`をactive type baselineへpushするためordinary baseでAST / direct malformed scannerが一致すること、
+   Pattern captured-base pathを誤ってcopyしないことをfixture化する。
+7. `TypeDelimitedOwner::StructNamedFields`を追加し、`TypeDelimitedSpec`のtype-owner mappingにはexplicit rejecting armを置く。
+   AST / direct-CSTの現行二つのpre-TypeApply siteがStruct専用candidate checkを呼び、`x: F y: Y`をmissing separator +
+   two fields、`x: F Y`をone field TypeApplyにする。tuple `Pair(F Y)`はone fieldのままにする。
+8. `drive_type_delimited` / `classify_type_delimited_recovery`をStruct owner tagで直接reuseしない。
+   already-parameterized `drive_type_close_slot`を共有する場合もStruct固有`CloseRecoverySpec` / declaration adapterを使う。
+   named brace / indent field parserとfield-authority predicateをcopyしない。
+9. header / body、named sequence、named internal、tuple sequenceの`SD-R`全rowをAST / direct-CSTでrole、kind、range、
+   retry position、Complete / Incomplete cardinalityまで固定する。
+10. six main worked sourcesとbodyless sourceをbyte-exact CST fixtureにし、all trivia home、lossless round trip、balanced node、
+    one node = one recovery recordをassertする。
+11. missing / mismatched brace / parenthesis、separator-before-boundary、wrong-indent / dedent、active comma / semicolon / outer close / newlineで
+    boundary byteをStruct / Type Errorがconsumeしない。
+12. root、indented full-Statement consumers、braced statement block、With inline / indented、Binding / Mod body、nested Structで
+    Structをacceptし、OperatorChain-only inline slotではacceptしない。
+13. source-leading Structはheader discoveryを終了し、HeaderDeclaration / import / operator factを生成しない。
+14. delimiter、stop、TypeDelimitedOwner、indentation baseline、`inline` / `ml_arg` / `type_ml_arg`、positional fenceを
+    normal / recovery / rollbackの全exitでexact restoreする。
+15. standalone TypeExpression / Pattern / NamedRecordType / Mod / Statement sequenceのexisting fixtureを保ち、
+    operator tableだけを変えてStruct header / field discriminator CSTを変えない。
+16. declaration generics、derives、`with:` companion、methods、doc-comment field item、HIRを実装しないことをscope gateにする。
+
+### Closed decisions and Claude review focus
+
+本追補でfuture syntax implementationをblockする未決grammar branchはない。次をreview対象となるclosed decisionとして固定する。
+
+- valid bodyはliteral semicolonまたはthree field-list formsであり、bare EOFはincomplete bodyである。
+- declaration genericはYulang3共通binder designまでdeferし、Struct専用syntaxを発明しない。
+- derives / companion methodsにはattachment placeholderを置かずfuture declaration-owned addendumへ残す。
+- root / nestedはsame StructDeclaration、header discoveryはStruct factを作らない。
+- named / tuple field typeはsame ordinary mandatory TypeExpression entryとStruct FieldType outer roleを使う。
+- Pattern型のcaptured recovery baseは不要で、field-list active baselineが唯一のbase authorityである。
+- NamedRecordTypeから共有するのはlayout / boundary primitiveである。pre-TypeApply判定は現行AST / direct tail siteへ
+  Struct専用candidate checkを明示追加し、NamedRecord helper / TypeRole / CST / close ownerを流用しない。
+- new CST vocabularyはStructKw / StructDeclaration / StructFieldだけで、field-list / TypeVars / Separator wrapperを作らない。
+- recoveryはtyped、maximal、owner-safe、same-slot retry、no same-cause cascadeである。
+
+Claude reviewでは特に、Yulang2 TypeVarsのdeferが明示的か、bodyless semicolon判断、indent formのnon-empty / trailing comma、
+tuple ML applicationとmissing separatorの非推測、ordinary TypeExpression recovery contextで十分な根拠、
+`StructNamedFields`専用candidate checkとNamedRecord helperの非混同、close cardinality、companion / derives非attachmentを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-24、canonical Statement / root Declaration `struct` declaration grammar追補案）。
