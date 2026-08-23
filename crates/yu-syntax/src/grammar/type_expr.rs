@@ -1342,6 +1342,7 @@ where
     if name.is_none() && missing_name_colon.is_none() && malformed_name.is_none() { return false; }
     committed.start_node(SyntaxKind::TypeRecordField);
     let type_expected;
+    let mut recovered_malformed_colon = false;
     if let Some(name) = name {
         committed.token(SyntaxKind::Identifier, name.range());
         let trivia = consume_direct_trivia(committed);
@@ -1358,6 +1359,7 @@ where
             );
             type_expected = true;
         } else if let Some(range) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
+            recovered_malformed_colon = true;
             emit_type_error(
                 committed,
                 TypeRole::RecordFieldColon,
@@ -1386,8 +1388,14 @@ where
         }
         type_expected = true;
     }
-    let trivia = consume_direct_trivia(committed);
-    committed.emit_trivia(&trivia);
+    let trivia = if recovered_malformed_colon {
+        consume_direct_type_chain_trivia(committed)
+    } else {
+        Some(consume_direct_trivia(committed))
+    };
+    if let Some(trivia) = trivia.as_ref() {
+        committed.emit_trivia(trivia);
+    }
     if type_expected && commit_direct_type_expression(committed).is_none() {
         match direct_type_item_error_retry(committed, TypeRole::RecordFieldType) {
             Some(TypeItemRecovery::Retry) => {
@@ -4101,6 +4109,42 @@ mod tests {
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
                 colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, ..
             })])));
+    }
+
+    #[test]
+    fn malformed_record_colon_leaves_outer_newlines_for_the_field_sequence() {
+        for source in ["{name @\nA}", "{name @//x\nA}"] {
+            assert!(matches!(parse(source).primary, TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Complete(_), ..
+            }) if matches!(fields.as_slice(), [
+                Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, .. }),
+                Recovered::Complete(_),
+            ])), "AST {source}");
+
+            let (remainder, recoveries) = parse_direct_prefix(source);
+            assert_eq!(remainder, "", "direct remainder {source}");
+            assert!(!recoveries.iter().any(|record| matches!(record.site.role,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                }
+            ) && record.kind == RecoveryKind::Missing), "{source}: {recoveries:#?}");
+            let direct = parse_direct(source);
+            assert_eq!(direct.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+                .count(), 2, "direct fields {source}");
+        }
+
+        let continuation = parse("{name @:\n  A}");
+        assert!(matches!(continuation.primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Complete(_), ..
+        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+            colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
+        })])));
+        let continuation_direct = parse_direct("{name @:\n  A}");
+        assert_eq!(continuation_direct.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .count(), 1);
     }
 
     #[test]
