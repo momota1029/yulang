@@ -604,6 +604,125 @@ impl TypeDelimitedShape {
     }
 }
 
+/// The sequence judge uses this after a malformed-item scanner has stopped.
+/// It probes the gap without assigning that gap to either the Error node or a
+/// future item; the owning sequence commits it only after choosing a state
+/// transition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DelimitedRecoveryTarget {
+    RetryPrimary,
+    ExplicitSeparator(TypeExplicitSeparator),
+    ImplicitNewline,
+    MatchingClose(Range<usize>),
+    LocalMismatchedClose(Range<usize>),
+    OuterBoundary,
+}
+
+#[derive(Clone, Copy)]
+struct DelimitedRecoverySpec {
+    delimiter: Delimiter,
+}
+
+/// The close slot is shared by AST and direct-CST sequences.  Effect rows
+/// intentionally retain their older contract: after consuming a local
+/// mismatch, a later safe point does not receive a second Missing close.
+#[derive(Clone, Copy)]
+struct CloseRecoverySpec {
+    delimiter: Delimiter,
+    owner: ConstructRole,
+    matching_kind: SyntaxKind,
+    missing_after_mismatch: MissingAfterMismatch,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MissingAfterMismatch {
+    Emit,
+    Suppress,
+}
+
+trait TypeCloseSlotContext<'source> {
+    type Error: ErrorSink<usize>;
+
+    fn with_input<R>(
+        &mut self,
+        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
+    ) -> R;
+    fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>);
+    fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax);
+    fn emit_missing_close(&mut self, role: GrammarRole, expected: ExpectedSyntax);
+}
+
+/// Drive the close slot after an item sequence has yielded ownership.  The
+/// caller supplies only output realization; matching-close, local mismatch,
+/// and safe-point ordering remain identical across AST and direct CST.
+fn drive_type_close_slot<'source, C>(
+    context: &mut C,
+    spec: CloseRecoverySpec,
+) -> Recovered<Range<usize>>
+where
+    C: TypeCloseSlotContext<'source>,
+    Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
+    UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
+{
+    let role = GrammarRole::ClosingDelimiter {
+        owner: spec.owner,
+        delimiter: spec.delimiter,
+    };
+    let expected = ExpectedSyntax::Punctuation(PunctuationEvidence::Close(spec.delimiter));
+    let mut saw_mismatch = false;
+    loop {
+        if let Some(close) = context.with_input(|i| scan_close_for_delimiter(spec.delimiter, i)) {
+            context.emit_matching_close(spec.matching_kind, close.clone());
+            return Recovered::Complete(close);
+        }
+        if let Some(mismatched) = context.with_input(|i| scan_mismatched_close_for(spec.delimiter, i)) {
+            context.emit_mismatched_close(role, mismatched, expected);
+            saw_mismatch = true;
+            continue;
+        }
+        if !saw_mismatch || spec.missing_after_mismatch == MissingAfterMismatch::Emit {
+            context.emit_missing_close(role, expected);
+        }
+        return Recovered::Incomplete;
+    }
+}
+
+/// Probe the post-scanner state without consuming trivia.  A caller that
+/// accepts the transition subsequently consumes the same gap through its own
+/// output adapter, keeping trivia ownership out of scanner recovery ranges.
+fn classify_type_delimited_recovery<E>(
+    spec: DelimitedRecoverySpec,
+    layout: LayoutDelimitedFrame,
+    retry_primary: impl FnOnce(&mut SynIn<E>) -> bool,
+    i: &mut SynIn<E>,
+) -> DelimitedRecoveryTarget
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let stays_in_chain = type_chain_trivia(i, &trivia);
+    let target = if let Some(close) = scan_close_for_delimiter(spec.delimiter, i) {
+        DelimitedRecoveryTarget::MatchingClose(close)
+    } else if let Some(mismatched) = scan_mismatched_close_for(spec.delimiter, i) {
+        DelimitedRecoveryTarget::LocalMismatchedClose(mismatched)
+    } else if let Some(separator) = scan_separator(i) {
+        DelimitedRecoveryTarget::ExplicitSeparator(separator)
+    } else if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+        == LayoutDelimitedBoundary::ImplicitNewline
+    {
+        DelimitedRecoveryTarget::ImplicitNewline
+    } else if stays_in_chain && retry_primary(i) {
+        DelimitedRecoveryTarget::RetryPrimary
+    } else {
+        DelimitedRecoveryTarget::OuterBoundary
+    };
+    i.rollback(checkpoint);
+    target
+}
+
 fn commit_direct_type_primary<'parse, 'source, 'local, E, O>(
     allow_forall: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -2221,12 +2340,17 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 fn scan_close_delimiter<'source, E>(shape: TypeDelimitedShape, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    scan_close_for_delimiter(shape.delimiter(), i)
+}
+
+fn scan_close_for_delimiter<'source, E>(delimiter: Delimiter, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
     let Some(punctuation) = i.run(scan_punctuation) else {
         i.rollback(checkpoint);
         return None;
     };
-    if punctuation.kind() == PunctuationKind::Close(shape.delimiter()) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+    if punctuation.kind() == PunctuationKind::Close(delimiter) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
 }
 
 fn scan_mismatched_close_for<'source, E>(delimiter: Delimiter, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
@@ -2464,17 +2588,26 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.probe(|probe| {
-        let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let trivia = consume_trivia(i);
-        if type_chain_trivia(i, &trivia) {
-            Some(trivia)
-        } else {
-            i.rollback(checkpoint);
-            None
-        }
-    })
+    committed.probe(|probe| consume_type_chain_trivia(probe.input()))
+}
+
+/// Consume post-introducer trivia only when it remains inside the current type
+/// chain.  The checkpoint is owned here so source-free AST and direct-CST
+/// callers retain precisely the same outer-layout boundary.
+fn consume_type_chain_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    if type_chain_trivia(i, &trivia) {
+        Some(trivia)
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
 }
 
 fn emit_type_missing<'parse, 'source, 'local, E, O>(
