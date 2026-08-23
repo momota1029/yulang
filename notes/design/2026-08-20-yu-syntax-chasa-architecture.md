@@ -14802,6 +14802,9 @@ explicit separator = Comma only
 これはNamedRecordTypeのcomma / implicit-newline frameをparameterizeして再利用する。semicolon stopを追加せず、
 current variant depthのsemicolonは`PolymorphicVariantTagSeparator` Errorになる。active callerがsemicolonをownする場合は
 safe pointとしてconsumeせず返す。matching close、outer-owned close、active stop、EOFもconsumeしない。
+以下でlocal / current-depth semicolonと呼ぶのは、literal semicolonであり、かつactive caller stopに同じtokenが登録されて
+**いない**場合だけである。caller-owned判定はlocal separator authorityのeligibility filterであり、後段のtoken-kind判定より
+先に行う。
 
 outer judge orderは次である。この順序はopener直後だけでなく、comma / implicit boundary / semicolon Error後、
 malformed-prefix retry後を含む**every new-tag-position re-entry**で同じcheckpointから適用する。
@@ -14810,8 +14813,10 @@ malformed-prefix retry後を含む**every new-tag-position re-entry**で同じch
 2. current-depthのclosing-delimiter tokenがactual `}`ではなく、active callerがownするouter closeでもないなら、local
    mismatched-close authorityへcutする。generic malformed-tag scannerへ渡さない。
 3. literal comma。
-4. current tagから返されたgapのpost-trivia位置にcurrent-depth semicolonがあれば、gapをouter containerへemitし、
-   semicolonだけを`Error(PolymorphicVariantTagSeparator)`としてconsumeする。inner payload recoveryへ渡さない。
+4. current tagから返されたgapのpost-trivia位置にsemicolonがあれば、まずactive caller-owned stopかを判定する。
+   caller-ownedならgap / semicolonをconsumeせずstep 8のowner-safe boundaryへ送り、semicolon位置へzero-width Missing closeを
+   置いてcallerへ返す。caller-ownedでないlocal semicolonだけ、gapをouter containerへemitし、semicolonを
+   `Error(PolymorphicVariantTagSeparator)`としてconsumeする。inner payload recoveryへ渡さない。
 5. current tagから返されたphysical newlineをlayout classifierへ渡す。`indent <= poly_variant_base`ならimplicit boundary、
    strictly deeperならowner-safe boundaryとしてnewline前で終了し、consumeしない。
 6. shared canonical TypePrimary candidate probeを、core TypeExpression primary judgeと**同一priority**で一回だけ行う。exact
@@ -14820,6 +14825,9 @@ malformed-prefix retry後を含む**every new-tag-position re-entry**で同じch
 7. step 6のcandidateがplain Identifier以外ならwrong-kind tag-head branchへcutする。
 8. EOF / active stop / matching outer close等のowner-safe boundary。
 9. 以上のどれにもclaimされないbyteだけをmalformed non-empty tag / separator runへ渡す。
+
+step 4のcaller-owned testはstep 8をtoken-kind判定の後まで遅らせる例外ではなく、step 4 local authorityをgateする
+owner predicateである。したがってsame semicolonにstep 4 Errorとstep 8 Missing closeが両方発火する経路はない。
 
 step 6--7はcanonical TypePrimary candidate probeとplain-Identifier classificationを同じcheckpoint / shared judge resultで
 比較し、独立したword-first probeを置かない。Number、
@@ -14843,7 +14851,7 @@ name Incompleteのtag skeletonを作る。これはone causeの
 cascadeではない。malformed prefixとwrong-kind primaryはnon-overlapping rangeを持つ二つの独立cause / recovery siteであり、
 それぞれone recordを持つ。prefix Errorがcandidate Errorをabsorb / supersedeせず、retryによってsecond tag slotも作らない。
 
-literal semicolonだけがdedicated separator Error authorityを持つ。`@`等のunclaimed byteはseparator episodeへ入らずstep 9の
+caller-ownedでないliteral semicolonだけがdedicated separator Error authorityを持つ。`@`等のunclaimed byteはseparator episodeへ入らずstep 9の
 generic malformed-tag runになる。actual / local mismatched closeはいずれもstep 1--2でgeneric scannerより先に判定し、
 malformed prefixからscan中に到達したlocal mismatched closeもsafe pointとしてconsumeせず、same new-tag-positionへ返す。
 
@@ -14868,11 +14876,14 @@ PayloadBody
 
 `PayloadOrOuterBoundary`はnameまたはprevious payload endで次のexclusive orderを使う。
 
-1. no-trivia位置のcomma / current-depth semicolon / actual `}` / active stopならpayloadを作らずouterへ返す。
+1. no-trivia位置のcomma / semicolon / actual `}` / local mismatched closer / active stop / EOFならpayloadを作らずouterへ返す。
+   semicolonのlocal-vs-caller-owned classificationとall closer recoveryはouterだけが行う。
 2. one maximal trivia clusterをsink-freeにprobeする。physical newlineを含めばtrivia前へrollbackし、indentに関係なく
    current tagをfinishしてouterへ返す。
-3. non-empty same-line trivia後のcurrent-depth semicolonをprobeした場合もtrivia前へrollbackし、current tagをfinishして
-   outerへ返す。outerだけがgapをemitし、semicolon Error episodeを所有する。
+3. non-empty same-line trivia後のcomma / semicolon / actual `}` / local mismatched closer / active stop / EOFをprobeした場合も
+   trivia前へrollbackし、current tagをfinishしてouterへ返す。outerだけがgapをownし、semicolonならcaller-owned filter後の
+   local separator Errorまたはowner-safe Missing close、closerならmatching / dedicated ClosingDelimiter、その他はcomma /
+   owner-safe close authorityへ分類する。
 4. non-empty same-line trivia後にcanonical TypePrimary candidateがあれば、そのtriviaをone payload boundaryとしてacceptし、
    one `TypeExpressionInTypeMlScope`をparseする。
 5. no-trivia位置にcanonical TypePrimary candidateがあればzero-width
@@ -14881,8 +14892,8 @@ PayloadBody
    `Error(PolymorphicVariantPayload)`をearliest valid TypePrimary / outer boundaryまでconsumeしてsame payload slotをretryする。
 7. boundaryなしのmalformed run後にcanonical TypePrimaryがあれば、そのrunを
    `Error(PolymorphicVariantPayloadBoundary)`としてconsumeし、same payload slotのtypeをretryする。
-8. boundaryなしのmalformed runがcomma / semicolon / close / newlineへ達すればpayloadはoptionalなので作らず、
-   malformed byte位置からouter new-tag-position judgeへhandoffする。outerはliteral semicolonだけを
+8. boundaryなしのmalformed runがcomma / semicolon / actual close / local mismatched closer / newlineへ達すればpayloadはoptionalなので作らず、
+   malformed byte位置からouter new-tag-position judgeへhandoffする。outerはcaller-ownedでないliteral semicolonだけを
    `PolymorphicVariantTagSeparator` Errorにし、`@`等のunclaimed prefixはgeneric `PolymorphicVariantTag` Error、local
    mismatched closerはClosingDelimiter Errorとして、re-entrant priorityどおり排他的にownする。
 
@@ -14933,6 +14944,14 @@ additional boundary tracesを次で固定する。
 - `:{]}`ではinitial new-tag-positionのstep 2がlocal mismatched closer `]`をgeneric malformed-tag scanより先にclaimし、
   exact `]` rangeへone `Error(ClosingDelimiter(PolymorphicVariantType))`をcommitする。close slotをsame position policyでretryし、
   続くactual `}`をComplete closeとしてacceptする。tag slotは一件も作らず、Tag Error / Missing closeを重ねない。
+- `:{A ]}`ではinner step 3がspace後のlocal mismatched closerをsafe pointとして認識し、space前へrollbackしてtag `A`を
+  Complete / zero payloadで終了する。outerがspaceをownし、re-entry step 2で`]`だけへ
+  `Error(ClosingDelimiter(PolymorphicVariantType))`をcommitし、続くactual `}`をComplete closeとしてacceptする。`]`を
+  malformed payloadへ吸収せず、payload / extra tag slotも作らない。
+- active caller stopがsemicolonをownするcontextの`:{A; ...`ではinnerがsemicolonをouterへ返し、outer step 4のeligibility
+  filterがlocal separator Errorを禁止する。semicolon位置へzero-width Missing closeを置き、gap / semicolonをconsumeせず
+  callerへ返す。caller-ownedでない`:{A;B}` / `:{A ; B}`だけが既述のone separator Errorとtwo-tag shapeを保つ。
+- caller-owned semicolonを含まない`:{for 'a: T}`、`:{A@,B}`、`:{]}`のauthority / range / AST traceは変わらない。
 - root `poly_variant_base = 0`の`:{@\n  B}`ではouter malformed-tag scannerが`@`だけを
   `Error(PolymorphicVariantTag)`にする。any physical newlineがscanner safe pointなのでnewlineを含めない。indent 2のnewlineは
   non-qualifyingであり、close Incomplete / Missing closeをnewline位置へ置いてnewlineと`B`をcallerへ返す。
@@ -15056,13 +15075,15 @@ tag depthへ戻りimplicit tag separatorになる。四例は全space / newline 
 
 ### Typed recovery contract
 
-safe pointはcurrent owner phaseごとに固定する。outer tag scannerはactual `}`、local mismatched closer、comma、current-depth semicolon、
-**qualifying / non-qualifyingを問わないany physical newline**、active caller stop、outer-owned close、EOF、plain Identifier
+safe pointはcurrent owner phaseごとに固定する。outer tag scannerはactual `}`、local mismatched closer、comma、caller-ownedでない
+local semicolon、**qualifying / non-qualifyingを問わないany physical newline**、active caller stop（caller-owned semicolonを含む）、
+outer-owned close、EOF、plain Identifier
 retry candidate、non-Identifier canonical TypePrimary wrong-kind candidateをsafe pointにする。qualifying newlineだけを
 outer separatorとしてconsumeし、non-qualifying newlineはErrorにもseparatorにも含めずcallerへ返す。inner scannerはcomma、
-current-depth semicolon、actual `}`、any physical newline、active caller stop、EOF、canonical TypePrimary retry candidateを
-safe pointにする。safe-point byteはpreceding malformed Errorへ含めない。local semicolonはinnerからouterへhandoffした後、
-outer separator-role Errorとしてのみconsumeする。
+semicolon、actual `}`、local mismatched closer、any physical newline、active caller stop、EOF、canonical TypePrimary retry
+candidateをsafe pointにする。safe-point byteはpreceding malformed Errorへ含めない。semicolonはinnerからouterへhandoffした後、
+caller-ownedならunconsumed owner boundary、そうでなければouter separator-role Errorとしてだけconsumeする。local mismatched
+closerもinner Errorへ含めずouter close recoveryだけがconsumeする。
 
 #### Outer tag-sequence table
 
@@ -15078,8 +15099,9 @@ outer separator-role Errorとしてのみconsumeする。
 | new-tag位置のnon-Identifier TypePrimary | `Error(PolymorphicVariantTagName, Identifier)` on that primary range | Complete tag skeleton with name Incompleteを作りinner payload phaseへ。後続payload candidateがなければempty、`123 Int`なら`Int`をpayloadとしてownする。同じbytesへwhole-tag Errorを重ねない |
 | malformed non-empty bytes後にplain Identifier | maximal `Error(PolymorphicVariantTag)` | valid Identifierをsame whole-tag slotでretry。成功時AST tag Complete |
 | malformed non-empty bytes後にnon-Identifier canonical TypePrimary | malformed prefixだけへmaximal `Error(PolymorphicVariantTag)`、candidate直前でstop | same whole-tag slotをcandidate位置でretryし、wrong-kind branchがcandidate own rangeへ別の`Error(PolymorphicVariantTagName, Identifier)`をcommitする。ASTはname Incompleteのone Complete tag skeletonであり、second tag slotを作らない。二Errorはnon-overlappingな別causeなのでno-cascade違反ではない |
-| malformed non-empty bytes後にcomma / semicolon / actual close / local mismatched closer / any physical newline / owner boundary | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、boundaryをconsumeせず、same causeへMissing tagを重ねない。semicolonは次のouter separator Error、local mismatched closerはdedicated close Error、non-qualifying newlineはclose / caller boundaryへ |
-| current-depth semicolon | exact semicolon `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | malformed separator episodeとしてconsumeし、post-trivia位置でouter tag / close retry。Missing separatorを重ねない |
+| malformed non-empty bytes後にcomma / semicolon / actual close / local mismatched closer / any physical newline / owner boundary | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、boundaryをconsumeせず、same causeへMissing tagを重ねない。semicolonはcaller-ownedならunconsumed Missing-close branch、そうでなければ次のouter separator Error、local mismatched closerはdedicated close Error、non-qualifying newlineはclose / caller boundaryへ |
+| caller-ownedでないcurrent-depth semicolon | exact semicolon `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | malformed separator episodeとしてconsumeし、post-trivia位置でouter tag / close retry。Missing separatorを重ねない |
+| semicolonがactive caller-owned stop | local separator authorityなし。zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | close Incomplete、gap / semicolonをconsumeせずcallerへ返す。same semicolonへTagSeparator Errorを重ねない |
 | same-line plain Identifier without comma | current tagのpayload authority | Missing tag separatorをemitしない。`A Int B`はone tag + two payloads |
 | opener直後またはcomplete tag直後のEOF / owner boundary、separator episodeなし | tag listはoptional / complete | tag Missingなし、close slotだけをrecover |
 | missing `}` at EOF / active stop / outer-owned close / non-qualifying newline | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | close Incomplete、boundaryをconsumeしない |
@@ -15093,17 +15115,17 @@ reachableでないことをtable自身に明記し、multiple payload rowと競�
 
 | input state | authority / recovery | AST / retry / ownership |
 | --- | --- | --- |
-| tag name直後にcomma / semicolon / close / physical newline | valid zero-payload tag | payload slotを作らない。semicolonだけはouter separator Errorへhandoff |
+| tag name直後にcomma / semicolon / actual close / local mismatched closer / physical newline | valid zero-payload tag | payload slotを作らない。semicolonのlocal / caller-owned判定とall closer recoveryはouterへhandoff |
 | non-empty same-line boundary + valid TypePrimary | valid payload | boundary / type Complete |
 | repeated same-line boundary + TypePrimary | one maximal boundary | trivia clusterをone payload nodeへexactly once所有 |
 | no-trivia valid TypePrimary after tag head | zero-width `Missing(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)` | boundary Incomplete、same-position type retry、payload Complete |
 | accepted boundary後のmalformed bytes followed by valid TypePrimary | maximal non-empty `Error(PolymorphicVariantPayload, TypeExpression)` | same payload type slotでretry。成功時type Complete |
-| accepted boundary後のmalformed bytes reaching comma / semicolon / close / newline / owner boundary | maximal non-empty `Error(PolymorphicVariantPayload)` | payload skeleton Complete、type Incomplete。same slotへMissing typeを重ねず、semicolonはouterへhandoff |
+| accepted boundary後のmalformed bytes reaching comma / semicolon / actual close / local mismatched closer / newline / owner boundary | maximal non-empty `Error(PolymorphicVariantPayload)` | payload skeleton Complete、type Incomplete。same slotへMissing typeを重ねず、semicolon / closerはouterへhandoff |
 | boundaryなしmalformed bytes followed by valid TypePrimary | maximal `Error(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)` | boundary Incomplete、same-position type retry |
-| boundaryなしmalformed bytes reaching outer boundary | malformed byte位置からouter new-tag-position judgeへhandoff | optional payloadを作らず、same bytesへPayload Errorを重ねない。outerでliteral semicolon / local mismatched closer / generic malformed runをre-entrant priorityにより排他的に分類する |
+| boundaryなしmalformed bytes reaching outer boundary | malformed byte位置からouter new-tag-position judgeへhandoff | optional payloadを作らず、same bytesへPayload Errorを重ねない。outerでcaller-owned semicolon / local semicolon / local mismatched closer / generic malformed runをre-entrant priorityにより排他的に分類する |
 | payload `TypeExpressionInTypeMlScope`後のsame-line TypePrimary | next payload authority | current payloadは`type_ml_arg` stop、next boundary / payloadをaccept |
 | payload後のphysical newline | unconditional inner-list end | innerはconsumeせずouterへexactly once返す。deeper newlineもpayload continuationにしない |
-| same-line boundary後のEOF / comma / semicolon / close | optional next payloadなし | Missing payloadを作らない。outer close / separator authorityへhandoff |
+| same-line boundary後のEOF / comma / semicolon / actual close / local mismatched closer | optional next payloadなし | Missing payloadを作らない。outer close / separator authorityへhandoff |
 
 payload sequenceはzero-or-moreなので、単なるabsenceへ`Missing(PolymorphicVariantPayload)`をemitしない。payload Missing相当の
 mandatory slotは、accepted boundaryまたはpayload-intent Errorがpayload skeletonへcutした後のtype slotだけに存在する。
@@ -15140,14 +15162,15 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 3. empty、zero-payload tag、one / multiple payload、multiple tag、actual-close trailing commaをacceptする。
 4. tag headをplain Identifierだけに限定し、uppercase semantic restrictionを追加しない。
 5. outer separatorをcomma / qualifying implicit newlineに限定し、semicolonをinner safe pointからouterへ返してone typed
-   separator Errorにする。space有無でtag / payload shapeを変えない。
+   separator Errorにする。ただしcaller-owned semicolonはunconsumed owner boundaryであり、separator Errorにしない。
+   space有無でtag / payload shapeを変えない。
 6. payload boundaryをnon-empty same-line triviaに限定し、any newlineでinner listを終了する。
 7. `:{A Int, B}`、`:{A Int Bool}`、`:{A Int\nB}`をdocumented two-level judgeどおりparseする。
 8. nested delimited payload内newlineとtag-level newlineをowner depthで区別する。
 9. same-line Identifierはpayload authorityを持ち、false Missing tag separatorをemitしない。
-10. leading / repeated / trailing-before-EOF separator、contextual `for` wrong-kind tag head、wrong-kind / malformed tag name、
+10. leading / repeated / trailing-before-EOF separator、local-vs-caller-owned semicolon、contextual `for` wrong-kind tag head、wrong-kind / malformed tag name、
     semicolon vs generic malformed byte、non-qualifying newline、malformed-prefix後のwrong-kind primary、every-reentry missing /
-    mismatched closeをrole / range / retry / AST parityまでfixture化する。
+    mismatched close、innerからhandoffするtrivia-prefixed mismatched closeをrole / range / retry / AST parityまでfixture化する。
 11. missing / malformed payload boundary、malformed payload retry、payload-at-boundary no-cascadeをfixture化する。
 12. `F :{A}`がordinary TypeApply argument、variant後のpath / call / apply / arrowがordinary tailsになる。
 13. all worked examplesでlossless round trip、every trivia byte one home、balanced nodes、no synthetic Separatorを確認する。
@@ -15163,7 +15186,9 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 - payload boundaryはnon-empty same-line triviaだけで、any physical newlineがinner listを終了する。
 - outer tag listはcomma / qualifying implicit newlineだけをseparatorにする。
 - same-line Identifier ambiguityはpayload authorityを優先し、Missing tag separatorでsplitしない。
-- current-depth semicolonはinnerのsafe pointであり、trivia有無にかかわらずouter separator Errorだけがownする。
+- semicolonはinnerのsafe pointであり、trivia有無にかかわらずouterへ返す。caller-ownedならunconsumed owner boundary、
+  caller-ownedでないlocal semicolonだけouter separator Errorがownする。
+- local mismatched closerはinnerのsafe pointであり、trivia有無にかかわらずouter ClosingDelimiter recoveryだけがownする。
 - every new-tag-position re-entryはactual close、local mismatched close、separator、shared canonical primary、owner boundary、
   generic malformed runのpriorityを同じ順で適用する。
 - tag-head candidateはshared canonical TypePrimary judgeを使い、contextual / compound primaryをplain Identifierより先に分類する。
@@ -15186,15 +15211,19 @@ final reviewでfour issue classをboth nesting levelsについて再点検した
    参照しない。BNFの`TypeExpressionInTypeMlScope`はparse scopeだけを限定し、ASTの`type_expr` fieldが
    `Box<TypeExpression>`であることと一致する。malformed prefix + wrong-kind primaryはone recovered tag slotを共有するが、
    outer tag siteとmandatory name siteの別rangeへ各one Error recordを持つため、AST slotを二重生成しない。local mismatched
-   closerはclose slotだけをretryしてtag slotを作らず、generic malformed byteはtag slotだけを作ってseparator roleへ入らない。
+   closerはinnerからunconsumedで返してclose slotだけをretryし、tag / payload slotを作らない。generic malformed byteはtag
+   slotだけを作ってseparator roleへ入らない。caller-owned semicolonはclose Incompleteだけを作り、separator AST / Errorを作らない。
 4. **recovery-row exclusivity:** outer actual-close-firstでvalid trailingとseparator-before-boundaryを分離した。innerは
-   comma / semicolon / close / any newlineをmalformed scanより先にhandoffする。outerはplain Identifier、non-Identifier
+   no-trivia / same-line-triviaの両方でcomma / semicolon / actual / mismatched close / active stop / EOFをmalformed scanより
+   先にhandoffし、any newlineもtrivia前で返す。outerはplain Identifier、non-Identifier
    TypePrimary、owner boundary、malformed runをdistinct branchesにする。malformed run後もplain Identifier / non-Identifier
    TypePrimaryを別retry rowにし、candidate byteをprefix Errorへ含めない。shared canonical primary judgeがcontextual / compound
    authorityをplain Identifierより先に決めるため`for` classificationは一意である。every new-tag re-entryでactual / local
-   mismatched closeとliteral semicolonをgeneric malformed scannerより先に判定し、generic `@`、separator `;`、close `]`の
-   ownershipを分離する。same-line Identifierは常にpayload authorityでありouter Missing separator rowと競合しない。
-   semicolonはouter Error一件だけ、Errorとsame-slot Missingはno-cascadeである。
+   mismatched closeとsemicolonをgeneric malformed scannerより先に判定し、generic `@`、local separator `;`、close `]`の
+   ownershipを分離する。semicolonはcaller-owned predicateでlocal Errorとunconsumed Missing-close branchを先に分け、同じ
+   tokenへ両方を発火させない。inner safe-point setにもlocal mismatched closerがあり、outer handoff prose / tableと一致する。
+   same-line Identifierは常にpayload authorityでありouter Missing separator rowと競合しない。Errorとsame-slot Missingは
+   no-cascadeである。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 （2026-08-23、standalone TypeExpression polymorphic variant type primary追補案）。
