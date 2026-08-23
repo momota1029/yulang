@@ -508,6 +508,7 @@ pub(crate) enum ExpressionDelimitedOwner {
 pub(crate) enum TypeDelimitedOwner {
     Call,
     ParenthesizedGroup,
+    NamedRecord,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -696,6 +697,7 @@ pub(crate) enum ConstructRole {
     RecordPattern,
     TypeCall,
     ParenthesizedTypeGroup,
+    NamedRecordType,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -787,6 +789,11 @@ pub(crate) enum TypeRole {
     ArrowRhs,
     ParenthesizedItem,
     ParenthesizedSeparator,
+    RecordField,
+    RecordFieldName,
+    RecordFieldColon,
+    RecordFieldType,
+    RecordFieldSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

@@ -36,6 +36,7 @@ impl TypeExpression<'_> {
 pub(crate) enum TypePrimary<'source> {
     Atom(TypeAtom<'source>),
     Parenthesized(ParenthesizedTypeGroup<'source>),
+    Record(NamedRecordType<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -99,6 +100,23 @@ pub(crate) struct ParenthesizedTypeGroup<'source> {
     elements: Vec<Recovered<TypeExpression<'source>>>,
     trailing_explicit_separator: Option<TypeExplicitSeparator>,
     close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct NamedRecordType<'source> {
+    open: Range<usize>,
+    fields: Vec<Recovered<TypeRecordField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TypeRecordField<'source> {
+    name: Recovered<WordSpan<'source>>,
+    colon: Recovered<Range<usize>>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
     range: Range<usize>,
 }
 
@@ -180,6 +198,10 @@ where
         if let Some(separator) = scan_exact_colon_colon(&mut i) {
             postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
             continue;
+        }
+        if named_record_next_field_candidate(&mut i, &trivia) {
+            i.rollback(checkpoint);
+            break;
         }
         if !trivia.is_empty() && type_primary_candidate(&mut i) {
             let boundary = boundary_start..i.pos();
@@ -391,6 +413,10 @@ where
     }
     if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
     if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
+    if named_record_next_field_candidate(i, &leading) {
+        i.rollback(checkpoint);
+        return None;
+    }
     if !leading.is_empty() && type_primary_candidate(i) {
         return Some(DirectTypeTail::Apply { boundary: leading });
     }
@@ -419,14 +445,18 @@ where
         committed.token(SyntaxKind::Integer, integer.range());
         return Some(());
     }
-    let open = committed.probe(|probe| scan_open_parenthesis(probe.input()))?;
-    commit_direct_type_delimited(
-        TypeDelimitedOwner::ParenthesizedGroup,
-        SyntaxKind::ParenthesizedTypeGroup,
-        open,
-        true,
-        committed,
-    );
+    if let Some(open) = committed.probe(|probe| scan_open_parenthesis(probe.input())) {
+        commit_direct_type_delimited(
+            TypeDelimitedOwner::ParenthesizedGroup,
+            SyntaxKind::ParenthesizedTypeGroup,
+            open,
+            true,
+            committed,
+        );
+        return Some(());
+    }
+    let open = committed.probe(|probe| scan_open_brace(probe.input()))?;
+    commit_direct_named_record_type(open, committed);
     Some(())
 }
 
@@ -463,6 +493,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                     GrammarRole::Type(match owner {
                         TypeDelimitedOwner::Call => TypeRole::CallArgument,
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
+                        TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
                     }),
                     ExpectedSyntax::TypeExpression,
                 );
@@ -479,6 +510,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                 let role = match owner {
                     TypeDelimitedOwner::Call => TypeRole::CallArgument,
                     TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
+                    TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
                 };
                 match direct_type_delimited_item_error_retry(committed, role) {
                     Some(TypeDelimitedItemRecovery::Retry) => continue,
@@ -510,6 +542,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                     GrammarRole::Type(match owner {
                         TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
+                        TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
                     }),
                     ExpectedSyntax::DelimitedSequenceSeparator,
                 );
@@ -522,6 +555,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
         owner: match owner {
             TypeDelimitedOwner::Call => ConstructRole::TypeCall,
             TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
+            TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
         },
         delimiter: Delimiter::Parenthesis,
     };
@@ -554,6 +588,210 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
         assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis));
     });
     committed.finish_node();
+}
+
+fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::NamedRecordType);
+    committed.token(SyntaxKind::LBrace, open);
+    let incoming = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::RightBrace));
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Brace);
+        probe.input().local.push_stop_set(stops);
+        probe.input().local.push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_layout(layout, probe.input()));
+    let mut closed = false;
+    loop {
+        if let Some(close) = committed.probe(|probe| scan_close_brace(probe.input())) {
+            committed.token(SyntaxKind::RBrace, close);
+            closed = true;
+            break;
+        }
+        if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
+            committed.token(SyntaxKind::Comma, comma);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            continue;
+        }
+        if let Some(semicolon) = committed.probe(|probe| scan_record_semicolon(probe.input())) {
+            emit_type_error(
+                committed,
+                TypeRole::RecordFieldSeparator,
+                semicolon,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            continue;
+        }
+        if !commit_direct_type_record_field(committed) {
+            if let Some(range) = committed.probe(|probe| consume_record_invalid_run(probe.input())) {
+                emit_type_error(committed, TypeRole::RecordField, range, ExpectedSyntax::Identifier);
+                let trivia = consume_direct_trivia(committed);
+                committed.emit_trivia(&trivia);
+                continue;
+            }
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
+            break;
+        }
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
+            committed.token(SyntaxKind::Comma, comma);
+            let post = consume_direct_trivia(committed);
+            committed.emit_trivia(&post);
+            continue;
+        }
+        if let Some(semicolon) = committed.probe(|probe| scan_record_semicolon(probe.input())) {
+            emit_type_error(
+                committed,
+                TypeRole::RecordFieldSeparator,
+                semicolon,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            let post = consume_direct_trivia(committed);
+            committed.emit_trivia(&post);
+            continue;
+        }
+        if let Some(close) = committed.probe(|probe| scan_close_brace(probe.input())) {
+            committed.token(SyntaxKind::RBrace, close);
+            closed = true;
+            break;
+        }
+        if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline {
+            continue;
+        }
+        if committed.probe(|probe| named_record_next_field_candidate(probe.input(), &trivia)) {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldSeparator), ExpectedSyntax::DelimitedSequenceSeparator);
+            continue;
+        }
+        break;
+    }
+    let close_role = GrammarRole::ClosingDelimiter { owner: ConstructRole::NamedRecordType, delimiter: Delimiter::Brace };
+    if !closed {
+        loop {
+            if let Some(close) = committed.probe(|probe| scan_close_brace(probe.input())) {
+                committed.token(SyntaxKind::RBrace, close);
+                break;
+            }
+            if let Some(mismatched) = committed.probe(|probe| scan_mismatched_record_close(probe.input())) {
+                emit_error_with_role(
+                    committed,
+                    close_role,
+                    mismatched,
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                );
+                continue;
+            }
+            emit_type_missing(committed, close_role, ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)));
+            break;
+        }
+    }
+    committed.probe(|probe| {
+        pop_layout(layout, probe.input());
+        assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace));
+    });
+    committed.finish_node();
+}
+
+fn commit_direct_type_record_field<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let name = committed.probe(|probe| scan_plain_type_identifier(probe.input()));
+    // This is a consuming direct-CST probe.  Retain the colon rather than
+    // probing it as a boolean and trying to scan it again after the input has
+    // advanced; the latter would turn `{: A}` into a stranded `A`.
+    let missing_name_colon = if name.is_none() {
+        committed.probe(|probe| scan_exact_colon(probe.input()))
+    } else {
+        None
+    };
+    let malformed_name = if name.is_none() && missing_name_colon.is_none() {
+        committed.probe(|probe| scan_malformed_record_name_colon(probe.input()))
+    } else {
+        None
+    };
+    if name.is_none() && missing_name_colon.is_none() && malformed_name.is_none() { return false; }
+    committed.start_node(SyntaxKind::TypeRecordField);
+    let type_expected;
+    if let Some(name) = name {
+        committed.token(SyntaxKind::Identifier, name.range());
+        let trivia = consume_direct_trivia(committed);
+        committed.emit_trivia(&trivia);
+        if let Some(colon) = committed.probe(|probe| scan_exact_colon(probe.input())) {
+            committed.token(SyntaxKind::Colon, colon);
+            type_expected = true;
+        } else if let Some(equals) = committed.probe(|probe| scan_exact_equals(probe.input())) {
+            emit_type_error(
+                committed,
+                TypeRole::RecordFieldColon,
+                equals,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
+            type_expected = true;
+        } else if let Some(range) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
+            emit_type_error(
+                committed,
+                TypeRole::RecordFieldColon,
+                range,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+            );
+            let recovered_colon = committed.probe(|probe| scan_exact_colon(probe.input()));
+            let has_recovered_colon = recovered_colon.is_some();
+            if let Some(colon) = recovered_colon {
+                committed.token(SyntaxKind::Colon, colon);
+            }
+            type_expected = has_recovered_colon
+                || committed.probe(|probe| type_primary_candidate(probe.input()));
+        } else {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            type_expected = committed.probe(|probe| type_primary_candidate(probe.input()));
+        }
+    } else {
+        if let Some((range, colon)) = malformed_name {
+            emit_type_error(committed, TypeRole::RecordFieldName, range, ExpectedSyntax::Identifier);
+            committed.token(SyntaxKind::Colon, colon);
+        } else {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldName), ExpectedSyntax::Identifier);
+            let colon = missing_name_colon.expect("missing-name field accepted a colon");
+            committed.token(SyntaxKind::Colon, colon);
+        }
+        type_expected = true;
+    }
+    let trivia = consume_direct_trivia(committed);
+    committed.emit_trivia(&trivia);
+    if type_expected && commit_direct_type_expression(committed).is_none() {
+        if direct_type_item_error_retry(committed, TypeRole::RecordFieldType) {
+            if commit_direct_type_expression(committed).is_none() {
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+            }
+        } else {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+        }
+    }
+    committed.finish_node();
+    true
 }
 
 fn direct_type_close_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
@@ -606,7 +844,10 @@ where
             return Some(TypePrimary::Atom(TypeAtom::Number(TypeNumberAtom { text: integer.text(), range })));
         }
     }
-    scan_open_parenthesis(i).map(|open| TypePrimary::Parenthesized(parse_parenthesized_type_group(open, i)))
+    if let Some(open) = scan_open_parenthesis(i) {
+        return Some(TypePrimary::Parenthesized(parse_parenthesized_type_group(open, i)));
+    }
+    scan_open_brace(i).map(|open| TypePrimary::Record(parse_named_record_type(open, i)))
 }
 
 fn parse_type_path_tail<'source, E>(separator: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypePathTail<'source>
@@ -675,6 +916,113 @@ where
     let (elements, trailing_explicit_separator, close) = parse_type_delimited_items(TypeDelimitedOwner::ParenthesizedGroup, i);
     let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
     ParenthesizedTypeGroup { open: open.clone(), elements, trailing_explicit_separator, close, range: open.start..end }
+}
+
+fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::RightBrace);
+    i.local.push_delimiter(Delimiter::Brace);
+    i.local.push_stop_set(stops);
+    i.local.push_type_delimited_owner(TypeDelimitedOwner::NamedRecord);
+    let opening = consume_trivia(i);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
+    push_layout(layout, i);
+    let mut fields = Vec::new();
+    let mut trailing_comma = None;
+    let close;
+    loop {
+        if let Some(range) = scan_close_brace(i) { close = Recovered::Complete(range); break; }
+        if scan_record_comma(i).is_some() {
+            fields.push(Recovered::Incomplete);
+            let _ = consume_trivia(i);
+            if let Some(range) = scan_close_brace(i) { close = Recovered::Complete(range); break; }
+            continue;
+        }
+        if scan_record_semicolon(i).is_some() {
+            let _ = consume_trivia(i);
+            continue;
+        }
+        if let Some(field) = parse_type_record_field(i) {
+            fields.push(Recovered::Complete(field));
+        } else if recover_record_item_for_ast(i) {
+            fields.push(Recovered::Incomplete);
+            let _ = consume_trivia(i);
+            continue;
+        } else {
+            fields.push(Recovered::Incomplete);
+            close = Recovered::Incomplete;
+            break;
+        }
+        let trivia = consume_trivia(i);
+        if let Some(comma) = scan_record_comma(i) {
+            let post = consume_trivia(i);
+            if let Some(range) = scan_close_brace(i) {
+                trailing_comma = Some(comma);
+                close = Recovered::Complete(range);
+                break;
+            }
+            if post.is_empty() && i.input.remainder().is_empty() {
+                fields.push(Recovered::Incomplete);
+                close = Recovered::Incomplete;
+                break;
+            }
+            continue;
+        }
+        if scan_record_semicolon(i).is_some() {
+            let _ = consume_trivia(i);
+            continue;
+        }
+        if let Some(range) = scan_close_brace(i) { close = Recovered::Complete(range); break; }
+        match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
+            LayoutDelimitedBoundary::ImplicitNewline => continue,
+            LayoutDelimitedBoundary::None if named_record_next_field_candidate(i, &trivia) => continue,
+            _ => { close = Recovered::Incomplete; break; }
+        }
+    }
+    pop_layout(layout, i);
+    assert_eq!(i.local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    let end = match &close { Recovered::Complete(range) => range.end, Recovered::Incomplete => i.pos() };
+    NamedRecordType { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+}
+
+fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeRecordField<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let (name, colon) = if let Some(name) = scan_plain_type_identifier(i) {
+        let checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i);
+        if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
+        let colon = scan_exact_colon(i).map(Recovered::Complete).unwrap_or_else(|| {
+            let _ = scan_exact_equals(i);
+            Recovered::Incomplete
+        });
+        (Recovered::Complete(name), colon)
+    } else if let Some(colon) = scan_exact_colon(i) {
+        (Recovered::Incomplete, Recovered::Complete(colon))
+    } else if let Some((_, colon)) = scan_malformed_record_name_colon(i) {
+        (Recovered::Incomplete, Recovered::Complete(colon))
+    } else {
+        return None;
+    };
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
+    let type_expr = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+        .map(|value| Recovered::Complete(Box::new(value)))
+        .unwrap_or(Recovered::Incomplete);
+    let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
+    Some(TypeRecordField { name, colon, type_expr, range: start..end })
 }
 
 fn parse_type_delimited_items<'source, E>(
@@ -795,6 +1143,15 @@ where
     }
 }
 
+fn recover_record_item_for_ast<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    consume_record_invalid_run(i).is_some()
+}
+
 fn recover_type_path_for_ast<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
@@ -892,6 +1249,118 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     if punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
 }
 
+fn scan_open_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Open(Delimiter::Brace) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_close_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_record_comma<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Comma { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_record_semicolon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Semicolon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_exact_colon<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Colon { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_exact_equals<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    if !i.input.remainder().starts_with('=') || i.input.remainder().starts_with("==") {
+        return None;
+    }
+    i.input.next()?;
+    let end = i.pos();
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    if end == start { i.rollback(checkpoint); None } else { Some(start..end) }
+}
+
+fn scan_plain_type_identifier<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let TypeName::Identifier(word) = scan_type_name(i)? else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    Some(word)
+}
+
+fn scan_malformed_record_name_colon<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start && scan_exact_colon(i).is_some() {
+            let colon_end = i.pos();
+            return Some((start..end, end..colon_end));
+        }
+        let Some(character) = i.input.remainder().chars().next() else { i.rollback(checkpoint); return None; };
+        if character.is_whitespace() || matches!(character, ',' | '}' | ':') {
+            i.rollback(checkpoint);
+            return None;
+        }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn named_record_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    if leading.is_empty() || trivia_has_newline(leading) || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::NamedRecord) {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let candidate = scan_plain_type_identifier(i).is_some_and(|_| {
+        let gap = consume_trivia(i);
+        type_chain_trivia(i, &gap) && scan_exact_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
 fn scan_close_parenthesis<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
@@ -917,6 +1386,26 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     if matches!(punctuation.kind(), PunctuationKind::Close(delimiter) if delimiter != Delimiter::Parenthesis)
         && !owned_by_outer
     {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn scan_mismatched_record_close<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    let outer_owned = match punctuation.kind() {
+        PunctuationKind::Close(Delimiter::Parenthesis) => active_stop_set(i).contains(StopKind::RightParenthesis),
+        PunctuationKind::Close(Delimiter::Bracket) => active_stop_set(i).contains(StopKind::RightBracket),
+        _ => false,
+    };
+    if matches!(punctuation.kind(), PunctuationKind::Close(delimiter) if delimiter != Delimiter::Brace) && !outer_owned {
         Some(punctuation.range())
     } else {
         i.rollback(checkpoint);
@@ -1220,6 +1709,71 @@ where
     }
 }
 
+fn consume_record_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start {
+            let checkpoint = i.checkpoint();
+            let retry = record_field_head_candidate(i);
+            i.rollback(checkpoint);
+            if retry { return Some(start..end); }
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < end).then_some(start..end);
+        };
+        if character.is_whitespace() || matches!(character, ',' | '}') {
+            return (start < end).then_some(start..end);
+        }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn consume_record_colon_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start {
+            let checkpoint = i.checkpoint();
+            let retry = scan_exact_colon(i).is_some() || type_primary_candidate(i);
+            i.rollback(checkpoint);
+            if retry { return Some(start..end); }
+        }
+        let Some(character) = i.input.remainder().chars().next() else {
+            return (start < end).then_some(start..end);
+        };
+        if character.is_whitespace() || matches!(character, ',' | '}') {
+            return (start < end).then_some(start..end);
+        }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn record_field_head_candidate<E>(i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let candidate = scan_plain_type_identifier(i).is_some_and(|_| {
+        let trivia = consume_trivia(i);
+        type_chain_trivia(i, &trivia) && scan_exact_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
 fn type_chain_trivia<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool where E: ErrorSink<usize> {
     !trivia_has_newline(trivia) || i.local.line().line_indent > i.local.indentation_baseline().map_or(0, |baseline| baseline.column)
 }
@@ -1228,7 +1782,7 @@ fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|p
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet where E: ErrorSink<usize> { i.local.stop_set().unwrap_or_default() }
 fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { i.local.push_indentation_baseline(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }); }
 fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { assert_eq!(i.local.pop_indentation_baseline(), Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer })); }
-fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone() } }
+fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone() } }
 fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize { match tail { TypePostfixTail::Path(tail) => tail.range.end, TypePostfixTail::Call(tail) => tail.range.end, TypePostfixTail::Apply(tail) => tail.range.end } }
 #[cfg(test)]
 mod tests {
@@ -1808,4 +2362,138 @@ mod tests {
             segment: Recovered::Complete(TypePathSegment::Identifier(_)), ..
         })]));
     }
+
+    #[test]
+    fn named_record_types_are_primary_fields_with_comma_or_newline_boundaries() {
+        let single = parse("{a: A, b: B}");
+        assert!(matches!(single.primary, TypePrimary::Record(NamedRecordType { ref fields, close: Recovered::Complete(_), .. })
+            if fields.len() == 2 && fields.iter().all(|field| matches!(field, Recovered::Complete(_)))));
+        let newline = parse("{\n  a: A\n  b: B\n}");
+        assert!(matches!(newline.primary, TypePrimary::Record(NamedRecordType { ref fields, .. }) if fields.len() == 2));
+        let direct = parse_direct("{a: A, b: B}");
+        assert!(direct.descendants().any(|node| node.kind() == SyntaxKind::NamedRecordType));
+        assert!(direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeRecordField).count() == 2);
+    }
+
+    #[test]
+    fn named_record_field_head_yields_before_type_apply() {
+        let applied = parse("{a: F B}");
+        assert!(matches!(applied.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+            if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. })]
+                if matches!(value.postfix.as_slice(), [TypePostfixTail::Apply(_)]))));
+        let split = parse("{a: F b: B}");
+        assert!(matches!(split.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+            if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. }), Recovered::Complete(_)]
+                if value.postfix.is_empty())));
+        let recoveries = parse_direct_recovered("{a: F b: B}");
+        assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::RecordFieldSeparator)));
+    }
+
+    #[test]
+    fn named_record_missing_name_commits_the_field_owner() {
+        let records = parse_direct_recovered("{@: A}");
+        assert!(records.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordFieldName)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (1..2)
+        }));
+    }
+
+    #[test]
+    fn named_record_malformed_item_stays_at_sequence_scope() {
+        let records = parse_direct_recovered("{@ a: A}");
+        assert!(records.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (1..2)
+        }));
+    }
+
+    #[test]
+    fn named_record_rejects_spread_shorthand_and_default_field_forms() {
+        let spread = parse_direct_recovered("{..Type}");
+        assert!(matches!(spread.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (1..7)));
+        let spread_ast = parse("{..Type}");
+        assert!(matches!(spread_ast.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+            if matches!(fields.as_slice(), [Recovered::Incomplete])));
+
+        let shorthand = parse_direct_recovered("{name}");
+        assert!(matches!(shorthand.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (5..5)));
+
+        let default = parse_direct_recovered("{name = Value}");
+        assert!(matches!(default.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (6..7)));
+        let ast = parse("{name = Value}");
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+            if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+                colon: Recovered::Incomplete,
+                type_expr: Recovered::Complete(_),
+                ..
+            })])));
+    }
+
+    #[test]
+    fn named_record_recovers_malformed_colon_and_type_slots() {
+        let colon = parse_direct_recovered("{name @: A}");
+        assert!(colon.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (6..7)
+        }));
+
+        let rhs = parse_direct_recovered("{name: @A}");
+        assert!(rhs.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordFieldType)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (7..8)
+        }));
+    }
+
+    #[test]
+    fn named_record_comma_policy_and_close_recovery_are_typed() {
+        let trailing = parse("{a: A,}");
+        assert!(matches!(trailing.primary, TypePrimary::Record(NamedRecordType {
+            trailing_comma: Some(_), close: Recovered::Complete(_), ..
+        })));
+
+        let incomplete = parse_direct_recovered("{a: A,");
+        assert!(incomplete.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && record.kind == RecoveryKind::Missing
+        }));
+        assert!(incomplete.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::NamedRecordType,
+            delimiter: Delimiter::Brace,
+        })));
+
+        let semicolon = parse_direct_recovered("{a: A; b: B}");
+        assert!(semicolon.iter().any(|record| {
+            record.site.role == GrammarRole::Type(TypeRole::RecordFieldSeparator)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (5..6)
+        }));
+
+        let mismatch = parse_direct_recovered("{a: A]");
+        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::NamedRecordType,
+            delimiter: Delimiter::Brace,
+        }) && record.kind == RecoveryKind::Error && record.site.range == (5..6)));
+        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::NamedRecordType,
+            delimiter: Delimiter::Brace,
+        }) && record.kind == RecoveryKind::Missing && record.site.range == (6..6)));
+
+        let (remainder, outer_owned) = parse_direct_prefix_with_outer_stop("{a: A]", StopKind::RightBracket);
+        assert_eq!(remainder, "]");
+        assert!(!outer_owned.iter().any(|record| record.kind == RecoveryKind::Error));
+    }
+
 }
