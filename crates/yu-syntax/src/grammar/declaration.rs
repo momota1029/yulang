@@ -21,8 +21,11 @@ use crate::{
         parse_direct_expression_with_operators, parse_expression_with_operators,
         parse_indented_binding_body, parse_indented_mod_body, parse_canonical_statement,
     },
-    grammar::pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
-        parse_pattern_with_outer_missing_role},
+    grammar::{
+        pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
+            parse_pattern_with_outer_missing_role},
+        type_expr::TypeExpression,
+    },
     input::SourceInput,
     operator::{BindingPower, OperatorFixity},
     scan::{
@@ -3887,6 +3890,76 @@ pub(crate) enum ModBody<'source> {
 pub(crate) enum ModColonBody<'source> {
     Inline { statement: Box<Statement<'source>> },
     Indented { block: IndentedStatementBlock<'source> },
+}
+
+/// A structure declaration shared by root and nested canonical Statements.
+///
+/// Its parser and direct-CST continuation are wired in later slices; these
+/// types preserve the approved surface shape without introducing any future
+/// declaration features.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    body: Recovered<StructBody<'source>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum StructBody<'source> {
+    Bodyless { semicolon: Range<usize> },
+    NamedBraced(StructNamedBracedBody<'source>),
+    NamedIndented(StructNamedIndentedBody<'source>),
+    Tuple(StructTupleBody<'source>),
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructNamedBracedBody<'source> {
+    open: Range<usize>,
+    fields: Vec<Recovered<StructNamedField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructNamedIndentedBody<'source> {
+    colon: Range<usize>,
+    base_indent: usize,
+    block_indent: usize,
+    fields: Vec<Recovered<StructNamedField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructTupleBody<'source> {
+    open: Range<usize>,
+    fields: Vec<Recovered<StructTupleField<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructNamedField<'source> {
+    name: Recovered<WordSpan<'source>>,
+    colon: Recovered<Range<usize>>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructTupleField<'source> {
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
 }
 
 /// An operator signature before its opaque header body.

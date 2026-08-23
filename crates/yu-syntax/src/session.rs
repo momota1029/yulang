@@ -557,6 +557,7 @@ pub(crate) enum TypeDelimitedOwner {
     NamedRecord,
     EffectRow,
     PolymorphicVariant,
+    StructNamedFields,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -680,6 +681,7 @@ pub(crate) enum DeclarationRole {
     OperatorHeader(OperatorHeaderRole),
     Binding(BindingRole),
     Mod(ModRole),
+    Struct(StructRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -704,6 +706,7 @@ pub(crate) enum StatementKind {
     OperatorDefinition,
     BindingDeclaration,
     ModDeclaration,
+    StructDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -731,6 +734,17 @@ pub(crate) enum ModRole {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum StructRole {
+    Name,
+    BodyIntroducer,
+    Field,
+    FieldName,
+    FieldColon,
+    FieldType,
+    FieldSeparator,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ConstructRole {
     ImportGroup,
     OperatorName,
@@ -748,6 +762,8 @@ pub(crate) enum ConstructRole {
     NamedRecordType,
     EffectRowType,
     PolymorphicVariantType,
+    StructNamedFields,
+    StructTupleFields,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -961,6 +977,7 @@ pub(crate) enum ExpectedSyntax {
 pub(crate) enum KeywordEvidence {
     Use,
     Mod,
+    Struct,
     As,
     Without,
     With,

@@ -1459,6 +1459,9 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
             TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
+            TypeDelimitedOwner::StructNamedFields => {
+                unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+            }
         }
     }
 
@@ -1469,6 +1472,9 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
             TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
+            TypeDelimitedOwner::StructNamedFields => {
+                unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+            }
         }
     }
 
@@ -1481,10 +1487,16 @@ impl TypeDelimitedSpec {
                 TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
                 TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
                 TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
+                TypeDelimitedOwner::StructNamedFields => {
+                    unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                }
             },
             matching_kind: self.shape.close_kind(),
             missing_after_mismatch: match self.owner {
                 TypeDelimitedOwner::EffectRow => MissingAfterMismatch::Suppress,
+                TypeDelimitedOwner::StructNamedFields => {
+                    unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
+                }
                 _ => MissingAfterMismatch::Emit,
             },
         }
