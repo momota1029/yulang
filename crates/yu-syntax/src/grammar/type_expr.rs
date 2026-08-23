@@ -6889,4 +6889,193 @@ mod tests {
         }
     }
 
+    fn assert_nested_fence_records(
+        records: &[crate::session::CommittedRecoveryRecord],
+        error_role: TypeRole,
+        error_range: Range<usize>,
+        closes: &[(ConstructRole, Delimiter)],
+    ) {
+        assert_eq!(records.len(), 1 + closes.len(), "{records:#?}");
+        assert_eq!(records[0].site.role, GrammarRole::Type(error_role), "{records:#?}");
+        assert_eq!(records[0].kind, RecoveryKind::Error, "{records:#?}");
+        assert_eq!(records[0].site.range, error_range, "{records:#?}");
+        for (record, &(owner, delimiter)) in records[1..].iter().zip(closes) {
+            assert_eq!(
+                record.site.role,
+                GrammarRole::ClosingDelimiter { owner, delimiter },
+                "{records:#?}",
+            );
+            assert_eq!(record.kind, RecoveryKind::Missing, "{records:#?}");
+            assert_eq!(record.site.range, error_range.end..error_range.end, "{records:#?}");
+        }
+    }
+
+    #[test]
+    fn nested_caller_boundary_realizes_each_unclosed_delimiter_once() {
+        let source = "T((@ \n  A))";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A))");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+            if matches!(argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                close: Recovered::Incomplete, ..
+            })))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::ParenthesizedItem,
+            3..4,
+            &[
+                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
+                (ConstructRole::TypeCall, Delimiter::Parenthesis),
+            ],
+        );
+
+        let source = "{a: T(@ \n  A";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Incomplete, ..
+        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+            type_expr: Recovered::Complete(value), ..
+        })] if matches!(value.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Incomplete, ..
+        })]))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::CallArgument,
+            6..7,
+            &[
+                (ConstructRole::TypeCall, Delimiter::Parenthesis),
+                (ConstructRole::NamedRecordType, Delimiter::Brace),
+            ],
+        );
+
+        let source = "((@ \n  A))";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A))");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            elements, close: Recovered::Incomplete, ..
+        }) if matches!(elements.as_slice(), [Recovered::Complete(element)]
+            if matches!(element.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                close: Recovered::Incomplete, ..
+            })))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::ParenthesizedItem,
+            2..3,
+            &[
+                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
+                (ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis),
+            ],
+        );
+
+        let source = "T(for @ \n  'a: T)";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  'a: T)");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+            if matches!(argument.primary, TypePrimary::Forall(_)))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::ForallBinder,
+            6..7,
+            &[(ConstructRole::TypeCall, Delimiter::Parenthesis)],
+        );
+
+        let source = "{a: :{@ \n  B}}";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  B}}");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Incomplete, ..
+        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+            type_expr: Recovered::Complete(value), ..
+        })] if matches!(value.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, ..
+        })))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::PolymorphicVariantTag,
+            6..7,
+            &[
+                (ConstructRole::PolymorphicVariantType, Delimiter::Brace),
+                (ConstructRole::NamedRecordType, Delimiter::Brace),
+            ],
+        );
+
+        let source = "T('[@ \n  A])";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A])");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+            if matches!(argument.primary, TypePrimary::EffectRow(EffectRowType {
+                close: Recovered::Incomplete, ..
+            })))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::EffectRowItem,
+            4..5,
+            &[
+                (ConstructRole::EffectRowType, Delimiter::Bracket),
+                (ConstructRole::TypeCall, Delimiter::Parenthesis),
+            ],
+        );
+
+        let source = "'[T(@ \n  A)]";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A)]");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.primary, TypePrimary::EffectRow(EffectRowType {
+            items, close: Recovered::Incomplete, ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(item)]
+            if matches!(item.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                close: Recovered::Incomplete, ..
+            })]))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::CallArgument,
+            4..5,
+            &[
+                (ConstructRole::TypeCall, Delimiter::Parenthesis),
+                (ConstructRole::EffectRowType, Delimiter::Bracket),
+            ],
+        );
+
+        let source = "T({@ \n  a:A})";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  a:A})");
+        assert_eq!(direct_remainder, ast_remainder);
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
+            if matches!(argument.primary, TypePrimary::Record(NamedRecordType {
+                close: Recovered::Incomplete, ..
+            })))));
+        assert_nested_fence_records(
+            &records,
+            TypeRole::RecordField,
+            3..4,
+            &[
+                (ConstructRole::NamedRecordType, Delimiter::Brace),
+                (ConstructRole::TypeCall, Delimiter::Parenthesis),
+            ],
+        );
+    }
+
 }
