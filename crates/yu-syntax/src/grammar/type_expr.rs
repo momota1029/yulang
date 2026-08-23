@@ -820,6 +820,10 @@ where
         context.emit_missing_close(role, expected);
         return Recovered::Incomplete;
     }
+    debug_assert!(
+        !context.with_input(type_malformed_caller_boundary_pending),
+        "a type close slot must not consume a pending malformed caller boundary",
+    );
     let mut saw_mismatch = false;
     loop {
         if let Some(trivia) = context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i)) {
@@ -1636,6 +1640,10 @@ where
         if context.with_input(type_malformed_caller_boundary_pending) {
             break;
         }
+        debug_assert!(
+            !context.with_input(type_malformed_caller_boundary_pending),
+            "a delimited type sequence must not consume trivia across a pending malformed caller boundary",
+        );
         let trivia = context.with_input(consume_trivia);
         context.emit_trivia(&trivia);
         if let Some(separator) = context.with_input(scan_separator) {
@@ -1964,6 +1972,10 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
         if committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())) {
             break;
         }
+        debug_assert!(
+            !committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())),
+            "a direct named-record sequence must not consume trivia across a pending malformed caller boundary",
+        );
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
@@ -2646,6 +2658,10 @@ where
             fields.push(Recovered::Incomplete);
             break;
         }
+        debug_assert!(
+            !type_malformed_caller_boundary_pending(i),
+            "a named-record sequence must not consume trivia across a pending malformed caller boundary",
+        );
         let trivia = consume_trivia(i);
         if let Some(comma) = scan_record_comma(i) {
             let post = consume_trivia(i);
@@ -4328,6 +4344,30 @@ mod tests {
         commit_direct_type_expression(&mut committed).expect("direct type expression");
         let remainder = committed.probe(|probe| probe.input().input.remainder());
         assert_eq!(remainder, "", "complete direct type source");
+        committed.finish_node();
+        SyntaxNode::new_root(committed.into_output().finish_complete())
+    }
+
+    fn parse_direct_with_outer_stop(source: &str, stop: StopKind) -> SyntaxNode {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(stop));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct type expression with outer stop");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+            "complete direct type source with outer stop",
+        );
         committed.finish_node();
         SyntaxNode::new_root(committed.into_output().finish_complete())
     }
@@ -7075,6 +7115,64 @@ mod tests {
                 (ConstructRole::NamedRecordType, Delimiter::Brace),
                 (ConstructRole::TypeCall, Delimiter::Parenthesis),
             ],
+        );
+    }
+
+    #[test]
+    fn ordinary_multiline_type_constructs_do_not_create_caller_boundary_fences() {
+        for source in [
+            "T(A\n  B)",
+            "(A\n  B)",
+            "'[A\n  B]",
+            "{a: A,\n  b: B}",
+            "T(\n  A)",
+            "T(A,\n  B)",
+            "for 'a:\n  T",
+            ":{\n  A Pair(\n    Int\n  )}",
+        ] {
+            let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+            assert_eq!(ast_remainder, "", "AST {source}");
+            assert_eq!(ast.range(), 0..source.len(), "AST {source}");
+
+            let (direct_remainder, records) =
+                parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+            assert_eq!(direct_remainder, "", "direct {source}");
+            assert!(
+                !records.iter().any(|record| {
+                    record.kind == RecoveryKind::Error
+                        || (matches!(record.site.role, GrammarRole::ClosingDelimiter { .. })
+                            && record.kind == RecoveryKind::Missing)
+                }),
+                "direct {source}: {records:#?}",
+            );
+            assert_eq!(
+                parse_direct_with_outer_stop(source, StopKind::Newline).to_string(),
+                source,
+                "lossless CST {source}",
+            );
+        }
+
+        let source = "T(@A\n  B)";
+        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, "");
+        assert_eq!(ast.range(), 0..source.len());
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Complete(_), ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)])));
+
+        let (direct_remainder, records) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(direct_remainder, "");
+        assert!(matches!(records.as_slice(), [error, separator]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (2..3)
+                && separator.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
+                && separator.kind == RecoveryKind::Missing
+                && separator.site.range == (7..7)), "{records:#?}");
+        assert_eq!(
+            parse_direct_with_outer_stop(source, StopKind::Newline).to_string(),
+            source,
         );
     }
 
