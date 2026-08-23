@@ -18,7 +18,11 @@ use crate::{
     grammar::{
         declaration::Recovered,
         expression::{IntegerLiteral, OperatorChain, parse_direct_expression_with_operators, parse_expression_with_operators, parse_integer_literal},
-        type_expr::{TypeExpression, commit_direct_type_expression_with_outer_missing_role, parse_required_type_expression_with_outer_missing_role},
+        type_expr::{
+            RequiredTypeRecoveryContext, TypeExpression,
+            commit_direct_type_expression_with_recovery_context,
+            parse_required_type_expression_with_recovery_context,
+        },
     },
     operator::OperatorTable,
     scan::{
@@ -509,8 +513,11 @@ where
                 let _ = consume_pattern_annotation_trivia(pattern_continuation_base, &mut i);
                 let type_expr = match i
                     .run(from_fn(|i| {
-                        Some(parse_required_type_expression_with_outer_missing_role(
-                            Some(pattern_role(PatternRole::TypeAnnotation)),
+                        Some(parse_required_type_expression_with_recovery_context(
+                            RequiredTypeRecoveryContext::with_malformed_continuation_base(
+                                Some(pattern_role(PatternRole::TypeAnnotation)),
+                                pattern_continuation_base,
+                            ),
                             i,
                         ))
                     }))
@@ -1485,8 +1492,11 @@ where
                 }) {
                     committed.emit_trivia(&trivia);
                 }
-                commit_direct_type_expression_with_outer_missing_role(
-                    Some(pattern_role(PatternRole::TypeAnnotation)),
+                commit_direct_type_expression_with_recovery_context(
+                    RequiredTypeRecoveryContext::with_malformed_continuation_base(
+                        Some(pattern_role(PatternRole::TypeAnnotation)),
+                        pattern_continuation_base,
+                    ),
                     committed,
                 );
                 committed.finish_node();
@@ -2917,6 +2927,50 @@ mod tests {
                 .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation));
             assert!(recoveries.iter().all(|record| record.site.range.end <= source.len()));
         }
+    }
+
+    #[test]
+    fn annotation_malformed_recovery_uses_the_nested_pattern_base() {
+        let source = "{\n  field:\n    x: @\n    Int\n}";
+        let ast = parse(source);
+        let Recovered::Complete(PatternPrimary::Record(record)) = &ast.head else {
+            panic!("record pattern expected: {ast:#?}");
+        };
+        let [
+            Recovered::Complete(RecordPatternItem::Field(RecordPatternField {
+                form: RecordPatternFieldForm::Nested {
+                    pattern: Recovered::Complete(pattern),
+                    ..
+                },
+                ..
+            })),
+            Recovered::Complete(RecordPatternItem::Field(RecordPatternField {
+                name: PatternNameSpan { text: "Int", .. },
+                form: RecordPatternFieldForm::Shorthand,
+                ..
+            })),
+        ] = record.items() else {
+            panic!("nested field followed by the outer Int field expected: {record:#?}");
+        };
+        assert!(matches!(pattern.type_annotation(), Some(annotation)
+            if matches!(annotation.type_expr(), Recovered::Incomplete)), "{pattern:#?}");
+
+        let (root, recoveries) = parse_direct_recovered(source);
+        assert_eq!(root.to_string(), source);
+        assert!(matches!(recoveries.as_slice(), [primary, separator]
+            if primary.kind == RecoveryKind::Error
+                && primary.site.role == GrammarRole::Type(crate::session::TypeRole::Primary)
+                && primary.site.range == (18..19)
+                && separator.kind == RecoveryKind::Missing
+                && separator.site.role == GrammarRole::Pattern(PatternRole::RecordSeparator)
+                && separator.site.range == (24..24)), "{recoveries:#?}");
+        let annotation = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .expect("annotation CST node");
+        assert!(!annotation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Identifier));
     }
 
     #[test]

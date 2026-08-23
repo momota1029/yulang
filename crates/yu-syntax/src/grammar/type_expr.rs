@@ -34,6 +34,42 @@ impl TypeExpression<'_> {
     pub(crate) fn arrow(&self) -> Option<&TypeArrowTail<'_>> { self.arrow.as_ref() }
 }
 
+/// Owner-captured inputs for the one outer mandatory TypeExpression recovery
+/// slot.  This stays crate-internal: ordinary type callers retain their active
+/// indentation baseline, while Pattern may forward its already-captured base.
+#[derive(Clone, Copy)]
+pub(crate) struct RequiredTypeRecoveryContext {
+    outer_missing_role: Option<GrammarRole>,
+    malformed_continuation_base: Option<usize>,
+}
+
+impl RequiredTypeRecoveryContext {
+    fn ordinary(outer_missing_role: Option<GrammarRole>) -> Self {
+        Self {
+            outer_missing_role,
+            malformed_continuation_base: None,
+        }
+    }
+
+    pub(crate) fn with_malformed_continuation_base(
+        outer_missing_role: Option<GrammarRole>,
+        malformed_continuation_base: usize,
+    ) -> Self {
+        Self {
+            outer_missing_role,
+            malformed_continuation_base: Some(malformed_continuation_base),
+        }
+    }
+
+    fn malformed_continuation_base<E>(self, i: &SynIn<E>) -> usize
+    where
+        E: ErrorSink<usize>,
+    {
+        self.malformed_continuation_base
+            .unwrap_or_else(|| active_type_continuation_base(i))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TypePrimary<'source> {
     Atom(TypeAtom<'source>),
@@ -308,6 +344,25 @@ where
 /// recovery diagnostics and therefore consumes the optional caller role.
 pub(crate) fn parse_required_type_expression_with_outer_missing_role<'source, E>(
     outer_missing_role: Option<crate::session::GrammarRole>,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_required_type_expression_with_recovery_context(
+        RequiredTypeRecoveryContext::ordinary(outer_missing_role),
+        i,
+    )
+}
+
+/// Mandatory AST entry with the recovery context captured by its owner.  The
+/// optional continuation-base override applies only to this entry's first
+/// malformed outer primary; retries and nested type recovery use their normal
+/// active type indentation baseline.
+pub(crate) fn parse_required_type_expression_with_recovery_context<'source, E>(
+    recovery_context: RequiredTypeRecoveryContext,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Recovered<TypeExpression<'source>>
 where
@@ -315,20 +370,30 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if let Some(type_expr) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(outer_missing_role, i))) {
+    let malformed_continuation_base = recovery_context.malformed_continuation_base(&i);
+    if let Some(type_expr) = i.run(from_fn(|i| {
+        parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
+    })) {
         return Recovered::Complete(type_expr);
     }
-    let Some(recovery) = recover_required_type_item_for_ast(&mut i) else {
+    let Some(recovery) = recover_required_type_item_for_ast(
+        &mut i,
+        Some(malformed_continuation_base),
+    ) else {
         return Recovered::Incomplete;
     };
     match recovery.disposition {
         TypeInvalidRunDisposition::RetryCurrent => {
-            i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(outer_missing_role, i)))
+            i.run(from_fn(|i| {
+                parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
+            }))
                 .map_or(Recovered::Incomplete, Recovered::Complete)
         }
         TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
             consume_recovery_trivia(&mut i, &trivia);
-            i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(outer_missing_role, i)))
+            i.run(from_fn(|i| {
+                parse_type_expression_with_outer_missing_role(recovery_context.outer_missing_role, i)
+            }))
                 .map_or(Recovered::Incomplete, Recovered::Complete)
         }
         TypeInvalidRunDisposition::BoundaryCurrent => Recovered::Incomplete,
@@ -449,7 +514,11 @@ where
                 if rhs_trivia.is_none() {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                 } else if commit_direct_type_expression(committed).is_none() {
-                    match direct_required_type_item_error_retry(committed, TypeRole::ArrowRhs) {
+                    match direct_required_type_item_error_retry(
+                        committed,
+                        TypeRole::ArrowRhs,
+                        None,
+                    ) {
                         Some(TypeInvalidRunDisposition::RetryCurrent) => {
                             if commit_direct_type_expression(committed).is_none() {
                                 emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
@@ -490,11 +559,34 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    commit_direct_type_expression_with_recovery_context(
+        RequiredTypeRecoveryContext::ordinary(outer_missing_role),
+        committed,
+    )
+}
+
+/// Direct counterpart of [`parse_required_type_expression_with_recovery_context`].
+pub(crate) fn commit_direct_type_expression_with_recovery_context<'parse, 'source, 'local, E, O>(
+    recovery_context: RequiredTypeRecoveryContext,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeExpression<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     if committed.probe(|probe| direct_type_primary_candidate(probe.input())) {
         return commit_direct_type_expression(committed)
             .expect("the sink-free type primary probe accepted a primary");
     }
-    let emit_missing = match direct_required_type_item_error_retry(committed, TypeRole::Primary) {
+    let malformed_continuation_base = committed
+        .probe(|probe| recovery_context.malformed_continuation_base(probe.input()));
+    let emit_missing = match direct_required_type_item_error_retry(
+        committed,
+        TypeRole::Primary,
+        Some(malformed_continuation_base),
+    ) {
         Some(TypeInvalidRunDisposition::RetryCurrent) => {
             return commit_direct_type_expression(committed)
                 .expect("the primary recovery retry stopped at a valid primary");
@@ -516,7 +608,7 @@ where
     if emit_missing {
         emit_type_missing(
             committed,
-            outer_missing_role.unwrap_or(GrammarRole::Type(TypeRole::Primary)),
+            recovery_context.outer_missing_role.unwrap_or(GrammarRole::Type(TypeRole::Primary)),
             ExpectedSyntax::TypeExpression,
         );
     }
@@ -2000,7 +2092,11 @@ where
         committed.emit_trivia(&trivia);
     }
     if type_expected && commit_direct_type_expression(committed).is_none() {
-        match direct_required_type_item_error_retry(committed, TypeRole::RecordFieldType) {
+        match direct_required_type_item_error_retry(
+            committed,
+            TypeRole::RecordFieldType,
+            None,
+        ) {
             Some(TypeInvalidRunDisposition::RetryCurrent) => {
                 if commit_direct_type_expression(committed).is_none() {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
@@ -2388,7 +2484,7 @@ where
     let rhs = if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
         Recovered::Complete(Box::new(value))
     } else {
-        match recover_required_type_item_for_ast(i).map(|recovery| recovery.disposition) {
+        match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
             Some(TypeInvalidRunDisposition::RetryCurrent) => i
                 .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
                 .map(|value| Recovered::Complete(Box::new(value)))
@@ -2622,7 +2718,7 @@ where
     } else if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
         Recovered::Complete(Box::new(value))
     } else {
-        match recover_required_type_item_for_ast(i).map(|recovery| recovery.disposition) {
+        match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
             Some(TypeInvalidRunDisposition::RetryCurrent) => i
                 .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
                 .map(|value| Recovered::Complete(Box::new(value)))
@@ -2728,13 +2824,19 @@ where
 /// typed recovery record.  This counterpart only advances across the same
 /// malformed non-empty prefix, then lets the normal item loop retry a valid
 /// primary or observe its delimiter.
-fn recover_required_type_item_for_ast<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
+fn recover_required_type_item_for_ast<E>(
+    i: &mut SynIn<E>,
+    malformed_continuation_base: Option<usize>,
+) -> Option<TypeInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    scan_required_type_item_invalid_run(i)
+    scan_required_type_item_invalid_run(
+        i,
+        malformed_continuation_base.unwrap_or_else(|| active_type_continuation_base(i)),
+    )
 }
 
 fn recover_record_item_for_ast<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
@@ -3361,14 +3463,17 @@ enum TypeInvalidRunDisposition {
 /// Scan the shared malformed run for every TypeExpression slot.  The AST and
 /// direct-CST paths deliberately share this cursor movement so a recovered
 /// primary begins at the same byte on both paths.
-fn scan_required_type_item_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
+fn scan_required_type_item_invalid_run<E>(
+    i: &mut SynIn<E>,
+    continuation_base: usize,
+) -> Option<TypeInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
-        continuation_base: active_type_continuation_base(i),
+        continuation_base,
     };
     scan_type_item_invalid_run_with_disposition(
         i,
@@ -3602,6 +3707,7 @@ where
 fn direct_required_type_item_error_retry<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: TypeRole,
+    malformed_continuation_base: Option<usize>,
 ) -> Option<TypeInvalidRunDisposition>
 where
     E: ErrorSink<usize>,
@@ -3609,7 +3715,12 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let recovered = committed.probe(|probe| scan_required_type_item_invalid_run(probe.input()));
+    let malformed_continuation_base = malformed_continuation_base.unwrap_or_else(|| {
+        committed.probe(|probe| active_type_continuation_base(probe.input()))
+    });
+    let recovered = committed.probe(|probe| {
+        scan_required_type_item_invalid_run(probe.input(), malformed_continuation_base)
+    });
     let TypeInvalidRunRecovery { error_range, disposition } = recovered?;
     emit_type_error(committed, role, error_range, ExpectedSyntax::TypeExpression);
     Some(disposition)
