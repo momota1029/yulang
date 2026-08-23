@@ -411,7 +411,10 @@ where
                 if rhs_trivia.is_none() {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                 } else if commit_direct_type_expression(committed).is_none() {
-                    if direct_type_item_error_retry(committed, TypeRole::ArrowRhs) {
+                    if matches!(
+                        direct_type_item_error_retry(committed, TypeRole::ArrowRhs),
+                        Some(TypeItemRecovery::Retry)
+                    ) {
                         if commit_direct_type_expression(committed).is_none() {
                             emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                         }
@@ -445,7 +448,10 @@ where
         return commit_direct_type_expression(committed)
             .expect("the sink-free type primary probe accepted a primary");
     }
-    if direct_type_item_error_retry(committed, TypeRole::Primary) {
+    if matches!(
+        direct_type_item_error_retry(committed, TypeRole::Primary),
+        Some(TypeItemRecovery::Retry)
+    ) {
         return commit_direct_type_expression(committed)
             .expect("the primary recovery retry stopped at a valid primary");
     }
@@ -1246,7 +1252,10 @@ where
     let trivia = consume_direct_trivia(committed);
     committed.emit_trivia(&trivia);
     if type_expected && commit_direct_type_expression(committed).is_none() {
-        if direct_type_item_error_retry(committed, TypeRole::RecordFieldType) {
+        if matches!(
+            direct_type_item_error_retry(committed, TypeRole::RecordFieldType),
+            Some(TypeItemRecovery::Retry)
+        ) {
             if commit_direct_type_expression(committed).is_none() {
                 emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
             }
@@ -2418,7 +2427,7 @@ where
 fn direct_type_item_error_retry<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     role: TypeRole,
-) -> bool
+) -> Option<TypeItemRecovery>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -2430,21 +2439,34 @@ where
         let mut end = start;
         loop {
             let i = probe.input();
-            let Some(character) = i.input.remainder().chars().next() else {
-                return (start < end).then_some(start..end);
+            if end > start && direct_type_primary_candidate(i) {
+                return Some((start..end, TypeItemRecovery::Retry));
+            }
+            if type_recovery_boundary_pending(i) {
+                return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
+            }
+            let Some(_) = i.input.remainder().chars().next() else {
+                return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
             };
-            if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
             i.input.next()?;
             end = i.pos();
             let mut line = i.local.line();
             line.at_line_start = false;
             i.local.set_line(line);
-            if direct_type_primary_candidate(i) { return Some(start..end); }
         }
     });
-    let Some(range) = recovered else { return false; };
+    let Some((range, recovery)) = recovered else { return None; };
     emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
-    true
+    Some(recovery)
+}
+
+/// A malformed mandatory item may either stop before another type primary or
+/// reach a boundary owned by its enclosing construct.  Both cases commit the
+/// Error run; only the first may retry the required slot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeItemRecovery {
+    Retry,
+    Boundary,
 }
 
 /// Boundaries are never consumed by a malformed item scanner.  Delimiter
@@ -2812,8 +2834,19 @@ mod tests {
         source: &str,
         outer_missing_role: Option<GrammarRole>,
     ) -> Vec<crate::session::CommittedRecoveryRecord> {
+        parse_direct_mandatory_prefix_with_outer_stop(source, outer_missing_role, None).1
+    }
+
+    fn parse_direct_mandatory_prefix_with_outer_stop(
+        source: &str,
+        outer_missing_role: Option<GrammarRole>,
+        stop: Option<StopKind>,
+    ) -> (String, Vec<crate::session::CommittedRecoveryRecord>) {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
+        if let Some(stop) = stop {
+            local.push_stop_set(StopSet::default().with(stop));
+        }
         let mut expectations = chasa::LatestSink::new();
         let mut is_cut = false;
         let i = In::new(
@@ -2825,8 +2858,10 @@ mod tests {
         let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
         committed.start_node(SyntaxKind::Root);
         commit_direct_type_expression_with_outer_missing_role(outer_missing_role, &mut committed);
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
         committed.finish_node();
-        committed.into_output().committed_recoveries().to_vec()
+        let recoveries = committed.into_output().committed_recoveries().to_vec();
+        (remainder, recoveries)
     }
 
     fn parse_direct_recovered(source: &str) -> Vec<crate::session::CommittedRecoveryRecord> {
@@ -3021,6 +3056,51 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::Primary)
                 && record.site.range == (0..1)
                 && record.kind == crate::session::RecoveryKind::Error));
+    }
+
+    #[test]
+    fn mandatory_type_recovery_leaves_an_active_outer_stop_unconsumed() {
+        let (remainder, recoveries) = parse_direct_mandatory_prefix_with_outer_stop(
+            "@=A",
+            None,
+            Some(StopKind::Equal),
+        );
+        assert_eq!(remainder, "=A");
+        assert!(matches!(recoveries.as_slice(), [error, missing]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.site.range == (0..1)
+                && error.kind == crate::session::RecoveryKind::Error
+                && missing.site.role == GrammarRole::Type(TypeRole::Primary)
+                && missing.site.range == (1..1)
+                && missing.kind == crate::session::RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn mandatory_type_recovery_commits_a_malformed_run_before_a_delimiter() {
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@)", None, None);
+        assert_eq!(remainder, ")");
+        assert!(matches!(recoveries.as_slice(), [error, missing]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.site.range == (0..1)
+                && error.kind == crate::session::RecoveryKind::Error
+                && missing.site.role == GrammarRole::Type(TypeRole::Primary)
+                && missing.site.range == (1..1)
+                && missing.kind == crate::session::RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn mandatory_type_recovery_at_eof_emits_error_then_missing() {
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@", None, None);
+        assert_eq!(remainder, "");
+        assert!(matches!(recoveries.as_slice(), [error, missing]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.site.range == (0..1)
+                && error.kind == crate::session::RecoveryKind::Error
+                && missing.site.role == GrammarRole::Type(TypeRole::Primary)
+                && missing.site.range == (1..1)
+                && missing.kind == crate::session::RecoveryKind::Missing));
     }
 
     #[test]
