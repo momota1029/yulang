@@ -1664,9 +1664,6 @@ where
     EffectRowType { apostrophe: apostrophe.clone(), open, items, close, range: apostrophe.start..end }
 }
 
-/// Parse the two-level polymorphic-variant primary.  The outer loop is the
-/// sole owner of commas and qualifying newlines; the inner loop deliberately
-/// leaves every physical newline for that outer judge.
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
 where
     E: ErrorSink<usize>,
