@@ -793,6 +793,7 @@ pub(crate) enum PatternRole {
     SymbolName,
     AliasBinding,
     AlternationRhs,
+    TypeAnnotation,
     ParenthesizedElement,
     ParenthesizedSeparator,
     ListItem,

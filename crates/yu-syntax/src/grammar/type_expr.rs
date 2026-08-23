@@ -3220,22 +3220,25 @@ where
     pending
 }
 
-/// A type parser may be nested beneath an owner that reserves an arrow.  The
-/// structural tail judge must yield before accepting that arrow, just as its
-/// malformed-item scanner does.
+/// Structural type tails must yield to every active outer stop, matching the
+/// mandatory recovery scanner's ownership boundary.
 fn type_active_tail_stop_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if !active_stop_set(i).contains(StopKind::Arrow) {
-        return false;
-    }
-    let checkpoint = i.checkpoint();
-    let pending = scan_exact_arrow(i).is_some();
-    i.rollback(checkpoint);
-    pending
+    matches!(
+        classify_type_boundary(
+            TypeBoundaryPolicy {
+                matching_close: None,
+                local_separators: StopSet::default(),
+                locally_owned_stops: StopSet::default(),
+            },
+            i,
+        ),
+        Some(TypeBoundary::ActiveStop(_))
+    )
 }
 
 fn scan_type_path_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
@@ -3586,6 +3589,22 @@ mod tests {
         committed.finish_node();
         let recoveries = committed.into_output().committed_recoveries().to_vec();
         (remainder, recoveries)
+    }
+
+    #[test]
+    fn active_tail_stops_return_every_outer_boundary_before_type_apply() {
+        for (source, stop, remainder) in [
+            ("Int = value", StopKind::Equal, " = value"),
+            ("Int -> value", StopKind::Arrow, " -> value"),
+            ("Int if ready", StopKind::ArmGuardIf, " if ready"),
+            ("Int where ready", StopKind::ArmGuardWhere, " where ready"),
+            ("Int\nnext", StopKind::Newline, "\nnext"),
+        ] {
+            let (actual, recoveries) =
+                parse_direct_mandatory_prefix_with_outer_stop(source, None, Some(stop));
+            assert_eq!(actual, remainder, "{source:?}");
+            assert!(recoveries.is_empty(), "{source:?}");
+        }
     }
 
     fn parse_direct_recovered(source: &str) -> Vec<crate::session::CommittedRecoveryRecord> {

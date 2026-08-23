@@ -18,6 +18,7 @@ use crate::{
     grammar::{
         declaration::Recovered,
         expression::{IntegerLiteral, OperatorChain, parse_direct_expression_with_operators, parse_expression_with_operators, parse_integer_literal},
+        type_expr::{TypeExpression, commit_direct_type_expression_with_outer_missing_role, parse_required_type_expression_with_outer_missing_role},
     },
     operator::OperatorTable,
     scan::{
@@ -41,8 +42,9 @@ use crate::{
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum PatternPrecedence {
     Lowest = 0,
-    Alternation = 1,
-    Alias = 2,
+    TypeAnnotation = 1,
+    Alternation = 2,
+    Alias = 3,
 }
 
 /// The two pattern primaries with the same comma-delimited container contract.
@@ -153,6 +155,7 @@ impl PatternDelimitedPolicy {
 pub(crate) struct Pattern<'source> {
     head: Recovered<PatternPrimary<'source>>,
     tails: Vec<PatternTail<'source>>,
+    type_annotation: Option<PatternTypeAnnotation<'source>>,
     range: Range<usize>,
 }
 
@@ -163,6 +166,21 @@ impl Pattern<'_> {
     pub(crate) fn tails(&self) -> &[PatternTail<'_>] {
         &self.tails
     }
+    pub(crate) fn type_annotation(&self) -> Option<&PatternTypeAnnotation<'_>> {
+        self.type_annotation.as_ref()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PatternTypeAnnotation<'source> {
+    colon: Range<usize>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+impl PatternTypeAnnotation<'_> {
+    pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
+    pub(crate) fn type_expr(&self) -> &Recovered<Box<TypeExpression<'_>>> { &self.type_expr }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -437,6 +455,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
+    let pattern_continuation_base = pattern_continuation_base(&i);
     let head = match i.run(from_fn(recognize_pattern_nud)) {
         Some(nud) => Recovered::Complete(parse_pattern_primary(table, nud, &mut i)),
         None if recover_pattern_primary_ast(&mut i) => {
@@ -448,7 +467,10 @@ where
         None => Recovered::Incomplete,
     };
     let mut tails = Vec::new();
-    while let Some(led) = i.run(from_fn(|i| recognize_pattern_led(minimum, i))) {
+    let mut type_annotation = None;
+    while let Some(led) = i.run(from_fn(|i| {
+        recognize_pattern_led(minimum, pattern_continuation_base, i)
+    })) {
         match led {
             PatternLedRecognition::Alias { keyword, .. } => {
                 consume_trivia(&mut i);
@@ -483,9 +505,34 @@ where
                     range: pipe.start..end,
                 }));
             }
+            PatternLedRecognition::TypeAnnotation { colon, .. } => {
+                let _ = consume_pattern_annotation_trivia(pattern_continuation_base, &mut i);
+                let type_expr = match i
+                    .run(from_fn(|i| {
+                        Some(parse_required_type_expression_with_outer_missing_role(
+                            Some(pattern_role(PatternRole::TypeAnnotation)),
+                            i,
+                        ))
+                    }))
+                    .expect("a mandatory type annotation entry is total")
+                {
+                    Recovered::Complete(type_expr) => Recovered::Complete(Box::new(type_expr)),
+                    Recovered::Incomplete => Recovered::Incomplete,
+                };
+                let end = match &type_expr {
+                    Recovered::Complete(type_expr) => type_expr.range().end,
+                    Recovered::Incomplete => colon.end,
+                };
+                type_annotation = Some(PatternTypeAnnotation {
+                    colon: colon.clone(),
+                    type_expr,
+                    range: colon.start..end,
+                });
+                break;
+            }
         }
     }
-    let end = tails.last().map_or_else(
+    let end = type_annotation.as_ref().map_or_else(|| tails.last().map_or_else(
         || match &head {
             Recovered::Complete(primary) => primary_range(primary).end,
             Recovered::Incomplete => start,
@@ -494,10 +541,11 @@ where
             PatternTail::Alias(tail) => tail.range.end,
             PatternTail::Alternation(tail) => tail.range.end,
         },
-    );
+    ), |annotation| annotation.range.end);
     Some(Pattern {
         head,
         tails,
+        type_annotation,
         range: start..end,
     })
 }
@@ -983,10 +1031,15 @@ enum PatternLedRecognition<'source> {
         leading: TriviaRun,
         pipe: Range<usize>,
     },
+    TypeAnnotation {
+        leading: TriviaRun,
+        colon: Range<usize>,
+    },
 }
 
 fn recognize_pattern_led<'source, E>(
     minimum: PatternPrecedence,
+    pattern_continuation_base: usize,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<PatternLedRecognition<'source>>
 where
@@ -1009,6 +1062,17 @@ where
         let leading = consume_trivia(&mut i);
         if let Some(pipe) = i.run(recognize_pipe) {
             return Some(PatternLedRecognition::Alternation { leading, pipe });
+        }
+        i.rollback(checkpoint);
+    }
+    if minimum <= PatternPrecedence::TypeAnnotation
+        && !active_stop_set(&i).contains(StopKind::Colon)
+    {
+        let checkpoint = i.checkpoint();
+        if let Some(leading) = consume_pattern_annotation_trivia(pattern_continuation_base, &mut i) {
+            if let Some(colon) = i.run(recognize_colon) {
+                return Some(PatternLedRecognition::TypeAnnotation { leading, colon });
+            }
         }
         i.rollback(checkpoint);
     }
@@ -1250,6 +1314,39 @@ fn trivia_has_physical_newline(trivia: &TriviaRun) -> bool {
     })
 }
 
+/// Own one maximal annotation gap only when it remains on the current line or
+/// continues beyond the indentation captured at this Pattern entry.
+fn consume_pattern_annotation_trivia<E>(
+    pattern_continuation_base: usize,
+    i: &mut SynIn<E>,
+) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    if trivia_has_physical_newline(&trivia)
+        && i.local.line().line_indent <= pattern_continuation_base
+    {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(trivia)
+}
+
+fn pattern_continuation_base<E>(i: &SynIn<E>) -> usize
+where
+    E: ErrorSink<usize>,
+{
+    i.local.line().line_indent.max(
+        i.local
+            .indentation_baseline()
+            .map_or(0, |baseline| baseline.column),
+    )
+}
+
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet
 where
     E: ErrorSink<usize>,
@@ -1310,6 +1407,7 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = committed_position(committed);
+    let pattern_continuation_base = committed.probe(|probe| pattern_continuation_base(probe.input()));
     committed.start_node(SyntaxKind::Pattern);
     if let Some(nud) = committed.probe(probe_pattern_nud) {
         commit_direct_primary(table, nud, committed);
@@ -1330,7 +1428,9 @@ where
     }
 
     loop {
-        let Some(led) = committed.probe(|probe| probe_pattern_led(minimum, probe)) else {
+        let Some(led) = committed.probe(|probe| {
+            probe_pattern_led(minimum, pattern_continuation_base, probe)
+        }) else {
             break;
         };
         match led {
@@ -1375,6 +1475,22 @@ where
                 )
                 .expect("a committed alternation owns a total RHS pattern");
                 committed.finish_node();
+            }
+            PatternLedRecognition::TypeAnnotation { leading, colon } => {
+                committed.emit_trivia(&leading);
+                committed.start_node(SyntaxKind::PatternTypeAnnotation);
+                committed.token(SyntaxKind::Colon, colon);
+                if let Some(trivia) = committed.probe(|probe| {
+                    consume_pattern_annotation_trivia(pattern_continuation_base, probe.input())
+                }) {
+                    committed.emit_trivia(&trivia);
+                }
+                commit_direct_type_expression_with_outer_missing_role(
+                    Some(pattern_role(PatternRole::TypeAnnotation)),
+                    committed,
+                );
+                committed.finish_node();
+                break;
             }
         }
     }
@@ -1453,6 +1569,7 @@ where
 
 fn probe_pattern_led<'parse, 'source, 'local, E>(
     minimum: PatternPrecedence,
+    pattern_continuation_base: usize,
     probe: &mut Probe<'parse, 'source, 'local, E>,
 ) -> Option<PatternLedRecognition<'source>>
 where
@@ -1462,7 +1579,7 @@ where
 {
     probe
         .input()
-        .run(from_fn(|i| recognize_pattern_led(minimum, i)))
+        .run(from_fn(|i| recognize_pattern_led(minimum, pattern_continuation_base, i)))
 }
 
 fn commit_direct_primary<'parse, 'source, 'local, E, O>(
@@ -2421,6 +2538,7 @@ mod tests {
 
     use crate::{
         SyntaxKind, SyntaxNode,
+        grammar::declaration::parse_direct_root_candidate,
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
         session::{FullCstOutput, ParseLocal},
@@ -2702,6 +2820,138 @@ mod tests {
     }
 
     #[test]
+    fn type_annotation_is_terminal_and_qualifies_the_outer_pattern() {
+        let pattern = parse("A | B as c: Int");
+        assert!(matches!(pattern.tails(), [PatternTail::Alternation(_)]));
+        let annotation = pattern.type_annotation().expect("outer annotation");
+        assert_eq!(annotation.range(), 10..15);
+        assert!(matches!(annotation.type_expr(), Recovered::Complete(_)));
+
+        let root = parse_direct("A | B as c: Int");
+        let outer = only_child(&root, SyntaxKind::Pattern);
+        assert_eq!(
+            outer
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+                .count(),
+            1
+        );
+        let alternation = outer
+            .children()
+            .find(|node| node.kind() == SyntaxKind::PatternAlternationTail)
+            .expect("alternation");
+        assert!(alternation
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternAliasTail));
+
+        for source in ["A as c: Int", "A | B: Int"] {
+            let root = parse_direct(source);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+                    .count(),
+                1,
+                "{source:?}"
+            );
+        }
+        assert_eq!(parse_direct_prefix("x: T: U", false), ": U");
+    }
+
+    #[test]
+    fn type_annotation_reaches_nested_patterns_and_keeps_record_colons_owned() {
+        for source in [
+            "(x: Int)",
+            "[x: Int]",
+            "{a: A: Inner}",
+            "{a: A} : SomeType",
+        ] {
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+                    .count(),
+                1,
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn type_annotation_trivia_ranges_and_recovery_keep_owner_boundaries() {
+        for source in ["x:Int", "x /* note */ : Int", "x\n  : Int"] {
+            let root = parse_direct(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation), "{source:?}: {root:#?}");
+        }
+        assert_eq!(parse_direct_prefix("x::T", false), "::T");
+        assert_eq!(parse_direct_prefix("x\n: Int", false), "\n: Int");
+
+        let complete = parse("x: Int");
+        assert_eq!(complete.range(), 0..6);
+        assert_eq!(complete.type_annotation().expect("annotation").range(), 1..6);
+        let incomplete = parse("x:");
+        assert_eq!(incomplete.range(), 0..2);
+        let annotation = incomplete.type_annotation().expect("accepted colon");
+        assert_eq!(annotation.range(), 1..2);
+        assert!(matches!(annotation.type_expr(), Recovered::Incomplete));
+
+        let (root, recoveries) = parse_direct_recovered("x: @Int");
+        assert_eq!(root.to_string(), "x: @Int");
+        assert!(root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation));
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Error
+                && record.site.role == GrammarRole::Type(crate::session::TypeRole::Primary)
+                && record.site.range == (3..4)
+        }));
+
+        for source in ["[x: Int, y]", "[x: , y]", "[x: @, y]", "(x: )"] {
+            let (root, recoveries) = parse_direct_recovered(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation));
+            assert!(recoveries.iter().all(|record| record.site.range.end <= source.len()));
+        }
+    }
+
+    #[test]
+    fn enclosing_binding_case_and_catch_owners_keep_annotation_boundaries() {
+        for source in ["my x: Int = 0", "my y: = 1"] {
+            let output = parse_direct_root_candidate(source, &OperatorTable::default(), &[]);
+            let recoveries = output.committed_recoveries();
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation), "{source:?}");
+            if source == "my y: = 1" {
+                assert!(recoveries.iter().any(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Pattern(PatternRole::TypeAnnotation)
+                }));
+            }
+        }
+
+        for source in [
+            "case value: x: Int -> 0",
+            "case value: x: Int if ready -> 0",
+            "case value: x: Int where ready -> 0",
+            "catch action { err: Error, handler: Result -> recover }",
+        ] {
+            let root = parse_direct_expression(source);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternTypeAnnotation), "{source:?}");
+        }
+    }
+
+    #[test]
     fn dynamic_operator_tables_cannot_change_pattern_cst() {
         let low = OperatorTable::from_declarations([OperatorDeclaration::new(
             "|",
@@ -2780,7 +3030,7 @@ mod tests {
     #[test]
     fn excluded_forms_remain_unconsumed_after_a_first_slice_pattern() {
         for source in [
-            "\"a\"", "x: T", "A::B", "A.field", "Some(x)", "Some x",
+            "\"a\"", "A::B", "A.field", "Some(x)", "Some x",
         ] {
             assert!(!parse_direct_prefix(source, false).is_empty(), "{source:?}");
         }
@@ -2883,6 +3133,30 @@ mod tests {
         let (root, remainder, recoveries) = parse_direct_inner(source, false);
         assert_eq!(remainder, "", "recovered pattern source");
         (root.expect("complete direct CST"), recoveries)
+    }
+
+    fn parse_direct_expression(source: &str) -> SyntaxNode {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(
+            &OperatorTable::default(),
+            LeadingTrivia::None,
+            &mut committed,
+        )
+        .expect("direct expression");
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
+        committed.finish_node();
+        SyntaxNode::new_root(committed.into_output().finish_complete())
     }
 
     fn parse_direct_prefix(source: &str, colon_stop: bool) -> &str {
