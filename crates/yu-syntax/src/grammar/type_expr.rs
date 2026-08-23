@@ -38,6 +38,7 @@ pub(crate) enum TypePrimary<'source> {
     Parenthesized(ParenthesizedTypeGroup<'source>),
     Record(NamedRecordType<'source>),
     Forall(ForallType<'source>),
+    EffectRow(EffectRowType<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -134,6 +135,15 @@ pub(crate) struct ForallType<'source> {
 pub(crate) struct ForallTypeBinder<'source> {
     boundary: Recovered<Range<usize>>,
     name: WordSpan<'source>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EffectRowType<'source> {
+    apostrophe: Range<usize>,
+    open: Range<usize>,
+    items: Vec<Recovered<TypeExpression<'source>>>,
+    close: Recovered<Range<usize>>,
     range: Range<usize>,
 }
 
@@ -347,7 +357,7 @@ where
             }
             DirectTypeTail::Call { leading, open } => {
                 committed.emit_trivia(&leading);
-                commit_direct_type_delimited(TypeDelimitedOwner::Call, SyntaxKind::TypeCallTail, open, false, committed);
+                commit_direct_type_delimited(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, SyntaxKind::TypeCallTail, None, open, committed);
             }
             DirectTypeTail::Apply { boundary } => {
                 committed.start_node(SyntaxKind::TypeApplyArgument);
@@ -484,6 +494,42 @@ enum DirectTypePrimary {
     TerminalForall,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDelimitedShape {
+    Parenthesis,
+    Bracket,
+}
+
+impl TypeDelimitedShape {
+    fn delimiter(self) -> Delimiter {
+        match self {
+            Self::Parenthesis => Delimiter::Parenthesis,
+            Self::Bracket => Delimiter::Bracket,
+        }
+    }
+
+    fn close_stop(self) -> StopKind {
+        match self {
+            Self::Parenthesis => StopKind::RightParenthesis,
+            Self::Bracket => StopKind::RightBracket,
+        }
+    }
+
+    fn open_kind(self) -> SyntaxKind {
+        match self {
+            Self::Parenthesis => SyntaxKind::LParen,
+            Self::Bracket => SyntaxKind::LBracket,
+        }
+    }
+
+    fn close_kind(self) -> SyntaxKind {
+        match self {
+            Self::Parenthesis => SyntaxKind::RParen,
+            Self::Bracket => SyntaxKind::RBracket,
+        }
+    }
+}
+
 fn commit_direct_type_primary<'parse, 'source, 'local, E, O>(
     allow_forall: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -500,6 +546,17 @@ where
             return Some(DirectTypePrimary::TerminalForall);
         }
     }
+    if let Some((apostrophe, open)) = committed.probe(|probe| scan_effect_row_open(probe.input())) {
+        commit_direct_type_delimited(
+            TypeDelimitedOwner::EffectRow,
+            TypeDelimitedShape::Bracket,
+            SyntaxKind::EffectRowType,
+            Some((SyntaxKind::Apostrophe, apostrophe)),
+            open,
+            committed,
+        );
+        return Some(DirectTypePrimary::Ordinary);
+    }
     if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
         committed.token(type_name_kind(name), type_name_range(name));
         return Some(DirectTypePrimary::Ordinary);
@@ -515,9 +572,10 @@ where
     if let Some(open) = committed.probe(|probe| scan_open_parenthesis(probe.input())) {
         commit_direct_type_delimited(
             TypeDelimitedOwner::ParenthesizedGroup,
+            TypeDelimitedShape::Parenthesis,
             SyntaxKind::ParenthesizedTypeGroup,
+            None,
             open,
-            true,
             committed,
         );
         return Some(DirectTypePrimary::Ordinary);
@@ -793,9 +851,10 @@ where
 
 fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     owner: TypeDelimitedOwner,
+    shape: TypeDelimitedShape,
     kind: SyntaxKind,
+    prefix: Option<(SyntaxKind, Range<usize>)>,
     open: Range<usize>,
-    _is_group: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -804,11 +863,12 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(kind);
-    committed.token(SyntaxKind::LParen, open);
+    if let Some((kind, range)) = prefix { committed.token(kind, range); }
+    committed.token(shape.open_kind(), open);
     let incoming = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(shape.close_stop()));
     committed.probe(|probe| {
-        probe.input().local.push_delimiter(Delimiter::Parenthesis);
+        probe.input().local.push_delimiter(shape.delimiter());
         probe.input().local.push_stop_set(stops);
         probe.input().local.push_type_delimited_owner(owner);
     });
@@ -816,7 +876,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     committed.emit_trivia(&opening);
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
     committed.probe(|probe| push_layout(layout, probe.input()));
-    if !direct_type_close_pending(committed) {
+    if !direct_type_close_pending(shape, committed) {
         loop {
             if direct_type_separator_pending(committed) {
                 emit_type_missing(
@@ -825,6 +885,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                         TypeDelimitedOwner::Call => TypeRole::CallArgument,
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
                         TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
+                        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
                     }),
                     ExpectedSyntax::TypeExpression,
                 );
@@ -834,7 +895,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                 committed.token(separator_kind(&separator), separator_range(&separator));
                 let trailing = consume_direct_trivia(committed);
                 committed.emit_trivia(&trailing);
-                if direct_type_close_pending(committed) { break; }
+                if direct_type_close_pending(shape, committed) { break; }
                 continue;
             }
             if commit_direct_type_expression(committed).is_none() {
@@ -842,6 +903,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                     TypeDelimitedOwner::Call => TypeRole::CallArgument,
                     TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
                     TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
+                    TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
                 };
                 match direct_type_delimited_item_error_retry(committed, role) {
                     Some(TypeDelimitedItemRecovery::Retry) => continue,
@@ -862,10 +924,10 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                 committed.token(separator_kind(&separator), separator_range(&separator));
                 let trailing = consume_direct_trivia(committed);
                 committed.emit_trivia(&trailing);
-                if direct_type_close_pending(committed) { break; }
+                if direct_type_close_pending(shape, committed) { break; }
                 continue;
             }
-            if direct_type_close_pending(committed) { break; }
+            if direct_type_close_pending(shape, committed) { break; }
             if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
             if committed.probe(|probe| direct_type_primary_candidate(probe.input())) {
                 emit_type_missing(
@@ -874,6 +936,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                         TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
                         TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
+                        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
                     }),
                     ExpectedSyntax::DelimitedSequenceSeparator,
                 );
@@ -887,28 +950,29 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
             TypeDelimitedOwner::Call => ConstructRole::TypeCall,
             TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
             TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
+            TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
         },
-        delimiter: Delimiter::Parenthesis,
+        delimiter: shape.delimiter(),
     };
     loop {
-        if let Some(close) = committed.probe(|probe| scan_close_parenthesis(probe.input())) {
-            committed.token(SyntaxKind::RParen, close);
+        if let Some(close) = committed.probe(|probe| scan_close_delimiter(shape, probe.input())) {
+            committed.token(shape.close_kind(), close);
             break;
         }
-        let mismatched = committed.probe(|probe| scan_mismatched_close(probe.input()));
+        let mismatched = committed.probe(|probe| scan_mismatched_close_for(shape.delimiter(), probe.input()));
         if let Some(range) = mismatched {
             emit_error_with_role(
                 committed,
                 close_role,
                 range,
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(shape.delimiter())),
             );
             continue;
         }
         emit_type_missing(
             committed,
             close_role,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(shape.delimiter())),
         );
         break;
     }
@@ -916,7 +980,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
         pop_layout(layout, probe.input());
         assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(owner));
         assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
-        assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Parenthesis));
+        assert_eq!(probe.input().local.pop_delimiter(), Some(shape.delimiter()));
     });
     committed.finish_node();
 }
@@ -1125,7 +1189,10 @@ where
     true
 }
 
-fn direct_type_close_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
+fn direct_type_close_pending<'parse, 'source, 'local, E, O>(
+    shape: TypeDelimitedShape,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1135,7 +1202,7 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
-        let pending = scan_close_parenthesis(i).is_some();
+        let pending = scan_close_delimiter(shape, i).is_some();
         i.rollback(checkpoint);
         pending
     })
@@ -1170,6 +1237,9 @@ where
         if let Some(keyword) = scan_forall_keyword(i) {
             return Some(TypePrimary::Forall(parse_forall_type(keyword, i)));
         }
+    }
+    if let Some((apostrophe, open)) = scan_effect_row_open(i) {
+        return Some(TypePrimary::EffectRow(parse_effect_row_type(apostrophe, open, i)));
     }
     if let Some(name) = scan_type_name(i) {
         return Some(TypePrimary::Atom(match name {
@@ -1446,7 +1516,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (arguments, _, close) = parse_type_delimited_items(TypeDelimitedOwner::Call, i);
+    let (arguments, _, close) = parse_type_delimited_items(TypeDelimitedOwner::Call, TypeDelimitedShape::Parenthesis, i);
     let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
     TypeCallTail { open: open.clone(), arguments, close, range: open.start..end }
 }
@@ -1457,9 +1527,24 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let (elements, trailing_explicit_separator, close) = parse_type_delimited_items(TypeDelimitedOwner::ParenthesizedGroup, i);
+    let (elements, trailing_explicit_separator, close) = parse_type_delimited_items(TypeDelimitedOwner::ParenthesizedGroup, TypeDelimitedShape::Parenthesis, i);
     let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
     ParenthesizedTypeGroup { open: open.clone(), elements, trailing_explicit_separator, close, range: open.start..end }
+}
+
+fn parse_effect_row_type<'source, E>(
+    apostrophe: Range<usize>,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> EffectRowType<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let (items, _, close) = parse_type_delimited_items(TypeDelimitedOwner::EffectRow, TypeDelimitedShape::Bracket, i);
+    let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
+    EffectRowType { apostrophe: apostrophe.clone(), open, items, close, range: apostrophe.start..end }
 }
 
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
@@ -1571,6 +1656,7 @@ where
 
 fn parse_type_delimited_items<'source, E>(
     owner: TypeDelimitedOwner,
+    shape: TypeDelimitedShape,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> (Vec<Recovered<TypeExpression<'source>>>, Option<TypeExplicitSeparator>, Recovered<Range<usize>>)
 where
@@ -1579,8 +1665,8 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let incoming = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    i.local.push_delimiter(Delimiter::Parenthesis);
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(StopKind::RightParenthesis);
+    i.local.push_delimiter(shape.delimiter());
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(shape.close_stop());
     i.local.push_stop_set(stops);
     i.local.push_type_delimited_owner(owner);
     let opening = consume_trivia(i);
@@ -1590,12 +1676,12 @@ where
     let mut trailing = None;
     let close;
     loop {
-        if let Some(range) = scan_close_parenthesis(i) { close = Recovered::Complete(range); break; }
-        if scan_mismatched_close(i).is_some() { close = Recovered::Incomplete; break; }
+        if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
+        if scan_mismatched_close_for(shape.delimiter(), i).is_some() { close = Recovered::Incomplete; break; }
         if scan_separator(i).is_some() {
             items.push(Recovered::Incomplete);
             let _ = consume_trivia(i);
-            if let Some(range) = scan_close_parenthesis(i) {
+            if let Some(range) = scan_close_delimiter(shape, i) {
                 close = Recovered::Complete(range);
                 break;
             }
@@ -1607,14 +1693,14 @@ where
             continue;
         } else {
             items.push(Recovered::Incomplete);
-            let _ = scan_mismatched_close(i);
+            let _ = scan_mismatched_close_for(shape.delimiter(), i);
             close = Recovered::Incomplete;
             break;
         }
         let trivia = consume_trivia(i);
         if let Some(separator) = scan_separator(i) {
             let post = consume_trivia(i);
-            if let Some(range) = scan_close_parenthesis(i) {
+            if let Some(range) = scan_close_delimiter(shape, i) {
                 trailing = Some(separator);
                 close = Recovered::Complete(range);
                 break;
@@ -1628,7 +1714,7 @@ where
         }
         match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
             LayoutDelimitedBoundary::ImplicitNewline => {
-                if let Some(range) = scan_close_parenthesis(i) { close = Recovered::Complete(range); break; }
+                if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
                 continue;
             }
             LayoutDelimitedBoundary::DeeperNewline => {
@@ -1636,14 +1722,14 @@ where
                 break;
             }
             LayoutDelimitedBoundary::None => {
-                if let Some(range) = scan_close_parenthesis(i) { close = Recovered::Complete(range); break; }
+                if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
                 if type_primary_candidate(i) {
                     // A nested ML argument may intentionally stop before this
                     // primary.  The direct path commits the separator Missing;
                     // the source-free AST retains the same next-item slot.
                     continue;
                 }
-                let _ = scan_mismatched_close(i);
+                let _ = scan_mismatched_close_for(shape.delimiter(), i);
                 close = Recovered::Incomplete;
                 break;
             }
@@ -1652,7 +1738,7 @@ where
     pop_layout(layout, i);
     assert_eq!(i.local.pop_type_delimited_owner(), Some(owner));
     assert_eq!(i.local.pop_stop_set(), Some(stops));
-    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Parenthesis));
+    assert_eq!(i.local.pop_delimiter(), Some(shape.delimiter()));
     (items, trailing, close)
 }
 
@@ -1808,6 +1894,58 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     if punctuation.kind() == PunctuationKind::Open(Delimiter::Brace) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
 }
 
+fn scan_effect_row_open<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    if !i.input.remainder().starts_with("'[") {
+        return None;
+    }
+    i.input.next()?;
+    let middle = i.pos();
+    i.input.next()?;
+    let end = i.pos();
+    if middle == start || end == middle {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some((start..middle, middle..end))
+}
+
+fn scan_close_delimiter<'source, E>(shape: TypeDelimitedShape, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Close(shape.delimiter()) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_mismatched_close_for<'source, E>(delimiter: Delimiter, i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    let owned_by_outer = match punctuation.kind() {
+        PunctuationKind::Close(Delimiter::Parenthesis) => active_stop_set(i).contains(StopKind::RightParenthesis),
+        PunctuationKind::Close(Delimiter::Bracket) => active_stop_set(i).contains(StopKind::RightBracket),
+        PunctuationKind::Close(Delimiter::Brace) => active_stop_set(i).contains(StopKind::RightBrace),
+        _ => false,
+    };
+    if matches!(punctuation.kind(), PunctuationKind::Close(found) if found != delimiter) && !owned_by_outer {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
 fn scan_close_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
@@ -1908,38 +2046,6 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     });
     i.rollback(checkpoint);
     candidate
-}
-
-fn scan_close_parenthesis<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    let checkpoint = i.checkpoint();
-    let Some(punctuation) = i.run(scan_punctuation) else {
-        i.rollback(checkpoint);
-        return None;
-    };
-    if punctuation.kind() == PunctuationKind::Close(Delimiter::Parenthesis) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
-}
-
-fn scan_mismatched_close<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    let checkpoint = i.checkpoint();
-    let Some(punctuation) = i.run(scan_punctuation) else {
-        i.rollback(checkpoint);
-        return None;
-    };
-    let owned_by_outer = match punctuation.kind() {
-        PunctuationKind::Close(Delimiter::Bracket) => active_stop_set(i).contains(StopKind::RightBracket),
-        PunctuationKind::Close(Delimiter::Brace) => active_stop_set(i).contains(StopKind::RightBrace),
-        _ => false,
-    };
-    if matches!(punctuation.kind(), PunctuationKind::Close(delimiter) if delimiter != Delimiter::Parenthesis)
-        && !owned_by_outer
-    {
-        Some(punctuation.range())
-    } else {
-        i.rollback(checkpoint);
-        None
-    }
 }
 
 fn scan_mismatched_record_close<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
@@ -2331,7 +2437,7 @@ fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|p
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet where E: ErrorSink<usize> { i.local.stop_set().unwrap_or_default() }
 fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { i.local.push_indentation_baseline(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }); }
 fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { assert_eq!(i.local.pop_indentation_baseline(), Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer })); }
-fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone() } }
+fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone(), TypePrimary::EffectRow(row) => row.range.clone() } }
 fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize { match tail { TypePostfixTail::Path(tail) => tail.range.end, TypePostfixTail::Call(tail) => tail.range.end, TypePostfixTail::Apply(tail) => tail.range.end } }
 #[cfg(test)]
 mod tests {
@@ -2395,6 +2501,20 @@ mod tests {
         .set_local(&mut local);
         let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix with outer stop");
         (i.input.remainder(), value)
+    }
+
+    fn primary_candidate(source: &str) -> bool {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        type_primary_candidate(&mut i)
     }
 
     fn parse_direct(source: &str) -> SyntaxNode {
@@ -3117,6 +3237,114 @@ mod tests {
                 && record.kind == RecoveryKind::Missing && record.site.range == (6..6)));
         let (newline_remainder, _) = parse_prefix("for 'a\nT");
         assert_eq!(newline_remainder, "\nT");
+    }
+
+    #[test]
+    fn effect_row_primary_is_adjacent_semantically_blind_and_composes_normally() {
+        let empty = parse("'[]");
+        assert!(matches!(empty.primary, TypePrimary::EffectRow(EffectRowType {
+            ref items, close: Recovered::Complete(_), ..
+        }) if items.is_empty()));
+
+        let ordinary = parse("'[e]");
+        assert!(matches!(ordinary.primary, TypePrimary::EffectRow(EffectRowType {
+            ref items, ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+            primary: TypePrimary::Atom(TypeAtom::Identifier(_)), ..
+        })])));
+
+        let sigil = parse("'['e]");
+        assert!(matches!(sigil.primary, TypePrimary::EffectRow(EffectRowType {
+            ref items, ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
+            primary: TypePrimary::Atom(TypeAtom::SigilIdentifier(_)), ..
+        })])));
+
+        let multi = parse("'[A, B; C]");
+        assert!(matches!(multi.primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 3));
+        let direct = parse_direct("'[A, B; C]");
+        assert_eq!(direct.to_string(), "'[A, B; C]");
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::EffectRowType).count(), 1);
+        let newline = parse("'[\n  A\n  B\n]");
+        assert!(matches!(newline.primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
+        assert_eq!(parse_direct("'[\n  A\n  B\n]").to_string(), "'[\n  A\n  B\n]");
+
+        let applied = parse("Foo '['e]");
+        assert!(matches!(applied.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.primary, TypePrimary::EffectRow(_))));
+        let called = parse("F('[e])");
+        assert!(matches!(called.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail { arguments, .. })]
+            if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { primary: TypePrimary::EffectRow(_), .. })])));
+        let path = parse("'[e]::Result");
+        assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        assert!(parse("'[e] -> Out").arrow.is_some());
+
+        assert!(!primary_candidate("'"));
+        assert!(!primary_candidate("' [e]"));
+        assert!(!primary_candidate("'/*c*/[e]"));
+        assert!(matches!(parse("'e").primary, TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
+    }
+
+    #[test]
+    fn effect_row_reuses_type_call_delimited_recovery_slots() {
+        for source in ["'[A,]", "'[A;]", "'[A,\n]"] {
+            assert!(parse_direct_recovered(source).is_empty(), "valid trailing boundary: {source}");
+        }
+        let leading = parse_direct_recovered("'[,;A]");
+        assert!(matches!(leading.as_slice(), [first, second]
+            if first.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+                && first.site.range == (2..2)
+                && second.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+                && second.site.range == (3..3)));
+        assert!(matches!(parse("'[,;A]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. })
+            if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
+
+        let missing_separator = parse_direct_recovered("'[A{}]");
+        assert!(matches!(missing_separator.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::EffectRowSeparator)
+                && record.site.range == (3..3)
+                && record.kind == RecoveryKind::Missing));
+        assert!(matches!(parse("'[A{}]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
+
+        let malformed = parse_direct_recovered("'[@A]");
+        assert!(matches!(malformed.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+                && record.site.range == (2..3)
+                && record.kind == RecoveryKind::Error));
+        assert!(matches!(parse("'[@A]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. })
+            if matches!(items.as_slice(), [Recovered::Complete(_)])));
+
+        let eof = parse_direct_recovered("'[A,");
+        assert!(matches!(eof.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+                && item.site.range == (4..4)
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::EffectRowType,
+                    delimiter: Delimiter::Bracket,
+                })
+                && close.site.range == (4..4)));
+        assert!(matches!(parse("'[A,").primary, TypePrimary::EffectRow(EffectRowType {
+            ref items, close: Recovered::Incomplete, ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+
+        let mismatch = parse_direct_recovered("'[A)");
+        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::EffectRowType,
+            delimiter: Delimiter::Bracket,
+        }) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
+        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::EffectRowType,
+            delimiter: Delimiter::Bracket,
+        }) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+
+        let (remainder, records) = parse_direct_prefix_with_outer_stop("'[@)", StopKind::RightParenthesis);
+        assert_eq!(remainder, ")");
+        assert!(records.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+            && record.kind == RecoveryKind::Error));
+        assert!(records.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::EffectRowType,
+            delimiter: Delimiter::Bracket,
+        }) && record.kind == RecoveryKind::Missing));
     }
 
 }

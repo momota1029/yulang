@@ -509,6 +509,7 @@ pub(crate) enum TypeDelimitedOwner {
     Call,
     ParenthesizedGroup,
     NamedRecord,
+    EffectRow,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -698,6 +699,7 @@ pub(crate) enum ConstructRole {
     TypeCall,
     ParenthesizedTypeGroup,
     NamedRecordType,
+    EffectRowType,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -798,6 +800,8 @@ pub(crate) enum TypeRole {
     ForallBinderBoundary,
     ForallColon,
     ForallBody,
+    EffectRowItem,
+    EffectRowSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
