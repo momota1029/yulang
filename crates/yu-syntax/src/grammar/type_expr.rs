@@ -1161,12 +1161,19 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
     let (range, recovery) = scan_type_item_invalid_run_with(
         i,
         |i| forall_recovery_candidate(phase, i).is_some(),
         |i| forall_recovery_candidate_after_trivia(phase, i).is_some(),
         |i| forall_recovery_boundary_pending(phase, i),
-        |i| type_item_boundary_after_trivia(i, |i| forall_recovery_boundary_pending(phase, i)),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            |i| forall_recovery_boundary_pending(phase, i),
+        ),
     )?;
     let recovery = match recovery {
         TypeItemRecovery::Retry => forall_recovery_candidate(phase, i)
@@ -2737,12 +2744,17 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 fn scan_malformed_record_name_colon<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
+    let newline_policy = TypeMalformedNewlinePolicy::AnyPhysicalHandoff;
     let recovered = scan_type_item_invalid_run_with(
         i,
         exact_colon_pending,
         |_| false,
         record_colon_invalid_boundary_pending,
-        |i| type_item_boundary_after_trivia(i, record_colon_invalid_boundary_pending),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            record_colon_invalid_boundary_pending,
+        ),
     );
     let Some((range, TypeItemRecovery::Retry)) = recovered else {
         i.rollback(checkpoint);
@@ -2830,10 +2842,53 @@ fn is_operator_shaped_character(character: char) -> bool {
 fn consume_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { i.run(scan_trivia).expect("trivia scanning is total") }
 
+/// The five TMN-C outcomes for one maximal trivia run after malformed type
+/// input.  The scanner and its owner adapters must agree on this classifier
+/// before deciding whether the following token is a local retry or boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeMalformedTriviaClassification {
+    NoNewline,
+    CallerBoundary,
+    Handoff,
+    Boundary,
+    DeeperContinuation,
+}
+
+/// Classify one maximal trivia run.  Its callers probe the run under a
+/// checkpoint, so this comparison stays state-neutral.
+fn classify_type_malformed_trivia<E>(
+    i: &SynIn<E>,
+    trivia: &TriviaRun,
+    policy: TypeMalformedNewlinePolicy,
+) -> TypeMalformedTriviaClassification
+where
+    E: ErrorSink<usize>,
+{
+    if !trivia_has_newline(trivia) {
+        TypeMalformedTriviaClassification::NoNewline
+    } else if active_stop_set(i).contains(StopKind::Newline) {
+        TypeMalformedTriviaClassification::CallerBoundary
+    } else {
+        match policy {
+            TypeMalformedNewlinePolicy::AnyPhysicalHandoff => {
+                TypeMalformedTriviaClassification::Handoff
+            }
+            TypeMalformedNewlinePolicy::ContinuationQualified { continuation_base } => {
+                if continues_after_newline(i, trivia, continuation_base) {
+                    TypeMalformedTriviaClassification::DeeperContinuation
+                } else {
+                    TypeMalformedTriviaClassification::Boundary
+                }
+            }
+        }
+    }
+}
+
 /// Test whether trivia after malformed input leads straight to a boundary
 /// without assigning that trivia to the malformed Error range.
-pub(super) fn type_item_boundary_after_trivia<E>(
+fn type_item_boundary_after_trivia_with_policy<E>(
     i: &mut SynIn<E>,
+    policy: TypeMalformedNewlinePolicy,
     boundary: impl FnOnce(&mut SynIn<E>) -> bool,
 ) -> bool
 where
@@ -2843,10 +2898,35 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
-    let boundary = !trivia.is_empty()
-        && (trivia_has_newline(&trivia) || boundary(i));
+    let classification = classify_type_malformed_trivia(i, &trivia, policy);
+    let boundary = match classification {
+        TypeMalformedTriviaClassification::NoNewline => !trivia.is_empty() && boundary(i),
+        TypeMalformedTriviaClassification::CallerBoundary
+        | TypeMalformedTriviaClassification::Handoff
+        | TypeMalformedTriviaClassification::Boundary => true,
+        TypeMalformedTriviaClassification::DeeperContinuation => false,
+    };
     i.rollback(checkpoint);
     boundary
+}
+
+/// Compatibility shim for polymorphic variants until their existing shared
+/// scanner call is made explicit in the dedicated AnyPhysicalHandoff slice.
+/// This is intentionally not a generic default policy.
+pub(super) fn type_item_boundary_after_trivia<E>(
+    i: &mut SynIn<E>,
+    boundary: impl FnOnce(&mut SynIn<E>) -> bool,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    type_item_boundary_after_trivia_with_policy(
+        i,
+        TypeMalformedNewlinePolicy::AnyPhysicalHandoff,
+        boundary,
+    )
 }
 
 fn consume_direct_trivia<'parse, 'source, 'local, E, O>(
@@ -2994,12 +3074,19 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
     scan_type_item_invalid_run_with(
         i,
         direct_type_primary_candidate,
         |_| false,
         type_recovery_boundary_pending,
-        |i| type_item_boundary_after_trivia(i, type_recovery_boundary_pending),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            type_recovery_boundary_pending,
+        ),
     )
 }
 
@@ -3026,6 +3113,19 @@ where
     let start = i.pos();
     let mut end = start;
     loop {
+        if end == start {
+            // TMN-S starts only after a non-empty malformed prefix.  Before
+            // that point, a maximal trivia run containing a newline belongs
+            // to the slot's normal missing/boundary handling rather than to a
+            // synthetic Error run.
+            let checkpoint = i.checkpoint();
+            let trivia = consume_trivia(i);
+            let starts_at_physical_newline = trivia_has_newline(&trivia);
+            i.rollback(checkpoint);
+            if starts_at_physical_newline {
+                return None;
+            }
+        }
         if end > start {
             if candidate(i) || candidate_after_trivia(i) {
                 return Some((start..end, TypeItemRecovery::Retry));
@@ -3034,9 +3134,7 @@ where
                 return Some((start..end, TypeItemRecovery::Boundary));
             }
         }
-        if boundary(i)
-            || matches!(i.input.remainder().chars().next(), Some('\n' | '\r'))
-        {
+        if boundary(i) {
             return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
         }
         // A comment may be malformed content, but it must remain one opaque
@@ -3257,12 +3355,19 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
     scan_type_item_invalid_run_with(
         i,
         type_name_pending,
         |_| false,
         type_path_invalid_boundary_pending,
-        |i| type_item_boundary_after_trivia(i, type_path_invalid_boundary_pending),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            type_path_invalid_boundary_pending,
+        ),
     )
     .map(|(range, _)| range)
 }
@@ -3276,23 +3381,37 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
     scan_type_item_invalid_run_with(
         i,
         record_field_head_candidate,
         record_field_head_candidate_after_trivia,
         record_invalid_boundary_pending,
-        |i| type_item_boundary_after_trivia(i, record_invalid_boundary_pending),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            record_invalid_boundary_pending,
+        ),
     )
 }
 
 fn consume_record_colon_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
     scan_type_item_invalid_run_with(
         i,
         |i| exact_colon_pending(i) || type_primary_candidate(i),
         |_| false,
         record_colon_invalid_boundary_pending,
-        |i| type_item_boundary_after_trivia(i, record_colon_invalid_boundary_pending),
+        |i| type_item_boundary_after_trivia_with_policy(
+            i,
+            newline_policy,
+            record_colon_invalid_boundary_pending,
+        ),
     )
     .map(|(range, _)| range)
 }
@@ -3315,7 +3434,9 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 fn type_path_invalid_boundary_pending<E>(i: &mut SynIn<E>) -> bool
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    matches!(i.input.remainder().chars().next(), Some(character) if character.is_whitespace() || character == ':')
+    matches!(i.input.remainder().chars().next(), Some(character) if (
+        character.is_whitespace() && !matches!(character, '\n' | '\r')
+    ) || character == ':')
         || type_recovery_boundary_pending(i)
 }
 
@@ -3404,7 +3525,9 @@ where
 
 fn record_colon_invalid_boundary_pending<E>(i: &mut SynIn<E>) -> bool
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    matches!(i.input.remainder().chars().next(), Some(character) if character.is_whitespace())
+    matches!(i.input.remainder().chars().next(), Some(character) if (
+        character.is_whitespace() && !matches!(character, '\n' | '\r')
+    ))
         || record_comma_pending(i)
         || record_owner_boundary_pending(i)
 }
