@@ -3109,6 +3109,14 @@ mod tests {
         assert!(comma.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
             && record.kind == RecoveryKind::Error && record.site.range == (6..7)));
         assert!(matches!(parse("for 'a, 'b: T").primary, TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2));
+
+        let (remainder, outer_comma) = parse_direct_prefix_with_outer_stop("for 'a, T", StopKind::Comma);
+        assert_eq!(remainder, ", T");
+        assert!(matches!(outer_comma.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
+                && record.kind == RecoveryKind::Missing && record.site.range == (6..6)));
+        let (newline_remainder, _) = parse_prefix("for 'a\nT");
+        assert_eq!(newline_remainder, "\nT");
     }
 
 }
