@@ -816,6 +816,10 @@ where
         delimiter: spec.delimiter,
     };
     let expected = ExpectedSyntax::Punctuation(PunctuationEvidence::Close(spec.delimiter));
+    if context.with_input(type_malformed_caller_boundary_pending) {
+        context.emit_missing_close(role, expected);
+        return Recovered::Incomplete;
+    }
     let mut saw_mismatch = false;
     loop {
         if let Some(trivia) = context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i)) {
@@ -2014,17 +2018,15 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
         }
         break;
     }
-    if !caller_owned_boundary {
-        let _ = drive_type_close_slot(
-            &mut DirectTypeCloseContext { committed },
-            CloseRecoverySpec {
-                delimiter: Delimiter::Brace,
-                owner: ConstructRole::NamedRecordType,
-                matching_kind: SyntaxKind::RBrace,
-                missing_after_mismatch: MissingAfterMismatch::Emit,
-            },
-        );
-    }
+    let _ = drive_type_close_slot(
+        &mut DirectTypeCloseContext { committed },
+        CloseRecoverySpec {
+            delimiter: Delimiter::Brace,
+            owner: ConstructRole::NamedRecordType,
+            matching_kind: SyntaxKind::RBrace,
+            missing_after_mismatch: MissingAfterMismatch::Emit,
+        },
+    );
     committed.probe(|probe| {
         pop_layout(layout, probe.input());
         assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
@@ -2721,19 +2723,15 @@ where
             _ => break,
         }
     }
-    let close = if caller_owned_boundary {
-        Recovered::Incomplete
-    } else {
-        drive_type_close_slot(
-            i,
-            CloseRecoverySpec {
-                delimiter: Delimiter::Brace,
-                owner: ConstructRole::NamedRecordType,
-                matching_kind: SyntaxKind::RBrace,
-                missing_after_mismatch: MissingAfterMismatch::Emit,
-            },
-        )
-    };
+    let close = drive_type_close_slot(
+        i,
+        CloseRecoverySpec {
+            delimiter: Delimiter::Brace,
+            owner: ConstructRole::NamedRecordType,
+            matching_kind: SyntaxKind::RBrace,
+            missing_after_mismatch: MissingAfterMismatch::Emit,
+        },
+    );
     pop_layout(layout, i);
     assert_eq!(i.local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
     assert_eq!(i.local.pop_stop_set(), Some(stops));
@@ -5774,10 +5772,16 @@ mod tests {
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  a:A}");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(matches!(recoveries.as_slice(), [error, missing]
             if error.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (1..2)), "{recoveries:#?}");
+                && error.site.range == (1..2)
+                && missing.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                }
+                && missing.kind == RecoveryKind::Missing
+                && missing.site.range == (2..2)), "{recoveries:#?}");
     }
 
     #[test]
@@ -5794,10 +5798,16 @@ mod tests {
         let (remainder, recoveries) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  b:B}");
-        assert!(matches!(recoveries.as_slice(), [error]
+        assert!(matches!(recoveries.as_slice(), [error, missing]
             if error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && error.kind == RecoveryKind::Error
-                && error.site.range == (3..4)), "{recoveries:#?}");
+                && error.site.range == (3..4)
+                && missing.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::NamedRecordType,
+                    delimiter: Delimiter::Brace,
+                }
+                && missing.kind == RecoveryKind::Missing
+                && missing.site.range == (4..4)), "{recoveries:#?}");
     }
 
     #[test]
