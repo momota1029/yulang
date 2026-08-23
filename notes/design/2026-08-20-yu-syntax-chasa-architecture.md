@@ -16858,3 +16858,541 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-24、TypeExpression malformed recovery newline owner policy追補案）。
+
+## 追補案: TypeExpression malformed caller boundaryのpositional fence
+
+Status: Authoritative（ユーザ承認済み、2026-08-24）。
+
+Date: 2026-08-24。
+
+### Scope and relation to the authoritative TMN policy
+
+本追補案は、直前のAuthoritativeな`TMN-C` / `TMN-S`が定める
+「active `StopKind::Newline` ownerへ返したmaximal trivia runをTypeExpression malformed recoveryが
+crossしない」というbehaviorを変更しない。変更するのは、そのdecisionをarbitrary-depthのenclosing
+TypeExpression ownerへ伝えるRust-level mechanismだけである。
+
+current HEAD `a0365f98`は`TypeInvalidRunRecovery::caller_owned_boundary: bool`を持ち、delimited item、
+NamedRecord whole-field、field-colonなど既知のimmediate adapterへ手でthreadする。しかしTypeExpression primary、
+postfix、arrow RHS、forall body、record field RHS、delimited itemはrecursiveにnestでき、bare AST valueまたは
+direct parse successへ戻るhopではこのboolを型上保持しない。三回のindependent reviewが別々のleakを見つけたことから、
+known callerの列挙へさらにboolを足す方式はmechanismとして閉じていない。
+
+本追補案のcanonical replacementは、`TMN-CallerBoundary`が確定した**exact untouched trivia-start byte**を
+rollback-owned `ParseLocal`へone positional fenceとしてrecordし、trivia consumption、owner classifier、close-slotの
+各decision pointがcurrent cursorでそのfenceをlocalに再確認する方式である。boundary factはfunction return valueを
+通らずinput stateと一緒にancestorへ残るため、nesting depthやconstruct combinationを列挙しない。
+
+surface grammar、recovery role、continuation-base selection、`TMN-P` policy map、`TypeInvalidRunDisposition`、CST byte ownershipは
+変更しない。Missing cardinalityはcurrent ad hoc boolの観測結果ではなく、既存Authoritative recovery tableへ合わせる。特に
+NamedRecordのactive owner boundary closeは同tableどおりone Missingを持つ。新しいpublic parser option、StopKind、Pattern専用scannerは
+追加しない。
+
+### Exhaustive current transition inventory
+
+以下のline numberは、別fileを明記したrowを除きcurrent HEAD `a0365f98`の
+`crates/yu-syntax/src/grammar/type_expr.rs`である。
+既存bool guardの有無ではなく、child parse / recovery後にowner stateを進め得るsource positionから再抽出した。
+
+#### A: committed trivia consumption after child success / recovery
+
+| owner path | current consumption sites | preceding result |
+| --- | --- | --- |
+| shared Call / Parenthesized / EffectRow recovery target | `1595`, `1601`, `1607`, `1613`, `1619`, `1625` | `classify_type_delimited_recovery` result |
+| shared Call / Parenthesized / EffectRow normal item success | `1634` | bare `context.parse_item() == true`; nested child recovery statusなし |
+| direct NamedRecord post-semicolon transition | `1851`, `1857`, `1862` | `classify_named_record_recovery` result |
+| direct NamedRecord whole-field recovery transition | `1925`, `1930`, `1949`, `1954`, `1959` | `scan_record_invalid_run` disposition + classifier result |
+| direct NamedRecord normal field success | `1973` | `commit_direct_type_record_field` success; field RHS内のnested statusをbare successがerase可能 |
+| direct NamedRecord field-colon owner transition | `2111` | `consume_record_colon_invalid_run`後のfield-internal gap |
+| AST NamedRecord post-semicolon transition | `2589`, `2594`, `2599`, `2603` | `classify_named_record_recovery` result |
+| AST NamedRecord whole-field recovery transition | `2657`, `2661`, `2663`, `2667`, `2671` | `recover_record_item_for_ast` disposition + classifier result |
+| AST NamedRecord normal field success | `2679` | `parse_type_record_field` success; field RHS内のnested statusをbare valueがerase可能 |
+| AST NamedRecord field-colon owner transition | `2775` | `consume_record_colon_invalid_run`後のfield-internal gap |
+
+`RetryAfterTrivia`を直接matchしてconsumeする`395`, `476`, `530`, `597`, `1044`, `1103`, `1152`, `1157`,
+`1241`, `1563`, `1907`, `2086`, `2127`, `2257`, `2266`, `2317`, `2325`, `2372`, `2427`, `2516`,
+`2643`, `2753`, `2788`, `2925`は本表へ含めない。`TMN-S`上、`RetryAfterTrivia`は
+`TMN-CallerBoundary`とmutually exclusiveであり、attached exact `TriviaRun`をsame slotがconsumeする明示的な
+outcome checkだからである。
+
+opening trivia (`1520`, `1840`, `2578`)とseparator-owned trailing trivia (`1536`, `1638`, `1873`, `1977`,
+`2611`, `2681`)も、accepted opener / separatorのordinary ownershipでありchild malformed-boundary handoffではない。
+
+#### B: owner-transition classifier handoff
+
+| classifier family | current call sites |
+| --- | --- |
+| shared delimited item recovery | `1569`, `1584` |
+| direct NamedRecord post-semicolon / whole-field recovery | `1848`, `1911`, `1920` |
+| AST NamedRecord post-semicolon / whole-field recovery | `2587`, `2646`, `2652` |
+
+`forall_recovery_candidate`の`1365` / `1371`はreview対象に含めたが、本表のunguarded handoffではない。
+current codeは`RetryCurrent` / `RetryAfterTrivia`だけでcandidateを呼び、boundary dispositionsは`1376-1378`で
+`ForallInvalidRecovery::Boundary`へ閉じる。positional fenceはforall returnを越えてparentへ残るため、このlocal
+candidate resultへ新しいboolを足さない。
+
+`classify_type_delimited_recovery`内部の`941`はcheckpoint下のstate-neutral probeであり、それ自体はbytesをcommitしない。
+commit siteはA表に列挙したowner armsである。
+
+#### C: item sequence後のclose-slot drive
+
+| sequence | current call site |
+| --- | --- |
+| shared Call / Parenthesized / EffectRow | `1672` |
+| direct NamedRecord | `2002` |
+| AST NamedRecord | `2706` |
+| AST / direct shared polymorphic variant | `type_expr/polymorphic_variant.rs:370` |
+
+`drive_type_close_slot`内部の`consume_trivia_before_local_close` (`841-868`)はすでにactive Newlineを
+`851-856`でstate-neutrallyrejectする。しかしcall siteは「どのitemかそのdescendantがmalformed caller boundaryを
+hitした」というprovenanceを知らないため、本追補ではclose entryでもfenceを確認する。
+
+normal `TypeExpression` tailの`272-277`とdirect counterpartの`646-651`は、maximal triviaをprobeしてactive Newlineなら
+rollbackするexisting safe pathである。これらはcommit leakではなく、fenceを持つnested TypeExpressionがcursorを動かさず
+parent sequenceへreturnできるinduction stepとして保持する。
+
+### Structural root cause
+
+必要なfactは「immediate scannerがCallerBoundaryを返した」ではなく、
+「current subtree内のどこかでTMN-CallerBoundaryが確定し、current cursorにあるuntouched maximal trivia runを
+enclosing callerへ返している」である。このfactのlifetimeはone adapter callではなく、boundary triviaをownする
+outer grammarが実際にcursorを進めるまでである。
+
+current boolは次の各hopでtypeから消える。
+
+- `direct_required_type_item_error_retry` (`3823-3847`)はstructured resultを
+  `Option<TypeInvalidRunDisposition>`へeraseする。NamedRecord field RHS (`2115-2137`)がそのdirect leakである。
+- AST field RHS (`2782-2796`)は`recover_required_type_item_for_ast`から`.disposition`だけを取り出す。
+- `ForallInvalidRunRecovery`、Path / Arrow tail、bare `TypeExpression`、delimited AST/direct contextのsuccess typeは
+  descendant caller-boundary factを持たない。
+- shared delimited driver自身がcurrent item scannerのboolを見ても、driver returnはclose resultだけなので、
+  enclosing delimited sequenceへfactを返さない。
+- NamedRecord whole-field / field-colonはone levelだけwrapperへboolを足したが、NamedRecord primaryからさらにouter
+  Call / group / rowへ戻るhopで再び消える。
+
+したがってreturn-value propagationを続ける限り、全recursive helperと全AST/direct success typeへfactをthreadし、
+new construct / new nesting edgeごとに全hopを再監査する必要がある。一箇所のbare successへのeraseで同じbugが再発する。
+
+なおcurrent scannerにはpropagation以前のproducer gapもある。malformed prefix直後がraw `\n` / `\r`の場合、
+`3607`または`3686`のstep-1 `boundary(i)`が`TMN-C` probeより先にreturnし、
+`caller_owned_boundary: false`になる。一方`type_malformed_same_line_trivia_pending`は、horizontal triviaから始まるmaximal runに
+newlineがあればcaller supplied same-line boundaryをdeferし、`CallerBoundary`だけでなく`Handoff` / `Boundary` /
+`DeeperContinuation`もfull `TMN-C`へ到達させる。このa0365f98 fixのorderingを消してactive-Newlineだけspecial caseにすると、
+たとえばactive Newlineなしの`A::@ \n  B`がspace位置のPath boundaryへshort-circuitして再び壊れる。fence implementationは
+raw / horizontal-prefixの双方をone full maximal-trivia `TMN-C` decisionへnormalizeし、このhelperのbehavior全体を
+classifier-first orderingへsubsumする。
+
+### Why a pure local active-stop recheck is insufficient
+
+次だけをconsumption pointで調べるpure local guardは採用しない。
+
+```text
+active_stop_set(i) contains Newline
+and upcoming maximal trivia contains a physical newline
+```
+
+accepted delimiter内のordinary multiline layoutでも同じconditionが成立し得る。たとえばactive Newline scopeで
+normal child `A`がreturnした`T(A\n  B)`はshared sequenceの`1634`でこのconditionを満たすが、malformed recoveryは
+発生していない。current delimiter / layout contractはこのgapをlocal sequence transitionとして処理する。
+opening newline、explicit separator後newline、normal deeper continuationも同じfalse-positive axisを持つ。
+
+guardをrecovery armsだけへ限定するとfalse positiveは避けられるが、`T((@ \n  A))`のouter Callではinner
+Parenthesized parseがbare successとしてreturnするため`1634`はnormal-success armに見える。そこをguardしなければoriginal
+nested leakが残る。従ってcurrent cursorとactive stopだけでは、ordinary child terminationとdescendant malformed
+boundary terminationを区別できない。one bitのprovenanceは必要だが、return treeではなくcursor stateへattachする。
+
+### Canonical positional fence
+
+`ParseLocal`へrollback-owned scalarを一つ追加する。canonical conceptual shapeは次である。
+
+```rust
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct TypeMalformedCallerBoundaryFence {
+    trivia_start: usize,
+}
+
+// ParseLocal field
+type_malformed_caller_boundary: Option<TypeMalformedCallerBoundaryFence>
+```
+
+`ParseLocal::new`は`None`、`ParseLocalCheckpoint`はexact `Option`をcopyし、rollbackはcheckpoint valueをrestoreする。
+stackにはしない。同時にcurrent cursorへpendingになり得るcaller-owned malformed boundaryはone positionだけであり、later markは
+older inert positionをreplaceできる。
+
+producer APIは次のprivate function equivalentとする。
+
+```rust
+fn mark_type_malformed_caller_boundary<E>(i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    i.local.set_type_malformed_caller_boundary(Some(
+        TypeMalformedCallerBoundaryFence { trivia_start: i.pos() },
+    ));
+}
+```
+
+consumer guardのcanonical signature / logicは次である。
+
+```rust
+fn type_malformed_caller_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let at = i.pos();
+    if i.local.type_malformed_caller_boundary()
+        != Some(TypeMalformedCallerBoundaryFence { trivia_start: at })
+    {
+        return false;
+    }
+
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let pending = trivia_has_newline(&trivia)
+        && active_stop_set(i).contains(StopKind::Newline);
+    i.rollback(checkpoint);
+    debug_assert!(pending, "a malformed caller-boundary fence must name its untouched trivia run");
+    pending
+}
+```
+
+normal hot pathはone `Option<usize>` equalityでfalseになるためtriviaを再scanしない。fence-hit pathだけmaximal triviaを
+state-neutrally再probeする。guardはfenceをclearしない。outer ownerがtriviaをconsumeするとcursorが
+`trivia_start`から進むためold fenceは自動的にinertになる。input rollback時はfenceも同checkpointへ戻る。
+
+fenceのinvariantは次で尽きる。
+
+1. fenceはcommitted `TMN-CallerBoundary` decisionだけがmarkする。ordinary active newline、`TMN-Boundary`、
+   `TMN-Handoff`、`TMN-DeeperContinuation`はmarkしない。
+2. mark positionは`error_range.end`かつuntouched maximal trivia runのstartである。
+3. fence pending中、TypeExpression側はそのtriviaの一部もboundary後tokenもconsumeしない。stack pop、CST node finish、
+   diagnostic emissionはcursorを動かさないため許可する。
+4. speculative scanner / malformed-name probeがouter checkpointへrollbackすればfenceも消える。outer ownerが同じmalformed
+   bytesをcommitしてCallerBoundaryへ達した場合だけmarkが残る。
+
+### Producer normalization
+
+structured scanner `scan_type_item_invalid_run_with_disposition`は、non-empty malformed prefix後、caller supplied
+same-line boundary predicateをconsultする**前**にcurrent positionからone maximal trivia runをstate-neutrallyprobeし、必ずfull
+`TMN-C`へ送る。これはactive-Newlineだけのspecial caseではない。raw newline、horizontal whitespace / comment prefix後のnewlineを
+同じrunとして扱い、五outcomeを次のorderでrealizeする。
+
+```text
+probe maximal trivia; outcome := TMN-C(run, policy, active stops)
+
+match outcome:
+  CallerBoundary:
+    rollback to trivia_start; mark fence there; return BoundaryCurrent
+  Handoff | Boundary:
+    rollback to trivia_start; return BoundaryCurrent
+  DeeperContinuation:
+    probe after the same run in owner-boundary -> hard-handoff -> retry-candidate order
+    if owner boundary: rollback; return BoundaryAfterTrivia(run)
+    if hard handoff:   rollback; return BoundaryAfterTrivia(run) to the outer phase
+    if retry candidate: rollback; return RetryAfterTrivia(run)
+    otherwise: commit that probed run into the continuing malformed scan
+               without consulting the current-position same-line boundary predicate
+  NoNewline:
+    rollback; only now consult the current-position same-line boundary predicate,
+    then the established current/same-line retry checks
+```
+
+従って`CallerBoundary`だけがfenceをmarkするが、`Handoff` / `Boundary` / `DeeperContinuation`もsame-line predicateより先に
+classificationを完了する。とくに`DeeperContinuation`のpost-run candidateは、run startのhorizontal whitespaceを
+`type_path_invalid_boundary_pending`や`record_invalid_boundary_pending`へ先に見せない。`NoNewline`だけがcurrent-positionの
+same-line predicateへ進み、従来のsame-line whitespace / Colon / comma / close orderingを保持する。triviaがemptyの場合も
+`NoNewline`なのでordinary step-1 boundary / retry orderは変わらない。
+
+このfull routingが`3607` / `3686`双方のpre-boundary / loop-bottom checkを置き換える。よって
+`type_malformed_same_line_trivia_pending`のunderlying logicは別helperとして残す必要がなく、classifier-first control flowへ完全に
+subsumした後に削除する。単にhelperを削除して`CallerBoundary` armだけを前へ移す実装はconformantではない。
+`TypeInvalidRunRecovery`へboolは格納しない。
+
+legacy shared scanner `scan_type_item_invalid_run_with`を使うpolymorphic variant / malformed record-name pathにも例外を作らない。
+its newline-aware candidate / boundary-after-trivia probeはcaller supplied current-position `boundary(i)`より先にfull `TMN-C`を実行する。
+`type_item_boundary_after_trivia_with_policy`が`TypeMalformedTriviaClassification::CallerBoundary`を得たときだけ、trivia probeを
+rollbackした後にfenceをmarkして`true`を返す。`Handoff` / `Boundary`はmarkせずboundaryへ、`DeeperContinuation`はmarkせず
+existing after-trivia pathへ進む。malformed record-name skeletonがits outer checkpointへrollbackする場合はmarkもrollbackされ、
+candidate-complete whole-field scannerが必要ならsame sourceを再classifyする。
+
+### Consumer application map
+
+`DelimitedRecoveryTarget`へ`CallerOwnedMalformedBoundary`を追加する。
+`classify_type_delimited_recovery`はtrivia probeより前にcanonical guardを呼び、pendingならこのtargetを返す。
+`classify_named_record_recovery`はsame classifierをdelegateするためsecond guardを持たない。A/B inventoryにある全matchは
+new targetをexhaustivelyhandleし、trivia / separator / closeをconsumeせずloopをyieldする。
+
+close diagnosticはconstruct別static policyにしない。already-AuthoritativeなNamedRecord sequence recovery tableの
+`missing } at EOF / active owner boundary` row（本書`13281`付近）は
+zero-width `Missing(ClosingDelimiter(NamedRecordType))`を要求し、caller-boundaryだけを除外していない。current a0365f98の
+NamedRecord bool accumulatorがshallow hitでclose driveをskipするbehaviorはこのrowに反し、deep hitではboolが届かずMissingを
+emitするため、intentionalなdepth policyでもない。本追補はoption (a)としてAuthoritative tableへconformさせる。
+
+caller-boundary yield時はCall / Parenthesized / EffectRow / NamedRecord / polymorphic variantの**accepted construct instanceごと**に、
+its own unclosed delimiter slotのzero-width Missingをexactly once emitする。全owner kindが同じruleなので`MalformedCallerBoundaryClosePolicy` enumも
+`CloseRecoverySpec` fieldも追加しない。`drive_type_close_slot`はrole / expectedを作った直後、trivia probeより前にcanonical guardを
+一度呼び、pendingならexisting `emit_missing_close`を一度呼んで`Recovered::Incomplete`をreturnする。descendant recovery factを
+return typeへthreadするfieldは不要である。
+
+guard applicationは次のsingle mapとする。
+
+| inventory surface | required application |
+| --- | --- |
+| A `1595-1625` | preceding shared classifierが`CallerOwnedMalformedBoundary`を返す。new armはcurrent malformed item realizationだけをfinishしてbreakし、A armへ入らない |
+| A `1634` | `context.parse_item()` success直後、`consume_trivia`前にguard。pendingならbreak |
+| A `1851-1862`, `1925-1959` | preceding NamedRecord classifierのnew target armでbreakし、A armへ入らない |
+| A `1973` | `commit_direct_type_record_field` success直後、raw trivia consume前にguard。pendingならbreak |
+| A `2111` | `consume_type_chain_trivia` entryがguard pendingなら`None`を返す。current bool conditionalは削除 |
+| A `2589-2603`, `2657-2671` | preceding NamedRecord classifierのnew target armでbreakし、A armへ入らない |
+| A `2679` | `parse_type_record_field` success直後、raw trivia consume前にguard。pendingならbreak |
+| A `2775` | guarded `consume_type_chain_trivia`がpendingなら`None`を返す。current bool conditionalは削除 |
+| B all eight sites | central classifier early guard + exhaustive new target arm。call-site-specific bool precheckは置かない |
+| C `1672`, `2002`, `2706` | three sitesとも`drive_type_close_slot`をunconditionalに呼ぶ。central entry guardがone Missingをemitし、trivia / close tokenをprobeせず`Recovered::Incomplete`をrealizeする |
+| C `type_expr/polymorphic_variant.rs:370` | `closed == false`のclose-drive siteはsame shared `drive_type_close_slot`を通る。caller-boundary時にactual closeは未消費なのでこのguardへ到達し、別variant-specific guardなしでone Missingをemitする |
+
+`consume_type_chain_trivia`のguardはpositional fenceがexact current cursorにある場合だけ働くため、normal path / arrow、
+field name-to-colon、ordinary deeper continuationを変更しない。raw `consume_trivia`全体へguardを入れてはならない。
+delimiter opening / separator-owned triviaなど、malformed boundary fenceがないordinary active newlineを正当にconsumeするsiteまで
+globalに止めるためである。
+
+C sitesのclose cardinalityはdepthに依存させない。cardinality unitはits own unclosed delimiter slotを持つaccepted construct
+instanceであり、owner roleではない。shallow hitはcurrent instanceのclose Missingをone、deep hitはfenceを見てyieldする各enclosing
+accepted instanceがits own distinct close Missingをoneずつrealizeする。同じinstanceがsame fenceから二件emitしてはならない一方、
+別instanceのroleとrangeが一致しても一件へdeduplicateしない。NamedRecordもこのuniform ruleへ入り、Authoritative row
+`missing } at EOF / active owner boundary`と一致する。fenceは「consume / classifyしてよいか」を答え、central close entryが
+per-accepted-construct-instance Missing cardinalityを保持する。
+runtime descendant boolをreturn typeへthreadしてはならない。
+
+### Removal of current bool threading
+
+positional fenceはcurrent `caller_owned_boundary` mechanismをcomplementせず、完全にreplaceする。実装時は次を削除する。
+
+- `TypeInvalidRunRecovery::caller_owned_boundary`と全constructor field。
+- `DirectTypeRecordFieldCommit` wrapperとits bool。`commit_direct_type_record_field`はoriginal recognition success shapeへ戻す。
+- `ParsedTypeRecordField` wrapperとits bool。`parse_type_record_field`は`Option<TypeRecordField>`へ戻す。
+- direct / AST NamedRecord sequenceの`caller_owned_boundary` accumulator。
+- delimited、NamedRecord whole-field、field-colonのcall-site-specific bool destructuring / debug assertions。
+- `type_malformed_same_line_trivia_pending`。ただしFinding 1で固定したfull `TMN-C`-before-same-line-boundary orderingへ
+  underlying defer behaviorを移してから削除し、active-Newline armだけで代用しない。
+
+`direct_required_type_item_error_retry -> Option<TypeInvalidRunDisposition>`と
+AST `.map(|recovery| recovery.disposition)`は、fenceがrollback-owned cursor stateへ残るためboundary provenanceを失わない。
+従ってdisposition APIを再びwrapperへ拡張しない。`TypeInvalidRunDisposition`はretry / trivia ownershipを表すexisting roleだけを保つ。
+NamedRecord sequenceはaccumulator removal後もclose driveをskipせず、Callその他と同じくunconditionalに
+`drive_type_close_slot`へ到達させる。caller-boundary guardがone MissingをemitしてIncompleteを返すことが、Authoritative close rowの
+realizationである。
+
+### Worked traces and false-positive check
+
+#### `T((@ \n  A))` under active `StopKind::Newline`
+
+1. inner Parenthesized item scannerが`@`をError rangeとしてconsumeし、following space + newline + indentを
+   `TMN-CallerBoundary`にclassifyする。cursorを`@` endへrollbackし、そのbyteへfenceをmarkする。
+2. inner `classify_type_delimited_recovery`はfenceをlocalに見て`CallerOwnedMalformedBoundary`を返す。triviaをconsumeせず
+   inner item loopをyieldする。
+3. inner close handlingはfenceを見てParenthesized close Missingをexactly one emitし、closeをIncompleteとしてrealizeする。
+   inputを動かさず、layout / stop / delimiter stackだけをpopする。
+4. inner Parenthesized primaryを含むnested `TypeExpression`のtail judgeはsame triviaをprobeするが、existing active-Newline checkで
+   rollbackしてbare successを返す。fence positionとcursorは変わらない。
+5. outer Callの`context.parse_item()`はnormal successに見えるが、`1634`前のguardがsame fenceを見てbreakする。
+   outer close handlingはCall close Missingをexactly one emitし、inputを動かさない。
+6. outermost TypeExpression tailもsame active-Newline checkでrollbackし、callerへwhole trivia runをuntouchedで返す。
+
+inner parseが何byteのvalid prefix、opener、malformed contentをconsumeしたかはguard resultへ影響しない。fenceは
+「subtree start」ではなくTMN-Sが保証するcurrent `error_range.end == trivia_start`へ置かれ、CallerBoundary後に許される
+operationはcursor-neutralだから、各ancestor consumption pointのcursorは常にexact fence positionである。
+direct recovery cardinalityはinner Parenthesized close Missing one + outer Call close Missing oneであり、同じowner roleのduplicateはない。
+ASTではboth closeが`Recovered::Incomplete`となる。
+
+#### `A::@ \n  B` without active `StopKind::Newline`
+
+1. `@`後のspaceから始まるmaximal trivia runを、`type_path_invalid_boundary_pending`より先にfull `TMN-C`へ送る。
+2. active Newlineがなくnext indentがdeeperなので`TMN-DeeperContinuation`となる。run後の`B`はPathSegment retry candidateであり、
+   resultは`RetryAfterTrivia(run)`となる。
+3. fenceはmarkしない。same PathSegment slotがrunを一度consumeして`B`をretryし、`@`直後のspaceを
+   `BoundaryCurrent`へshort-circuitさせない。
+
+これはa0365f98の`type_malformed_same_line_trivia_pending`が守っていたorderingをfull classifierへ一般化したcaseである。
+`TMN-Handoff` / `TMN-Boundary`も同じくsame-line predicateより先に`BoundaryCurrent`を確定する。
+
+#### NamedRecord shallow / deep close cardinality
+
+- active Newline下のshallow `{@ \n  a:A}`はRecordField Error oneに加え、NamedRecord close Missingをexactly one emitする。
+  current shallow bool suppressionは保持しない。
+- active Newline下のdeep `{a: T(@ \n  A`ではinner CallがCall close Missingをone emitし、same fenceを受け取るouter
+  NamedRecordもNamedRecord close Missingをone emitする。NamedRecord Missingはshallow / deepの双方でexactly oneである。
+
+いずれもwhole maximal trivia runとboundary後tokenをuntouchedで返す。close cardinalityの統一はpositional fenceのmark / pending /
+rollback invariantを変更せず、already-AuthoritativeなNamedRecord close rowへcurrent implementationを合わせる。
+
+#### Normal active-newline path
+
+`T(A\n  B)`にmalformed recoveryがなければfenceは`None`である。outer sequenceの`1634` guardはO(1)でfalseとなり、
+existing layout classifierがnewlineをordinary local separator / continuationとして処理する。opening newline、comma後newline、
+valid deeper type continuationも同じである。active stop + newlineだけでは止めず、committed TMN-CallerBoundary provenanceが
+same cursorにある場合だけ止めるためfalse positiveはない。
+
+`T(@A\n  B)`のようにmalformed bytes後のsame-slot retryが成功した場合も、scanner resultは`RetryCurrent` / `RetryAfterTrivia`であり
+fenceをmarkしない。later ordinary newlineはexisting layout behaviorを保つ。
+
+### Implementation and review gates
+
+1. `ParseLocal` / `ParseLocalCheckpoint`へone positional fenceを追加し、new / checkpoint / rollback testでexact restoreを固定する。
+2. structured scannerのraw newlineとhorizontal-prefix newlineをone full `TMN-C` priorityへnormalizeする。ordering gateは次を
+   five outcomeそれぞれのliteral control-flow testとして固定する。
+   `probe maximal run -> TMN-C -> { CallerBoundary: mark+BoundaryCurrent; Handoff|Boundary: BoundaryCurrent;
+   DeeperContinuation: after-run boundary/handoff/candidate; NoNewline: caller same-line boundary }`。
+   `boundary(i)`のpre-check / loop-bottom checkはnewline-bearing runに先行せず、committed `TMN-CallerBoundary`だけがrollback後に
+   fenceをmarkする。`A::@ \n  B`はactive Newlineなしで`RetryAfterTrivia(run)`となり、run後の`B`をretryすることを
+   required regressionにする。
+3. legacy `type_item_boundary_after_trivia_with_policy`のCallerBoundary pathもsame markを使い、speculative outer rollbackで
+   fenceが消えることをtestする。
+4. canonical consumer guardはfence-position equalityを先に行い、normal hot pathでtriviaをscanしない。
+5. A/B/C mapをAST / direct両方へ適用し、`DelimitedRecoveryTarget`のnew variantを全matchでexhaustiveにhandleする。
+6. current `caller_owned_boundary` field / wrapper / accumulatorと`type_malformed_same_line_trivia_pending`を全削除し、identifier検索で
+   zero occurrenceをgateにする。後者はGate 2のorderingと全five-outcome fixtureがgreenになった後にだけ削除する。
+7. raw newlineとspace-prefix newlineのpairを全caller familyでfixture化する。少なくともmandatory Primary、Path、Arrow、forall、
+   Call / Parenthesized / EffectRow item、NamedRecord whole-field / field-colon / field RHS、polymorphic variantをAST / directでcoverする。
+8. nesting matrixはCall / Parenthesized / EffectRow / NamedRecordをinner / outer両軸に置き、depth 2だけでなく
+   `T((@ \n  A))`相当のthree-owner traceを含める。forall / Path / Arrow / variantをinner childにしたrowも持つ。direct recoveryは
+   shallow Call / NamedRecordでown close Missingがexactly one、deep `T((@ \n  A))`でParenthesized one + Call one、
+   deep `{a: T(@ \n  A`でCall one + NamedRecord oneであり、its own unclosed delimiter slotを持つaccepted construct instanceごとに
+   close Missingがexactly oneであることをassertする。同じinstanceからのduplicateだけを拒み、owner role単位ではdeduplicateしない。
+   active `StopKind::Newline`下のsame-kind nesting `((@ \n  A))`では、inner / outerのaccepted Parenthesized group instanceがそれぞれ
+   close Missingをone emitする。両recordのroleがともに`GrammarRole::ClosingDelimiter { owner: ConstructRole::ParenthesizedTypeGroup,
+   delimiter: Delimiter::Parenthesis }`、zero-width rangeがともに`3..3`でも、正しいcardinalityは合計twoである。
+9. each active-Newline fixtureはremainderがspace/commentを含むwhole maximal trivia runから始まり、boundary後candidate / closeを
+   consumeしないこと、Error rangeがnewline前で終わること、AST/direct cursorが一致することをassertする。ASTのshallow / deep
+   construct closeはdirect Missing cardinalityと同じowner集合で`Recovered::Incomplete`になることもassertする。
+10. false-positive fixtureとしてnormal active-Newline scopeのmultiline Call / group / EffectRow / NamedRecord、opening newline、
+    explicit separator後newline、malformed same-slot retry後のlater normal newlineを固定する。ordinary non-malformed multiline forall
+    （例: deeper newline後にvalid bodyを持つ`for 'a:\n  T`）とpolymorphic variant
+    （例: `:{\n  A Pair(Int)\n  B\n}`）も加え、fence未生成、spurious close Missingなし、existing trivia ownershipをassertする。
+11. existing `type_close_slot_leaves_caller_owned_newlines_unconsumed`、all TMN fixtures、polymorphic variant regression matrix、
+    same-line ranges、comment atomicity、NamedRecord以外のclose diagnosticsをbyte-for-byte greenに保つ。次のexisting fixtureの
+    direct-recovery-records assertionだけは、Authoritative rowへconformするためintentionalに更新する。
+    - `named_record_recovery_yields_an_active_newline_before_a_deeper_field`: ordered recordsを
+      `Error(Type::RecordField)` at `1..2`、`Missing(ClosingDelimiter { owner: NamedRecordType, delimiter: Brace })` at `2..2`とする。
+    - `named_record_field_colon_recovery_yields_an_active_newline`: ordered recordsを
+      `Error(Type::RecordFieldColon)` at `3..4`、`Missing(ClosingDelimiter { owner: NamedRecordType, delimiter: Brace })` at `4..4`とする。
+      AST側の`close: Recovered::Incomplete` expectationはすでにconformantなので変更しない。
+    両fixtureでdeep matrixと同じper-accepted-construct-instance cardinality ruleをassertする。
+12. fence pending中にcursorをadvanceするTypeExpression pathがないことをdebug assertionで局所確認し、CST再走査、global trivia guard、
+    public parse option、return-type bool propagationを追加しない。
+
+本追補はAuthoritative TMN addendumへのbehavioral amendmentではなく、そのimplementation mechanismをreplaceするreviewable designである。
+Claude reviewで確定後も、approved `TMN-C` / `TMN-S`本文は変更せず、本追補をimplementation authorityとして参照する。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-24、TypeExpression malformed caller-boundary positional fence追補案）。
+
+### 補足検討: rollback-and-return-None案の評価
+
+Status: positional fenceとの比較評価。ユーザ承認済み（2026-08-24）——fenceのParseLocal-scoped ambient state設計を維持する結論。
+
+結論からいうと、`None`単独はpositional fenceを置き換えない。直感どおりscanner直後のcontrol flowだけを見れば
+`BoundaryCurrent`を返すより短くできるsiteはある。しかし必要なfactはscannerのlocal dispositionではなく、
+「descendantでcommitted `TMN-CallerBoundary`が起き、current cursorのuntouched triviaをまだ誰もownしていない」
+というprovenanceである。bare `None`はこのfactを消すため、normal successへ戻るrecursive hopを越えられず、
+既存追補のfalse-positive問題を同じ位置に残す。
+
+#### chasa 0.5.0のfailure / cut vocabulary
+
+chasaのparser failureは`Option::None`である。`then` / sequenceは`?`でこれを返し、`choice` / `maybe` / `many`は
+checkpointと`IsCut` bitを組み合わせて、uncut failureだけをrollbackまたはoptional absenceへ変える。
+`IsCut::cut()`自体はstack unwindingを起こさない。**parserが同時に`None`を返した場合に**、囲むchasa combinatorが
+alternativeを試さず、its own checkpointへrollbackしないためのcommit bitである
+（chasa 0.5.0 `src/input/is_cut.rs`、`src/parser/choice.rs`、`src/parser/then.rs`、`src/parser/prim.rs`）。
+
+このvocabularyには、typed reasonを持ってarbitrary depthから特定ancestorへjumpし、そこでだけcatch / clearするprimitiveはない。
+`uncut`はfresh non-root bit内でparserを走らせるが、そのcut reasonをhandlerへ返さない。`capture_cut`はone explicit wrapperが
+`(out, bool)`を見るAPIであり、targeted exceptionではない。しかもcurrent `type_expr.rs`は対象flowで`choice` / `maybe` /
+`uncut` / `capture_cut`を使わず、手書きloopと`Option`、`Recovered::Incomplete`、bare `bool` successで構成される。
+従って`cut + None`を導入しても、各intermediateが`None`を`Recovered::Incomplete`やaccepted primaryへ変えた時点でunwindは止まる。
+全hopを`Result` / `ControlFlow`等へ変えて`?`で通すなら伝播できるが、それは全recursive return typeへsignalをthreadする案そのものである。
+
+direct-CSTにはさらに強い制約がある。`Probe`はinput / rollback-owned `ParseLocal` / speculative expectation sinkだけを持ち、
+committed recoveryやCSTをemitできない（`session.rs:598-625`）。typed `Error`はscannerが`error_range`を返した後、
+`Committed` adapterがemitする。`RowanSink`は意図的にparse-event buffer / rollbackを持たない
+（`sink.rs:1-6`）。従ってError nodeをemitした後、deep child全体をhard parser failureとしてancestorまで巻き戻す設計は、
+すでにemitしたnode / token / recovery recordを元に戻せず、current direct architectureと両立しない。
+chasa `ErrorSink`へfailure expectationを残すことも、typed `CommittedRecoveryRecord`とlossless Error CSTの代替にはならない。
+
+#### variant (a): malformed run開始前へrollbackしてbare `None`
+
+これはexisting「malformed prefixがまだzero byte」の`None`と完全に同じ意味になる。current scannerはdiagnosticをemitせず、
+direct adapterが`Some(TypeInvalidRunRecovery { error_range, .. })`を受けた後にだけErrorをcommitするため、rollbackして`None`なら
+malformed prefixのErrorは失われる。
+
+具体的にactive `StopKind::Newline`下の`x: @ \n  Int`で`@`開始前へ戻ると、Patternのmandatory direct entryは
+`direct_required_type_item_error_retry == None`を「malformed runなし」と解釈する（`type_expr.rs:587-606`）。そしてcurrent `@`
+位置へzero-width `Missing(Pattern::TypeAnnotation)`をemitする（`608-615`）。これは
+`Error(Type::Primary, "@")`とは原因、role、rangeのすべてが違う。`@`自体もannotationにownされずouter grammarへ残るため、
+後段が別roleのtrailing-input Errorにする可能性はあっても、同等のdiagnosticを保証しない。
+existing fixture `mandatory_type_recovery_yields_deeper_newlines_to_an_active_owner`が固定する
+「Error rangeは`@`、remainderは`@`後のwhole trivia run」というcontractにも反する。
+
+Call / group / EffectRowでは同じ`None`が`emit_incomplete_item`へ入り、NamedRecord whole-fieldではMissing fieldへ入る。
+Path / Arrow / forall / record field RHSも各`None` armがMissingを出す。つまりvariant (a)はboundaryを越えないことだけは
+malformed bytesをownerへ押し戻すことで達成するが、Error ownershipを失い、Missing cascadeとremainder位置を変える。
+これはdiagnostic quality上の実際のregressionであり、採用できない。
+
+#### variant (b): Errorをcommitしてerror endに留まり、dispositionだけ`None`
+
+bare `None`では「non-empty malformed runを報告済み」と「最初からmalformed candidateなし」を表現できない。
+current two-phase emissionのままならError rangeをadapterへ渡せないので、APIとして成立させるには最低でも
+`Some { error_range, disposition: None }`、別のambient state、またはscannerへcommitted output capabilityを渡す必要がある。
+最後の案はProbe / Committed分離を壊す。ここでは比較のため、何らかのside channelでErrorだけはすでにemitされ、cursorは
+`error_range.end`にあると仮定する。
+
+その仮定でも、existing callerは「Noneなら何もしない」contractになっていない。current HEAD `a0365f98`の同じA/B/C inventoryを
+辿ると次になる。
+
+| inventory surface | bare `None`を受けたcurrent flow | caller-boundary result |
+| --- | --- | --- |
+| mandatory Primary / Arrow RHS / field RHS / forall / Path immediate adapter | `None` armがMissingをemitするかIncompleteへ落とす（`606`, `537-539`, `2134-2136`, `1252-1254`, `490-492`） | Error後のsame-cause Missingを抑止できず、provenanceもparentへ返らない |
+| A `1595-1625` + B `1569`, `1584` shared delimited immediate recovery | whole recoveryが`None`なら`1546-1548`でMissing itemをemitしてbreakし、classifier armsには入らない | shallow byte movementは止まるが、desired `Error + close Missing`へitem Missingがcascadeする |
+| A `1634` shared normal item success | descendantの`None`はaccepted childのbare `true`へeraseされ、unconditional `consume_trivia`へ進む | deep Call / group / EffectRow nestingで同じnewlineをconsumeする |
+| A/B direct `1848-1862` / AST `2587-2604` NamedRecord post-semicolon | scanner resultを受けるsiteではなく、classifierを直接呼ぶ | surviving signalがないのでtrivia consumption / owner handoffを止めない |
+| A/B direct `1889-1963` / AST `2625-2673` NamedRecord whole-field | immediate `None`はMissing field + break（direct）またはIncomplete field + break（AST） | shallowでは止まるがdirectはError後にfield Missingがcascadeする。descendant caseはnormal field successへeraseされる |
+| A `1973` / `2679` NamedRecord normal field success | field RHS / nested primaryの`None`はfield success wrapperへ残らず、raw `consume_trivia`へ進む | deep boundaryを越える |
+| A `2111` / `2775` NamedRecord field-colon | scanner `None`はMissing-colon pathへ入り、`consume_type_chain_trivia`をguardなしで呼ぶ | `type_chain_trivia`はindentだけを見てactive Newlineを見ないため、deeper newlineをconsumeしてfield sequenceを再開する |
+| B all eight classifier sites | `classify_type_delimited_recovery` (`929-959`)とNamedRecord delegate (`4123-4139`)はactive stop provenanceを引数に持たない | `None`後に別pathから呼ばれれば、deeper layoutを`RetryPrimary`等へ再分類する |
+| C `1672`, `2002`, `2706`, polymorphic variant `370` | close helper自身はactive newline gapをrollbackできるが、loopがCへ来る前のA/B advancementを防がない | shallow close Missingには使えても、descendant boundaryの伝播機構にはならない |
+
+従ってvariant (b)をshallow scanner call siteごとに「Errorは報告済みなのでMissingなしでbreak」と実装すれば、いくつかの
+immediate branchは短くできる。しかしA `1634`, `1973`, `2679`のnormal-success hop、post-semicolon path、outer close instanceには
+何も届かない。これらまで`None`で止めるには、全accepted child / field / primaryのreturn typeへ
+「descendantがboundary-Noneで終わった」ことを再び載せる必要があり、current bool threadingと同じopen-ended inventoryになる。
+
+#### false-positive問題をsidestepするか
+
+sidestepしない。active Newline下の`T((@ \n  A))`でinner scannerがError後に`None`を返し、inner driverだけがbreakしても、
+inner Parenthesized primaryはIncomplete closeを含むaccepted valueとしてreturnし、nested `TypeExpression`もbare successになる。
+outer Callから見ると`context.parse_item() == true`であり、A `1634`のordinary `consume_trivia`へ進む。そこには
+「inner scannerのNone理由」が存在しない。
+
+outer siteで`active_stop_set(Newline) && upcoming trivia has newline`を再検査すると、malformed recoveryのない
+`T((A\n  B))` / `T(A\n  B)`も同じconditionを満たす。従って`None`後にownerがreasonを再導出することはできない。
+`None`が普通の「candidateなし」とcaller-boundary terminationをcollapseしたこと自体が、この区別を失わせる。
+何らかのfactがNone-producing callからsurviveしなければならない。
+
+#### hybridとrecommendation
+
+return側だけのsmall hybridとしては、`Option<Result<Disposition, CallerBoundary>>`、
+`ControlFlow<CallerBoundary, Option<Disposition>>`、または`Some { disposition: None }`が考えられる。これらはimmediate adapterでは
+bare `None`より正確だが、arbitrary-depth bare successを越えるには全intermediate signature / matchへ同じfactをthreadする必要がある。
+signalを一bitへ縮めてもstructural leakは縮まらない。
+
+`ParseLocal`にpositionなしのpending bitだけを置くhybridも可能だが、cursorがownerにより進んだ時のclearを全consumerへ手で配る必要があり、
+stale bitがlater ordinary newlineへ誤適用される。`Option<trivia_start>` positional fenceはこのambient factをrollbackと一緒に保存し、
+current cursor equalityでscopeを限定し、ownerがadvanceすれば自動的にinertになる。これは「start snapshotをreturnする」設計ではなく、
+return-value propagationを避けるためのone rollback-owned cursor annotationである。
+
+よってrollback-and-return-None案はreplacementにもrefinementにも採用しない。維持すべき本質はParseLocal-scoped ambient stateであり、
+そのminimal safe shapeが既存追補のpositional fenceである。scannerはError rangeとexisting `BoundaryCurrent` dispositionを返し、
+committed `TMN-CallerBoundary`だけがsame cursorへfenceをmarkする現設計を推奨する。
+
+評価: Codex gpt-5.6-sol（xhigh）（2026-08-24）。
