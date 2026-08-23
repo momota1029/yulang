@@ -1191,10 +1191,148 @@ fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
                 .probe(|probe| probe.input().run(scan_punctuation))
                 .expect("a selected Struct colon remains available");
             debug_assert_eq!(punctuation.range(), range);
-            committed.token(SyntaxKind::Colon, range);
+            committed.token(SyntaxKind::Colon, range.clone());
+            commit_struct_named_indented_body(struct_base, range, committed);
         }
         None => emit_struct_body_introducer_missing(committed),
     }
+}
+
+fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
+    struct_base: usize,
+    colon: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let opening = committed.probe(|probe| consume_struct_indented_opening(struct_base, probe.input()));
+    let Some((opening, block_indent)) = opening else {
+        emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+        return;
+    };
+    committed.emit_trivia(&opening);
+    let stops = committed.probe(|probe| {
+        probe.input().local.stop_set().unwrap_or_default()
+            .without(StopKind::Newline)
+            .with(StopKind::Comma)
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_stop_set(stops);
+        push_struct_indented_layout(block_indent, i);
+    });
+
+    let mut field_count = 0usize;
+    loop {
+        if committed.probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input())) {
+            if field_count == 0 {
+                commit_empty_struct_named_field(committed);
+            }
+            break;
+        }
+        if committed.probe(|probe| scan_struct_comma_pending(probe.input())) {
+            commit_empty_struct_named_field(committed);
+            field_count += 1;
+            let comma = committed
+                .probe(|probe| scan_struct_comma(probe.input()))
+                .expect("the empty Struct field slot is followed by its comma");
+            committed.token(SyntaxKind::Comma, comma);
+            match commit_struct_indented_gap(block_indent, committed) {
+                StructIndentedGap::Dedent => break,
+                StructIndentedGap::Trivia(_) if committed.probe(|probe| {
+                    struct_indented_terminal_boundary_pending(block_indent, probe.input())
+                }) => break,
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+        if let Some(semicolon) = committed.probe(|probe| scan_struct_semicolon(probe.input())) {
+            emit_struct_error(
+                committed,
+                crate::session::StructRole::FieldSeparator,
+                semicolon,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            match commit_struct_indented_gap(block_indent, committed) {
+                StructIndentedGap::Dedent => break,
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+
+        if !commit_struct_named_field(committed) {
+            if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
+                emit_struct_error(
+                    committed,
+                    crate::session::StructRole::Field,
+                    run.range,
+                    ExpectedSyntax::Identifier,
+                );
+                field_count += 1;
+                match commit_struct_indented_gap(block_indent, committed) {
+                    StructIndentedGap::Dedent => break,
+                    StructIndentedGap::Trivia(_) => continue,
+                }
+            } else {
+                commit_empty_struct_named_field(committed);
+                break;
+            }
+        }
+        field_count += 1;
+
+        let gap = commit_struct_indented_gap(block_indent, committed);
+        if matches!(gap, StructIndentedGap::Dedent) {
+            break;
+        }
+        let StructIndentedGap::Trivia(trivia) = gap else { unreachable!() };
+        let newline_boundary = committed.probe(|probe| {
+            struct_trivia_has_newline(&trivia)
+                && probe.input().local.line().line_indent == block_indent
+        });
+        if newline_boundary {
+            continue;
+        }
+        if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
+            committed.token(SyntaxKind::Comma, comma);
+            match commit_struct_indented_gap(block_indent, committed) {
+                StructIndentedGap::Dedent => break,
+                StructIndentedGap::Trivia(_) if committed.probe(|probe| {
+                    struct_indented_terminal_boundary_pending(block_indent, probe.input())
+                }) => break,
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+        if let Some(semicolon) = committed.probe(|probe| scan_struct_semicolon(probe.input())) {
+            emit_struct_error(
+                committed,
+                crate::session::StructRole::FieldSeparator,
+                semicolon,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            let _ = commit_struct_indented_gap(block_indent, committed);
+            continue;
+        }
+        if committed.probe(|probe| struct_indented_terminal_boundary_pending(block_indent, probe.input())) {
+            break;
+        }
+        if committed.probe(|probe| struct_next_named_field_candidate(probe.input(), &trivia)) {
+            emit_struct_missing(
+                committed,
+                crate::session::StructRole::FieldSeparator,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            continue;
+        }
+        break;
+    }
+
+    committed.probe(|probe| {
+        let i = probe.input();
+        pop_struct_indented_layout(block_indent, i);
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+    });
+    let _ = colon;
 }
 
 fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
@@ -5172,18 +5310,127 @@ where
         }
         StructBodyStarter::NamedIndented(range) => {
             debug_assert_eq!(punctuation.range(), range);
-            Some(StructBody::NamedIndented(StructNamedIndentedBody {
-                colon: range.clone(),
-                base_indent: struct_base,
-                // The real driver captures the first field's indent. Until it
-                // exists, retaining the already-authoritative struct base
-                // avoids inventing a field-derived baseline.
-                block_indent: struct_base,
-                fields: Vec::new(),
-                trailing_comma: None,
-                range,
-            }))
+            Some(StructBody::NamedIndented(
+                parse_struct_named_indented_body_ast(struct_base, range, i),
+            ))
         }
+    }
+}
+
+fn parse_struct_named_indented_body_ast<'source, E>(
+    struct_base: usize,
+    colon: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> StructNamedIndentedBody<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some((opening, block_indent)) = consume_struct_indented_opening(struct_base, i) else {
+        return StructNamedIndentedBody {
+            colon: colon.clone(),
+            base_indent: struct_base,
+            block_indent: struct_base,
+            fields: vec![Recovered::Incomplete],
+            trailing_comma: None,
+            range: colon,
+        };
+    };
+    let stops = i.local.stop_set().unwrap_or_default()
+        .without(StopKind::Newline)
+        .with(StopKind::Comma);
+    i.local.push_stop_set(stops);
+    push_struct_indented_layout(block_indent, i);
+
+    let mut fields = Vec::new();
+    let mut trailing_comma = None;
+    loop {
+        if struct_indented_terminal_boundary_pending(block_indent, i) {
+            if fields.is_empty() {
+                fields.push(Recovered::Incomplete);
+            }
+            break;
+        }
+        if let Some(comma) = scan_struct_comma(i) {
+            fields.push(Recovered::Incomplete);
+            match consume_struct_indented_gap(block_indent, i) {
+                StructIndentedGap::Dedent => {
+                    trailing_comma = Some(comma);
+                    break;
+                }
+                StructIndentedGap::Trivia(_) if struct_indented_terminal_boundary_pending(block_indent, i) => {
+                    trailing_comma = Some(comma);
+                    break;
+                }
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+        if scan_struct_semicolon(i).is_some() {
+            match consume_struct_indented_gap(block_indent, i) {
+                StructIndentedGap::Dedent => break,
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+
+        let field = if let Some(field) = parse_struct_named_field_ast(i) {
+            Recovered::Complete(field)
+        } else if scan_struct_field_invalid_run(false, i).is_some() {
+            Recovered::Incomplete
+        } else {
+            fields.push(Recovered::Incomplete);
+            break;
+        };
+        fields.push(field);
+
+        let gap = consume_struct_indented_gap(block_indent, i);
+        if matches!(gap, StructIndentedGap::Dedent) {
+            break;
+        }
+        let StructIndentedGap::Trivia(trivia) = gap else { unreachable!() };
+        if struct_trivia_has_newline(&trivia) && i.local.line().line_indent == block_indent {
+            continue;
+        }
+        if let Some(comma) = scan_struct_comma(i) {
+            let post = consume_struct_indented_gap(block_indent, i);
+            match post {
+                StructIndentedGap::Dedent => {
+                    trailing_comma = Some(comma);
+                    break;
+                }
+                StructIndentedGap::Trivia(_) if struct_indented_terminal_boundary_pending(block_indent, i) => {
+                    trailing_comma = Some(comma);
+                    break;
+                }
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+        if scan_struct_semicolon(i).is_some() {
+            match consume_struct_indented_gap(block_indent, i) {
+                StructIndentedGap::Dedent => break,
+                StructIndentedGap::Trivia(_) => continue,
+            }
+        }
+        if struct_indented_terminal_boundary_pending(block_indent, i) {
+            break;
+        }
+        if struct_next_named_field_candidate(i, &trivia) {
+            continue;
+        }
+        break;
+    }
+
+    pop_struct_indented_layout(block_indent, i);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    let end = i.pos();
+    let _ = opening;
+    StructNamedIndentedBody {
+        colon: colon.clone(),
+        base_indent: struct_base,
+        block_indent,
+        fields,
+        trailing_comma,
+        range: colon.start..end,
     }
 }
 
@@ -5770,6 +6017,132 @@ where E: ErrorSink<usize> {
         i.local.pop_indentation_baseline(),
         Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }),
     );
+}
+
+fn push_struct_indented_layout<E>(block_indent: usize, i: &mut SynIn<E>)
+where E: ErrorSink<usize> {
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: block_indent,
+        kind: IndentationBaselineKind::Block,
+    });
+}
+
+fn pop_struct_indented_layout<E>(block_indent: usize, i: &mut SynIn<E>)
+where E: ErrorSink<usize> {
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline {
+            column: block_indent,
+            kind: IndentationBaselineKind::Block,
+        })
+    );
+}
+
+#[derive(Clone, Debug)]
+enum StructIndentedGap {
+    Trivia(TriviaRun),
+    Dedent,
+}
+
+/// The colon body owns its opening run only when the first field line is
+/// strictly deeper than the Struct header. Other trivia remains caller-owned
+/// while its mandatory first field slot is recovered.
+fn consume_struct_indented_opening<E>(
+    struct_base: usize,
+    i: &mut SynIn<E>,
+) -> Option<(TriviaRun, usize)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    let block_indent = i.local.line().line_indent;
+    if struct_trivia_has_newline(&trivia) && block_indent > struct_base {
+        Some((trivia, block_indent))
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+/// Consume one inter-field gap without stealing a dedent. A same-column
+/// newline is the implicit separator; a deeper line stays ordinary trivia so
+/// the mandatory type entry retains continuation authority.
+fn consume_struct_indented_gap<E>(
+    block_indent: usize,
+    i: &mut SynIn<E>,
+) -> StructIndentedGap
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    if struct_trivia_has_newline(&trivia) && i.local.line().line_indent < block_indent {
+        i.rollback(checkpoint);
+        StructIndentedGap::Dedent
+    } else {
+        StructIndentedGap::Trivia(trivia)
+    }
+}
+
+fn commit_struct_indented_gap<'parse, 'source, 'local, E, O>(
+    block_indent: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> StructIndentedGap
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let gap = committed.probe(|probe| consume_struct_indented_gap(block_indent, probe.input()));
+    if let StructIndentedGap::Trivia(trivia) = &gap {
+        committed.emit_trivia(trivia);
+    }
+    gap
+}
+
+fn struct_indented_terminal_boundary_pending<E>(
+    block_indent: usize,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() || struct_outer_close_pending(i) {
+        return true;
+    }
+    let checkpoint = i.checkpoint();
+    let gap = consume_struct_indented_gap(block_indent, i);
+    let terminal = matches!(gap, StructIndentedGap::Dedent);
+    i.rollback(checkpoint);
+    terminal
+}
+
+fn struct_outer_close_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        let stop = match punctuation.kind() {
+            PunctuationKind::Close(Delimiter::Parenthesis) => Some(StopKind::RightParenthesis),
+            PunctuationKind::Close(Delimiter::Bracket) => Some(StopKind::RightBracket),
+            PunctuationKind::Close(Delimiter::Brace) => Some(StopKind::RightBrace),
+            _ => None,
+        };
+        stop.is_some_and(|stop| i.local.stop_set().is_some_and(|stops| stops.contains(stop)))
+    });
+    i.rollback(checkpoint);
+    pending
 }
 
 fn consume_struct_field_name_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
@@ -11067,7 +11440,10 @@ mod tests {
                 }
                 Recovered::Complete(StructBody::NamedIndented(body)) => {
                     assert_eq!(body.colon, expected_open);
-                    assert!(body.fields.is_empty());
+                    // A colon body has a mandatory first field slot.  Unlike
+                    // the bracketed stubs above, its EOF recovery is already
+                    // owned by the indented-body driver.
+                    assert!(matches!(body.fields.as_slice(), [Recovered::Incomplete]));
                 }
                 _ => panic!("expected a recognized incomplete Struct body for {source:?}"),
             }
@@ -11343,6 +11719,120 @@ mod tests {
             },
         );
         assert_eq!(records[1].site.range, 13..13);
+    }
+
+    #[test]
+    fn struct_named_indented_fields_keep_their_block_baseline_and_boundaries() {
+        let source = "struct Point:\n  x: Int\n  y: String";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        let Recovered::Complete(StructBody::NamedIndented(body)) = declaration.body else {
+            panic!("expected named indented body");
+        };
+        assert_eq!(body.colon, 12..13);
+        assert_eq!(body.base_indent, 0);
+        assert_eq!(body.block_indent, 2);
+        assert_eq!(body.range, 12..34);
+        assert_eq!(body.trailing_comma, None);
+        assert!(matches!(body.fields.as_slice(), [
+            Recovered::Complete(StructNamedField { range, .. }),
+            Recovered::Complete(StructNamedField { range: second, .. }),
+        ] if *range == (16..22) && *second == (25..34)));
+
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+        assert!(output.committed_recoveries().is_empty());
+        let tokens: Vec<_> = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .collect();
+        assert_eq!(tokens, vec![
+            (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+            (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+            (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+            (SyntaxKind::Colon, ":".to_owned(), 12..13),
+            (SyntaxKind::Newline, "\n".to_owned(), 13..14),
+            (SyntaxKind::Whitespace, "  ".to_owned(), 14..16),
+            (SyntaxKind::Identifier, "x".to_owned(), 16..17),
+            (SyntaxKind::Colon, ":".to_owned(), 17..18),
+            (SyntaxKind::Whitespace, " ".to_owned(), 18..19),
+            (SyntaxKind::Identifier, "Int".to_owned(), 19..22),
+            (SyntaxKind::Newline, "\n".to_owned(), 22..23),
+            (SyntaxKind::Whitespace, "  ".to_owned(), 23..25),
+            (SyntaxKind::Identifier, "y".to_owned(), 25..26),
+            (SyntaxKind::Colon, ":".to_owned(), 26..27),
+            (SyntaxKind::Whitespace, " ".to_owned(), 27..28),
+            (SyntaxKind::Identifier, "String".to_owned(), 28..34),
+        ]);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), 2);
+    }
+
+    #[test]
+    fn struct_named_indented_recovery_keeps_dedent_and_field_slots_owned() {
+        for source in ["struct S:", "struct S:\n  "] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(remainder, "", "{source:?}");
+            assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+                if matches!(body.fields.as_slice(), [Recovered::Incomplete])), "{source:?}");
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            let [record] = output.committed_recoveries() else {
+                panic!("one first-field recovery expected for {source:?}");
+            };
+            assert_eq!(record.kind, RecoveryKind::Missing, "{source:?}");
+            assert_eq!(
+                record.site.role,
+                GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Field)),
+                "{source:?}",
+            );
+        }
+
+        let source = "struct S:\n  x:\n  y: Bool";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if body.block_indent == 2
+                && matches!(body.fields.as_slice(), [Recovered::Complete(first), Recovered::Complete(second)]
+                    if matches!(first.type_expr, Recovered::Incomplete)
+                        && matches!(second.type_expr, Recovered::Complete(_)))));
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let records = output.committed_recoveries();
+        let [record] = records else { panic!("one missing type expected"); };
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::FieldType)),
+        );
+        assert_eq!(record.site.range, 14..14);
+
+        let source = "struct S:\n  x: Int, y: Bool,";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if body.fields.len() == 2 && body.trailing_comma == Some(27..28)));
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert!(output.committed_recoveries().is_empty());
+        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+
+        let source = "struct S:\n  @\n  x: Int";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if matches!(body.fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let [record] = output.committed_recoveries() else { panic!("one whole-field error expected"); };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Field)),
+        );
+        assert_eq!(record.site.range, 12..13);
+
+        let (declaration, remainder) = parse_struct_for_test("struct S:\n  x: Int\nnext");
+        assert_eq!(remainder, "\nnext");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedIndented(ref body))
+            if body.fields.len() == 1));
     }
 
     #[test]
