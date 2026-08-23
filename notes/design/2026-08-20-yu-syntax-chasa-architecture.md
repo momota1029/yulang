@@ -15234,7 +15234,7 @@ final reviewでstandard four issue classにterminology identityを加え、both 
 
 ## 追補案: standalone `TypeExpression`のbracket row grammar
 
-Status: Proposed（Claude / ユーザの査読前）。
+Status: Proposed（Claude review / ユーザ承認待ち）。
 
 ### Scope and authority
 
@@ -15287,16 +15287,50 @@ row直後がEOFのcaseは`scan_typ_led`の`None`分岐でrow-only `TypeArrow`を
 `Int [io]`でrow-only nodeが残ると明記する（`spec:1392-1400`）。Yulang3でarrowを
 mandatoryにすることは、このEOF behaviorからの意図的なdivergenceである。
 
+### Current yu-syntax implementation re-verification
+
+本revisionで現行Rust実装とexisting testsを再検証した。この節はobserved evidenceだけを
+記録し、新しいjudge / recovery orderは定義しない。
+
+- AST `parse_type_expression_in_context`はForallまたはclose IncompleteのPolymorphicVariantを
+  parseした直後にempty postfix / arrowでreturnする（`type_expr.rs:220-230`）。direct pathは
+  `DirectTypePrimary`が`Ordinary`以外ならtail loop前にreturnし（`:350-360`）、Forallと
+  unclosed variantをそれぞれterminal outcomeにする（`:592-625`）。variant ASTのcloseは
+  `polymorphic_variant.rs:129-156`のdriver result、directのclosed boolは`:159-175`の同じdriver resultから作られる。
+- direct-CST arrow pathは`leading`をemitした**後で**`TypeArrowTail`をstartする
+  （`:403-406`）。したがってarrow前triviaのenclosing ownerはcurrent `TypeExpression`である。
+- direct delimited helperはmalformed item Error後のboundaryにitem Missingを重ねず（`:967-986`）、
+  close loopはlocal mismatched closerをErrorにしてretryする（`:1016-1047`）。AST helperは
+  malformed runをadvanceした後にlist loopへ戻るが（`:1807-1815,1862-1875`）、
+  mismatched closerではその1 tokenをconsumeし`close = Incomplete`で終了する
+  （`:1795-1798,1841-1851`）。
+- existing `effect_row_reuses_type_call_delimited_recovery_slots` testは`'[A)`のdirect pathに
+  close Error at `)` + Missing close at EOFの両方を要求する（`:3609-3668`）。本revisionで
+  このtestとpolymorphic-variant terminal-boundary regression testを実行し、両方passした。
+
 ### EffectRowType row-list reuse decision
 
-row content parsingは**文字どおりexisting implementationを共有する**。現行
+row content parsingはexisting implementationを共有する。現行
 `type_expr.rs`のAST pathは`parse_type_delimited_items(owner, Bracket, i)`、direct-CST pathは
 `commit_direct_type_delimited(owner, Bracket, kind, prefix, open, committed)`を使い、EffectRowTypeは
 `owner = EffectRow`、`prefix = Apostrophe`としている。`BracketRow`は同じhelperに
-`owner = BracketRow`、`prefix = None`を渡す薄いcompositionとする。
+`owner = BracketRow`、`prefix = None`を渡すcompositionとする。
 
-追加するのはowner-specific item / separator / close role mappingとcall siteだけである。第3の
-list machine、bracket-row専用separator scanner、AST / direct-CSTごとの別judgeは作らない。
+ただし、実装済みhelperのAST / direct-CST projectionは完全に同形ではない。AST helperは
+malformed bytes自体のelementを作らず、matching closeならemptyのまま閉じ、EOF / owner boundaryなら
+next item probeのIncomplete slotを残す。またlocal mismatched closerを1つconsumeしたところで
+`close = Incomplete`を返す。direct helperはmalformed item Errorをemitする一方、そのError後の
+boundaryにitem Missingを重ねず、close slotをactual `]`またはnext boundaryまでretryする。
+本追補はこの差を`BR-R`で正本化する。
+
+trailing formはrow後のarrowへ進むためactual `]`を両pathで同じ位置までconsumeする必要が
+ある。そのためASTの`BracketRow` call siteにだけ、generic helperがIncomplete closeで
+返った後の**close-slot adapter**を置く。adapterの唯一のnormative transitionは`BR-R`を
+参照する。この節に別predicate / retry orderを定義しない。list / item / separator machineは
+フォークしない。
+
+追加するのはowner-specific role mapping、両call site、このAST close-slot adapterである。第3の
+list machine、bracket-row専用separator scanner、AST / direct-CSTごとのitem judgeは作らない。
 approved EffectRowTypeのone flat node shapeは変更せず、representationを無理に共有するための
 `TypeRow` wrapperも復活させない。共有するのはlist algorithm / predicates / frame disciplineである。
 
@@ -15353,6 +15387,9 @@ last locally-owned recovery byteまでを含む。zero-width Missingはsynthetic
 CST kindは`SyntaxKind::BracketRow`を1つ追加する。leading formでは`TypeExpression`の
 first source-bearing child、trailing formでは`TypeArrowTail`のarrow token前childになる。
 `LeadingEffectfulType`、`EffectArrow`、synthetic row-list wrapper / separatorは作らない。
+current direct-CST pathはaccepted arrow tailのleading triviaを`TypeArrowTail` start前にemitしている。
+このexisting owner boundaryを保ち、row直前のboundary triviaもenclosing `TypeExpression`直下に置く。
+row後のarrowまでのtriviaだけが`TypeArrowTail`直下である。
 
 ### Canonical bracket-row contract (`BR`)
 
@@ -15366,12 +15403,13 @@ TypeExpression :=
     [ LeadingBracketRow TypeChainTrivia ]
     TypePrimary
     { TypeTightTail | TypeApplyArgument }
-    [ TypeArrowTail ]
+    [ TypeArrowBoundary TypeArrowTail ]
 
 LeadingBracketRow := BracketRow
 
+TypeArrowBoundary := TypeChainTrivia
+
 TypeArrowTail :=
-    TypeChainTrivia
     [ BracketRow TypeChainTrivia ]
     Arrow TypeChainTrivia TypeExpression
 
@@ -15394,6 +15432,8 @@ BracketRowDelimitedBoundary :=
 strictly-deeper newlineだけを許す。leading rowからhead、trailing rowからarrowの間で
 equal-or-shallower newlineをconsumeしない。`BracketRowOpeningTrivia` / `bracket_row_base`は
 EffectRowTypeのapproved opening-base formulaを、ownerだけ`BracketRow`に置換して使う。
+`TypeArrowBoundary`はsynthetic nodeではなく、accepted tail直前のenclosing `TypeExpression`が持つ
+raw trivia clusterのgrammar上の名前である。rowの有無でこのownerを変えない。
 
 surface grammarでarrowはmandatory、leading row後のprimaryもmandatoryである。そのmandatory slotの
 incomplete shapeは`BR-H` / `BR-A`が定義する。
@@ -15438,8 +15478,10 @@ tokenになるが、operand-complete positionは`BR-L1`がTypeApplyより先に�
 よって`F [e] T`を`F` applied to `[e] T`とは読まず、malformed bracket-arrow tailと読む。
 effectful typeをargumentに渡す明示形は`F ([e] T)`である。
 
-`BR-L1`はone `TypeArrowTail`を開き、rowは`argument_effect`へ入る。row後のarrow / RHSは
-`BR-A`を使い、current tail loopを必ず終了する。
+`BR-L1`はaccepted leading triviaをexisting no-row arrowと同じくenclosing `TypeExpression`直下へ
+emitしてからone `TypeArrowTail`を開き、rowを`argument_effect`へ入る。row後のarrow /
+RHSは`BR-A`を使い、current tail loopを必ず終了する。rowなし`T -> U`の
+trivia emission order / node boundary / RHS recursionは一切変更しない。
 
 #### BR-R: shared row-sequence judge and recovery
 
@@ -15447,7 +15489,7 @@ effectful typeをargumentに渡す明示形は`F ([e] T)`である。
 `commit_direct_type_delimited`の結果である。branch orderはactual matching `]`、literal comma /
 semicolon、qualifying implicit newline、current / next TypeExpression candidate、owner-safe boundary、
 malformed non-empty runの順である。safe-point byteはErrorに含めず、local mismatched closerだけを
-close-slot Errorとしてconsumeする。
+close-slot recoveryとしてconsumeする。
 
 role mappingは次の通りである。
 
@@ -15461,26 +15503,51 @@ GrammarRole::ClosingDelimiter {
 }
 ```
 
+AST close-slot adapterは`parse_type_delimited_items`が`close = Incomplete`でreturnしたときだけ起動し、
+each retry positionで次の順を守る。actual matching `]`ならconsumeしclose Completeへupgrade、
+current BracketRowにlocalなmismatched closerならone tokenをsource-free consumeしsame close slotをretry、
+EOF / active caller stop / outer-owned close / caller-owned newlineならconsumeせずclose Incompleteのまま終了する。
+その他のbyteもconsumeせずclose Incompleteのまま終了し、close recoveryが所有しない。adapterはitem loopへ戻らず、item / separator shapeを
+変えない。direct pathはexisting close loopが同じtransitionを行い、mismatched tokenにError、
+later boundaryにMissingをemitする。
+
 | BR-R state | authority / recovery | AST / retry / ownership | evidence |
 | --- | --- | --- | --- |
 | immediate actual `]` | valid empty row | `items = []`, close Complete | source-observed generic machine; bracket-specific fixtureなし |
+| opener直後がEOF / owner boundaryでactual `]`なし | Missing `BracketRowItem`、次にMissing close | ASTは`items = [Incomplete]`, close Incomplete; directはzero-width 2 records | current shared helpersの実際 |
 | one / multiple item with comma, semicolon, qualifying newline | valid | each itemはfull `TypeExpression` | source-observed; fixtureなし |
 | explicit / implicit boundary後にactual `]` | valid trailing boundary | empty item / synthetic Separatorなし | Yulang3-inferred from shared approved contract |
 | leading / repeated comma or semicolon | zero-width Missing `BracketRowItem` | boundaryごと1 Incomplete item, punctuation consume, next slot retry | Yulang3 typed recovery |
 | same-line next candidateがcurrent itemのTypeApplyにならない | zero-width Missing `BracketRowSeparator` | byte non-consume, next item same-position retry | shared approved contract |
 | bounded trivia + valid TypeApply candidate | valid current-item continuation | Missing separatorなし | source-observed generic type item |
-| malformed bytes後にvalid candidate | maximal Error `BracketRowItem` | same item slot retry; success時Complete | Yulang3 typed recovery |
-| malformed bytes後にmatching close / owner boundary | maximal Error `BracketRowItem` | boundary non-consume, item Incomplete; same-slot Missingなし | Yulang3 typed recovery |
+| malformed bytes後にvalid candidate | directはmaximal Error `BracketRowItem`; ASTはbytesだけadvance | candidateをretryしComplete itemを1つ追加。malformed bytes用Incomplete itemは両pathとも追加しない | current shared helpersの実際 |
+| malformed bytesがmatching `]`へ到達 | directはmaximal Error `BracketRowItem`; ASTはbytesだけadvance | actual closeをconsumeし、AST `items`に当該Incomplete slotを追加しない | current shared helpersの実際 |
+| malformed bytesがEOF / owner boundaryへ到達 | directはmaximal Error `BracketRowItem`; ASTはbytesだけadvance | directはitem Missingを重ねずclose recoveryへ。AST helperはnext loopでIncomplete item + Incomplete closeになる | current shared helpersの実際 |
 | separator後、actual close前にEOF / owner boundary | Missing `BracketRowItem` | boundary non-consume; distinct close recoveryへ | Yulang3 typed recovery |
-| opener直後またはcomplete item直後のboundary | item recoveryなし | close recoveryだけ | shared approved contract |
+| complete item直後のEOF / owner boundary、separator episodeなし | item recoveryなし | close recoveryだけ | current shared helpersの実際 |
 | missing `]` at EOF / active boundary / outer-owned close | Missing `ClosingDelimiter(BracketRow)` | close Incomplete; boundary non-consume | Yulang3 typed recovery |
-| local mismatched close | maximal Error `ClosingDelimiter(BracketRow)` | same close slot retry; actual `]`に達すればComplete、他はIncomplete; same episodeへMissingなし | Yulang3 typed recovery |
+| local mismatched close at one close-retry position | directはError `ClosingDelimiter(BracketRow)`、ASTはsource-free consume | same close slotをnext positionでretry。later actual `]`ならComplete、later boundaryならその位置でdirectはMissing / ASTはIncomplete | current direct helper + bracket AST close-slot adapter |
 | punctuation + newline in same gap | punctuation authority | triviaをsame boundaryへemit; duplicate slotなし | source-observed separator priority |
 
 trailing boundary rowはactual matching `]` present、separator-followed Missing item rowはactual `]` absentで
 排他的にする。nested itemがTypeApply candidateをconsumeした後だけcontainerへcontrolが戻るため、
-one candidateへApplyとMissing separatorを両方commitしない。malformed Errorとsame-slot Missingも
-no-cascadeとする。
+one candidateへApplyとMissing separatorを両方commitしない。malformed item Errorがboundaryへ
+到達したときdirect pathはitem Missingを重ねない。
+
+shared helperの実際を4つのcanonical traceで固定する。これらのtraceは上のtable branchの適用であり、
+別judgeを定義しない。
+
+| source | AST result | direct-CST recovery / result | required bracket-row adjustment |
+| --- | --- | --- | --- |
+| `T [` + EOF | row `items = [Incomplete]`, close Incomplete | Missing item + Missing close、その後`BR-A`のMissing arrow | helperどおり。3 recordsはitem / close / arrowの異なmandatory slots |
+| `T [@] -> U` | malformed `@`をadvanceし、`items = []`, close Complete | one Error `BracketRowItem` on `@`, actual `]`をconsume、arrow / RHS valid | Incomplete itemを後付けしない |
+| `T [e)] -> U` | generic helperはitem `e` Complete、`)`をconsume、close Incompleteでactual `]`前へreturn | close Error on `)`後にactual `]`をconsumeしclose Complete、arrow / RHS valid | AST close-slot adapterがactual `]`をconsumeしclose Completeへupgradeし、arrowへ合流 |
+| `T [e)` + EOF | item `e` Complete、`)`をconsume、close Incomplete | close Error on `)` + Missing close at later EOF、その後Missing arrow | adapterはEOFをconsumeせずclose Incompleteのまま。Error + Missingは別retry position |
+
+last traceのdirect shapeはEffectRowTypeのexisting
+`effect_row_reuses_type_call_delimited_recovery_slots`が`'[A)`に対してassertするclose Error +
+later EOF Missingと同じである。`T [@] -> U`のAST item omissionと`T [e)] -> U`のgeneric AST
+early returnはcurrent `recover_type_item_for_ast` / `parse_type_delimited_items`のsourceから直接導いた。
 
 #### BR-H: mandatory head after a leading row
 
@@ -15488,10 +15555,35 @@ no-cascadeとする。
 
 | BR-H state | authority / recovery | AST / retry | evidence |
 | --- | --- | --- | --- |
-| `BR-N1..3` / `BR-N5` candidate | valid mandatory head | `primary = Complete`; ordinary postfix / arrow judgeへ | source-observed shape; fixtureなし |
+| `BR-N1..3` / `BR-N5` candidate | valid mandatory head | `primary = Complete`;そのheadが返すexisting dispositionをそのまま適用 | source-observed shape; fixtureなし |
 | EOF / active boundary / outer-owned close / equal-or-shallower newline | zero-width Missing `LeadingEffectTypeHead` expected TypeExpression | `primary = Incomplete`; boundary non-consume; tail judgeへ進まない | Yulang3 typed recovery |
-| disabled `BR-N4` second row or other malformed non-empty bytes後にvalid allowed head | maximal Error `LeadingEffectTypeHead` | same primary slot retry; success時Complete | Yulang3-inferred recovery |
+| disabled `BR-N4` second row with matching `]` | delimiter-aware maximal Error `LeadingEffectTypeHead` | full nested `[...]`をone Error rangeとしてconsume、same primary slot retry | Yulang3-inferred recovery |
+| other malformed non-empty bytes後にvalid allowed head | maximal Error `LeadingEffectTypeHead` | same primary slot retry; success時Complete | Yulang3-inferred recovery |
 | malformed runがboundaryへ到達 | maximal Error `LeadingEffectTypeHead` | primary Incomplete; same-slot Missingなし | Yulang3 typed recovery |
+
+valid / recovered headのdispositionはexisting primary grammarが決める。AST pathは現行
+`parse_type_expression_in_context`と同じく`TypePrimary::Forall(_)`を常にterminal、
+`TypePrimary::PolymorphicVariant(PolymorphicVariantType { close: Incomplete, .. })`をterminal、
+その他をordinaryとする。
+direct pathは現行`DirectTypePrimary::{TerminalForall,
+TerminalIncompletePolymorphicVariant, Ordinary}`の結果をそのまま使う。terminal headは
+`postfix = [] / arrow = None`で直ちにenclosing `TypeExpression`をfinishし、headが返したtrivia /
+owner boundaryをconsumeしない。leading rowはこのdispositionをordinaryへ上書きしない。
+
+したがって`[e] :{A Int\n B}`のheadがunclosed polymorphic variantであるとき、
+newline前でterminal returnし、newlineを`BR-L`へ渡さない。`[e] for 'a: T`もForall自身の
+terminalityを保つ。closed polymorphic variant、EffectRowType、NamedRecordType、atom / groupだけが
+ordinary dispositionでexisting fixed-tail loopへ進む。
+
+disabled `BR-N4`のrecovery scannerはdelimiter-awareである。matching `]`があるsecond rowは
+nested delimiter depthとopaque lexical regionを認識し、openerからそのopenerに対応するmatching close endまでを
+one balanced unitとしてconsumeする。single `[`だけをErrorにしない。matching closeがなければ
+owner-safe boundary直前までのmaximal local runとし、boundaryをconsumeしない。
+
+`[e][f]T`のexact resultは、outer row `leading_effect_row = Some([e])`、
+`primary = Complete(Identifier T)`、empty postfix / arrowである。direct-CSTはsource range `[f]`全体へ
+one `Error(Type::LeadingEffectTypeHead, TypeExpression)`をemitし、second `BracketRow` nodeや
+Incomplete primaryを追加しない。Error後の`T`はexact same primary slotのretryである。
 
 missing / malformed closeとmissing / malformed headは異なmandatory slotsである。row closeがIncompleteのまま
 `BR-H` boundaryへ達したcaseは両recordを持ち得るが、同じslotのcascadeではない。
@@ -15538,8 +15630,8 @@ T [e] -> U
 
 TypeExpression
   Identifier "T"
+  Whitespace " "
   TypeArrowTail
-    Whitespace " "
     BracketRow
       LBracket "["
       TypeExpression
@@ -15571,8 +15663,8 @@ T [e]
 
 TypeExpression
   Identifier "T"
+  Whitespace " "
   TypeArrowTail
-    Whitespace " "
     BracketRow
       LBracket "["
       TypeExpression
@@ -15583,6 +15675,38 @@ TypeExpression
 
 last `]`直後のEOF位置にzero-width Missingがある。`rhs` Missingは作らない。
 これは`BR-A`のYulang3 divergenceであり、yulang2のEOF row-only `TypeArrow`とは一致しない。
+
+```text
+[e][f]T
+
+TypeExpression
+  BracketRow
+    LBracket "["
+    TypeExpression
+      Identifier "e"
+    RBracket "]"
+  Error(Type::LeadingEffectTypeHead, TypeExpression) "[f]"
+  Identifier "T"
+```
+
+second opener / item / closeの3 bytesは`BR-H`のone delimiter-aware Errorが所有し、
+second `BracketRow`は作らない。
+
+```text
+T -> U
+
+TypeExpression
+  Identifier "T"
+  Whitespace " "
+  TypeArrowTail
+    Arrow "->"
+    Whitespace " "
+    TypeExpression
+      Identifier "U"
+```
+
+このno-row baselineはcurrent direct-CST emission orderそのものである。row-present exampleも
+pre-tail whitespaceを同じenclosing ownerへ置くため、本追補は`T -> U`のnode boundaryを変えない。
 
 ### Explicit Yulang2 divergences and inference ledger
 
@@ -15603,10 +15727,15 @@ last `]`直後のEOF位置にzero-width Missingがある。`rhs` Missingは作�
    semicolon / qualifying newline policyを保つ。
 7. **Inference:** empty / trailing separatorはgeneric delimited sourceとapproved EffectRowType contractから採用した。
    bare bracket fixtureによる確認ではない。
-8. **Inference:** second leading row rejection、missing arrow後のvalid RHS retry、malformed head / arrowのmaximal Errorは
-   Yulang3のtyped-recovery architectureから決めた。yulang2専用fixtureに根拠を持たない。
+8. **Inference:** second leading row rejectionとfull balanced `[f]` Error consumption、missing arrow後のvalid RHS retry、
+   malformed head / arrowのmaximal ErrorはYulang3のtyped-recovery architectureから決めた。
+   yulang2専用fixtureに根拠を持たない。
 9. **Inference:** `F [e] T`でLED bracket authorityをTypeApplyより優先するのはsource orderに直接対応するが、
    そのspelling自体のfixtureはない。
+10. **Architecture-local:** leading rowはForall / incomplete PolymorphicVariantのexisting terminal dispositionを
+    変えない。trailing rowはcurrent no-row arrowのpre-tail trivia ownerを変えない。
+11. **Architecture-local:** shared AST helperのmismatched-close early returnだけは`BR-R`のclose-slot adapterで
+    補い、list machineとdirect-CST helperはそのまま再利用する。
 
 ### Implementation boundary and gates
 
@@ -15614,20 +15743,27 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
 次をgateにする。各judge / recovery outcomeの定義はここに再掲せず`BR`を参照する。
 
 1. AST / direct-CSTの両pathがone shared `BR-N` / `BR-L` candidate predicateを使う。
-2. `BracketRow`の両call siteがEffectRowTypeと同じgeneric delimited helpersを使い、別machineを持たない。
+2. `BracketRow`の両call siteがEffectRowTypeと同じgeneric delimited helpersを使い、AST call siteだけが
+   `BR-R`のclose-slot adapterを後続させる。別list / item machineを持たない。
 3. leading ASTは`leading_effect_row + Recovered primary + postfix + outer arrow`、trailing ASTはexisting
    `TypeArrowTail.argument_effect + Recovered arrow + rhs`に一致する。
-4. bare `[e]`、second prefix、missing head / arrow / RHSを`BR-H` / `BR-A`のdocumented slot shapeでfixture化する。
+4. bare `[e]`、missing head / arrow / RHSを`BR-H` / `BR-A`のdocumented slot shapeでfixture化する。
+   `[e][f]T`はError rangeがfull `[f]`、second row nodeなし、primary Complete `T`であることをassertする。
 5. empty、comma / semicolon / newline、trailing separator、leading / repeated separator、same-line missing separator、
-   malformed item、missing / mismatched closeを`BR-R`のoutcome labelでfixture化する。
+   malformed item、missing / mismatched closeを`BR-R`のoutcome labelでfixture化する。特に4 canonical tracesの
+   AST collection shape、recovery record order / range、actual `]`後のarrowへの合流をassertする。
 6. `[e] T`、`[e] F A -> U`、`T [e] -> U`、`T[e]->U`、`F ([e] T)`、`F [e] T`で
    attachment / precedenceを確認する。
-7. no-trivia / same-line / deeper newline / equal-or-shallower newlineをrow-to-headとrow-to-arrowの両方でfixture化する。
-8. all worked examplesでlossless round trip、every trivia byte one home、balanced nodes、no synthetic
+7. `[e] for 'a: T`と`[e] :{A Int\n B}`でhead-own terminal dispositionを保ち、後者のnewlineを
+   unconsumedでcallerへ返すことをAST / direct-CSTの両方でassertする。
+8. no-trivia / same-line / deeper newline / equal-or-shallower newlineをrow-to-headとrow-to-arrowの両方でfixture化する。
+9. all worked examplesでlossless round trip、every trivia byte one home、balanced nodes、no synthetic
    Separatorを確認する。
-9. normal / recovery / rollbackの全exitでdelimiter / stop / layout / type-owner / type-ML stateをexact restoreする。
-10. existing TypeArrowTail RHS recursionを再利用し、row-arrow専用recursive parserを作らない。
-11. existing core / record / forall / EffectRow / polymorphic-variant fixturesを保ち、`.rs`の無関係な
+10. `T -> U`のCST / AST / recoveryをbyte-identicalに保ち、row-present tailのleading triviaも
+    `TypeArrowTail`外のenclosing `TypeExpression`に置く。
+11. normal / recovery / rollbackの全exitでdelimiter / stop / layout / type-owner / type-ML stateをexact restoreする。
+12. existing TypeArrowTail RHS recursionを再利用し、row-arrow専用recursive parserを作らない。
+13. existing core / record / forall / EffectRow / polymorphic-variant fixturesを保ち、`.rs`の無関係な
     refactorを混ぜない。
 
 ### Closed decisions and five-part internal consistency review
@@ -15637,14 +15773,19 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
 1. **bounded trivia / owner boundary:** `BR-G`のrow-to-head / row-to-arrow gapはone `TypeChainTrivia`だけで、
    equal-or-shallower newlineは`BR-N0` / `BR-L0` / `BR-H` / `BR-A`のboundary outcomeからconsumeしない。
    bracket内はone shared `LayoutDelimitedFrame`だけがopening / separator newlineをclassifyする。
-2. **CST byte completeness:** four worked examplesは全bracket、identifier、arrow、spaceを明示し、
-   recovery exampleのsource-absent Missingはempty textで示した。one byteに二ownerはない。
+   terminal headは自身のboundaryを保って`BR-L`に入らない。
+2. **CST byte completeness:** six worked examplesは全bracket、identifier、arrow、space、full `[f]` Errorを
+   明示し、recovery exampleのsource-absent Missingはempty textで示した。pre-tail spaceはrowの有無に
+   かかわらずenclosing `TypeExpression`にあり、one byteに二ownerはない。
 3. **AST / recovery-slot alignment:** `BracketRowItem` / closeは`items` / `close`、`LeadingEffectTypeHead`は
    `TypeExpression.primary`、`BracketRowArrow` / `ArrowRhs`は`TypeArrowTail.arrow` / `rhs`に対応する。
-   separator roleだけはapproved delimited-list contractと同じcommitted diagnosticで、source-absent AST fieldを仮定しない。
+   separator roleはapproved delimited-list contractと同じcommitted diagnosticである。malformed itemがmatching
+   closeへ達するcaseのdirect Errorは`items` sequenceのroleを持つが、current AST helperはsource-free
+   malformed-only elementを追加しない。このdocumented projection差を架空のIncomplete fieldで隠さない。
 4. **recovery-row exclusivity:** `BR-R`はactual close、separator、newline、candidate、boundary、malformedの
    one order、`BR-H` / `BR-A`はcandidate / exact arrow、boundary、malformedの明示的に排他なstateを使う。
-   Error + same-slot Missing、missing arrow + missing RHSのcascadeはない。
+   one decision pointで二rowは発火しない。close Error後のlater boundary Missingはnext retry positionの
+   別outcomeであり、same cause / rangeへのcascadeではない。missing arrow + missing RHSのcascadeはない。
 5. **single canonical statement:** grammarは`BR-G`、fresh / tail judgeは`BR-N` / `BR-L`、row / head / arrow
    recoveryは`BR-R` / `BR-H` / `BR-A`にそれぞれ1回だけ定義した。evidence、worked examples、
    divergence ledger、gates、本self-checkは`BR-*`を参照し、independent order / safe-point setを持たない。
