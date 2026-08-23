@@ -15234,7 +15234,7 @@ final reviewでstandard four issue classにterminology identityを加え、both 
 
 ## 追補案: standalone `TypeExpression`のbracket row grammar
 
-Status: Proposed（Claude review / ユーザ承認待ち）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 ### Scope and authority
 
@@ -16036,4 +16036,5 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
    `BR-RP`にone canonical listだけを持つ。evidence、worked examples、divergence ledger、gates、
    本self-checkは`BR-*`を参照し、independent order / safe-point setを持たない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-23、standalone TypeExpression bracket row grammar追補案）。
