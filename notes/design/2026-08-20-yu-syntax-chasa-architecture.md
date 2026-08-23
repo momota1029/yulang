@@ -16041,7 +16041,7 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
 
 ## 追補案: canonical `Pattern`のtrailing `TypeExpression` annotation wiring
 
-Status: Claude review / exact wordingのfinal sign-off待ち。
+Status: Authoritative（ユーザ承認済み、2026-08-24）。
 
 Date: 2026-08-23。
 
@@ -16551,5 +16551,5 @@ implementationはfuture changeである。実装時は各ruleを再掲せず`PTA
    record collisionは`PTA-C`、AST/CST/rangeは`PTA-A`、consumer boundaryは`PTA-O`、recoveryは`PTA-R`に一回だけ定義した。
    evidence、examples、divergence、gates、本self-checkはこれらを参照し、第二のjudgeやrecovery tableを持たない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Pattern trailing TypeExpression annotation wiring追補案）。
