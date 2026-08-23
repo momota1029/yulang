@@ -1112,7 +1112,6 @@ where
     }
 
     let mut name_incomplete = false;
-    let mut name_error = false;
     if let Some(name) = commit_word(committed) {
         committed.token(SyntaxKind::Identifier, name.range());
     } else {
@@ -1124,7 +1123,6 @@ where
             }
             Some(false) => {
                 name_incomplete = true;
-                name_error = true;
             }
             None => {
                 name_incomplete = true;
@@ -1134,7 +1132,7 @@ where
     }
 
     let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
-    if !name_error && (!name_incomplete || body_starter_pending) {
+    if !name_incomplete || body_starter_pending {
         if let Some(trivia) = committed.probe(|probe| {
             struct_continuation_trivia(intro.struct_base, probe.input())
         }) {
@@ -1156,9 +1154,14 @@ fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let mut starter = committed.probe(|probe| struct_body_starter(probe.input()));
+    let mut body_introducer_error = false;
     if starter.is_none() && !commit_word_candidate(committed) {
-        if struct_body_introducer_error_retry(committed).is_some_and(|retry| retry) {
-            starter = committed.probe(|probe| struct_body_starter(probe.input()));
+        match struct_body_introducer_error_retry(committed) {
+            Some(true) => {
+                starter = committed.probe(|probe| struct_body_starter(probe.input()));
+            }
+            Some(false) => body_introducer_error = true,
+            None => {}
         }
     }
 
@@ -1194,7 +1197,8 @@ fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
             committed.token(SyntaxKind::Colon, range.clone());
             commit_struct_named_indented_body(struct_base, range, committed);
         }
-        None => emit_struct_body_introducer_missing(committed),
+        None if !body_introducer_error => emit_struct_body_introducer_missing(committed),
+        None => {}
     }
 }
 
@@ -5233,7 +5237,6 @@ where
     let intro = i.run(recognize_struct_statement_intro)?;
     let _ = struct_continuation_trivia(intro.struct_base, &mut i);
     let mut name_incomplete = false;
-    let mut name_error = false;
     let name = if let Some(name) = i.run(scan_word) {
         Recovered::Complete(name)
     } else {
@@ -5244,7 +5247,6 @@ where
             ),
             Some(false) => {
                 name_incomplete = true;
-                name_error = true;
                 Recovered::Incomplete
             }
             None => {
@@ -5254,7 +5256,7 @@ where
         }
     };
     let body_starter_pending = struct_body_starter_pending(&mut i);
-    let body = if !name_error && (!name_incomplete || body_starter_pending) {
+    let body = if !name_incomplete || body_starter_pending {
         let _ = struct_continuation_trivia(intro.struct_base, &mut i);
         parse_struct_body_ast(intro.struct_base, &mut i).map_or(Recovered::Incomplete, Recovered::Complete)
     } else {
@@ -11337,6 +11339,52 @@ mod tests {
                 "{source:?}"
             );
         }
+    }
+
+    #[test]
+    fn struct_header_recovery_hands_a_body_starter_forward_without_cascading() {
+        let source = "struct @ {}";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.name, Recovered::Incomplete));
+        assert!(matches!(
+            declaration.body,
+            Recovered::Complete(StructBody::NamedBraced(ref body))
+                if body.open == (9..10)
+                    && body.fields.is_empty()
+                    && matches!(body.close, Recovered::Complete(ref close) if *close == (10..11))
+        ));
+
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+        assert!(root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::LBrace));
+        let [record] = output.committed_recoveries() else {
+            panic!("the malformed name is the only Struct recovery");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(crate::session::StructRole::Name))
+        );
+        assert_eq!(record.site.range, 7..9);
+
+        let source = "struct S @";
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let [record] = output.committed_recoveries() else {
+            panic!("malformed body introducer must not cascade to Missing");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::BodyIntroducer,
+            ))
+        );
+        assert_eq!(record.site.range, 9..10);
     }
 
     #[test]
