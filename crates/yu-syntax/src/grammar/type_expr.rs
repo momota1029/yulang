@@ -820,13 +820,12 @@ where
         context.emit_missing_close(role, expected);
         return Recovered::Incomplete;
     }
-    debug_assert!(
-        !context.with_input(type_malformed_caller_boundary_pending),
-        "a type close slot must not consume a pending malformed caller boundary",
-    );
     let mut saw_mismatch = false;
     loop {
         if let Some(trivia) = context.with_input(|i| consume_trivia_before_local_close(spec.delimiter, i)) {
+            context.with_input(|i| {
+                debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, i)
+            });
             context.emit_close_trivia(&trivia);
         }
         if let Some(close) = context.with_input(|i| scan_close_for_delimiter(spec.delimiter, i)) {
@@ -1640,11 +1639,8 @@ where
         if context.with_input(type_malformed_caller_boundary_pending) {
             break;
         }
-        debug_assert!(
-            !context.with_input(type_malformed_caller_boundary_pending),
-            "a delimited type sequence must not consume trivia across a pending malformed caller boundary",
-        );
         let trivia = context.with_input(consume_trivia);
+        context.with_input(|i| debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, i));
         context.emit_trivia(&trivia);
         if let Some(separator) = context.with_input(scan_separator) {
             context.emit_separator(separator.clone());
@@ -1972,11 +1968,10 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
         if committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())) {
             break;
         }
-        debug_assert!(
-            !committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())),
-            "a direct named-record sequence must not consume trivia across a pending malformed caller boundary",
-        );
         let trivia = consume_direct_trivia(committed);
+        committed.probe(|probe| {
+            debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, probe.input())
+        });
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
             committed.token(SyntaxKind::Comma, comma);
@@ -2658,11 +2653,8 @@ where
             fields.push(Recovered::Incomplete);
             break;
         }
-        debug_assert!(
-            !type_malformed_caller_boundary_pending(i),
-            "a named-record sequence must not consume trivia across a pending malformed caller boundary",
-        );
         let trivia = consume_trivia(i);
+        debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, i);
         if let Some(comma) = scan_record_comma(i) {
             let post = consume_trivia(i);
             if close_brace_pending(i) {
@@ -3265,6 +3257,22 @@ where
         "a malformed caller-boundary fence must name its untouched trivia run"
     );
     pending
+}
+
+/// A trivia consumer must never step over the exact cursor position recorded
+/// by a caller-boundary fence.  Unlike the entry guards, this runs after the
+/// cursor has advanced and catches a future consumer that omits its guard.
+fn debug_assert_type_malformed_caller_boundary_not_skipped<E>(
+    consumed: &TriviaRun,
+    i: &SynIn<E>,
+) where E: ErrorSink<usize> {
+    debug_assert_ne!(
+        i.local.type_malformed_caller_boundary(),
+        Some(TypeMalformedCallerBoundaryFence {
+            trivia_start: consumed.range().start,
+        }),
+        "a TypeExpression trivia consumer stepped over a pending malformed caller boundary",
+    );
 }
 
 /// The five TMN-C outcomes for one maximal trivia run after malformed type
@@ -4272,6 +4280,55 @@ mod tests {
         .set_local(&mut local);
         let value = i.run(from_fn(parse_type_expression)).expect("type expression AST prefix with outer stop");
         (i.input.remainder(), value)
+    }
+
+    fn parse_prefix_with_outer_stop_and_fence<'source>(
+        source: &'source str,
+        stop: StopKind,
+    ) -> (
+        &'source str,
+        TypeExpression<'source>,
+        Option<TypeMalformedCallerBoundaryFence>,
+    ) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(stop));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let value = i
+            .run(from_fn(parse_type_expression))
+            .expect("type expression AST prefix with outer stop");
+        let remainder = i.input.remainder();
+        let fence = i.local.type_malformed_caller_boundary();
+        (remainder, value, fence)
+    }
+
+    fn classify_malformed_trivia_for_test(
+        source: &str,
+        active_newline: bool,
+        policy: TypeMalformedNewlinePolicy,
+    ) -> TypeMalformedTriviaClassification {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        if active_newline {
+            local.push_stop_set(StopSet::default().with(StopKind::Newline));
+        }
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let trivia = consume_trivia(&mut i);
+        classify_type_malformed_trivia(&i, &trivia, policy)
     }
 
     fn parse_required_prefix<'source>(
@@ -5480,6 +5537,52 @@ mod tests {
             DelimitedRecoveryTarget::CallerOwnedMalformedBoundary,
         );
         assert_eq!(i.pos(), 0);
+    }
+
+    #[test]
+    fn malformed_trivia_classifier_distinguishes_all_tmn_c_outcomes() {
+        for (source, active_newline, policy, expected) in [
+            (
+                "  A",
+                false,
+                TypeMalformedNewlinePolicy::AnyPhysicalHandoff,
+                TypeMalformedTriviaClassification::NoNewline,
+            ),
+            (
+                "\n  A",
+                true,
+                TypeMalformedNewlinePolicy::AnyPhysicalHandoff,
+                TypeMalformedTriviaClassification::CallerBoundary,
+            ),
+            (
+                "\n  A",
+                false,
+                TypeMalformedNewlinePolicy::AnyPhysicalHandoff,
+                TypeMalformedTriviaClassification::Handoff,
+            ),
+            (
+                "\nA",
+                false,
+                TypeMalformedNewlinePolicy::ContinuationQualified {
+                    continuation_base: 0,
+                },
+                TypeMalformedTriviaClassification::Boundary,
+            ),
+            (
+                "\n  A",
+                false,
+                TypeMalformedNewlinePolicy::ContinuationQualified {
+                    continuation_base: 0,
+                },
+                TypeMalformedTriviaClassification::DeeperContinuation,
+            ),
+        ] {
+            assert_eq!(
+                classify_malformed_trivia_for_test(source, active_newline, policy),
+                expected,
+                "{source:?}, active_newline={active_newline}, policy={policy:?}",
+            );
+        }
     }
 
     #[test]
@@ -7116,6 +7219,26 @@ mod tests {
                 (ConstructRole::TypeCall, Delimiter::Parenthesis),
             ],
         );
+
+        for (source, error_role, error_range) in [
+            ("T(A::@ \n  B)", TypeRole::PathSegment, 5..6),
+            ("T(A -> @ \n  B)", TypeRole::ArrowRhs, 7..8),
+        ] {
+            let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+            let (direct_remainder, records) =
+                parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+            assert_eq!(ast_remainder, &source[error_range.end..], "AST {source}");
+            assert_eq!(direct_remainder, ast_remainder, "direct {source}");
+            assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                arguments, close: Recovered::Incomplete, ..
+            })] if matches!(arguments.as_slice(), [Recovered::Complete(_)])), "AST {source}: {ast:#?}");
+            assert_nested_fence_records(
+                &records,
+                error_role,
+                error_range,
+                &[(ConstructRole::TypeCall, Delimiter::Parenthesis)],
+            );
+        }
     }
 
     #[test]
@@ -7153,8 +7276,10 @@ mod tests {
         }
 
         let source = "T(@A\n  B)";
-        let (ast_remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        let (ast_remainder, ast, fence) =
+            parse_prefix_with_outer_stop_and_fence(source, StopKind::Newline);
         assert_eq!(ast_remainder, "");
+        assert_eq!(fence, None, "same-slot retry must not mark a caller-boundary fence");
         assert_eq!(ast.range(), 0..source.len());
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
