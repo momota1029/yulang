@@ -16546,7 +16546,7 @@ implementationはfuture changeである。実装時は各ruleを再掲せず`PTA
    malformed + retry成功はComplete、Pattern-level optional absenceは`None`に一対一対応する。Error-only rangeを架空のAST fieldにしない。
 4. **recovery-row exclusivity:** `PTA-J` no-authority後は`PTA-R`へ入らない。Colon後のfirst slot positionはvalid primary、
    boundary、non-empty malformedの排他三分類である。malformed後だけdistinct retry positionでvalid / boundaryへ分かれ、
-   latterのError + Missingはtwo positions / two recordsで同一causeへのduplicateではない。
+   latterはError一件のみでslotを閉じ、same-cause Missingを追加しない。
 5. **single canonical statement:** grammar / bounded trivia / terminalityは`PTA-G`、precedence / recognition orderは`PTA-J`、
    record collisionは`PTA-C`、AST/CST/rangeは`PTA-A`、consumer boundaryは`PTA-O`、recoveryは`PTA-R`に一回だけ定義した。
    evidence、examples、divergence、gates、本self-checkはこれらを参照し、第二のjudgeやrecovery tableを持たない。
