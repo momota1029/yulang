@@ -755,6 +755,7 @@ impl TypeDelimitedShape {
 /// transition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DelimitedRecoveryTarget {
+    CallerOwnedMalformedBoundary,
     RetryPrimary,
     ExplicitSeparator(TypeExplicitSeparator),
     ImplicitNewline,
@@ -937,6 +938,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if type_malformed_caller_boundary_pending(i) {
+        return DelimitedRecoveryTarget::CallerOwnedMalformedBoundary;
+    }
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
     let stays_in_chain = type_chain_trivia(i, &trivia);
@@ -1591,6 +1595,10 @@ where
                 }
             };
             match target {
+                DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => {
+                    context.emit_malformed_item();
+                    break;
+                }
                 DelimitedRecoveryTarget::RetryPrimary => {
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
@@ -1849,6 +1857,7 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     loop {
         if after_semicolon {
             match committed.probe(|probe| classify_named_record_recovery(layout, probe.input())) {
+                DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
                 DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline
                 | DelimitedRecoveryTarget::ExplicitSeparator(_) => {
                     let trivia = consume_direct_trivia(committed);
@@ -1924,6 +1933,7 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
                     }
                 };
                 match target {
+                    DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
                     DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
                         let trivia = consume_direct_trivia(committed);
                         committed.emit_trivia(&trivia);
@@ -2591,6 +2601,7 @@ where
     loop {
         if after_semicolon {
             match classify_named_record_recovery(layout, i) {
+                DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
                 DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
                     let _ = consume_trivia(i);
                     after_semicolon = false;
@@ -2662,6 +2673,7 @@ where
                 }
             };
             match target {
+                DelimitedRecoveryTarget::CallerOwnedMalformedBoundary => break,
                 DelimitedRecoveryTarget::RetryPrimary | DelimitedRecoveryTarget::ImplicitNewline => {
                     let _ = consume_trivia(i);
                     continue;
@@ -5481,6 +5493,36 @@ mod tests {
         let (direct_remainder, _) =
             parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(direct_remainder, " \n  A))");
+    }
+
+    #[test]
+    fn delimited_recovery_classifier_yields_to_a_pending_fence_before_trivia() {
+        let source = " \n  A";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(StopKind::Newline));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+
+        mark_type_malformed_caller_boundary(&mut i);
+        assert_eq!(
+            classify_type_delimited_recovery(
+                DelimitedRecoverySpec {
+                    delimiter: Delimiter::Parenthesis,
+                },
+                LayoutDelimitedFrame::inline(0),
+                |_| false,
+                &mut i,
+            ),
+            DelimitedRecoveryTarget::CallerOwnedMalformedBoundary,
+        );
+        assert_eq!(i.pos(), 0);
     }
 
     #[test]
