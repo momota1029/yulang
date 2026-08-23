@@ -4277,6 +4277,27 @@ mod tests {
         (i.input.remainder(), value)
     }
 
+    fn parse_required_prefix_with_outer_stop<'source>(
+        source: &'source str,
+        stop: StopKind,
+    ) -> (&'source str, Recovered<TypeExpression<'source>>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(StopSet::default().with(stop));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let value = i
+            .run(from_fn(|i| Some(parse_required_type_expression_with_outer_missing_role(None, i))))
+            .expect("required type expression AST prefix with outer stop");
+        (i.input.remainder(), value)
+    }
+
     fn primary_candidate(source: &str) -> bool {
         let mut source_input = SourceInput::new(source);
         let mut local = ParseLocal::new();
@@ -6804,6 +6825,67 @@ mod tests {
                 record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
                     && record.kind == RecoveryKind::Error),
                 "{source}: {records:#?}");
+        }
+    }
+
+    #[test]
+    fn malformed_continuation_qualified_slots_pair_raw_and_space_prefixed_newlines() {
+        for source in ["@\n  Int", "@ \n  Int"] {
+            let expected_remainder = &source[1..];
+            let (ast_remainder, ast) =
+                parse_required_prefix_with_outer_stop(source, StopKind::Newline);
+            let (direct_remainder, records) =
+                parse_direct_mandatory_prefix_with_outer_stop(source, None, Some(StopKind::Newline));
+            assert_eq!(ast_remainder, expected_remainder, "AST {source}");
+            assert_eq!(direct_remainder, expected_remainder, "direct {source}");
+            assert!(matches!(ast, Recovered::Incomplete), "AST {source}: {ast:#?}");
+            assert!(matches!(records.as_slice(), [error]
+                if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                    && error.kind == RecoveryKind::Error
+                    && error.site.range == (0..1)), "{source}: {records:#?}");
+        }
+
+        for (raw, space_prefixed, role, error_range, close) in [
+            ("A::@\n  B", "A::@ \n  B", TypeRole::PathSegment, 3..4, None),
+            ("A ->@\n  B", "A ->@ \n  B", TypeRole::ArrowRhs, 4..5, None),
+            ("for @\n  'a: T", "for @ \n  'a: T", TypeRole::ForallBinder, 4..5, None),
+            ("T(@\n  A)", "T(@ \n  A)", TypeRole::CallArgument, 2..3,
+                Some((ConstructRole::TypeCall, Delimiter::Parenthesis))),
+            ("(@\n  A)", "(@ \n  A)", TypeRole::ParenthesizedItem, 1..2,
+                Some((ConstructRole::ParenthesizedTypeGroup, Delimiter::Parenthesis))),
+            ("'[@\n  A]", "'[@ \n  A]", TypeRole::EffectRowItem, 2..3,
+                Some((ConstructRole::EffectRowType, Delimiter::Bracket))),
+            ("{@\n  a:A}", "{@ \n  a:A}", TypeRole::RecordField, 1..2,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
+            ("{a @\n  B:B}", "{a @ \n  B:B}", TypeRole::RecordFieldColon, 3..4,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
+            ("{a: @\n  B}", "{a: @ \n  B}", TypeRole::RecordFieldType, 4..5,
+                Some((ConstructRole::NamedRecordType, Delimiter::Brace))),
+            (":{@\n  B}", ":{@ \n  B}", TypeRole::PolymorphicVariantTag, 2..3,
+                Some((ConstructRole::PolymorphicVariantType, Delimiter::Brace))),
+        ] {
+            for source in [raw, space_prefixed] {
+                let expected_remainder = &source[error_range.end..];
+                let (ast_remainder, _) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+                let (direct_remainder, records) =
+                    parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+                assert_eq!(ast_remainder, expected_remainder, "AST {source}");
+                assert_eq!(direct_remainder, expected_remainder, "direct {source}");
+                assert_eq!(records.len(), 1 + usize::from(close.is_some()), "{source}: {records:#?}");
+                assert_eq!(records[0].site.role, GrammarRole::Type(role), "{source}: {records:#?}");
+                assert_eq!(records[0].kind, RecoveryKind::Error, "{source}: {records:#?}");
+                assert_eq!(records[0].site.range, error_range, "{source}: {records:#?}");
+                if let Some((owner, delimiter)) = close {
+                    let missing = &records[1];
+                    assert_eq!(
+                        missing.site.role,
+                        GrammarRole::ClosingDelimiter { owner, delimiter },
+                        "{source}: {records:#?}",
+                    );
+                    assert_eq!(missing.kind, RecoveryKind::Missing, "{source}: {records:#?}");
+                    assert_eq!(missing.site.range, error_range.end..error_range.end, "{source}: {records:#?}");
+                }
+            }
         }
     }
 
