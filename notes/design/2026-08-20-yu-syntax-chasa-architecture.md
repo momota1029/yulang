@@ -13981,7 +13981,7 @@ final reviewで次のfour issue classをend-to-end再点検した。
 
 ## 追補案: standalone `TypeExpression`のeffect row type primary
 
-Status: Proposed（Claude review / user approval待ち、2026-08-23）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 ### Scope and authority
 
@@ -14521,5 +14521,5 @@ final reviewで次のfour issue classをend-to-end再点検した。
    actual close absentに限定した。nested TypeApplyがcandidateをconsumeした後だけcontainer separator judgeへ進み、
    ApplyとMissing separatorを同じcandidateへcommitしない。malformed Errorとsame-slot Missingもno-cascadeである。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression effect row type primary追補案）。
