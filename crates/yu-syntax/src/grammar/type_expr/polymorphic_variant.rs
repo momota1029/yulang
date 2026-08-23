@@ -520,24 +520,9 @@ where
         type_primary_candidate,
         |_| false,
         payload_outer_boundary,
-        payload_boundary_after_trivia,
-        true,
+        |i| type_item_boundary_after_trivia(i, payload_outer_boundary),
     )
     .map(|(range, _)| range)
-}
-
-fn payload_boundary_after_trivia<E>(i: &mut SynIn<E>) -> bool
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let checkpoint = i.checkpoint();
-    let trivia = consume_trivia(i);
-    let boundary = !trivia.is_empty()
-        && (trivia_has_newline(&trivia) || payload_outer_boundary(i));
-    i.rollback(checkpoint);
-    boundary
 }
 
 struct AstTag<'source> {

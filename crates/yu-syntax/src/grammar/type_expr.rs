@@ -957,7 +957,6 @@ where
         |i| forall_recovery_candidate_after_trivia(phase, i).is_some(),
         |i| forall_recovery_boundary_pending(phase, i),
         |i| type_item_boundary_after_trivia(i, |i| forall_recovery_boundary_pending(phase, i)),
-        false,
     )?;
     let recovery = match recovery {
         TypeItemRecovery::Retry => forall_recovery_candidate(phase, i)
@@ -2307,7 +2306,6 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         |_| false,
         record_colon_invalid_boundary_pending,
         |_| false,
-        false,
     );
     let Some((range, TypeItemRecovery::Retry)) = recovered else {
         i.rollback(checkpoint);
@@ -2417,7 +2415,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 /// Test whether trivia after malformed input leads straight to a boundary
 /// without assigning that trivia to the malformed Error range.
-fn type_item_boundary_after_trivia<E>(
+pub(super) fn type_item_boundary_after_trivia<E>(
     i: &mut SynIn<E>,
     boundary: impl FnOnce(&mut SynIn<E>) -> bool,
 ) -> bool
@@ -2573,7 +2571,6 @@ where
         |_| false,
         type_recovery_boundary_pending,
         |i| type_item_boundary_after_trivia(i, type_recovery_boundary_pending),
-        false,
     )
 }
 
@@ -2587,7 +2584,6 @@ pub(super) fn scan_type_item_invalid_run_with<E, Candidate, TriviaCandidate, Bou
     mut candidate_after_trivia: TriviaCandidate,
     mut boundary: Boundary,
     mut boundary_after_trivia: TriviaBoundary,
-    consume_trivia_as_malformed: bool,
 ) -> Option<(Range<usize>, TypeItemRecovery)>
 where
     E: ErrorSink<usize>,
@@ -2614,12 +2610,12 @@ where
         {
             return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
         }
-        if consume_trivia_as_malformed {
-            let trivia = consume_trivia(i);
-            if !trivia.is_empty() {
-                end = i.pos();
-                continue;
-            }
+        // Trivia that neither resumes this slot nor reaches a boundary still
+        // belongs to the malformed run, but comments must remain opaque.
+        let trivia = consume_trivia(i);
+        if !trivia.is_empty() {
+            end = i.pos();
+            continue;
         }
         let Some(_) = i.input.remainder().chars().next() else {
             return (start < end).then_some((start..end, TypeItemRecovery::Boundary));
@@ -2851,7 +2847,6 @@ where
         |_| false,
         type_path_invalid_boundary_pending,
         |_| false,
-        false,
     )
     .map(|(range, _)| range)
 }
@@ -2878,7 +2873,6 @@ where
         record_field_head_candidate_after_trivia,
         record_invalid_boundary_pending,
         |i| type_item_boundary_after_trivia(i, record_invalid_boundary_pending),
-        false,
     )?;
     let recovery = match recovery {
         TypeItemRecovery::Retry => RecordItemRecovery::Retry,
@@ -2913,7 +2907,6 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         |_| false,
         record_colon_invalid_boundary_pending,
         |_| false,
-        false,
     )
     .map(|(range, _)| range)
 }
@@ -3448,6 +3441,29 @@ mod tests {
                 && error.site.range == (0..1)
                 && error.kind == crate::session::RecoveryKind::Error));
         assert_eq!(parse_required_prefix("@ )").0, " )");
+    }
+
+    #[test]
+    fn mandatory_type_recovery_treats_comments_as_atomic_malformed_trivia() {
+        for (source, range) in [("@/*)*/A", 0..6), ("@/*,;*/#A", 0..8)] {
+            let (remainder, recoveries) =
+                parse_direct_mandatory_prefix_with_outer_stop(source, None, None);
+            assert_eq!(remainder, "", "{source}");
+            assert!(matches!(recoveries.as_slice(), [error]
+                if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                    && error.kind == RecoveryKind::Error
+                    && error.site.range == range), "{source}: {recoveries:#?}");
+            assert_eq!(parse_required_prefix(source).0, "", "AST {source}");
+        }
+
+        let (remainder, recoveries) =
+            parse_direct_mandatory_prefix_with_outer_stop("@//)\nA", None, None);
+        assert_eq!(remainder, "//)\nA");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (0..1)));
+        assert_eq!(parse_required_prefix("@//)\nA").0, "//)\nA");
     }
 
     #[test]
