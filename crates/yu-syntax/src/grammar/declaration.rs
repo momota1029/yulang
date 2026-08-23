@@ -52,6 +52,7 @@ pub(crate) enum Declaration<'source> {
     Binding(BindingDeclaration<'source>),
     OperatorHeader(OperatorHeaderDeclaration<'source>),
     Mod(ModDeclaration<'source>),
+    Struct(StructDeclaration<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -81,6 +82,7 @@ pub(crate) enum StatementIntro<'source> {
     Binding(BindingStatementIntro<'source>),
     Operator(OperatorStatementIntro<'source>),
     Mod(ModStatementIntro<'source>),
+    Struct(StructStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -123,6 +125,19 @@ pub(crate) struct ModStatementIntro<'source> {
     visibility: Option<VisibilityPrefix<'source>>,
     after_visibility: Option<TriviaRun>,
     mod_keyword: WordSpan<'source>,
+}
+
+/// The sink-free prefix shared by root and canonical-statement Struct parsing.
+///
+/// `struct_base` is captured when the first accepted starter is still current;
+/// later body parsing must not reconstruct it from the name or body opener.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StructStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    struct_keyword: WordSpan<'source>,
+    struct_base: usize,
 }
 
 pub(crate) struct ParsedBindingDeclaration<'source, C> {
@@ -278,6 +293,10 @@ pub(crate) fn parse_direct_root_candidate(
             StatementIntro::Mod(intro) => {
                 let _ = commit_mod_declaration(operators, &mut committed, intro);
                 StatementKind::ModDeclaration
+            }
+            StatementIntro::Struct(intro) => {
+                let _ = commit_struct_declaration(&mut committed, intro);
+                StatementKind::StructDeclaration
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -470,6 +489,10 @@ where
             probe.input().rollback(checkpoint);
             return None;
         }
+        StatementIntro::Struct(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
     };
     Some((intro, probe.commit(output)))
 }
@@ -511,6 +534,10 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if let Some(intro) = i.run(recognize_struct_statement_intro) {
+        return Some(StatementIntro::Struct(intro));
+    }
+
     if let Some(intro) = i.run(recognize_mod_statement_intro) {
         return Some(StatementIntro::Mod(intro));
     }
@@ -588,6 +615,47 @@ where
         fixity_keyword,
         after_fixity,
     }))
+}
+
+fn recognize_struct_statement_intro<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<StructStatementIntro<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    let first = i.run(scan_word)?;
+    let struct_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+        let Some(trivia) = mod_trivia(struct_base, &mut i) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        (Some(visibility), Some(trivia), keyword)
+    } else {
+        (None, None, first)
+    };
+    if keyword.text() != "struct" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(StructStatementIntro {
+        start,
+        visibility,
+        after_visibility,
+        struct_keyword: keyword,
+        struct_base,
+    })
 }
 
 fn recognize_mod_statement_intro<'source, E>(
@@ -1007,6 +1075,31 @@ where
             }
         }
     }
+    committed.finish_node();
+    Recovered::Complete(())
+}
+
+/// Commits the selected Struct prefix while the declaration body parser is
+/// introduced in later slices. The selected keyword is never returned to the
+/// binding or expression alternatives.
+pub(crate) fn commit_struct_declaration<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: StructStatementIntro<'source>,
+) -> Recovered<()>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::StructDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::StructKw, intro.struct_keyword.range());
     committed.finish_node();
     Recovered::Complete(())
 }
@@ -3906,6 +3999,12 @@ pub(crate) struct StructDeclaration<'source> {
     range: Range<usize>,
 }
 
+impl StructDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum StructBody<'source> {
@@ -4419,11 +4518,32 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     i.choice((
+        parse_struct_declaration.map(Declaration::Struct),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
         from_fn(|i| parse_mod_declaration_with_operators(&crate::operator::OperatorTable::empty(), i)).map(Declaration::Mod),
     ))
+}
+
+/// Parses only the committed Struct prefix until the mandatory name and body
+/// continuation lands. Keeping these slots explicitly incomplete preserves
+/// Struct authority without claiming an unimplemented body grammar.
+pub(crate) fn parse_struct_declaration<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<StructDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_struct_statement_intro)?;
+    Some(StructDeclaration {
+        visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
+        name: Recovered::Incomplete,
+        body: Recovered::Incomplete,
+        range: intro.start..intro.struct_keyword.range().end,
+    })
 }
 
 /// Parses only declaration forms that are valid in the source-leading header.
@@ -5626,7 +5746,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chasa::{input::IsCut, prelude::In};
+    use chasa::{input::IsCut, prelude::{In, from_fn}};
     use std::{
         cell::RefCell,
         rc::Rc,
@@ -8960,6 +9080,94 @@ mod tests {
         let root = SyntaxNode::new_root(output.green().clone());
         assert!(root.descendants().any(|node| node.kind() == SyntaxKind::ModDeclaration));
         assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
+    }
+
+    #[test]
+    fn struct_intro_commits_exact_keywords_before_binding_and_expression_fallback() {
+        let table = crate::operator::OperatorTable::empty();
+        let recognizes_struct = |source: &str| {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            matches!(
+                i.run(recognize_statement_intro),
+                Some(StatementIntro::Struct(_))
+            )
+        };
+        let parses_root_struct = |source: &str| {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            matches!(
+                i.run(parse_declaration),
+                Some(Declaration::Struct(StructDeclaration {
+                    name: Recovered::Incomplete,
+                    body: Recovered::Incomplete,
+                    ..
+                }))
+            )
+        };
+        let parses_nested_struct = |source: &str| {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            matches!(
+                i.run(from_fn(|i| parse_canonical_statement(&table, i))),
+                Some(Statement::Struct(_))
+            )
+        };
+        for source in [
+            "struct",
+            "my struct",
+            "our struct",
+            "pub struct",
+            "struct = value",
+            "my struct = value",
+        ] {
+            assert!(recognizes_struct(source), "{source:?}");
+            assert!(parses_root_struct(source), "{source:?}");
+            assert!(parses_nested_struct(source), "{source:?}");
+
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::StructDeclaration)
+                    .count(),
+                1,
+                "{source:?}"
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::BindingStatement),
+                "{source:?}"
+            );
+        }
+
+        for source in ["structure", "structural", "my_struct"] {
+            assert!(!recognizes_struct(source), "{source:?}");
+
+            let output = parse_direct_root_candidate(source, &table, &[]);
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::StructDeclaration),
+                "{source:?}"
+            );
+        }
     }
 
     #[test]

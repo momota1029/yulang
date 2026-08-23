@@ -11,9 +11,10 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, UseDeclaration,
+        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, UseDeclaration,
         commit_binding_declaration, commit_use_declaration, parse_binding_declaration_with_operators,
-        commit_mod_declaration, parse_mod_declaration_with_operators, parse_use_declaration,
+        commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
+        parse_struct_declaration, parse_use_declaration,
         recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
@@ -203,6 +204,7 @@ pub(crate) enum Statement<'source> {
     Binding(BindingDeclaration<'source>),
     Use(UseDeclaration<'source>),
     Mod(ModDeclaration<'source>),
+    Struct(StructDeclaration<'source>),
 }
 
 impl<'source> Statement<'source> {
@@ -212,6 +214,7 @@ impl<'source> Statement<'source> {
             Self::Binding(binding) => binding.range(),
             Self::Use(declaration) => declaration.range(),
             Self::Mod(declaration) => declaration.range(),
+            Self::Struct(declaration) => declaration.range(),
         }
     }
 }
@@ -1422,6 +1425,7 @@ where
         Some(StatementIntro::Mod(_)) => i
             .run(from_fn(|i| parse_mod_declaration_with_operators(table, i)))
             .map(Statement::Mod),
+        Some(StatementIntro::Struct(_)) => i.run(parse_struct_declaration).map(Statement::Struct),
         _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
     }
 }
@@ -3767,7 +3771,15 @@ where
         let i = probe.input();
         let checkpoint = i.checkpoint();
         let intro = i.run(recognize_statement_intro);
-        if !matches!(intro, Some(StatementIntro::Binding(_) | StatementIntro::Use(_) | StatementIntro::Mod(_))) {
+        if !matches!(
+            intro,
+            Some(
+                StatementIntro::Binding(_)
+                    | StatementIntro::Use(_)
+                    | StatementIntro::Mod(_)
+                    | StatementIntro::Struct(_)
+            )
+        ) {
             i.rollback(checkpoint);
             return None;
         }
@@ -3784,6 +3796,10 @@ where
         }
         Some(StatementIntro::Mod(intro)) => {
             let _ = commit_mod_declaration(table, committed, intro);
+            true
+        }
+        Some(StatementIntro::Struct(intro)) => {
+            let _ = commit_struct_declaration(committed, intro);
             true
         }
         Some(StatementIntro::Operator(_)) | None => {
@@ -3806,7 +3822,12 @@ where
     let checkpoint = i.checkpoint();
     let declaration = matches!(
         i.run(recognize_statement_intro),
-        Some(StatementIntro::Binding(_) | StatementIntro::Use(_) | StatementIntro::Mod(_))
+        Some(
+            StatementIntro::Binding(_)
+                | StatementIntro::Use(_)
+                | StatementIntro::Mod(_)
+                | StatementIntro::Struct(_)
+        )
     );
     i.rollback(checkpoint);
     declaration || direct_expression_nud_candidate(table, leading, probe)
