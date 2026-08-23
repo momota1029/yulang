@@ -1205,6 +1205,322 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
+struct TypeDelimitedSpec {
+    owner: TypeDelimitedOwner,
+    shape: TypeDelimitedShape,
+}
+
+impl TypeDelimitedSpec {
+    fn item_role(self) -> TypeRole {
+        match self.owner {
+            TypeDelimitedOwner::Call => TypeRole::CallArgument,
+            TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
+            TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
+            TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
+            TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
+        }
+    }
+
+    fn separator_role(self) -> TypeRole {
+        match self.owner {
+            TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
+            TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
+            TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
+            TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
+            TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
+        }
+    }
+
+    fn close_spec(self) -> CloseRecoverySpec {
+        CloseRecoverySpec {
+            delimiter: self.shape.delimiter(),
+            owner: match self.owner {
+                TypeDelimitedOwner::Call => ConstructRole::TypeCall,
+                TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
+                TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
+                TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
+                TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
+            },
+            matching_kind: self.shape.close_kind(),
+            missing_after_mismatch: match self.owner {
+                TypeDelimitedOwner::EffectRow => MissingAfterMismatch::Suppress,
+                _ => MissingAfterMismatch::Emit,
+            },
+        }
+    }
+}
+
+trait TypeDelimitedContext<'source>: TypeCloseSlotContext<'source> {
+    fn emit_trivia(&mut self, trivia: &TriviaRun);
+    fn emit_incomplete_item(&mut self, role: TypeRole);
+    fn emit_malformed_item(&mut self);
+    fn emit_item_error(&mut self, role: TypeRole, range: Range<usize>);
+    fn emit_separator(&mut self, separator: TypeExplicitSeparator);
+    fn emit_missing_separator(&mut self, role: TypeRole);
+    fn set_trailing_separator(&mut self, separator: TypeExplicitSeparator);
+    fn parse_item(&mut self) -> bool;
+}
+
+/// Shared item/sequence judge for call arguments, parenthesized type groups,
+/// and effect rows.  Contexts retain only AST/CST realization; this driver
+/// owns every post-scanner transition and all close-slot handoff.
+fn drive_type_delimited<'source, C>(
+    context: &mut C,
+    spec: TypeDelimitedSpec,
+) -> Recovered<Range<usize>>
+where
+    C: TypeDelimitedContext<'source>,
+    Unexpected<char>: Into<<C::Error as ErrorSink<usize>>::Error>,
+    UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
+{
+    let incoming = context.with_input(|i| {
+        i.local.indentation_baseline().map_or(0, |baseline| baseline.column)
+    });
+    let stops = context.with_input(|i| {
+        active_stop_set(i)
+            .with(StopKind::Comma)
+            .with(StopKind::Semicolon)
+            .with(spec.shape.close_stop())
+    });
+    context.with_input(|i| {
+        i.local.push_delimiter(spec.shape.delimiter());
+        i.local.push_stop_set(stops);
+        i.local.push_type_delimited_owner(spec.owner);
+    });
+    let opening = context.with_input(consume_trivia);
+    context.emit_trivia(&opening);
+    let layout = context.with_input(|i| {
+        LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent)
+    });
+    context.with_input(|i| push_layout(layout, i));
+
+    loop {
+        if context.with_input(|i| type_delimited_close_or_mismatch_pending(spec.shape, i)) {
+            break;
+        }
+        if context.with_input(separator_pending) {
+            context.emit_incomplete_item(spec.item_role());
+            let separator = context.with_input(scan_separator)
+                .expect("the separator pending probe accepted a literal separator");
+            context.emit_separator(separator);
+            let trailing = context.with_input(consume_trivia);
+            context.emit_trivia(&trailing);
+            continue;
+        }
+        if !context.parse_item() {
+            let recovered = context.with_input(scan_type_item_invalid_run);
+            let Some((range, _)) = recovered else {
+                context.emit_incomplete_item(spec.item_role());
+                break;
+            };
+            context.emit_item_error(spec.item_role(), range);
+            match context.with_input(|i| {
+                classify_type_delimited_recovery(
+                    DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                    layout,
+                    direct_type_primary_candidate,
+                    i,
+                )
+            }) {
+                DelimitedRecoveryTarget::RetryPrimary => {
+                    let trivia = context.with_input(consume_trivia);
+                    context.emit_trivia(&trivia);
+                    continue;
+                }
+                DelimitedRecoveryTarget::ExplicitSeparator(separator) => {
+                    context.emit_malformed_item();
+                    let trivia = context.with_input(consume_trivia);
+                    context.emit_trivia(&trivia);
+                    let consumed = context.with_input(scan_separator)
+                        .expect("the recovery classifier accepted a separator");
+                    debug_assert_eq!(separator_range(&consumed), separator_range(&separator));
+                    context.emit_separator(consumed);
+                    let trailing = context.with_input(consume_trivia);
+                    context.emit_trivia(&trailing);
+                    continue;
+                }
+                DelimitedRecoveryTarget::ImplicitNewline => {
+                    context.emit_malformed_item();
+                    let trivia = context.with_input(consume_trivia);
+                    context.emit_trivia(&trivia);
+                    continue;
+                }
+                DelimitedRecoveryTarget::MatchingClose(_) | DelimitedRecoveryTarget::LocalMismatchedClose(_) => {
+                    context.emit_malformed_item();
+                    let trivia = context.with_input(consume_trivia);
+                    context.emit_trivia(&trivia);
+                    break;
+                }
+                DelimitedRecoveryTarget::OuterBoundary => {
+                    context.emit_malformed_item();
+                    let trivia = context.with_input(consume_type_chain_trivia);
+                    if let Some(trivia) = trivia.as_ref() {
+                        context.emit_trivia(trivia);
+                    }
+                    break;
+                }
+            }
+        }
+
+        let trivia = context.with_input(consume_trivia);
+        context.emit_trivia(&trivia);
+        if let Some(separator) = context.with_input(scan_separator) {
+            context.emit_separator(separator.clone());
+            let trailing = context.with_input(consume_trivia);
+            context.emit_trivia(&trailing);
+            if context.with_input(|i| close_delimiter_pending(spec.shape, i)) {
+                context.set_trailing_separator(separator);
+                break;
+            }
+            if trailing.is_empty() && context.with_input(|i| i.input.remainder().is_empty()) {
+                context.emit_incomplete_item(spec.item_role());
+                break;
+            }
+            continue;
+        }
+        if context.with_input(|i| type_delimited_close_or_mismatch_pending(spec.shape, i)) {
+            break;
+        }
+        match context.with_input(|i| layout.boundary_after_trivia(&trivia, i.local.line().line_indent)) {
+            LayoutDelimitedBoundary::ImplicitNewline => continue,
+            LayoutDelimitedBoundary::DeeperNewline => {
+                if context.with_input(direct_type_primary_candidate) {
+                    context.emit_missing_separator(spec.separator_role());
+                    continue;
+                }
+                break;
+            }
+            LayoutDelimitedBoundary::None => {
+                if context.with_input(direct_type_primary_candidate) {
+                    context.emit_missing_separator(spec.separator_role());
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+
+    let close = drive_type_close_slot(context, spec.close_spec());
+    context.with_input(|i| {
+        pop_layout(layout, i);
+        assert_eq!(i.local.pop_type_delimited_owner(), Some(spec.owner));
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        assert_eq!(i.local.pop_delimiter(), Some(spec.shape.delimiter()));
+    });
+    close
+}
+
+fn close_delimiter_pending<E>(shape: TypeDelimitedShape, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_close_delimiter(shape, i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn type_delimited_close_or_mismatch_pending<E>(shape: TypeDelimitedShape, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_close_delimiter(shape, i).is_some()
+        || scan_mismatched_close_for(shape.delimiter(), i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn separator_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_separator(i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+struct DirectTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>, O: CommitOutput<'source>> {
+    committed: &'context mut Committed<'parse, 'source, 'local, E, O>,
+}
+
+impl<'source, E, O> TypeCloseSlotContext<'source>
+    for DirectTypeDelimitedContext<'_, '_, 'source, '_, E, O>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    type Error = E;
+
+    fn with_input<R>(
+        &mut self,
+        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
+    ) -> R {
+        self.committed.probe(|probe| f(probe.input()))
+    }
+
+    fn emit_matching_close(&mut self, kind: SyntaxKind, range: Range<usize>) {
+        self.committed.token(kind, range);
+    }
+
+    fn emit_mismatched_close(&mut self, role: GrammarRole, range: Range<usize>, expected: ExpectedSyntax) {
+        emit_error_with_role(self.committed, role, range, expected);
+    }
+
+    fn emit_missing_close(&mut self, role: GrammarRole, expected: ExpectedSyntax) {
+        emit_type_missing(self.committed, role, expected);
+    }
+}
+
+impl<'source, E, O> TypeDelimitedContext<'source>
+    for DirectTypeDelimitedContext<'_, '_, 'source, '_, E, O>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn emit_trivia(&mut self, trivia: &TriviaRun) {
+        self.committed.emit_trivia(trivia);
+    }
+
+    fn emit_incomplete_item(&mut self, role: TypeRole) {
+        emit_type_missing(self.committed, GrammarRole::Type(role), ExpectedSyntax::TypeExpression);
+    }
+
+    fn emit_malformed_item(&mut self) {}
+
+    fn emit_item_error(&mut self, role: TypeRole, range: Range<usize>) {
+        emit_type_error(self.committed, role, range, ExpectedSyntax::TypeExpression);
+    }
+
+    fn emit_separator(&mut self, separator: TypeExplicitSeparator) {
+        self.committed.token(separator_kind(&separator), separator_range(&separator));
+    }
+
+    fn emit_missing_separator(&mut self, role: TypeRole) {
+        emit_type_missing(
+            self.committed,
+            GrammarRole::Type(role),
+            ExpectedSyntax::DelimitedSequenceSeparator,
+        );
+    }
+
+    fn set_trailing_separator(&mut self, _separator: TypeExplicitSeparator) {}
+
+    fn parse_item(&mut self) -> bool {
+        commit_direct_type_expression(self.committed).is_some()
+    }
+}
+
 fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     owner: TypeDelimitedOwner,
     shape: TypeDelimitedShape,
@@ -1219,141 +1535,17 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(kind);
-    if let Some((kind, range)) = prefix { committed.token(kind, range); }
+    if let Some((kind, range)) = prefix {
+        committed.token(kind, range);
+    }
     committed.token(shape.open_kind(), open);
-    let incoming = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
-    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::Semicolon).with(shape.close_stop()));
-    committed.probe(|probe| {
-        probe.input().local.push_delimiter(shape.delimiter());
-        probe.input().local.push_stop_set(stops);
-        probe.input().local.push_type_delimited_owner(owner);
-    });
-    let opening = consume_direct_trivia(committed);
-    committed.emit_trivia(&opening);
-    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
-    committed.probe(|probe| push_layout(layout, probe.input()));
-    if !direct_type_close_pending(shape, committed) {
-        loop {
-            if direct_type_separator_pending(committed) {
-                emit_type_missing(
-                    committed,
-                    GrammarRole::Type(match owner {
-                        TypeDelimitedOwner::Call => TypeRole::CallArgument,
-                        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
-                        TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
-                        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
-                        TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
-                    }),
-                    ExpectedSyntax::TypeExpression,
-                );
-                let separator = committed
-                    .probe(|probe| scan_separator(probe.input()))
-                    .expect("the separator pending probe accepted a literal separator");
-                committed.token(separator_kind(&separator), separator_range(&separator));
-                let trailing = consume_direct_trivia(committed);
-                committed.emit_trivia(&trailing);
-                if direct_type_close_pending(shape, committed) { break; }
-                continue;
-            }
-            if commit_direct_type_expression(committed).is_none() {
-                let role = match owner {
-                    TypeDelimitedOwner::Call => TypeRole::CallArgument,
-                    TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
-                    TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
-                    TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
-                    TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
-                };
-                match direct_type_delimited_item_error_retry(committed, role) {
-                    Some(TypeDelimitedItemRecovery::Retry) => continue,
-                    Some(TypeDelimitedItemRecovery::Separator) => {
-                        let separator = committed
-                            .probe(|probe| scan_separator(probe.input()))
-                            .expect("the malformed-item recovery stopped at a separator");
-                        committed.token(separator_kind(&separator), separator_range(&separator));
-                        let trailing = consume_direct_trivia(committed);
-                        committed.emit_trivia(&trailing);
-                        if direct_type_close_pending(shape, committed) { break; }
-                        continue;
-                    }
-                    // The malformed run reached a delimiter or a caller-owned
-                    // stop.  It is already represented by its Error node;
-                    // leave the boundary for the close/outer owner instead of
-                    // manufacturing a second missing item at that cause.
-                    Some(TypeDelimitedItemRecovery::Boundary) => break,
-                    None => {
-                        emit_type_missing(committed, GrammarRole::Type(role), ExpectedSyntax::TypeExpression);
-                        break;
-                    }
-                }
-            }
-            let trivia = consume_direct_trivia(committed);
-            committed.emit_trivia(&trivia);
-            if let Some(separator) = committed.probe(|probe| scan_separator(probe.input())) {
-                committed.token(separator_kind(&separator), separator_range(&separator));
-                let trailing = consume_direct_trivia(committed);
-                committed.emit_trivia(&trailing);
-                if direct_type_close_pending(shape, committed) { break; }
-                continue;
-            }
-            if direct_type_close_pending(shape, committed) { break; }
-            if committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)) == LayoutDelimitedBoundary::ImplicitNewline { continue; }
-            if committed.probe(|probe| direct_type_primary_candidate(probe.input())) {
-                emit_type_missing(
-                    committed,
-                    GrammarRole::Type(match owner {
-                        TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
-                        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
-                        TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
-                        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
-                        TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
-                    }),
-                    ExpectedSyntax::DelimitedSequenceSeparator,
-                );
-                continue;
-            }
-            break;
-        }
-    }
-    let close_role = GrammarRole::ClosingDelimiter {
-        owner: match owner {
-            TypeDelimitedOwner::Call => ConstructRole::TypeCall,
-            TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
-            TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
-            TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
-            TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
-        },
-        delimiter: shape.delimiter(),
-    };
-    loop {
-        if let Some(close) = committed.probe(|probe| scan_close_delimiter(shape, probe.input())) {
-            committed.token(shape.close_kind(), close);
-            break;
-        }
-        let mismatched = committed.probe(|probe| scan_mismatched_close_for(shape.delimiter(), probe.input()));
-        if let Some(range) = mismatched {
-            emit_error_with_role(
-                committed,
-                close_role,
-                range,
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(shape.delimiter())),
-            );
-            continue;
-        }
-        emit_type_missing(
-            committed,
-            close_role,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(shape.delimiter())),
-        );
-        break;
-    }
-    committed.probe(|probe| {
-        pop_layout(layout, probe.input());
-        assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(owner));
-        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
-        assert_eq!(probe.input().local.pop_delimiter(), Some(shape.delimiter()));
-    });
+    let _ = drive_type_delimited(
+        &mut DirectTypeDelimitedContext { committed },
+        TypeDelimitedSpec { owner, shape },
+    );
     committed.finish_node();
 }
+
 
 fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     open: Range<usize>,
@@ -1608,40 +1800,7 @@ where
     true
 }
 
-fn direct_type_close_pending<'parse, 'source, 'local, E, O>(
-    shape: TypeDelimitedShape,
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> bool
-where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    committed.probe(|probe| {
-        let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let pending = scan_close_delimiter(shape, i).is_some();
-        i.rollback(checkpoint);
-        pending
-    })
-}
 
-fn direct_type_separator_pending<'parse, 'source, 'local, E, O>(committed: &mut Committed<'parse, 'source, 'local, E, O>) -> bool
-where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    committed.probe(|probe| {
-        let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let pending = scan_separator(i).is_some();
-        i.rollback(checkpoint);
-        pending
-    })
-}
 
 fn parse_type_primary_in_context<'source, E>(
     allow_forall: bool,
@@ -2202,6 +2361,67 @@ where
     Some(TypeRecordField { name, colon, type_expr, range: start..end })
 }
 
+struct AstTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
+    i: &'context mut SynIn<'parse, 'source, 'local, E>,
+    items: Vec<Recovered<TypeExpression<'source>>>,
+    trailing: Option<TypeExplicitSeparator>,
+}
+
+impl<'source, E> TypeCloseSlotContext<'source>
+    for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
+where
+    E: ErrorSink<usize>,
+{
+    type Error = E;
+
+    fn with_input<R>(
+        &mut self,
+        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
+    ) -> R {
+        f(self.i)
+    }
+
+    fn emit_matching_close(&mut self, _kind: SyntaxKind, _range: Range<usize>) {}
+    fn emit_mismatched_close(&mut self, _role: GrammarRole, _range: Range<usize>, _expected: ExpectedSyntax) {}
+    fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {}
+}
+
+impl<'source, E> TypeDelimitedContext<'source>
+    for AstTypeDelimitedContext<'_, '_, 'source, '_, E>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    fn emit_trivia(&mut self, _trivia: &TriviaRun) {}
+
+    fn emit_incomplete_item(&mut self, _role: TypeRole) {
+        self.items.push(Recovered::Incomplete);
+    }
+
+    fn emit_malformed_item(&mut self) {
+        self.items.push(Recovered::Incomplete);
+    }
+
+    fn emit_item_error(&mut self, _role: TypeRole, _range: Range<usize>) {}
+    fn emit_separator(&mut self, _separator: TypeExplicitSeparator) {}
+    fn emit_missing_separator(&mut self, _role: TypeRole) {}
+
+    fn set_trailing_separator(&mut self, separator: TypeExplicitSeparator) {
+        self.trailing = Some(separator);
+    }
+
+    fn parse_item(&mut self) -> bool {
+        let value = self.i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)));
+        if let Some(value) = value {
+            self.items.push(Recovered::Complete(value));
+            true
+        } else {
+            false
+        }
+    }
+}
+
 fn parse_type_delimited_items<'source, E>(
     owner: TypeDelimitedOwner,
     shape: TypeDelimitedShape,
@@ -2212,83 +2432,15 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let incoming = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
-    i.local.push_delimiter(shape.delimiter());
-    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::Semicolon).with(shape.close_stop());
-    i.local.push_stop_set(stops);
-    i.local.push_type_delimited_owner(owner);
-    let opening = consume_trivia(i);
-    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
-    push_layout(layout, i);
-    let mut items = Vec::new();
-    let mut trailing = None;
-    let close;
-    loop {
-        if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
-        if scan_mismatched_close_for(shape.delimiter(), i).is_some() { close = Recovered::Incomplete; break; }
-        if scan_separator(i).is_some() {
-            items.push(Recovered::Incomplete);
-            let _ = consume_trivia(i);
-            if let Some(range) = scan_close_delimiter(shape, i) {
-                close = Recovered::Complete(range);
-                break;
-            }
-            continue;
-        }
-        if let Some(item) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
-            items.push(Recovered::Complete(item));
-        } else if recover_type_item_for_ast(i) {
-            continue;
-        } else {
-            items.push(Recovered::Incomplete);
-            let _ = scan_mismatched_close_for(shape.delimiter(), i);
-            close = Recovered::Incomplete;
-            break;
-        }
-        let trivia = consume_trivia(i);
-        if let Some(separator) = scan_separator(i) {
-            let post = consume_trivia(i);
-            if let Some(range) = scan_close_delimiter(shape, i) {
-                trailing = Some(separator);
-                close = Recovered::Complete(range);
-                break;
-            }
-            if post.is_empty() && i.input.remainder().is_empty() {
-                items.push(Recovered::Incomplete);
-                close = Recovered::Incomplete;
-                break;
-            }
-            continue;
-        }
-        match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
-            LayoutDelimitedBoundary::ImplicitNewline => {
-                if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
-                continue;
-            }
-            LayoutDelimitedBoundary::DeeperNewline => {
-                close = Recovered::Incomplete;
-                break;
-            }
-            LayoutDelimitedBoundary::None => {
-                if let Some(range) = scan_close_delimiter(shape, i) { close = Recovered::Complete(range); break; }
-                if type_primary_candidate(i) {
-                    // A nested ML argument may intentionally stop before this
-                    // primary.  The direct path commits the separator Missing;
-                    // the source-free AST retains the same next-item slot.
-                    continue;
-                }
-                let _ = scan_mismatched_close_for(shape.delimiter(), i);
-                close = Recovered::Incomplete;
-                break;
-            }
-        }
-    }
-    pop_layout(layout, i);
-    assert_eq!(i.local.pop_type_delimited_owner(), Some(owner));
-    assert_eq!(i.local.pop_stop_set(), Some(stops));
-    assert_eq!(i.local.pop_delimiter(), Some(shape.delimiter()));
-    (items, trailing, close)
+    let mut context = AstTypeDelimitedContext {
+        i,
+        items: Vec::new(),
+        trailing: None,
+    };
+    let close = drive_type_delimited(&mut context, TypeDelimitedSpec { owner, shape });
+    (context.items, context.trailing, close)
 }
+
 
 /// The AST is intentionally source-free: direct CST owns the Error node and
 /// typed recovery record.  This counterpart only advances across the same
@@ -2789,13 +2941,6 @@ fn emit_error_with_role<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum TypeDelimitedItemRecovery {
-    Retry,
-    Separator,
-    Boundary,
-}
-
 /// A malformed mandatory item may either stop before another type primary or
 /// reach a boundary owned by its enclosing construct.  Both cases commit the
 /// Error run; only the first may retry the required slot.
@@ -2889,30 +3034,6 @@ where
 /// active caller stop.  A non-empty Error run ending at a boundary is still a
 /// committed recovery site, but it is not an item retry and must not make the
 /// list synthesize a second Missing item from the same cause.
-fn direct_type_delimited_item_error_retry<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    role: TypeRole,
-) -> Option<TypeDelimitedItemRecovery>
-where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let recovered = committed.probe(|probe| scan_type_item_invalid_run(probe.input()));
-    let Some((range, recovery)) = recovered else { return None; };
-    emit_type_error(committed, role, range, ExpectedSyntax::TypeExpression);
-    Some(match recovery {
-        TypeItemRecovery::Retry => TypeDelimitedItemRecovery::Retry,
-        TypeItemRecovery::Boundary => {
-            if direct_type_separator_pending(committed) {
-                TypeDelimitedItemRecovery::Separator
-            } else {
-                TypeDelimitedItemRecovery::Boundary
-            }
-        }
-    })
-}
 
 /// Generic primary recovery used by the mandatory and arrow-RHS entries.
 /// Delimited calls and groups use the boundary-aware variant above because
@@ -3808,6 +3929,38 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedSeparator)
                 && record.site.range == (5..5)
                 && record.kind == crate::session::RecoveryKind::Missing));
+
+        let deeper_call = parse("G T(F\n  A)");
+        assert!(matches!(deeper_call.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.postfix.as_slice(), [TypePostfixTail::Call(tail)]
+                if tail.arguments.len() == 2)));
+        let deeper_call_recoveries = parse_direct_recovered("G T(F\n  A)");
+        assert!(matches!(deeper_call_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::CallArgumentSeparator)
+                && record.site.range == (8..8)
+                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_call_recoveries:#?}");
+
+        let deeper_group = parse("G (F\n  A)");
+        assert!(matches!(deeper_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                ref elements, ..
+            }) if elements.len() == 2)));
+        let deeper_group_recoveries = parse_direct_recovered("G (F\n  A)");
+        assert!(matches!(deeper_group_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedSeparator)
+                && record.site.range == (7..7)
+                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_group_recoveries:#?}");
+
+        let deeper_effect = parse("G '[F\n  A]");
+        assert!(matches!(deeper_effect.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.primary, TypePrimary::EffectRow(EffectRowType {
+                ref items, ..
+            }) if items.len() == 2)));
+        let deeper_effect_recoveries = parse_direct_recovered("G '[F\n  A]");
+        assert!(matches!(deeper_effect_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::EffectRowSeparator)
+                && record.site.range == (8..8)
+                && record.kind == crate::session::RecoveryKind::Missing), "{deeper_effect_recoveries:#?}");
     }
 
     #[test]
@@ -4032,6 +4185,77 @@ mod tests {
         let leading_separator = parse("T(,)");
         assert!(matches!(leading_separator.postfix.as_slice(), [TypePostfixTail::Call(tail)]
             if matches!(tail.arguments.as_slice(), [Recovered::Incomplete])));
+    }
+
+    #[test]
+    fn shared_type_delimited_driver_covers_malformed_gaps_and_close_retry() {
+        for (source, role) in [
+            ("T(@ )", TypeRole::CallArgument),
+            ("T(@)", TypeRole::CallArgument),
+            ("(@)", TypeRole::ParenthesizedItem),
+            ("'[@]", TypeRole::EffectRowItem),
+        ] {
+            let recoveries = parse_direct_recovered(source);
+            assert!(matches!(recoveries.as_slice(), [record]
+                if record.site.role == GrammarRole::Type(role)
+                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+        }
+        assert!(matches!(parse("T(@)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Complete(_), ..
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete])));
+        assert!(matches!(parse("(@)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            elements, close: Recovered::Complete(_), ..
+        }) if matches!(elements.as_slice(), [Recovered::Incomplete])));
+        assert!(matches!(parse("'[@]").primary, TypePrimary::EffectRow(EffectRowType {
+            items, close: Recovered::Complete(_), ..
+        }) if matches!(items.as_slice(), [Recovered::Incomplete])));
+
+        for (source, role) in [
+            ("T(@ , A)", TypeRole::CallArgument),
+            ("(@ ; A)", TypeRole::ParenthesizedItem),
+            ("'[@ , A]", TypeRole::EffectRowItem),
+        ] {
+            let recoveries = parse_direct_recovered(source);
+            assert!(matches!(recoveries.as_slice(), [record]
+                if record.site.role == GrammarRole::Type(role)
+                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+        }
+
+        for (source, owner) in [
+            ("T(])", ConstructRole::TypeCall),
+            ("(])", ConstructRole::ParenthesizedTypeGroup),
+            ("'[)]", ConstructRole::EffectRowType),
+        ] {
+            let recoveries = parse_direct_recovered(source);
+            assert!(matches!(recoveries.as_slice(), [record]
+                if matches!(record.site.role, GrammarRole::ClosingDelimiter { owner: found, .. }
+                    if found == owner)
+                    && record.kind == RecoveryKind::Error), "{source}: {recoveries:#?}");
+        }
+
+        assert!(matches!(parse("T(A])").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Complete(close), ..
+        })] if *close == (4..5)));
+        let close_retry = parse_direct_recovered("T(A])");
+        assert!(matches!(close_retry.as_slice(), [record]
+            if matches!(record.site.role, GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::TypeCall,
+                delimiter: Delimiter::Parenthesis,
+            })
+                && record.site.range == (3..4)
+                && record.kind == RecoveryKind::Error), "{close_retry:#?}");
+
+        let deeper_close = parse("T(for 'a: A\n  )");
+        assert!(matches!(deeper_close.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Complete(_), ..
+        })]));
+        let deeper_mismatch = parse_direct_recovered("T(for 'a: A\n  ])");
+        assert!(deeper_mismatch.iter().any(|record| matches!(record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::TypeCall,
+                delimiter: Delimiter::Parenthesis,
+            }
+        ) && record.kind == RecoveryKind::Error), "{deeper_mismatch:#?}");
     }
 
     #[test]
@@ -4777,7 +5001,7 @@ mod tests {
             owner: ConstructRole::EffectRowType,
             delimiter: Delimiter::Bracket,
         }) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
-        assert!(mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+        assert!(!mismatch.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
             owner: ConstructRole::EffectRowType,
             delimiter: Delimiter::Bracket,
         }) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
