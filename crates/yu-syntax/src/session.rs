@@ -458,6 +458,11 @@ impl StopSet {
         self
     }
 
+    pub(crate) fn without(mut self, stop: StopKind) -> Self {
+        self.0 &= !(1 << (stop as u8));
+        self
+    }
+
     pub(crate) fn contains(self, stop: StopKind) -> bool {
         self.0 & (1 << (stop as u8)) != 0
     }
@@ -481,6 +486,26 @@ pub(crate) enum StopKind {
     ArmGuardIf,
     ArmGuardWhere,
     With,
+}
+
+impl StopKind {
+    pub(crate) const ALL: [Self; 15] = [
+        Self::Newline,
+        Self::Comma,
+        Self::Semicolon,
+        Self::Colon,
+        Self::LeftBrace,
+        Self::Elsif,
+        Self::Else,
+        Self::RightParenthesis,
+        Self::RightBracket,
+        Self::RightBrace,
+        Self::Equal,
+        Self::Arrow,
+        Self::ArmGuardIf,
+        Self::ArmGuardWhere,
+        Self::With,
+    ];
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

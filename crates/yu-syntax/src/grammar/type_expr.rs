@@ -1090,7 +1090,14 @@ where
         }
         if polymorphic_variant_semicolon_pending(committed) {
             // NT-4 must yield before scanning a caller-owned semicolon.
-            if active_stop_set_probe(committed, StopKind::Semicolon) { break; }
+            if active_stop_set_probe(committed, StopKind::Semicolon) {
+                commit_direct_polymorphic_variant_required_tag(
+                    tag_required,
+                    required_filled,
+                    committed,
+                );
+                break;
+            }
             let semicolon = committed.probe(|probe| scan_record_semicolon(probe.input()))
                 .expect("the semicolon probe accepted a literal semicolon");
             emit_type_error(committed, TypeRole::PolymorphicVariantTagSeparator, semicolon, ExpectedSyntax::DelimitedSequenceSeparator);
@@ -1114,7 +1121,14 @@ where
                 let qualifying = layout.boundary_after_trivia(&gap, gap_line_indent)
                     == LayoutDelimitedBoundary::ImplicitNewline;
                 let caller_owns_newline = active_stop_set_probe(committed, StopKind::Newline);
-                if !qualifying || caller_owns_newline { break; }
+                if !qualifying || caller_owns_newline {
+                    commit_direct_polymorphic_variant_required_tag(
+                        tag_required,
+                        required_filled,
+                        committed,
+                    );
+                    break;
+                }
                 let consumed = consume_direct_trivia(committed);
                 committed.emit_trivia(&consumed);
                 if after_tag {
@@ -1124,7 +1138,14 @@ where
                 }
                 continue;
             }
-            if gap_precedes_owner_boundary { break; }
+            if gap_precedes_owner_boundary {
+                commit_direct_polymorphic_variant_required_tag(
+                    tag_required,
+                    required_filled,
+                    committed,
+                );
+                break;
+            }
             let consumed = consume_direct_trivia(committed);
             committed.emit_trivia(&consumed);
             continue;
@@ -1178,11 +1199,11 @@ where
         } else {
             // NT-7.  A leading/repeated comma already filled this required
             // slot, so EOF must not create a second Missing tag.
-            if tag_required && !required_filled {
-                committed.start_node(SyntaxKind::PolymorphicVariantTag);
-                emit_type_missing(committed, GrammarRole::Type(TypeRole::PolymorphicVariantTag), ExpectedSyntax::Identifier);
-                committed.finish_node();
-            }
+            commit_direct_polymorphic_variant_required_tag(
+                tag_required,
+                required_filled,
+                committed,
+            );
             break;
         }
     }
@@ -1240,6 +1261,28 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     i.input.remainder().starts_with(';')
 }
 
+/// Materialize the one recovery slot required by a preceding comma or
+/// qualifying newline before NT-7 gives an outer boundary back to its caller.
+fn commit_direct_polymorphic_variant_required_tag<'parse, 'source, 'local, E, O>(
+    tag_required: bool,
+    required_filled: bool,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    if tag_required && !required_filled {
+        committed.start_node(SyntaxKind::PolymorphicVariantTag);
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::PolymorphicVariantTag),
+            ExpectedSyntax::Identifier,
+        );
+        committed.finish_node();
+    }
+}
+
 /// NT-7 leaves a same-line gap with its caller-owned boundary.  Comma and the
 /// matching brace are local to this owner, so they deliberately do not appear
 /// here even though the active frame contains their stop bits.
@@ -1249,18 +1292,10 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let remainder = i.input.remainder();
-    let Some(character) = remainder.chars().next() else { return true; };
-    let stops = active_stop_set(i);
-    match character {
-        ';' => stops.contains(StopKind::Semicolon),
-        ')' => stops.contains(StopKind::RightParenthesis),
-        ']' => stops.contains(StopKind::RightBracket),
-        ':' => stops.contains(StopKind::Colon),
-        '=' => stops.contains(StopKind::Equal),
-        '\n' | '\r' => stops.contains(StopKind::Newline),
-        _ => remainder.starts_with("->") && stops.contains(StopKind::Arrow),
-    }
+    let caller_stops = active_stop_set(i)
+        .without(StopKind::Comma)
+        .without(StopKind::RightBrace);
+    active_stop_pending(caller_stops, i)
 }
 
 fn commit_direct_polymorphic_variant_tag<'parse, 'source, 'local, E, O>(
@@ -1967,6 +2002,11 @@ where
         // NT-4 must inspect caller ownership before consuming the token.
         if polymorphic_variant_semicolon_pending_ast(i) {
             if active_stop_set(i).contains(StopKind::Semicolon) {
+                materialize_polymorphic_variant_required_tag(
+                    &mut tags,
+                    tag_required,
+                    required_filled,
+                );
                 close = Recovered::Incomplete;
                 break;
             }
@@ -1985,6 +2025,11 @@ where
                     || layout.boundary_after_trivia(&gap, i.local.line().line_indent) != LayoutDelimitedBoundary::ImplicitNewline
                 {
                     i.rollback(checkpoint);
+                    materialize_polymorphic_variant_required_tag(
+                        &mut tags,
+                        tag_required,
+                        required_filled,
+                    );
                     close = Recovered::Incomplete;
                     break;
                 }
@@ -1998,6 +2043,11 @@ where
             }
             if polymorphic_variant_owner_boundary_pending(i) {
                 i.rollback(checkpoint);
+                materialize_polymorphic_variant_required_tag(
+                    &mut tags,
+                    tag_required,
+                    required_filled,
+                );
                 close = Recovered::Incomplete;
                 break;
             }
@@ -2019,7 +2069,11 @@ where
         }
         // NT-7.
         if i.input.remainder().is_empty() || type_recovery_boundary_pending(i) {
-            if tag_required && !required_filled { tags.push(Recovered::Incomplete); }
+            materialize_polymorphic_variant_required_tag(
+                &mut tags,
+                tag_required,
+                required_filled,
+            );
             close = Recovered::Incomplete;
             break;
         }
@@ -2048,6 +2102,16 @@ where
     assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
     let end = match &close { Recovered::Complete(range) => range.end, Recovered::Incomplete => i.pos() };
     PolymorphicVariantType { colon: colon.clone(), open, tags, trailing_comma, close, range: colon.start..end }
+}
+
+fn materialize_polymorphic_variant_required_tag<'source>(
+    tags: &mut Vec<Recovered<PolymorphicVariantTag<'source>>>,
+    tag_required: bool,
+    required_filled: bool,
+) {
+    if tag_required && !required_filled {
+        tags.push(Recovered::Incomplete);
+    }
 }
 
 fn parse_polymorphic_variant_tag<'source, E>(
@@ -2171,6 +2235,21 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     loop {
         if end > start && type_primary_candidate(i) { return Some(start..end); }
         if polymorphic_variant_outer_boundary(i) { return (start < end).then_some(start..end); }
+
+        // Trivia is opaque to this malformed-run judge.  In particular, do
+        // not retry a type primary from inside a comment.  If the trivia ends
+        // at an outer safe point, roll it back so the caller owns that gap.
+        let trivia_checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i);
+        if !trivia.is_empty() {
+            if trivia_has_newline(&trivia) || polymorphic_variant_outer_boundary(i) {
+                i.rollback(trivia_checkpoint);
+                return (start < end).then_some(start..end);
+            }
+            end = i.pos();
+            continue;
+        }
+
         let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
         if matches!(character, '\n' | '\r') { return (start < end).then_some(start..end); }
         i.input.next()?;
@@ -2961,12 +3040,62 @@ where
     if matches!(character, ')' | ']' | '}' | ',' | ';') {
         return true;
     }
-    let stops = active_stop_set(i);
-    (character == ':' && stops.contains(StopKind::Colon))
-        || (character == '=' && stops.contains(StopKind::Equal))
-        || (character == '\n' && stops.contains(StopKind::Newline))
-        || (character == '\r' && stops.contains(StopKind::Newline))
-        || (remainder.starts_with("->") && stops.contains(StopKind::Arrow))
+    active_stop_pending(active_stop_set(i), i)
+}
+
+/// Tests one source position against the complete stop vocabulary.  Grammar
+/// owners pass the active [`StopSet`] (or a filtered derivative when they own
+/// a local delimiter); individual owners must not reimplement this mapping.
+fn active_stop_pending<E>(stops: StopSet, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let remainder = i.input.remainder();
+    let word = if StopKind::ALL.into_iter().any(|stop| {
+        stops.contains(stop) && matches!(
+            stop,
+            StopKind::Elsif
+                | StopKind::Else
+                | StopKind::ArmGuardIf
+                | StopKind::ArmGuardWhere
+                | StopKind::With,
+        )
+    }) {
+        let checkpoint = i.checkpoint();
+        let word = i.run(scan_word).map(|word| word.text());
+        i.rollback(checkpoint);
+        word
+    } else {
+        None
+    };
+    StopKind::ALL.into_iter().any(|stop| {
+        stops.contains(stop) && stop_kind_pending(stop, remainder, word)
+    })
+}
+
+/// One spelling check per [`StopKind`].  This match is intentionally
+/// exhaustive: adding a stop requires defining its source boundary here, and
+/// `StopKind::ALL` then makes it available to every owner boundary probe.
+fn stop_kind_pending(stop: StopKind, remainder: &str, word: Option<&str>) -> bool {
+    match stop {
+        StopKind::Newline => remainder.starts_with('\n') || remainder.starts_with('\r'),
+        StopKind::Comma => remainder.starts_with(','),
+        StopKind::Semicolon => remainder.starts_with(';'),
+        StopKind::Colon => remainder.starts_with(':'),
+        StopKind::LeftBrace => remainder.starts_with('{'),
+        StopKind::Elsif => word == Some("elsif"),
+        StopKind::Else => word == Some("else"),
+        StopKind::RightParenthesis => remainder.starts_with(')'),
+        StopKind::RightBracket => remainder.starts_with(']'),
+        StopKind::RightBrace => remainder.starts_with('}'),
+        StopKind::Equal => remainder.starts_with('='),
+        StopKind::Arrow => remainder.starts_with("->"),
+        StopKind::ArmGuardIf => word == Some("if"),
+        StopKind::ArmGuardWhere => word == Some("where"),
+        StopKind::With => word == Some("with"),
+    }
 }
 
 /// A type parser may be nested beneath an owner that reserves an arrow.  The
@@ -4125,6 +4254,32 @@ mod tests {
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
 
+        let (remainder, required_tag) = parse_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        assert!(matches!(required_tag.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, tags, ..
+        }) if matches!(tags.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
+        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        assert_eq!(records.iter().filter(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Missing).count(), 1);
+
+        let (remainder, left_brace) = parse_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
+        assert_eq!(remainder, " {");
+        assert!(matches!(left_brace.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, ..
+        })));
+        let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
+        assert_eq!(remainder, " {");
+        let (remainder, with) = parse_prefix_with_outer_stop(":{A with", StopKind::With);
+        assert_eq!(remainder, " with");
+        assert!(matches!(with.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, ..
+        })));
+        let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A with", StopKind::With);
+        assert_eq!(remainder, " with");
+
         for source in [":{A;B}", ":{A ; B}"] {
             let parsed = parse(source);
             assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
@@ -4146,14 +4301,26 @@ mod tests {
 
     #[test]
     fn polymorphic_variant_never_consumes_a_deeper_outer_newline() {
-        for source in [":{A,\n  B}", ":{@\n  B}"] {
+        for (source, expected_incomplete_tags, expected_missing_records) in [
+            (":{A,\n  B}", 1, 1),
+            (":{@\n  B}", 1, 0),
+        ] {
             let (remainder, value) = parse_prefix(source);
             assert_eq!(remainder, "\n  B}", "AST leaves the deep newline for {source:?}");
-            assert!(matches!(value.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
-                close: Recovered::Incomplete, ..
-            })));
-            let (remainder, _) = parse_direct_prefix(source);
+            assert_eq!(match value.primary {
+                TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                    close: Recovered::Incomplete,
+                    tags,
+                    ..
+                }) => tags.iter()
+                    .filter(|tag| matches!(tag, Recovered::Incomplete)).count(),
+                _ => unreachable!(),
+            }, expected_incomplete_tags);
+            let (remainder, records) = parse_direct_prefix(source);
             assert_eq!(remainder, "\n  B}", "direct CST leaves the deep newline for {source:?}");
+            assert_eq!(records.iter().filter(|record|
+                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                    && record.kind == RecoveryKind::Missing).count(), expected_missing_records);
         }
     }
 
@@ -4253,6 +4420,53 @@ mod tests {
                 && record.site.range == (4..6)));
         let direct = parse_direct(":{A @ 123}");
         assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload).count(), 1);
+    }
+
+    #[test]
+    fn polymorphic_variant_malformed_scanner_preserves_outer_gaps_and_comment_atomicity() {
+        let (remainder, _) = parse_prefix_with_outer_stop(":{@ )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{@ )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        assert!(records.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..3)));
+
+        let (remainder, _) = parse_prefix_with_outer_stop(":{A @ )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A @ )", StopKind::RightParenthesis);
+        assert_eq!(remainder, " )");
+        assert!(records.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..5)));
+
+        let block = parse_direct_recovered(":{@ /*x*/ 123}");
+        assert!(block.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..10)));
+        assert!(block.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (10..13)));
+
+        let payload_block = parse_direct_recovered(":{A @ /*x*/ 123}");
+        assert!(payload_block.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..12)));
+
+        let line = parse_direct_recovered(":{@ //x\n123}");
+        assert!(line.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..3)));
+        assert!(line.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (8..11)));
     }
 
 }
