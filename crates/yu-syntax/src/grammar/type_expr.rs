@@ -1631,6 +1631,9 @@ where
             }
         }
 
+        if context.with_input(type_malformed_caller_boundary_pending) {
+            break;
+        }
         let trivia = context.with_input(consume_trivia);
         context.emit_trivia(&trivia);
         if let Some(separator) = context.with_input(scan_separator) {
@@ -1968,6 +1971,9 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
         }
         if parsed_field.as_ref().is_some_and(|field| field.caller_owned_boundary) {
             caller_owned_boundary = true;
+            break;
+        }
+        if committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())) {
             break;
         }
         let trivia = consume_direct_trivia(committed);
@@ -2620,6 +2626,9 @@ where
             fields.push(Recovered::Complete(parsed_field.field));
             if field_caller_owned_boundary {
                 caller_owned_boundary = true;
+                break;
+            }
+            if type_malformed_caller_boundary_pending(i) {
                 break;
             }
         } else if let Some(TypeInvalidRunRecovery {
@@ -3448,6 +3457,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if type_malformed_caller_boundary_pending(i) {
+        return None;
+    }
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
     if type_chain_trivia(i, &trivia) {
@@ -5458,6 +5470,17 @@ mod tests {
                 delimiter: Delimiter::Brace,
             }
         ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+    }
+
+    #[test]
+    fn nested_caller_boundary_stops_outer_normal_item_trivia_consumption() {
+        let source = "T((@ \n  A))";
+        let (ast_remainder, _) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(ast_remainder, " \n  A))");
+
+        let (direct_remainder, _) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(direct_remainder, " \n  A))");
     }
 
     #[test]
