@@ -14523,3 +14523,582 @@ final reviewで次のfour issue classをend-to-end再点検した。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression effect row type primary追補案）。
+
+## 追補案: standalone `TypeExpression`のpolymorphic variant type primary
+
+Status: Proposed（Claude review / ユーザ承認待ち、2026-08-23）。
+
+### Scope and authority
+
+本追補はauthoritativeなstandalone `TypeExpression` grammarへpolymorphic variant type
+`:{A Int, B}`を追加する。これはexpression-side variant literalでも、pattern-side poly-variantでもなく、
+tag nameとzero-or-more payload typeを持つown type primaryである。
+
+本追補が定める範囲は次だけである。
+
+- `TypePrimary::PolymorphicVariant(PolymorphicVariantType)`のrecognition、CST、AST。
+- comma / implicit newlineだけを受けるouter tag sequence。
+- plain `Identifier` tag nameと、same-line boundaryで連なるzero-or-more full `TypeExpression` payload sequence。
+- 二層sequenceのowner-safe typed recovery、AST / direct-CST parity、byte ownership。
+
+struct / enum / error payload、cast / role / where / act signature、pattern type annotationへのwiringは行わない。
+bracket-row typeは引き続きreserved-but-unspecifiedである。original core addendumのdeferred forms listでは
+polymorphic variantの項目だけを本追補がsupersedeし、remaining bracket-rowとall use-site integration boundaryを
+変更しない。
+
+### Yulang2 oracle facts
+
+Yulang2のtype NUD scannerはcolonを`TypNudTag::PolyVariantStart`へ分類し、`parse_type_from_nud`は
+`TypeExpr`を開始して`parse_type_poly_variant_group`へdispatchした
+（`yulang2-oracle:crates/parser/src/typ/scan.rs:35-63,94-103`、
+`crates/parser/src/typ/parse.rs:19-52`）。parserはcolonをemitし、そのtrailing triviaを渡して次のNUDをscanし、
+`OpenBrace`だけをgroup openerとしてacceptした（`typ/parse.rs:379-397`）。したがってhistorical parserは
+colonとbraceの間にdedicated adjacency guardを持たず、triviaを許し得た。
+
+outer `TypePolyVariantMachine`はexplicit separatorをcommaだけに限定した
+（`typ/parse.rs:507-514`）。shared `DelimitedListMachine`は`indent <= base_indent`のnewlineをimplicit
+separatorにし、matching closeをopener直後またはcomma後にacceptした
+（`crates/parser/src/parse/mod.rs:21-23,35-77`）。したがってempty `:{}`、actual closeが実在するtrailing comma、
+comma / qualifying newline tag listはvalidであり、semicolonはvalid separatorではない。
+
+tag parserはheadを`TypNudTag::Atom`かつplain `SyntaxKind::Ident`へ限定した。uppercase判定やconstructor専用tokenはなく、
+SigilIdent、Number、groupはtag headにならない（`typ/parse.rs:522-534`）。accepted name後はpayload loopへ入り、
+each payloadをfull `parse_type_from_nud`でparseした。ただしpayload parse中は`ml_arg = true`であり、non-empty triviaで
+nested type tailを止め、次payload候補をtag ownerへ返した（同`:535-560`、`typ/parse.rs:194-205`）。
+
+load-bearingなnewline ruleはcode上明白である。tag parserはpayload NUDをscanする前に
+`TriviaInfo::Newline`をindentに関係なく検出し、そのnewlineをconsumeせずouter machineへ返した
+（`typ/parse.rs:536-540`）。outer machineだけがそのnewlineを`indent <= base_indent`ならimplicit separatorにし、
+deeper newlineならgroup continuationにせずcallerへ返した（`parse/mod.rs:42-49`）。forall binderのapproved
+`strictly-deeper newline continues` ruleとは同じではない。
+
+dedicated fixtureは次の三件である。
+
+- `:{A Int, B}`はtag `A` + one payload `Int`、comma、zero-payload tag `B`を作る
+  （`crates/parser/tests/type_grammar.rs:165-188`）。
+- `:{A Int Bool}`はone tag `A`直下にtwo sibling `TypeExpr` payloadを作り、payload間separator nodeを作らない
+  （同`:192-212`）。
+- `:{A Int\nB}`はnewlineでpayload listを終え、outer machineがempty `Separator` nodeを置いてtag `B`へ進む
+  （同`:216-238`）。
+
+type LED scannerはcolonを`MlNud(PolyVariantStart)`へfall throughでき、outer tailはそれをordinary `TypeApply` argument
+としてparseした（`typ/scan.rs:106-121`、`typ/parse.rs:320-337`）。polymorphic variant自体はtailではなく、
+TypeApply slotへ現れ得るprimaryである。
+
+Yulang2はpolymorphic-variant-specific recovery tableを持たない。non-brace after colon、invalid tag head、unknown
+separatorはgeneric `InvalidToken`へ落ち、list closeもshared untyped machineへ委ねた
+（`typ/parse.rs:385-394,527-531`、`parse/mod.rs:35-77`）。以下のtyped recoveryはYulang3-local contractである。
+
+### Architectural decisions
+
+1. polymorphic variantはcanonical `TypePrimary`であり、postfix tailやdynamic operatorではない。
+2. introducerはexact adjacent `Colon LBrace` pair `":{"`である。complete pairのsink-free probe成功後だけcutする。
+3. payload boundaryはnon-empty same-line triviaだけである。physical newlineはindentに関係なくinner payload listを終了する。
+4. outer tag listだけがcomma / qualifying implicit newlineをseparatorとして所有する。semicolonをacceptしない。
+5. tag nameはplain `Identifier`であり、uppercase conventionをparser constraintへ昇格しない。
+6. payloadはfull fixed-precedence `TypeExpression`だが、one payload parse中はexisting `type_ml_arg` modeをpushし、
+   次のnon-empty triviaをcurrent payloadのTypeApplyへ吸収させない。
+7. outer listとinner repetitionはdistinct owner phaseを持ち、同じtrivia / token / recovery siteを二重にclaimしない。
+8. optional probeはstate-neutralであり、accepted pair後のnormal / recovery / rollbackはdelimiter、stop、layout、
+   type-delimited owner、type-ML stateをexact restoreする。
+
+### Introducer adjacency decision
+
+authoritative introducerをexact adjacent `":{"`とする。
+
+```text
+AdjacentPolyVariantOpen := Colon LBrace where Colon.end == LBrace.start
+```
+
+colonはapostropheと違いSigilIdentifierとlexically競合しない。それでもadjacent pairを選ぶ理由は、colon単体がfuture
+type annotation / predicate / declaration ownerのstructural stopになり得るためである。colonだけでprematurely cutし、その後の
+comment、newline、caller tokenをpolymorphic-variant recoveryへ移すより、complete two-token spellingをatomic candidateにする方が
+owner-safeである。またalready-approved EffectRowのcompound introducerと同じ「pair全体をprobeしてからcut」という規則になり、
+optional primary judgeがbare punctuationを奪わない。
+
+| source | classification |
+| --- | --- |
+| `:{A}` | one `PolymorphicVariantType` primary |
+| `: {A}` / `:/*c*/{A}` / `:\n{A}` | polymorphic variant candidateではない |
+| bare `:` / `:` + EOF | candidateではなくexisting missing / malformed TypePrimary recoveryへ戻る |
+| `F :{A}` | non-empty TypeApply boundary後のpolymorphic-variant argument |
+| `F:{A}` | TypeApplyでもtype postfixでもない。`F`でcurrent typeを終えcolonをcallerへ返す |
+
+これはtriviaを許したYulang2からのintentional narrowingである。
+
+### Authoritative surface grammar and bounded trivia
+
+```text
+TypePrimary :=
+    TypeAtom
+  | ParenthesizedTypeGroup
+  | NamedRecordType
+  | ForallType
+  | EffectRowType
+  | PolymorphicVariantType
+
+PolymorphicVariantType :=
+    Colon AdjacentLBrace PolyVariantOpeningTrivia
+    [
+        PolymorphicVariantTag
+        { PolyVariantTagBoundary PolymorphicVariantTag }
+        [ PolyVariantTagBoundary ]
+    ]
+    RBrace
+
+PolymorphicVariantTag :=
+    Identifier
+    { PolymorphicVariantPayload }
+
+PolymorphicVariantPayload :=
+    PolyVariantPayloadBoundary
+    TypeExpression
+
+PolyVariantPayloadBoundary :=
+    NonEmptyTriviaWithoutPhysicalNewline
+
+PolyVariantTagBoundary :=
+    ExplicitPolyVariantCommaBoundary
+  | ImplicitNewlineBoundary(poly_variant_base)
+
+ExplicitPolyVariantCommaBoundary := CommaBoundary
+```
+
+`PolyVariantOpeningTrivia`はaccepted `{`直後のone maximal trivia clusterであり、delimiter-local opening ownerが
+consumeする。これはpayload continuation triviaではない。`LayoutDelimitedFrame::after_opening_trivia`と同じ式で
+`poly_variant_base`を一度だけcaptureする。
+
+```text
+incoming_base := current lexical-depth indentation baseline, or 0
+poly_variant_base :=
+    if opening trivia contains a physical newline
+       and following_line_indent > incoming_base
+    then following_line_indent
+    else incoming_base
+```
+
+payload boundaryにはunbounded `G*`もdeeper-newline caseもない。one maximal trivia clusterがphysical newlineを
+含まなければboundary、含めばinner loopはtrivia前へrollbackしてtagを終了する。outer listは同じtriviaをexactly once
+classifyし、following indent `<= poly_variant_base`ならimplicit tag boundaryとしてconsumeする。following indentが
+strictly deeperならvalid tag separatorではなく、payloadにも戻さない。close recoveryはそのnewlineをsafe pointとして
+consumeせずouter callerへ返す。
+
+このstrict ruleをforallへ揃えて緩めない。forallではnext apostrophe binderとcolonがterminationをlexically区別するが、
+polymorphic variantではnext payload typeとnext tagの両方がplain Identifierから始まり得る。deeper newlineをpayload
+continuationにすると`A Int\n  B`の`B`をpayloadかtagかsyntaxだけで区別できない。Yulang2のany-newline hard stopを保存し、
+indentはouter separator authorityだけに使う。
+
+payloadはnon-empty same-line boundaryを要求する。Yulang2 loopにはnon-empty-trivia assertionがなく、adjacent `(`等を
+payload NUDとして機械的にacceptし得たがfixture evidenceはない。Yulang3はpayload repetitionをML-style source surfaceとして
+明示し、`A(Int)`にはzero-width missing payload boundary recoveryを適用する。このintentional clarificationは後述する。
+
+### Primary recognition and tail interaction
+
+canonical type-primary judgeを次のexclusive orderへ更新する。
+
+1. active stop、matching / outer-owned delimiter、caller-owned newlineを判定しboundaryをconsumeしない。
+2. exact maximal contextual `for`をexisting Forall candidateとしてprobeする。
+3. exact adjacent `Apostrophe LBracket`をexisting EffectRow candidateとしてprobeする。
+4. exact adjacent `Colon LBrace`をPolymorphicVariant candidateとしてprobeする。
+5. Identifier / SigilIdentifier、Number、`(`、`{`をexisting orderでprobeする。
+6. no candidateならstate-neutralにreturnする。
+
+all startersはpair completionまでsink-freeである。step 4がcolonだけでcutすることはない。accepted
+PolymorphicVariantTypeはforallと異なりterminal primaryではなく、existing fixed tail loopへ戻る。したがって
+`:{A}::Result`、`:{A}(X)`、`:{A} T`、`:{A} -> Out`はordinary path / call / apply / arrow rulesへ従う。
+TypeApply argument candidateでもsame canonical pair probeを使い、variant-specific LED branchを追加しない。
+
+### Parser-side AST and CST vocabulary
+
+```rust
+pub enum TypePrimary<'source> {
+    Atom(TypeAtom<'source>),
+    Parenthesized(ParenthesizedTypeGroup<'source>),
+    Record(NamedRecordType<'source>),
+    Forall(ForallType<'source>),
+    EffectRow(EffectRowType<'source>),
+    PolymorphicVariant(PolymorphicVariantType<'source>),
+}
+
+pub struct PolymorphicVariantType<'source> {
+    pub colon: Range<usize>,
+    pub open: Range<usize>,
+    pub tags: Vec<Recovered<PolymorphicVariantTag<'source>>>,
+    pub trailing_comma: Option<Range<usize>>,
+    pub close: Recovered<Range<usize>>,
+    pub range: Range<usize>,
+}
+
+pub struct PolymorphicVariantTag<'source> {
+    pub name: Recovered<WordSpan<'source>>,
+    pub payloads: Vec<Recovered<PolymorphicVariantPayload<'source>>>,
+    pub range: Range<usize>,
+}
+
+pub struct PolymorphicVariantPayload<'source> {
+    pub boundary: Recovered<Range<usize>>,
+    pub type_expr: Recovered<Box<TypeExpression<'source>>>,
+    pub range: Range<usize>,
+}
+```
+
+payload wrapperはsynthetic list wrapperではない。each payloadがmandatory leading same-line boundaryとnested typeという
+二つのrecoverable slotをsource orderで所有するためのsource-bearing nodeである。valid boundary rangeはtrivia cluster全体、
+payload rangeはboundary startからtype endまでである。adjacent payload recoveryではboundaryだけIncomplete、typeはCompleteに
+できる。malformed payloadがtag boundaryまで達した場合はcomplete payload skeleton内のtype slotをIncompleteにする。
+
+type grammar vocabularyへ次を追加する。
+
+```text
+SyntaxKind::PolymorphicVariantType
+SyntaxKind::PolymorphicVariantTag
+SyntaxKind::PolymorphicVariantPayload
+
+TypeDelimitedOwner::PolymorphicVariant
+
+GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
+GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
+
+ConstructRole::PolymorphicVariantType
+ExpectedSyntax::TypePayloadBoundary
+```
+
+close roleはexisting shapeを使う。
+
+```text
+GrammarRole::ClosingDelimiter {
+    owner: ConstructRole::PolymorphicVariantType,
+    delimiter: Delimiter::Brace,
+}
+```
+
+`ExpectedSyntax::{Identifier, TypeExpression, DelimitedSequenceSeparator}`、comma / close punctuation evidence、
+`RecoveryKind::{Missing, Error}`を再利用する。tag / payload / close recoveryはそれぞれ実在する
+`tags` slot、`name` slot、`payloads` slot、`boundary / type_expr` slot、`close` slotへ対応する。
+`PolymorphicVariantTagSeparator`だけはexisting delimited-list separator roleと同じcommitted diagnostic roleであり、
+source-absent separator AST fieldを作らない。literal / malformed punctuationとraw triviaはlossless CSTに残る。
+
+### Outer tag-list machinery
+
+`":{"` accept後、次をone outer frame episodeとしてpushする。
+
+```text
+delimiter          = Delimiter::Brace
+type owner         = TypeDelimitedOwner::PolymorphicVariant
+stops              = active stops + Comma + RightBrace
+layout             = LayoutDelimitedFrame(poly_variant_base)
+explicit separator = Comma only
+```
+
+これはNamedRecordTypeのcomma / implicit-newline frameをparameterizeして再利用する。semicolon stopを追加せず、
+current variant depthのsemicolonは`PolymorphicVariantTagSeparator` Errorになる。active callerがsemicolonをownする場合は
+safe pointとしてconsumeせず返す。matching close、outer-owned close、active stop、EOFもconsumeしない。
+
+outer judge orderは次である。
+
+1. actual matching `}`。
+2. literal comma。
+3. current tagから返されたphysical newlineをlayout classifierへ渡し、`indent <= poly_variant_base`ならimplicit boundary。
+4. new-tag positionのplain Identifier candidate。
+5. owner-safe boundary。
+6. malformed non-empty tag / separator run。
+
+emptyとtrailing boundaryはactual close probeを先に行って排他的にする。commaまたはqualifying implicit newline後にactual
+`}`が実在するときだけvalid trailing boundaryである。comma後にEOF / owner boundaryならone missing tag slotを作り、
+distinct close slotを次のclose recoveryへ渡す。
+
+### Inner payload-list judge and two-level handoff
+
+one accepted tagを次のphaseでparseする。
+
+```text
+TagHead
+  := plain Identifierをmandatory nameとしてacceptする
+
+PayloadOrOuterBoundary
+  := zero-or-more payload、またはcomma / close / physical newlineへhandoffする
+
+PayloadBody
+  := accepted / recovered payload boundary後のmandatory TypeExpression slot
+```
+
+`PayloadOrOuterBoundary`はnameまたはprevious payload endで次のexclusive orderを使う。
+
+1. no-trivia位置のcomma / actual `}` / active stopならpayloadを作らずouterへ返す。
+2. one maximal trivia clusterをsink-freeにprobeする。physical newlineを含めばtrivia前へrollbackし、indentに関係なく
+   current tagをfinishしてouterへ返す。
+3. non-empty same-line trivia後にcanonical TypePrimary candidateがあれば、そのtriviaをone payload boundaryとしてacceptし、
+   `type_ml_arg = true`でone full TypeExpressionをparseする。
+4. no-trivia位置にcanonical TypePrimary candidateがあればzero-width
+   `Missing(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)`をcommitし、same-position payload parseへ進む。
+5. accepted same-line boundary後にmalformed non-empty bytesがあればpayload authorityをcommitし、
+   `Error(PolymorphicVariantPayload)`をearliest valid TypePrimary / outer boundaryまでconsumeしてsame payload slotをretryする。
+6. boundaryなしのmalformed run後にcanonical TypePrimaryがあれば、そのrunを
+   `Error(PolymorphicVariantPayloadBoundary)`としてconsumeし、same payload slotのtypeをretryする。
+7. boundaryなしのmalformed runがcomma / close / newlineへ達すればpayloadはoptionalなので作らず、
+   outer `PolymorphicVariantTagSeparator` Error recoveryへhandoffする。
+
+one payload parse中の`type_ml_arg = true`により、non-empty triviaはnested tailへ入る前にreturnする。一方no-trivia path / callと
+payload内delimiter-local continuationは通常どおりparseできる。nested parse return後は同じ
+`PayloadOrOuterBoundary`へ戻る。このため`A Int Bool`はone payload `Int Bool`というTypeApplyではなく、two sibling payloads
+`Int` / `Bool`になる。
+
+same-line plain Identifierはtag headにもTypeExpressionにもなれるが、current tag内部ではpayload authorityが先である。
+したがって`:{A Int B}`を`A Int` + missing tag separator + tag `B`へsplitしない。outer
+`Missing(PolymorphicVariantTagSeparator)`を発火できるstronger same-line tag-head spellingは現grammarに存在しない。
+このroleはmalformed separator Errorとfuture extensionのtyped vocabularyには残すが、valid Identifierだけを根拠にzero-width
+Missing separatorを作らない。依頼されたsame-line missing-separator recoveryを形だけ移植するとmultiple-payload fixtureと
+矛盾するため、payload authorityをauthoritative tiebreakerとする。
+
+三fixtureのcontrol flowは次である。
+
+1. `:{A Int, B}`: outer accepts tag `A`。same-line boundary + `Int`をpayload oneとしてparseする。commaはpayloadを
+   作らずouterへ返りexplicit boundaryになる。outerはtag `B`をacceptし、actual closeでzero payloadのまま終了する。
+2. `:{A Int Bool}`: `Int` parseはtrailing spaceを`type_ml_arg` stopとして返す。inner judgeが同じspace + `Bool`を
+   second payload boundaryとしてacceptする。actual closeでtagとouter listを終了する。
+3. `:{A Int\nB}`: `Int`後のphysical newlineをinner judgeがindentに関係なくtrivia前へ返す。outer layout judgeが
+   qualifying implicit boundaryとしてexactly once consumeし、tag `B`をparseする。synthetic separator nodeは作らない。
+
+deeper newlineならstep 3のouter implicit conditionがfalseになる。inner payloadへ戻さず、variant close recoveryはnewlineを
+consumeせずcallerへ返す。これにより同じnewlineがpayload boundaryとtag boundaryの両方になることはない。
+
+### CST byte ownership and worked examples
+
+`PolymorphicVariantType`はcolon、brace、opening / outer-boundary trivia、comma、tags、closeをflat source orderで持つ。
+`PolymorphicVariantTag`はnameとpayload nodes、`PolymorphicVariantPayload`はleading boundary triviaとnested
+`TypeExpression`を持つ。implicit separatorにsynthetic nodeを作らない。
+
+```text
+:{A Int, B}
+
+TypeExpression
+  PolymorphicVariantType
+    Colon ":"
+    LBrace "{"
+    PolymorphicVariantTag
+      Identifier "A"
+      PolymorphicVariantPayload
+        Whitespace " "
+        TypeExpression
+          Identifier "Int"
+    Comma ","
+    Whitespace " "
+    PolymorphicVariantTag
+      Identifier "B"
+    RBrace "}"
+```
+
+```text
+:{A Int Bool}
+
+TypeExpression
+  PolymorphicVariantType
+    Colon ":"
+    LBrace "{"
+    PolymorphicVariantTag
+      Identifier "A"
+      PolymorphicVariantPayload
+        Whitespace " "
+        TypeExpression
+          Identifier "Int"
+      PolymorphicVariantPayload
+        Whitespace " "
+        TypeExpression
+          Identifier "Bool"
+    RBrace "}"
+```
+
+```text
+:{A Int
+B}
+
+TypeExpression
+  PolymorphicVariantType
+    Colon ":"
+    LBrace "{"
+    PolymorphicVariantTag
+      Identifier "A"
+      PolymorphicVariantPayload
+        Whitespace " "
+        TypeExpression
+          Identifier "Int"
+    Newline "\n"
+    PolymorphicVariantTag
+      Identifier "B"
+    RBrace "}"
+```
+
+nested delimiter内のnewlineとtag-level newlineの区別を次で固定する。
+
+```text
+:{
+  A Pair(
+    Int,
+    Bool
+  )
+  B
+}
+
+TypeExpression
+  PolymorphicVariantType
+    Colon ":"
+    LBrace "{"
+    Newline "\n"
+    Whitespace "  "
+    PolymorphicVariantTag
+      Identifier "A"
+      PolymorphicVariantPayload
+        Whitespace " "
+        TypeExpression
+          Identifier "Pair"
+          TypeCallTail
+            LParen "("
+            Newline "\n"
+            Whitespace "    "
+            TypeExpression
+              Identifier "Int"
+            Comma ","
+            Newline "\n"
+            Whitespace "    "
+            TypeExpression
+              Identifier "Bool"
+            Newline "\n"
+            Whitespace "  "
+            RParen ")"
+    Newline "\n"
+    Whitespace "  "
+    PolymorphicVariantTag
+      Identifier "B"
+    Newline "\n"
+    RBrace "}"
+```
+
+`Pair(...)`内のnewlinesはnested `TypeCallTail` frameがownしone payloadの内部に留まる。`)`後のnewlineだけがcurrent
+tag depthへ戻りimplicit tag separatorになる。四例は全space / newline / punctuation byteをexactly once示す。
+
+### Typed recovery contract
+
+safe pointはcurrent owner phaseごとに固定する。outer tag scannerはactual `}`、comma、qualifying newline、active caller stop、
+outer-owned close、EOF、plain Identifier retry candidateをsafe pointにする。inner scannerはcomma、actual `}`、any physical
+newline、active caller stop、EOF、canonical TypePrimary retry candidateをsafe pointにする。safe-point byteはErrorへ含めない。
+
+#### Outer tag-sequence table
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| `:{}` | valid empty | `tags = []`、close Complete |
+| one / multiple tag、comma / qualifying newline | valid | each tagはsource-order Complete |
+| commaまたはqualifying newline後にactual `}`が実在 | valid trailing boundary | empty tagを作らず、literal commaだけ`trailing_comma`へ保持 |
+| leading comma | comma位置へzero-width `Missing(PolymorphicVariantTag, Identifier)` | one Incomplete tag slot、comma consume後next slotへ |
+| repeated comma | each repeated boundaryへone Missing tag | punctuationごとにone slot、same-position sequence retry |
+| comma後、actual `}`より先にEOF / owner boundary | valid trailingではなくMissing tag | one Incomplete tag + distinct missing close。same tagへsecond Missingなし |
+| new-tag positionのplain Identifier | tag authorityへcut | name Complete、inner payload phaseへ |
+| new-tag位置のnon-Identifier TypePrimary | `Error(PolymorphicVariantTagName, Identifier)` on that primary range | Complete tag skeleton with name Incomplete、payload empty。same bytesへwhole-tag Errorを重ねない |
+| malformed non-empty bytes後にplain Identifier | maximal `Error(PolymorphicVariantTag)` | valid Identifierをsame whole-tag slotでretry。成功時AST tag Complete |
+| malformed non-empty bytes後にcomma / close / owner boundary | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、boundaryをconsumeせず、same causeへMissing tagを重ねない |
+| current-depth semicolon | exact semicolon `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | malformed separator episodeとしてconsumeし、post-trivia位置でouter tag / close retry。Missing separatorを重ねない |
+| same-line plain Identifier without comma | current tagのpayload authority | Missing tag separatorをemitしない。`A Int B`はone tag + two payloads |
+| opener直後またはcomplete tag直後のEOF / owner boundary、separator episodeなし | tag listはoptional / complete | tag Missingなし、close slotだけをrecover |
+| missing `}` at EOF / active stop / outer-owned close / non-qualifying newline | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | close Incomplete、boundaryをconsumeしない |
+| local mismatched closer | maximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | matching `}`へclose-slot retry。actual closeに到達すればComplete、safe pointならIncomplete。同episodeへMissing closeなし |
+
+trailing boundary rowはactual close present、separator-followed-boundary rowはactual close absentで排他的である。
+implicit newlineはraw triviaであり`trailing_comma`を設定しない。outer same-line Missing separatorはvalid syntaxに
+reachableでないことをtable自身に明記し、multiple payload rowと競合させない。
+
+#### Tag / payload table
+
+| input state | authority / recovery | AST / retry / ownership |
+| --- | --- | --- |
+| tag name直後にcomma / close / physical newline | valid zero-payload tag | payload slotを作らない |
+| non-empty same-line boundary + valid TypePrimary | valid payload | boundary / type Complete |
+| repeated same-line boundary + TypePrimary | one maximal boundary | trivia clusterをone payload nodeへexactly once所有 |
+| no-trivia valid TypePrimary after tag head | zero-width `Missing(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)` | boundary Incomplete、same-position type retry、payload Complete |
+| accepted boundary後のmalformed bytes followed by valid TypePrimary | maximal non-empty `Error(PolymorphicVariantPayload, TypeExpression)` | same payload type slotでretry。成功時type Complete |
+| accepted boundary後のmalformed bytes reaching comma / close / newline / owner boundary | maximal non-empty `Error(PolymorphicVariantPayload)` | payload skeleton Complete、type Incomplete。same slotへMissing typeを重ねない |
+| boundaryなしmalformed bytes followed by valid TypePrimary | maximal `Error(PolymorphicVariantPayloadBoundary, TypePayloadBoundary)` | boundary Incomplete、same-position type retry |
+| boundaryなしmalformed bytes reaching outer boundary | outer malformed-separator recovery | optional payloadを作らず、same bytesへPayload Errorを重ねない |
+| payload TypeExpression後のsame-line TypePrimary | next payload authority | current payloadは`type_ml_arg` stop、next boundary / payloadをaccept |
+| payload後のphysical newline | unconditional inner-list end | innerはconsumeせずouterへexactly once返す。deeper newlineもpayload continuationにしない |
+| same-line boundary後のEOF / comma / close | optional next payloadなし | Missing payloadを作らない。outer close / separator authorityへhandoff |
+
+payload sequenceはzero-or-moreなので、単なるabsenceへ`Missing(PolymorphicVariantPayload)`をemitしない。payload Missing相当の
+mandatory slotは、accepted boundaryまたはpayload-intent Errorがpayload skeletonへcutした後のtype slotだけに存在する。
+表のError rowがそのslotをIncompleteにし、同じcauseへzero-width Missingをcascadeしない。
+
+AST pathはError node / recovery recordを持たないが同じrangeをadvanceし、same retry pointとComplete / Incomplete shapeを持つ。
+direct-CSTはone Error or Missing nodeごとにone committed recordを作る。両pathはcandidate、phase、safe point predicateを共有し、
+parse後のCST再走査でtag / payload境界を作らない。
+
+### Explicit Yulang2 divergences and preserved behavior
+
+1. Yulang2はcolon trailing trivia後のbraceをacceptし得た。Yulang3はowner-safe compound candidateのためexact adjacent
+   `":{"`へ狭める。comments / newlineを挟むspellingはintentional rejectionである。
+2. Yulang2 payload loopはnon-empty boundaryを明示検査せず、adjacent group NUDをpayloadにし得た。Yulang3は
+   ML-style non-empty same-line boundaryをsurface grammarにし、adjacent primaryへtyped Missing boundary recoveryを行う。
+3. any physical newlineがinner payload listを終了する点、outer implicit separatorが`indent <= base`だけである点は
+   Yulang2を保存する。Yulang3はsynthetic `Separator`を作らずraw triviaだけをemitする。
+4. Yulang2の`TypePolyVariantItem`直下にはpayload `TypeExpr`が並んだ。Yulang3はboundary recoveryとAST parityのため
+   source-bearing `PolymorphicVariantPayload` nodeを置くが、payload list wrapper / separator nodeは作らない。
+5. plain Identifierだけがtag headで、uppercase restrictionがない点、comma-only outer policy、empty / trailing comma、
+   zero-or-more payloadはYulang2を保存する。
+6. Yulang2はgeneric InvalidToken recoveryだけを持った。Yulang3はphase-specific typed roles、maximal Error、zero-width Missing、
+   safe-point non-consumption、same-position retry、no-cascadeを新設する。
+7. polymorphic variantがordinary TypeApply argumentになり、primary accept後にfixed path / call / apply / arrow tailへ戻る点は
+   Yulang2を保存する。special postfix ruleを追加しない。
+
+### Implementation boundary and gates
+
+implementationはstandalone `type_expr.rs`、必要なSyntaxKind / session vocabulary、同module testsだけを変更する。
+use-site、expression / pattern grammar、HIR / lowering / inferenceは変更しない。
+
+1. exact adjacent `":{"`だけがauthorityを得て、`: {` / comment-gap / newline-gap / bare colonは得ない。
+2. one primary node、tag nodes、source-bearing payload nodes、real colon / open / recovered close AST slotsを持つ。
+3. empty、zero-payload tag、one / multiple payload、multiple tag、actual-close trailing commaをacceptする。
+4. tag headをplain Identifierだけに限定し、uppercase semantic restrictionを追加しない。
+5. outer separatorをcomma / qualifying implicit newlineに限定し、semicolonをtyped Errorにする。
+6. payload boundaryをnon-empty same-line triviaに限定し、any newlineでinner listを終了する。
+7. `:{A Int, B}`、`:{A Int Bool}`、`:{A Int\nB}`をdocumented two-level judgeどおりparseする。
+8. nested delimited payload内newlineとtag-level newlineをowner depthで区別する。
+9. same-line Identifierはpayload authorityを持ち、false Missing tag separatorをemitしない。
+10. leading / repeated / trailing-before-EOF separator、malformed tag/name、semicolon、missing / mismatched closeを
+    role / range / retry / AST parityまでfixture化する。
+11. missing / malformed payload boundary、malformed payload retry、payload-at-boundary no-cascadeをfixture化する。
+12. `F :{A}`がordinary TypeApply argument、variant後のpath / call / apply / arrowがordinary tailsになる。
+13. all worked examplesでlossless round trip、every trivia byte one home、balanced nodes、no synthetic Separatorを確認する。
+14. normal / recovery / rollbackでdelimiter / stop / layout / type-owner / type-ML stateをexact restoreする。
+15. existing type grammar fixturesを維持し、`OperatorTable` dependencyを追加しない。
+16. bracket-row typeとall TypeExpression use-site wiringを実装しない。
+
+### Closed decisions and internal consistency review
+
+本追補でimplementationをblockするopen questionはない。
+
+- introducerはexact adjacent `Colon LBrace`である。
+- payload boundaryはnon-empty same-line triviaだけで、any physical newlineがinner listを終了する。
+- outer tag listはcomma / qualifying implicit newlineだけをseparatorにする。
+- same-line Identifier ambiguityはpayload authorityを優先し、Missing tag separatorでsplitしない。
+- payload wrapperはboundary / type recoveryの実在AST slotsを提供するsource-bearing nodeである。
+- polymorphic variantはordinary nonterminal TypePrimaryである。
+
+final reviewでfour issue classをboth nesting levelsについて再点検した。
+
+1. **bounded trivia vs newline contract:** introducer gapはempty、opening triviaはbrace-local one cluster、payload boundaryは
+   same-line non-emptyだけである。physical newlineはinnerがconsumeせずouterへ返し、outerはqualifying boundaryだけを
+   consumeする。unbounded `G*`、deeper-newline payload continuation、caller newlineのswallowはない。
+2. **CST byte completeness:** three oracle fixturesとnested-call newline exampleでcolon、braces、all spaces / newlines、comma、
+   names、payload bytesへexactly one homeを示した。implicit separatorやpayload-list synthetic nodeはない。
+3. **AST / recovery-slot alignment:** tag、tag name、payload、payload boundary / type、trailing comma、close recoveryには
+   corresponding `Recovered` / optional fieldがある。separator roleだけはexisting list contractどおりcommitted diagnosticで、
+   source-absent AST fieldを仮定しない。colon / openはcomplete pair accept後のactual rangesで、Missing roleをtableから
+   参照しない。
+4. **recovery-row exclusivity:** outer actual-close-firstでvalid trailingとseparator-before-boundaryを分離した。innerは
+   boundary presence、newline、candidate、malformed runをphase orderで分離し、payload absenceはoptionalとしてMissingを
+   作らない。same-line Identifierは常にpayload authorityでありouter Missing separator rowと競合しない。Errorとsame-slot
+   Missingはno-cascadeである。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、standalone TypeExpression polymorphic variant type primary追補案）。
