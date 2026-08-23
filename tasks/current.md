@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-23
+更新: 2026-08-24
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -17,22 +17,39 @@
 - standalone `TypeExpression`文法(pattern.rsと同じ立ち位置の独立grammar、`OperatorTable`
   非依存)が着地し、core grammarに加えて5つのexotic primary形式
   ——named record型・forall型・effect row型・多相variant型・bracket row grammar——
-  全部Authoritative(ユーザ承認済み)。まだどのuse-siteにも配線していない。
+  全部Authoritative(ユーザ承認済み)。
+- `Pattern : TypeExpression`型注釈wiring(最初のuse-site)がAuthoritative設計どおり実装・
+  push済み。実装レビュー中に発覚したTypeExpression共有malformed recovery scannerの
+  newline境界バグを発端に、`TMN-B/P/C/S`(newline owner policy)追補と、その実装の
+  owner-boundary-safety配線漏れ(3巡連続で発見)を根本解決する`positional fence`追補
+  (`ParseLocal`-scoped ambient state、bool手渡し方式を完全に置換)を設計・実装・多重レビュー
+  済み。全12 implementation gate完走、390 tests green。
 - 多相variant型は設計10巡・実装7巡を要した。教訓は
   `/home/momota1029/.claude/projects/-home-momota1029-rust-yulang/memory/feedback-two-level-judge-needs-shared-driver.md`
   に記録済み(二層judgeはAST/direct-CST両pathを別々に手書きせず、最初から共有driver+薄い
   adapterで書く)。
 
+## 既知の未修正バグ(2026-08-24発見、今回のpositional fence作業とは無関係)
+
+`crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs`の`classify_tag_boundary`が、
+壊れたバイトが一切ない正当な複数tag多相variant型本体(例: `:{\n  A Pair(Int);\n  B\n}`)を、
+active `StopKind::Newline`下でparseすると、1つ目のtagで止まってしまう
+(`active_stop_set(i).contains(StopKind::Newline)`を無条件にownerへのyield理由として扱ってる)。
+
+positional fence機構のGate 10 false-positive fixture作成中に発覚。commit `a0365f98`
+(fence作業着手前)の時点で同一コードが既に存在してたと確認済みで、fenceとは無関係な既存バグ。
+未着手、優先順位未確定。
+
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `TypeExpression`の各use-site配線**: struct field・cast宣言・role
-   signature・where節・act signature・pattern型注釈など。5つのexotic形式のaddendumが
-   全部「wiringは行わない」と明示して延期してきた本体作業。
+1. **standalone `TypeExpression`の各use-site配線(残り)**: struct field・cast宣言・role
+   signature・where節・act signature等。pattern型注釈は完了、残りが本体作業。
 2. **canonical Statement / root Declarationの残りvariant**: `type`/`struct`/`enum`/
    `error`/`role`/`impl`/`cast`/`act`/`for`文/演算子定義/`where`/doc-comment宣言。
    `mod`宣言完了時点の調査で、`mod`と`for`以外は全部standalone TypeExpression待ちで
    blockedと判明済み——1が先に進めば大半が着手可能になる。
 3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
+4. **polymorphic variant複数tag+active newline境界バグ**(上記参照)。
 
 ## TODO: 文法・CSTをエラー含めて完全に規格化するサイトを作る
 
