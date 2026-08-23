@@ -5644,6 +5644,13 @@ where
         if struct_next_named_field_candidate(i, &trivia) {
             continue;
         }
+        if struct_outer_owned_mismatched_close_pending(i) {
+            break Recovered::Incomplete;
+        }
+        if scan_struct_mismatched_close(i).is_some() {
+            let _ = i.run(scan_trivia).expect("trivia is total");
+            continue;
+        }
         break Recovered::Incomplete;
     };
 
@@ -5857,6 +5864,9 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
         }
         if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
             emit_struct_mismatched_close(committed, range, actual);
+            let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
+            committed.emit_trivia(&trivia);
             continue;
         }
         emit_struct_missing_close(committed);
@@ -11722,6 +11732,68 @@ mod tests {
             },
         );
         assert_eq!(record.site.range, 11..12);
+
+        let source = "struct S { x: Int ] }";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+            if body.fields.len() == 1
+                && matches!(body.close, Recovered::Complete(ref close) if *close == (20..21))));
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let [record] = output.committed_recoveries() else {
+            panic!("one local close error expected");
+        };
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::StructNamedFields,
+                delimiter: Delimiter::Brace,
+            },
+        );
+        assert_eq!(record.site.range, 18..19);
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+
+        let source = "struct S { x: Int ]";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let declaration = i.run(parse_struct_declaration).expect("Struct authority");
+        assert_eq!(i.input.remainder(), "]");
+        assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+            if matches!(body.fields.as_slice(), [Recovered::Complete(_)])
+                && matches!(body.close, Recovered::Incomplete)));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(crate::session::StopSet::default().with(StopKind::RightBracket));
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        let intro = committed
+            .probe(|probe| probe.input().run(recognize_struct_statement_intro))
+            .expect("Struct introduction");
+        let _ = commit_struct_declaration(&mut committed, intro);
+        let output = committed.into_output();
+        let [record] = output.committed_recoveries() else {
+            panic!("one outer-owned missing close expected");
+        };
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::StructNamedFields,
+                delimiter: Delimiter::Brace,
+            },
+        );
+        assert_eq!(record.site.range, 18..18);
 
         let source = "struct S { @ ]";
         let mut source_input = SourceInput::new(source);
