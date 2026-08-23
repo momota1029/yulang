@@ -14937,6 +14937,7 @@ Missing separatorを作らない。依頼されたsame-line missing-separator re
 | `:{for 'a: T}` | shared primary priorityでForallType candidate全rangeが`NT-6` wrong-kind name Error。one zero-payload recovered tag、close Complete |
 | `:{A@,B}` | Complete `A`、`NT-8`によるone Incomplete malformed tag `@`、Complete `B`。commaは`NT-safe`で未吸収 |
 | `:{]}` | `NT-2` close Error `]`、続く`NT-1`でactual `}`。tags empty、close Complete |
+| `:{]` + EOF | `NT-2` close Error `]`、same close slotのretryがEOFで`NT-7` | tags empty。`]`位置へMissingを重ねず、EOF位置へone Missing close、close Incomplete |
 | `:{:{A} B}` | nested polymorphic-variant primary全rangeが`NT-6` wrong-kind name Error、one recovered tag + payload `B` |
 | `:{A ]}` | `IT-2`がspace / `]`をouterへ返し、`NT-2` close Error。Complete zero-payload `A`、extra payload / tagなし、actual close Complete |
 
@@ -15078,7 +15079,7 @@ authority orderとsafe-point membershipのsingle sourceは`CanonicalNewTagPositi
 | `NT-8`後にnon-Identifier candidate | maximal prefix `Error(PolymorphicVariantTag)` | same slotを`NT-6` wrong-kind resultへretryしcandidate own rangeへ別のTagName Error。二Errorは別range / cause、second tag slotなし |
 | `NT-8`がnon-candidate `NT-safe`へ到達 | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、safe pointをconsumeせず`NT`へre-enter。同じcauseへMissing tagなし |
 | `NT-7`、separator-required stateでない | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | tag Missingなし、close Incomplete、boundary / gapをconsumeせずcallerへ返す |
-| `NT-2` local mismatched closer | maximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | close-slot retry。later `NT-1`ならclose Complete、`NT-7`ならIncomplete。tag Error / Missing closeなし |
+| `NT-2` local mismatched closer | mismatched token own rangeへmaximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | mismatched token位置へMissing closeを重ねず、same close slotから`NT`へretryする。later `NT-1`ならclose Complete。actual closeを得ないままlater `NT-7`へ達した場合は、そのEOF / caller-boundary位置へcanonical zero-width Missing closeを置き、close Incomplete。tag Errorなし |
 | accepted tag内のsame-line Identifier | `IT-3` payload authority | Missing tag separatorなし。`A Int B`はone tag + two payloads |
 
 trailing boundary rowはactual close present、separator-followed-boundary rowはactual close absentで排他的である。
@@ -15134,9 +15135,8 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 2. one primary node、tag nodes、source-bearing payload nodes、real colon / open / recovered close AST slotsを持つ。
 3. empty、zero-payload tag、one / multiple payload、multiple tag、actual-close trailing commaをacceptする。
 4. tag headをplain Identifierだけに限定し、uppercase semantic restrictionを追加しない。
-5. outer separatorをcomma / qualifying implicit newlineに限定し、semicolonをinner safe pointからouterへ返してone typed
-   separator Errorにする。ただしcaller-owned semicolonはunconsumed owner boundaryであり、separator Errorにしない。
-   space有無でtag / payload shapeを変えない。
+5. outer separatorをcomma / qualifying implicit newlineに限定する。semicolonのsafe-point判定、inner-to-outer handoff、
+   local-vs-caller-owned ownershipはcanonical `IT-2` / `NT-4` / `NT-7` outcomeを参照し、両ownershipとspace有無をfixture化する。
 6. payload boundaryをnon-empty same-line triviaに限定し、any newlineでinner listを終了する。
 7. `:{A Int, B}`、`:{A Int Bool}`、`:{A Int\nB}`をdocumented two-level judgeどおりparseする。
 8. nested delimited payload内newlineとtag-level newlineをowner depthで区別する。
