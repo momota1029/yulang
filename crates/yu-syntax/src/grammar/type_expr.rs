@@ -4622,6 +4622,20 @@ mod tests {
     }
 
     #[test]
+    fn mandatory_type_recovery_yields_deeper_newlines_to_an_active_owner() {
+        let (remainder, recoveries) = parse_direct_mandatory_prefix_with_outer_stop(
+            "@ \n  Int",
+            None,
+            Some(StopKind::Newline),
+        );
+        assert_eq!(remainder, " \n  Int");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::Primary)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (0..1)), "{recoveries:#?}");
+    }
+
+    #[test]
     fn mandatory_type_recovery_commits_a_malformed_run_before_a_delimiter() {
         let (remainder, recoveries) =
             parse_direct_mandatory_prefix_with_outer_stop("@)", None, None);
@@ -5007,6 +5021,23 @@ mod tests {
             if error.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (2..3)), "{effect_recoveries:#?}");
+    }
+
+    #[test]
+    fn malformed_call_item_leaves_deeper_trivia_and_matching_close_to_its_owner() {
+        let call = parse("T(@\n  )");
+        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments,
+            close: Recovered::Complete(close),
+            ..
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete]) && *close == (6..7)));
+
+        let recoveries = parse_direct_recovered("T(@\n  )");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (2..3)), "{recoveries:#?}");
+        assert_eq!(parse_direct("T(@\n  )").to_string(), "T(@\n  )");
     }
 
     #[test]
