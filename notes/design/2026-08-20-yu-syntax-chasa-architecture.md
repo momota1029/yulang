@@ -13430,7 +13430,7 @@ adjacent braceの扱いもfixture tableで固定した。そのうえで、残�
 
 ## 追補案: standalone `TypeExpression`のforall / universal-quantifier type primary
 
-Status: Draft（Claude review / user approval待ち、2026-08-23）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 本追補は、authoritativeなstandalone `TypeExpression` grammarへforall / universal-quantifier type
 `for 'a 'b: T`を追加する。これはstatement-level `for` loopでも、dynamic expressionのword primaryでもなく、
@@ -13976,5 +13976,5 @@ final reviewで次のfour issue classをend-to-end再点検した。
    non-binder body candidate、owner boundaryをexclusive orderでjudgeする。malformed runはearliest retry targetでBinder / Colonを
    一意に決め、EOF no-cascade rowと重ねない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression forall / universal-quantifier type primary追補案）。
