@@ -3639,30 +3639,15 @@ where
         }
 
         if end > start {
-            // TMN-S step 1: owner boundaries precede retry candidates.
-            if !type_malformed_same_line_trivia_pending(i) && boundary(i) {
-                return Some(TypeInvalidRunRecovery {
-                    error_range: start..end,
-                    disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                    caller_owned_boundary: false,
-                });
-            }
-            // Step 2 has no canonical mandatory-primary handoff candidate.
-            if candidate(i) {
-                return Some(TypeInvalidRunRecovery {
-                    error_range: start..end,
-                    disposition: TypeInvalidRunDisposition::RetryCurrent,
-                    caller_owned_boundary: false,
-                });
-            }
-
-            // TMN-S steps 4 and 5 probe one maximal trivia run without
-            // moving the committed scanner cursor beyond the Error range.
+            // One maximal trivia run must reach the full TMN-C classifier
+            // before this caller's same-line boundary predicate. In
+            // particular, horizontal trivia may prefix a physical newline.
             let checkpoint = i.checkpoint();
             let trivia = consume_trivia(i);
             match classify_type_malformed_trivia(i, &trivia, newline_policy) {
                 TypeMalformedTriviaClassification::CallerBoundary => {
                     i.rollback(checkpoint);
+                    mark_type_malformed_caller_boundary(i);
                     return Some(TypeInvalidRunRecovery {
                         error_range: start..end,
                         disposition: TypeInvalidRunDisposition::BoundaryCurrent,
@@ -3695,9 +3680,37 @@ where
                             caller_owned_boundary: false,
                         });
                     }
-                    i.rollback(checkpoint);
+                    // No post-trivia boundary or retry owns this deeper run.
+                    // It therefore belongs to the continuing malformed run;
+                    // do not reopen the caller's same-line boundary at its
+                    // trivia start.
+                    end = i.pos();
+                    continue;
                 }
                 TypeMalformedTriviaClassification::NoNewline => {
+                    i.rollback(checkpoint);
+
+                    // NoNewline is the only TMN-C outcome that may consult
+                    // the caller's current-position same-line boundary.
+                    if boundary(i) {
+                        return Some(TypeInvalidRunRecovery {
+                            error_range: start..end,
+                            disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                            caller_owned_boundary: false,
+                        });
+                    }
+                    if candidate(i) {
+                        return Some(TypeInvalidRunRecovery {
+                            error_range: start..end,
+                            disposition: TypeInvalidRunDisposition::RetryCurrent,
+                            caller_owned_boundary: false,
+                        });
+                    }
+
+                    // Reprobe the same no-newline run for the established
+                    // after-trivia boundary / retry decisions.
+                    let checkpoint = i.checkpoint();
+                    let trivia = consume_trivia(i);
                     if !trivia.is_empty() && boundary(i) {
                         i.rollback(checkpoint);
                         return Some(TypeInvalidRunRecovery {
@@ -3719,7 +3732,7 @@ where
             }
         }
 
-        if !type_malformed_same_line_trivia_pending(i) && boundary(i) {
+        if end == start && !type_malformed_same_line_trivia_pending(i) && boundary(i) {
             return (start < end).then_some(TypeInvalidRunRecovery {
                 error_range: start..end,
                 disposition: TypeInvalidRunDisposition::BoundaryCurrent,
@@ -5473,6 +5486,20 @@ mod tests {
             segment: Recovered::Complete(TypePathSegment::Identifier(segment)), ..
         })] if segment.range() == (7..8)));
         let recoveries = parse_direct_recovered("A::@\n  B");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (3..4)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn malformed_path_segment_retries_after_space_prefixed_deeper_trivia() {
+        let ast = parse("A::@ \n  B");
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
+            segment: Recovered::Complete(TypePathSegment::Identifier(segment)), ..
+        })] if segment.range() == (8..9)));
+
+        let recoveries = parse_direct_recovered("A::@ \n  B");
         assert!(matches!(recoveries.as_slice(), [error]
             if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
                 && error.kind == RecoveryKind::Error
