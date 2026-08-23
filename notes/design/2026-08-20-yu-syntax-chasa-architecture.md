@@ -16553,3 +16553,308 @@ implementationはfuture changeである。実装時は各ruleを再掲せず`PTA
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、canonical Pattern trailing TypeExpression annotation wiring追補案）。
+
+## 追補案: TypeExpression malformed recoveryのnewline owner policy
+
+Status: Authoritative(ユーザ承認済み、2026-08-24)。
+
+Date: 2026-08-24。
+
+### Scope and authority
+
+本追補は、shared `TypeExpression` malformed-run scannerがphysical newlineへ到達したときの
+owner policyを明示し、canonical type continuationとnewline-hard-handoff phaseの既存契約を
+同じhelper内で混同しないためのimplementation boundaryを定める。これにより、直前のcanonical Pattern annotation
+追補の`PTA-R`を変更せず、`x: @\n  Int`をsame mandatory slotのretryとして実装可能にする。
+
+本追補のauthorityは次に限る。
+
+- malformed run中または直後のone maximal `TriviaRun`にphysical newlineがある場合のboundary / continuation / handoff判定。
+- supplied boundary predicate、`type_item_boundary_after_trivia`、`scan_type_item_invalid_run_with`、post-error owner adapter間で
+  同じ判定を共有するinternal policy / outcome shape。
+- current callerごとのpolicy / continuation-base selection、deeper continuation後のretry trivia / Error range ownership、
+  bool / plain rangeへeraseする前のAST / direct-CST threading。
+- candidate-incompleteなNamedRecord malformed-name subphaseからcandidate-completeなwhole-field ownerへのplain-Identifier handoff。
+- Pattern entryがcapture済み`pattern_continuation_base`をouter mandatory-primary recoveryへ渡すprivate context。
+
+TypeExpressionのsurface grammar、primary / tail precedence、delimiter / stop classifier、recovery role、Missing / Error cardinality、
+Patternの`PTA-G` / `PTA-J` / `PTA-A` / `PTA-R`は変更しない。`PTA-O`の「Patternから渡すone-site contextは
+missing-role overrideだけ」というimplementation記述だけを、same captured continuation baseも持つprivate recovery contextへ
+本追補が限定的にrefineする。Patternのstop / delimiter / indentation stackは変更せず、nested type recoveryへbaseをremapしない。
+polymorphic variantの`NT` / `IT`、bracket rowの`BR-RP1`も変更しない。新しいStopKind、Pattern専用scanner、
+use-site keyword list、public parser optionは追加しない。
+
+本追補のnewline判定の唯一のcanonical definitionは後述の`TMN`である。caller inventory、impact、worked example、
+implementation gateは`TMN-*` outcomeを参照し、別のindent比較式またはsafe-point listを定義しない。
+
+### Re-verification and exhaustive current caller inventory
+
+current sourceのdirect callerは次で尽きる。line numberは本追補起案時のHEAD `9323ce68`である。
+
+| helper caller | pre / post decision points | selected policy / base | authority and current coverage |
+| --- | --- | --- | --- |
+| `type_expr.rs:2981-2993` canonical `scan_type_item_invalid_run` | raw boundary callback `type_recovery_boundary_pending`; AST eraser `recover_type_item_for_ast` (`:2494-2500`); direct adapter `direct_type_item_error_retry` (`:3066-3079`) | `ContinuationQualified { ActiveTypeBase }` | core recovery scannerはqualifying newlineだけをsafe pointとする (`architecture.md:12626-12628`)。mandatory / ArrowRhs / record RHSのdeeper-malformed cross-productはshipped fixtureなし |
+| same wrapperを使うdelimited item driver (`type_expr.rs:1352`) | `classify_type_delimited_recovery` (`:784-815`)とpost-error transition (`:1358-1403`)がtrivia / layout / candidate / close / separatorを再分類 | `ContinuationQualified { ActiveTypeBase }` | Call / groupはdeeper newlineをitem continuationとする (`architecture.md:12582-12591,12649-12664,12703-12719`)。EffectRowもqualifying newlineだけをsafe pointとする (`:14332-14350`)。specific deeper-malformed fixtureなし |
+| `type_expr.rs:3250-3256` PathSegment | `type_path_invalid_boundary_pending` (`:3306-3310`)がcurrent codeではall whitespaceをTMNより先にboundary化。AST wrapperはplain rangeをboolへerase (`:2512-2518`) | `ContinuationQualified { ActiveTypeBase }` after boundary normalization | core Primary / path contract (`architecture.md:12626-12643`)。shipped `A::@\nT`はequal-depth boundaryだけ (`type_expr.rs:4468-4485`)、deeper malformed axisはfixtureなし |
+| `type_expr.rs:1164-1169` forall phases | `candidate_after_trivia` (`:1167,1208-1223`)とphase boundary (`:1228-1245`) | `ContinuationQualified { ActiveTypeBase }` | safe pointはequal-or-shallower newline (`architecture.md:13799-13803`)。shipped Body fixture (`type_expr.rs:4979-4999`)はequal-depthだけ |
+| `type_expr.rs:2740-2752` NamedRecord malformed-name skeleton | retry candidateはliteral Colonだけ。current boundary callbackはall whitespaceを先勝ちさせる | `AnyPhysicalHandoff` plus plain-Identifier handoff guard | approved field-authority probeはvalid Identifier tokenをcrossしない (`architecture.md:13246-13262`)。specific deeper malformed-name fixtureなし |
+| `type_expr.rs:3269-3275` NamedRecord whole-field recovery | `record_field_head_candidate_after_trivia` (`:3312-3320`)と`classify_named_record_recovery` (`:3357-3373`) | `ContinuationQualified { ActiveTypeBase }` | record safe point / deeper continuation contract (`architecture.md:13241-13244,13264-13280`)。shipped `{@\nA: B}`はqualifying newline (`type_expr.rs:4862-4871`)、deeper malformed axisはfixtureなし |
+| `type_expr.rs:3280-3287` NamedRecord field-colon recovery | shared `record_colon_invalid_boundary_pending` (`:3395-3400`)がcurrent codeではall whitespaceをTMNより先にboundary化。AST/direct wrapperはplain rangeへerase | `ContinuationQualified { ActiveTypeBase }` after boundary normalization | field-internal tableはequal-or-shallower newlineだけをownerへ返す (`architecture.md:13290-13320`)。`{name @:\n  A}` fixtureはColonでscannerが先にstopするためdeeper-malformed evidenceではない |
+| `type_expr/polymorphic_variant.rs:551-564` shared invalid run | `inspect_payload` (`:438-467`)とouter `drive`がsame scanner resultをphase transitionへ投影 | `AnyPhysicalHandoff` | any physical newlineでinner phase終了 (`architecture.md:14695-14704,15123-15135`)。direct deeper-malformed evidenceあり (`type_expr.rs:5312-5333,5482-5524`) |
+
+`consume_type_chain_trivia`のcurrent consumersは、direct tailのPath / Arrow
+(`type_expr.rs:374,412`)、delimited / record owner handoff (`:1397,1633,1697,2273,2308`)、
+record fieldのpre/post-Colon gap (`:1781,1827,2365,2391`)である。これらはhelper本体
+(`:2864-2895`)と`type_chain_trivia` / `is_outer_newline_boundary` (`:3433-3436`)のone comparisonをすでに共有する。
+ただしPatternのcaptured baseはこのstack-visible baselineと一致しない。AST `parse_pattern_bp`はentry時にcapture
+(`pattern.rs:447-458`)、direct pathも同じcaptureを行い (`:1396-1410`)、calculation本体はcurrent line indentとactive baselineのmaxである
+(`:1339-1346`)。このcaptureはnew indentation frameをpushしないため、type-side `type_chain_trivia` (`type_expr.rs:3433-3436`)から
+stack-visible baselineだけを読むとnested Patternで値がずれる。`TMN-B`はsame low-level comparisonへexplicit baseを渡す形へrefineする。
+
+EffectRow以外のbracket rowはcurrent `TypePrimary`にまだ実装されておらず、current `.rs` callerは存在しない。
+authoritative `BR-RP1`はqualifying newlineを`RetryImplicitNewline`、deeper newlineをmalformed continuationとして
+Error rangeへ含めるとすでに定める (`architecture.md:15552-15582,15600-15603`)。future bracket-row implementationは
+そのown `BracketRowAlignmentPolicy`を保ち、本追補のgeneric callerへ暗黙に追加しない。
+
+### Why the owner phases differ
+
+差の一般則は「single valueかmulti-item listか」ではなく、malformed scannerがいる**owner phaseのcandidate completeness**である。
+
+- ordinary mandatory type、Path、Arrow、delimited item、forall、NamedRecord whole-field / accepted-field internal slotは、
+  current phase自身または直後のowner adapterがvalid continuation candidateを完全にprobeできる。このphaseではlayout-qualified
+  newlineだけをboundaryとし、deeper newlineをsame slot continuationとして扱える。
+- polymorphic variant `NT` / `IT`とNamedRecord malformed-name skeletonは、inner scannerのcandidate setだけではnewline後の
+  plain Identifierを安全に分類できない。variantではpayload / tag、recordではmalformed name continuation / next complete fieldが競合する。
+  したがってany physical newlineでtrivia前へrollbackし、candidate-completeなouter judgeへhandoffする。
+
+NamedRecord whole-field scannerは`record_field_head_candidate_after_trivia`を持つため後者ではない。一方
+`scan_malformed_record_name_colon`はliteral Colonしかretry candidateに持たないので、newlineに加えcurrent-position plain Identifierも
+internal scannerのhard handoff candidateにする。outer sequence scannerがmalformed prefix Errorをownし、
+`classify_named_record_recovery`がlayoutとfull field-start candidateを再判定する。
+これはsame-line rangeにもintentional changeを一つ持つ。`{@foo!: A}`はcurrent implementationの
+`Error(RecordFieldName, "@foo!")` + complete Colon / type `A`ではなく、plain Identifier `foo`をinner probeがcrossしないため、
+outer whole-field ownerのone `Error(RecordField, "@foo!: A")`になる。これはfield-authority contract
+(`architecture.md:13246-13252`)へ合わせるconformance fixであり、same-line range preservationの例外である。
+
+polymorphic variantのdeeper newlineも「任意depthで新tagを始めるseparator」ではない。`AnyPhysicalHandoff`はinner ambiguityを閉じるだけで、
+outer `NT`がqualifying separator / owner boundaryを決める。このowner-phase ruleが`:{@\n  B}`をPattern mandatory RHSと異ならせる。
+
+### Canonical malformed-newline policy (`TMN`)
+
+#### `TMN-B`: one continuation-base calculation
+
+newline depthは次のone predicateだけで比較する。
+
+```text
+continues_after_newline(trivia, continuation_base) :=
+    trivia has physical newline
+    and indent after its last physical newline > continuation_base
+```
+
+`continuation_base`はそのmalformed recovery slot / phaseへentryした時点で一度だけcaptureし、scanner途中、following token、
+EOF recovery positionから再計算しない。base sourceは次の二つだけである。
+
+| recovery entry | captured base |
+| --- | --- |
+| ordinary TypeExpression / Path / forall / delimited / NamedRecord accepted phase / nested type recovery | current active type indentation baseline。なければ0 |
+| Pattern annotationのouter mandatory Primary slot | annotationをacceptした`PatternBp` entryがすでにcaptureしたexact `pattern_continuation_base` |
+
+ordinary rowはcurrent `type_chain_trivia` / `is_outer_newline_boundary`が使うactive-baseline sourceを保持する。
+Pattern rowはそのhelperと**同じ**`continues_after_newline` predicateへexplicit baseを渡し、type-side active baselineから
+Pattern baseを再構成しない。Pattern baseは`max(current physical-line indent, active Pattern indentation baseline)`なので、
+active type baselineだけで代用してはならない。
+
+Patternからcanonical mandatory entryへ渡すprivate contextはconceptually次のshapeとする。
+
+```text
+RequiredTypeRecoveryContext {
+    outer_missing_role,
+    malformed_continuation_base,
+}
+```
+
+これはcrate-internal mandatory-recovery contextであり、public TypeExpression parse optionではない。
+`malformed_continuation_base`はcompletely missing / malformedな**outermost mandatory Primary slotだけ**へ適用し、
+accepted TypeExpression内のPathSegment / CallArgument / ArrowRhsその他nested recoveryへ伝播しない。
+Patternのindentation stackへtemporary frameをpushせず、AST / direct pathはsame captured Pattern baseを渡す。
+
+#### `TMN-P`: explicit internal policy
+
+shared malformed scannerへdefaultを持たないinternal policyを一つ渡す。
+
+```text
+TypeMalformedNewlinePolicy :=
+    ContinuationQualified { continuation_base }
+  | AnyPhysicalHandoff
+```
+
+`ContinuationQualified`は`TMN-B`のone comparisonを使う。`AnyPhysicalHandoff`はindentを読まない。
+policyはgrammar role、retry candidate、delimiter / active-stop boundaryを内包せず、public TypeExpression entryへ公開しない。
+
+#### `TMN-C`: one maximal-trivia classifier and boundary normalization
+
+classifierはdecision positionからone maximal `TriviaRun`をstate-neutralにprobeする。outcomeは次のpriority tableだけで定義する。
+
+| priority | trivia / owner state | canonical outcome |
+| --- | --- | --- |
+| 1 | physical newlineなし | `TMN-NoNewline` |
+| 2 | run内のphysical newlineがcurrent lexical depthのactive `StopKind::Newline` | `TMN-CallerBoundary` |
+| 3 | `AnyPhysicalHandoff`、physical newlineあり | `TMN-Handoff` |
+| 4 | `ContinuationQualified`かつ`continues_after_newline`がfalse | `TMN-Boundary` |
+| 5 | `ContinuationQualified`かつ`continues_after_newline`がtrue | `TMN-DeeperContinuation` |
+
+`TMN-CallerBoundary`はpolicy / indentより先に勝つ。newline前にsame-line spaceまたはcommentがあってもone maximal run全体を
+rollbackし、active-stop ownerへ返す。これによりcaller-owned newlineをdeeper continuationとしてcrossしない。
+
+current generic scannerのsupplied boundary predicateは`TMN-C`より先にphysical newlineを決めてはならない。
+具体的に`type_path_invalid_boundary_pending`と`record_colon_invalid_boundary_pending`は、current codeの
+`character.is_whitespace()`によるall-newline shortcutを除き、newlineを含まないsame-line whitespaceと各predicate固有の
+Colon / comma / close / active-owner boundaryだけを保持する。generic scannerはmaximal triviaにnewlineがある場合を先に
+`TMN-C`へ送り、その後にだけsame-line boundary predicateを使う。`type_item_boundary_after_trivia`も同じclassifierを使い、
+raw `\n` / `\r`を独立safe pointにしない。このnormalizationはoptional prerequisiteではなく本追補のrequired implementation surfaceである。
+
+#### `TMN-S`: exhaustive scanner result, order, and byte ownership
+
+shared scannerはunit `TypeItemRecovery::{Retry, Boundary}`、`bool`、plain `Range`へ直ちにeraseせず、conceptually次を返す。
+
+```text
+TypeInvalidRunRecovery {
+    error_range: Range,
+    disposition: TypeInvalidRunDisposition,
+}
+
+TypeInvalidRunDisposition :=
+    RetryCurrent
+  | RetryAfterTrivia(TriviaRun)
+  | BoundaryCurrent
+  | BoundaryAfterTrivia(TriviaRun)
+```
+
+`error_range`は常にnon-emptyかつcontiguousである。scannerはcursorを`error_range.end`へ置く。
+`*AfterTrivia`の`TriviaRun`はstate-neutral probeで得たexact runであり、まだconsumeされていない。
+AST / direct adapter、Path / record-colon wrapper、delimited / NamedRecord owner transitionはdispositionに必要なactionを終えるまで
+unit / bool / plain rangeへeraseしてはならない。
+
+non-empty malformed prefix後のdecisionは次のone orderで行う。
+
+1. current-position EOF、current lexical-depth active stop、separator、matching / outer-owned / mismatched closeその他owner boundary。
+2. current phaseが分類できないがouter phaseなら分類できるhard handoff candidate。currentではNamedRecord malformed-name phaseの
+   plain Identifierだけが該当する。
+3. current-position valid retry candidate。
+4. one maximal trivia runをprobeし、`TMN-C`を適用する。
+5. `TMN-DeeperContinuation`ならrun後をstate-neutralに、owner boundary、hard handoff candidate、valid retry candidateの順でprobeする。
+6. otherwiseのopaque commentまたはone source characterをmalformed rangeへ加える。
+
+outcomeとownershipは次のtableで尽きる。
+
+| decision | scanner result | trivia / following byte ownership |
+| --- | --- | --- |
+| step 1 owner boundary | `BoundaryCurrent` | current byteをconsumeせずownerへ返す |
+| step 2 hard handoff candidate | `BoundaryCurrent` | candidateをconsumeせずouter phaseへ返す。internal probe callerはits checkpointへrollbackする |
+| step 3 retry candidate | `RetryCurrent` | candidateをconsumeせずsame slotがretryする |
+| `TMN-CallerBoundary` / `TMN-Boundary` / `TMN-Handoff` | `BoundaryCurrent` | whole trivia runをconsumeせずowner / outer phaseへ返す |
+| deeper run後にowner boundary | `BoundaryAfterTrivia(run)` | Errorはrun前で終わる。runもfollowing boundary byteもconsumeせずownerへ返す |
+| deeper run後にvalid candidate | `RetryAfterTrivia(run)` | Errorはrun前で終わる。same slotがrunを一度consumeし、direct-CSTではError後・retried child前へ一度emitしてcandidateをretryする |
+| deeper run後にneither | scan継続 | run全体をError rangeへ加え、次のopaque unitへ進む |
+| no-newline run | existing same-line predicate / candidate-after result | owner boundaryをcandidateより先に判定する。neitherならrunをError rangeへ加える |
+
+`BoundaryAfterTrivia`は「scannerがtriviaをownする」という意味ではない。cursorはrun前にあり、current slotはErrorだけをcommitする。
+enclosing owner adapterがsame runをordinary triviaとして一度consume / emitし、following boundary tokenはさらにそのownerだけがconsumeする。
+したがって`x: @\n  <EOF>`、`T(@\n  )`、active Equal前の`x: @\n  = 0`はいずれもErrorを`@`だけにし、
+triviaをErrorへ含めず、same causeのMissing / second Errorを追加しない。
+
+`RetryAfterTrivia`だけがsame mandatory slotへtrivia ownershipを移す。ASTはcursorだけをadvanceし、direct-CSTはsame runを一度emitする。
+line commentを含むrunを分割しない。`classify_type_delimited_recovery` / its post-error transition、
+`classify_named_record_recovery`、`candidate_after_trivia`はfirst-class owner decision pointであり、attached dispositionを処理した後にだけ
+token-level transitionを行う。`BoundaryAfterTrivia`を`Retry`へ再分類せず、`RetryAfterTrivia`へlayout separatorを重ねない。
+
+NamedRecord malformed-name skeletonが`TMN-Handoff`またはplain Identifier handoffへ達した場合、internal Colon probeは
+its checkpointへrollbackしてno matchを返す。candidate-completeなwhole-field scannerがmalformed prefix Errorをcommitし、
+`classify_named_record_recovery`がuntouched triviaとfull `record_field_start_pending`からnext field / owner boundaryを決める。
+
+### Caller policy map and impact
+
+| caller family / decision phase | selected policy / base | implementation impact |
+| --- | --- | --- |
+| canonical mandatory Primary / ArrowRhs / accepted NamedRecord field RHS | `ContinuationQualified { ActiveTypeBase }` | generic wrapperがexplicit opt inする。approved qualifying-newline ruleへcurrent any-newline gapを閉じる |
+| Pattern annotation outer mandatory Primary | `ContinuationQualified { CapturedPatternBase }` | Pattern AST / direct call siteがsame private `RequiredTypeRecoveryContext`を渡す。nested type recoveryはordinary baseへ戻る |
+| PathSegment | `ContinuationQualified { ActiveTypeBase }` | `type_path_invalid_boundary_pending`のnewline shortcutを`TMN-C`へfoldする。same-line whitespace / Colon / active boundaryはunchanged |
+| Call / Parenthesized / EffectRow delimited item | `ContinuationQualified { ActiveTypeBase }` | full dispositionを`classify_type_delimited_recovery`とpost-error transitionまで保持する |
+| forall FirstBinder / AfterBinder / Body | `ContinuationQualified { ActiveTypeBase }` | each phaseがexplicit opt inし、`candidate_after_trivia`よりowner boundaryを先にする |
+| NamedRecord whole-field | `ContinuationQualified { ActiveTypeBase }` | full dispositionを`classify_named_record_recovery`まで保持する |
+| NamedRecord malformed-name skeleton | `AnyPhysicalHandoff` + plain-Identifier handoff | newlineまたはvalid Identifierでinternal probeをrollbackし、whole-field ownerへ返す。`{@foo!: A}`のsame-line Error range変更はintentional conformance exception |
+| NamedRecord field-colon recovery | `ContinuationQualified { ActiveTypeBase }` | `record_colon_invalid_boundary_pending`のnewline shortcutを`TMN-C`へfoldする。same-line whitespace / comma / closeはunchanged |
+| polymorphic variant `NT` / `IT` malformed recovery | `AnyPhysicalHandoff` | current any-newline behaviorとtwo shipped regression fixturesをbyte-for-byte保持する |
+| future bracket row | existing `BracketRowAlignmentPolicy` / `BR-RP1` | current callerなし。本追補へopt inせず、approved deeper-newline Error ownershipを保持する |
+
+implicit defaultは置かず、generic scannerの各direct callerがpolicyを選ぶ。`AnyPhysicalHandoff`はpolymorphic variantだけの
+exceptionではなく、candidate-incompleteなNamedRecord malformed-name subphaseにも適用する。
+
+current shipped behaviorをそのまま保持すると断言できるのは、polymorphic variantのany-newline handoff、bracket-rowのseparate policy、
+Path / record-colonのsame-line whitespace boundary、delimiter / active-stop ownershipである。その他の`ContinuationQualified` rowはexisting approved
+qualifying-newline ruleとseparate deeper-continuation ruleから本追補がcross-productを初めてcanonical化するもので、
+specific deeper-malformed-run fixtureは多くのrowにまだない。したがってこれは単なるrefactorではなく、shared implementation gapを
+各callerへexplicitly closeするbehavioral conformance changeである。
+
+surface call siteのうちnew contextを渡すのはPattern annotationだけである。ordinary TypeExpression callerはpublic optionを受け取らず、
+internal wrapperが`ActiveTypeBase`をcaptureする。Path / record-colonはboundary predicate normalization、delimited / NamedRecord / forallは
+structured disposition propagationが必要だが、grammar branch、stop set、owner token consumptionは増やさない。
+
+### Worked examples
+
+以下は`TMN`と各existing authoritative recovery tableの適用例であり、独立したsafe-point definitionではない。
+
+| source / owner | `TMN` outcome | required result |
+| --- | --- | --- |
+| `x: @\n  Int`、Pattern annotation、captured base 0 | `TMN-DeeperContinuation` then `RetryAfterTrivia` | one `Error(Type::Primary)` on `@`、newline + indent trivia、Complete `TypeExpression(Int)`。`type_annotation = Some`、same-slot Missingなし |
+| nested Pattern `x` line indent 4 / active baseline 2で`x: @\n    Int` | `CapturedPatternBase = 4`、next indent 4なので`TMN-Boundary` | Errorは`@`だけ。newline / `Int`をsame annotation slotへretryしない。active type baseline 2によるfalse deeperを禁止する |
+| `A::@\n  B`、core PathSegment | boundary shortcut normalization後、`TMN-DeeperContinuation` then `RetryAfterTrivia` | PathSegment Error on `@`後に`B`をsame segmentでretry。path tailはComplete |
+| `A -> @\n  B`、core ArrowRhs | `TMN-DeeperContinuation` then `RetryAfterTrivia` | ArrowRhs Error on `@`後にComplete RHS `B`。newlineをouter statement boundaryにしない |
+| `T(@\n  A)`、core TypeCall item | `TMN-DeeperContinuation` then `RetryAfterTrivia` | CallArgument Error on `@`後にsame item `A`をretryし、actual `)`をCall ownerがconsume |
+| `{name: @\n  A}`、NamedRecord field RHS | `TMN-DeeperContinuation` then `RetryAfterTrivia` | RecordFieldType Error on `@`後にsame fieldのtype `A`をCompleteにし、field数はone |
+| `{@\n  a: A}`、NamedRecord malformed name / whole field | internal `TMN-Handoff`、outer `TMN-DeeperContinuation` then retry | internal Colon probeはrollback。whole-field Errorは`@`だけ、trivia後のcomplete field `a: A`をouter ownerがretryする |
+| `{name @\n  A}`、NamedRecord field-colon | normalized `TMN-DeeperContinuation` then `RetryAfterTrivia` | RecordFieldColon Errorは`@`だけ、`A`をsame accepted fieldのtypeとしてretryする。旧`{name @:\n  A}` fixtureはこのaxisのevidenceに数えない |
+| `for 'a: @\n  T`、forall Body | `TMN-DeeperContinuation` then `RetryAfterTrivia` | ForallBody Error on `@`後にbody `T`をCompleteにする |
+| `'[@\n  A]`、EffectRow item | `TMN-DeeperContinuation` then `RetryAfterTrivia` | EffectRowItem Error on `@`後にsame item `A`をretryし、actual `]`をrow ownerがconsume |
+| `:{@\n  B}`、polymorphic variant | `TMN-Handoff` | inner recoveryはnewline前へrollbackし、newline + `B}`をconsumeせずvariant ownerからcallerへ返す。current fixture resultを変更しない |
+| `x: @\n  <EOF>`（`<EOF>`はtwo-space indent後のzero-width marker） | `TMN-DeeperContinuation` then `BoundaryAfterTrivia` | Errorは`@`だけ。triviaはannotation slotへ入れずouter ownerへ返し、Incomplete slotへsame-cause Missingを追加しない |
+| `T(@\n  )` | `TMN-DeeperContinuation` then `BoundaryAfterTrivia` | Errorは`@`だけ。Call ownerがnewline triviaとactual `)`をownし、second recoveryなし |
+| `my x: @\n  = 0` | `TMN-DeeperContinuation` then active-Equal `BoundaryAfterTrivia` | Errorは`@`だけ。binding ownerがnewline triviaと`=`をownし、`=` byteをErrorへ含めない |
+| active `StopKind::Newline`の下で`@ ` + newline + deeper indent | `TMN-CallerBoundary` | spaceを含むmaximal trivia run全体をuntouchedでnewline ownerへ返す。indent / policyを見てcrossしない |
+| `T [@\n  A] -> U`、future bracket row | `BR-RP1`（`TMN` callerではない） | approved shapeどおりError rangeは`@\n  `、then item `A` / close / arrow / RHS valid。Pattern retry-gap ownershipへ変更しない |
+
+equal-or-shallower variantでは`ContinuationQualified`が`TMN-Boundary`となり、whole runをownerへ返す。
+worked examplesのbase / dispositionは`TMN-B` / `TMN-S`を適用した結果であり、別のsafe-point definitionではない。
+
+### Implementation boundary and review gates
+
+implementationはfuture changeであり、本追補自体はdesign documentだけを変更する。実装時は次をgateにする。
+
+1. `TypeMalformedNewlinePolicy`、captured base、`TypeInvalidRunRecovery` / full disposition equivalentをinternal recovery vocabularyとして追加し、
+   implicit defaultを置かない。
+2. `continues_after_newline` equivalentを`type_chain_trivia`とmalformed scannerで共有する。Pattern outer mandatory slotだけは
+   AST / direct共通のcaptured `pattern_continuation_base`をprivate recovery contextで渡す。
+3. `type_item_boundary_after_trivia`とgeneric malformed scannerのraw-newline positionを`TMN-C`へ収束させ、
+   `type_path_invalid_boundary_pending` / `record_colon_invalid_boundary_pending`のnewline shortcutをnormalizeする。
+4. canonical mandatory wrapper / path / forall / named-record / delimited driverへ`ContinuationQualified`、polymorphic variantと
+   NamedRecord malformed-name skeletonへ`AnyPhysicalHandoff`をexplicit mappingする。malformed-name phaseにはplain-Identifier handoffを加える。
+5. full dispositionをAST mandatory adapter、direct adapter、Path / record-colon wrapper、`candidate_after_trivia`、
+   `classify_type_delimited_recovery` / post-error transition、`classify_named_record_recovery`まで保持する。
+6. `RetryAfterTrivia`だけをsame slot内でconsume / emitし、`BoundaryCurrent` / `BoundaryAfterTrivia`のgapはownerへuntouchedで返す。
+   Error range、boundary byte、trivia one-owner、no-cascadeをAST / directのsame source positionでassertする。
+7. active `StopKind::Newline`がpolicy / indent / candidate-afterより先に勝つfixtureと、deeper trivia直後のEOF / close / Equalをfixture化する。
+8. `polymorphic_variant_never_consumes_a_deeper_outer_newline`と
+   `polymorphic_variant_shared_driver_regression_matrix`を変更せずgreenに保つ。
+9. core Path / Arrow / Call / Parenthesized、NamedRecord whole-field / malformed-name / field-colon / RHS、forall、EffectRow、
+   Pattern base mismatch例についてworked sourceをAST / direct-CST fixture化する。多くはnew conformance coverageであり既存fixture代替ではない。
+10. current same-line malformed ranges、comment atomicity、separator / close / active-stop ownershipを変更しない。ただし
+    NamedRecord malformed-nameのplain-Identifier handoffによる`{@foo!: A}`だけは、field-authority contractへ合わせて
+    `Error(RecordFieldName, "@foo!")`からouter `Error(RecordField, "@foo!: A")`へ変えるintentional conformance exceptionとする。
+11. future bracket-row implementationは`BR-RP1`を保持し、generic policyへ吸収しない。
+12. normal / recovery / rollbackでdelimiter / stop / indentation / type-owner / type-ML stateをexact restoreする。
+13. `declaration.rs` / `expression.rs`へbranchまたはstopを追加せず、Pattern側にscannerをforkせず、public parser optionを増やさない。
+
+本追補がClaude / user reviewで確定するまで、shared scannerのnewline semanticsを変更しない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-24、TypeExpression malformed recovery newline owner policy追補案）。
