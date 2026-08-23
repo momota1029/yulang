@@ -396,10 +396,29 @@ where
                 }
                 if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
                     committed.token(type_name_kind(name), type_name_range(name));
-                } else if let Some(range) = committed.probe(|probe| scan_type_path_invalid_run(probe.input())) {
-                    emit_type_error(committed, TypeRole::PathSegment, range, ExpectedSyntax::TypePathSegment);
-                    if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
-                        committed.token(type_name_kind(name), type_name_range(name));
+                } else if let Some(recovery) = committed.probe(|probe| scan_type_path_invalid_run(probe.input())) {
+                    emit_type_error(
+                        committed,
+                        TypeRole::PathSegment,
+                        recovery.error_range,
+                        ExpectedSyntax::TypePathSegment,
+                    );
+                    let retry = match recovery.disposition {
+                        TypeInvalidRunDisposition::RetryCurrent => true,
+                        TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                            consume_direct_recovery_trivia(committed, &trivia);
+                            true
+                        }
+                        TypeInvalidRunDisposition::BoundaryCurrent => false,
+                        TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia) => {
+                            debug_assert!(!trivia.is_empty());
+                            false
+                        }
+                    };
+                    if retry {
+                        if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
+                            committed.token(type_name_kind(name), type_name_range(name));
+                        }
                     }
                 } else {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::PathSegment), ExpectedSyntax::TypePathSegment);
@@ -430,13 +449,20 @@ where
                 if rhs_trivia.is_none() {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                 } else if commit_direct_type_expression(committed).is_none() {
-                    match direct_type_item_error_retry(committed, TypeRole::ArrowRhs) {
-                        Some(TypeItemRecovery::Retry) => {
+                    match direct_required_type_item_error_retry(committed, TypeRole::ArrowRhs) {
+                        Some(TypeInvalidRunDisposition::RetryCurrent) => {
                             if commit_direct_type_expression(committed).is_none() {
                                 emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                             }
                         }
-                        Some(TypeItemRecovery::Boundary) => {}
+                        Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                            consume_direct_recovery_trivia(committed, &trivia);
+                            if commit_direct_type_expression(committed).is_none() {
+                                emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
+                            }
+                        }
+                        Some(TypeInvalidRunDisposition::BoundaryCurrent)
+                        | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
                         None => {
                             emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
                         }
@@ -1379,20 +1405,46 @@ where
             continue;
         }
         if !context.parse_item() {
-            let recovered = context.with_input(scan_type_item_invalid_run);
-            let Some((range, _)) = recovered else {
+            let recovered = context.with_input(scan_type_delimited_item_invalid_run);
+            let Some(TypeInvalidRunRecovery { error_range, disposition }) = recovered else {
                 context.emit_incomplete_item(spec.item_role());
                 break;
             };
-            context.emit_item_error(spec.item_role(), range);
-            match context.with_input(|i| {
-                classify_type_delimited_recovery(
-                    DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
-                    layout,
-                    direct_type_primary_candidate,
-                    i,
-                )
-            }) {
+            context.emit_item_error(spec.item_role(), error_range);
+            let target = match disposition {
+                TypeInvalidRunDisposition::RetryCurrent => continue,
+                TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                    let consumed = context.with_input(consume_trivia);
+                    debug_assert_eq!(consumed.range(), trivia.range());
+                    context.emit_trivia(&consumed);
+                    continue;
+                }
+                TypeInvalidRunDisposition::BoundaryCurrent => context.with_input(|i| {
+                    classify_type_delimited_recovery(
+                        DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                        layout,
+                        direct_type_primary_candidate,
+                        i,
+                    )
+                }),
+                TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia) => {
+                    context.with_input(|i| {
+                        let checkpoint = i.checkpoint();
+                        let probed = consume_trivia(i);
+                        debug_assert_eq!(probed.range(), trivia.range());
+                        i.rollback(checkpoint);
+                    });
+                    context.with_input(|i| {
+                        classify_type_delimited_recovery(
+                            DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                            layout,
+                            direct_type_primary_candidate,
+                            i,
+                        )
+                    })
+                }
+            };
+            match target {
                 DelimitedRecoveryTarget::RetryPrimary => {
                     let trivia = context.with_input(consume_trivia);
                     context.emit_trivia(&trivia);
@@ -2192,7 +2244,7 @@ where
     let trivia = consume_trivia(i);
     if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
     let segment = scan_type_name(i)
-        .or_else(|| recover_type_path_for_ast(i).then(|| scan_type_name(i)).flatten())
+        .or_else(|| recover_type_path_for_ast(i))
         .map(|name| Recovered::Complete(match name {
             TypeName::Identifier(word) => TypePathSegment::Identifier(word),
             TypeName::SigilIdentifier(word) => TypePathSegment::SigilIdentifier(word),
@@ -2216,14 +2268,25 @@ where
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
     if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
-    let rhs = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
-        .or_else(|| {
-            recover_type_item_for_ast(i)
-                .then(|| i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))))
-                .flatten()
-        })
-        .map(|value| Recovered::Complete(Box::new(value)))
-        .unwrap_or(Recovered::Incomplete);
+    let rhs = if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
+        Recovered::Complete(Box::new(value))
+    } else {
+        match recover_required_type_item_for_ast(i).map(|recovery| recovery.disposition) {
+            Some(TypeInvalidRunDisposition::RetryCurrent) => i
+                .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                .map(|value| Recovered::Complete(Box::new(value)))
+                .unwrap_or(Recovered::Incomplete),
+            Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                consume_recovery_trivia(i, &trivia);
+                i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                    .map(|value| Recovered::Complete(Box::new(value)))
+                    .unwrap_or(Recovered::Incomplete)
+            }
+            Some(TypeInvalidRunDisposition::BoundaryCurrent)
+            | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_))
+            | None => Recovered::Incomplete,
+        }
+    };
     let end = match &rhs { Recovered::Complete(rhs) => rhs.range.end, Recovered::Incomplete => arrow.end };
     TypeArrowTail { arrow: arrow.clone(), rhs, range: arrow.start..end }
 }
@@ -2548,13 +2611,25 @@ where
     scan_record_invalid_run(i).map(|(_, recovery)| recovery)
 }
 
-fn recover_type_path_for_ast<E>(i: &mut SynIn<E>) -> bool
+fn recover_type_path_for_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeName<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    scan_type_path_invalid_run(i).is_some()
+    let recovery = scan_type_path_invalid_run(i)?;
+    match recovery.disposition {
+        TypeInvalidRunDisposition::RetryCurrent => scan_type_name(i),
+        TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+            consume_recovery_trivia(i, &trivia);
+            scan_type_name(i)
+        }
+        TypeInvalidRunDisposition::BoundaryCurrent => None,
+        TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia) => {
+            debug_assert!(!trivia.is_empty());
+            None
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -3156,6 +3231,23 @@ where
     )
 }
 
+fn scan_type_delimited_item_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
+    scan_type_item_invalid_run_with_disposition(
+        i,
+        newline_policy,
+        direct_type_primary_candidate,
+        type_recovery_boundary_pending,
+    )
+}
+
 fn scan_type_item_invalid_run<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, TypeItemRecovery)>
 where
     E: ErrorSink<usize>,
@@ -3576,7 +3668,7 @@ where
     )
 }
 
-fn scan_type_path_invalid_run<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+fn scan_type_path_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3585,18 +3677,12 @@ where
     let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
         continuation_base: active_type_continuation_base(i),
     };
-    scan_type_item_invalid_run_with(
+    scan_type_item_invalid_run_with_disposition(
         i,
+        newline_policy,
         type_name_pending,
-        |_| false,
         type_path_invalid_boundary_pending,
-        |i| type_item_boundary_after_trivia_with_policy(
-            i,
-            newline_policy,
-            type_path_invalid_boundary_pending,
-        ),
     )
-    .map(|(range, _)| range)
 }
 
 /// Scan one malformed named-record field head.  The cursor remains before
@@ -4662,6 +4748,48 @@ mod tests {
     }
 
     #[test]
+    fn malformed_delimited_items_retry_after_deeper_trivia() {
+        let call = parse("T(@\n  A)");
+        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments,
+            close: Recovered::Complete(close),
+            ..
+        })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)] if argument.range == (6..7))
+            && *close == (7..8)));
+        let call_recoveries = parse_direct_recovered("T(@\n  A)");
+        assert!(matches!(call_recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (2..3)), "{call_recoveries:#?}");
+
+        let group = parse("(@\n  A)");
+        assert!(matches!(group.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            elements,
+            close: Recovered::Complete(close),
+            ..
+        }) if matches!(elements.as_slice(), [Recovered::Complete(element)] if element.range == (5..6))
+            && close == (6..7)));
+        let group_recoveries = parse_direct_recovered("(@\n  A)");
+        assert!(matches!(group_recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (1..2)), "{group_recoveries:#?}");
+
+        let effect = parse("'[@\n  A]");
+        assert!(matches!(effect.primary, TypePrimary::EffectRow(EffectRowType {
+            items,
+            close: Recovered::Complete(close),
+            ..
+        }) if matches!(items.as_slice(), [Recovered::Complete(item)] if item.range == (6..7))
+            && close == (7..8)));
+        let effect_recoveries = parse_direct_recovered("'[@\n  A]");
+        assert!(matches!(effect_recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (2..3)), "{effect_recoveries:#?}");
+    }
+
+    #[test]
     fn ast_delimited_recovery_keeps_the_same_item_slots_as_direct_cst() {
         let malformed = parse("T(@A)");
         assert!(matches!(malformed.postfix.as_slice(), [TypePostfixTail::Call(tail)]
@@ -4903,6 +5031,32 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
             segment: Recovered::Complete(TypePathSegment::Identifier(_)), ..
         })]));
+    }
+
+    #[test]
+    fn malformed_path_segment_retries_after_deeper_trivia() {
+        let ast = parse("A::@\n  B");
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
+            segment: Recovered::Complete(TypePathSegment::Identifier(segment)), ..
+        })] if segment.range() == (7..8)));
+        let recoveries = parse_direct_recovered("A::@\n  B");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::PathSegment)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (3..4)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn malformed_arrow_rhs_retries_after_deeper_trivia() {
+        let ast = parse("A -> @\n  B");
+        assert!(matches!(ast.arrow, Some(TypeArrowTail {
+            rhs: Recovered::Complete(rhs), ..
+        }) if rhs.range == (9..10)));
+        let recoveries = parse_direct_recovered("A -> @\n  B");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::ArrowRhs)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (5..6)), "{recoveries:#?}");
     }
 
     #[test]
