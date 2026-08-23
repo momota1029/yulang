@@ -16038,3 +16038,517 @@ implementationはfuture changeであり、本追補自体はdesign documentだ�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression bracket row grammar追補案）。
+
+## 追補案: canonical `Pattern`のtrailing `TypeExpression` annotation wiring
+
+Status: Claude review / exact wordingのfinal sign-off待ち。
+
+Date: 2026-08-23。
+
+### Scope and authority
+
+本追補は、fully specifiedなstandalone `TypeExpression` grammarをcanonical `Pattern`へ初めて接続し、
+completed pattern全体に対するoptional trailing annotation `Pattern : TypeExpression`を追加する。
+binding targetはすでにcanonical Patternを使うためlocal binding formを増やさず受理範囲が広がり、同じく
+canonical Patternを使うcase / catch arm patternとcatch handler patternも同時に広がる。
+
+RHSはpattern-annotation専用のtype subsetではなく、canonical TypeExpression entryが実装時点で持つfull surfaceである。
+core formとapprovedなnamed record / forall / effect row / polymorphic variant / bracket rowをPattern側で列挙・dispatchせず、
+standalone entryのsurface拡張を自動的に継承する。
+
+本追補のauthorityは次に限る。
+
+- current `Pattern`のfixed precedenceへone terminal annotation levelを追加する。
+- record fieldのexisting nested-pattern colonとouter annotation colonのownershipを裁定する。
+- parser-side AST、direct-CST、typed recovery、trivia / range ownershipを定める。
+- current binding / case / catch owner stopとのcompositionを固定する。
+
+struct / enum field、role / act signature、cast、where predicateなど他のtype use-siteは設計しない。
+constructor / call / field / path / ML-application patternも追加しない。implementationはfuture changeであり、
+本追補自体はこのdesign documentだけを変更する。
+
+本追補のgrammar / judge / recoveryの唯一のcanonical definitionは後述の`PTA-G` / `PTA-J` /
+`PTA-O` / `PTA-R`である。evidence、CST例、divergence、implementation gate、self-checkはそれらを参照し、
+別の認識順序、safe-point set、recovery tableを定義しない。
+
+### Re-verification against current implementation and approved contracts
+
+current sourceを再確認した結果は次である。
+
+1. `grammar/pattern.rs`の`PatternPrecedence`は現在`Lowest = 0, Alternation = 1, Alias = 2`である
+   (`crates/yu-syntax/src/grammar/pattern.rs:39-46`)。AST `parse_pattern_bp`とdirect
+   `parse_direct_pattern_bp`はどちらも`Lowest`から入り、one shared `recognize_pattern_led`を使う。
+   judgeはAliasを先に、Alternationを後にprobeし、alternation RHSだけ
+   `PatternPrecedence::Alternation`で再帰する
+   (`pattern.rs:429-503,976-1016,1299-1384,1454-1466`)。
+2. `Pattern`は現在`head + Vec<PatternTail> + range`で、tail variantはAlias / Alternationだけである
+   (`pattern.rs:152-166,320-338`)。direct pathはone forward `Pattern` nodeへprimaryとtailを順にemitし、
+   accepted left sideを後からwrapしない。
+3. record fieldはfield nameを読んだ直後、newlineを含まないtriviaだけを許す
+   `record_field_introducer`でColon / Equalsを選ぶ。Colonをacceptしてから`StopKind::Equal`を追加し、
+   nested canonical Patternを`Lowest`で呼ぶ
+   (`pattern.rs:620-680,1600-1691`)。record primary自身はBrace delimiterとComma / RightBrace stopを
+   push / popしてからouter Patternへ返る (`pattern.rs:593-618,1253-1274,1590-1598`)。
+4. binding AST / direct-CSTはtarget前にincoming stop setへexact `StopKind::Equal`を追加し、
+   `parse_pattern_with_outer_missing_role` / `parse_direct_pattern_with_outer_missing_role`を呼び、全exit後に
+   exact frameをpopする (`grammar/declaration.rs:786-819,4528-4584`)。これは既存のauthoritative text
+   (`architecture.md:11222-11229`)が予告したfuture Pattern surfaceのtransparent acceptanceそのものである。
+5. case armはArrow / ArmGuardIf / ArmGuardWhere、catch first patternはそれらにCommaも追加し、handlerは
+   Arrow / both guardsを追加してcanonical Patternを呼ぶ。AST / direct-CSTのstop setは対応している
+   (`grammar/expression.rs:1825-1863,4112-4126`)。したがってcall-site branchの追加は不要である。
+6. `TypeExpression`にはoptional AST/direct entryに加え、ASTの
+   `parse_required_type_expression_with_outer_missing_role`とdirect-CSTの
+   `commit_direct_type_expression_with_outer_missing_role`が実在する。outer role overrideはcompletely missingな
+   outer primary一箇所だけに使われ、nested type recoveryはremapされない
+   (`grammar/type_expr.rs:183-220,306-336,432-460`)。これはapproved core contract
+   (`architecture.md:12626-12646,12725-12768`)と一致するentry shapeである。
+7. current HEADの`TypePrimary` / `SyntaxKind`にはnamed record / forall / effect row / polymorphic variantまでが実装済みで、
+   bracket rowはauthoritative design addendum (`architecture.md:15235-16040`)までがcurrent repository stateである。
+   `PTA-O`はconcrete variant listをsnapshotせずcanonical entryへ接続するため、bracket-row implementationの前後で
+   annotation use-site designをforkしない。
+
+一方、first real consumerへ接続する前に閉じるべきcurrent conformance gapも二点ある。
+
+- current `direct_type_item_error_retry`はdelimiter close / comma / semicolonだけを止点にし、
+  active Equal / Arrow / guard / newlineをapproved `type_recovery_boundary_pending`からまだ受け取っていない
+  (`type_expr.rs:2415-2483`)。
+- current structural `type_active_tail_stop_pending`はArrowだけを調べるため、arm annotation後の`if` / `where`が
+  `TypeApplyArgument` candidateになり得る (`type_expr.rs:2591-2607`)。
+
+これは新しいuse-site専用機構を作る理由ではない。`PTA-O`はapproved standalone-TypeExpression contractを
+そのまま要求し、implementation時にexisting active-stop classifierをmandatory primary recoveryとstructural tail judgeの
+両方へ適用する。`declaration.rs` / `expression.rs`へ新しいstop kindやbranchを足さない。
+
+### Re-verified Yulang2 evidence and chosen Yulang3 attachment
+
+Yulang2のliteral implementationは、fixed precedenceを低い順に`Or, As, TypeAnn, ApplyML`とし、Colon tailを
+`min_prec <= TypeAnn`でacceptした (`yulang2-oracle:crates/parser/src/pat/parse.rs:114-121,172-231`)。
+実fixture `A | B as c: Int`のtreeも、outer `PatOr`のRHS `Pattern`内に`PatAs`と`TypeAnn`を置く
+(`yulang2-oracle:crates/parser/tests/pat_grammar.rs:279-304`)。したがってliteral historical attachmentは
+`A | ((B as c) : Int)`であり、annotationはalternationよりtightである。simple `x: Int`は同じColon +
+mandatory TypeExpr surfaceを持つ (`pat_grammar.rs:553-567`)。
+
+本追補のexact Yulang3 attachmentは`PTA-J`だけで定義する。それは明示されたwhole-pattern targetを満たし、
+historical fixtureのsource spellingを保ちながらtree attachmentを意図的に変える。
+よってfirst-slice Pattern addendumのhistorical description (`architecture.md:6661-6682`)自体は変更せず、
+future Yulang3 orderingを予告した`architecture.md:7216-7217`だけを本追補がsupersedeする。
+
+Yulang2 binding fixture `my mk (a: int): zzz = a`はML-application argument内とouter result positionの両方で
+annotation surfaceがreachableだった (`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:2405-2448`)。
+Yulang3のcurrent Patternにはconstructor call / ML application tailがまだないため、そのfull fixtureを先取りしない。
+parenthesized / list / record内のalready shipped recursive canonical Patternとouter binding targetについてだけ、同じ
+inner / outer reachability principleを`PTA-J`で保つ。
+
+### Canonical pattern-type-annotation contract (`PTA`)
+
+#### `PTA-G`: surface grammar, bounded trivia, and terminality
+
+```text
+Pattern := PatternBp(Lowest)
+
+PatternBp(minimum) :=
+    PatternPrimary
+    { ExistingAliasOrAlternationTail allowed by PTA-J }
+    [ PatternTypeAnnotation allowed by PTA-J ]
+
+PatternTypeAnnotation :=
+    Gpta Colon Gpta RequiredTypeExpression(Pattern::TypeAnnotation)
+```
+
+`Gpta`はcandidate positionからscanするone maximal trivia runであり、emptyを許す。runにphysical newlineがなければ
+acceptする。newlineがあれば、run後のindentがその`PatternBp` entryで一度だけcaptureした
+`pattern_continuation_base`よりstrictly greaterな場合だけacceptする。
+`pattern_continuation_base`はentry時のcurrent physical-line indentとactive indentation baselineの大きい方であり、
+後続tokenやrecovery位置から再計算しない。active baselineがなければ0を使う。
+
+equal-or-shallower newlineならone maximal run全体をrollbackする。Colon前ならannotation candidate自体がno match、
+accepted Colon後ならRHSは`PTA-R`のboundary rowへ進み、triviaをouter ownerへ残す。same-line block / line comment、
+newline、indent whitespaceをrunの途中で分割して一部だけ所有しない。AST / direct-CSTはone shared classifierを使う。
+
+`PatternTypeAnnotation`はoptionalかつterminalである。一個acceptした後は同じ`PatternBp`でAlias / Alternation /
+second annotationを再判定せずreturnする。annotation自身はseparator、terminator、definition marker、arm arrow / guardを
+持たない。それらは`PTA-O`のenclosing ownerに属する。
+
+#### `PTA-J`: one tail judge and exact precedence placement
+
+current enumへ次のone levelを追加し、existing levelsを上へずらす。
+
+```rust
+enum PatternPrecedence {
+    Lowest = 0,
+    TypeAnnotation = 1,
+    Alternation = 2,
+    Alias = 3,
+}
+```
+
+AST / direct-CST共通tail judgeはone candidate positionで次の順にだけ判定する。
+
+1. `minimum <= Alias`かつexisting exact `as` candidateならAlias。
+2. `minimum <= Alternation`かつexisting exact `|` candidateならAlternation。
+3. `minimum <= TypeAnnotation`、current lexical-depth active stopにColonがなく、`Gpta`後が
+   `PunctuationKind::Colon`のexact single colonならPatternTypeAnnotation。
+4. いずれでもなければcandidate開始前へrollbackしてno tail。
+
+各token spellingは互いに異なるため、source-order candidateの競合ではなくrecursive thresholdだけがattachmentを決める。
+`::`はscanner layerで`PunctuationKind::ColonColon`がsingle Colonより先に勝つためannotation authorityを持たない。
+active `StopKind::Colon`はsingle Colon candidateより先に勝ち、caller boundaryをconsumeしない。
+
+Alternation RHS recursionはcurrent callどおり`minimum = Alternation`を保つ。このthresholdではAliasはacceptするが
+TypeAnnotationはacceptしないため、`A | B as c: Int`のRHSは`B as c`でreturnし、rollbackされたcolon positionを
+outer `minimum = Lowest` judgeがacceptする。Aliasはidentifier一個をown childとして読むcurrent shapeを変えない。
+annotation recognitionはshared tail judgeのthird outcome一箇所だけに置き、AST / direct-CST別のcolon probeを作らない。
+
+#### `PTA-C`: record field colon ownership
+
+RecordPatternのfield colonと`PTA-J`のannotation colonにgenuine ambiguityはない。
+
+`RecordPatternField` ownerはBrace-delimited item scope内でfield nameをacceptした直後、nested Patternを呼ぶ前に
+same-line `record_field_introducer`を判定する。そこでacceptしたfirst Colonは
+`RecordPatternFieldForm::Nested { colon, pattern, default }`の`colon`であり、field nodeが所有する。
+nested Patternはそのcolon後から`Lowest`で始まるため、同じbyteをannotation judgeが見ることはない。
+
+record close `}`はRecordPattern ownerがconsumeし、delimiter / stop / layout scopeをexact popしてprimaryをouter
+Patternへ返す。その後のsingle Colonだけがouter `PTA-J` candidateになれる。この順序により次の三形を区別できる。
+
+- `{a: A}`: field colon一個、outer annotationなし。
+- `{a: A: Inner}`: first colonはfield owner、second colonはnested Pattern `A`のannotation owner。
+- `{a: A} : SomeType`: first colonはfield owner、`}`後のcolonはouter Patternのannotation owner。
+
+この裁定はbrace内 / brace外という文字列heuristicではなく、current record item ownerがnested entryより先にcutし、
+record scopeを閉じてからouter tail judgeへ戻るactual control flowに基づく。field colon scannerや
+`RecordPatternFieldForm`を変更せず、annotationのためにrecord-specific lookaheadを追加しない。
+
+#### `PTA-A`: parser AST, CST, and ranges
+
+parser-side surface ASTを次へ拡張する。
+
+```rust
+pub(crate) struct Pattern<'source> {
+    head: Recovered<PatternPrimary<'source>>,
+    tails: Vec<PatternTail<'source>>,
+    type_annotation: Option<PatternTypeAnnotation<'source>>,
+    range: Range<usize>,
+}
+
+pub(crate) struct PatternTypeAnnotation<'source> {
+    colon: Range<usize>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+```
+
+`PatternTail`にはvariantを追加しない。Alias / Alternationはsource-orderで反復し得るexisting structural tailsだが、
+annotationはcompleted Pattern全体をqualifyするat-most-one terminal slotである。`Vec<PatternTail>`へ混ぜると
+second annotationを表現できてしまい、terminalityとsemantic accessを各consumerが再検査する必要が生じる。
+new `PatternPrimary` variantにするとaccepted left sideのwrap / CST rewriteが必要になる。named `Option` fieldは
+forward-only CST emissionを保ちつつ、この二つを避ける。
+
+Colonをacceptした時点で`type_annotation = Some(...)`であり、RHS recoveryだけを`type_expr`の
+`Recovered::{Complete, Incomplete}`で表す。`Option<Recovered<...>>`にしてaccepted introducerとabsent constructを
+同一状態へ潰さない。
+
+complete annotationの`PatternTypeAnnotation.range`は`colon.start..type_expr.range.end`、RHS Incompleteなら
+`colon.start..colon.end`である。`Pattern.range`はannotationがあればそのrange.end、なければexisting last tail / head endを使う。
+pre-Colon / post-Colon triviaはsemantic range endを延ばさない。recovery Error rangeはdiagnostic / CSTにあり、
+AST fieldへ架空のerror rangeを追加しない。
+
+direct-CSTへ次を一個追加する。
+
+```text
+SyntaxKind::PatternTypeAnnotation
+```
+
+`PatternTypeAnnotation` nodeはColon、accepted post-Colon `Gpta`、mandatory-entryがemitするError /
+`TypeExpression`をsource orderで所有する。accepted pre-Colon `Gpta`はouter `Pattern`直下に一度だけemitする。
+complete TypeExpression後にtail judgeがrollbackしたtriviaはannotation / Patternへ入れず`PTA-O`のownerへ返す。
+Missingはzero-width、Errorはnon-emptyであり、synthetic Colon / separator / stop tokenを作らない。
+
+#### `PTA-O`: enclosing-owner composition and imported TypeExpression boundary
+
+annotation RHSはstandalone TypeExpressionのmandatory outer slotそのものである。pattern parserはcurrent stop / delimiter /
+indentation stackを変更せず、`GrammarRole::Pattern(PatternRole::TypeAnnotation)`だけをone-site outer missing-role overrideとして
+渡す。TypeExpression内部のPathSegment / CallArgument / ArrowRhsその他のroleをPattern roleへremapしない。
+
+following boundaryはすべてexisting enclosing consumerがownする。
+
+| enclosing Pattern occurrence | already-active stops while Pattern / annotation type runs | following owner |
+| --- | --- | --- |
+| binding target | incoming + Equal | BindingHeaderのoptional exact `=` |
+| case arm pattern | incoming + Arrow + ArmGuardIf + ArmGuardWhere | CaseArmのguardまたはarrow |
+| catch first pattern | incoming + Arrow + ArmGuardIf + ArmGuardWhere + Comma | CatchArmのhandler comma、guard、arrow |
+| catch handler pattern | incoming + Arrow + ArmGuardIf + ArmGuardWhere | CatchArmのguardまたはarrow |
+| delimited nested Pattern | current local comma / matching close、必要ならEqual | delimited / record-field owner |
+
+TypeExpressionのcandidate / fixed-tail / TypeApply judgeとmandatory recovery scannerは、approved core contract
+(`architecture.md:12626-12646,12737-12768`)どおりcurrent lexical-depth active stop、outer-owned close、
+qualifying newlineをcandidateより先に判定する。これによりarmの`if` / `where`はtype name / TypeApplyより先にarm ownerへ返り、
+binding `=`やarm `->`はMissing / Errorへ入らない。これはshared TypeExpression entryのconformance requirementであり、
+Pattern側にreserved-word list、separator parser、use-site-specific recovery scannerを複製しない。
+
+#### `PTA-R`: exhaustive typed recovery table
+
+`PTA-J`がColonをacceptした後はcutし、RHSを必ずone mandatory TypeExpression slotとして閉じる。
+各decision positionのclassificationは次だけである。
+
+| input state | AST field state | direct-CST / recovery | retry / ownership |
+| --- | --- | --- | --- |
+| `PTA-J`でannotation candidate不成立 | `type_annotation = None` | node / diagnosticなし | `Gpta`を含めsame positionでcaller / existing tailへreturn |
+| Colon accepted、post-Colon `Gpta`後にvalid TypePrimary | `Some { type_expr: Complete(Box<TypeExpression>), .. }` | `PatternTypeAnnotation > TypeExpression` | canonical TypeExpressionを一回だけparse |
+| Colon accepted、next positionがEOF / active stop / any delimiter close / comma / semicolon / equal-or-shallower newline | `Some { type_expr: Incomplete, .. }` | zero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` inside empty `TypeExpression` | boundaryをconsumeせずenclosing ownerへreturn |
+| Colon accepted、maximal non-empty malformed run後にvalid TypePrimary | `Some { type_expr: Complete(Box<TypeExpression>), .. }` | one `Error(Type::Primary, TypeExpression)`後にone `TypeExpression` | valid primary位置でsame mandatory slotをretry |
+| Colon accepted、maximal non-empty malformed run後にboundary | `Some { type_expr: Incomplete, .. }` | one non-empty `Error(Type::Primary, TypeExpression)`、retry位置でone zero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` | Errorはboundary前で止まり、distinct retry positionからpreceding boundary rowへ入る |
+
+post-Colon `Gpta`がequal-or-shallower newlineでrejectされた場合、そのnewline位置がthird rowのboundaryである。
+same-line `Gpta`をacceptした後にowner stopがあればtriviaだけをannotation nodeへemitし、stop直前にMissingを置く。
+malformed scannerはcurrent lexical-depth EOF、active stop、matching / outer-owned / mismatched close、comma、semicolon、
+qualifying newline、valid TypePrimaryをsafe pointとして止まり、boundary byte / triviaをErrorへ含めない。
+
+outer role overrideはzero-width completely-missing primaryだけへ適用する。malformed prefix Errorはshared
+`GrammarRole::Type(TypeRole::Primary)`、nested type recoveryは各existing `TypeRole`を保つ。one Missing / Error nodeは
+one committed recovery recordに対応する。four post-Colon rowsはfirst positionでvalid primary、boundary、malformedの
+三分類を行い、malformed後のretryだけが新しいpositionでvalid / boundaryへ分かれるため、同じdecision positionでは重ならない。
+
+### CST byte ownership and worked examples
+
+以下は`PTA-G` / `PTA-J` / `PTA-A` / `PTA-O` / `PTA-R`の具体化であり、独立したgrammar ruleではない。
+quoted textはsourceの全byteを一度ずつ示す。
+
+```text
+x: Int
+
+Pattern
+  IdentifierPattern
+    Identifier "x"
+  PatternTypeAnnotation
+    Colon ":"
+    Whitespace " "
+    TypeExpression
+      Identifier "Int"
+```
+
+post-Colon spaceはannotation node、TypeExpressionはstandalone node shapeのままである。
+
+```text
+A | B as c: Int
+
+Pattern
+  IdentifierPattern
+    Identifier "A"
+  Whitespace " "
+  PatternAlternationTail
+    Pipe "|"
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        Identifier "B"
+      Whitespace " "
+      PatternAliasTail
+        AsKw "as"
+        Whitespace " "
+        Identifier "c"
+  PatternTypeAnnotation
+    Colon ":"
+    Whitespace " "
+    TypeExpression
+      Identifier "Int"
+```
+
+RHS PatternはAliasで終わり、outer Patternのannotation fieldがwhole alternationをqualifyする。
+
+```text
+my x: Int = 0
+
+BindingStatement
+  BindingHeader
+    MyKw "my"
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        Identifier "x"
+      PatternTypeAnnotation
+        Colon ":"
+        Whitespace " "
+        TypeExpression
+          Identifier "Int"
+    Whitespace " "
+    Equals "="
+  BindingBody
+    Whitespace " "
+    OperatorChain
+      IntegerLiteral
+        Integer "0"
+```
+
+TypeExpressionはactive Equal前のspaceをrollbackし、BindingHeaderがそのspaceとexact `=`を所有する。
+
+```text
+case value: x: Int -> 0
+
+CaseExpression
+  CaseKw "case"
+  Whitespace " "
+  CaseScrutinee
+    OperatorChain
+      IdentifierExpression
+        Identifier "value"
+  CaseBlock
+    Colon ":"
+    Whitespace " "
+    CaseArm
+      Pattern
+        IdentifierPattern
+          Identifier "x"
+        PatternTypeAnnotation
+          Colon ":"
+          Whitespace " "
+          TypeExpression
+            Identifier "Int"
+      Whitespace " "
+      Arrow "->"
+      Whitespace " "
+      OperatorChain
+        IntegerLiteral
+          Integer "0"
+```
+
+scrutinee / block Colon、annotation Colon、arm Arrowは各ownerのdistinct childである。
+
+```text
+{a: A} : SomeType
+
+Pattern
+  RecordPattern
+    LBrace "{"
+    RecordPatternField
+      Identifier "a"
+      Colon ":"
+      Whitespace " "
+      Pattern
+        IdentifierPattern
+          Identifier "A"
+    RBrace "}"
+  Whitespace " "
+  PatternTypeAnnotation
+    Colon ":"
+    Whitespace " "
+    TypeExpression
+      Identifier "SomeType"
+```
+
+`PTA-C`どおりfirst Colonはfield、`}`後のsecond Colonはouter annotationであり、このcompositionはwell-formedである。
+
+```text
+my y: = 1
+
+BindingStatement
+  BindingHeader
+    MyKw "my"
+    Whitespace " "
+    Pattern
+      IdentifierPattern
+        Identifier "y"
+      PatternTypeAnnotation
+        Colon ":"
+        Whitespace " "
+        TypeExpression
+          Missing(Pattern::TypeAnnotation, TypeExpression) ""
+    Equals "="
+  BindingBody
+    Whitespace " "
+    OperatorChain
+      IntegerLiteral
+        Integer "1"
+```
+
+Missingは`=`直前のzero-width siteにあり、spaceはannotation node、`=`はBindingHeaderだけが所有する。
+ASTは`type_annotation = Some`かつ`type_expr = Incomplete`で、annotation / Pattern semantic rangeはColon endまでである。
+
+```text
+x: @Int
+
+Pattern
+  IdentifierPattern
+    Identifier "x"
+  PatternTypeAnnotation
+    Colon ":"
+    Whitespace " "
+    Error(Type::Primary, TypeExpression) "@"
+    TypeExpression
+      Identifier "Int"
+```
+
+non-empty Errorはmandatory entryがTypeExpression childを開く前のsame-slot recovery eventであり、`Int`をretry後の
+one complete `type_expr`にする。`@`とspaceを重複emitしない。
+
+### Explicit Yulang2 divergences and preserved behavior
+
+1. **Precedence divergence:** literal Yulang2は`Or < As < TypeAnn`で、fixture treeも
+   `A | ((B as c) : Int)`である。Yulang3は`PTA-J`でこのrelative attachmentを逆転し、annotationを
+   outer Patternのone terminal fieldにする。
+2. **Architecture-local cardinality:** Yulang2のPattern tail loop自体はiterativeだが、TypeExpressionもColon-start
+   continuationを所有し得るため、cited fixtureはrepeated annotation acceptanceを固定しない。Yulang3は
+   `Option<PatternTypeAnnotation>` one terminal slotとし、second Colonをsame Patternのsecond annotationにしない。
+3. **Recovery divergence:** Yulang2はColon後のmissing / malformed typeをgeneric empty / non-empty
+   `InvalidToken`で回復した (`yulang2-oracle:crates/parser/src/pat/parse.rs:194-213`)。Yulang3は`PTA-R`の
+   typed Missing / Error、same-slot retry、owner-safe boundaryを使う。
+4. **CST-shape divergence:** Yulang2はgeneric `TypeAnn` tail nodeをiterative tail streamへ置いた。Yulang3は
+   at-most-one `PatternTypeAnnotation` childとnamed AST fieldをouter Pattern末尾へ置き、left sideをwrapしない。
+5. **Preserved source behavior:** `x: Int`のsurface spelling、Colon accept後にTypeExpressionがmandatoryであること、
+   annotation自身がfollowing separator / stopを持たないこと、recursive nested Patternとouter binding targetの双方から
+   annotationがreachableであることは保つ。
+6. **Architecture-local conformance:** active Equal / Arrow / guard / comma、outer close、equal-or-shallower newlineを
+   `PTA-O`で優先するのはapproved Yulang3 TypeExpression recovery architectureの適用である。Yulang2のgeneric
+   recovery / parser-local stop handlingをbyte-for-byte再現しない。
+
+### Implementation boundary and gates
+
+implementationはfuture changeである。実装時は各ruleを再掲せず`PTA-*`を参照し、次をgateにする。
+
+1. `PatternPrecedence`を`PTA-J`のfour levelsへ変更し、AST / direct-CSTがone shared annotation candidate / `Gpta`
+   classifierを使う。Alternation RHS thresholdは`Alternation`のまま保つ。
+2. `Pattern.type_annotation`、`PatternTypeAnnotation`、`SyntaxKind::PatternTypeAnnotation`、
+   `PatternRole::TypeAnnotation`を`PTA-A` / `PTA-R`どおり追加する。`PatternTail` variantは増やさない。
+3. accepted Colon後はcanonical mandatory TypeExpression AST/direct entryだけを呼び、type parserをPattern内へforkせず、
+   `OperatorTable`をTypeExpressionへ渡さない。
+4. `PTA-O`のcurrent conformance gapをshared `type_expr.rs`側で閉じる。existing active-stop / boundary classifierを
+   mandatory recoveryとstructural tail judgeへ通し、Pattern-use-site専用stop kind / keyword list / scannerを作らない。
+5. binding / case / catchはcurrent canonical Pattern callとstop push / exact popをそのまま使い、
+   `declaration.rs` / `expression.rs`にannotation branchを追加しない。
+6. seven worked sourcesをAST / direct-CST fixture化し、lossless round trip、outer annotation placement、recordのtwo colon owner、
+   Missing / Error role・kind・rangeをassertする。
+7. `A | B as c: Int`に加え、`A as c: Int`、`A | B: Int`、parenthesized / list / record nested annotation、
+   `{a: A: Inner}`でthresholdとrecursive reachabilityを固定する。
+8. active Colon下の`x: T`、`x::T`、`x: T: U`、no-trivia / same-line comment / deeper newline /
+   equal-or-shallower newlineをfixture化し、`PTA-G` / `PTA-J`のrollbackとterminalityを確認する。
+9. binding Equal、case/catch Arrow / both guards / handler Comma、delimiter comma / closeをvalid / missing / malformed RHSの
+   各pathでfixture化し、boundary byteをTypeExpression / Errorがconsumeしないことをassertする。
+10. `Pattern.range` / `PatternTypeAnnotation.range` / `type_expr` recovery state、CST source extentを`PTA-A`どおり固定し、
+    AST / direct-CSTのsource positionとrecovery orderを一致させる。
+11. normal / recovery / rollbackの全exitでstop / delimiter / indentation / type-ML stateをexact restoreし、existing
+    Pattern / TypeExpression / binding / case / catch fixturesを保つ。無関係なrefactorを混ぜない。
+
+### Closed decisions and five-part internal consistency review
+
+本追補のimplementationをblockするopen questionはない。literal Yulang2 fixtureとのprecedence差は隠さず上のdivergence 1で
+閉じ、Yulang3 targetは`PTA-J`のwhole-pattern attachmentとする。
+
+1. **bounded trivia / owner boundary:** `PTA-G`だけがpre/post-Colon `Gpta`を定義し、entry時にcaptureした
+   `pattern_continuation_base`を再計算しない。equal-or-shallower newlineはrun全体をrollbackし、Colon accept後なら
+   `PTA-R`のzero-width Missingへ進む。`PTA-O`のactive stop / outer closeはTypePrimary / TypeApply / recovery Errorより先に勝ち、
+   boundaryをconsumeしない。
+2. **CST byte completeness:** seven worked examplesは全identifier、keyword、integer、brace、three role-distinct Colon、Pipe、
+   Arrow、Equals、`@`、全spaceを明示した。pre-Colon spaceはPattern、post-Colon spaceはannotation、complete type後のspaceは
+   BindingHeader / CaseArmに各一度だけあり、source-absent Missingはempty textで示した。
+3. **AST / recovery-slot alignment:** recovery tableが参照する`Pattern.type_annotation`、
+   `PatternTypeAnnotation.type_expr` / `colon` / `range`は`PTA-A`に実在する。Missingは`type_expr = Incomplete`、
+   malformed + retry成功はComplete、Pattern-level optional absenceは`None`に一対一対応する。Error-only rangeを架空のAST fieldにしない。
+4. **recovery-row exclusivity:** `PTA-J` no-authority後は`PTA-R`へ入らない。Colon後のfirst slot positionはvalid primary、
+   boundary、non-empty malformedの排他三分類である。malformed後だけdistinct retry positionでvalid / boundaryへ分かれ、
+   latterのError + Missingはtwo positions / two recordsで同一causeへのduplicateではない。
+5. **single canonical statement:** grammar / bounded trivia / terminalityは`PTA-G`、precedence / recognition orderは`PTA-J`、
+   record collisionは`PTA-C`、AST/CST/rangeは`PTA-A`、consumer boundaryは`PTA-O`、recoveryは`PTA-R`に一回だけ定義した。
+   evidence、examples、divergence、gates、本self-checkはこれらを参照し、第二のjudgeやrecovery tableを持たない。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-23、canonical Pattern trailing TypeExpression annotation wiring追補案）。
