@@ -962,14 +962,20 @@ mod tests {
 
     #[test]
     fn boundary_classifier_uses_exact_tokens_and_always_reports_eof() {
-        for (stop, exact, longer) in [
-            (StopKind::Colon, ":", "::"),
-            (StopKind::Equal, "=", "=="),
-            (StopKind::Arrow, "->", "->>"),
+        for (stop, exact, longer_spellings) in [
+            (StopKind::Colon, ":", &["::"][..]),
+            (StopKind::Equal, "=", &["==", "=>", "=+"][..]),
+            (StopKind::Arrow, "->", &["->>", "->="][..]),
         ] {
             let active = StopSet::default().with(stop);
             assert_eq!(boundary(exact, active), Some(TypeBoundary::ActiveStop(stop)));
-            assert_ne!(boundary(longer, active), Some(TypeBoundary::ActiveStop(stop)));
+            for longer in longer_spellings {
+                assert_ne!(
+                    boundary(longer, active),
+                    Some(TypeBoundary::ActiveStop(stop)),
+                    "{stop:?} must not split {longer:?}",
+                );
+            }
         }
         assert_eq!(boundary("", StopSet::default()), Some(TypeBoundary::Eof));
         assert_eq!(

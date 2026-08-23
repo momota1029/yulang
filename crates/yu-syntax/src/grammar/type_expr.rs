@@ -2127,17 +2127,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 fn scan_exact_equals<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    let checkpoint = i.checkpoint();
-    let start = i.pos();
-    if !i.input.remainder().starts_with('=') || i.input.remainder().starts_with("==") {
-        return None;
-    }
-    i.input.next()?;
-    let end = i.pos();
-    let mut line = i.local.line();
-    line.at_line_start = false;
-    i.local.set_line(line);
-    if end == start { i.rollback(checkpoint); None } else { Some(start..end) }
+    scan_exact_operator_spelling("=", i)
 }
 
 fn scan_plain_type_identifier<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
@@ -2233,13 +2223,39 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 
 fn scan_exact_arrow<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    scan_exact_operator_spelling("->", i)
+}
+
+/// Accept an operator-shaped token only when its complete maximal spelling
+/// equals `expected`.  This is the same lexical rule used by pattern `=` and
+/// `..`: an exact grammar token must not split a longer dynamic operator run.
+fn scan_exact_operator_spelling<E>(expected: &str, i: &mut SynIn<E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
     let start = i.pos();
-    if !i.input.remainder().starts_with("->") || i.input.remainder().starts_with("->>") { return None; }
-    i.input.next()?; i.input.next()?;
+    while i.input.remainder().chars().next().is_some_and(is_operator_shaped_character) {
+        i.input.next()?;
+    }
     let end = i.pos();
-    let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
-    if end == start { i.rollback(checkpoint); None } else { Some(start..end) }
+    if &i.input.source()[start..end] != expected {
+        i.rollback(checkpoint);
+        return None;
+    }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some(start..end)
+}
+
+fn is_operator_shaped_character(character: char) -> bool {
+    !character.is_whitespace()
+        && !character.is_ascii_digit()
+        && character != '_'
+        && !unicode_ident::is_xid_continue(character)
+        && !matches!(
+            character,
+            '(' | ')' | '[' | ']' | '{' | '}' | ',' | ':' | '/' | ';' | '\\' | '\'' | '@'
+        )
 }
 
 fn consume_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
@@ -2637,13 +2653,10 @@ where
             i.rollback(checkpoint);
             if retry { return Some(start..end); }
         }
-        if type_recovery_boundary_pending(i) {
-            return (start < end).then_some(start..end);
-        }
         let Some(character) = i.input.remainder().chars().next() else {
             return (start < end).then_some(start..end);
         };
-        if character.is_whitespace() {
+        if character.is_whitespace() || matches!(character, ',' | '}') {
             return (start < end).then_some(start..end);
         }
         i.input.next()?;
@@ -2665,13 +2678,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
             i.rollback(checkpoint);
             if retry { return Some(start..end); }
         }
-        if type_recovery_boundary_pending(i) {
-            return (start < end).then_some(start..end);
-        }
         let Some(character) = i.input.remainder().chars().next() else {
             return (start < end).then_some(start..end);
         };
-        if character.is_whitespace() {
+        if character.is_whitespace() || matches!(character, ',' | '}') {
             return (start < end).then_some(start..end);
         }
         i.input.next()?;
@@ -3366,6 +3376,33 @@ mod tests {
     }
 
     #[test]
+    fn named_record_malformed_runs_keep_the_pre_restructuring_ownership() {
+        for source in ["{@]}", "{@;}"] {
+            let records = parse_direct_recovered(source);
+            assert!(matches!(records.as_slice(), [record]
+                if record.site.role == GrammarRole::Type(TypeRole::RecordField)
+                    && record.kind == RecoveryKind::Error
+                    && record.site.range == (1..3)),
+                "{source}: {records:#?}");
+
+            let parsed = parse(source);
+            assert!(matches!(parsed.primary, TypePrimary::Record(NamedRecordType {
+                fields,
+                close: Recovered::Complete(close),
+                ..
+            }) if matches!(fields.as_slice(), [Recovered::Incomplete]) && close == (3..4)));
+
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source);
+            assert_eq!(
+                direct.descendants().filter(|node| node.kind() == SyntaxKind::Error).count(),
+                1,
+                "{source}",
+            );
+        }
+    }
+
+    #[test]
     fn named_record_rejects_spread_shorthand_and_default_field_forms() {
         let spread = parse_direct_recovered("{..Type}");
         assert!(matches!(spread.as_slice(), [record]
@@ -4031,6 +4068,28 @@ mod tests {
         for source in [":{A  ", ":{@  "] {
             assert_eq!(parse_prefix(source).0, "  ", "AST {source:?}");
             assert_eq!(parse_direct_prefix(source).0, "  ", "direct {source:?}");
+        }
+    }
+
+    #[test]
+    fn polymorphic_variant_active_operator_stops_require_the_whole_spelling() {
+        for (source, stop) in [
+            (":{A => B}", StopKind::Equal),
+            (":{A =+ B}", StopKind::Equal),
+            (":{A ->= B}", StopKind::Arrow),
+        ] {
+            let (remainder, parsed) = parse_prefix_with_outer_stop(source, stop);
+            assert_eq!(remainder, "", "AST {source}");
+            assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(
+                PolymorphicVariantType { close: Recovered::Complete(_), .. }
+            )));
+
+            let (remainder, records) = parse_direct_prefix_with_outer_stop(source, stop);
+            assert_eq!(remainder, "", "direct {source}");
+            assert!(records.iter().any(|record|
+                record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+                    && record.kind == RecoveryKind::Error),
+                "{source}: {records:#?}");
         }
     }
 
