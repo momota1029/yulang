@@ -14526,7 +14526,7 @@ final reviewで次のfour issue classをend-to-end再点検した。
 
 ## 追補案: standalone `TypeExpression`のpolymorphic variant type primary
 
-Status: Proposed（Claude review / ユーザ承認待ち、2026-08-23）。
+Status: Authoritative（ユーザ承認済み、2026-08-23）。
 
 ### Scope and authority
 
@@ -15229,5 +15229,5 @@ final reviewでstandard four issue classにterminology identityを加え、both 
    `active caller-owned semicolon` / `non-caller-owned semicolon`はそのsemicolon instance / complementとして明示的に区別する。
    oracle facts内のhistorical machine / loop名とCST synthetic wrapperだけが別contextの語であり、current mechanismのsynonymはない。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-23、standalone TypeExpression polymorphic variant type primary追補案）。
