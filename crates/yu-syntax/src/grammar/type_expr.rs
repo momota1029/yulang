@@ -1292,10 +1292,20 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let caller_stops = active_stop_set(i)
-        .without(StopKind::Comma)
-        .without(StopKind::RightBrace);
-    active_stop_pending(caller_stops, i)
+    let local_stops = StopSet::default()
+        .with(StopKind::Comma)
+        .with(StopKind::RightBrace);
+    matches!(
+        classify_type_boundary(
+            TypeBoundaryPolicy {
+                matching_close: Some(Delimiter::Brace),
+                local_separators: StopSet::default().with(StopKind::Comma),
+                locally_owned_stops: local_stops,
+            },
+            i,
+        ),
+        Some(TypeBoundary::Eof | TypeBoundary::ActiveStop(_) | TypeBoundary::OuterOwnedClose)
+    )
 }
 
 fn commit_direct_polymorphic_variant_tag<'parse, 'source, 'local, E, O>(
@@ -3035,67 +3045,136 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let remainder = i.input.remainder();
-    let Some(character) = remainder.chars().next() else { return true; };
-    if matches!(character, ')' | ']' | '}' | ',' | ';') {
+    let checkpoint = i.checkpoint();
+    let fixed = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    i.rollback(checkpoint);
+    if matches!(
+        fixed,
+        Some(
+            PunctuationKind::Close(_)
+                | PunctuationKind::Comma
+                | PunctuationKind::Semicolon
+        )
+    ) {
         return true;
     }
-    active_stop_pending(active_stop_set(i), i)
+    matches!(
+        classify_type_boundary(
+            TypeBoundaryPolicy {
+                matching_close: None,
+                local_separators: StopSet::default(),
+                locally_owned_stops: StopSet::default(),
+            },
+            i,
+        ),
+        Some(TypeBoundary::Eof | TypeBoundary::ActiveStop(_) | TypeBoundary::OuterOwnedClose)
+    )
 }
 
-/// Tests one source position against the complete stop vocabulary.  Grammar
-/// owners pass the active [`StopSet`] (or a filtered derivative when they own
-/// a local delimiter); individual owners must not reimplement this mapping.
-fn active_stop_pending<E>(stops: StopSet, i: &mut SynIn<E>) -> bool
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeBoundary {
+    Eof,
+    ActiveStop(StopKind),
+    MatchingClose,
+    OuterOwnedClose,
+    LocalSeparator,
+    PhysicalNewline,
+}
+
+#[derive(Clone, Copy)]
+struct TypeBoundaryPolicy {
+    matching_close: Option<Delimiter>,
+    local_separators: StopSet,
+    locally_owned_stops: StopSet,
+}
+
+/// Classifies one source position without consuming it.  Exact lexical
+/// recognition lives here; construct-specific judges decide which classified
+/// boundaries they own.
+fn classify_type_boundary<E>(policy: TypeBoundaryPolicy, i: &mut SynIn<E>) -> Option<TypeBoundary>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let remainder = i.input.remainder();
-    let word = if StopKind::ALL.into_iter().any(|stop| {
-        stops.contains(stop) && matches!(
-            stop,
-            StopKind::Elsif
-                | StopKind::Else
-                | StopKind::ArmGuardIf
-                | StopKind::ArmGuardWhere
-                | StopKind::With,
-        )
-    }) {
-        let checkpoint = i.checkpoint();
-        let word = i.run(scan_word).map(|word| word.text());
-        i.rollback(checkpoint);
-        word
-    } else {
-        None
-    };
-    StopKind::ALL.into_iter().any(|stop| {
-        stops.contains(stop) && stop_kind_pending(stop, remainder, word)
-    })
+    if i.input.remainder().is_empty() {
+        return Some(TypeBoundary::Eof);
+    }
+    if matches!(i.input.remainder().chars().next(), Some('\n' | '\r')) {
+        if active_stop_set(i).contains(StopKind::Newline)
+            && !policy.locally_owned_stops.contains(StopKind::Newline)
+        {
+            return Some(TypeBoundary::ActiveStop(StopKind::Newline));
+        }
+        return Some(TypeBoundary::PhysicalNewline);
+    }
+
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
+    i.rollback(checkpoint);
+    match punctuation {
+        Some(PunctuationKind::Close(delimiter)) if policy.matching_close == Some(delimiter) => {
+            return Some(TypeBoundary::MatchingClose);
+        }
+        Some(PunctuationKind::Close(delimiter)) => {
+            let stop = close_stop_kind(delimiter);
+            if active_stop_set(i).contains(stop) && !policy.locally_owned_stops.contains(stop) {
+                return Some(TypeBoundary::OuterOwnedClose);
+            }
+        }
+        Some(PunctuationKind::Comma) if policy.local_separators.contains(StopKind::Comma) => {
+            return Some(TypeBoundary::LocalSeparator);
+        }
+        Some(PunctuationKind::Semicolon) if policy.local_separators.contains(StopKind::Semicolon) => {
+            return Some(TypeBoundary::LocalSeparator);
+        }
+        _ => {}
+    }
+
+    let active = active_stop_set(i).difference(policy.locally_owned_stops);
+    StopKind::ALL
+        .iter()
+        .copied()
+        .find(|stop| active.contains(*stop) && stop_kind_pending(*stop, i))
+        .map(TypeBoundary::ActiveStop)
 }
 
-/// One spelling check per [`StopKind`].  This match is intentionally
-/// exhaustive: adding a stop requires defining its source boundary here, and
-/// `StopKind::ALL` then makes it available to every owner boundary probe.
-fn stop_kind_pending(stop: StopKind, remainder: &str, word: Option<&str>) -> bool {
-    match stop {
-        StopKind::Newline => remainder.starts_with('\n') || remainder.starts_with('\r'),
-        StopKind::Comma => remainder.starts_with(','),
-        StopKind::Semicolon => remainder.starts_with(';'),
-        StopKind::Colon => remainder.starts_with(':'),
-        StopKind::LeftBrace => remainder.starts_with('{'),
-        StopKind::Elsif => word == Some("elsif"),
-        StopKind::Else => word == Some("else"),
-        StopKind::RightParenthesis => remainder.starts_with(')'),
-        StopKind::RightBracket => remainder.starts_with(']'),
-        StopKind::RightBrace => remainder.starts_with('}'),
-        StopKind::Equal => remainder.starts_with('='),
-        StopKind::Arrow => remainder.starts_with("->"),
-        StopKind::ArmGuardIf => word == Some("if"),
-        StopKind::ArmGuardWhere => word == Some("where"),
-        StopKind::With => word == Some("with"),
+fn close_stop_kind(delimiter: Delimiter) -> StopKind {
+    match delimiter {
+        Delimiter::Parenthesis => StopKind::RightParenthesis,
+        Delimiter::Bracket => StopKind::RightBracket,
+        Delimiter::Brace => StopKind::RightBrace,
     }
+}
+
+/// One exact spelling probe per [`StopKind`].  The outer checkpoint keeps every
+/// branch state-neutral, including scanners which succeed by consuming input.
+fn stop_kind_pending<E>(stop: StopKind, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = match stop {
+        StopKind::Newline => matches!(i.input.remainder().chars().next(), Some('\n' | '\r')),
+        StopKind::Comma => scan_record_comma(i).is_some(),
+        StopKind::Semicolon => scan_record_semicolon(i).is_some(),
+        StopKind::Colon => scan_exact_colon(i).is_some(),
+        StopKind::LeftBrace => scan_open_brace(i).is_some(),
+        StopKind::Elsif => i.run(scan_word).is_some_and(|word| word.text() == "elsif"),
+        StopKind::Else => i.run(scan_word).is_some_and(|word| word.text() == "else"),
+        StopKind::RightParenthesis => scan_close_delimiter(TypeDelimitedShape::Parenthesis, i).is_some(),
+        StopKind::RightBracket => scan_close_delimiter(TypeDelimitedShape::Bracket, i).is_some(),
+        StopKind::RightBrace => scan_close_brace(i).is_some(),
+        StopKind::Equal => scan_exact_equals(i).is_some(),
+        StopKind::Arrow => scan_exact_arrow(i).is_some(),
+        StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
+        StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
+        StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
+    };
+    i.rollback(checkpoint);
+    pending
 }
 
 /// A type parser may be nested beneath an owner that reserves an arrow.  The

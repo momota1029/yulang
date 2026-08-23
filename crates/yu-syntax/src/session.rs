@@ -466,11 +466,29 @@ impl StopSet {
     pub(crate) fn contains(self, stop: StopKind) -> bool {
         self.0 & (1 << (stop as u8)) != 0
     }
+
+    pub(crate) fn difference(self, other: Self) -> Self {
+        Self(self.0 & !other.0)
+    }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-pub(crate) enum StopKind {
+macro_rules! define_stop_kinds {
+    ($($kind:ident),+ $(,)?) => {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        #[repr(u8)]
+        pub(crate) enum StopKind {
+            $($kind),+
+        }
+
+        impl StopKind {
+            /// Generated from the enum declaration so the iterable vocabulary
+            /// cannot omit a newly-added stop kind.
+            pub(crate) const ALL: &'static [Self] = &[$(Self::$kind),+];
+        }
+    };
+}
+
+define_stop_kinds!(
     Newline,
     Comma,
     Semicolon,
@@ -486,27 +504,7 @@ pub(crate) enum StopKind {
     ArmGuardIf,
     ArmGuardWhere,
     With,
-}
-
-impl StopKind {
-    pub(crate) const ALL: [Self; 15] = [
-        Self::Newline,
-        Self::Comma,
-        Self::Semicolon,
-        Self::Colon,
-        Self::LeftBrace,
-        Self::Elsif,
-        Self::Else,
-        Self::RightParenthesis,
-        Self::RightBracket,
-        Self::RightBrace,
-        Self::Equal,
-        Self::Arrow,
-        Self::ArmGuardIf,
-        Self::ArmGuardWhere,
-        Self::With,
-    ];
-}
+);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Delimiter {
