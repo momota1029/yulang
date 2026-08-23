@@ -704,6 +704,12 @@ where
 {
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
+    // An active newline stop belongs to the caller even if a local close
+    // appears after it; the complete gap must remain unconsumed.
+    if trivia_has_newline(&trivia) && active_stop_set(i).contains(StopKind::Newline) {
+        i.rollback(checkpoint);
+        return None;
+    }
     let after_trivia = i.checkpoint();
     let local_close_pending = scan_close_for_delimiter(delimiter, i).is_some()
         || scan_mismatched_close_for(delimiter, i).is_some();
@@ -4338,8 +4344,18 @@ mod tests {
                     if found == owner && found_delimiter == delimiter
             ) && record.kind == RecoveryKind::Missing),
                 "spurious missing close for {source}: {recoveries:#?}");
-            assert_eq!(parse_direct(source).to_string(), source, "lossless CST for {source}");
-            assert!(close.start < close.end);
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source, "lossless CST for {source}");
+            let matching_kind = match delimiter {
+                Delimiter::Parenthesis => SyntaxKind::RParen,
+                Delimiter::Bracket => SyntaxKind::RBracket,
+                Delimiter::Brace => SyntaxKind::RBrace,
+            };
+            assert!(direct.descendants_with_tokens().filter_map(|element| element.into_token()).any(|token| {
+                let range = token.text_range();
+                token.kind() == matching_kind
+                    && (u32::from(range.start()) as usize..u32::from(range.end()) as usize) == close
+            }), "missing {matching_kind:?} token at {close:?} for {source}");
         }
 
         assert!(matches!(parse("T(A] )").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
@@ -4360,6 +4376,51 @@ mod tests {
         assert!(matches!(parse(":{A] }").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Complete(close), ..
         }) if close == (5..6)));
+    }
+
+    #[test]
+    fn type_close_slot_leaves_caller_owned_newlines_unconsumed() {
+        let (remainder, call) = parse_prefix_with_outer_stop("T(A]\n)", StopKind::Newline);
+        assert_eq!(remainder, "\n)");
+        assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            close: Recovered::Incomplete, ..
+        })]));
+        let (remainder, call_recoveries) =
+            parse_direct_prefix_with_outer_stop("T(A]\n)", StopKind::Newline);
+        assert_eq!(remainder, "\n)");
+        assert!(call_recoveries.iter().any(|record| matches!(record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::TypeCall,
+                delimiter: Delimiter::Parenthesis,
+            }
+        ) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
+        assert!(call_recoveries.iter().any(|record| matches!(record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::TypeCall,
+                delimiter: Delimiter::Parenthesis,
+            }
+        ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
+
+        let (remainder, variant) = parse_prefix_with_outer_stop(":{A]\n}", StopKind::Newline);
+        assert_eq!(remainder, "\n}");
+        assert!(matches!(variant.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            close: Recovered::Incomplete, ..
+        })));
+        let (remainder, variant_recoveries) =
+            parse_direct_prefix_with_outer_stop(":{A]\n}", StopKind::Newline);
+        assert_eq!(remainder, "\n}");
+        assert!(variant_recoveries.iter().any(|record| matches!(record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
+        assert!(variant_recoveries.iter().any(|record| matches!(record.site.role,
+            GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }
+        ) && record.kind == RecoveryKind::Missing && record.site.range == (4..4)));
     }
 
     #[test]
