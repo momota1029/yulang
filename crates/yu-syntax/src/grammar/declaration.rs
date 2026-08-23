@@ -24,7 +24,10 @@ use crate::{
     grammar::{
         pattern::{ParsedPattern, Pattern, parse_direct_pattern_with_outer_missing_role,
             parse_pattern_with_outer_missing_role},
-        type_expr::TypeExpression,
+        type_expr::{
+            TypeExpression, commit_direct_type_expression_with_outer_missing_role,
+            parse_required_type_expression_with_outer_missing_role,
+        },
     },
     input::SourceInput,
     operator::{BindingPower, OperatorFixity},
@@ -38,9 +41,10 @@ use crate::{
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
         DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
-        ImportRole, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
+        ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
+        LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
         ModRole, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, SynIn,
-        SyntaxExpectation, UnexpectedSyntax,
+        SyntaxExpectation, TypeDelimitedOwner, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1136,13 +1140,14 @@ where
         }) {
             committed.emit_trivia(&trivia);
         }
-        commit_struct_body_introducer(committed);
+        commit_struct_body_introducer(intro.struct_base, committed);
     }
     committed.finish_node();
     Recovered::Complete(())
 }
 
 fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
+    struct_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -1170,7 +1175,8 @@ fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
                 .probe(|probe| probe.input().run(scan_punctuation))
                 .expect("a selected Struct brace remains available");
             debug_assert_eq!(punctuation.range(), range);
-            committed.token(SyntaxKind::LBrace, range);
+            committed.token(SyntaxKind::LBrace, range.clone());
+            commit_struct_named_braced_body(struct_base, range, committed);
         }
         Some(StructBodyStarter::Tuple(range)) => {
             let punctuation = committed
@@ -4932,13 +4938,7 @@ where
         }
         StructBodyStarter::NamedBraced(range) => {
             debug_assert_eq!(punctuation.range(), range);
-            Some(StructBody::NamedBraced(StructNamedBracedBody {
-                open: range.clone(),
-                fields: Vec::new(),
-                trailing_comma: None,
-                close: Recovered::Incomplete,
-                range,
-            }))
+            Some(StructBody::NamedBraced(parse_struct_named_braced_body_ast(struct_base, range, i)))
         }
         StructBodyStarter::Tuple(range) => {
             debug_assert_eq!(punctuation.range(), range);
@@ -4965,6 +4965,485 @@ where
             }))
         }
     }
+}
+
+/// Parse the brace-owned named field sequence.  The layout frame is captured
+/// once after the opener; unlike type records, this declaration owns its own
+/// field and close recovery vocabulary.
+fn parse_struct_named_braced_body_ast<'source, E>(
+    struct_base: usize,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> StructNamedBracedBody<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = struct_base;
+    let stops = i.local.stop_set().unwrap_or_default()
+        .without(StopKind::Newline)
+        .with(StopKind::Comma)
+        .with(StopKind::RightBrace);
+    i.local.push_delimiter(Delimiter::Brace);
+    i.local.push_stop_set(stops);
+    let opening = i.run(scan_trivia).expect("trivia is total");
+    let layout = LayoutDelimitedFrame::after_opening_trivia(
+        incoming,
+        &opening,
+        i.local.line().line_indent,
+    );
+    push_struct_layout(layout, i);
+
+    let mut fields = Vec::new();
+    let mut trailing_comma = None;
+    let close = loop {
+        if let Some(close) = scan_struct_close_brace(i) {
+            break Recovered::Complete(close);
+        }
+        if i.input.remainder().is_empty() {
+            break Recovered::Incomplete;
+        }
+        let Some(field) = parse_struct_named_field_ast(i) else {
+            break Recovered::Incomplete;
+        };
+        fields.push(Recovered::Complete(field));
+
+        let trivia = i.run(scan_trivia).expect("trivia is total");
+        if let Some(comma) = scan_struct_comma(i) {
+            let post = i.run(scan_trivia).expect("trivia is total");
+            if let Some(close) = scan_struct_close_brace(i) {
+                trailing_comma = Some(comma);
+                break Recovered::Complete(close);
+            }
+            if i.input.remainder().is_empty() {
+                fields.push(Recovered::Incomplete);
+                break Recovered::Incomplete;
+            }
+            let _ = post;
+            continue;
+        }
+        if let Some(close) = scan_struct_close_brace(i) {
+            break Recovered::Complete(close);
+        }
+        if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+            == LayoutDelimitedBoundary::ImplicitNewline
+        {
+            continue;
+        }
+        if struct_next_named_field_candidate(i, &trivia) {
+            continue;
+        }
+        break Recovered::Incomplete;
+    };
+
+    pop_struct_layout(layout, i);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    StructNamedBracedBody { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
+}
+
+fn parse_struct_named_field_ast<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<StructNamedField<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let name = if let Some(name) = i.run(scan_word) {
+        Recovered::Complete(name)
+    } else if scan_struct_colon(i).is_some() {
+        Recovered::Incomplete
+    } else {
+        return None;
+    };
+    let name_end = match &name {
+        Recovered::Complete(name) => name.range().end,
+        Recovered::Incomplete => start,
+    };
+    let _ = consume_struct_field_name_trivia(i);
+    let colon = if let Some(colon) = scan_struct_colon(i) {
+        Recovered::Complete(colon)
+    } else {
+        Recovered::Incomplete
+    };
+    let type_expr = if matches!(colon, Recovered::Incomplete) && struct_field_boundary_pending(i) {
+        Recovered::Incomplete
+    } else {
+        let _ = consume_struct_field_type_trivia(i);
+        i.local.push_type_delimited_owner(TypeDelimitedOwner::StructNamedFields);
+        let parsed = i.run(from_fn(|i| Some(
+            parse_required_type_expression_with_outer_missing_role(
+                Some(GrammarRole::Declaration(DeclarationRole::Struct(
+                    crate::session::StructRole::FieldType,
+                ))),
+                i,
+            )
+        ))).expect("mandatory type expression is total");
+        assert_eq!(
+            i.local.pop_type_delimited_owner(),
+            Some(TypeDelimitedOwner::StructNamedFields),
+        );
+        match parsed {
+            Recovered::Complete(type_expr) => Recovered::Complete(Box::new(type_expr)),
+            Recovered::Incomplete => Recovered::Incomplete,
+        }
+    };
+    let end = match &type_expr {
+        Recovered::Complete(type_expr) => type_expr.range().end,
+        Recovered::Incomplete => match &colon {
+            Recovered::Complete(colon) => colon.end,
+            Recovered::Incomplete => name_end,
+        },
+    };
+    Some(StructNamedField { name, colon, type_expr, range: start..end })
+}
+
+fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
+    struct_base: usize,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = struct_base;
+    let stops = committed.probe(|probe| {
+        probe.input().local.stop_set().unwrap_or_default()
+            .without(StopKind::Newline)
+            .with(StopKind::Comma)
+            .with(StopKind::RightBrace)
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_delimiter(Delimiter::Brace);
+        i.local.push_stop_set(stops);
+    });
+    let opening = committed.probe(|probe| probe.input().run(scan_trivia))
+        .expect("trivia is total");
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| {
+        LayoutDelimitedFrame::after_opening_trivia(
+            incoming,
+            &opening,
+            probe.input().local.line().line_indent,
+        )
+    });
+    committed.probe(|probe| push_struct_layout(layout, probe.input()));
+
+    loop {
+        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
+            committed.token(SyntaxKind::RBrace, close);
+            break;
+        }
+        if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
+            emit_struct_missing_close(committed);
+            break;
+        }
+        if !commit_struct_named_field(committed) {
+            emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+            break;
+        }
+
+        let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
+            .expect("trivia is total");
+        committed.emit_trivia(&trivia);
+        if let Some(comma) = committed.probe(|probe| scan_struct_comma(probe.input())) {
+            committed.token(SyntaxKind::Comma, comma);
+            let post = committed.probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia is total");
+            committed.emit_trivia(&post);
+            if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
+                committed.token(SyntaxKind::RBrace, close);
+                break;
+            }
+            if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
+                emit_struct_missing(committed, crate::session::StructRole::Field, ExpectedSyntax::Identifier);
+                emit_struct_missing_close(committed);
+                break;
+            }
+            continue;
+        }
+        if let Some(close) = committed.probe(|probe| scan_struct_close_brace(probe.input())) {
+            committed.token(SyntaxKind::RBrace, close);
+            break;
+        }
+        if committed.probe(|probe| {
+            layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+        }) {
+            continue;
+        }
+        if committed.probe(|probe| struct_next_named_field_candidate(probe.input(), &trivia)) {
+            emit_struct_missing(
+                committed,
+                crate::session::StructRole::FieldSeparator,
+                ExpectedSyntax::DelimitedSequenceSeparator,
+            );
+            continue;
+        }
+        emit_struct_missing_close(committed);
+        break;
+    }
+
+    committed.probe(|probe| {
+        let i = probe.input();
+        pop_struct_layout(layout, i);
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    });
+    let _ = open;
+}
+
+fn commit_struct_named_field<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let name = commit_word(committed);
+    let colon_without_name = if name.is_none() {
+        committed.probe(|probe| scan_struct_colon(probe.input()))
+    } else {
+        None
+    };
+    if name.is_none() && colon_without_name.is_none() {
+        return false;
+    }
+    committed.start_node(SyntaxKind::StructField);
+    if let Some(name) = name {
+        committed.token(SyntaxKind::Identifier, name.range());
+        if let Some(trivia) = committed.probe(|probe| consume_struct_field_name_trivia(probe.input())) {
+            committed.emit_trivia(&trivia);
+        }
+    } else {
+        emit_struct_missing(committed, crate::session::StructRole::FieldName, ExpectedSyntax::Identifier);
+    }
+    let colon = colon_without_name.or_else(|| committed.probe(|probe| scan_struct_colon(probe.input())));
+    if let Some(colon) = colon {
+        committed.token(SyntaxKind::Colon, colon);
+    } else {
+        emit_struct_missing(
+            committed,
+            crate::session::StructRole::FieldColon,
+            ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
+        );
+        if committed.probe(|probe| struct_field_boundary_pending(probe.input())) {
+            committed.finish_node();
+            return true;
+        }
+    }
+    if let Some(trivia) = committed.probe(|probe| consume_struct_field_type_trivia(probe.input())) {
+        committed.emit_trivia(&trivia);
+    }
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_type_delimited_owner(TypeDelimitedOwner::StructNamedFields);
+    });
+    let _ = commit_direct_type_expression_with_outer_missing_role(
+        Some(GrammarRole::Declaration(DeclarationRole::Struct(
+            crate::session::StructRole::FieldType,
+        ))),
+        committed,
+    );
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_type_delimited_owner(),
+            Some(TypeDelimitedOwner::StructNamedFields),
+        );
+    });
+    committed.finish_node();
+    true
+}
+
+fn push_struct_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where E: ErrorSink<usize> {
+    i.local.push_indentation_baseline(IndentationBaseline {
+        column: layout.base_indent(),
+        kind: IndentationBaselineKind::Introducer,
+    });
+}
+
+fn pop_struct_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>)
+where E: ErrorSink<usize> {
+    assert_eq!(
+        i.local.pop_indentation_baseline(),
+        Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }),
+    );
+}
+
+fn consume_struct_field_name_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    if struct_trivia_has_newline(&trivia) {
+        i.rollback(checkpoint);
+        None
+    } else {
+        Some(trivia)
+    }
+}
+
+fn consume_struct_field_type_trivia<E>(i: &mut SynIn<E>) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia).expect("trivia is total");
+    let base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    if struct_trivia_has_newline(&trivia) && i.local.line().line_indent <= base {
+        i.rollback(checkpoint);
+        None
+    } else {
+        Some(trivia)
+    }
+}
+
+fn struct_next_named_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if leading.is_empty() || struct_trivia_has_newline(leading) {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(scan_word).is_some_and(|_| {
+        let gap = i.run(scan_trivia).expect("trivia is total");
+        !struct_trivia_has_newline(&gap) && scan_struct_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
+fn struct_field_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    i.input.remainder().is_empty()
+        || scan_struct_comma_pending(i)
+        || struct_close_brace_pending(i)
+}
+
+fn scan_struct_comma_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_struct_comma(i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn struct_close_brace_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_struct_close_brace(i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn scan_struct_comma<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    scan_struct_punctuation(PunctuationKind::Comma, i)
+}
+
+fn scan_struct_colon<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    scan_struct_punctuation(PunctuationKind::Colon, i)
+}
+
+fn scan_struct_close_brace<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    scan_struct_punctuation(PunctuationKind::Close(Delimiter::Brace), i)
+}
+
+fn scan_struct_punctuation<E>(kind: PunctuationKind, i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let punctuation = i.run(scan_punctuation)?;
+    if punctuation.kind() == kind {
+        Some(punctuation.range())
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn struct_trivia_has_newline(trivia: &TriviaRun) -> bool {
+    trivia.parts().iter().any(|part| matches!(part.kind(), TriviaPartKind::Newline))
+}
+
+fn emit_struct_missing_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let at = i.pos();
+        let role = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::StructNamedFields,
+            delimiter: Delimiter::Brace,
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: at..at },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Close(Delimiter::Brace)),
+                range: at..at,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    committed.emit_missing(record);
 }
 
 fn struct_name_error_retry_ast<'source, E>(
@@ -9770,6 +10249,105 @@ mod tests {
         let (declaration, remainder) = parse_struct_for_test("struct S::");
         assert!(matches!(declaration.body, Recovered::Incomplete));
         assert_eq!(remainder, "::");
+    }
+
+    #[test]
+    fn struct_named_brace_fields_keep_their_own_layout_and_type_apply_boundary() {
+        let source = "struct Point { x: Int, y: List Int }";
+        let (declaration, remainder) = parse_struct_for_test(source);
+        assert_eq!(remainder, "");
+        let Recovered::Complete(StructBody::NamedBraced(body)) = declaration.body else {
+            panic!("expected named brace body");
+        };
+        assert_eq!(body.open, 13..14);
+        assert_eq!(body.range, 13..36);
+        assert_eq!(body.trailing_comma, None);
+        assert!(matches!(body.close, Recovered::Complete(ref close) if *close == (35..36)));
+        assert_eq!(body.fields.len(), 2);
+        assert!(matches!(body.fields[0], Recovered::Complete(ref field) if field.range == (15..21)
+            && matches!(field.name, Recovered::Complete(ref name) if name.range() == (15..16))
+            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (16..17))));
+        assert!(matches!(body.fields[1], Recovered::Complete(ref field) if field.range == (23..34)
+            && matches!(field.name, Recovered::Complete(ref name) if name.range() == (23..24))
+            && matches!(field.colon, Recovered::Complete(ref colon) if *colon == (24..25))));
+
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(output.committed_recoveries().len(), 0);
+        let tokens: Vec<_> = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+            .collect();
+        assert_eq!(tokens, vec![
+            (SyntaxKind::StructKw, "struct".to_owned(), 0..6),
+            (SyntaxKind::Whitespace, " ".to_owned(), 6..7),
+            (SyntaxKind::Identifier, "Point".to_owned(), 7..12),
+            (SyntaxKind::Whitespace, " ".to_owned(), 12..13),
+            (SyntaxKind::LBrace, "{".to_owned(), 13..14),
+            (SyntaxKind::Whitespace, " ".to_owned(), 14..15),
+            (SyntaxKind::Identifier, "x".to_owned(), 15..16),
+            (SyntaxKind::Colon, ":".to_owned(), 16..17),
+            (SyntaxKind::Whitespace, " ".to_owned(), 17..18),
+            (SyntaxKind::Identifier, "Int".to_owned(), 18..21),
+            (SyntaxKind::Comma, ",".to_owned(), 21..22),
+            (SyntaxKind::Whitespace, " ".to_owned(), 22..23),
+            (SyntaxKind::Identifier, "y".to_owned(), 23..24),
+            (SyntaxKind::Colon, ":".to_owned(), 24..25),
+            (SyntaxKind::Whitespace, " ".to_owned(), 25..26),
+            (SyntaxKind::Identifier, "List".to_owned(), 26..30),
+            (SyntaxKind::Whitespace, " ".to_owned(), 30..31),
+            (SyntaxKind::Identifier, "Int".to_owned(), 31..34),
+            (SyntaxKind::Whitespace, " ".to_owned(), 34..35),
+            (SyntaxKind::RBrace, "}".to_owned(), 35..36),
+        ]);
+        assert_eq!(
+            root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(),
+            2,
+        );
+
+        for source in ["struct S {}", "struct S { x: Int, }"] {
+            let (declaration, remainder) = parse_struct_for_test(source);
+            assert_eq!(remainder, "", "{source:?}");
+            assert!(matches!(declaration.body, Recovered::Complete(StructBody::NamedBraced(ref body))
+                if matches!(body.close, Recovered::Complete(_))), "{source:?}");
+            let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+            assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source, "{source:?}");
+        }
+
+        let source = "struct S { x Int, y: Bool }";
+        let output = parse_direct_root_candidate(source, &crate::operator::OperatorTable::empty(), &[]);
+        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        assert!(output.committed_recoveries().iter().any(|record|
+            record.kind == RecoveryKind::Missing
+                && record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
+                    crate::session::StructRole::FieldColon,
+                ))
+                && record.site.range == (13..13)
+        ));
+
+        let separated = parse_struct_for_test("struct S { x: F y: Y }").0;
+        let Recovered::Complete(StructBody::NamedBraced(separated)) = separated.body else {
+            panic!("expected named brace body");
+        };
+        assert_eq!(separated.fields.len(), 2);
+        let output = parse_direct_root_candidate(
+            "struct S { x: F y: Y }",
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert!(output.committed_recoveries().iter().any(|record|
+            record.site.role == GrammarRole::Declaration(DeclarationRole::Struct(
+                crate::session::StructRole::FieldSeparator,
+            ))
+        ));
+
+        let applied = parse_struct_for_test("struct S { x: F Y }").0;
+        let Recovered::Complete(StructBody::NamedBraced(applied)) = applied.body else {
+            panic!("expected named brace body");
+        };
+        assert_eq!(applied.fields.len(), 1);
     }
 
     #[test]

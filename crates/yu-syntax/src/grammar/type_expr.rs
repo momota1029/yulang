@@ -312,7 +312,9 @@ where
             postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
             continue;
         }
-        if named_record_next_field_candidate(&mut i, &trivia) {
+        if named_record_next_field_candidate(&mut i, &trivia)
+            || struct_named_fields_next_field_candidate(&mut i, &trivia)
+        {
             i.rollback(checkpoint);
             break;
         }
@@ -669,7 +671,9 @@ where
     }
     if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
     if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
-    if named_record_next_field_candidate(i, &leading) {
+    if named_record_next_field_candidate(i, &leading)
+        || struct_named_fields_next_field_candidate(i, &leading)
+    {
         i.rollback(checkpoint);
         return None;
     }
@@ -3166,6 +3170,28 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let candidate = scan_plain_type_identifier(i).is_some_and(|_| {
         let gap = consume_trivia(i);
         type_chain_trivia(i, &gap) && scan_exact_colon(i).is_some()
+    });
+    i.rollback(checkpoint);
+    candidate
+}
+
+/// A Struct field RHS yields before taking a spaced type-application argument
+/// only when that argument is syntactically the next `name:` field.  This is
+/// deliberately separate from the named-record predicate: the two owners
+/// have different recovery roles even though this sink-free lookahead shape is
+/// similar.
+fn struct_named_fields_next_field_candidate<E>(i: &mut SynIn<E>, leading: &TriviaRun) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    if leading.is_empty()
+        || trivia_has_newline(leading)
+        || i.local.type_delimited_owner() != Some(TypeDelimitedOwner::StructNamedFields)
+    {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let candidate = i.run(scan_word).is_some_and(|_| {
+        let gap = consume_trivia(i);
+        !trivia_has_newline(&gap) && scan_exact_colon(i).is_some()
     });
     i.rollback(checkpoint);
     candidate
