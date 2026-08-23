@@ -39,6 +39,7 @@ pub(crate) enum TypePrimary<'source> {
     Record(NamedRecordType<'source>),
     Forall(ForallType<'source>),
     EffectRow(EffectRowType<'source>),
+    PolymorphicVariant(PolymorphicVariantType<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -144,6 +145,30 @@ pub(crate) struct EffectRowType<'source> {
     open: Range<usize>,
     items: Vec<Recovered<TypeExpression<'source>>>,
     close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PolymorphicVariantType<'source> {
+    colon: Range<usize>,
+    open: Range<usize>,
+    tags: Vec<Recovered<PolymorphicVariantTag<'source>>>,
+    trailing_comma: Option<Range<usize>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PolymorphicVariantTag<'source> {
+    name: Recovered<WordSpan<'source>>,
+    payloads: Vec<Recovered<PolymorphicVariantPayload<'source>>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PolymorphicVariantPayload<'source> {
+    boundary: Recovered<Range<usize>>,
+    type_expr: Recovered<Box<TypeExpression<'source>>>,
     range: Range<usize>,
 }
 
@@ -557,6 +582,10 @@ where
         );
         return Some(DirectTypePrimary::Ordinary);
     }
+    if let Some((colon, open)) = committed.probe(|probe| scan_polymorphic_variant_open(probe.input())) {
+        commit_direct_polymorphic_variant_type(colon, open, committed);
+        return Some(DirectTypePrimary::Ordinary);
+    }
     if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
         committed.token(type_name_kind(name), type_name_range(name));
         return Some(DirectTypePrimary::Ordinary);
@@ -886,6 +915,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
                         TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
                         TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
+                        TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
                     }),
                     ExpectedSyntax::TypeExpression,
                 );
@@ -904,6 +934,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                     TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
                     TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
                     TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
+                    TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
                 };
                 match direct_type_delimited_item_error_retry(committed, role) {
                     Some(TypeDelimitedItemRecovery::Retry) => continue,
@@ -937,6 +968,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
                         TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
                         TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
                         TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
+                        TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
                     }),
                     ExpectedSyntax::DelimitedSequenceSeparator,
                 );
@@ -951,6 +983,7 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
             TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
             TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
             TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
+            TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
         },
         delimiter: shape.delimiter(),
     };
@@ -983,6 +1016,213 @@ fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
         assert_eq!(probe.input().local.pop_delimiter(), Some(shape.delimiter()));
     });
     committed.finish_node();
+}
+
+fn commit_direct_polymorphic_variant_type<'parse, 'source, 'local, E, O>(
+    colon: Range<usize>,
+    open: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::PolymorphicVariantType);
+    committed.token(SyntaxKind::Colon, colon);
+    committed.token(SyntaxKind::LBrace, open);
+    let incoming = committed.probe(|probe| probe.input().local.indentation_baseline().map_or(0, |baseline| baseline.column));
+    let stops = committed.probe(|probe| active_stop_set(probe.input()).with(StopKind::Comma).with(StopKind::RightBrace));
+    committed.probe(|probe| {
+        probe.input().local.push_delimiter(Delimiter::Brace);
+        probe.input().local.push_stop_set(stops);
+        probe.input().local.push_type_delimited_owner(TypeDelimitedOwner::PolymorphicVariant);
+    });
+    let opening = consume_direct_trivia(committed);
+    committed.emit_trivia(&opening);
+    let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
+    committed.probe(|probe| push_layout(layout, probe.input()));
+
+    let mut required_tag = false;
+    let mut after_tag = false;
+    let mut closed = false;
+    loop {
+        if let Some(close) = committed.probe(|probe| scan_close_brace(probe.input())) {
+            committed.token(SyntaxKind::RBrace, close);
+            closed = true;
+            break;
+        }
+        if let Some(mismatched) = committed.probe(|probe| scan_mismatched_record_close(probe.input())) {
+            emit_error_with_role(
+                committed,
+                GrammarRole::ClosingDelimiter { owner: ConstructRole::PolymorphicVariantType, delimiter: Delimiter::Brace },
+                mismatched,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            );
+            continue;
+        }
+        if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
+            if required_tag || !after_tag {
+                committed.start_node(SyntaxKind::PolymorphicVariantTag);
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::PolymorphicVariantTag), ExpectedSyntax::Identifier);
+                committed.finish_node();
+            }
+            committed.token(SyntaxKind::Comma, comma);
+            required_tag = true;
+            after_tag = false;
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            continue;
+        }
+        if let Some(semicolon) = committed.probe(|probe| scan_record_semicolon(probe.input())) {
+            if active_stop_set_probe(committed, StopKind::Semicolon) { break; }
+            emit_type_error(committed, TypeRole::PolymorphicVariantTagSeparator, semicolon, ExpectedSyntax::DelimitedSequenceSeparator);
+            let trivia = consume_direct_trivia(committed);
+            committed.emit_trivia(&trivia);
+            continue;
+        }
+        if let Some(name) = committed.probe(|probe| scan_plain_type_identifier(probe.input())) {
+            commit_direct_polymorphic_variant_tag(name, committed);
+            required_tag = false;
+            after_tag = true;
+        } else if let Some(range) = committed.probe(|probe| parse_type_primary_in_context(true, probe.input()).map(|primary| primary_range(&primary))) {
+            committed.start_node(SyntaxKind::PolymorphicVariantTag);
+            emit_type_error(committed, TypeRole::PolymorphicVariantTagName, range, ExpectedSyntax::Identifier);
+            commit_direct_polymorphic_variant_payloads(committed);
+            committed.finish_node();
+            required_tag = false;
+            after_tag = true;
+        } else if let Some(range) = committed.probe(|probe| consume_polymorphic_variant_invalid_run(probe.input(), false)) {
+            emit_type_error(committed, TypeRole::PolymorphicVariantTag, range, ExpectedSyntax::Identifier);
+            required_tag = false;
+            after_tag = true;
+        } else {
+            if required_tag {
+                committed.start_node(SyntaxKind::PolymorphicVariantTag);
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::PolymorphicVariantTag), ExpectedSyntax::Identifier);
+                committed.finish_node();
+            }
+            break;
+        }
+
+        let trivia = consume_direct_trivia(committed);
+        let newline_boundary = trivia_has_newline(&trivia).then(|| {
+            committed.probe(|probe| layout.boundary_after_trivia(&trivia, probe.input().local.line().line_indent))
+        });
+        if matches!(newline_boundary, Some(LayoutDelimitedBoundary::DeeperNewline)) {
+            committed.emit_trivia(&trivia);
+            break;
+        }
+        committed.emit_trivia(&trivia);
+        if matches!(newline_boundary, Some(LayoutDelimitedBoundary::ImplicitNewline)) && after_tag {
+            required_tag = true;
+            after_tag = false;
+        }
+    }
+    if !closed {
+        loop {
+            if let Some(close) = committed.probe(|probe| scan_close_brace(probe.input())) {
+                committed.token(SyntaxKind::RBrace, close);
+                break;
+            }
+            if let Some(mismatched) = committed.probe(|probe| scan_mismatched_record_close(probe.input())) {
+                emit_error_with_role(
+                    committed,
+                    GrammarRole::ClosingDelimiter { owner: ConstructRole::PolymorphicVariantType, delimiter: Delimiter::Brace },
+                    mismatched,
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                );
+                continue;
+            }
+            emit_type_missing(
+                committed,
+                GrammarRole::ClosingDelimiter { owner: ConstructRole::PolymorphicVariantType, delimiter: Delimiter::Brace },
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+            );
+            break;
+        }
+    }
+    committed.probe(|probe| {
+        pop_layout(layout, probe.input());
+        assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::PolymorphicVariant));
+        assert_eq!(probe.input().local.pop_stop_set(), Some(stops));
+        assert_eq!(probe.input().local.pop_delimiter(), Some(Delimiter::Brace));
+    });
+    committed.finish_node();
+}
+
+fn active_stop_set_probe<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    stop: StopKind,
+) -> bool
+where E: ErrorSink<usize>, O: CommitOutput<'source> {
+    committed.probe(|probe| active_stop_set(probe.input()).contains(stop))
+}
+
+fn commit_direct_polymorphic_variant_tag<'parse, 'source, 'local, E, O>(
+    name: WordSpan<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::PolymorphicVariantTag);
+    committed.token(SyntaxKind::Identifier, name.range());
+    commit_direct_polymorphic_variant_payloads(committed);
+    committed.finish_node();
+}
+
+fn commit_direct_polymorphic_variant_payloads<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        let (trivia, candidate, boundary) = committed.probe(|probe| {
+            let i = probe.input();
+            let checkpoint = i.checkpoint();
+            let trivia = consume_trivia(i);
+            let boundary = trivia_has_newline(&trivia) || polymorphic_variant_outer_boundary(i);
+            let candidate = !boundary && type_primary_candidate(i);
+            i.rollback(checkpoint);
+            (trivia, candidate, boundary)
+        });
+        if boundary { break; }
+        if candidate {
+            committed.start_node(SyntaxKind::PolymorphicVariantPayload);
+            if trivia.is_empty() {
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary), ExpectedSyntax::TypePayloadBoundary);
+            } else {
+                let consumed = consume_direct_trivia(committed);
+                committed.emit_trivia(&consumed);
+            }
+            let saved = committed.probe(|probe| probe.input().local.type_ml_arg());
+            committed.probe(|probe| probe.input().local.set_type_ml_arg(true));
+            commit_direct_type_expression_in_context(false, committed)
+                .expect("accepted polymorphic-variant payload owns a type primary");
+            committed.probe(|probe| probe.input().local.set_type_ml_arg(saved));
+            committed.finish_node();
+            continue;
+        }
+        if trivia.is_empty() { break; }
+        let range = committed.probe(|probe| {
+            let i = probe.input();
+            let _ = consume_trivia(i);
+            consume_polymorphic_variant_invalid_run(i, true)
+        });
+        let Some(range) = range else { break; };
+        committed.start_node(SyntaxKind::PolymorphicVariantPayload);
+        let consumed = consume_direct_trivia(committed);
+        committed.emit_trivia(&consumed);
+        emit_type_error(committed, TypeRole::PolymorphicVariantPayload, range, ExpectedSyntax::TypeExpression);
+        if committed.probe(|probe| type_primary_candidate(probe.input())) {
+            let saved = committed.probe(|probe| probe.input().local.type_ml_arg());
+            committed.probe(|probe| probe.input().local.set_type_ml_arg(true));
+            commit_direct_type_expression_in_context(false, committed)
+                .expect("polymorphic-variant payload recovery retries its type slot");
+            committed.probe(|probe| probe.input().local.set_type_ml_arg(saved));
+        }
+        committed.finish_node();
+    }
 }
 
 fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
@@ -1240,6 +1480,9 @@ where
     }
     if let Some((apostrophe, open)) = scan_effect_row_open(i) {
         return Some(TypePrimary::EffectRow(parse_effect_row_type(apostrophe, open, i)));
+    }
+    if let Some((colon, open)) = scan_polymorphic_variant_open(i) {
+        return Some(TypePrimary::PolymorphicVariant(parse_polymorphic_variant_type(colon, open, i)));
     }
     if let Some(name) = scan_type_name(i) {
         return Some(TypePrimary::Atom(match name {
@@ -1545,6 +1788,238 @@ where
     let (items, _, close) = parse_type_delimited_items(TypeDelimitedOwner::EffectRow, TypeDelimitedShape::Bracket, i);
     let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
     EffectRowType { apostrophe: apostrophe.clone(), open, items, close, range: apostrophe.start..end }
+}
+
+/// Parse the two-level polymorphic-variant primary.  The outer loop is the
+/// sole owner of commas and qualifying newlines; the inner loop deliberately
+/// leaves every physical newline for that outer judge.
+fn parse_polymorphic_variant_type<'source, E>(
+    colon: Range<usize>,
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> PolymorphicVariantType<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let incoming = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
+    let stops = active_stop_set(i).with(StopKind::Comma).with(StopKind::RightBrace);
+    i.local.push_delimiter(Delimiter::Brace);
+    i.local.push_stop_set(stops);
+    i.local.push_type_delimited_owner(TypeDelimitedOwner::PolymorphicVariant);
+    let opening = consume_trivia(i);
+    let layout = LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, i.local.line().line_indent);
+    push_layout(layout, i);
+
+    let mut tags = Vec::new();
+    let mut trailing_comma = None;
+    let mut tag_required = false;
+    let mut required_filled = false;
+    let mut after_tag = false;
+    let mut last_comma = None;
+    let close;
+    loop {
+        // NT-1 / NT-2.
+        if let Some(range) = scan_close_brace(i) {
+            if tag_required && !required_filled { trailing_comma = last_comma.take(); }
+            close = Recovered::Complete(range);
+            break;
+        }
+        if scan_mismatched_record_close(i).is_some() { continue; }
+
+        // NT-3 / NT-4.
+        if let Some(comma) = scan_record_comma(i) {
+            if tag_required || !after_tag {
+                tags.push(Recovered::Incomplete);
+                required_filled = true;
+            } else {
+                required_filled = false;
+            }
+            tag_required = true;
+            after_tag = false;
+            last_comma = Some(comma);
+            let _ = consume_trivia(i);
+            continue;
+        }
+        if scan_record_semicolon(i).is_some() {
+            if active_stop_set(i).contains(StopKind::Semicolon) { close = Recovered::Incomplete; break; }
+            let _ = consume_trivia(i);
+            continue;
+        }
+
+        // NT-5.  Unlike the payload scanner, outer layout owns a qualifying
+        // newline.  Same-line trivia is merely leading trivia for a tag.
+        let checkpoint = i.checkpoint();
+        let gap = consume_trivia(i);
+        if trivia_has_newline(&gap) {
+            if layout.boundary_after_trivia(&gap, i.local.line().line_indent) != LayoutDelimitedBoundary::ImplicitNewline {
+                i.rollback(checkpoint);
+                close = Recovered::Incomplete;
+                break;
+            }
+            // The newline itself is an outer boundary.  Re-enter NT so a
+            // matching close gets NT-1 priority over the generic boundary.
+            if after_tag {
+                tag_required = true;
+                required_filled = false;
+                after_tag = false;
+                last_comma = None;
+            }
+            continue;
+        } else if !gap.is_empty() {
+            // The AST has no trivia slots at this level; retain the consumed
+            // gap exactly as the direct CST does.
+        }
+
+        // NT-6: only a plain identifier is a normal tag head.  Other valid
+        // primaries consume one recovered tag skeleton rather than becoming a
+        // malformed-byte run.
+        if let Some(name) = scan_plain_type_identifier(i) {
+            tags.push(Recovered::Complete(parse_polymorphic_variant_tag(name, i)));
+            tag_required = false;
+            required_filled = false;
+            after_tag = true;
+            continue;
+        }
+        if let Some(primary) = parse_type_primary_in_context(true, i) {
+            let start = primary_range(&primary).start;
+            let payloads = parse_polymorphic_variant_payloads(i);
+            let end = payloads.last().and_then(|payload| match payload {
+                Recovered::Complete(payload) => Some(payload.range.end),
+                Recovered::Incomplete => None,
+            }).unwrap_or_else(|| primary_range(&primary).end);
+            tags.push(Recovered::Complete(PolymorphicVariantTag {
+                name: Recovered::Incomplete,
+                payloads,
+                range: start..end,
+            }));
+            tag_required = false;
+            required_filled = false;
+            after_tag = true;
+            continue;
+        }
+        if i.input.remainder().is_empty() || type_recovery_boundary_pending(i) {
+            if tag_required && !required_filled { tags.push(Recovered::Incomplete); }
+            close = Recovered::Incomplete;
+            break;
+        }
+        // NT-8: consume a maximal non-boundary prefix, then retry at the same
+        // tag slot on a primary candidate.
+        if consume_polymorphic_variant_invalid_run(i, false).is_some() {
+            tags.push(Recovered::Incomplete);
+            tag_required = false;
+            required_filled = false;
+            after_tag = true;
+            continue;
+        }
+        close = Recovered::Incomplete;
+        break;
+    }
+    pop_layout(layout, i);
+    assert_eq!(i.local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::PolymorphicVariant));
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_delimiter(), Some(Delimiter::Brace));
+    let end = match &close { Recovered::Complete(range) => range.end, Recovered::Incomplete => i.pos() };
+    PolymorphicVariantType { colon: colon.clone(), open, tags, trailing_comma, close, range: colon.start..end }
+}
+
+fn parse_polymorphic_variant_tag<'source, E>(
+    name: WordSpan<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> PolymorphicVariantTag<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = name.range().start;
+    let payloads = parse_polymorphic_variant_payloads(i);
+    let end = payloads.last().and_then(|payload| match payload {
+        Recovered::Complete(payload) => Some(payload.range.end),
+        Recovered::Incomplete => None,
+    }).unwrap_or_else(|| name.range().end);
+    PolymorphicVariantTag { name: Recovered::Complete(name), payloads, range: start..end }
+}
+
+fn parse_polymorphic_variant_payloads<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Vec<Recovered<PolymorphicVariantPayload<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut payloads = Vec::new();
+    loop {
+        let checkpoint = i.checkpoint();
+        let boundary_start = i.pos();
+        let trivia = consume_trivia(i);
+        // IT-1 / IT-2 leave their gap for the outer judge.
+        if trivia_has_newline(&trivia) || polymorphic_variant_outer_boundary(i) {
+            i.rollback(checkpoint);
+            break;
+        }
+        if type_primary_candidate(i) {
+            let boundary = if trivia.is_empty() { Recovered::Incomplete } else { Recovered::Complete(boundary_start..i.pos()) };
+            let start = match &boundary { Recovered::Complete(range) => range.start, Recovered::Incomplete => i.pos() };
+            let saved_ml = i.local.type_ml_arg();
+            i.local.set_type_ml_arg(true);
+            let type_expr = i.run(from_fn(|i| parse_type_expression_in_context(false, i)));
+            i.local.set_type_ml_arg(saved_ml);
+            let end = type_expr.as_ref().map_or(i.pos(), |value| value.range.end);
+            payloads.push(Recovered::Complete(PolymorphicVariantPayload {
+                boundary,
+                type_expr: type_expr.map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete),
+                range: start..end,
+            }));
+            continue;
+        }
+        if trivia.is_empty() {
+            i.rollback(checkpoint);
+            break;
+        }
+        if let Some(range) = consume_polymorphic_variant_invalid_run(i, true) {
+            let saved_ml = i.local.type_ml_arg();
+            i.local.set_type_ml_arg(true);
+            let recovered = i.run(from_fn(|i| parse_type_expression_in_context(false, i)));
+            i.local.set_type_ml_arg(saved_ml);
+            let end = recovered.as_ref().map_or(range.end, |value| value.range.end);
+            payloads.push(Recovered::Complete(PolymorphicVariantPayload {
+                boundary: Recovered::Complete(boundary_start..range.start),
+                type_expr: recovered.map(|value| Recovered::Complete(Box::new(value))).unwrap_or(Recovered::Incomplete),
+                range: boundary_start..end,
+            }));
+            continue;
+        }
+        i.rollback(checkpoint);
+        break;
+    }
+    payloads
+}
+
+fn polymorphic_variant_outer_boundary<E>(i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let remainder = i.input.remainder();
+    remainder.is_empty() || matches!(remainder.chars().next(), Some(',' | ';' | '}' | ')' | ']')) || type_recovery_boundary_pending(i)
+}
+
+fn consume_polymorphic_variant_invalid_run<E>(i: &mut SynIn<E>, payload: bool) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start && type_primary_candidate(i) { return Some(start..end); }
+        if polymorphic_variant_outer_boundary(i) { return (start < end).then_some(start..end); }
+        let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
+        if character.is_whitespace() { return (start < end).then_some(start..end); }
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+        if payload && end > start && type_primary_candidate(i) { return Some(start..end); }
+    }
 }
 
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
@@ -1909,6 +2384,24 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         i.rollback(checkpoint);
         return None;
     }
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    Some((start..middle, middle..end))
+}
+
+/// The compound introducer is deliberately probed as one atomic spelling.
+/// A bare colon remains available to the caller's structural grammar.
+fn scan_polymorphic_variant_open<E>(i: &mut SynIn<E>) -> Option<(Range<usize>, Range<usize>)>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    if !i.input.remainder().starts_with(":{") { return None; }
+    i.input.next()?;
+    let middle = i.pos();
+    i.input.next()?;
+    let end = i.pos();
+    if middle == start || end == middle { i.rollback(checkpoint); return None; }
     let mut line = i.local.line();
     line.at_line_start = false;
     i.local.set_line(line);
@@ -2437,7 +2930,7 @@ fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|p
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet where E: ErrorSink<usize> { i.local.stop_set().unwrap_or_default() }
 fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { i.local.push_indentation_baseline(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }); }
 fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { assert_eq!(i.local.pop_indentation_baseline(), Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer })); }
-fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone(), TypePrimary::EffectRow(row) => row.range.clone() } }
+fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone(), TypePrimary::EffectRow(row) => row.range.clone(), TypePrimary::PolymorphicVariant(variant) => variant.range.clone() } }
 fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize { match tail { TypePostfixTail::Path(tail) => tail.range.end, TypePostfixTail::Call(tail) => tail.range.end, TypePostfixTail::Apply(tail) => tail.range.end } }
 #[cfg(test)]
 mod tests {
@@ -3345,6 +3838,90 @@ mod tests {
             owner: ConstructRole::EffectRowType,
             delimiter: Delimiter::Bracket,
         }) && record.kind == RecoveryKind::Missing));
+    }
+
+    #[test]
+    fn polymorphic_variant_type_is_a_two_level_primary() {
+        let paired = parse(":{A Int, B}");
+        assert!(matches!(paired.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+            ref tags, close: Recovered::Complete(_), ..
+        }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. }), Recovered::Complete(PolymorphicVariantTag { payloads: empty, .. })]
+            if payloads.len() == 1 && empty.is_empty())));
+
+        let siblings = parse(":{A Int Bool}");
+        assert!(matches!(siblings.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
+
+        let newline = parse(":{A Int\nB}");
+        assert!(matches!(newline.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+
+        let direct = parse_direct(":{A Int, B}");
+        assert_eq!(direct.to_string(), ":{A Int, B}");
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantType).count(), 1);
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag).count(), 2);
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload).count(), 1);
+    }
+
+    #[test]
+    fn polymorphic_variant_type_preserves_primary_and_ml_payload_boundaries() {
+        assert!(matches!(parse(":{}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.is_empty()));
+        assert!(matches!(parse(":{A,}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { trailing_comma: Some(_), close: Recovered::Complete(_), .. })));
+        let nested = parse(":{\n  A Pair(\n    Int,\n    Bool\n  )\n  B\n}");
+        assert!(matches!(nested.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+        let ml = parse(":{A Pair(Int, Bool) B}");
+        assert!(matches!(ml.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+            if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
+        assert!(matches!(parse("F :{A}").postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.primary, TypePrimary::PolymorphicVariant(_))));
+        assert!(matches!(parse(":{A}::Result").postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        assert!(!primary_candidate(": {A}"));
+    }
+
+    #[test]
+    fn polymorphic_variant_type_uses_phase_specific_recovery_roles() {
+        let leading = parse_direct_recovered(":{,,A}");
+        assert_eq!(leading.iter().filter(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Missing).count(), 2);
+
+        let semicolon = parse_direct_recovered(":{;A}");
+        assert!(semicolon.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..3)));
+
+        let wrong_name = parse_direct_recovered(":{123 Int}");
+        assert!(wrong_name.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagName)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (2..5)));
+
+        let malformed = parse_direct_recovered(":{A@,B}");
+        assert!(malformed.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTag)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)));
+
+        let payload = parse_direct_recovered(":{A @Int}");
+        assert!(payload.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayload)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..5)));
+        assert!(!payload.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary)
+                && record.kind == RecoveryKind::Missing));
+
+        let missing = parse_direct_recovered(":{A");
+        assert!(missing.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::PolymorphicVariantType,
+            delimiter: Delimiter::Brace,
+        }) && record.kind == RecoveryKind::Missing));
+
+        let mismatched = parse_direct_recovered(":{A]}");
+        assert!(mismatched.iter().any(|record| matches!(record.site.role, GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::PolymorphicVariantType,
+            delimiter: Delimiter::Brace,
+        }) && record.kind == RecoveryKind::Error && record.site.range == (3..4)));
     }
 
 }

@@ -510,6 +510,7 @@ pub(crate) enum TypeDelimitedOwner {
     ParenthesizedGroup,
     NamedRecord,
     EffectRow,
+    PolymorphicVariant,
 }
 
 /// Operator-independent regions whose terminators suspend outer layout rules.
@@ -700,6 +701,7 @@ pub(crate) enum ConstructRole {
     ParenthesizedTypeGroup,
     NamedRecordType,
     EffectRowType,
+    PolymorphicVariantType,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -802,6 +804,11 @@ pub(crate) enum TypeRole {
     ForallBody,
     EffectRowItem,
     EffectRowSeparator,
+    PolymorphicVariantTag,
+    PolymorphicVariantTagName,
+    PolymorphicVariantPayload,
+    PolymorphicVariantPayloadBoundary,
+    PolymorphicVariantTagSeparator,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -885,6 +892,7 @@ pub(crate) enum RootUnexpectedHead {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ExpectedSyntax {
     Identifier,
+    TypePayloadBoundary,
     Path,
     Expression,
     Pattern,
