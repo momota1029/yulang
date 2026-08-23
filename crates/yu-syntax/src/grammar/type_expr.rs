@@ -12,7 +12,7 @@ use crate::{
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::{TriviaRun, scan_trivia},
-        word::{WordSpan, scan_path_segment},
+        word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeRole, UnexpectedCategory, UnexpectedSyntax},
     syntax_kind::SyntaxKind,
@@ -37,6 +37,7 @@ pub(crate) enum TypePrimary<'source> {
     Atom(TypeAtom<'source>),
     Parenthesized(ParenthesizedTypeGroup<'source>),
     Record(NamedRecordType<'source>),
+    Forall(ForallType<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -121,6 +122,22 @@ pub(crate) struct TypeRecordField<'source> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ForallType<'source> {
+    keyword: Range<usize>,
+    binders: Vec<Recovered<ForallTypeBinder<'source>>>,
+    colon: Recovered<Range<usize>>,
+    body: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ForallTypeBinder<'source> {
+    boundary: Recovered<Range<usize>>,
+    name: WordSpan<'source>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TypeExplicitSeparator {
     Comma(Range<usize>),
     Semicolon(Range<usize>),
@@ -144,6 +161,18 @@ where
 /// its one completely-missing-primary site.
 pub(crate) fn parse_type_expression_with_outer_missing_role<'source, E>(
     _outer_missing_role: Option<crate::session::GrammarRole>,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_type_expression_in_context(true, i)
+}
+
+fn parse_type_expression_in_context<'source, E>(
+    allow_forall: bool,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeExpression<'source>>
 where
@@ -152,7 +181,11 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let primary = parse_type_primary(&mut i)?;
+    let primary = parse_type_primary_in_context(allow_forall, &mut i)?;
+    if matches!(primary, TypePrimary::Forall(_)) {
+        let end = primary_range(&primary).end;
+        return Some(TypeExpression { primary, postfix: Vec::new(), arrow: None, range: start..end });
+    }
     let mut postfix = Vec::new();
     let mut arrow = None;
     loop {
@@ -203,11 +236,11 @@ where
             i.rollback(checkpoint);
             break;
         }
-        if !trivia.is_empty() && type_primary_candidate(&mut i) {
+        if !trivia.is_empty() && type_primary_candidate_in_context(false, &mut i) {
             let boundary = boundary_start..i.pos();
             let saved_ml = i.local.type_ml_arg();
             i.local.set_type_ml_arg(true);
-            let argument = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+            let argument = i.run(from_fn(|i| parse_type_expression_in_context(false, i)))
                 .expect("the TypeApply candidate probe accepted a primary");
             i.local.set_type_ml_arg(saved_ml);
             let end = argument.range.end;
@@ -257,11 +290,32 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    commit_direct_type_expression_in_context(true, committed)
+}
+
+fn commit_direct_type_expression_in_context<'parse, 'source, 'local, E, O>(
+    allow_forall: bool,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<ParsedTypeExpression<O::Checkpoint>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let start = committed.probe(|probe| probe.input().pos());
     committed.start_node(SyntaxKind::TypeExpression);
-    if commit_direct_type_primary(committed).is_none() {
+    let primary = match commit_direct_type_primary(allow_forall, committed) {
+        Some(primary) => primary,
+        None => {
+            committed.finish_node();
+            return None;
+        }
+    };
+    if primary == DirectTypePrimary::TerminalForall {
         committed.finish_node();
-        return None;
+        let end = committed.probe(|probe| probe.input().pos());
+        return Some(ParsedTypeExpression { range: start..end, marker: PhantomData });
     }
     loop {
         let Some(tail) = committed.probe(|probe| recognize_direct_type_tail(probe.input())) else { break; };
@@ -300,7 +354,7 @@ where
                 committed.emit_trivia(&boundary);
                 let saved = committed.probe(|probe| probe.input().local.type_ml_arg());
                 committed.probe(|probe| probe.input().local.set_type_ml_arg(true));
-                commit_direct_type_expression(committed).expect("accepted TypeApply owns a type primary");
+                commit_direct_type_expression_in_context(false, committed).expect("accepted TypeApply owns a type primary");
                 committed.probe(|probe| probe.input().local.set_type_ml_arg(saved));
                 committed.finish_node();
             }
@@ -417,25 +471,38 @@ where
         i.rollback(checkpoint);
         return None;
     }
-    if !leading.is_empty() && type_primary_candidate(i) {
+    if !leading.is_empty() && type_primary_candidate_in_context(false, i) {
         return Some(DirectTypeTail::Apply { boundary: leading });
     }
     i.rollback(checkpoint);
     None
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DirectTypePrimary {
+    Ordinary,
+    TerminalForall,
+}
+
 fn commit_direct_type_primary<'parse, 'source, 'local, E, O>(
+    allow_forall: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<()>
+) -> Option<DirectTypePrimary>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if allow_forall {
+        if let Some(keyword) = committed.probe(|probe| scan_forall_keyword(probe.input())) {
+            commit_direct_forall_type(keyword, committed);
+            return Some(DirectTypePrimary::TerminalForall);
+        }
+    }
     if let Some(name) = committed.probe(|probe| scan_type_name(probe.input())) {
         committed.token(type_name_kind(name), type_name_range(name));
-        return Some(());
+        return Some(DirectTypePrimary::Ordinary);
     }
     if let Some(integer) = committed.probe(|probe| {
         probe.input().input.remainder().chars().next().is_some_and(|character| character.is_ascii_digit())
@@ -443,7 +510,7 @@ where
             .flatten()
     }) {
         committed.token(SyntaxKind::Integer, integer.range());
-        return Some(());
+        return Some(DirectTypePrimary::Ordinary);
     }
     if let Some(open) = committed.probe(|probe| scan_open_parenthesis(probe.input())) {
         commit_direct_type_delimited(
@@ -453,11 +520,275 @@ where
             true,
             committed,
         );
-        return Some(());
+        return Some(DirectTypePrimary::Ordinary);
     }
     let open = committed.probe(|probe| scan_open_brace(probe.input()))?;
     commit_direct_named_record_type(open, committed);
-    Some(())
+    Some(DirectTypePrimary::Ordinary)
+}
+
+/// Direct-CST realization of the non-delimited forall binder sequence.  The
+/// gap following a binder is held until its successor is known: it belongs to
+/// the next binder when that successor is apostrophe-sigil, and otherwise to
+/// the forall node's colon/body transition.
+fn commit_direct_forall_type<'parse, 'source, 'local, E, O>(
+    keyword: Range<usize>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::ForallType);
+    committed.token(SyntaxKind::ForKw, keyword);
+
+    let mut accepted_binder = false;
+    loop {
+        let required_boundary = !accepted_binder;
+        let trivia = consume_direct_forall_trivia(committed, required_boundary);
+
+        if let Some(name) = committed.probe(|probe| scan_forall_binder(probe.input())) {
+            committed.start_node(SyntaxKind::ForallTypeBinder);
+            if let Some(trivia) = trivia.as_ref().filter(|trivia| !trivia.is_empty()) {
+                committed.emit_trivia(trivia);
+            } else {
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::ForallBinderBoundary),
+                    ExpectedSyntax::TypeBinderBoundary,
+                );
+            }
+            committed.token(SyntaxKind::SigilIdentifier, name.range());
+            committed.finish_node();
+            accepted_binder = true;
+            continue;
+        }
+
+        if !accepted_binder {
+            let mut recovered_malformed = false;
+            if let Some(trivia) = trivia.as_ref() {
+                // A first-binder boundary is owned by its recovery item too.
+                committed.start_node(SyntaxKind::ForallTypeBinder);
+                committed.emit_trivia(trivia);
+                if let Some(range) = direct_forall_invalid_run(committed) {
+                    emit_type_error(committed, TypeRole::ForallBinder, range, ExpectedSyntax::ForallTypeBinder);
+                    recovered_malformed = true;
+                } else {
+                    emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                }
+                committed.finish_node();
+            } else if direct_forall_colon_pending(committed) {
+                committed.start_node(SyntaxKind::ForallTypeBinder);
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                committed.finish_node();
+            } else if let Some(range) = direct_forall_invalid_run(committed) {
+                committed.start_node(SyntaxKind::ForallTypeBinder);
+                emit_type_error(committed, TypeRole::ForallBinder, range, ExpectedSyntax::ForallTypeBinder);
+                committed.finish_node();
+                recovered_malformed = true;
+            } else {
+                committed.start_node(SyntaxKind::ForallTypeBinder);
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBinder), ExpectedSyntax::ForallTypeBinder);
+                committed.finish_node();
+                break;
+            }
+
+            if direct_forall_colon_pending(committed) {
+                commit_direct_forall_colon_and_body(committed);
+            } else if recovered_malformed {
+                continue;
+            }
+            break;
+        }
+
+        if let Some(trivia) = trivia.as_ref() {
+            committed.emit_trivia(trivia);
+        }
+        if direct_forall_colon_pending(committed) {
+            commit_direct_forall_colon_and_body(committed);
+            break;
+        }
+        if committed.probe(|probe| type_primary_candidate(probe.input())) {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            commit_direct_forall_body(committed);
+            break;
+        }
+        if let Some(separator) = direct_forall_unowned_separator(committed) {
+            emit_type_error(
+                committed,
+                TypeRole::ForallBinderBoundary,
+                separator,
+                ExpectedSyntax::TypeBinderBoundary,
+            );
+            continue;
+        }
+        if let Some(range) = direct_forall_invalid_run(committed) {
+            let role = if direct_forall_binder_after_invalid_pending(committed) {
+                TypeRole::ForallBinder
+            } else {
+                TypeRole::ForallColon
+            };
+            emit_type_error(committed, role, range, ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+            continue;
+        }
+        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
+        break;
+    }
+    committed.finish_node();
+}
+
+fn direct_forall_unowned_separator<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let separator = scan_separator(i);
+        let owned = match &separator {
+            Some(TypeExplicitSeparator::Comma(_)) => active_stop_set(i).contains(StopKind::Comma),
+            Some(TypeExplicitSeparator::Semicolon(_)) => active_stop_set(i).contains(StopKind::Semicolon),
+            None => false,
+        };
+        if owned {
+            i.rollback(checkpoint);
+            None
+        } else {
+            separator.map(|separator| separator_range(&separator))
+        }
+    })
+}
+
+fn commit_direct_forall_colon_and_body<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let colon = committed.probe(|probe| scan_exact_colon(probe.input()))
+        .expect("forall colon probe accepted a literal colon");
+    committed.token(SyntaxKind::Colon, colon);
+    commit_direct_forall_body(committed);
+}
+
+fn commit_direct_forall_body<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let trivia = consume_direct_forall_trivia(committed, false);
+    if let Some(trivia) = trivia.as_ref() {
+        committed.emit_trivia(trivia);
+    } else {
+        emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+        return;
+    }
+    if commit_direct_type_expression(committed).is_none() {
+        if let Some(range) = direct_forall_invalid_run(committed) {
+            emit_type_error(committed, TypeRole::ForallBody, range, ExpectedSyntax::TypeExpression);
+            if commit_direct_type_expression(committed).is_none() {
+                emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+            }
+        } else {
+            emit_type_missing(committed, GrammarRole::Type(TypeRole::ForallBody), ExpectedSyntax::TypeExpression);
+        }
+    }
+}
+
+fn consume_direct_forall_trivia<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    required: bool,
+) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i);
+        if type_chain_trivia(i, &trivia) && (!required || !trivia.is_empty()) {
+            Some(trivia)
+        } else {
+            i.rollback(checkpoint);
+            None
+        }
+    })
+}
+
+fn direct_forall_colon_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let pending = scan_exact_colon(i).is_some();
+        i.rollback(checkpoint);
+        pending
+    })
+}
+
+fn direct_forall_binder_after_invalid_pending<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = consume_forall_trivia(i, false);
+        let pending = trivia.is_some() && scan_forall_binder(i).is_some();
+        i.rollback(checkpoint);
+        pending
+    })
+}
+
+fn direct_forall_invalid_run<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let start = i.pos();
+        let mut end = start;
+        let sigil_like_non_binder = matches!(i.input.remainder().chars().next(), Some('$' | '&' | '_'));
+        loop {
+            if end > start && !sigil_like_non_binder {
+                let checkpoint = i.checkpoint();
+                let retry = scan_forall_binder(i).is_some()
+                    || scan_exact_colon(i).is_some()
+                    || type_primary_candidate(i);
+                i.rollback(checkpoint);
+                if retry { return Some(start..end); }
+            }
+            if type_recovery_boundary_pending(i) || i.input.remainder().starts_with(':') {
+                return (start < end).then_some(start..end);
+            }
+            let Some(character) = i.input.remainder().chars().next() else { return (start < end).then_some(start..end); };
+            if character.is_whitespace() { return (start < end).then_some(start..end); }
+            i.input.next()?;
+            end = i.pos();
+            let mut line = i.local.line();
+            line.at_line_start = false;
+            i.local.set_line(line);
+        }
+    })
 }
 
 fn commit_direct_type_delimited<'parse, 'source, 'local, E, O>(
@@ -826,12 +1157,20 @@ where
     })
 }
 
-fn parse_type_primary<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypePrimary<'source>>
+fn parse_type_primary_in_context<'source, E>(
+    allow_forall: bool,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypePrimary<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if allow_forall {
+        if let Some(keyword) = scan_forall_keyword(i) {
+            return Some(TypePrimary::Forall(parse_forall_type(keyword, i)));
+        }
+    }
     if let Some(name) = scan_type_name(i) {
         return Some(TypePrimary::Atom(match name {
             TypeName::Identifier(word) => TypeAtom::Identifier(word),
@@ -848,6 +1187,211 @@ where
         return Some(TypePrimary::Parenthesized(parse_parenthesized_type_group(open, i)));
     }
     scan_open_brace(i).map(|open| TypePrimary::Record(parse_named_record_type(open, i)))
+}
+
+fn parse_forall_type<'source, E>(keyword: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ForallType<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = keyword.start;
+    let mut binders = Vec::new();
+    let mut colon = Recovered::Incomplete;
+    let mut body = Recovered::Incomplete;
+
+    let first_boundary = consume_forall_trivia(i, true);
+    if let Some(name) = scan_forall_binder(i) {
+        let boundary = first_boundary.map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+        let end = name.range().end;
+        let binder_start = match &boundary { Recovered::Complete(range) => range.start, Recovered::Incomplete => name.range().start };
+        binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+    } else if let Some(found_colon) = scan_exact_colon(i) {
+        binders.push(Recovered::Incomplete);
+        colon = Recovered::Complete(found_colon);
+        body = parse_forall_body_for_ast(i);
+        let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
+        return ForallType { keyword, binders, colon, body, range: start..end };
+    } else if recover_forall_for_ast(i) {
+        binders.push(Recovered::Incomplete);
+        let gap = consume_forall_trivia(i, true);
+        if let Some(name) = scan_forall_binder(i) {
+            let boundary = gap.map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+            let end = name.range().end;
+            let binder_start = match &boundary { Recovered::Complete(range) => range.start, Recovered::Incomplete => name.range().start };
+            binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+        } else if let Some(found_colon) = scan_exact_colon(i) {
+            colon = Recovered::Complete(found_colon);
+            body = parse_forall_body_for_ast(i);
+            let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
+            return ForallType { keyword, binders, colon, body, range: start..end };
+        } else {
+            let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
+            return ForallType { keyword, binders, colon, body, range: start..end };
+        }
+    } else {
+        binders.push(Recovered::Incomplete);
+        let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
+        return ForallType { keyword, binders, colon, body, range: start..end };
+    }
+
+    loop {
+        let checkpoint = i.checkpoint();
+        let gap = consume_forall_trivia(i, false);
+        if gap.is_none() {
+            i.rollback(checkpoint);
+            break;
+        }
+        if let Some(found_colon) = scan_exact_colon(i) {
+            colon = Recovered::Complete(found_colon);
+            body = parse_forall_body_for_ast(i);
+            break;
+        }
+        if let Some(name) = scan_forall_binder(i) {
+            let binder_start = gap.as_ref().filter(|trivia| !trivia.is_empty())
+                .map_or_else(|| name.range().start, |trivia| trivia.range().start);
+            let boundary = gap.filter(|trivia| !trivia.is_empty())
+                .map_or(Recovered::Incomplete, |trivia| Recovered::Complete(trivia.range()));
+            let end = name.range().end;
+            binders.push(Recovered::Complete(ForallTypeBinder { boundary, name, range: binder_start..end }));
+            continue;
+        }
+        if type_primary_candidate(i) {
+            colon = Recovered::Incomplete;
+            body = parse_forall_body_for_ast(i);
+            break;
+        }
+        if consume_forall_unowned_separator_ast(i) {
+            continue;
+        }
+        if !recover_forall_for_ast(i) {
+            break;
+        }
+    }
+    let end = forall_end(&keyword, &binders, &colon, &body, i.pos());
+    ForallType { keyword, binders, colon, body, range: start..end }
+}
+
+fn consume_forall_unowned_separator_ast<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let separator = scan_separator(i);
+    let owned = match &separator {
+        Some(TypeExplicitSeparator::Comma(_)) => active_stop_set(i).contains(StopKind::Comma),
+        Some(TypeExplicitSeparator::Semicolon(_)) => active_stop_set(i).contains(StopKind::Semicolon),
+        None => false,
+    };
+    if separator.is_some() && !owned {
+        true
+    } else {
+        i.rollback(checkpoint);
+        false
+    }
+}
+
+fn parse_forall_body_for_ast<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let _ = consume_forall_trivia(i, false);
+    i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+        .or_else(|| recover_forall_for_ast(i).then(|| i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))).flatten())
+        .map(|value| Recovered::Complete(Box::new(value)))
+        .unwrap_or(Recovered::Incomplete)
+}
+
+fn forall_end(
+    keyword: &Range<usize>,
+    binders: &[Recovered<ForallTypeBinder<'_>>],
+    colon: &Recovered<Range<usize>>,
+    body: &Recovered<Box<TypeExpression<'_>>>,
+    fallback: usize,
+) -> usize {
+    match body {
+        Recovered::Complete(value) => value.range.end,
+        Recovered::Incomplete => match colon {
+            Recovered::Complete(range) => range.end,
+            Recovered::Incomplete => binders.last().and_then(|binder| match binder {
+                Recovered::Complete(binder) => Some(binder.range.end),
+                Recovered::Incomplete => None,
+            }).unwrap_or(keyword.end).max(fallback),
+        },
+    }
+}
+
+fn consume_forall_trivia<E>(i: &mut SynIn<E>, required: bool) -> Option<TriviaRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    if type_chain_trivia(i, &trivia) && (!required || !trivia.is_empty()) {
+        Some(trivia)
+    } else {
+        i.rollback(checkpoint);
+        None
+    }
+}
+
+fn scan_forall_keyword<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(word) = i.run(scan_word) else { return None; };
+    if word.text() == "for" { Some(word.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_forall_binder<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<WordSpan<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    match scan_type_name(i) {
+        Some(TypeName::SigilIdentifier(word)) => Some(word),
+        Some(TypeName::Identifier(_)) | None => {
+            i.rollback(checkpoint);
+            None
+        }
+    }
+}
+
+fn recover_forall_for_ast<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if i.pos() > start {
+            let checkpoint = i.checkpoint();
+            let retry = scan_forall_binder(i).is_some()
+                || scan_exact_colon(i).is_some()
+                || type_primary_candidate(i);
+            i.rollback(checkpoint);
+            if retry { return true; }
+        }
+        if type_recovery_boundary_pending(i) { return i.pos() > start; }
+        let Some(character) = i.input.remainder().chars().next() else { return i.pos() > start; };
+        if character.is_whitespace() { return i.pos() > start; }
+        i.input.next();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
 }
 
 fn parse_type_path_tail<'source, E>(separator: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypePathTail<'source>
@@ -1224,8 +1768,13 @@ fn separator_range(separator: &TypeExplicitSeparator) -> Range<usize> {
 
 fn type_primary_candidate<E>(i: &mut SynIn<E>) -> bool
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    type_primary_candidate_in_context(true, i)
+}
+
+fn type_primary_candidate_in_context<E>(allow_forall: bool, i: &mut SynIn<E>) -> bool
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
-    let candidate = parse_type_primary(i).is_some();
+    let candidate = parse_type_primary_in_context(allow_forall, i).is_some();
     i.rollback(checkpoint);
     candidate
 }
@@ -1782,7 +2331,7 @@ fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|p
 fn active_stop_set<E>(i: &SynIn<E>) -> StopSet where E: ErrorSink<usize> { i.local.stop_set().unwrap_or_default() }
 fn push_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { i.local.push_indentation_baseline(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer }); }
 fn pop_layout<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) where E: ErrorSink<usize> { assert_eq!(i.local.pop_indentation_baseline(), Some(IndentationBaseline { column: layout.base_indent(), kind: IndentationBaselineKind::Introducer })); }
-fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone() } }
+fn primary_range(primary: &TypePrimary<'_>) -> Range<usize> { match primary { TypePrimary::Atom(atom) => match atom { TypeAtom::Identifier(word) | TypeAtom::SigilIdentifier(word) => word.range(), TypeAtom::Number(number) => number.range.clone() }, TypePrimary::Parenthesized(group) => group.range.clone(), TypePrimary::Record(record) => record.range.clone(), TypePrimary::Forall(forall) => forall.range.clone() } }
 fn postfix_range_end(tail: &TypePostfixTail<'_>) -> usize { match tail { TypePostfixTail::Path(tail) => tail.range.end, TypePostfixTail::Call(tail) => tail.range.end, TypePostfixTail::Apply(tail) => tail.range.end } }
 #[cfg(test)]
 mod tests {
@@ -2494,6 +3043,72 @@ mod tests {
         let (remainder, outer_owned) = parse_direct_prefix_with_outer_stop("{a: A]", StopKind::RightBracket);
         assert_eq!(remainder, "]");
         assert!(!outer_owned.iter().any(|record| record.kind == RecoveryKind::Error));
+    }
+
+    #[test]
+    fn forall_type_primary_owns_a_non_delimited_binder_sequence_and_body() {
+        let single = parse("for 'a: 'a -> 'a");
+        assert!(matches!(single.primary, TypePrimary::Forall(ForallType {
+            ref binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
+        }) if binders.len() == 1));
+        assert!(single.postfix.is_empty() && single.arrow.is_none());
+
+        let multiple = parse("for 'a 'b 'c: T");
+        assert!(matches!(multiple.primary, TypePrimary::Forall(ForallType { ref binders, .. })
+            if binders.len() == 3 && binders.iter().all(|binder| matches!(binder, Recovered::Complete(ForallTypeBinder { boundary: Recovered::Complete(_), .. })) )));
+
+        let direct = parse_direct("for 'a 'b: T");
+        assert!(direct.descendants().any(|node| node.kind() == SyntaxKind::ForallType));
+        assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::ForallTypeBinder).count(), 2);
+    }
+
+    #[test]
+    fn forall_is_nud_only_apostrophe_only_and_terminal() {
+        for source in ["for $a: T", "for &a: T", "for _a: T"] {
+            let recoveries = parse_direct_recovered(source);
+            assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinder)));
+        }
+        let adjacent = parse_direct_recovered("for 'a'b: T");
+        assert!(adjacent.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
+            && record.kind == RecoveryKind::Missing));
+
+        let grouped = parse("(for 'a: T)::Result");
+        assert!(matches!(grouped.postfix.as_slice(), [TypePostfixTail::Path(_)]));
+        let (_, led) = parse_prefix("F for 'a: T");
+        assert!(!matches!(led.primary, TypePrimary::Forall(_)));
+        assert!(matches!(led.postfix.first(), Some(TypePostfixTail::Apply(_))));
+    }
+
+    #[test]
+    fn forall_recovery_keeps_its_phase_slots_non_cascading() {
+        let bare = parse_direct_recovered("for");
+        assert!(matches!(bare.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
+                && record.kind == RecoveryKind::Missing && record.site.range == (3..3)));
+        let colon = parse_direct_recovered("for 'a");
+        assert!(matches!(colon.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
+                && record.kind == RecoveryKind::Missing && record.site.range == (6..6)));
+        let body = parse_direct_recovered("for 'a:");
+        assert!(matches!(body.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ForallBody)
+                && record.kind == RecoveryKind::Missing && record.site.range == (7..7)));
+        let malformed = parse_direct_recovered("for 'a: @T");
+        assert!(malformed.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBody)
+            && record.kind == RecoveryKind::Error && record.site.range == (8..9)), "{malformed:#?}");
+
+        let missing_colon = parse_direct_recovered("for 'a T");
+        assert!(matches!(missing_colon.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
+                && record.kind == RecoveryKind::Missing && record.site.range == (7..7)));
+        assert!(matches!(parse("for 'a T").primary, TypePrimary::Forall(ForallType {
+            colon: Recovered::Incomplete, body: Recovered::Complete(_), ..
+        })));
+
+        let comma = parse_direct_recovered("for 'a, 'b: T");
+        assert!(comma.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
+            && record.kind == RecoveryKind::Error && record.site.range == (6..7)));
+        assert!(matches!(parse("for 'a, 'b: T").primary, TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2));
     }
 
 }

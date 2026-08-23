@@ -794,6 +794,10 @@ pub(crate) enum TypeRole {
     RecordFieldColon,
     RecordFieldType,
     RecordFieldSeparator,
+    ForallBinder,
+    ForallBinderBoundary,
+    ForallColon,
+    ForallBody,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -882,6 +886,8 @@ pub(crate) enum ExpectedSyntax {
     Pattern,
     TypeExpression,
     TypePathSegment,
+    ForallTypeBinder,
+    TypeBinderBoundary,
     Statement,
     StatementSeparator,
     OperatorName,
