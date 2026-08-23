@@ -2966,6 +2966,16 @@ fn emit_error_with_role<'parse, 'source, 'local, E, O>(
     committed.emit_error(record);
 }
 
+/// Selects who owns a physical newline reached by a malformed type-item
+/// scanner.  Every scanner caller chooses this explicitly; the policy has no
+/// implicit default because candidate-complete and candidate-incomplete owner
+/// phases have different handoff contracts.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TypeMalformedNewlinePolicy {
+    ContinuationQualified { continuation_base: usize },
+    AnyPhysicalHandoff,
+}
+
 /// A malformed mandatory item may either stop before another type primary or
 /// reach a boundary owned by its enclosing construct.  Both cases commit the
 /// Error run; only the first may retry the required slot.
@@ -3430,8 +3440,19 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     candidate
 }
 
+fn active_type_continuation_base<E>(i: &SynIn<E>) -> usize
+where E: ErrorSink<usize> { i.local.indentation_baseline().map_or(0, |baseline| baseline.column) }
+
+/// The one type-side continuation comparison.  `continuation_base` is
+/// captured when the owning recovery phase starts; callers must not derive it
+/// from a following token or a later recovery position.
+fn continues_after_newline<E>(i: &SynIn<E>, trivia: &TriviaRun, continuation_base: usize) -> bool
+where E: ErrorSink<usize> {
+    trivia_has_newline(trivia) && i.local.line().line_indent > continuation_base
+}
+
 fn type_chain_trivia<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool where E: ErrorSink<usize> {
-    !trivia_has_newline(trivia) || i.local.line().line_indent > i.local.indentation_baseline().map_or(0, |baseline| baseline.column)
+    !trivia_has_newline(trivia) || continues_after_newline(i, trivia, active_type_continuation_base(i))
 }
 fn is_outer_newline_boundary<E>(i: &SynIn<E>, trivia: &TriviaRun) -> bool where E: ErrorSink<usize> { trivia_has_newline(trivia) && !type_chain_trivia(i, trivia) }
 fn trivia_has_newline(trivia: &TriviaRun) -> bool { trivia.parts().iter().any(|part| matches!(part.kind(), crate::scan::trivia::TriviaPartKind::Newline)) }
