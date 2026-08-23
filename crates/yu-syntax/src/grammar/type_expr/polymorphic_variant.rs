@@ -515,39 +515,29 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let start = i.pos();
-    let mut end = start;
-    loop {
-        if end > start && type_primary_candidate(i) {
-            return Some(start..end);
-        }
-        if payload_outer_boundary(i) {
-            return (start < end).then_some(start..end);
-        }
+    scan_type_item_invalid_run_with(
+        i,
+        type_primary_candidate,
+        |_| false,
+        payload_outer_boundary,
+        payload_boundary_after_trivia,
+        true,
+    )
+    .map(|(range, _)| range)
+}
 
-        let trivia_checkpoint = i.checkpoint();
-        let trivia = consume_trivia(i);
-        if !trivia.is_empty() {
-            if trivia_has_newline(&trivia) || payload_outer_boundary(i) {
-                i.rollback(trivia_checkpoint);
-                return (start < end).then_some(start..end);
-            }
-            end = i.pos();
-            continue;
-        }
-
-        let Some(character) = i.input.remainder().chars().next() else {
-            return (start < end).then_some(start..end);
-        };
-        if matches!(character, '\n' | '\r') {
-            return (start < end).then_some(start..end);
-        }
-        i.input.next()?;
-        end = i.pos();
-        let mut line = i.local.line();
-        line.at_line_start = false;
-        i.local.set_line(line);
-    }
+fn payload_boundary_after_trivia<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let boundary = !trivia.is_empty()
+        && (trivia_has_newline(&trivia) || payload_outer_boundary(i));
+    i.rollback(checkpoint);
+    boundary
 }
 
 struct AstTag<'source> {
