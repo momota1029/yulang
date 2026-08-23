@@ -16,7 +16,7 @@ use crate::{
         trivia::{TriviaRun, scan_comment, scan_trivia},
         word::{WordSpan, scan_path_segment, scan_word},
     },
-    session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeRole, UnexpectedCategory, UnexpectedSyntax},
+    session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeMalformedCallerBoundaryFence, TypeRole, UnexpectedCategory, UnexpectedSyntax},
     syntax_kind::SyntaxKind,
 };
 
@@ -3261,6 +3261,42 @@ fn is_operator_shaped_character(character: char) -> bool {
 
 fn consume_trivia<E>(i: &mut SynIn<E>) -> TriviaRun
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> { i.run(scan_trivia).expect("trivia scanning is total") }
+
+fn mark_type_malformed_caller_boundary<E>(i: &mut SynIn<E>)
+where
+    E: ErrorSink<usize>,
+{
+    i.local.set_type_malformed_caller_boundary(Some(
+        TypeMalformedCallerBoundaryFence {
+            trivia_start: i.pos(),
+        },
+    ));
+}
+
+fn type_malformed_caller_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let at = i.pos();
+    if i.local.type_malformed_caller_boundary()
+        != Some(TypeMalformedCallerBoundaryFence { trivia_start: at })
+    {
+        return false;
+    }
+
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let pending = trivia_has_newline(&trivia)
+        && active_stop_set(i).contains(StopKind::Newline);
+    i.rollback(checkpoint);
+    debug_assert!(
+        pending,
+        "a malformed caller-boundary fence must name its untouched trivia run"
+    );
+    pending
+}
 
 /// The five TMN-C outcomes for one maximal trivia run after malformed type
 /// input.  The scanner and its owner adapters must agree on this classifier

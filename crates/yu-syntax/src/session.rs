@@ -156,6 +156,7 @@ pub(crate) struct ParseLocal {
     reusable_recoveries: Vec<CommittedRecoveryRecord>,
     reused_recovery_indices: Vec<usize>,
     next_diagnostic_id: u32,
+    type_malformed_caller_boundary: Option<TypeMalformedCallerBoundaryFence>,
 }
 
 impl ParseLocal {
@@ -176,6 +177,7 @@ impl ParseLocal {
             reusable_recoveries: Vec::new(),
             reused_recovery_indices: Vec::new(),
             next_diagnostic_id: 0,
+            type_malformed_caller_boundary: None,
         }
     }
 
@@ -208,6 +210,7 @@ impl ParseLocal {
             operator_probes_len: self.operator_probes.len(),
             reused_recovery_indices_len: self.reused_recovery_indices.len(),
             next_diagnostic_id: self.next_diagnostic_id,
+            type_malformed_caller_boundary: self.type_malformed_caller_boundary,
         }
     }
 
@@ -232,6 +235,7 @@ impl ParseLocal {
         self.reused_recovery_indices
             .truncate(checkpoint.reused_recovery_indices_len);
         self.next_diagnostic_id = checkpoint.next_diagnostic_id;
+        self.type_malformed_caller_boundary = checkpoint.type_malformed_caller_boundary;
     }
 
     pub(crate) fn line(&self) -> LineState {
@@ -240,6 +244,19 @@ impl ParseLocal {
 
     pub(crate) fn set_line(&mut self, line: LineState) {
         self.line = line;
+    }
+
+    pub(crate) fn type_malformed_caller_boundary(
+        &self,
+    ) -> Option<TypeMalformedCallerBoundaryFence> {
+        self.type_malformed_caller_boundary
+    }
+
+    pub(crate) fn set_type_malformed_caller_boundary(
+        &mut self,
+        fence: Option<TypeMalformedCallerBoundaryFence>,
+    ) {
+        self.type_malformed_caller_boundary = fence;
     }
 
     pub(crate) fn push_indentation_baseline(&mut self, baseline: IndentationBaseline) {
@@ -424,6 +441,12 @@ pub(crate) struct ParseLocalCheckpoint {
     operator_probes_len: usize,
     reused_recovery_indices_len: usize,
     next_diagnostic_id: u32,
+    type_malformed_caller_boundary: Option<TypeMalformedCallerBoundaryFence>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TypeMalformedCallerBoundaryFence {
+    pub(crate) trivia_start: usize,
 }
 
 /// Physical-line state changed while trailing trivia is consumed.
@@ -1540,6 +1563,27 @@ mod tests {
         );
         assert_eq!(local.staged_header_fact_count(), 1);
         assert_eq!(local.operator_probe_count(), 1);
+    }
+
+    #[test]
+    fn checkpoint_restores_type_malformed_caller_boundary_fence() {
+        let mut local = ParseLocal::new();
+        assert_eq!(local.type_malformed_caller_boundary(), None);
+
+        local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+            trivia_start: 3,
+        }));
+        let checkpoint = local.checkpoint();
+        local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+            trivia_start: 8,
+        }));
+
+        local.rollback(checkpoint);
+
+        assert_eq!(
+            local.type_malformed_caller_boundary(),
+            Some(TypeMalformedCallerBoundaryFence { trivia_start: 3 })
+        );
     }
 
     #[test]
