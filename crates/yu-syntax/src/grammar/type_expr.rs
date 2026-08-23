@@ -270,7 +270,9 @@ where
         let checkpoint = i.checkpoint();
         let boundary_start = i.pos();
         let trivia = consume_trivia(&mut i);
-        if is_outer_newline_boundary(&i, &trivia) {
+        if (trivia_has_newline(&trivia) && active_stop_set(&i).contains(StopKind::Newline))
+            || is_outer_newline_boundary(&i, &trivia)
+        {
             i.rollback(checkpoint);
             break;
         }
@@ -642,7 +644,9 @@ where
 {
     let checkpoint = i.checkpoint();
     let leading = consume_trivia(i);
-    if is_outer_newline_boundary(i, &leading) {
+    if (trivia_has_newline(&leading) && active_stop_set(i).contains(StopKind::Newline))
+        || is_outer_newline_boundary(i, &leading)
+    {
         i.rollback(checkpoint);
         return None;
     }
@@ -1350,29 +1354,16 @@ where
     let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
         continuation_base: active_type_continuation_base(i),
     };
-    let mut recovery = scan_type_item_invalid_run_with_disposition(
+    let recovery = scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
-        |i| {
-            forall_recovery_candidate(phase, i).is_some()
-                || forall_recovery_candidate_after_trivia(phase, i).is_some()
-        },
+        true,
+        |i| forall_recovery_candidate(phase, i).is_some(),
         |i| forall_recovery_boundary_pending(phase, i),
     )?;
     let target = match &recovery.disposition {
-        TypeInvalidRunDisposition::RetryCurrent => {
-            if let Some(target) = forall_recovery_candidate(phase, i) {
-                target
-            } else {
-                let checkpoint = i.checkpoint();
-                let trivia = consume_trivia(i);
-                let target = forall_recovery_candidate(phase, i)
-                    .expect("forall malformed scanner stopped after trivia at its phase candidate");
-                i.rollback(checkpoint);
-                recovery.disposition = TypeInvalidRunDisposition::RetryAfterTrivia(trivia);
-                target
-            }
-        }
+        TypeInvalidRunDisposition::RetryCurrent => forall_recovery_candidate(phase, i)
+            .expect("forall malformed scanner stopped at its phase candidate"),
         TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
             let checkpoint = i.checkpoint();
             let probed = consume_trivia(i);
@@ -1419,24 +1410,6 @@ where
     };
     i.rollback(checkpoint);
     recovery
-}
-
-fn forall_recovery_candidate_after_trivia<E>(
-    phase: ForallRecoveryPhase,
-    i: &mut SynIn<E>,
-) -> Option<ForallInvalidRecovery>
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let checkpoint = i.checkpoint();
-    let trivia = consume_forall_trivia(i, false);
-    let candidate = trivia
-        .filter(|trivia| !trivia.is_empty())
-        .and_then(|_| forall_recovery_candidate(phase, i));
-    i.rollback(checkpoint);
-    candidate
 }
 
 /// A first forall binder owns an otherwise-unowned comma or semicolon as
@@ -1566,11 +1539,24 @@ where
         }
         if !context.parse_item() {
             let recovered = context.with_input(scan_type_delimited_item_invalid_run);
-            let Some(TypeInvalidRunRecovery { error_range, disposition }) = recovered else {
+            let Some(TypeInvalidRunRecovery {
+                error_range,
+                disposition,
+                caller_owned_boundary,
+            }) = recovered else {
                 context.emit_incomplete_item(spec.item_role());
                 break;
             };
             context.emit_item_error(spec.item_role(), error_range);
+            if caller_owned_boundary {
+                debug_assert!(matches!(
+                    disposition,
+                    TypeInvalidRunDisposition::BoundaryCurrent
+                        | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
+                ));
+                context.emit_malformed_item();
+                break;
+            }
             let target = match disposition {
                 TypeInvalidRunDisposition::RetryCurrent => continue,
                 TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -1856,6 +1842,7 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
     committed.probe(|probe| push_layout(layout, probe.input()));
     let mut after_semicolon = false;
+    let mut caller_owned_boundary = false;
     loop {
         if after_semicolon {
             match committed.probe(|probe| classify_named_record_recovery(layout, probe.input())) {
@@ -1897,9 +1884,23 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             after_semicolon = true;
             continue;
         }
-        if !commit_direct_type_record_field(committed) {
-            if let Some(TypeInvalidRunRecovery { error_range, disposition }) = committed.probe(|probe| scan_record_invalid_run(probe.input())) {
+        let parsed_field = commit_direct_type_record_field(committed);
+        if parsed_field.is_none() {
+            if let Some(TypeInvalidRunRecovery {
+                error_range,
+                disposition,
+                caller_owned_boundary: recovered_caller_owned_boundary,
+            }) = committed.probe(|probe| scan_record_invalid_run(probe.input())) {
                 emit_type_error(committed, TypeRole::RecordField, error_range, ExpectedSyntax::Identifier);
+                if recovered_caller_owned_boundary {
+                    debug_assert!(matches!(
+                        disposition,
+                        TypeInvalidRunDisposition::BoundaryCurrent
+                            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
+                    ));
+                    caller_owned_boundary = true;
+                    break;
+                }
                 let target = match disposition {
                     TypeInvalidRunDisposition::RetryCurrent => continue,
                     TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -1965,6 +1966,10 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
             break;
         }
+        if parsed_field.as_ref().is_some_and(|field| field.caller_owned_boundary) {
+            caller_owned_boundary = true;
+            break;
+        }
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
         if let Some(comma) = committed.probe(|probe| scan_record_comma(probe.input())) {
@@ -1993,15 +1998,17 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
         }
         break;
     }
-    let _ = drive_type_close_slot(
-        &mut DirectTypeCloseContext { committed },
-        CloseRecoverySpec {
-            delimiter: Delimiter::Brace,
-            owner: ConstructRole::NamedRecordType,
-            matching_kind: SyntaxKind::RBrace,
-            missing_after_mismatch: MissingAfterMismatch::Emit,
-        },
-    );
+    if !caller_owned_boundary {
+        let _ = drive_type_close_slot(
+            &mut DirectTypeCloseContext { committed },
+            CloseRecoverySpec {
+                delimiter: Delimiter::Brace,
+                owner: ConstructRole::NamedRecordType,
+                matching_kind: SyntaxKind::RBrace,
+                missing_after_mismatch: MissingAfterMismatch::Emit,
+            },
+        );
+    }
     committed.probe(|probe| {
         pop_layout(layout, probe.input());
         assert_eq!(probe.input().local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
@@ -2011,9 +2018,13 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
+struct DirectTypeRecordFieldCommit {
+    caller_owned_boundary: bool,
+}
+
 fn commit_direct_type_record_field<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> bool
+) -> Option<DirectTypeRecordFieldCommit>
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -2034,8 +2045,11 @@ where
     } else {
         None
     };
-    if name.is_none() && missing_name_colon.is_none() && malformed_name.is_none() { return false; }
+    if name.is_none() && missing_name_colon.is_none() && malformed_name.is_none() {
+        return None;
+    }
     committed.start_node(SyntaxKind::TypeRecordField);
+    let mut caller_owned_boundary = false;
     let type_expected;
     if let Some(name) = name {
         committed.token(SyntaxKind::Identifier, name.range());
@@ -2056,13 +2070,18 @@ where
         } else if committed.probe(|probe| type_primary_candidate(probe.input())) {
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
             type_expected = true;
-        } else if let Some(TypeInvalidRunRecovery { error_range, disposition }) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
+        } else if let Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition,
+            caller_owned_boundary: recovered_caller_owned_boundary,
+        }) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
             emit_type_error(
                 committed,
                 TypeRole::RecordFieldColon,
                 error_range,
                 ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
             );
+            caller_owned_boundary = recovered_caller_owned_boundary;
             if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
                 consume_direct_recovery_trivia(committed, &trivia);
             }
@@ -2088,8 +2107,10 @@ where
         }
         type_expected = true;
     }
-    if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
-        committed.emit_trivia(&trivia);
+    if !caller_owned_boundary {
+        if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
+            committed.emit_trivia(&trivia);
+        }
     }
     if type_expected && commit_direct_type_expression(committed).is_none() {
         match direct_required_type_item_error_retry(
@@ -2116,7 +2137,9 @@ where
         }
     }
     committed.finish_node();
-    true
+    Some(DirectTypeRecordFieldCommit {
+        caller_owned_boundary,
+    })
 }
 
 
@@ -2558,6 +2581,7 @@ where
     let mut fields = Vec::new();
     let mut trailing_comma = None;
     let mut after_semicolon = false;
+    let mut caller_owned_boundary = false;
     loop {
         if after_semicolon {
             match classify_named_record_recovery(layout, i) {
@@ -2591,10 +2615,28 @@ where
             after_semicolon = true;
             continue;
         }
-        if let Some(field) = parse_type_record_field(i) {
-            fields.push(Recovered::Complete(field));
-        } else if let Some(TypeInvalidRunRecovery { disposition, .. }) = recover_record_item_for_ast(i) {
+        if let Some(parsed_field) = parse_type_record_field(i) {
+            let field_caller_owned_boundary = parsed_field.caller_owned_boundary;
+            fields.push(Recovered::Complete(parsed_field.field));
+            if field_caller_owned_boundary {
+                caller_owned_boundary = true;
+                break;
+            }
+        } else if let Some(TypeInvalidRunRecovery {
+            disposition,
+            caller_owned_boundary: recovered_caller_owned_boundary,
+            ..
+        }) = recover_record_item_for_ast(i) {
             fields.push(Recovered::Incomplete);
+            if recovered_caller_owned_boundary {
+                debug_assert!(matches!(
+                    disposition,
+                    TypeInvalidRunDisposition::BoundaryCurrent
+                        | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
+                ));
+                caller_owned_boundary = true;
+                break;
+            }
             let target = match disposition {
                 TypeInvalidRunDisposition::RetryCurrent => continue,
                 TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -2658,15 +2700,19 @@ where
             _ => break,
         }
     }
-    let close = drive_type_close_slot(
-        i,
-        CloseRecoverySpec {
-            delimiter: Delimiter::Brace,
-            owner: ConstructRole::NamedRecordType,
-            matching_kind: SyntaxKind::RBrace,
-            missing_after_mismatch: MissingAfterMismatch::Emit,
-        },
-    );
+    let close = if caller_owned_boundary {
+        Recovered::Incomplete
+    } else {
+        drive_type_close_slot(
+            i,
+            CloseRecoverySpec {
+                delimiter: Delimiter::Brace,
+                owner: ConstructRole::NamedRecordType,
+                matching_kind: SyntaxKind::RBrace,
+                missing_after_mismatch: MissingAfterMismatch::Emit,
+            },
+        )
+    };
     pop_layout(layout, i);
     assert_eq!(i.local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::NamedRecord));
     assert_eq!(i.local.pop_stop_set(), Some(stops));
@@ -2675,13 +2721,19 @@ where
     NamedRecordType { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
 }
 
-fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeRecordField<'source>>
+struct ParsedTypeRecordField<'source> {
+    field: TypeRecordField<'source>,
+    caller_owned_boundary: bool,
+}
+
+fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<ParsedTypeRecordField<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
+    let mut caller_owned_boundary = false;
     let (name, colon, type_expected) = if let Some(name) = scan_plain_type_identifier(i) {
         let _ = consume_type_chain_trivia(i);
         if let Some(colon) = scan_exact_colon(i) {
@@ -2690,20 +2742,27 @@ where
             (Recovered::Complete(name), Recovered::Incomplete, true)
         } else if type_primary_candidate(i) {
             (Recovered::Complete(name), Recovered::Incomplete, true)
-        } else if let Some(TypeInvalidRunRecovery { disposition, .. }) = consume_record_colon_invalid_run(i) {
-            if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
-                consume_recovery_trivia(i, &trivia);
-            }
-            let recovered_colon = scan_exact_colon(i);
-            let type_expected = recovered_colon.is_some() || type_primary_candidate(i);
-            (
-                Recovered::Complete(name),
-                recovered_colon.map_or(Recovered::Incomplete, Recovered::Complete),
-                type_expected,
-            )
         } else {
-            let type_expected = type_primary_candidate(i);
-            (Recovered::Complete(name), Recovered::Incomplete, type_expected)
+            if let Some(TypeInvalidRunRecovery {
+                disposition,
+                caller_owned_boundary: recovered_caller_owned_boundary,
+                ..
+            }) = consume_record_colon_invalid_run(i) {
+                caller_owned_boundary = recovered_caller_owned_boundary;
+                if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
+                    consume_recovery_trivia(i, &trivia);
+                }
+                let recovered_colon = scan_exact_colon(i);
+                let type_expected = recovered_colon.is_some() || type_primary_candidate(i);
+                (
+                    Recovered::Complete(name),
+                    recovered_colon.map_or(Recovered::Incomplete, Recovered::Complete),
+                    type_expected,
+                )
+            } else {
+                let type_expected = type_primary_candidate(i);
+                (Recovered::Complete(name), Recovered::Incomplete, type_expected)
+            }
         }
     } else if let Some(colon) = scan_exact_colon(i) {
         (Recovered::Incomplete, Recovered::Complete(colon), true)
@@ -2712,7 +2771,9 @@ where
     } else {
         return None;
     };
-    let _ = consume_type_chain_trivia(i);
+    if !caller_owned_boundary {
+        let _ = consume_type_chain_trivia(i);
+    }
     let type_expr = if !type_expected {
         Recovered::Incomplete
     } else if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
@@ -2735,7 +2796,10 @@ where
         }
     };
     let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
-    Some(TypeRecordField { name, colon, type_expr, range: start..end })
+    Some(ParsedTypeRecordField {
+        field: TypeRecordField { name, colon, type_expr, range: start..end },
+        caller_owned_boundary,
+    })
 }
 
 struct AstTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
@@ -3451,6 +3515,10 @@ pub(super) enum TypeItemRecovery {
 struct TypeInvalidRunRecovery {
     error_range: Range<usize>,
     disposition: TypeInvalidRunDisposition,
+    /// `TMN-CallerBoundary` has already established that an enclosing owner
+    /// reserved this newline.  Local sequence adapters must not reclassify
+    /// the untouched trivia and reopen that boundary.
+    caller_owned_boundary: bool,
 }
 
 enum TypeInvalidRunDisposition {
@@ -3478,6 +3546,7 @@ where
     scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
+        false,
         direct_type_primary_candidate,
         type_recovery_boundary_pending,
     )
@@ -3495,6 +3564,7 @@ where
     scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
+        false,
         direct_type_primary_candidate,
         type_recovery_boundary_pending,
     )
@@ -3506,6 +3576,7 @@ where
 fn scan_type_item_invalid_run_with_disposition<E, Candidate, Boundary>(
     i: &mut SynIn<E>,
     newline_policy: TypeMalformedNewlinePolicy,
+    retry_after_same_line_trivia: bool,
     mut candidate: Candidate,
     mut boundary: Boundary,
 ) -> Option<TypeInvalidRunRecovery>
@@ -3533,10 +3604,11 @@ where
 
         if end > start {
             // TMN-S step 1: owner boundaries precede retry candidates.
-            if boundary(i) {
+            if !type_malformed_same_line_trivia_pending(i) && boundary(i) {
                 return Some(TypeInvalidRunRecovery {
                     error_range: start..end,
                     disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                    caller_owned_boundary: false,
                 });
             }
             // Step 2 has no canonical mandatory-primary handoff candidate.
@@ -3544,6 +3616,7 @@ where
                 return Some(TypeInvalidRunRecovery {
                     error_range: start..end,
                     disposition: TypeInvalidRunDisposition::RetryCurrent,
+                    caller_owned_boundary: false,
                 });
             }
 
@@ -3552,13 +3625,21 @@ where
             let checkpoint = i.checkpoint();
             let trivia = consume_trivia(i);
             match classify_type_malformed_trivia(i, &trivia, newline_policy) {
-                TypeMalformedTriviaClassification::CallerBoundary
-                | TypeMalformedTriviaClassification::Handoff
+                TypeMalformedTriviaClassification::CallerBoundary => {
+                    i.rollback(checkpoint);
+                    return Some(TypeInvalidRunRecovery {
+                        error_range: start..end,
+                        disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                        caller_owned_boundary: true,
+                    });
+                }
+                TypeMalformedTriviaClassification::Handoff
                 | TypeMalformedTriviaClassification::Boundary => {
                     i.rollback(checkpoint);
                     return Some(TypeInvalidRunRecovery {
                         error_range: start..end,
                         disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                        caller_owned_boundary: false,
                     });
                 }
                 TypeMalformedTriviaClassification::DeeperContinuation => {
@@ -3567,6 +3648,7 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia),
+                            caller_owned_boundary: false,
                         });
                     }
                     if candidate(i) {
@@ -3574,6 +3656,7 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
+                            caller_owned_boundary: false,
                         });
                     }
                     i.rollback(checkpoint);
@@ -3584,6 +3667,15 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                            caller_owned_boundary: false,
+                        });
+                    }
+                    if retry_after_same_line_trivia && !trivia.is_empty() && candidate(i) {
+                        i.rollback(checkpoint);
+                        return Some(TypeInvalidRunRecovery {
+                            error_range: start..end,
+                            disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
+                            caller_owned_boundary: false,
                         });
                     }
                     i.rollback(checkpoint);
@@ -3591,10 +3683,11 @@ where
             }
         }
 
-        if boundary(i) {
+        if !type_malformed_same_line_trivia_pending(i) && boundary(i) {
             return (start < end).then_some(TypeInvalidRunRecovery {
                 error_range: start..end,
                 disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                caller_owned_boundary: false,
             });
         }
         // A comment may be malformed content, but it must remain one opaque
@@ -3613,6 +3706,7 @@ where
             return (start < end).then_some(TypeInvalidRunRecovery {
                 error_range: start..end,
                 disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                caller_owned_boundary: false,
             });
         };
         i.input.next()?;
@@ -3621,6 +3715,28 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
     }
+}
+
+/// A horizontal gap defers an owner boundary only when its maximal trivia run
+/// also contains a newline.  That lets TMN-C own the newline without changing
+/// the legacy same-line boundary contract.
+fn type_malformed_same_line_trivia_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !matches!(
+        i.input.remainder().chars().next(),
+        Some(character) if character.is_whitespace() && !matches!(character, '\n' | '\r')
+    ) {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i);
+    let contains_newline = trivia_has_newline(&trivia);
+    i.rollback(checkpoint);
+    contains_newline
 }
 
 /// The common cursor discipline for malformed TypeExpression-adjacent slots.
@@ -3721,7 +3837,11 @@ where
     let recovered = committed.probe(|probe| {
         scan_required_type_item_invalid_run(probe.input(), malformed_continuation_base)
     });
-    let TypeInvalidRunRecovery { error_range, disposition } = recovered?;
+    let TypeInvalidRunRecovery {
+        error_range,
+        disposition,
+        ..
+    } = recovered?;
     emit_type_error(committed, role, error_range, ExpectedSyntax::TypeExpression);
     Some(disposition)
 }
@@ -3900,6 +4020,7 @@ where
     scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
+        false,
         type_name_pending,
         type_path_invalid_boundary_pending,
     )
@@ -3917,22 +4038,13 @@ where
     let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
         continuation_base: active_type_continuation_base(i),
     };
-    let mut recovery = scan_type_item_invalid_run_with_disposition(
+    scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
-        record_field_head_candidate_after_trivia,
+        true,
+        record_field_head_candidate,
         record_invalid_boundary_pending,
-    )?;
-    if matches!(recovery.disposition, TypeInvalidRunDisposition::RetryCurrent)
-        && !record_field_head_candidate(i)
-    {
-        let checkpoint = i.checkpoint();
-        let trivia = consume_trivia(i);
-        debug_assert!(record_field_head_candidate(i));
-        i.rollback(checkpoint);
-        recovery.disposition = TypeInvalidRunDisposition::RetryAfterTrivia(trivia);
-    }
-    Some(recovery)
+    )
 }
 
 fn consume_record_colon_invalid_run<E>(i: &mut SynIn<E>) -> Option<TypeInvalidRunRecovery>
@@ -3943,6 +4055,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let recovery = scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
+        false,
         |i| exact_colon_pending(i) || type_primary_candidate(i),
         record_colon_invalid_boundary_pending,
     )?;
@@ -3971,17 +4084,6 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         character.is_whitespace() && !matches!(character, '\n' | '\r')
     ) || character == ':')
         || type_recovery_boundary_pending(i)
-}
-
-fn record_field_head_candidate_after_trivia<E>(i: &mut SynIn<E>) -> bool
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    let checkpoint = i.checkpoint();
-    let trivia = consume_trivia(i);
-    let candidate = !trivia.is_empty()
-        && type_chain_trivia(i, &trivia)
-        && record_field_head_candidate(i);
-    i.rollback(checkpoint);
-    candidate
 }
 
 fn record_comma_pending<E>(i: &mut SynIn<E>) -> bool
@@ -4088,7 +4190,10 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 fn record_field_head_candidate<E>(i: &mut SynIn<E>) -> bool
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
-    let candidate = scan_plain_type_identifier(i).is_some_and(|_| {
+    let candidate = scan_plain_type_identifier(i).is_some_and(|name| {
+        if name.text().ends_with('!') {
+            return false;
+        }
         let trivia = consume_trivia(i);
         type_chain_trivia(i, &trivia) && scan_exact_colon(i).is_some()
     });
@@ -4636,6 +4741,24 @@ mod tests {
     }
 
     #[test]
+    fn malformed_forall_recovery_yields_an_active_newline_before_a_deeper_binder() {
+        let source = "for @ \n  'a: T";
+        let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  'a: T");
+        assert!(matches!(ast.primary, TypePrimary::Forall(ForallType {
+            binders, ..
+        }) if matches!(binders.as_slice(), [Recovered::Incomplete])));
+
+        let (remainder, recoveries) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  'a: T");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::ForallBinder)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (4..5)), "{recoveries:#?}");
+    }
+
+    #[test]
     fn mandatory_type_recovery_commits_a_malformed_run_before_a_delimiter() {
         let (remainder, recoveries) =
             parse_direct_mandatory_prefix_with_outer_stop("@)", None, None);
@@ -5038,6 +5161,29 @@ mod tests {
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (2..3)), "{recoveries:#?}");
         assert_eq!(parse_direct("T(@\n  )").to_string(), "T(@\n  )");
+    }
+
+    #[test]
+    fn malformed_delimited_item_never_reopens_an_active_newline_boundary() {
+        let source = "T(@ \n  A)";
+        let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  A)");
+        assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+            arguments, close: Recovered::Incomplete, ..
+        })] if matches!(arguments.as_slice(), [Recovered::Incomplete])));
+
+        let (remainder, recoveries) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  A)");
+        assert!(matches!(recoveries.as_slice(), [error, close]
+            if error.site.role == GrammarRole::Type(TypeRole::CallArgument)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (2..3)
+                && matches!(close.site.role, GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::TypeCall,
+                    delimiter: Delimiter::Parenthesis,
+                })
+                && close.kind == RecoveryKind::Missing), "{recoveries:#?}");
     }
 
     #[test]
@@ -5486,6 +5632,44 @@ mod tests {
     }
 
     #[test]
+    fn named_record_recovery_yields_an_active_newline_before_a_deeper_field() {
+        let source = "{@ \n  a:A}";
+        let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  a:A}");
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Incomplete, ..
+        }) if matches!(fields.as_slice(), [Recovered::Incomplete])));
+
+        let (remainder, recoveries) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  a:A}");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (1..2)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn named_record_field_colon_recovery_yields_an_active_newline() {
+        let source = "{a @ \n  b:B}";
+        let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  b:B}", "{ast:#?}");
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            fields, close: Recovered::Incomplete, ..
+        }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
+            name: Recovered::Complete(_), colon: Recovered::Incomplete, ..
+        })])));
+
+        let (remainder, recoveries) =
+            parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
+        assert_eq!(remainder, " \n  b:B}");
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (3..4)), "{recoveries:#?}");
+    }
+
+    #[test]
     fn malformed_record_name_hands_plain_identifier_to_whole_field_recovery() {
         let source = "{@foo!: A}";
         let ast = parse(source);
@@ -5498,6 +5682,29 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (1..9)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn malformed_record_item_retries_an_immediately_adjacent_complete_field() {
+        let source = "{@a:A}";
+        let ast = parse(source);
+        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+            ref fields, close: Recovered::Complete(_), ..
+        }) if matches!(fields.as_slice(), [
+            Recovered::Incomplete,
+            Recovered::Complete(TypeRecordField {
+                name: Recovered::Complete(_),
+                colon: Recovered::Complete(_),
+                type_expr: Recovered::Complete(_),
+                ..
+            }),
+        ])), "{ast:#?}");
+
+        let recoveries = parse_direct_recovered(source);
+        assert!(matches!(recoveries.as_slice(), [error]
+            if error.site.role == GrammarRole::Type(TypeRole::RecordField)
+                && error.kind == RecoveryKind::Error
+                && error.site.range == (1..2)), "{recoveries:#?}");
     }
 
     #[test]
