@@ -1550,21 +1550,11 @@ where
             let Some(TypeInvalidRunRecovery {
                 error_range,
                 disposition,
-                caller_owned_boundary,
             }) = recovered else {
                 context.emit_incomplete_item(spec.item_role());
                 break;
             };
             context.emit_item_error(spec.item_role(), error_range);
-            if caller_owned_boundary {
-                debug_assert!(matches!(
-                    disposition,
-                    TypeInvalidRunDisposition::BoundaryCurrent
-                        | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
-                ));
-                context.emit_malformed_item();
-                break;
-            }
             let target = match disposition {
                 TypeInvalidRunDisposition::RetryCurrent => continue,
                 TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -1857,7 +1847,6 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     let layout = committed.probe(|probe| LayoutDelimitedFrame::after_opening_trivia(incoming, &opening, probe.input().local.line().line_indent));
     committed.probe(|probe| push_layout(layout, probe.input()));
     let mut after_semicolon = false;
-    let mut caller_owned_boundary = false;
     loop {
         if after_semicolon {
             match committed.probe(|probe| classify_named_record_recovery(layout, probe.input())) {
@@ -1900,23 +1889,12 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             after_semicolon = true;
             continue;
         }
-        let parsed_field = commit_direct_type_record_field(committed);
-        if parsed_field.is_none() {
+        if !commit_direct_type_record_field(committed) {
             if let Some(TypeInvalidRunRecovery {
                 error_range,
                 disposition,
-                caller_owned_boundary: recovered_caller_owned_boundary,
             }) = committed.probe(|probe| scan_record_invalid_run(probe.input())) {
                 emit_type_error(committed, TypeRole::RecordField, error_range, ExpectedSyntax::Identifier);
-                if recovered_caller_owned_boundary {
-                    debug_assert!(matches!(
-                        disposition,
-                        TypeInvalidRunDisposition::BoundaryCurrent
-                            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
-                    ));
-                    caller_owned_boundary = true;
-                    break;
-                }
                 let target = match disposition {
                     TypeInvalidRunDisposition::RetryCurrent => continue,
                     TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -1983,10 +1961,6 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
             break;
         }
-        if parsed_field.as_ref().is_some_and(|field| field.caller_owned_boundary) {
-            caller_owned_boundary = true;
-            break;
-        }
         if committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())) {
             break;
         }
@@ -2036,13 +2010,9 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
     committed.finish_node();
 }
 
-struct DirectTypeRecordFieldCommit {
-    caller_owned_boundary: bool,
-}
-
 fn commit_direct_type_record_field<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<DirectTypeRecordFieldCommit>
+) -> bool
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -2064,10 +2034,9 @@ where
         None
     };
     if name.is_none() && missing_name_colon.is_none() && malformed_name.is_none() {
-        return None;
+        return false;
     }
     committed.start_node(SyntaxKind::TypeRecordField);
-    let mut caller_owned_boundary = false;
     let type_expected;
     if let Some(name) = name {
         committed.token(SyntaxKind::Identifier, name.range());
@@ -2091,7 +2060,6 @@ where
         } else if let Some(TypeInvalidRunRecovery {
             error_range,
             disposition,
-            caller_owned_boundary: recovered_caller_owned_boundary,
         }) = committed.probe(|probe| consume_record_colon_invalid_run(probe.input())) {
             emit_type_error(
                 committed,
@@ -2099,7 +2067,6 @@ where
                 error_range,
                 ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
             );
-            caller_owned_boundary = recovered_caller_owned_boundary;
             if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
                 consume_direct_recovery_trivia(committed, &trivia);
             }
@@ -2125,10 +2092,8 @@ where
         }
         type_expected = true;
     }
-    if !caller_owned_boundary {
-        if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
-            committed.emit_trivia(&trivia);
-        }
+    if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
+        committed.emit_trivia(&trivia);
     }
     if type_expected && commit_direct_type_expression(committed).is_none() {
         match direct_required_type_item_error_retry(
@@ -2155,9 +2120,7 @@ where
         }
     }
     committed.finish_node();
-    Some(DirectTypeRecordFieldCommit {
-        caller_owned_boundary,
-    })
+    true
 }
 
 
@@ -2599,7 +2562,6 @@ where
     let mut fields = Vec::new();
     let mut trailing_comma = None;
     let mut after_semicolon = false;
-    let mut caller_owned_boundary = false;
     loop {
         if after_semicolon {
             match classify_named_record_recovery(layout, i) {
@@ -2635,30 +2597,15 @@ where
             continue;
         }
         if let Some(parsed_field) = parse_type_record_field(i) {
-            let field_caller_owned_boundary = parsed_field.caller_owned_boundary;
-            fields.push(Recovered::Complete(parsed_field.field));
-            if field_caller_owned_boundary {
-                caller_owned_boundary = true;
-                break;
-            }
+            fields.push(Recovered::Complete(parsed_field));
             if type_malformed_caller_boundary_pending(i) {
                 break;
             }
         } else if let Some(TypeInvalidRunRecovery {
             disposition,
-            caller_owned_boundary: recovered_caller_owned_boundary,
             ..
         }) = recover_record_item_for_ast(i) {
             fields.push(Recovered::Incomplete);
-            if recovered_caller_owned_boundary {
-                debug_assert!(matches!(
-                    disposition,
-                    TypeInvalidRunDisposition::BoundaryCurrent
-                        | TypeInvalidRunDisposition::BoundaryAfterTrivia(_)
-                ));
-                caller_owned_boundary = true;
-                break;
-            }
             let target = match disposition {
                 TypeInvalidRunDisposition::RetryCurrent => continue,
                 TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -2740,19 +2687,13 @@ where
     NamedRecordType { open: open.clone(), fields, trailing_comma, close, range: open.start..end }
 }
 
-struct ParsedTypeRecordField<'source> {
-    field: TypeRecordField<'source>,
-    caller_owned_boundary: bool,
-}
-
-fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<ParsedTypeRecordField<'source>>
+fn parse_type_record_field<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeRecordField<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let mut caller_owned_boundary = false;
     let (name, colon, type_expected) = if let Some(name) = scan_plain_type_identifier(i) {
         let _ = consume_type_chain_trivia(i);
         if let Some(colon) = scan_exact_colon(i) {
@@ -2764,10 +2705,8 @@ where
         } else {
             if let Some(TypeInvalidRunRecovery {
                 disposition,
-                caller_owned_boundary: recovered_caller_owned_boundary,
                 ..
             }) = consume_record_colon_invalid_run(i) {
-                caller_owned_boundary = recovered_caller_owned_boundary;
                 if let TypeInvalidRunDisposition::RetryAfterTrivia(trivia) = disposition {
                     consume_recovery_trivia(i, &trivia);
                 }
@@ -2790,9 +2729,7 @@ where
     } else {
         return None;
     };
-    if !caller_owned_boundary {
-        let _ = consume_type_chain_trivia(i);
-    }
+    let _ = consume_type_chain_trivia(i);
     let type_expr = if !type_expected {
         Recovered::Incomplete
     } else if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
@@ -2815,10 +2752,7 @@ where
         }
     };
     let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
-    Some(ParsedTypeRecordField {
-        field: TypeRecordField { name, colon, type_expr, range: start..end },
-        caller_owned_boundary,
-    })
+    Some(TypeRecordField { name, colon, type_expr, range: start..end })
 }
 
 struct AstTypeDelimitedContext<'context, 'parse, 'source, 'local, E: ErrorSink<usize>> {
@@ -3576,10 +3510,6 @@ pub(super) enum TypeItemRecovery {
 struct TypeInvalidRunRecovery {
     error_range: Range<usize>,
     disposition: TypeInvalidRunDisposition,
-    /// `TMN-CallerBoundary` has already established that an enclosing owner
-    /// reserved this newline.  Local sequence adapters must not reclassify
-    /// the untouched trivia and reopen that boundary.
-    caller_owned_boundary: bool,
 }
 
 enum TypeInvalidRunDisposition {
@@ -3676,7 +3606,6 @@ where
                     return Some(TypeInvalidRunRecovery {
                         error_range: start..end,
                         disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                        caller_owned_boundary: true,
                     });
                 }
                 TypeMalformedTriviaClassification::Handoff
@@ -3685,7 +3614,6 @@ where
                     return Some(TypeInvalidRunRecovery {
                         error_range: start..end,
                         disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                        caller_owned_boundary: false,
                     });
                 }
                 TypeMalformedTriviaClassification::DeeperContinuation => {
@@ -3694,7 +3622,6 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia),
-                            caller_owned_boundary: false,
                         });
                     }
                     if candidate(i) {
@@ -3702,7 +3629,6 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
-                            caller_owned_boundary: false,
                         });
                     }
                     // No post-trivia boundary or retry owns this deeper run.
@@ -3721,14 +3647,12 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                            caller_owned_boundary: false,
                         });
                     }
                     if candidate(i) {
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::RetryCurrent,
-                            caller_owned_boundary: false,
                         });
                     }
 
@@ -3741,7 +3665,6 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                            caller_owned_boundary: false,
                         });
                     }
                     if retry_after_same_line_trivia && !trivia.is_empty() && candidate(i) {
@@ -3749,7 +3672,6 @@ where
                         return Some(TypeInvalidRunRecovery {
                             error_range: start..end,
                             disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
-                            caller_owned_boundary: false,
                         });
                     }
                     i.rollback(checkpoint);
@@ -3757,11 +3679,10 @@ where
             }
         }
 
-        if end == start && !type_malformed_same_line_trivia_pending(i) && boundary(i) {
+        if end == start && boundary(i) {
             return (start < end).then_some(TypeInvalidRunRecovery {
                 error_range: start..end,
                 disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                caller_owned_boundary: false,
             });
         }
         // A comment may be malformed content, but it must remain one opaque
@@ -3780,7 +3701,6 @@ where
             return (start < end).then_some(TypeInvalidRunRecovery {
                 error_range: start..end,
                 disposition: TypeInvalidRunDisposition::BoundaryCurrent,
-                caller_owned_boundary: false,
             });
         };
         i.input.next()?;
@@ -3789,28 +3709,6 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
     }
-}
-
-/// A horizontal gap defers an owner boundary only when its maximal trivia run
-/// also contains a newline.  That lets TMN-C own the newline without changing
-/// the legacy same-line boundary contract.
-fn type_malformed_same_line_trivia_pending<E>(i: &mut SynIn<E>) -> bool
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    if !matches!(
-        i.input.remainder().chars().next(),
-        Some(character) if character.is_whitespace() && !matches!(character, '\n' | '\r')
-    ) {
-        return false;
-    }
-    let checkpoint = i.checkpoint();
-    let trivia = consume_trivia(i);
-    let contains_newline = trivia_has_newline(&trivia);
-    i.rollback(checkpoint);
-    contains_newline
 }
 
 /// The common cursor discipline for malformed TypeExpression-adjacent slots.
