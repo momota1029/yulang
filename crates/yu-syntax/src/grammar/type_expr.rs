@@ -2721,26 +2721,6 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     candidate
 }
 
-fn scan_mismatched_record_close<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
-where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
-    let checkpoint = i.checkpoint();
-    let Some(punctuation) = i.run(scan_punctuation) else {
-        i.rollback(checkpoint);
-        return None;
-    };
-    let outer_owned = match punctuation.kind() {
-        PunctuationKind::Close(Delimiter::Parenthesis) => active_stop_set(i).contains(StopKind::RightParenthesis),
-        PunctuationKind::Close(Delimiter::Bracket) => active_stop_set(i).contains(StopKind::RightBracket),
-        _ => false,
-    };
-    if matches!(punctuation.kind(), PunctuationKind::Close(delimiter) if delimiter != Delimiter::Brace) && !outer_owned {
-        Some(punctuation.range())
-    } else {
-        i.rollback(checkpoint);
-        None
-    }
-}
-
 fn scan_separator<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<TypeExplicitSeparator>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();

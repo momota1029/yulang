@@ -126,6 +126,44 @@ trait VariantContext<'source> {
     fn finish_payload(&mut self);
 }
 
+/// The variant judge retains ownership of tag-position transitions.  Once it
+/// yields its close slot, this adapter delegates only close retry/termination
+/// to the common delimited-close driver.
+struct VariantCloseSlotContext<'context, C> {
+    context: &'context mut C,
+}
+
+impl<'source, C> TypeCloseSlotContext<'source> for VariantCloseSlotContext<'_, C>
+where
+    C: VariantContext<'source>,
+{
+    type Error = C::Error;
+
+    fn with_input<R>(
+        &mut self,
+        f: impl FnOnce(&mut SynIn<'_, 'source, '_, Self::Error>) -> R,
+    ) -> R {
+        self.context.with_input(f)
+    }
+
+    fn emit_matching_close(&mut self, _kind: SyntaxKind, range: Range<usize>) {
+        self.context.emit_close(range);
+    }
+
+    fn emit_mismatched_close(
+        &mut self,
+        _role: GrammarRole,
+        range: Range<usize>,
+        _expected: ExpectedSyntax,
+    ) {
+        self.context.emit_close_error(range);
+    }
+
+    fn emit_missing_close(&mut self, _role: GrammarRole, _expected: ExpectedSyntax) {
+        self.context.emit_missing_close();
+    }
+}
+
 pub(super) fn parse<'source, E>(
     colon: Range<usize>,
     open: Range<usize>,
@@ -247,7 +285,7 @@ where
             closed = true;
             break;
         }
-        if let Some(mismatched) = context.with_input(scan_mismatched_record_close) {
+        if let Some(mismatched) = context.with_input(|i| scan_mismatched_close_for(Delimiter::Brace, i)) {
             context.emit_close_error(mismatched);
             continue;
         }
@@ -325,19 +363,16 @@ where
     }
 
     if !closed {
-        loop {
-            if let Some(close) = context.with_input(scan_close_brace) {
-                context.emit_close(close);
-                closed = true;
-                break;
-            }
-            if let Some(mismatched) = context.with_input(scan_mismatched_record_close) {
-                context.emit_close_error(mismatched);
-                continue;
-            }
-            context.emit_missing_close();
-            break;
-        }
+        let close = drive_type_close_slot(
+            &mut VariantCloseSlotContext { context },
+            CloseRecoverySpec {
+                delimiter: Delimiter::Brace,
+                owner: ConstructRole::PolymorphicVariantType,
+                matching_kind: SyntaxKind::RBrace,
+                missing_after_mismatch: MissingAfterMismatch::Emit,
+            },
+        );
+        closed = matches!(close, Recovered::Complete(_));
     }
     closed
 }
