@@ -14537,10 +14537,10 @@ tag nameとzero-or-more payload typeを持つown type primaryである。
 本追補が定める範囲は次だけである。
 
 - `TypePrimary::PolymorphicVariant(PolymorphicVariantType)`のrecognition、CST、AST。
-- comma / implicit newlineだけを受けるouter tag sequence。
+- comma / qualifying implicit newlineだけを受けるouter tag list。
 - plain `Identifier` tag nameと、same-line boundaryで連なるzero-or-more
-  `TypeExpressionInTypeMlScope` payload sequence（AST valueはfull `TypeExpression`）。
-- 二層sequenceのowner-safe typed recovery、AST / direct-CST parity、byte ownership。
+  `TypeExpressionInTypeMlScope` inner payload sequence（AST valueはfull `TypeExpression`）。
+- outer tag list / inner payload sequence間のowner-safe typed recovery、AST / direct-CST parity、byte ownership。
 
 struct / enum / error payload、cast / role / where / act signature、pattern type annotationへのwiringは行わない。
 bracket-row typeは引き続きreserved-but-unspecifiedである。original core addendumのdeferred forms listでは
@@ -14560,7 +14560,7 @@ outer `TypePolyVariantMachine`はexplicit separatorをcommaだけに限定した
 （`typ/parse.rs:507-514`）。shared `DelimitedListMachine`は`indent <= base_indent`のnewlineをimplicit
 separatorにし、matching closeをopener直後またはcomma後にacceptした
 （`crates/parser/src/parse/mod.rs:21-23,35-77`）。したがってempty `:{}`、actual closeが実在するtrailing comma、
-comma / qualifying newline tag listはvalidであり、semicolonはvalid separatorではない。
+comma / qualifying implicit newlineで区切るouter tag listはvalidであり、semicolonはvalid separatorではない。
 
 tag parserはheadを`TypNudTag::Atom`かつplain `SyntaxKind::Ident`へ限定した。uppercase判定やconstructor専用tokenはなく、
 SigilIdent、Number、groupはtag headにならない（`typ/parse.rs:522-534`）。accepted name後はpayload loopへ入り、
@@ -14579,7 +14579,7 @@ dedicated fixtureは次の三件である。
   （`crates/parser/tests/type_grammar.rs:165-188`）。
 - `:{A Int Bool}`はone tag `A`直下にtwo sibling `TypeExpr` payloadを作り、payload間separator nodeを作らない
   （同`:192-212`）。
-- `:{A Int\nB}`はnewlineでpayload listを終え、outer machineがempty `Separator` nodeを置いてtag `B`へ進む
+- `:{A Int\nB}`はnewlineでinner payload sequenceを終え、outer machineがempty `Separator` nodeを置いてtag `B`へ進む
   （同`:216-238`）。
 
 type LED scannerはcolonを`MlNud(PolyVariantStart)`へfall throughでき、outer tailはそれをordinary `TypeApply` argument
@@ -14587,29 +14587,38 @@ type LED scannerはcolonを`MlNud(PolyVariantStart)`へfall throughでき、oute
 TypeApply slotへ現れ得るprimaryである。
 
 Yulang2はpolymorphic-variant-specific recovery tableを持たない。non-brace after colon、invalid tag head、unknown
-separatorはgeneric `InvalidToken`へ落ち、list closeもshared untyped machineへ委ねた
+separatorはgeneric `InvalidToken`へ落ち、delimited closeもshared untyped machineへ委ねた
 （`typ/parse.rs:385-394,527-531`、`parse/mod.rs:35-77`）。以下のtyped recoveryはYulang3-local contractである。
 
 ### Architectural decisions
 
 1. polymorphic variantはcanonical `TypePrimary`であり、postfix tailやdynamic operatorではない。
 2. introducerはexact adjacent `Colon LBrace` pair `":{"`である。complete pairのsink-free probe成功後だけcutする。
-3. payload boundaryはnon-empty same-line triviaだけである。physical newlineはindentに関係なくinner payload listを終了する。
+3. payload boundaryはnon-empty same-line triviaだけである。physical newlineはindentに関係なくinner payload sequenceを終了する。
 4. outer tag listだけがcomma / qualifying implicit newlineをseparatorとして所有する。semicolonをacceptしない。
 5. tag nameはplain `Identifier`であり、uppercase conventionをparser constraintへ昇格しない。
 6. payloadはfull fixed-precedence `TypeExpression`だが、one payload parse中はexisting `type_ml_arg` modeをpushし、
    次のnon-empty triviaをcurrent payloadのTypeApplyへ吸収させない。
-7. outer listとinner repetitionはdistinct owner phaseを持ち、同じtrivia / token / recovery siteを二重にclaimしない。
+7. outer tag listとinner payload sequenceはdistinct owner phaseを持ち、同じtrivia / token / recovery siteを二重にclaimしない。
 8. optional probeはstate-neutralであり、accepted pair後のnormal / recovery / rollbackはdelimiter、stop、layout、
    type-delimited owner、type-ML stateをexact restoreする。
+
+本追補でYulang3 grammar mechanismを指すcanonical termsは`outer tag list`と`inner payload sequence`である。oracle facts内の
+`TypePolyVariantMachine` / outer machine / payload loopはYulang2 implementation固有名、synthetic wrapperはCST node shapeの語であり、
+canonical mechanism名の別表記ではない。
 
 ### Introducer adjacency decision
 
 authoritative introducerをexact adjacent `":{"`とする。
 
 ```text
-AdjacentPolyVariantOpen := Colon LBrace where Colon.end == LBrace.start
+AdjacentLBrace :=
+    LBrace whose first byte is exactly Colon.end
 ```
+
+これはEffectRowTypeの`Apostrophe AdjacentLBracket` / `AdjacentLBracket := LBracket whose first byte is exactly Apostrophe.end`
+と同じBNF patternである。pair probeはatomicだが、`Colon`と`AdjacentLBrace`は引き続き別terminalなので、ASTの`colon` / `open`
+fieldとCSTのtwo-token ownershipをそのまま表せる。
 
 colonはapostropheと違いSigilIdentifierとlexically競合しない。それでもadjacent pairを選ぶ理由は、colon単体がfuture
 type annotation / predicate / declaration ownerのstructural stopになり得るためである。colonだけでprematurely cutし、その後の
@@ -14684,7 +14693,7 @@ poly_variant_base :=
 ```
 
 payload boundaryにはunbounded `G*`もdeeper-newline caseもない。one maximal trivia clusterがphysical newlineを
-含まなければboundary、含めばinner loopはtrivia前へrollbackしてtagを終了する。outer listは同じtriviaをexactly once
+含まなければboundary、含めばinner payload sequenceはtrivia前へrollbackしてtagを終了する。outer tag listは同じtriviaをexactly once
 classifyし、following indent `<= poly_variant_base`ならimplicit tag boundaryとしてconsumeする。following indentが
 strictly deeperならvalid tag separatorではなく、payloadにも戻さない。close recoveryはそのnewlineをsafe pointとして
 consumeせずouter callerへ返す。このownershipは後述の`IT-1` -> `NT-5` -> `NT-7` branchで一度だけ定義する。
@@ -14692,10 +14701,10 @@ consumeせずouter callerへ返す。このownershipは後述の`IT-1` -> `NT-5`
 このstrict ruleをforallへ揃えて緩めない。forallではnext apostrophe binderとcolonがterminationをlexically区別するが、
 polymorphic variantではnext payload typeとnext tagの両方がplain Identifierから始まり得る。deeper newlineをpayload
 continuationにすると`A Int\n  B`の`B`をpayloadかtagかsyntaxだけで区別できない。Yulang2のany-newline hard stopを保存し、
-indentはouter separator authorityだけに使う。
+indentはouter tag list separator authorityだけに使う。
 
 payloadはnon-empty same-line boundaryを要求する。Yulang2 loopにはnon-empty-trivia assertionがなく、adjacent `(`等を
-payload NUDとして機械的にacceptし得たがfixture evidenceはない。Yulang3はpayload repetitionをML-style source surfaceとして
+payload NUDとして機械的にacceptし得たがfixture evidenceはない。Yulang3はinner payload sequenceをML-style source surfaceとして
 明示し、`A(Int)`にはzero-width missing payload boundary recoveryを適用する。このintentional clarificationは後述する。
 
 ### Primary recognition and tail interaction
@@ -14748,7 +14757,7 @@ pub struct PolymorphicVariantPayload<'source> {
 }
 ```
 
-payload wrapperはsynthetic list wrapperではない。each payloadがmandatory leading same-line boundaryとnested typeという
+payload wrapperはinner payload sequence全体を囲むsynthetic wrapperではない。each payloadがmandatory leading same-line boundaryとnested typeという
 二つのrecoverable slotをsource orderで所有するためのsource-bearing nodeである。valid boundary rangeはtrivia cluster全体、
 payload rangeはboundary startからtype endまでである。adjacent payload recoveryではboundaryだけIncomplete、typeはCompleteに
 できる。malformed payloadがtag boundaryまで達した場合はcomplete payload skeleton内のtype slotをIncompleteにする。
@@ -14787,7 +14796,7 @@ GrammarRole::ClosingDelimiter {
 `PolymorphicVariantTagSeparator`だけはexisting delimited-list separator roleと同じcommitted diagnostic roleであり、
 source-absent separator AST fieldを作らない。literal / malformed punctuationとraw triviaはlossless CSTに残る。
 
-### Outer tag-list machinery
+### Outer tag list machinery
 
 `":{"` accept後、次をone outer frame episodeとしてpushする。
 
@@ -14799,7 +14808,7 @@ layout             = LayoutDelimitedFrame(poly_variant_base)
 explicit separator = Comma only
 ```
 
-これはNamedRecordTypeのcomma / implicit-newline frameをparameterizeして再利用する。outerのtoken authority、safe point、
+これはNamedRecordTypeのcomma / qualifying implicit newline frameをparameterizeして再利用する。outerのtoken authority、safe point、
 retry順を以下の`CanonicalNewTagPositionJudge`だけが定義する。recovery table、inner handoff、fixture説明はこのjudgeのbranch名を
 参照し、独自のpriority / safe-point listを持たない。
 
@@ -14811,36 +14820,44 @@ retry順を以下の`CanonicalNewTagPositionJudge`だけが定義する。recove
 - commaまたはqualifying implicit newline後。
 - non-caller-owned semicolon Error episode後。
 - malformed tag prefixのsame-slot retry後。
-- local mismatched-closer recoveryのretry後。
+- local mismatched closer recoveryのretry後。
 - complete / recovered tagを`IT`が終了してouterへhandoffした位置。
 
 entry originはauthorityを変えない。leading gapが存在するentryはgap直前、存在しないentryはcurrent token位置をcheckpointとし、
-各probeはsink-freeに同じ位置から比較する。sequence stateはleading / repeated / trailing separator時のAST slot数だけを決め、
+各probeはsink-freeに同じ位置から比較する。outer tag list stateはleading / repeated / trailing separator時のAST slot数だけを決め、
 tokenの分類priorityを変えない。`NT-1..6` / `NT-8`がlocal progressをcommitするとき、same-line leading gapはouter
 `PolymorphicVariantType`がtoken直前へexactly once emitする。`NT-7`はleading gapもboundary tokenもconsumeしない。
 physical-newline gapのownershipだけは`NT-5`が決める。
 
+用語上、`active caller stop`はenclosing ownerが登録したboundary tokenのgeneral categoryである。そのcurrent tokenがsemicolon
+であるspecific instanceだけを`active caller-owned semicolon`と呼び、local authorityを持つinverse caseを
+`non-caller-owned semicolon`と呼ぶ。この三語はsynonymではなくcategory / instance / complementの関係である。
+
 `NT`のauthoritative orderは次だけである。
 
-1. **`NT-1 MatchingClose`:** actual current-owner `}`。opener直後ならvalid empty、complete tag直後ならnormal close、
-   comma / qualifying newline直後ならactual-close-present trailing boundaryとしてacceptする。
+1. **`NT-1 MatchingClose`:** actual current-owner `}`。opener直後ならvalid empty、complete / recovered tag直後ならnormal close、
+   comma / qualifying implicit newline後のunfilled tag-required stateならactual-close-present trailing boundaryとしてacceptする。
+   filled stateならexisting Incomplete tagを保持してcloseし、second tag slotを作らない。
 2. **`NT-2 ClosingDelimiter`:** other closing-delimiter token。active callerがownするouter closeならconsumeせず`NT-7`へ渡す。
    それ以外のlocal mismatched closerは`Error(ClosingDelimiter(PolymorphicVariantType))`としてconsumeし、same close slotから
    `NT`へretryする。
-3. **`NT-3 Comma`:** literal comma。complete tag後ならexplicit boundary、tag-required stateならone Missing tag slotを置く
-   leading / repeated boundaryとしてconsumeし、`NT`へre-enterする。
-4. **`NT-4 Semicolon`:** literal semicolon。active caller-owned stopならlocal authorityを得ず`NT-7`へ渡す。
-   caller-ownedでない場合だけexact tokenへ`Error(PolymorphicVariantTagSeparator)`をcommitし、tag slotを作らず`NT`へ
+3. **`NT-3 Comma`:** literal comma。complete / recovered tag後ならexplicit boundaryとしてunfilled tag-required stateへ入る。すでに
+   tag-required stateならone Missing tag slotをcomma位置で満たすleading / repeated boundaryとしてconsumeし、filled stateで
+   `NT`へre-enterする。
+4. **`NT-4 Semicolon`:** literal semicolon。active caller-owned semicolonならlocal authorityを得ず`NT-7`へ渡す。
+   non-caller-owned semicolonの場合だけexact tokenへ`Error(PolymorphicVariantTagSeparator)`をcommitし、tag slotを作らず`NT`へ
    re-enterする。このbranchはopener直後にも同じように適用するため、`:{;A}`を取りこぼさない。
-5. **`NT-5 PhysicalNewline`:** physical newline。`indent <= poly_variant_base`ならqualifying implicit boundaryとして
-   exactly once consumeし`NT`へre-enterする。strictly deeperならconsumeせず`NT-7`へ渡す。
+5. **`NT-5 PhysicalNewline`:** physical newline。`indent <= poly_variant_base`ならqualifying implicit newlineとして
+   exactly once consumeし、complete / recovered tag後ならunfilled tag-required stateへ入り、すでにtag-requiredならそのfilled / unfilled
+   statusを保って`NT`へre-enterする。strictly deeperならconsumeせず`NT-7`へ渡す。
 6. **`NT-6 CanonicalTypePrimary`:** core TypeExpression primary judgeをそのまま一回probeする。exact contextual `for`、
    exact compound `'[` / `:{`、other structured primaryがordinary wordより先にauthorityを得る。resultがplain Identifierなら
    tag name Completeとして`CanonicalInTagPayloadJudge`（`IT`）へ進む。non-Identifier primaryならcandidate own rangeへ
    `Error(PolymorphicVariantTagName, Identifier)`をcommitし、name Incompleteのone tag skeletonを作って`IT`へ進む。
-7. **`NT-7 OwnerBoundary`:** EOF、active caller stop、active caller-owned semicolon、outer-owned close、または`NT-5`の
-   non-qualifying newline。zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))`を置き、boundary / leading gapを
-   consumeせずcallerへ返す。comma後のtag-required stateだけはdistinct one Missing tag slotを先に満たす。
+7. **`NT-7 OwnerBoundary`:** EOF、active caller stop（semicolon instanceはactive caller-owned semicolon）、outer-owned close、または`NT-5`の
+   non-qualifying physical newline。zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))`を置き、boundary / leading gapを
+   consumeせずcallerへ返す。commaまたはqualifying implicit newline後のtag-required stateがunfilledなら、distinct one
+   Missing tag slotを先に満たす。leading / repeated `NT-3`が同じslotをすでにfilledにした場合はsecond Missingを作らない。
 8. **`NT-8 MalformedRun`:** 以上にclaimされないnon-empty bytes。one maximal `Error(PolymorphicVariantTag)`として、
    下記`NT-safe`直前までconsumeする。plain Identifier candidateならsame whole-tag slotをnormal retryし、non-Identifier
    TypePrimary candidateならsame slotの`NT-6` wrong-kind branchへretryする。その他のsafe pointならtag Incompleteのまま
@@ -14849,7 +14866,11 @@ physical-newline gapのownershipだけは`NT-5`が決める。
 `NT-8` scannerの**唯一のauthoritative safe-point set (`NT-safe`)**は、actual `}`、any other closing-delimiter token、comma、
 any semicolon、any physical newline、EOF、any active caller stop / outer-owned close、plain Identifier candidate、
 non-Identifier canonical TypePrimary candidateである。safe-point byte / triviaはpreceding Errorへ含めない。actual-close-first、
-caller-owned filtering、valid-trailing-vs-missing-tag等のoutcomeは`NT-1..NT-7`が決め、scanner側で再判定しない。
+canonical ownership filtering、valid-trailing-vs-missing-tag等のoutcomeは`NT-1..NT-7`が決め、scanner側で再判定しない。
+
+complete / recovered tag後の`NT-3` commaと`NT-5` qualifying implicit newlineはともにBNFの
+`PolyVariantTagBoundary`を実現し、consume後は同じunfilled tag-required stateを持つ。差はsource ownershipだけであり、
+commaだけがactual `NT-1` close時に`trailing_comma` fieldへ入り、qualifying implicit newlineは常にraw triviaとして残る。
 
 ### Canonical in-tag / payload scanner judge and two-level handoff
 
@@ -14915,12 +14936,21 @@ Missing separatorを作らない。依頼されたsame-line missing-separator re
 
 | source / context | canonical trace | resulting shape |
 | --- | --- | --- |
-| `:{;A}`、semicolonはcaller-ownedでない | opener直後の`NT-4`が`;`へone separator Error、`NT-6`が`A`をaccept、`IT-2`から`NT-1` close | tagsはComplete zero-payload `A`一件、close Complete。leading semicolon用tag slot / Missing tagなし |
+| `:{;A}`、non-caller-owned semicolon | opener直後の`NT-4`が`;`へone separator Error、`NT-6`が`A`をaccept、`IT-2`から`NT-1` close | tagsはComplete zero-payload `A`一件、close Complete。leading semicolon用tag slot / Missing tagなし |
 | `:{A@` + EOF | `NT-6`で`A`、empty-gap `IT-4`が`@`開始位置を`NT`へ返し、`NT-8`が`@`だけをTag Error、EOFで`NT-7` | Complete zero-payload `A` + one Incomplete malformed tag、close Incomplete。Payload Errorなし |
 | `(:{A@)`、`)`はactive caller stop | previous rowと同じ`IT-4` / `NT-8`、`)`で`NT-7` | Complete `A` + one Incomplete malformed tag、variant close Incomplete。`)`は未消費でouter parenthesized ownerがown |
 | `:{A` + EOF | `NT-6`で`A`、`IT-2`がEOFでzero-payload tagをfinish、`NT-7` | Complete zero-payload `A`一件、close Incomplete。tag / payload Missingなし |
 | `(:{A)`、`)`はactive caller stop | `NT-6`で`A`、`IT-2`が`)`でtagをfinish、`NT-7` | Complete zero-payload `A`一件、variant close Incomplete。`)`はcallerへ未消費で返す |
-| active callerが`;`をownする`:{A; ...` | `IT-2`から`NT-4`へhandoffし、caller-owned filterが`NT-7`へroute | Complete zero-payload `A`、close Incomplete。gap / `;`は未消費、separator Errorなし |
+| active caller-owned semicolon contextの`:{A; ...` | `IT-2`から`NT-4`へhandoffし、canonical ownership filterが`NT-7`へroute | Complete zero-payload `A`、close Incomplete。gap / `;`は未消費、separator Errorなし |
+
+#### Round-9 separator-state fixtures
+
+| source / context | canonical trace | resulting shape |
+| --- | --- | --- |
+| `:{A,` + EOF | `A`終了後の`NT-3`がcommaをconsumeしてtag-required state、EOFで`NT-7` | Complete `A` + one Incomplete missing tag、close Incomplete。commaはraw CST separatorで`trailing_comma = None` |
+| `:{A\n` + EOF、newlineはqualifying implicit newline | `A`終了後の`NT-5` qualifying implicit newlineがtriviaをconsumeしてtag-required state、EOFで`NT-7` | Complete `A` + one Incomplete missing tag、close Incomplete。newlineはraw CST trivia、`trailing_comma = None` |
+| `:{A` + EOF | `IT-2`がzero-payload `A`をfinishし、separator episodeなしで`NT-7` | Complete `A`だけ、tag Missingなし、close Incomplete |
+| `:{A Int, B}` | `IT-3`がpayload `Int`、`NT-3`がcomma boundary、`NT-6` / `IT-2`がzero-payload `B`、`NT-1` | Complete tags `A(Int)` / `B`、close Complete。既存oracle shape不変 |
 
 #### Previously verified regression fixtures
 
@@ -14928,10 +14958,10 @@ Missing separatorを作らない。依頼されたsame-line missing-separator re
 | --- | --- |
 | `:{A Int, B}` | Complete tag `A` + payload `Int`、explicit comma、Complete zero-payload tag `B`、close Complete |
 | `:{A Int Bool}` | one Complete tag `A` + sibling payloads `Int` / `Bool`。`Bool`は`Int`のTypeApplyではない |
-| `:{A Int\nB}` | `IT-1`がnewlineを返し、qualifying `NT-5`でtag boundary。tags `A(Int)` / `B` |
-| `:{A;B}` / `:{A ; B}` | caller-ownedでない`NT-4` Error一件、Complete zero-payload tags `A` / `B`。space有無でshape不変 |
+| `:{A Int\nB}` | `IT-1`がnewlineを返し、`NT-5` qualifying implicit newlineでtag boundary。tags `A(Int)` / `B` |
+| `:{A;B}` / `:{A ; B}` | non-caller-owned semicolonの`NT-4` Error一件、Complete zero-payload tags `A` / `B`。space有無でshape不変 |
 | `:{123}` / `:{123 Int}` | `NT-6` wrong-kind name Errorのone tag。前者zero payload、後者payload `Int` |
-| root `:{@\n  B}` | `NT-8`が`@`だけをIncomplete tag Error。non-qualifying `NT-5`から`NT-7`へ進みclose Incomplete、newline / `B`はcallerへ返す |
+| root `:{@\n  B}` | `NT-8`が`@`だけをIncomplete tag Error。`NT-5` non-qualifying physical newlineから`NT-7`へ進みclose Incomplete、newline / `B`はcallerへ返す |
 | `:{A Pair(Int, Bool) B}` | one tag `A` + sibling payloads `Pair(Int, Bool)` / `B`。nested call内triviaはfirst payload owner |
 | `:{@123}` / `:{@123 Int}` | `NT-8` prefix Error `@` + same-slot `NT-6` wrong-kind name Error `123`。one recovered tag、後者だけpayload `Int` |
 | `:{for 'a: T}` | shared primary priorityでForallType candidate全rangeが`NT-6` wrong-kind name Error。one zero-payload recovered tag、close Complete |
@@ -15061,36 +15091,40 @@ authority orderとsafe-point membershipのsingle sourceは`CanonicalNewTagPositi
 `CanonicalInTagPayloadJudge`（`IT` / `IT-safe`）だけである。以下のtableはbranchごとのAST / recovery outcome matrixであり、
 独立したjudge順やsafe-point列挙ではない。handoffは必ずbranch名でcanonical judgeへ戻り、table内でtokenを再分類しない。
 
-#### Outer tag-sequence table
+#### Outer tag list table
 
 | input state | authority / recovery | AST / retry / ownership |
 | --- | --- | --- |
 | `NT-1` at opener | valid empty | `tags = []`、close Complete |
-| `NT-1` after complete tag | valid close | each tagはsource-order Complete、close Complete |
-| `NT-1` immediately after `NT-3` / qualifying `NT-5` | valid actual-close-present trailing boundary | empty tagを作らず、literal commaだけ`trailing_comma`へ保持 |
-| `NT-3` in tag-required state | zero-width `Missing(PolymorphicVariantTag, Identifier)` at comma | one Incomplete tag slot、comma consume後`NT`へre-enter |
-| repeated `NT-3` | each boundaryへone Missing tag | punctuationごとにone slot、`NT`へre-enter |
-| `NT-3`後、`NT-1`より先に`NT-7` | valid trailingではなくMissing tag | one Incomplete tag + distinct missing close。same tagへsecond Missingなし |
-| `NT-4`、caller-ownedでないsemicolon（opener直後を含む） | exact token `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | tag slotを作らずconsumeし、`NT`へre-enter。same siteへMissing separatorなし |
-| `NT-4`、caller-owned semicolon | `NT-7` outcome | close Incomplete、gap / semicolonをconsumeせずcallerへ返す。TagSeparator Errorなし |
+| `NT-1` after complete / recovered tag | valid close | each tagはsource-order Complete、close Complete |
+| `NT-1` after unfilled tag-required state entered by complete / recovered tag後の`NT-3` / `NT-5` qualifying implicit newline | valid actual-close-present trailing boundary | empty tagを作らず、literal commaだけ`trailing_comma`へ保持 |
+| `NT-1` after filled tag-required state | valid close after recovered leading / repeated boundary | existing Incomplete tagだけを保持し、second tag slotを作らずclose Complete |
+| `NT-3` in already tag-required state（leading / repeated comma） | each comma位置へzero-width `Missing(PolymorphicVariantTag, Identifier)` | commaごとにone Incomplete tag slotを作ってstateをfilledにし、consume後`NT`へre-enter |
+| complete / recovered tag後の`NT-3`、`NT-1`より先に`NT-7` | valid trailingではなくMissing tag | unfilled slotを`NT-7`位置でone Incomplete tagとして満たし、distinct missing close。same tagへsecond Missingなし |
+| complete / recovered tag後の`NT-5` qualifying implicit newline、`NT-1`より先に`NT-7` | valid trailingではなくMissing tag | unfilled slotを`NT-7`位置でone Incomplete tagとして満たし、distinct missing close。qualifying implicit newlineはraw triviaのままで`trailing_comma`なし |
+| `NT-7` in filled tag-required state | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` only | existing Incomplete tagを保持し、close Incomplete。second tag Missingなし |
+| `NT-4`、non-caller-owned semicolon（opener直後を含む） | exact token `Error(PolymorphicVariantTagSeparator, DelimitedSequenceSeparator)` | tag slotを作らずconsumeし、`NT`へre-enter。same siteへMissing separatorなし |
+| `NT-4`、active caller-owned semicolon | `NT-7` outcome | close Incomplete、gap / semicolonをconsumeせずcallerへ返す。TagSeparator Errorなし |
 | `NT-6` plain Identifier result | tag authorityへcut | name Complete、`IT`へ進む |
 | `NT-6` non-Identifier result | `Error(PolymorphicVariantTagName, Identifier)` on candidate range | name Incompleteのone Complete tag skeletonを作り`IT`へ進む。同じbytesへwhole-tag Errorなし |
 | `NT-8`後にplain Identifier candidate | maximal prefix `Error(PolymorphicVariantTag)` | same whole-tag slotを`NT-6` normal-name resultへretry。成功時AST tag Complete |
 | `NT-8`後にnon-Identifier candidate | maximal prefix `Error(PolymorphicVariantTag)` | same slotを`NT-6` wrong-kind resultへretryしcandidate own rangeへ別のTagName Error。二Errorは別range / cause、second tag slotなし |
 | `NT-8`がnon-candidate `NT-safe`へ到達 | maximal `Error(PolymorphicVariantTag)` | tag Incomplete、safe pointをconsumeせず`NT`へre-enter。同じcauseへMissing tagなし |
 | `NT-7`、tag-required stateでない | zero-width `Missing(ClosingDelimiter(PolymorphicVariantType))` | tag Missingなし、close Incomplete、boundary / gapをconsumeせずcallerへ返す |
-| `NT-2` local mismatched closer | mismatched token own rangeへmaximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | mismatched token位置へMissing closeを重ねず、same close slotから`NT`へretryする。later `NT-1`ならclose Complete。actual closeを得ないままlater `NT-7`へ達した場合は、そのEOF / caller-boundary位置へcanonical zero-width Missing closeを置き、close Incomplete。tag Errorなし |
+| `NT-2` local mismatched closer | mismatched token own rangeへmaximal non-empty `Error(ClosingDelimiter(PolymorphicVariantType))` | mismatched token位置へMissing closeを重ねず、same close slotから`NT`へretryする。later `NT-1`ならclose Complete。actual closeを得ないままlater `NT-7 OwnerBoundary`へ達した場合は、そのNT-7位置へcanonical zero-width Missing closeを置き、close Incomplete。tag Errorなし |
 | accepted tag内のsame-line Identifier | `IT-3` payload authority | Missing tag separatorなし。`A Int B`はone tag + two payloads |
 
-trailing boundary rowはactual close present、separator-followed-boundary rowはactual close absentで排他的である。
-implicit newlineはraw triviaであり`trailing_comma`を設定しない。outer same-line Missing separatorはvalid syntaxに
+unfilled tag-required stateではnext authorityが`NT-1`ならvalid actual-close-present trailing boundary、`NT-7`ならone Missing tag +
+distinct Missing closeであり、二outcomeは排他的である。filled stateではexisting Incomplete tagを再利用し、`NT-1` / `NT-7`
+いずれでもsecond tag Missingを作らない。semicolonはvalid separatorではないためこのstate machineへ含めない。
+qualifying implicit newlineはraw triviaであり`trailing_comma`を設定しない。outer same-line Missing separatorはvalid syntaxに
 reachableでないことをtable自身に明記し、multiple payload rowと競合させない。
 
 #### Tag / payload table
 
 | input state | authority / recovery | AST / retry / ownership |
 | --- | --- | --- |
-| `IT-1` after tag name / payload | valid payload-sequence end | newline前でtagをfinishし、payload slotを作らず`NT`へhandoff |
+| `IT-1` after tag name / payload | valid inner payload sequence end | newline前でtagをfinishし、payload slotを作らず`NT`へhandoff |
 | `IT-2` immediately after tag name（EOF / active caller stopを含む） | valid zero-payload tag | payload Missingなし。Complete tagをfinishし、gap / safe pointを未消費で`NT`へhandoff |
 | `IT-2` after one-or-more payloads（EOF / active caller stopを含む） | valid no-more-payloads outcome | trailing payload Missingなし。tagをfinishし、gap / safe pointを未消費で`NT`へhandoff |
 | `IT-3` with non-empty same-line gap | valid payload | boundary / type Complete。gap clusterをone payload nodeへexactly once所有 |
@@ -15101,7 +15135,7 @@ reachableでないことをtable自身に明記し、multiple payload rowと競�
 | `IT-4` empty-gap branch reaches outer safe point（EOF / active caller stopを含む） | malformed startから`NT`へhandoff | optional payloadを作らずsame bytesへPayload Errorなし。`NT`だけがtag-level recoveryを行う |
 | payload parse後に`IT-3` candidate | next payload authority | current payloadは`type_ml_arg` stop、next sibling payloadをaccept |
 
-payload sequenceはzero-or-moreなので、単なるabsenceへ`Missing(PolymorphicVariantPayload)`をemitしない。payload Missing相当の
+inner payload sequenceはzero-or-moreなので、単なるabsenceへ`Missing(PolymorphicVariantPayload)`をemitしない。payload Missing相当の
 mandatory slotは、accepted boundaryまたはpayload-intent Errorがpayload skeletonへcutした後のtype slotだけに存在する。
 表のError rowがそのslotをIncompleteにし、同じcauseへzero-width Missingをcascadeしない。
 
@@ -15115,10 +15149,10 @@ parse後のCST再走査でtag / payload境界を作らない。
    `":{"`へ狭める。comments / newlineを挟むspellingはintentional rejectionである。
 2. Yulang2 payload loopはnon-empty boundaryを明示検査せず、adjacent group NUDをpayloadにし得た。Yulang3は
    ML-style non-empty same-line boundaryをsurface grammarにし、adjacent primaryへtyped Missing boundary recoveryを行う。
-3. any physical newlineがinner payload listを終了する点、outer implicit separatorが`indent <= base`だけである点は
+3. any physical newlineがinner payload sequenceを終了する点、outer tag listのimplicit separatorが`indent <= base`だけである点は
    Yulang2を保存する。Yulang3はsynthetic `Separator`を作らずraw triviaだけをemitする。
 4. Yulang2の`TypePolyVariantItem`直下にはpayload `TypeExpr`が並んだ。Yulang3はboundary recoveryとAST parityのため
-   source-bearing `PolymorphicVariantPayload` nodeを置くが、payload list wrapper / separator nodeは作らない。
+   source-bearing `PolymorphicVariantPayload` nodeを置くが、inner payload sequence用synthetic wrapper / separator nodeは作らない。
 5. plain Identifierだけがtag headで、uppercase restrictionがない点、comma-only outer policy、empty / trailing comma、
    zero-or-more payloadはYulang2を保存する。
 6. Yulang2はgeneric InvalidToken recoveryだけを持った。Yulang3はphase-specific typed roles、maximal Error、zero-width Missing、
@@ -15136,15 +15170,15 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 3. empty、zero-payload tag、one / multiple payload、multiple tag、actual-close trailing commaをacceptする。
 4. tag headをplain Identifierだけに限定し、uppercase semantic restrictionを追加しない。
 5. outer separatorをcomma / qualifying implicit newlineに限定する。semicolonのsafe-point判定、inner-to-outer handoff、
-   local-vs-caller-owned ownershipはcanonical `IT-2` / `NT-4` / `NT-7` outcomeを参照し、両ownershipとspace有無をfixture化する。
-6. payload boundaryをnon-empty same-line triviaに限定し、any newlineでinner listを終了する。
+   non-caller-owned / active caller-owned ownershipはcanonical `IT-2` / `NT-4` / `NT-7` outcomeを参照し、両caseとspace有無をfixture化する。
+6. payload boundaryをnon-empty same-line triviaに限定し、any newlineでinner payload sequenceを終了する。
 7. `:{A Int, B}`、`:{A Int Bool}`、`:{A Int\nB}`をdocumented two-level judgeどおりparseする。
 8. nested delimited payload内newlineとtag-level newlineをowner depthで区別する。
 9. same-line Identifierはpayload authorityを持ち、false Missing tag separatorをemitしない。
-10. opener-immediate semicolon、leading / repeated / trailing-before-EOF separator、local-vs-caller-owned semicolon、
+10. opener-immediate semicolon、leading / repeated separator、`NT-3` / `NT-5` trailing-before-EOF、non-caller-owned / active caller-owned semicolon、
     contextual `for` wrong-kind tag head、wrong-kind / malformed tag name、
-    semicolon vs generic malformed byte、non-qualifying newline、malformed-prefix後のwrong-kind primary、every-reentry missing /
-    mismatched close、innerからhandoffするtrivia-prefixed mismatched closeをrole / range / retry / AST parityまでfixture化する。
+    semicolon vs generic malformed byte、non-qualifying physical newline、malformed-prefix後のwrong-kind primary、every-reentry missing /
+    local mismatched closer、innerからhandoffするtrivia-prefixed local mismatched closerをrole / range / retry / AST parityまでfixture化する。
 11. missing / malformed payload boundary、malformed payload retry、boundaryless malformed runからEOF / active caller stop、
     tag name直後 / payload後のEOF / active caller stop、payload-at-boundary no-cascadeをfixture化する。
 12. `F :{A}`がordinary TypeApply argument、variant後のpath / call / apply / arrowがordinary tailsになる。
@@ -15158,7 +15192,7 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 本追補でimplementationをblockするopen questionはない。
 
 - introducerはexact adjacent `Colon LBrace`である。
-- payload boundaryはnon-empty same-line triviaだけで、any physical newlineがinner listを終了する。
+- payload boundaryはnon-empty same-line triviaだけで、any physical newlineがinner payload sequenceを終了する。
 - outer tag listはcomma / qualifying implicit newlineだけをseparatorにする。
 - same-line Identifier ambiguityはpayload authorityを優先し、Missing tag separatorでsplitしない。
 - outerのentry origin / authority / retry / safe-point membershipは`CanonicalNewTagPositionJudge`（`NT` / `NT-safe`）だけが定義する。
@@ -15168,27 +15202,32 @@ use-site、expression / pattern grammar、HIR / lowering / inferenceは変更し
 - payload wrapperはboundary / type recoveryの実在AST slotsを提供するsource-bearing nodeである。
 - polymorphic variantはordinary nonterminal TypePrimaryである。
 
-final reviewでfour issue classをboth nesting levelsについて再点検した。
+final reviewでstandard four issue classにterminology identityを加え、both nesting levelsについて再点検した。
 
 1. **bounded trivia vs newline contract:** introducer gapはempty、opening triviaはbrace-local one cluster、payload boundaryは
    same-line non-emptyだけである。newline ownershipは`IT-1`から`NT-5`へのhandoff、scanner non-consumptionは`IT-safe` /
    `NT-safe`だけを参照する。unbounded `G*`、deeper-newline payload continuation、caller newlineのswallowはない。
 2. **CST byte completeness:** three oracle fixturesとnested-call newline exampleでcolon、braces、all spaces / newlines、comma、
-   names、payload bytesへexactly one homeを示した。implicit separatorやpayload-list synthetic nodeはない。
+   names、payload bytesへexactly one homeを示した。implicit separatorやinner payload sequence用synthetic nodeはない。
 3. **AST / recovery-slot alignment:** tag、tag name、payload、payload boundary / type、trailing comma、close recoveryには
    corresponding `Recovered` / optional fieldがある。separator roleだけはexisting list contractどおりcommitted diagnosticで、
    source-absent AST fieldを仮定しない。colon / openはcomplete pair accept後のactual rangesで、Missing roleをtableから
    参照しない。BNFの`TypeExpressionInTypeMlScope`はparse scopeだけを限定し、ASTの`type_expr` fieldが
    `Box<TypeExpression>`であることと一致する。malformed prefix + wrong-kind primaryはone recovered tag slotを共有するが、
    outer tag siteとmandatory name siteの別rangeへ各one Error recordを持つため、AST slotを二重生成しない。`NT-2`はclose
-   slotだけ、`NT-8`はtag slotだけ、`IT-3..4`はpayload slotsだけをshapeし、`NT-7` caller boundaryはclose Incomplete以外を
-   implicitに作らない。ただしexplicit `NT-3`後のtag-required stateだけは、tableどおりdistinct Missing tag slotを
-   先に満たす。
+   slotだけ、`NT-8`はtag slotだけ、`IT-3..4`はpayload slotsだけをshapeし、`NT-7 OwnerBoundary`はclose Incomplete以外を
+   implicitに作らない。ただし`NT-3`または`NT-5` qualifying implicit newline後のunfilled tag-required stateだけは、tableどおり
+   distinct Missing tag slotを先に満たす。filled stateへsecond Missingは作らない。
 4. **recovery-row exclusivity and single source:** outer ordering / safe pointsを述べる箇所は`NT-1..8` / `NT-safe`のone block、
    inner ordering / safe pointsを述べる箇所は`IT-1..4` / `IT-safe`のone blockだけである。typed recovery tableはbranch outcome、
    trace tableはbranch applicationだけを記し、独立した列挙を持たない。all entry originsは`NT`、all name / payload-end originsは
    `IT`へ収束するため、opener-immediate semicolon、EOF / active-stop termination、closer / candidate / malformed prefixで
    branch driftがない。one causeへのError + same-slot Missing cascadeもない。
+5. **terminology identity:** compound introducer BNFはEffectRowTypeと同じ`Colon AdjacentLBrace` patternだけを使う。current grammarの
+   repeated structuresは`outer tag list` / `inner payload sequence`、accepted layout separatorは`qualifying implicit newline`、
+   close-boundary branchは`NT-7 OwnerBoundary`で統一する。`active caller stop`はgeneral category、
+   `active caller-owned semicolon` / `non-caller-owned semicolon`はそのsemicolon instance / complementとして明示的に区別する。
+   oracle facts内のhistorical machine / loop名とCST synthetic wrapperだけが別contextの語であり、current mechanismのsynonymはない。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
 （2026-08-23、standalone TypeExpression polymorphic variant type primary追補案）。
