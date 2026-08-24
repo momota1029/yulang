@@ -1713,6 +1713,12 @@ where
 
 const IF_EXPRESSION_COMPANION_WORDS: &[&str] = &["elsif", "else"];
 
+/// Canonical lexical vocabulary shared by frame-backed companion authority
+/// and the terminal Else-body recovery fence.
+pub(crate) fn is_if_expression_companion_word(word: &str) -> bool {
+    IF_EXPRESSION_COMPANION_WORDS.contains(&word)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct IfExpressionCompanionScope {
     id: IfExpressionCompanionId,
@@ -2066,7 +2072,12 @@ where
     let layout = recognize_introduced_body_layout(base_indent, i);
     let rhs = match layout {
         ArmBodyLayout::Inline { trivia: _ } => {
+            let stop_set = active_stop_set(i)
+                .with(StopKind::Elsif)
+                .with(StopKind::Else);
+            i.local.push_stop_set(stop_set);
             let chain = i.run(from_fn(|i| parse_operator_chain(table, i)));
+            assert_eq!(i.local.pop_stop_set(), Some(stop_set));
             chain.map(|chain| ArmBodyRhs::Inline(Box::new(chain))).map_or(Recovered::Incomplete, Recovered::Complete)
         }
         ArmBodyLayout::Indented { opening_trivia, block_indent } => Recovered::Complete(ArmBodyRhs::Indented(
@@ -2075,7 +2086,7 @@ where
                 opening_trivia,
                 base_indent,
                 block_indent,
-                IndentedStatementBlockOptions::if_arm(base_indent),
+                IndentedStatementBlockOptions::if_arm(),
                 i,
             ),
         )),
@@ -3014,7 +3025,7 @@ where
         base_indent,
         block_indent,
         IndentedStatementBlockOptions {
-            companion_stop: None,
+            stops_for_if_companion: false,
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
         },
         i,
@@ -3039,7 +3050,7 @@ where
         base_indent,
         block_indent,
         IndentedStatementBlockOptions {
-            companion_stop: None,
+            stops_for_if_companion: false,
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
         },
         i,
@@ -3515,7 +3526,7 @@ pub(crate) fn commit_indented_binding_body<'parse, 'source, 'local, E, O>(
         base_indent,
         block_indent,
         IndentedStatementBlockOptions {
-            companion_stop: None,
+            stops_for_if_companion: false,
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement))),
         },
         committed,
@@ -3540,7 +3551,7 @@ pub(crate) fn commit_indented_mod_body<'parse, 'source, 'local, E, O>(
         base_indent,
         block_indent,
         IndentedStatementBlockOptions {
-            companion_stop: None,
+            stops_for_if_companion: false,
             statement_role: Some(GrammarRole::Declaration(DeclarationRole::Mod(crate::session::ModRole::IndentedStatement))),
         },
         committed,
@@ -3582,17 +3593,20 @@ fn commit_indented_statement_block_with_options<'parse, 'source, 'local, E, O>(
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct IndentedStatementBlockOptions {
-    companion_stop: Option<IndentedBlockCompanionStop>,
+    stops_for_if_companion: bool,
     statement_role: Option<GrammarRole>,
 }
 
 impl IndentedStatementBlockOptions {
-    fn if_arm(base_indent: usize) -> Self {
-        Self { companion_stop: Some(IndentedBlockCompanionStop::ArmKeyword { base_indent }), statement_role: None }
+    fn if_arm() -> Self {
+        Self { stops_for_if_companion: true, statement_role: None }
     }
 
     fn with_body() -> Self {
-        Self { companion_stop: None, statement_role: Some(GrammarRole::WithBody(WithBodyRole::IndentedStatement)) }
+        Self {
+            stops_for_if_companion: false,
+            statement_role: Some(GrammarRole::WithBody(WithBodyRole::IndentedStatement)),
+        }
     }
 
     /// This is deliberately a sink-free, owner-provided hook.  The generic
@@ -3604,35 +3618,26 @@ impl IndentedStatementBlockOptions {
         Unexpected<char>: Into<E::Error>,
         UnexpectedEndOfInput: Into<E::Error>,
     {
-        let Some(stop) = self.companion_stop else { return false; };
-        stop.matches(i)
+        self.stops_for_if_companion && indented_if_companion_stop_pending(i)
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum IndentedBlockCompanionStop {
-    ArmKeyword { base_indent: usize },
-}
-
-impl IndentedBlockCompanionStop {
-    fn matches<'source, E>(self, i: &mut SynIn<'_, 'source, '_, E>) -> bool
-    where
-        E: ErrorSink<usize>,
-        Unexpected<char>: Into<E::Error>,
-        UnexpectedEndOfInput: Into<E::Error>,
-    {
-        let checkpoint = i.checkpoint();
-        let result = match self {
-            Self::ArmKeyword { base_indent } => {
-                let trivia = consume_trivia(i).expect("trivia scanning is total");
-                trivia_has_physical_newline(&trivia)
-                    && i.local.line().line_indent >= base_indent
-                    && matches!(i.run(scan_word).map(|word| word.text()), Some("elsif" | "else"))
-            }
-        };
-        i.rollback(checkpoint);
-        result
-    }
+/// An indented statement block only treats a physical-line boundary as an
+/// arm boundary; the companion's word and indentation authority come from the
+/// active IfExpression frame rather than a private spelling probe.
+fn indented_if_companion_stop_pending<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let trivia = consume_trivia(i).expect("trivia scanning is total");
+    let has_physical_newline = trivia_has_physical_newline(&trivia);
+    i.rollback(checkpoint);
+    has_physical_newline && if_continuation_owner(i).is_some()
 }
 
 fn commit_statement_sequence<'parse, 'source, 'local, E, O>(
@@ -4596,7 +4601,7 @@ fn commit_colon_introduced_if_body<'parse, 'source, 'local, E, O>(
                 opening_trivia,
                 base_indent,
                 block_indent,
-                IndentedStatementBlockOptions::if_arm(base_indent),
+                IndentedStatementBlockOptions::if_arm(),
                 committed,
             );
         }
@@ -7616,6 +7621,69 @@ mod tests {
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+    }
+
+    #[test]
+    fn terminal_else_body_returns_a_malformed_trailing_arm_to_its_caller() {
+        let source = "if x: 1 else: y elsif z: 0";
+        let trailing = " elsif z: 0";
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let keyword = i.run(scan_word).expect("initial IfKw");
+        let expression = parse_if_expression(&table, keyword, 0, &mut i);
+        assert_eq!(i.input.remainder(), trailing);
+        let else_arm = expression.else_arm.expect("terminal ElseArm");
+        assert_eq!(else_arm.range, 8..15);
+        assert!(matches!(
+            else_arm.body,
+            Recovered::Complete(ElseArmBody::Colon(ColonIntroducedArmBody {
+                rhs: Recovered::Complete(ArmBodyRhs::Inline(chain)),
+                ..
+            })) if chain.range == (14..15)
+        ));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(&source[..15]));
+        committed.start_node(SyntaxKind::Root);
+        let keyword = committed
+            .probe(|probe| probe.input().run(scan_word))
+            .expect("initial IfKw");
+        commit_if_expression(&table, keyword, 0, &mut committed);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            trailing,
+        );
+        committed.finish_node();
+        let root = SyntaxNode::new_root(committed.into_output().finish_complete());
+        let if_expression = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IfExpression)
+            .expect("direct IfExpression");
+        let else_arm = if_expression
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ElseArm)
+            .expect("direct ElseArm");
+        assert_eq!(if_expression.to_string(), "if x: 1 else: y");
+        assert_eq!(else_arm.to_string(), "else: y");
     }
 
     #[test]

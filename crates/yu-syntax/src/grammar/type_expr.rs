@@ -10,7 +10,10 @@ use std::{marker::PhantomData, ops::Range, sync::Arc};
 use chasa::{Back as _, ErrorSink, Input as _, error::std::{Unexpected, UnexpectedEndOfInput}, prelude::from_fn};
 
 use crate::{
-    grammar::{declaration::Recovered, expression::parse_integer_literal},
+    grammar::{
+        declaration::Recovered,
+        expression::{is_if_expression_companion_word, parse_integer_literal},
+    },
     scan::{
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::{TriviaRun, scan_comment, scan_trivia},
@@ -4006,8 +4009,9 @@ where
         StopKind::Semicolon => scan_record_semicolon(i).is_some(),
         StopKind::Colon => scan_exact_colon(i).is_some(),
         StopKind::LeftBrace => scan_open_brace(i).is_some(),
-        StopKind::Elsif => i.run(scan_word).is_some_and(|word| word.text() == "elsif"),
-        StopKind::Else => i.run(scan_word).is_some_and(|word| word.text() == "else"),
+        StopKind::Elsif | StopKind::Else => i
+            .run(scan_word)
+            .is_some_and(|word| is_if_expression_companion_word(word.text())),
         StopKind::RightParenthesis => scan_close_delimiter(TypeDelimitedShape::Parenthesis, i).is_some(),
         StopKind::RightBracket => scan_close_delimiter(TypeDelimitedShape::Bracket, i).is_some(),
         StopKind::RightBrace => scan_close_brace(i).is_some(),
