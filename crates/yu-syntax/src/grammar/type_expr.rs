@@ -1467,6 +1467,19 @@ struct TypeDelimitedSpec {
 }
 
 impl TypeDelimitedSpec {
+    /// ASOB currently delegates bare inter-item gaps for these shared
+    /// expression-like type lists to an enclosing statement owner.  Named
+    /// records and polymorphic variants retain their separately-specified
+    /// recovery drivers, while bracket rows are wired in their own gate.
+    fn defers_bare_gap_to_ambient_owner(self) -> bool {
+        matches!(
+            self.owner,
+            TypeDelimitedOwner::Call
+                | TypeDelimitedOwner::ParenthesizedGroup
+                | TypeDelimitedOwner::EffectRow
+        )
+    }
+
     fn item_role(self) -> TypeRole {
         match self.owner {
             TypeDelimitedOwner::Call => TypeRole::CallArgument,
@@ -1594,12 +1607,16 @@ where
                     continue;
                 }
                 TypeInvalidRunDisposition::BoundaryCurrent => context.with_input(|i| {
-                    classify_type_delimited_recovery(
-                        DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
-                        layout,
-                        direct_type_primary_candidate,
-                        i,
-                    )
+                    if type_delimited_ambient_owner_boundary_pending(spec, i) {
+                        DelimitedRecoveryTarget::CallerOwnedMalformedBoundary
+                    } else {
+                        classify_type_delimited_recovery(
+                            DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                            layout,
+                            direct_type_primary_candidate,
+                            i,
+                        )
+                    }
                 }),
                 TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia) => {
                     context.with_input(|i| {
@@ -1609,12 +1626,16 @@ where
                         i.rollback(checkpoint);
                     });
                     context.with_input(|i| {
-                        classify_type_delimited_recovery(
-                            DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
-                            layout,
-                            direct_type_primary_candidate,
-                            i,
-                        )
+                        if type_delimited_ambient_owner_boundary_pending(spec, i) {
+                            DelimitedRecoveryTarget::CallerOwnedMalformedBoundary
+                        } else {
+                            classify_type_delimited_recovery(
+                                DelimitedRecoverySpec { delimiter: spec.shape.delimiter() },
+                                layout,
+                                direct_type_primary_candidate,
+                                i,
+                            )
+                        }
                     })
                 }
             };
@@ -1666,6 +1687,9 @@ where
         if context.with_input(type_malformed_caller_boundary_pending) {
             break;
         }
+        if context.with_input(|i| type_delimited_ambient_owner_boundary_pending(spec, i)) {
+            break;
+        }
         let trivia = context.with_input(consume_trivia);
         context.with_input(|i| debug_assert_type_malformed_caller_boundary_not_skipped(&trivia, i));
         context.emit_trivia(&trivia);
@@ -1713,6 +1737,21 @@ where
         assert_eq!(i.local.pop_delimiter(), Some(spec.shape.delimiter()));
     });
     close
+}
+
+/// Query ASOB only for a bare, as-yet-unclaimed item gap.  The surrounding
+/// driver asks this before consuming trivia or selecting an implicit/recovery
+/// transition; literal separators and matching closes remain locally owned.
+fn type_delimited_ambient_owner_boundary_pending<E>(
+    spec: TypeDelimitedSpec,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    spec.defers_bare_gap_to_ambient_owner() && any_ambient_owner_claims(i)
 }
 
 fn close_delimiter_pending<E>(shape: TypeDelimitedShape, i: &mut SynIn<E>) -> bool
@@ -4627,6 +4666,119 @@ mod tests {
         assert!(output.committed_recoveries().is_empty());
         assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+    }
+
+    #[test]
+    fn shared_type_delimited_lists_defer_a_live_if_companion_before_an_implicit_item() {
+        for (source, owner, delimiter, item_role) in [
+            (
+                "F(X\nelse: 0",
+                ConstructRole::TypeCall,
+                Delimiter::Parenthesis,
+                TypeRole::CallArgument,
+            ),
+            (
+                "(X\nelse: 0",
+                ConstructRole::ParenthesizedTypeGroup,
+                Delimiter::Parenthesis,
+                TypeRole::ParenthesizedItem,
+            ),
+            (
+                "'[X\nelse: 0",
+                ConstructRole::EffectRowType,
+                Delimiter::Bracket,
+                TypeRole::EffectRowItem,
+            ),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let expression = i.run(from_fn(parse_type_expression))
+                .expect("type-delimited prefix");
+            assert_eq!(i.input.remainder(), "\nelse: 0", "AST {source:?}");
+            assert!(match expression {
+                TypeExpression {
+                    postfix,
+                    primary: TypePrimary::Atom(_),
+                    ..
+                } if matches!(postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
+                    arguments,
+                    close: Recovered::Incomplete,
+                    ..
+                })] if arguments.len() == 1) => true,
+                TypeExpression {
+                    primary: TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                        elements,
+                        close: Recovered::Incomplete,
+                        ..
+                    }),
+                    ..
+                } if elements.len() == 1 => true,
+                TypeExpression {
+                    primary: TypePrimary::EffectRow(EffectRowType {
+                        items,
+                        close: Recovered::Incomplete,
+                        ..
+                    }),
+                    ..
+                } if items.len() == 1 => true,
+                _ => false,
+            }, "AST {source:?}");
+            drop(i);
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed)
+                .expect("direct type-delimited prefix");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "\nelse: 0",
+                "direct {source:?}",
+            );
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries();
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::ClosingDelimiter { owner, delimiter })
+                    .count(),
+                1,
+                "direct {source:?}: {recoveries:#?}",
+            );
+            assert!(
+                !recoveries.iter().any(|record| record.kind == RecoveryKind::Missing
+                    && record.site.role == GrammarRole::Type(item_role)),
+                "direct {source:?}: {recoveries:#?}",
+            );
+            drop(output);
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        }
     }
 
     #[test]
