@@ -12,6 +12,21 @@ pub(super) enum TagPosition {
     Required { filled: bool, last_comma: Option<Range<usize>> },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TagJudgeOrigin {
+    /// The opener, an explicit comma, or an already-authorized local layout
+    /// boundary has opened exactly one tag head.  ASOB must not re-judge it.
+    FreshLocalHead {
+        /// Opener/comma authority also keeps a live companion spelling local.
+        /// A locally committed implicit boundary has already queried ASOB and
+        /// must not query it again from the post-newline position.
+        companion_spelling_is_local: bool,
+    },
+    /// A completed/recovered tag or a local recovery episode is handing the
+    /// still-unconsumed gap back to NT.
+    ContinuationOrRecovery,
+}
+
 enum GapBoundary {
     None,
     SameLine(TriviaRun),
@@ -278,6 +293,9 @@ where
     UnexpectedEndOfInput: Into<<C::Error as ErrorSink<usize>>::Error>,
 {
     let mut position = TagPosition::Optional;
+    let mut origin = TagJudgeOrigin::FreshLocalHead {
+        companion_spelling_is_local: true,
+    };
     let mut closed = false;
     loop {
         if let Some(close) = context.with_input(scan_close_brace) {
@@ -291,6 +309,7 @@ where
         }
         if let Some(mismatched) = context.with_input(|i| scan_mismatched_close_for(Delimiter::Brace, i)) {
             context.emit_close_error(mismatched);
+            origin = TagJudgeOrigin::ContinuationOrRecovery;
             continue;
         }
         if let Some(comma) = context.with_input(scan_record_comma) {
@@ -300,6 +319,9 @@ where
             }
             context.emit_comma(comma);
             position = outcome.next;
+            origin = TagJudgeOrigin::FreshLocalHead {
+                companion_spelling_is_local: true,
+            };
             continue;
         }
         if context.with_input(exact_semicolon_pending) {
@@ -314,14 +336,27 @@ where
                 .with_input(scan_record_semicolon)
                 .expect("the exact semicolon probe accepted a semicolon");
             context.emit_separator_error(semicolon);
+            origin = TagJudgeOrigin::ContinuationOrRecovery;
             continue;
         }
 
-        match context.with_input(|i| classify_tag_boundary(layout, i)) {
+        if matches!(origin, TagJudgeOrigin::ContinuationOrRecovery)
+            && context.with_input(any_ambient_owner_claims)
+        {
+            apply_owner_transition(&position, context);
+            break;
+        }
+
+        match context.with_input(|i| classify_tag_boundary(layout, origin, i)) {
             GapBoundary::SameLine(trivia) => {
                 let consumed = context.with_input(consume_trivia);
                 debug_assert_eq!(consumed.range(), trivia.range());
                 context.emit_trivia(&consumed);
+                if matches!(origin, TagJudgeOrigin::ContinuationOrRecovery) {
+                    origin = TagJudgeOrigin::FreshLocalHead {
+                        companion_spelling_is_local: false,
+                    };
+                }
                 continue;
             }
             GapBoundary::QualifyingNewline(trivia) => {
@@ -329,6 +364,11 @@ where
                 debug_assert_eq!(consumed.range(), trivia.range());
                 context.emit_trivia(&consumed);
                 position = transition(&position, TagBoundary::QualifyingNewline).next;
+                if matches!(origin, TagJudgeOrigin::ContinuationOrRecovery) {
+                    origin = TagJudgeOrigin::FreshLocalHead {
+                        companion_spelling_is_local: false,
+                    };
+                }
                 continue;
             }
             GapBoundary::Owner => {
@@ -338,12 +378,13 @@ where
             GapBoundary::None => {}
         }
 
-        if let Some(primary) = context.with_input(|i| parse_type_primary_in_context(true, i)) {
+        if let Some(primary) = context.with_input(|i| parse_tag_primary(origin, i)) {
             context.begin_tag(None);
             context.accept_tag_head(primary);
             drive_payloads(context);
             context.finish_tag(true);
             position = TagPosition::AfterTag;
+            origin = TagJudgeOrigin::ContinuationOrRecovery;
             continue;
         }
         if context.with_input(type_recovery_boundary_pending) {
@@ -352,7 +393,10 @@ where
         }
         if let Some(range) = context.with_input(consume_invalid_run) {
             context.begin_tag(Some(range));
-            if let Some(primary) = context.with_input(|i| parse_type_primary_in_context(true, i)) {
+            let ambient_retry = context.with_input(any_ambient_owner_claims);
+            if !ambient_retry
+                && let Some(primary) = context.with_input(|i| parse_type_primary_in_context(true, i))
+            {
                 context.accept_tag_head(primary);
                 drive_payloads(context);
                 context.finish_tag(true);
@@ -360,6 +404,7 @@ where
                 context.finish_tag(false);
             }
             position = TagPosition::AfterTag;
+            origin = TagJudgeOrigin::ContinuationOrRecovery;
             continue;
         }
         apply_owner_transition(&position, context);
@@ -441,6 +486,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if any_ambient_owner_claims(i) {
+        return PayloadJudge::Outer;
+    }
     let checkpoint = i.checkpoint();
     let boundary_start = i.pos();
     let trivia = consume_trivia(i);
@@ -450,14 +498,15 @@ where
         PayloadJudge::Candidate { boundary_start, trivia }
     } else if let Some(range) = consume_invalid_run(i) {
         let retry = type_primary_candidate(i);
-        if trivia.is_empty() && !retry {
+        let ambient_retry = retry && any_ambient_owner_claims(i);
+        if trivia.is_empty() && (!retry || ambient_retry) {
             PayloadJudge::None
         } else {
             PayloadJudge::Malformed {
                 boundary_start,
                 trivia,
                 range,
-                retry,
+                retry: retry && !ambient_retry,
             }
         }
     } else {
@@ -476,7 +525,11 @@ where
     }
 }
 
-fn classify_tag_boundary<E>(layout: LayoutDelimitedFrame, i: &mut SynIn<E>) -> GapBoundary
+fn classify_tag_boundary<E>(
+    layout: LayoutDelimitedFrame,
+    origin: TagJudgeOrigin,
+    i: &mut SynIn<E>,
+) -> GapBoundary
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -485,7 +538,7 @@ where
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
     let boundary = if trivia.is_empty() {
-        owner_boundary_pending(i).then_some(GapBoundary::Owner)
+        owner_boundary_pending(origin, i).then_some(GapBoundary::Owner)
     } else if trivia_has_newline(&trivia) {
         let caller_owns = active_stop_set(i).contains(StopKind::Newline);
         if !caller_owns
@@ -496,7 +549,7 @@ where
         } else {
             Some(GapBoundary::Owner)
         }
-    } else if owner_boundary_pending(i) {
+    } else if owner_boundary_pending(origin, i) {
         Some(GapBoundary::Owner)
     } else {
         Some(GapBoundary::SameLine(trivia))
@@ -505,7 +558,7 @@ where
     boundary.unwrap_or(GapBoundary::None)
 }
 
-fn owner_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+fn owner_boundary_pending<E>(origin: TagJudgeOrigin, i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -514,17 +567,60 @@ where
     let local_stops = StopSet::default()
         .with(StopKind::Comma)
         .with(StopKind::RightBrace);
+    let boundary = classify_type_boundary(
+        TypeBoundaryPolicy {
+            matching_close: Some(Delimiter::Brace),
+            local_separators: StopSet::default().with(StopKind::Comma),
+            locally_owned_stops: local_stops,
+        },
+        i,
+    );
+    if matches!(
+        origin,
+        TagJudgeOrigin::FreshLocalHead {
+            companion_spelling_is_local: true,
+        }
+    )
+        && matches!(
+            boundary,
+            Some(TypeBoundary::ActiveStop(StopKind::Elsif | StopKind::Else))
+        )
+        && any_ambient_owner_claims(i)
+    {
+        return false;
+    }
     matches!(
-        classify_type_boundary(
-            TypeBoundaryPolicy {
-                matching_close: Some(Delimiter::Brace),
-                local_separators: StopSet::default().with(StopKind::Comma),
-                locally_owned_stops: local_stops,
-            },
-            i,
-        ),
+        boundary,
         Some(TypeBoundary::Eof | TypeBoundary::ActiveStop(_) | TypeBoundary::OuterOwnedClose)
     )
+}
+
+fn parse_tag_primary<'source, E>(
+    origin: TagJudgeOrigin,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypePrimary<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let opener_or_comma_owns_companion = matches!(
+        origin,
+        TagJudgeOrigin::FreshLocalHead {
+            companion_spelling_is_local: true,
+        }
+    ) && any_ambient_owner_claims(i);
+    if !opener_or_comma_owns_companion {
+        return parse_type_primary_in_context(true, i);
+    }
+
+    let stops = active_stop_set(i)
+        .without(StopKind::Elsif)
+        .without(StopKind::Else);
+    i.local.push_stop_set(stops);
+    let primary = parse_type_primary_in_context(true, i);
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    primary
 }
 
 fn exact_semicolon_pending<E>(i: &mut SynIn<E>) -> bool
@@ -905,9 +1001,195 @@ mod tests {
     use chasa::{input::IsCut, prelude::In};
 
     use crate::{
+        SyntaxNode,
         input::SourceInput,
-        session::ParseLocal,
+        session::{FullCstOutput, ParseLocal},
     };
+
+    fn assert_variant_defers_live_companion(source: &str, remainder: &str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let stops = StopSet::default()
+            .with(StopKind::Elsif)
+            .with(StopKind::Else);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("polymorphic variant prefix");
+        assert_eq!(i.input.remainder(), remainder, "AST {source:?}");
+        assert!(matches!(
+            expression.primary,
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                tags,
+                close: Recovered::Incomplete,
+                ..
+            }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
+                payloads,
+                ..
+            })] if payloads.is_empty())
+        ));
+        drop(i);
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(companion),
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let stops = StopSet::default()
+            .with(StopKind::Elsif)
+            .with(StopKind::Else);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct polymorphic variant prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            remainder,
+            "direct {source:?}",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output.committed_recoveries();
+        assert_eq!(
+            recoveries
+                .iter()
+                .filter(|record| record.kind == RecoveryKind::Missing
+                    && record.site.role
+                        == GrammarRole::ClosingDelimiter {
+                            owner: ConstructRole::PolymorphicVariantType,
+                            delimiter: Delimiter::Brace,
+                        })
+                .count(),
+            1,
+            "direct {source:?}: {recoveries:#?}",
+        );
+        assert!(
+            !recoveries.iter().any(|record| record.kind == RecoveryKind::Missing
+                && matches!(
+                    record.site.role,
+                    GrammarRole::Type(
+                        TypeRole::PolymorphicVariantTag
+                            | TypeRole::PolymorphicVariantPayload
+                            | TypeRole::PolymorphicVariantPayloadBoundary
+                    )
+                )),
+            "direct {source:?}: {recoveries:#?}",
+        );
+        drop(output);
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(companion),
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+    }
+
+    fn assert_nested_variant_preserves_else_arm(source: &str) {
+        let table = crate::operator::OperatorTable::empty();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        i.run(from_fn(|i| {
+            crate::grammar::expression::parse_expression_with_operators(&table, i)
+        }))
+        .expect("AST nested polymorphic variant expression");
+        assert_eq!(i.input.remainder(), "", "AST {source:?}");
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        crate::grammar::expression::parse_direct_expression_with_operators(
+            &table,
+            crate::scan::operator::LeadingTrivia::None,
+            &mut committed,
+        )
+        .expect("direct nested polymorphic variant expression");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+            "direct {source:?}",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::ElseKw)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantPayload)
+                .count(),
+            0,
+        );
+        for owner in [
+            ConstructRole::PolymorphicVariantType,
+            ConstructRole::StructNamedFields,
+        ] {
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner,
+                                delimiter: Delimiter::Brace,
+                            })
+                    .count(),
+                1,
+                "{owner:?}: {recoveries:#?}",
+            );
+        }
+    }
 
     fn boundary(source: &str, stops: StopSet) -> Option<TypeBoundary> {
         let mut source_input = SourceInput::new(source);
@@ -996,6 +1278,98 @@ mod tests {
             boundary("", StopSet::default().with(StopKind::With)),
             Some(TypeBoundary::Eof),
         );
+    }
+
+    #[test]
+    fn it3_same_line_payload_candidate_defers_to_the_live_if_companion() {
+        assert_variant_defers_live_companion(":{A else: 0", " else: 0");
+        assert_nested_variant_preserves_else_arm(
+            "if condition:\n  struct S { field: :{A else: 0",
+        );
+    }
+
+    #[test]
+    fn nt5_newline_tag_candidate_defers_to_the_live_if_companion() {
+        assert_variant_defers_live_companion(":{A\nelse: 0", "\nelse: 0");
+        assert_nested_variant_preserves_else_arm(
+            "if condition:\n  struct S { field: :{A\nelse: 0",
+        );
+    }
+
+    #[test]
+    fn opener_and_comma_fresh_heads_keep_companion_spelling_local() {
+        let source = ":{else,A,else}";
+        let stops = StopSet::default()
+            .with(StopKind::Elsif)
+            .with(StopKind::Else);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("complete polymorphic variant");
+        assert_eq!(i.input.remainder(), "");
+        assert!(matches!(
+            expression.primary,
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                tags,
+                close: Recovered::Complete(_),
+                ..
+            }) if tags.len() == 3
+        ));
+        drop(i);
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(companion),
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct complete polymorphic variant");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+        assert_eq!(local.pop_stop_set(), Some(stops));
+        assert_eq!(
+            local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(companion),
+        );
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
     }
 
     #[test]
