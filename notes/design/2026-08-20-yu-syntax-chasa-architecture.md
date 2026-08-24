@@ -18354,3 +18354,807 @@ tuple ML applicationとmissing separatorの非推測、ordinary TypeExpression r
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-24、canonical Statement / root Declaration `struct` declaration grammar追補案）。
+
+## 追補案: ambient statement-owner boundaryとlayout-delimited implicit newlineのcollision authority
+
+Status: Authoritative（ユーザ承認済み、2026-08-24）。
+
+Date: 2026-08-24。
+
+### Scope and authority
+
+本追補は、statement context内に入れ子になったdelimited / layout-listed constructがmissing closeに遭遇したとき、
+local field / item authorityが、次の**二つに限定したambient boundary class**をconsumeし得るgapを閉じる。
+
+1. nearest visible enclosing statement baselineよりstrictly shallowなphysical newline。
+2. active `IfExpression` companion ownerのexact `else` / `elsif` match。
+
+方針は次の一点である。
+
+> local list / continuationがstrict outer dedentまたはactive IfExpression companionと衝突するなら、
+> そのexact ambient classが先に所有する。ordinary same-indent non-companion candidateはこの規則に含めない。
+
+本追補の唯一のcanonical mechanismは後述の`ASOB-G`である。各constructは
+`ASOB-G`を参照し、`else` / `elsif`のword判定、outer block baselineの探索、またはcollision priorityを
+owner別loopに再定義しない。
+
+変更対象は、次の既存constructにあるbare implicit-newlineの最終authority判定と、そこへcontrolを返す前に
+same-line / newline continuationをcommitし得るnested OperatorChain / TypeExpression / Pattern judgeである。
+
+- `StructNamedFields` brace bodyと`StructTupleFields`。
+- `NamedRecordType`。
+- shared type-delimited driverが所有する`TypeCallTail` / `ParenthesizedTypeGroup` / `EffectRowType` /
+  `BracketRow`。
+- `PolymorphicVariantType`のouter tag list。
+- expression-delimitedの`ParenthesizedExpression` / `CallTail` / `IndexTail` /
+  `ProjectionTupleTail` / `ProjectionRecordTail`。
+- Pattern-delimitedの`ParenthesizedPattern` / `ListPattern` / `RecordPattern`。
+
+さらに、active if-expression companionをlocal bounded phaseが先取りし得る次のtwo pathも対象にする。
+
+- `ForallType`のbinder / colon / body bounded-trivia judge。
+- `ColonApplicationTail::InlineColonArguments`のouter-owner queryとexactly-one argument path。
+
+item grammar、layout base capture式、explicit separator set、matching-close recognition、CST / AST shape、
+typed recovery role、diagnostic wordingは変更しない。ordinary same-indent non-companion Statement candidateと
+local field / item candidateの衝突を含むscope外owner familyは後述のknown residualとし、本追補で解決しない。
+
+### Confirmed gap and relation to existing owner-safe rules
+
+`struct`追補の`SD-G`は次を定めた。
+
+> `ImplicitStructNewlineBoundary`はfollowing indent `<= struct_list_base`のphysical newlineである。
+
+一方、同追補の`SD-J`は、canonical Statement introについて次を先に判定すると定めた。
+
+> EOF、dedent、matching outer close、valid statement separator、if companion stop等のcaller-owned boundaryを先に判定し、
+> byteをconsumeしない。
+
+NamedRecordType追補も、次の区別を定めている。
+
+> current record depthでseparator条件を満たすならrecord ownerがimplicit boundaryとしてraw triviaを一度所有し、
+> active enclosing ownerへ属するnewlineならrollbackして返す。
+
+しかし、これらの先行追補は、delimiter-local `LayoutDelimitedFrame`からactive enclosing statement
+ownerのdedent / companion factへ到達するone carrier / queryを定義していなかった。
+`CanonicalStatementOwner::{Root, Indented, Braced, InlineWith}`はconceptual vocabularyに留まり、
+`IndentedBlockCompanionStop::matches`は`expression.rs`内のprivate predicateに留まっていた。
+さらに、authoritative if grammarの`ArmContinuation` / `IfContinuationStop`はinline armでも
+horizontal `else` / `elsif`を所有するが、そのcompanion lifetimeは`IndentedStatementBlock`の存在に
+依存しない。よってcompanion factを`Indented` frameだけへ格納するモデルではinline armを保護できない。
+本追補は先行のowner-safeな結果を変更せず、その結果を実行可能にするambient carrierと
+two sink-free predicate queryを追加し、complete judge-point listへ接続する。
+
+### `ASOB-G`: canonical ambient owner and collision rule
+
+#### Two rollback-owned stacks and braced visibility barrier
+
+`ParseLocal`は、existing delimiter / stop / indentation / typed-delimited stackと別に、ambient owner scopeと
+if-expression companionの二つのrollback-owned stackを持つ。
+
+```rust
+struct AmbientOwnerScopeFrame {
+    kind: AmbientOwnerScopeKind,
+    statement_baseline: Option<usize>,
+    if_visibility_floor: Option<usize>,
+}
+
+enum AmbientOwnerScopeKind {
+    RootStatement,
+    IndentedStatement,
+    BracedBarrier(BracedBarrierOrigin),
+    InlineCanonicalStatement(InlineStatementOwnerKind),
+}
+
+enum BracedBarrierOrigin {
+    BracedStatementBlockExpression,
+    CatchBracedArmSequence,
+}
+
+enum InlineStatementOwnerKind {
+    WithBodyTail,
+    ModColonBody,
+}
+
+struct IfExpressionCompanionFrame {
+    id: IfExpressionCompanionId,
+    if_base_indent: usize,
+    exact_words: &'static [&'static str],
+}
+```
+
+上はsemantic shapeの正本であり、concrete Rust名、ID表現、static slice、scope guardの実装はcurrent module
+boundaryに合わせてよい。ただし、frame identity、braced visibility floor、statement baselineをboolean、raw
+`StopSet`、またはgeneric indentation stackの位置推測へeraseしてはならない。
+
+- `RootStatement`は`statement_baseline = Some(0)`を持つ。
+- `IndentedStatement`は`StatementSequencePolicy::Indented`のprojectionであり、
+  `statement_baseline = Some(block_indent)`を持つ。
+- `BracedBarrier`はindentation authorityを持たず、`statement_baseline = None`である。同時に、entry時の
+  if-companion stack depthを`if_visibility_floor = Some(depth)`として保持する。
+- `InlineCanonicalStatement`はWith / Modのinline exactly-one-Statement originだけを区別し、own baseline / barrierを持たない。
+- `IfExpressionCompanionFrame`はone armでなくone complete `IfExpression` chainを表し、active lifetime中不変の
+  `if_base_indent`、expression-owned exact word set、opaque identityを持つ。
+
+nearest statement baseline探索はtopから行い、`InlineCanonicalStatement`だけをtransparentにskipする。
+`IndentedStatement` / `RootStatement`へ達すればそのbaseを返すが、先に`BracedBarrier`へ達したら`None`で停止する。
+よってouter indentation ruleはbraced region内部へ漏れない。
+
+both stacksとIf ID allocatorは`ParseLocalCheckpoint`の一部である。checkpoint / rollbackはdepth / ID stateを
+exact restoreし、committed normal / recovery exitはpushしたexact frameのpopをassertする。
+
+#### Push, suspend, resume, and pop authority
+
+AST pathとdirect-CST pathは同じscope helperを使い、次のlifetimeを持つ。
+
+1. full root driverはfirst root declaration / statement candidate前に`RootStatement`をpushし、root loop終了後にpopする。
+2. shared `IndentedStatementBlock` wrapperは`block_indent`確定後、first Statement前に`IndentedStatement`をpushし、
+   sequence return後、returned boundaryをconsumeする前にpopする。
+3. `BracedStatementBlockExpression`と`CatchBracedArmSequence`は、own opener accept / cut時にcurrent
+   if-companion depth `n`をcaptureし、respective originの`BracedBarrier { if_visibility_floor = n }`をpushする。
+   active barrier中、index `< n`のif companionは**suspended**であり、popしない。内部で開始したIfExpressionは
+   index `>= n`へown frameをpushし、barrier内で通常どおりvisibleである。braced ownerのmatching / missing-close
+   episode終了時、if-companion depthが`n`へ戻ったことをassertしてbarrierをpopし、外側frameをresumeする。
+4. With / Modのinline branchはrespectively `InlineCanonicalStatement(WithBodyTail)` /
+   `(ModColonBody)`をone canonical Statement + optional terminal-semicolon episodeだけpushする。indented branchはitem 2を使う。
+5. exact `IfKw`をacceptして`if_base_indent`をcaptureした直後、post-keyword triviaまたはcondition candidateを
+   probeする**前**に、one `IfExpressionCompanionFrame`をpushしてIDを受け取る。same frameはinitial condition、
+   colon recovery、inline / indented body、ArmContinuation probe、accepted `ElsifKw`、そのcondition / body、次probeまで
+   uninterruptedにactiveである。elsif間でpop / pushしない。
+6. own IDの`ElseKw` matchをcommitした場合は、keyword byteをIfExpressionへemitした直後、Else armのpost-keyword trivia /
+   colon / bodyをparseする前にown frameをpopする。final Elseはsame IfExpressionの後続companionを持たず、ancestor If frameだけが
+   以後visibleである。own-ID continuationがない場合、またはmatching identityがancestor frameだった場合は、gapをconsumeせず
+   current IfExpressionを閉じる直前にown frameをpopする。normal / Missing condition / missing colon / rollbackの全exitで同じruleを使う。
+7. field / item listはambient owner frameをpushしない。ordinary parenthesis / bracket / record / Struct delimiterも
+   `BracedBarrier`ではなく、outer ambient authorityを保持する。barrierはauthoritative outer-stop suspensionを持つitem 3の
+   semantic braced ownerだけである。
+
+#### Two canonical companion queries with identity
+
+grammar-visibleにsourceを読むsemantic queryを次の二つに限定する。
+
+```text
+AnyAmbientOwnerClaims(gap) -> bool :=
+    StrictDedentFromNearestVisibleStatementBaseline(gap)
+    or IfContinuationOwner(gap).is_some()
+
+IfContinuationOwner(gap) -> Option<IfExpressionCompanionId> :=
+    scan visible IfExpressionCompanionFrame values from innermost to outermost
+    and return the first matching frame identity
+```
+
+`StrictDedentFromNearestVisibleStatementBaseline`はphysical newlineがあり、braced barrierに遮られず見つかった
+nearest baseに対して`following_line_indent < base`のときだけtrueである。
+
+`IfContinuationOwner`のvisible rangeはlatest active `BracedBarrier.if_visibility_floor`以降、barrierがなければ
+stack全体である。各frameは`post_trivia_maximal_word in own_exact_set &&
+(!has_physical_newline || following_line_indent >= frame.if_base_indent)`のときだけmatchする。
+inner frameがindent条件でfailしouter frameがmatchした場合、
+outer IDを返す。existential booleanへ潰さない。
+
+container / continuation / recovery callerは`AnyAmbientOwnerClaims`だけを使う。IfExpressionの
+`ArmContinuation` judgeだけは`IfContinuationOwner(gap) == Some(own_id)`を要求する。ancestor IDが返った場合、
+current IfExpressionはそのwordをown companionとしてconsumeせずreturnする。
+
+両queryは`session.rs`のplain sink-free predicate functionとする。functionはinput / line state /
+all `ParseLocal` rollback-owned stack / sinkをcheckpointし、emptyを含むone maximal trivia runと直後のone maximal wordを
+probeする。そのone call内のlocal evidenceとしてphysical-newline fact、following indent、maximal wordを求め、
+nearest baseline / visible If frameを評価した後、resultに関係なくexact rollbackする。
+grammarへevidence objectを返さず、recovery / trivia / wordをcommitしない。永続proof / token / clockを
+作らず、call時点のlive inputとlive ambient stackだけを読む。
+
+#### Companion extraction without spelling duplication
+
+current `IndentedBlockCompanionStop::matches`、inline `IfContinuationStop`、condition stop、`ArmContinuation`の
+重なるmechanicsを、`IfContinuationOwner`が使うone sink-free primitiveへ抽出する。if-expression ownerだけが
+`expression.rs`のone canonical definitionから`exact_words = ["elsif", "else"]`をframeへ与える。
+shared primitiveはword setを所有 / 拡張せず、given frameのindent / exact wordだけを判定する。
+
+existing condition stop、inline arm stop、indented sequence stop、ArmContinuation、ASOB predicateはsame frame /
+predicateを読む。private `IndentedBlockCompanionStop::matches`または`declaration.rs` / `type_expr.rs` /
+`pattern.rs`のparallel spelling scannerを残さない。本追補でcompanion wordは`else` / `elsif`のままである。
+
+#### Mandatory pre-commit predicate points
+
+container inter-item loopだけでambient checkする形は不十分である。Call argument内のOperatorChain ML continuation、
+polymorphic variant `IT-3` payload、BracketRow `BR-H` / `BR-A`は、containerへreturnする前にsame gapをconsumeできる。
+さらにrecursive OperatorChain / TypeExpression / Patternの内側でも同じことが起こる。したがって後述の
+enumerated judge pointは、container loopとその内部でgapを先に取得し得るcontinuation / payload / recovery judgeを
+明示的に含まなければならない。
+
+一方、raw `scan_trivia`自体をambient-awareに変えてはならない。opener直後のfirst item、literal separator後の
+disambiguated item、closing trivia等も同scannerを使い、そこではliteral `else` / `elsif`がlocal syntaxとしてreachableだからである。
+current implementationにはexpression / type / Patternのsemantic continuationを既に一つへ束ねるhelperはなく、
+共通なのはこのraw lexical scannerだけである。よってexisting helperへのone-line insertionでは閉じない。
+
+各enumerated judge pointは、completed / recovered local syntaxの直後にtrivia、next word / primary、payload、
+またはmalformed runをcommitする**前**に、current gapへplain `AnyAmbientOwnerClaims`をcallする。
+
+```text
+AmbientPreCommitJudge(gap, local_candidate) :=
+    if AnyAmbientOwnerClaims(gap)
+    then CallerOwnedBoundary
+    else EvaluateExistingLocalCandidate(local_candidate)
+```
+
+predicateがtrueならsame gapをnon-consumeでcallerへ返す。falseなら既存local judgeへ進むだけであり、
+new carrier / entry type / parser modeを返さない。opener直後のfirst item、explicit separator直後のnext item、
+accepted operator / colonが既に開いたmandatory RHSはcompleted-anchor continuationではないため、existing local pathを保つ。
+ただしIf condition、Forall bounded phase、`BR-H` / `BR-A`のように本追補が明示的にambient-firstへamendする
+mandatory phaseはenumerated judge pointに含める。
+
+#### `AfterOwnerSafeImplicitBoundary`: original-gap ordering
+
+`AfterOwnerSafeImplicitBoundary`はnew Rust type / token / CST nodeではなく、one driver stepの順序名である。
+bare implicit-newline candidateでは、ambient predicateとlocal layout predicateをnewlineが未消費のoriginal gapに対して
+評価し、ambient falseかつlocal candidate trueのときだけtriviaをconsumeしてlocal boundaryをcommitし、
+immediately one next-item / field / tag slotを開く。
+
+```text
+OwnerSafeImplicitNewlineBoundary(gap, local_candidate) :=
+    if AnyAmbientOwnerClaims(gap)
+    then CallerOwnedBoundary                  // gapは未消費
+    else if local_candidate(gap)
+    then consume gap; commit local boundary; open exactly one next slot
+         // control state: AfterOwnerSafeImplicitBoundary
+    else NoImplicitBoundary                  // gapは未消費
+```
+
+ambient falseの結果をpersistent proofとして保存しない。predicate returnからlocal commitまでcursorを進めず、
+same driver step内でexisting local candidateを判定する。newlineをconsumeしてからpost-newline positionで
+ambient predicateを再実行してはならない。そこではphysical newline / following indent / pre-word gapという
+original evidenceが既に失われるからである。
+
+normal continuation / malformed retryでも同じ順序を使う。predicate trueならlocal candidate probe自体をcommitせず、
+falseならexisting priority / recoveryへ進む。nested constructがreturnした後にouter constructもsame gapを判断する場合、
+each driverは未消費のsame inputへplain predicateをcallし直す。persistent proofのhandoffは不要である。
+
+#### Proportional completeness invariant
+
+correctnessは、後述のenumerated judge pointがlocal gapをcommitする前にplain predicateをcallすることへ依存する。
+これはcompiler-enforced invariantではなく、`TypeMalformedCallerBoundaryFence`、
+`struct_outer_owned_mismatched_close_pending_for`等と同じ、documented + fixture-verified + code-reviewed invariantである。
+
+この選択は意図的である。本件はmissing delimiter下のbyte attributionとdiagnostic / recovery scopeを守る問題であり、
+well-formed inputのacceptance soundnessやmemory safetyのためにgrammar input全体をopaque化する問題ではない。
+そのseverityに対し、grammar-wide type enforcementやbespoke source audit toolを導入しない。
+代わりに、次節のexplicit judge-point enumerationをscope completenessの正本とし、各pointをAST / direct fixtureと
+implementation reviewで閉じる。future constructが同じ「completed / recovered anchor後のgapをlocalにcommitする」
+shapeを追加する場合、このenumerationとgateを同時にamendする。
+
+#### Complete judge-point enumeration
+
+predicate対象は「local syntaxを一つaccept / recoverした後、same lexical gapを越えて別のtoken / nodeをcurrent constructへ
+attachするtransition」の全てである。次のenumerationをcurrent productionに対するscope-completeness authorityとする。
+
+- OperatorChainのLED / fixed tail / ML application / terminal tail judge。ML-specific probeより前に置く。
+- TypeExpressionのpath / call / TypeApply / arrow / other tail judgeとPatternのLED / annotation continuation。
+- all layout-delimited item / field / tag sequenceのimplicit boundary、missing-separator retry、malformed-run safe-point transition。
+- polymorphic variantの`IT-1..4` / `NT-1..8`のうち、completed / recovered tag / payloadまたは
+  malformed retry anchorから入るentry。opener直後とcommitted explicit separator後のfresh tag headは後述のexceptionである。
+- BracketRowの`BR-N` / `BR-L` / `BR-R` / `BR-RP1..4` / `BR-H` / `BR-A`のうち、
+  continuationまたは本追補がamendするmandatory phaseから入るentry。
+- Forall binder / colon / body bounded phase transitionとColon inline first argument後のnext-argument decision。
+
+actual matching own close、locally allowed explicit separator、opener直後のfirst item、explicit separatorが開いたone
+next-item headはpredicate対象外である。ambient falseをoriginal gapで確認してlocal implicit boundaryをcommitした直後の
+one next-item headは`AfterOwnerSafeImplicitBoundary` control stateであり、同じboundaryを再判定しない。
+また、accepted dynamic / fixed operator、field colon等がexisting grammarで
+既に開いたmandatory RHSのfirst headも、別のcompleted-anchor continuationではない。これらはlocal mandatory-slot contractを使う。
+ただしIf condition、Forall bounded phase、`BR-H` / `BR-A`のように本追補が明示的にowner-boundary-firstへamendする
+mandatory phaseだけはpredicate対象である。このexception setを「all mandatory slots」へ一般化しない。
+
+prior `ImplicitNewlineBoundary(base)` / `ImplicitStructNewlineBoundary(base)`はlocal candidate定義として残り、
+derived ruleだけが次のcall orderingになる。
+
+```text
+OwnerSafeImplicitNewlineBoundary(gap, local_candidate) :=
+    if AnyAmbientOwnerClaims(gap)
+    then CallerOwnedBoundary
+    else EvaluateExistingImplicitNewlineCandidateAtSameGap(local_candidate)
+```
+
+### `ASOB-P`: exact precedence at every continuation gap
+
+list、OperatorChain、TypeExpression、Pattern、bounded phase、malformed retryは、applicableなbranchだけを次の順で使う。
+
+1. actual matching own closeまたはexisting caller-owned fixed delimiter stopが実在するなら、そのexisting pathを使う。
+2. locally allowed explicit separatorが同logical gapに実在するならliteral punctuationがauthorityを持つ。separator後が
+   strict dedent、EOF、outer close等へ直行すればexisting separator-before-boundary recoveryを使う。それ以外はone next-item
+   headをlocalに開始でき、`else` / `elsif` spellingも
+   explicit disambiguationによりreachableである。
+3. step 1 / 2で決まらず、completed / recovered anchorからcontinuation、implicit boundary、next candidate、または
+   malformed retryを取得するなら、trivia / candidate consume前にplain `AnyAmbientOwnerClaims`をcallする。
+   trueならsame gapをnon-consumeでreturnし、local slot / retryを開かない。
+4. falseの場合だけexisting local layout comparison、ML / TypeApply / Pattern continuation、
+   implicit separator、same-line missing separator、payload / head / arrow phase、malformed recoveryへ進む。
+   implicit separatorをcommitするbranchはoriginal gapからqualifying triviaをconsumeし、same stepでboundary commit後の
+   exactly one next slotを開く。このcontrol stateが`AfterOwnerSafeImplicitBoundary`である。
+
+actual closeとexplicit separatorの認識方法、local candidate priority、layout base、item grammarは変更しない。
+later matching closeをspeculatively探索してambient claimを取り消さない。
+
+### `ASOB-R`: recovery, byte ownership, and propagation
+
+predicateでambient claimに到達したcontinuationはrecoveryをcommitせず、same gapをcallerへ返す。
+inner OperatorChain / TypeExpression / Patternがreturnした後、accepted delimiter ownerが存在すれば、そのownerが
+constructごとのexisting close recoveryを適用する。accepted delimiterがないForall等はcurrent mandatory phaseの
+existing Incomplete contractを使う。Struct named brace / tupleもown close roleを変更しない。
+
+新しい`RecoveryKind`、`GrammarRole`、`ExpectedSyntax`、`ConstructRole`、`StopKind`、synthetic separator、
+ambient-boundary CST nodeを追加しない。`CallerOwnedBoundary`はcontrol-flow dispositionの説明名であり、
+source vocabularyまたはdiagnostic roleではない。
+
+local boundaryがcommitされたか否かを、next item / field slot cardinalityの唯一の分岐にする。
+
+| inter-item episode | local boundary commit | missing item / field | missing close |
+| --- | --- | --- | --- |
+| completed item直後のbare implicit-newline candidateをambientがveto | なし | 0 | accepted unclosed constructごとに1 |
+| completed item直後のsame-line companion candidateをambientがveto | なし | 0 | accepted unclosed constructごとに1 |
+| separatorなしでEOF / caller-owned outer closeへ到達 | なし | 0 | accepted unclosed constructごとに1 |
+| explicit separator、またはambientにvetoされなかったlocal implicit separatorをcommit後、next item / matching close前にEOF / owner boundaryへ到達 | あり | existing missing-next-item / fieldを1 | distinct missing closeを1 |
+| local boundary commit後にactual matching closeへ到達 | あり | 0（existing trailing-boundary rule） | 0、Complete |
+
+first / second rowが本追補の追加するcaseである。ambient vetoはseparatorをcommitせず、next item slotを
+一度も開かないため、missing item / fieldを作らない。fourth rowはTypeCall、NamedRecord、EffectRow、Struct等の
+existing recovery tableが既に持つseparator-before-boundary caseであり、本追補は二件のcardinalityを変更しない。
+local implicit separatorのfourth rowは`AfterOwnerSafeImplicitBoundary` stepでnext slotを同時に開く。
+したがってboundary commit後にnext candidateがなければexisting missing-next-item / fieldを一件持ち、
+ambient-veto rowへ逆行しない。
+
+例えば次はcommaをcommitしてnext Struct field slotを開いた後にEOFへ到達するため、missing Struct field一件と
+distinct missing `}`一件を持つ。
+
+```yu
+struct S { x: Int,
+```
+
+対して、後述のmissing-`}`-before-`else`例ではbare implicit newlineをambientがvetoするため、
+missing Struct fieldはzero、missing `}`だけが一件である。
+
+inner continuationがambient claimでreturnした後もsame triviaがcursorに残る。例えばCall argumentのOperatorChainが
+ML continuation前でreturnし、CallTailが同じpredicateを問い、own missing close後にouter ownerへ返す。outer delimited
+ownerもsame gapでpredicateを再度問い、accepted unclosed instanceごとのclose recoveryだけを一度ずつ行う。
+TypeExpression malformed recoveryの任意深さで既存`TypeMalformedCallerBoundaryFence` /
+`CallerOwnedMalformedBoundary`が必要なpathは、そのpositional-fence contractをそのまま使う。
+両者にparallel pending bit、new recursive return carrier、またはpost-parse CST再走査を追加しない。
+
+all pathで`green.to_string() == source`、triviaのexactly-once ownership、balanced node、
+one committed recovery record = one recovery node、AST / direct-CST parity、normal / recovery / rollbackのscope restoreを維持する。
+
+### Deliberate same-column companion divergence
+
+contextual keyword spellingはIdentifier positionでword shapeを保つ。そのため、次のnewline後の
+`else: Bool`はStruct fieldとif companionの両方にshape-matchする。
+
+```yu
+if condition:
+  struct S { x: Int
+  else: Bool }
+```
+
+本追補はこのambiguityを**outer-companion-wins divergence**として閉じる。
+following indent 2はnearest block baseline 2からstrict dedentではないが、
+active if companion specの`base_indent = 0`に対し`2 >= 0`であり、exact word `else`がmatchする。
+よってStruct field listはnewline前で終了し、own `}`をmissingとし、`else`をfield nameとしてconsumeしない。
+later `}`がsource上にあることは、bare newline位置のcompanion authorityを覆さない。
+
+このexact ambiguous positionでfield / item名にliteral `else` / `elsif`を使う場合は、
+locally allowed explicit separatorでdisambiguateする。
+
+```yu
+if condition:
+  struct S { x: Int,
+  else: Bool }
+else: 0
+```
+
+commaが`ASOB-P` step 2で先にlocal authorityを得るため、first `else: Bool`はStruct field、
+matching `}`後のsecond `else: 0`はif companionになる。opener直後のfirst item position、explicit separatorが
+開始したone item position、またはactive companion scope外の`else` / `elsif`名を一律に禁止する規則ではない。
+
+### Worked examples
+
+#### Missing Struct close before an outer `else`
+
+```yu
+if condition:
+  struct S { x: Int
+else: 0
+```
+
+Structのlocal predicateはnewline indent 0 `<= struct_list_base`を満たす。しかしnearest
+`Indented` statement baselineは2であり`0 < 2`、かつactive companionのexact wordも`else`である。
+`AnyAmbientOwnerClaims == true`なのでlocal implicit separatorはcommitされない。
+Structはone complete fieldとone missing `}`でreturnし、newline / `else: 0`はif ownerが所有する。
+`else: 0`をsecond Struct fieldへ変換しない。
+
+#### Inline If arm has the same companion visibility
+
+```yu
+if condition: f(x else: 0
+```
+
+このarmには`IndentedStatementBlock`が存在しない。それでもIfExpression開始時から
+`IfExpressionCompanionFrame`がactiveである。argument `x`を完了したOperatorChainは、CallTailへ戻る前の
+ML-application judgeでpredicateをcallし、horizontal `else`をconsumeしない。CallTailもsame gapを返し、
+missing `)`一件、missing argument zeroとなる。`else: 0`はown-ID ArmContinuationからElseArmになる。
+
+#### If condition protection and nested frame identity
+
+```yu
+if f(x else: 0
+```
+
+frameはpost-conditionではなく`IfKw` accept直後にpushされる。condition内Call argumentのOperatorChainは
+`x`後のML continuation predicateでown frame IDのcompanionを返す。CallTailのmissing `)`後もsame gapが残り、
+condition / colon recoveryが`else`をconsumeしない。
+
+```yu
+if outer:
+  if inner:
+    f(x
+else: 0
+```
+
+newline indent 0はinner If frameのbaseにはtoo shallowだがouter If frameにはmatchする。
+`IfContinuationOwner`はouter IDを返す。container predicateは「誰かがclaimした」ことだけでstopする一方、
+inner IfのArmContinuation judgeは`returned_id != own_id`なので`else`をconsumeせずinner frameをpopしてreturnする。
+その後outer Ifだけがown ID matchとしてElseArmをcommitする。
+
+#### Braced owner suspends, then resumes, outer companion visibility
+
+```yu
+if condition:
+  { else: 0 }
+else: 1
+```
+
+`BracedStatementBlockExpression` entryはouter If frameより上にvisibility floorを置く。brace内のfirst
+`else: 0`はouter companionでなくlocal canonical Statementとしてreachableであり、matching `}`までnormalにparseする。
+barrier pop後にouter frameがresumeし、second `else: 1`だけがIfExpression companionになる。
+
+#### Nested `NamedRecordType` returns the same boundary through Struct
+
+```yu
+if condition:
+  struct S { field: { value: Int
+else: 0
+```
+
+innermost `NamedRecordType`はnewlineをrecord-local implicit field separatorにせず、own missing `}`を一件持って
+same gapへreturnする。outer Struct named-brace driverもsame ambient claimを読み、own missing `}`を一件持ってreturnする。
+二つのcloseはaccepted construct instanceごとのdistinct mandatory slotであり、duplicate diagnosticではない。
+newline / `else: 0`はどちらのrecord / struct Error rangeにも入らず、if ownerまで保存される。
+
+#### Pattern-delimited target preserves the outer companion
+
+```yu
+if condition:
+  my [x
+else: 0
+```
+
+Binding target内の`ListPattern`はaccepted `[`後のnewlineをlocal implicit pattern-item boundaryにせず、
+own missing `]`一件、missing pattern item zeroでreturnする。binding recoveryはsame gapをconsumeせず、
+`else: 0`をIfExpressionへ返す。`ParenthesizedPattern` / `RecordPattern`も同じ
+`OwnerSafeImplicitNewlineBoundary`を使い、owner-specific close roleだけを変える。
+
+#### Polymorphic variant and bracket row use the same veto
+
+```yu
+if condition:
+  struct S { field: :{A
+else: 0
+```
+
+`PolymorphicVariantType`のouter tag listはnewlineを`PolyVariantTagBoundary`としてcommitせず、
+missing variant `}`一件、missing tag zeroでreturnする。outer Structもown missing `}`を一件持って同じgapを返す。
+
+```yu
+if condition:
+  struct S { field: :{A else: 0
+```
+
+tag `A`後のsame-line gapは`IT-3 CanonicalTypePrimary`がpayload `else`へcutする前にpredicateをcallする。
+own If frameがclaimするためpayload slotを開かず、variant / Structのexisting missing-close recovery後も
+`else: 0`をArmContinuationへ保存する。`IT-1` / `NT-5`だけをpatchしてもこのcaseは直らない。
+
+```yu
+if condition:
+  struct S { field: [e
+else: 0
+```
+
+`BracketRow`もshared type-delimited judgeでnewlineをlocal row-item boundaryにせず、own missing `]`を一件持つ。
+その後のmandatory head / arrow phaseはexisting recovery contractだけを使い、`else` byteをTypeExpressionへ取り込まない。
+outer Structのmissing close後もsame gapをIfExpressionまで保存する。
+
+```yu
+if condition:
+  struct S { field: [e] else: 0
+```
+
+leading row close後の`BR-H`はmandatory head candidateをprobeする前にpredicateをcallする。ambient claim時は
+existing Missing `LeadingEffectTypeHead`だけを作り、`else`をheadへしない。同様に
+`field: T [e] else: 0`では`BR-A`がarrow / RHS candidate前にclaimを返し、existing Missing
+`BracketRowArrow`だけを使う。`BR-R` list loopだけをpatchしても両caseは直らない。
+
+#### Companion-sensitive non-list continuations
+
+```yu
+if condition:
+  struct S { field: for 'a
+    else: 0
+```
+
+newline indent 4は`forall_base`に対してdeeper continuationになり得るが、active IfExpression companionにもmatchする。
+`ForallType`はbounded triviaをconsumeする前にcompanionを返し、existing binder-continuation / colon recovery tableどおり
+Missing ForallColon一件だけを作ってbody Missingをcascadeしない。binder separatorやnew dedent ruleを発明しない。
+
+```yu
+if condition: f: x else: 0
+```
+
+active `IfExpressionCompanionFrame`がcolon inline argument sequenceのouter ownerになるため、`f: x`はexactly one argumentで終わる。
+horizontal `else`をsecond colon argumentとしてconsumeせず、IfExpressionのElseArmへ返す。active frameのない
+top-level `f: x, y`等のexisting multi-argument modeは不変である。
+
+#### Actual matching close remains unchanged
+
+```yu
+if condition:
+  struct S {
+    x: Int
+    y: Bool
+  }
+else: 0
+```
+
+`x`--`y`間のnewlineはcompanion-shapedでなくstrict outer dedentでもないため、existing local implicit
+field boundaryである。`x`後のoriginal gapでambient predicateがfalse、local boundary predicateがtrueとなるため、
+same `AfterOwnerSafeImplicitBoundary` stepでnewlineをconsumeして`y`のone field slotを開く。newline消費後にambient predicateを
+再実行しない。このtransitionはStruct tuple、NamedRecordType、shared type-delimited driver、
+expression / Pattern delimited listで同一である。`y`後のtriviaの先にactual matching `}`が実在するため、
+`ASOB-P` step 1のclose pathが通常どおりconsumeする。close Missingや新しいdiagnosticは生じない。
+`}`後のnewlineだけがif ownerへ戻り、behaviorは本追補前と同じである。
+
+### Explicit amendments to prior Authoritative addenda
+
+本追補は、次のAuthoritative addendum / ruleを明示的にamendする。raw layout threshold、local candidate grammar、
+matching close / explicit punctuationは変更せず、listed judge pointのpre-commit decisionを`ASOB-G` / `ASOB-P`へ接続する。
+
+1. **canonical Statement-owner scope:** `canonical Statementのbinding / use declaration拡張`の
+   `Delimiter, stop, and statement-owner scope`にあるconceptual Root / Indented / Braced / InlineWith ownerと、
+   `canonical Statement / root Declarationのmod declaration拡張`の`ModColonBody`を
+   `AmbientOwnerScopeFrame`のRoot / Indented / BracedBarrier / respective Inline frameへ接続する。
+2. **IfExpression companion / braced suspension:** `NUD-primary if / elsif / else expression grammar`のcondition stop、
+   `IfContinuationStop`、`ArmContinuation`、inline / indented body、direct control flowをone complete-If frameへ接続する。
+   `NUD-primary brace-delimited statement-block expression`の`StatementSequencePolicy::BracedPrimary`と、
+   `NUD-primary case / catch expression grammar`の`CatchBracedArmSequence`へrespective `BracedBarrier`を追加する。
+   arm-separator authority自体はknown residualのままである。
+3. **OperatorChain / Call / Index / Projection continuation:** `dynamic operatorのprecedence-neutral surface chainとassociation境界`、
+   `call / field / path / ML applicationのfixed OperatorChain tail`、`IndexTail / ProjectionTail fixed OperatorChain tail`の
+   completed / recovered operand、dynamic LED / fixed / ML / terminal tail、Call argument / recovery、operand-complete judgeで、
+   respective local candidate前にplain predicateをcallする。association / BP semanticsは変更しない。
+4. **expression / Pattern delimited sequence:** `layout-aware comma-or-newline delimited sequence authority`の
+   `Unified Yulang3 rule` / `Boundary classification`、five expression / Pattern list、`InlineColonArguments`と、
+   `first-slice pattern grammar`、`ListPattern`、`RecordPattern`、trailing TypeExpression annotationのseparator /
+   recovery / Pattern LED judgeへplain predicateを接続する。Colon inline outer-owner queryへactive If frameを含める。
+5. **foundational TypeExpression / shared type-delimited driver:** `standalone foundational TypeExpression core grammar`の
+   `TypeChainTrivia`、fresh / tail judge、TypeApply / path / call / arrow、`TypeDelimitedSeparator`、mandatory / malformed recoveryと、
+   `standalone TypeExpressionのeffect row type primary`の`EffectRowDelimitedBoundary` / recoveryをamendする。
+   TypeCall / ParenthesizedGroup / EffectRow / BracketRow shared pathはlisted continuation / implicit / malformed judgeで
+   plain predicateをcallする。opener / explicit separator後のfresh candidateは従来どおりである。
+6. **NamedRecordType:** `standalone TypeExpressionのnamed record type primary`の`RecordTypeSeparator`、field RHS handoff、
+   whole-field / malformed recovery tableをamendし、record item loopとnested TypeExpressionのbothでsame gapを保存する。
+7. **polymorphic variant / bracket row / forall:** `standalone TypeExpressionのpolymorphic variant type primary`の
+   complete `NT-1..8` / `NT-safe` / `IT-1..4` / `IT-safe` / outer tag-list recovery、
+   `standalone TypeExpressionのbracket row grammar`の`BR-N` / `BR-L` / `BR-R` / `BR-RP1..4` / `BR-H` / `BR-A`、
+   `standalone TypeExpressionのforall / universal-quantifier type primary`のbinder / colon / body bounded trivia /
+   mandatory recoveryをamendする。listed payload / retry / post-close mandatory judgeはlocal commit前にpredicateをcallする。
+8. **Struct declaration:** `canonical Statement / root Declarationのstruct declaration grammar`の`SD-G` /
+   Field-list machinery / `SD-J` / `SD-R`をamendし、brace / tuple implicit candidate、field RHS TypeExpression、
+   same-slot retryへplain predicateを接続する。named-indented `< block_indent` ruleは変更しない。
+
+items 4--8のlist recovery tablesは`ASOB-R`のcardinality tableで一律にamendする。
+ambient-vetoed candidateはmissing next item / field zero + missing close one、committed separator後のowner boundaryは
+missing next item / field one + distinct missing close oneである。
+また、same itemsの「qualifying implicit newlineをconsumeしnext slotへ進む」stepはすべて、original gapで
+ambient predicateを先にcallし、falseの場合だけboundaryをcommitして`AfterOwnerSafeImplicitBoundary` stateで
+one next slotを開くorderingとしてamendする。
+post-newline positionからambient queryをやり直すimplementationはconformingでない。
+
+このリスト以外のAuthoritative productionを暗黙にamendしない。Forall / Colon inlineはlisted bounded transitionだけを
+amendし、raw implicit separator、layout threshold、active IfExpression外のcontinuation acceptanceを変更しない。
+
+### Explicit scope boundary
+
+本追補はparser architecture、grammar family、またはdiagnostic systemの再設計ではない。
+次は明示的にscope外である。
+
+- `else` / `elsif`以外のcompanion keyword追加。
+- new `StopKind`、recovery role、diagnostic category / wording、CST / AST node / fieldの追加。
+- matching close、outer-owned mismatched close、explicit comma / semicolonのscannerやlongest-spelling ruleの変更。
+- local layout baseのcapture式、`<= base` / `> base`の二分、ML / TypeApply continuation ruleの変更。
+- missing close後にlater itemをspeculatively parseし、actual closeが見つかればlocal authorityを復活させる規則。
+- equal-indentのordinary non-companion statement candidateとlocal field / item candidateの新しいdisambiguation、
+  またはcanonical Statement candidate dispatchのlookahead。
+- case / catch arm guardの`if` / `where`、arm arrow、binding `=`等のnon-IfExpression contextual owner stopを
+  ambient claim vocabularyへ追加すること。
+- 上記amendment list外constructへの自動拡張。
+- HIR / lowering / formatter semantics。
+
+Forall binder repetitionはpunctuation / implicit-newline separatorを持たず、mandatory bounded triviaだけでphaseを進める。
+したがってraw list separatorを追加せず、accepted / recovered phase anchor後にplain predicateだけを使う。
+Colon inlineもdelimiter-local implicit separator judgeではない。active IfExpressionをexisting outer-sequence-owner factへ含めて
+exactly-one pathを選べばcompanionをconsumeせず、no-owner multi-argument pathのnewline authorityは変わらない。
+この構造差を理由に、両pathへ`OwnerSafeImplicitNewlineBoundary`やnew list frameを挿入しない。
+
+次のfour owner familyは本追補後にも残る**known residual bugs / ambiguities**である。
+
+1. **same-indent ordinary canonical Statement:**
+
+```yu
+if c:
+  struct S { x: Int
+  my y = 1
+```
+
+`my` lineのindent 2はnearest statement baseline 2からstrict dedentでなく、`my`はactive companion wordでもない。
+よって`AnyAmbientOwnerClaims == false`であり、existing local-list-wins behaviorはStruct field / malformed recoveryを
+試し得る。本追補はsibling Statement candidateを保護しない。これを閉じるにはcanonical Statement dispatchの
+sink-free candidate lookaheadとlocal item shapeのpriorityを新たに定義する必要があり、contained collision predicateではない。
+
+2. **braced statement-owner current-depth newline / missing braced close:**
+
+```yu
+{
+  struct S { x: Int
+  my y = 1
+}
+```
+
+`BracedStatementBlockExpression`はindentに依存せずcurrent brace depthのnewlineをStatement separatorとしてownする。
+しかしmissing Struct close中はlexical depthがbrace ownerへ戻らず、ASOBのstrict-dedent classにもIf companion classにも入らない。
+さらに次ではauthoritative braced suspensionによりouter If frameが意図的にhiddenである。
+
+```yu
+if c:
+  { x
+else: 0
+```
+
+outer frameをbarrier越しに見せるとvalid brace-local `else: 0`まで奪うため、本追補はこのmissing braced closeを解決しない。
+brace-current-depthをmissing inner delimiter越しにclaimするには、delimiter-depth repairまたはlocal Statement candidateとの
+別priorityが必要である。
+
+3. **case / catch arm-sequence newline:**
+
+```yu
+case value:
+  A -> f(x
+  B -> 0
+```
+
+```yu
+catch action {
+  A -> f(x
+  B -> 0
+}
+```
+
+first newlineは`arm_indent`、secondはCatchBraced current-depthでnext arm authorityを持つが、neitherはstatement strict dedent nor
+If companionである。missing Call close内のlocal continuationが`B`を先取りし得る。arm sequenceをambient owner familyへ
+追加するにはPattern + Arrow candidateとのcollision priorityとbrace / indent policyを新たに定義する必要がある。
+
+4. **non-IfExpression contextual introducer / owner stop behind a missing nested delimiter:**
+
+```yu
+case value: [x if guard -> body
+```
+
+accepted `[`はexisting delimited-pattern ruleによりarm ownerの`ArmGuardIf`をlocal stop setからsuspendするが、
+arm grammarはexact `if`をguard introducerとして所有する。missing `]`時、ASOBはstrict statement dedentと
+IfExpression `else | elsif`だけを運ぶため、neither queryも`if`をclaimしない。ListPatternはこれを
+next pattern item / malformed recoveryとしてconsumeし得る。same familyにarm guard `where`、arm `->`、
+binding target後の`=`、その他missing nested delimiterの内側でsuspendされるcontextual introducer stopを含む。
+これを閉じるにはstop identity / suspensionとlocal candidateのpriorityをIfExpression companion以外へ
+一般化する別mechanismが必要であり、本追補は行わない。
+
+以上は本追補のcontained scopeとしてacceptするknown residualであり、future fixは別のsigned addendumで決定する。
+「outer sequence owner always wins」または「all caller boundariesをASOBがcoverする」というclaimで隠してはならない。
+
+implementationは`session.rs`のtwo rollback-owned ambient stacks / If identity / barrier、two sink-free predicate、
+if / root / indented / braced / With / Mod scope wiring、enumerated expression / type / Pattern judgeへのplain call、
+listed construct fixtureに限定できる。grammar input wrapper、new parser entry type、source audit tool、
+grammar familyのfoundational rewrite、new recovery vocabularyは要らない。
+ただしambient stackのpush / popがAST / directの一方にしか入らないと同じ欠陥が残るため、
+scope wiringはconstruct fixtureより先に閉じる。
+
+### Closed decisions and Claude review focus
+
+本追補で次をclosed decisionとする。
+
+- `ASOB-G`が列挙するstrict outer dedent / active IfExpression companion collisionだけはambient ownerが勝ち、
+  local-field-winsのspeculative-closeは採用しない。ordinary same-indent non-companion collisionは解決済みと呼ばない。
+- strict dedentはnearest visible statement baselineだけと比較し、BracedBarrierを越えず、generic indentation stackを推測しない。
+- companion matchはcurrent `>= base_indent` + exact `else | elsif`を保ち、same-column local fieldとのambiguityでもouterが勝つ。
+- explicit local separatorはambiguityのdisambiguatorであり、actual matching own closeは従来どおりnormal terminationである。
+- ambient-owner stackとIfExpression companion stackは直交し、BracedBarrierのvisibility floorだけがouter frameをsuspendする。
+- one IfExpressionはone identity frameを`IfKw`直後から最後のown continuation decisionまで保持し、elsif間にlifetime gapを作らない。
+- container loopだけでなく、complete enumerationにあるall completed / recovered-anchor continuation /
+  payload / malformed judgeがplain predicateをlocal commit前にcallする。raw trivia scannerをglobal ambient-awareにしない。
+- owner-safe implicit newlineはoriginal gapでambient predicateを先に評価し、falseの場合だけsame driver stepで
+  trivia / boundary commitとone next-slot openを行う。この順序名を`AfterOwnerSafeImplicitBoundary`とし、
+  post-newline re-probeを行わない。
+- completenessはcompiler-enforced guaranteeではない。explicit judge-point list、AST / direct fixture、implementation reviewで
+  保つdocumented invariantを、本件のrecovery-scope severityに対するdeliberate proportional tradeoffとする。
+- WithとModのinline exactly-one-Statementはorigin-preserving `InlineCanonicalStatement` frameを共有する。
+- ambient claimはsource byteやdiagnostic roleを持たず、existing caller-owned boundary / missing-close contractへ制御を返す。
+- OperatorChain / TypeExpression / Patternのrecursive continuationと、Pattern / polymorphic variant / bracket rowを含む
+  listed container / bounded phaseがsame predicateを使う。raw `ImplicitNewlineBoundary`自体はglobalに変更しない。
+- ambient-vetoed bare candidateはmissing item / field zero、committed separator-before-boundaryはmissing item / field oneであり、
+  両方がaccepted unclosed constructごとのmissing close oneを持つ。
+- Forall / Colon inlineは同じlist productionではないため、raw implicit separatorを追加せず、
+  amendment listで指定したbounded transition / outer-owner decisionだけでplain predicateをcallする。
+
+Claude reviewでは特に、predicate callがML probe / `IT-3` / `BR-H` / `BR-A`より前にあること、
+implicit boundaryがoriginal gapのambient falseを確認したsame stepで`AfterOwnerSafeImplicitBoundary`へ進み、
+post-newline re-probeしないこと、own / ancestor If IDの区別、IfKw直後からのgap-free lifetime、
+BracedBarrierのbaseline / companion両方の遮断、actual-close / explicit-separator priority、separator cardinality、
+enumerated judge pointのfixture coverage、four residual owner familyの非隠蔽を確認対象にする。
+
+### Implementation boundary and gates
+
+implementation gateを次で固定する。
+
+1. `session.rs`へrollback-owned `AmbientOwnerScopeFrame` stack、`IfExpressionCompanionFrame` stack、If ID allocator、
+   checkpoint / rollback、scope accessorsを追加する。standalone parseのempty stacksはambient claimなしとする。
+2. plain sink-free `AnyAmbientOwnerClaims -> bool`と
+   `IfContinuationOwner -> Option<IfExpressionCompanionId>`を実装する。one maximal trivia + word probe後に
+   input / line / local / sinkをexact rollbackし、persistent evidence / tokenを作らない。
+3. nearest baseline predicateがInline frameをskipし、Root / Indentedを返し、BracedBarrierで`None`停止するfixtureを固定する。
+   AST / direct full root、shared IndentedStatementBlock、With / Mod inlineをrespective frameへexactly once wireする。
+4. BracedStatementBlockExpression / CatchBracedArmSequenceがif stack depth `n`でbarrierをpushし、outer Ifをsuspend、
+   inner Ifをvisibleに保ち、exit時にdepthをassertしてbarrier pop後にouter frameをresumeする。
+5. each IfExpressionがexact IfKw直後、condition trivia前にone identity frameをpushし、all elsif transitionを通して保持し、
+   own ElseKw commit直後またはfinal no-continuation return直前にpopする。nested fixtureでinner fail / outer-ID matchと
+   own-ID-only ArmContinuation commitをAST / directで固定する。
+6. private indented matcher、condition `StopKind::{Elsif, Else}` probe、inline IfContinuationStop、ArmContinuationを
+   one expression-owned exact-word predicateへ抽出する。parallel `else | elsif` spelling implementationを残さない。
+7. OperatorChainのAST / direct dynamic LED、fixed tail、ML argument、terminal tail judgeがlocal probe前にplain predicateをcallする。
+   body repro `if condition: f(x else: 0`とcondition repro `if f(x else: 0`で`else`をsame gapへ残す。
+8. ParenthesizedExpression / Call / Index / ProjectionTuple / ProjectionRecordのnormal list、implicit boundary、
+   missing separator、malformed retry、close recoveryへpredicateを接続し、actual close / explicit separator behaviorを保つ。
+9. Pattern LED / annotationとParenthesizedPattern / ListPattern / RecordPatternのAST / direct normal / recovery judgeへ
+   predicateを接続する。Binding target reproでouter ElseArmを保存する。
+10. Struct named-brace / tuple list、same-slot retry、field RHS TypeExpressionへpredicateを接続する。
+    named-indented existing dedent ruleを保ち、original missing-`}` repro、same-column divergence、comma disambiguationを固定する。
+11. NamedRecord normal loop、whole-field recovery、field-colon / RHS handoff、positional fenceへpredicateを接続し、
+    nested NamedRecord / Struct reproでboth missing closeとouter ElseArm preservationを固定する。
+12. TypeExpression path / call / TypeApply / arrow / malformed continuationとshared type-delimited
+    Call / ParenthesizedGroup / EffectRow / BracketRowのnormal / malformed / separator / close judgeへpredicateを接続する。
+    active companion前にTypeApply candidateをcommitせず、owner-specific roleを変えない。
+13. PolymorphicVariantのcomplete `NT-1..8` / `IT-1..4` / both safe scannersをentry originごとにreviewし、
+    completed / recovered tag / payloadとmalformed retryでpredicateを先にcallする。same-line `IT-3`とnewline `NT-5`
+    reproでtag / payload slot zero、outer ElseArm preservationを固定する。
+14. BracketRowの`BR-N` / `BR-L` / `BR-R` / `BR-RP1..4` / `BR-H` / `BR-A`をentry originごとにreviewし、
+    applicable local commit前にpredicateをcallする。post-close head `[e] else: 0`とarrow `T [e] else: 0`をAST / directで固定する。
+15. Forall binder / colon / body bounded phaseがeach accepted / recovered anchor後にpredicateをcallし、
+    Colon inline outer-owner queryがactive visible If frameを含むことを固定する。active frame外のdeeper continuation /
+    comma / implicit-newline multi-argument modeは保つ。
+16. all implicit-list driverでoriginal gapのambient predicateをlocal boundary commitより前にcallし、falseの場合だけ
+    same `AfterOwnerSafeImplicitBoundary` stepでtrivia / boundary commit + exactly one next slot openを行う。
+    post-newline re-probeを禁止し、actual matching close、explicit separator、comma + newline、valid next itemを保つ。
+17. recovery cardinality matrixでambient-vetoed candidateはmissing item / field zero + missing close exactly one、
+    committed explicit / local implicit separator before owner boundaryはmissing item / field exactly one + close exactly oneとする。
+18. four known residual familyをfixture化する。same-indent ordinary Statement、braced current-depth newline、
+    CaseIndented / CatchIndented arm-indentおよびCatchBraced current-depth newline、
+    `case value: [x if guard -> body`と`if | where | -> | =` contextual stopをASOB successへ誤分類しない。
+19. depth 2以上のcross-construct propagation / rollbackでambient / If、delimiter / stop / indentation、expression / type owner、
+    ML flags、positional fenceをexact restoreする。final regressionでall enumerated judge point、lossless round trip、
+    AST / direct parity、one record = one node、unchanged companion word set / StopKind / diagnostic vocabularyを確認する。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-24、ambient statement-owner boundaryとlayout-delimited implicit newlineのcollision authority追補案）。
