@@ -8338,6 +8338,130 @@ mod tests {
         ));
     }
 
+    // ASOB Gate 18: documented known residual, not a regression.  Do not
+    // change this without a new signed addendum defining ordinary same-indent
+    // Statement authority against a local Struct field candidate.
+    #[test]
+    fn asob_known_residual_same_indent_statement_is_still_taken_by_struct_recovery() {
+        let source = "if c:\n  struct S { x: Int\n  my y = 1";
+        let (remainder, recoveries) =
+            parse_direct_expression_prefix_recovered(source, &canonical_operator_table());
+
+        // `my y` becomes the recovered second Struct field.  The outer
+        // statement owner only gets the later `= 1` tail, not a Binding.
+        assert_eq!(remainder, "= 1");
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::Declaration(DeclarationRole::Struct(
+                        crate::session::StructRole::FieldColon,
+                    ))
+        }));
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::StructNamedFields,
+                        delimiter: Delimiter::Brace,
+                    }
+        }));
+    }
+
+    // ASOB Gate 18: documented known residual, not a regression.  Do not
+    // change this without a new signed addendum defining brace-depth statement
+    // authority through an unclosed inner delimiter.
+    #[test]
+    fn asob_known_residual_braced_current_depth_and_companion_suspension_remain_distinct() {
+        let source = "{\n  struct S { x: Int\n  my y = 1\n}";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::StructField).count(), 1);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::BindingStatement).count(), 0);
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::StructNamedFields,
+                        delimiter: Delimiter::Brace,
+                    }
+        }));
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Error
+                && record.site.role
+                    == GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::BracedStatementBlockExpression,
+                        delimiter: Delimiter::Brace,
+                    }
+        }));
+
+        // This is intentionally *not* an ASOB failure: the braced barrier
+        // suspends the outer If companion, so this `else` cannot be its arm.
+        let source = "if c:\n  { x\nelse: 0";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 0);
+        assert!(matches!(recoveries.as_slice(), [record]
+            if record.kind == RecoveryKind::Missing
+                && record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracedStatementBlockExpression,
+                    delimiter: Delimiter::Brace,
+                }));
+    }
+
+    // ASOB Gate 18: documented known residual, not a regression.  Do not
+    // change this without a new signed addendum defining arm-sequence newline
+    // authority through a missing nested Call close.
+    #[test]
+    fn asob_known_residual_case_and_catch_arm_newlines_can_be_taken_by_call_recovery() {
+        for (source, arm_kind) in [
+            ("case value:\n  A -> f(x\n  B -> 0", SyntaxKind::CaseArm),
+            ("catch action {\n  A -> f(x\n  B -> 0\n}", SyntaxKind::CatchArm),
+        ] {
+            let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(root.descendants().filter(|node| node.kind() == arm_kind).count(), 1, "{source:?}");
+            assert!(recoveries.iter().any(|record| {
+                record.kind == RecoveryKind::Missing
+                    && record.site.role
+                        == GrammarRole::ClosingDelimiter {
+                            owner: ConstructRole::ArgumentList,
+                            delimiter: Delimiter::Parenthesis,
+                        }
+            }), "{source:?}: {recoveries:#?}");
+        }
+    }
+
+    // ASOB Gate 18: documented known residual, not a regression.  Do not
+    // change this without a new signed addendum generalizing suspended
+    // contextual-stop identity beyond IfExpression companions.
+    #[test]
+    fn asob_known_residual_suspended_arm_guard_if_is_still_consumed_inside_list_pattern() {
+        let source = "case value: [x if guard -> body";
+        let (root, recoveries) = parse_direct_recovered(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::CaseGuard).count(), 0);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ListPattern).count(), 1);
+        assert_eq!(
+            recoveries
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::Pattern(crate::session::PatternRole::ListSeparator)
+                })
+                .count(),
+            2,
+        );
+        assert!(recoveries.iter().any(|record| {
+            record.kind == RecoveryKind::Missing
+                && record.site.role
+                    == GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::ListPattern,
+                        delimiter: Delimiter::Bracket,
+                    }
+        }));
+    }
+
     #[test]
     fn struct_in_braced_statement_block_leaves_the_outer_close_for_its_owner() {
         let source = "{ struct S { x: Int } ; my sibling = value }";
@@ -8990,6 +9114,32 @@ mod tests {
         let output = committed.into_output();
         let recoveries = output.committed_recoveries().to_vec();
         (SyntaxNode::new_root(output.finish_complete()), recoveries)
+    }
+
+    fn parse_direct_expression_prefix_recovered(
+        source: &str,
+        table: &OperatorTable,
+    ) -> (String, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(table, LeadingTrivia::None, &mut committed)
+            .expect("residual expression prefix");
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+
+        let output = committed.into_output();
+        (remainder, output.committed_recoveries().to_vec())
     }
 
     struct CountingOutput {
