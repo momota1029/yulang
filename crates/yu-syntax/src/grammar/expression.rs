@@ -498,34 +498,43 @@ where
                 let mut elements = Vec::new();
                 let mut trailing_comma = None;
                 let close = if let Some(close) = i.run(recognize_parenthesized_close) {
-                    close
+                    Some(close)
                 } else {
                     loop {
                         elements.push(i.run(from_fn(|i| parse_operator_chain(table, i)))?);
+                        if any_ambient_owner_claims(&mut i) {
+                            break None;
+                        }
                         let trivia = consume_trivia(&mut i).expect("trivia scanning is total");
                         if let Some(comma) = i.run(recognize_parenthesized_comma) {
                             consume_trivia(&mut i).expect("trivia scanning is total");
                             if let Some(close) = i.run(recognize_parenthesized_close) {
                                 trailing_comma = Some(comma);
-                                break close;
+                                break Some(close);
                             }
                             continue;
                         }
                         if let Some(close) = i.run(recognize_parenthesized_close) {
-                            break close;
+                            break Some(close);
                         }
                         match layout.boundary_after_trivia(&trivia, i.local.line().line_indent) {
                             LayoutDelimitedBoundary::ImplicitNewline => continue,
-                            LayoutDelimitedBoundary::DeeperNewline => break i.run(recognize_parenthesized_close)?,
+                            LayoutDelimitedBoundary::DeeperNewline => {
+                                break Some(i.run(recognize_parenthesized_close)?);
+                            }
                             LayoutDelimitedBoundary::None if expression_nud_candidate_input(table, &mut i) => continue,
-                            LayoutDelimitedBoundary::None => break i.run(recognize_parenthesized_close)?,
+                            LayoutDelimitedBoundary::None => {
+                                break Some(i.run(recognize_parenthesized_close)?);
+                            }
                         }
                     }
                 };
                 pop_layout_delimited_baseline(layout, &mut i);
                 pop_parenthesized_expression_scope(&mut i);
                 items.push(OperatorChainItem::Primary(PrimaryExpression::Parenthesized {
-                    elements, trailing_comma, range: open.start..close.end,
+                    elements,
+                    trailing_comma,
+                    range: open.start..close.map_or(i.pos(), |close| close.end),
                 }));
                 break;
             }
@@ -954,6 +963,9 @@ where
                         vec![OperatorChainItem::Error { range: range.clone() }],
                         range,
                     ));
+                    if any_ambient_owner_claims(i) {
+                        break Recovered::Incomplete;
+                    }
                     continue;
                 }
                 let at = i.pos();
@@ -966,6 +978,9 @@ where
                     if let Some(close) = i.run(recognize_parenthesized_close) { break Recovered::Complete(close); }
                     continue;
                 }
+                break Recovered::Incomplete;
+            }
+            if any_ambient_owner_claims(i) {
                 break Recovered::Incomplete;
             }
             let trivia = consume_trivia(i).expect("trivia scanning is total");
@@ -1022,6 +1037,9 @@ where
                         vec![OperatorChainItem::Error { range: range.clone() }],
                         range,
                     ));
+                    if any_ambient_owner_claims(i) {
+                        break Recovered::Incomplete;
+                    }
                     continue;
                 }
                 let at = i.pos();
@@ -1034,6 +1052,9 @@ where
                     if let Some(close) = i.run(recognize_index_close) { break Recovered::Complete(close); }
                     continue;
                 }
+                break Recovered::Incomplete;
+            }
+            if any_ambient_owner_claims(i) {
                 break Recovered::Incomplete;
             }
             let trivia = consume_trivia(i).expect("trivia scanning is total");
@@ -1089,6 +1110,9 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         else {
             if let Some(range) = call_argument_error_retry_ast(table, i) {
                 items.push(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range));
+                if any_ambient_owner_claims(i) {
+                    return Recovered::Incomplete;
+                }
                 continue;
             }
             let at = i.pos();
@@ -1098,6 +1122,9 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
                 if let Some(close) = i.run(close) { return Recovered::Complete(close); }
                 continue;
             }
+            return Recovered::Incomplete;
+        }
+        if any_ambient_owner_claims(i) {
             return Recovered::Incomplete;
         }
         let trivia = consume_trivia(i).expect("trivia scanning is total");
@@ -1138,8 +1165,20 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
             } else { Recovered::Incomplete };
             items.push(ProjectionRecordItem::Spread(ProjectionRecordSpreadItem { marker: marker.clone(), rhs, range: marker.start..i.pos().max(rhs_start) }));
         } else if let Some(item) = i.run(from_fn(|i| parse_operator_chain(table, i))) { items.push(ProjectionRecordItem::Expression(item)); }
-        else if let Some(range) = call_argument_error_retry_ast(table, i) { items.push(ProjectionRecordItem::Expression(OperatorChain::new(vec![OperatorChainItem::Error { range: range.clone() }], range))); continue; }
+        else if let Some(range) = call_argument_error_retry_ast(table, i) {
+            items.push(ProjectionRecordItem::Expression(OperatorChain::new(
+                vec![OperatorChainItem::Error { range: range.clone() }],
+                range,
+            )));
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
+            continue;
+        }
         else { break Recovered::Incomplete; }
+        if any_ambient_owner_claims(i) {
+            break Recovered::Incomplete;
+        }
         let trivia = consume_trivia(i).expect("trivia scanning is total");
         if i.run(recognize_call_separator).is_some() { consume_trivia(i).expect("trivia scanning is total"); if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); } continue; }
         if let Some(close) = i.run(recognize_record_projection_close) { break Recovered::Complete(close); }
@@ -1175,6 +1214,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if any_ambient_owner_claims(i) {
+            return Recovered::Incomplete;
+        }
         if i.input.remainder().is_empty()
             || matches!(i.input.remainder().chars().next(), Some(';'))
         {
@@ -1217,6 +1259,9 @@ where
 {
     let start = i.pos();
     loop {
+        if any_ambient_owner_claims(i) {
+            return (start < i.pos()).then_some(start..i.pos());
+        }
         let Some(character) = i.input.remainder().chars().next() else {
             return None;
         };
@@ -2414,11 +2459,17 @@ fn commit_call_tail<'parse, 'source, 'local, E, O>(
         loop {
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
                 if call_argument_error_retry(table, committed) {
+                    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                        break;
+                    }
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                         .expect("a retried call argument must commit its shared NUD candidate");
                 } else {
                     emit_call_missing(committed, ExpressionRole::CallArgument, ExpectedSyntax::Expression);
                 }
+            }
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                break;
             }
             let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
             if let Some(separator) = commit_call_separator(committed) {
@@ -2495,6 +2546,10 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
             let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
                 if projection_item_error_retry(table, committed, ExpressionRole::ProjectionRecordSpreadRhs) {
+                    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                        committed.finish_node();
+                        break;
+                    }
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried spread rhs must commit");
                 } else { emit_projection_missing(committed, ExpressionRole::ProjectionRecordSpreadRhs, ExpectedSyntax::Expression); }
             }
@@ -2502,8 +2557,14 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
         } else if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
             let role = match kind { ProjectionKind::Tuple => ExpressionRole::ProjectionTupleItem, ProjectionKind::Record => ExpressionRole::ProjectionRecordItem };
             if projection_item_error_retry(table, committed, role) {
+                if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                    break;
+                }
                 parse_direct_operator_chain(table, LeadingTrivia::None, committed).expect("a retried projection item must commit");
             } else { emit_projection_missing(committed, role, ExpectedSyntax::Expression); }
+        }
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            break;
         }
         let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
         if let Some(separator) = commit_call_separator(committed) { committed.token(if separator.0 { SyntaxKind::Semicolon } else { SyntaxKind::Comma }, separator.1); let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing); if close_pending(committed) { break; } continue; }
@@ -2520,7 +2581,11 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
 {
     let recovered = committed.probe(|probe| {
         let start = probe.input().pos(); let mut end = start;
-        loop { let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
+        loop {
+            if any_ambient_owner_claims(probe.input()) {
+                return (start < probe.input().pos()).then_some(start..probe.input().pos());
+            }
+            let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
             if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
             i.input.next()?; end = i.pos(); let mut line = i.local.line(); line.at_line_start = false; i.local.set_line(line);
             if direct_expression_nud_candidate(table, LeadingTrivia::None, probe) { return Some(start..end); }
@@ -2537,6 +2602,9 @@ fn commit_record_projection_close<'parse, 'source, 'local, E, O>(committed: &mut
 where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            return IndexClose::Missing;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) { return IndexClose::Missing; }
         if let Some(punctuation) = committed.probe(|probe| probe.input().run(scan_punctuation)) {
             if punctuation.kind() == PunctuationKind::Close(Delimiter::Brace) { return IndexClose::Matched(punctuation.range()); }
@@ -2566,11 +2634,17 @@ fn commit_index_tail<'parse, 'source, 'local, E, O>(
         loop {
             if parse_direct_operator_chain(table, LeadingTrivia::None, committed).is_none() {
                 if index_item_error_retry(table, committed) {
+                    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                        break;
+                    }
                     parse_direct_operator_chain(table, LeadingTrivia::None, committed)
                         .expect("a retried index item must commit its shared NUD candidate");
                 } else {
                     emit_index_missing(committed, ExpressionRole::IndexItem, ExpectedSyntax::Expression);
                 }
+            }
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                break;
             }
             let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
             if let Some(separator) = commit_call_separator(committed) {
@@ -2603,6 +2677,9 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     let recovered = committed.probe(|probe| {
         let start = probe.input().pos(); let mut end = start;
         loop {
+            if any_ambient_owner_claims(probe.input()) {
+                return (start < probe.input().pos()).then_some(start..probe.input().pos());
+            }
             let i = probe.input(); let Some(character) = i.input.remainder().chars().next() else { return None; };
             if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
             i.input.next()?; end = i.pos();
@@ -2624,6 +2701,9 @@ where E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::E
     let recovered = committed.probe(|probe| {
         let start = probe.input().pos(); let mut end = start;
         loop {
+            if any_ambient_owner_claims(probe.input()) {
+                return (start < probe.input().pos()).then_some(start..probe.input().pos());
+            }
             let i = probe.input();
             let Some(character) = i.input.remainder().chars().next() else { return None; };
             if matches!(character, ')' | ']' | '}' | ',' | ';') { return None; }
@@ -4744,7 +4824,10 @@ where
             commit_parenthesized_element(table, leading_trivia(&leading), committed);
         if element.is_none() {
             let at = committed_position(committed);
-            if element_start < at && parenthesized_close_absent_boundary(committed) {
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                // The close slot below reports the accepted group's missing `)`;
+                // this bare ambient boundary never opened a second element slot.
+            } else if element_start < at && parenthesized_close_absent_boundary(committed) {
                 delayed_initial_element_missing = Some(at);
             } else {
                 emit_expression_missing(committed);
@@ -4752,6 +4835,9 @@ where
         }
 
         loop {
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                break;
+            }
             let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
             committed.emit_trivia(&trivia);
             if let Some(comma) = commit_parenthesized_comma(committed) {
@@ -4825,9 +4911,15 @@ where
 {
     parse_direct_operator_chain(table, leading, committed).or_else(|| {
         parenthesized_element_error_retry(table, committed).then(|| {
-            parse_direct_operator_chain(table, LeadingTrivia::None, committed)
-                .expect("a retried parenthesized element must commit its shared NUD candidate")
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                return None;
+            }
+            Some(
+                parse_direct_operator_chain(table, LeadingTrivia::None, committed)
+                    .expect("a retried parenthesized element must commit its shared NUD candidate"),
+            )
         })
+        .flatten()
     })
 }
 
@@ -4861,6 +4953,10 @@ where
         let start = probe.input().pos();
         let mut end = start;
         loop {
+            if any_ambient_owner_claims(probe.input()) {
+                return (start < probe.input().pos())
+                    .then_some((start..probe.input().pos(), true));
+            }
             let boundary = {
                 let i = probe.input();
                 let Some(character) = i.input.remainder().chars().next() else {
@@ -4938,6 +5034,11 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            return ParenthesizedClose::Missing {
+                at: committed_position(committed),
+            };
+        }
         if parenthesized_close_absent_boundary(committed) {
             return ParenthesizedClose::Missing {
                 at: committed_position(committed),
@@ -5044,6 +5145,9 @@ where
     E: ErrorSink<usize>, O: CommitOutput<'source>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            return IndexClose::Missing;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty() || matches!(probe.input().input.remainder().chars().next(), Some(';'))) {
             return IndexClose::Missing;
         }
@@ -7690,6 +7794,112 @@ mod tests {
         });
         committed.finish_node();
         assert_eq!(SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(), "x");
+    }
+
+    #[test]
+    fn call_tail_preserves_ambient_if_companions_for_inline_body_and_condition() {
+        let table = canonical_operator_table();
+        for source in ["if condition: f(x else: 0", "if f(x else: 0"] {
+            let chain = parse(source, &table);
+            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+                panic!("expected AST IfExpression for {source:?}");
+            };
+            assert_eq!(if_expression.arms.len(), 1, "{source:?}");
+            assert!(if_expression.else_arm.is_some(), "{source:?}");
+
+            let (root, recoveries) = parse_direct_recovered(source, &table);
+            let if_expression = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::IfExpression)
+                .expect("direct IfExpression");
+            assert_eq!(
+                if_expression
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            let call = if_expression
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::CallTail)
+                .expect("direct CallTail");
+            assert_eq!(
+                call.children()
+                    .filter(|node| node.kind() == SyntaxKind::OperatorChain)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| record.site.role == call_close_role())
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| record.site.role == GrammarRole::Expression(ExpressionRole::CallArgument))
+                    .count(),
+                0,
+                "{source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn expression_delimited_tails_return_ambient_if_companions_to_their_owner() {
+        let table = canonical_operator_table();
+        for source in [
+            "if condition: (x else: 0",
+            "if condition: a[x else: 0",
+            "if condition: a.(x else: 0",
+            "if condition: a.{x else: 0",
+        ] {
+            let chain = parse(source, &table);
+            let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+                panic!("expected AST IfExpression for {source:?}");
+            };
+            assert!(if_expression.else_arm.is_some(), "{source:?}");
+
+            let root = parse_direct(source, &table);
+            let if_expression = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::IfExpression)
+                .expect("direct IfExpression");
+            assert!(
+                if_expression
+                    .children()
+                    .any(|node| node.kind() == SyntaxKind::ElseArm),
+                "{source:?}",
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_delimited_item_retry_stops_before_an_ambient_if_companion() {
+        let source = "if condition: f(@ else: 0";
+        let table = canonical_operator_table();
+        let chain = parse(source, &table);
+        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+            panic!("expected AST IfExpression");
+        };
+        assert!(if_expression.else_arm.is_some());
+
+        let root = parse_direct(source, &table);
+        let if_expression = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IfExpression)
+            .expect("direct IfExpression");
+        assert!(
+            if_expression
+                .children()
+                .any(|node| node.kind() == SyntaxKind::ElseArm),
+        );
+        assert_eq!(root.to_string(), source);
     }
 
     #[test]
