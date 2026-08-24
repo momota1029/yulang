@@ -34,7 +34,7 @@ use crate::{
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole, if_continuation_owner,
+        UnexpectedSyntax, WithBodyRole, any_ambient_owner_claims, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -573,6 +573,10 @@ where
     }
 
     loop {
+        if any_ambient_owner_claims(&mut i) {
+            break;
+        }
+
         if let Some(with) = i.run(recognize_with_body_tail) {
             i.cut();
             let tail = parse_with_body_tail(table, with, &mut i);
@@ -2691,7 +2695,13 @@ where
     }
     committed.start_node(SyntaxKind::OperatorChain);
     commit_direct_operand_slot_from(table, nud.expect("checked above"), committed)?;
+    let mut caller_owned_boundary = false;
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            caller_owned_boundary = true;
+            break;
+        }
+
         if let Some(with) = committed.probe(|probe| probe.input().run(recognize_with_body_tail)) {
             cut_after_acceptance(committed);
             commit_with_body_tail(table, with, committed);
@@ -2747,19 +2757,21 @@ where
         }
         break;
     }
-    if let Some((leading, range, trailing)) = committed.probe(|probe| {
-        let checkpoint = probe.input().checkpoint();
-        let recovered = probe_dangling_infix(table, probe);
-        if recovered.is_none() {
-            probe.input().rollback(checkpoint);
+    if !caller_owned_boundary {
+        if let Some((leading, range, trailing)) = committed.probe(|probe| {
+            let checkpoint = probe.input().checkpoint();
+            let recovered = probe_dangling_infix(table, probe);
+            if recovered.is_none() {
+                probe.input().rollback(checkpoint);
+            }
+            recovered
+        }) {
+            cut_after_acceptance(committed);
+            committed.emit_trivia(&leading);
+            emit_operator_range(committed, SyntaxKind::InfixOperatorUse, range);
+            committed.emit_trivia(&trailing);
+            emit_expression_missing(committed);
         }
-        recovered
-    }) {
-        cut_after_acceptance(committed);
-        committed.emit_trivia(&leading);
-        emit_operator_range(committed, SyntaxKind::InfixOperatorUse, range);
-        committed.emit_trivia(&trailing);
-        emit_expression_missing(committed);
     }
     let end = committed_position(committed);
     committed.finish_node();
@@ -7621,6 +7633,63 @@ mod tests {
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1);
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), 0);
+    }
+
+    #[test]
+    fn operator_chain_returns_an_ambient_if_companion_gap_without_continuing() {
+        let table = canonical_operator_table();
+        let source = "x else: 0";
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let chain = i
+            .run(from_fn(|i| parse_operator_chain(&table, i)))
+            .expect("AST operator chain");
+        assert_eq!(chain.range(), 0..1);
+        assert_eq!(i.input.remainder(), " else: 0");
+        assert_eq!(
+            i.local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(companion),
+        );
+        assert!(i.local.pop_ambient_owner_scope().is_some());
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new("x"));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_operator_chain(&table, LeadingTrivia::None, &mut committed)
+            .expect("direct operator chain");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            " else: 0",
+        );
+        committed.probe(|probe| {
+            assert_eq!(
+                probe
+                    .input()
+                    .local
+                    .pop_if_expression_companion()
+                    .map(|frame| frame.id()),
+                Some(companion),
+            );
+            assert!(probe.input().local.pop_ambient_owner_scope().is_some());
+        });
+        committed.finish_node();
+        assert_eq!(SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(), "x");
     }
 
     #[test]
