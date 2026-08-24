@@ -26,9 +26,10 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        BindingRole, BracedStatementBlockRole, ColonApplicationRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
-        DeclarationRole, Delimiter,
+        AmbientOwnerScopeFrame, BindingRole, BracedStatementBlockRole, ColonApplicationRole,
+        CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
         ExpressionDelimitedOwner,
+        InlineStatementOwnerKind,
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
@@ -1356,6 +1357,11 @@ where
     let start = with.keyword.range().start;
     let colon = with.colon.clone().map_or(Recovered::Incomplete, Recovered::Complete);
     let inline_layout = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }));
+    let inline_scope = matches!(&with.layout, Some(ArmBodyLayout::Inline { .. }) | None).then(|| {
+        i.local.push_inline_canonical_statement_ambient_scope(
+            InlineStatementOwnerKind::WithBodyTail,
+        )
+    });
     let body = match with.layout {
         Some(ArmBodyLayout::Indented { opening_trivia, block_indent }) => Recovered::Complete(WithBody::Indented {
             block: parse_indented_statement_block_with_options(
@@ -1373,6 +1379,9 @@ where
         if i.run(recognize_semicolon).is_some() {
             terminal_semicolon_end = Some(i.pos());
         } else { i.rollback(checkpoint); }
+    }
+    if let Some(scope) = inline_scope {
+        assert_eq!(i.local.pop_ambient_owner_scope(), Some(scope));
     }
     let end = terminal_semicolon_end.unwrap_or_else(|| match &body {
         Recovered::Complete(WithBody::Inline { statement }) => statement.range().end,
@@ -2715,6 +2724,14 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
         ),
         ArmBodyLayout::Inline { trivia } => {
             committed.emit_trivia(&trivia);
+            let ambient_scope = committed.probe(|probe| {
+                probe
+                    .input()
+                    .local
+                    .push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    )
+            });
             committed.start_node(SyntaxKind::Statement);
             if !commit_canonical_statement(table, leading_trivia(&trivia), committed) {
                 if with_body_error_retry(table, committed) {
@@ -2729,6 +2746,12 @@ fn commit_with_body_tail<'parse, 'source, 'local, E, O>(
             if let Some(semicolon) = committed.probe(|probe| probe.input().run(recognize_semicolon)) {
                 committed.token(SyntaxKind::Semicolon, semicolon);
             }
+            committed.probe(|probe| {
+                assert_eq!(
+                    probe.input().local.pop_ambient_owner_scope(),
+                    Some(ambient_scope),
+                );
+            });
         }
         ArmBodyLayout::WrongIndent => emit_with_missing(committed, WithBodyRole::Body, ExpectedSyntax::Statement),
     }
@@ -3276,6 +3299,7 @@ struct IndentedStatementBlockScope {
     inline: bool,
     ml_arg: bool,
     stop_set: StopSet,
+    ambient_owner_scope: AmbientOwnerScopeFrame,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3323,10 +3347,14 @@ fn push_indented_statement_block_scope<E>(
 where
     E: ErrorSink<usize>,
 {
+    let ambient_owner_scope = i
+        .local
+        .push_indented_statement_ambient_scope(block_indent);
     let scope = IndentedStatementBlockScope {
         inline: i.local.inline(),
         ml_arg: i.local.ml_arg(),
         stop_set: active_stop_set(i),
+        ambient_owner_scope,
     };
     i.local.push_indentation_baseline(IndentationBaseline {
         column: block_indent,
@@ -3345,6 +3373,10 @@ fn pop_indented_statement_block_scope<E>(
 ) where
     E: ErrorSink<usize>,
 {
+    assert_eq!(
+        i.local.pop_ambient_owner_scope(),
+        Some(scope.ambient_owner_scope),
+    );
     assert_eq!(i.local.pop_stop_set(), Some(scope.stop_set));
     i.local.set_inline(scope.inline);
     i.local.set_ml_arg(scope.ml_arg);
@@ -5927,7 +5959,10 @@ mod tests {
         SyntaxKind, SyntaxNode,
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
-        session::{CommittedRecoveryRecord, FullCstOutput, ModRole, ParseLocal, Probe},
+        session::{
+            AmbientOwnerScopeKind, CommittedRecoveryRecord, FullCstOutput, ModRole, ParseLocal,
+            Probe,
+        },
     };
 
     #[test]
@@ -7869,6 +7904,83 @@ mod tests {
         assert!(recoveries.iter().any(|record| record.site.role == GrammarRole::WithBody(WithBodyRole::Body)));
         let group = root.descendants().find(|node| node.kind() == SyntaxKind::ParenthesizedExpression).unwrap();
         assert_eq!(group.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 2);
+    }
+
+    #[test]
+    fn indented_and_with_inline_ambient_scopes_restore_after_ast_and_direct_episodes() {
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new("\n  value");
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let scope = push_indented_statement_block_scope(&mut i, 2);
+        assert!(matches!(
+            i.local.ambient_owner_scope().map(|frame| frame.kind()),
+            Some(AmbientOwnerScopeKind::IndentedStatement),
+        ));
+        assert_eq!(
+            i.local
+                .ambient_owner_scope()
+                .and_then(|frame| frame.statement_baseline()),
+            Some(2),
+        );
+        pop_indented_statement_block_scope(&mut i, scope, 2);
+        let opening_trivia = i.run(scan_trivia).expect("trivia scanning is total");
+        let _ = parse_indented_statement_block(&table, opening_trivia, 0, 2, &mut i);
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.ambient_owner_scope_depth(), 0);
+
+        let source = "a with: b;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
+            .expect("With inline AST body");
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.ambient_owner_scope_depth(), 0);
+
+        let source = "a with: @ b";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("With inline direct recovery");
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
+
+        for source in ["\n  @", "\n  value"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let opening_trivia = committed
+                .probe(|probe| probe.input().run(scan_trivia))
+                .expect("trivia scanning is total");
+            commit_indented_statement_block(&table, opening_trivia, 0, 2, &mut committed);
+            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
+        }
     }
 
     fn canonical_operator_table() -> OperatorTable {

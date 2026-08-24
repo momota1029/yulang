@@ -227,8 +227,16 @@ pub(crate) fn parse_direct_root_candidate(
     operators: &crate::operator::OperatorTable,
     header_recoveries: &[CommittedRecoveryRecord],
 ) -> DirectRootCandidateOutput {
-    let mut source_input = SourceInput::new(source);
     let mut local = crate::session::ParseLocal::with_reusable_recoveries(header_recoveries);
+    parse_direct_root_candidate_with_local(source, operators, &mut local)
+}
+
+fn parse_direct_root_candidate_with_local(
+    source: &str,
+    operators: &crate::operator::OperatorTable,
+    local: &mut crate::session::ParseLocal,
+) -> DirectRootCandidateOutput {
+    let mut source_input = SourceInput::new(source);
     let mut expectations = chasa::LatestSink::new();
     let mut is_cut = false;
     let i = In::new(
@@ -236,10 +244,13 @@ pub(crate) fn parse_direct_root_candidate(
         &mut expectations,
         IsCut::new(&mut is_cut),
     )
-    .set_local(&mut local);
+    .set_local(local);
     let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
 
     committed.start_node(SyntaxKind::Root);
+    let ambient_scope = committed.probe(|probe| {
+        probe.input().local.push_root_statement_ambient_scope()
+    });
     let mut root_statement_start = true;
     let mut previous_statement = None;
 
@@ -318,6 +329,12 @@ pub(crate) fn parse_direct_root_candidate(
         });
     }
 
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
     committed.finish_node();
     let output = committed.into_output();
     let committed_recoveries = output.committed_recoveries().to_vec();
@@ -1073,7 +1090,7 @@ where
                         ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Colon),
                     );
                 }
-                let _ = commit_canonical_statement(operators, LeadingTrivia::None, committed);
+                let _ = commit_mod_inline_statement(operators, committed);
             } else if !body_introducer_error {
                 emit_mod_body_introducer_missing(committed);
             }
@@ -1629,23 +1646,78 @@ fn commit_mod_colon_body<'parse, 'source, 'local, E, O>(
         return;
     }
     committed.emit_trivia(&trivia);
-    if !commit_canonical_statement(operators, LeadingTrivia::None, committed) {
+    commit_mod_inline_colon_body(operators, committed);
+}
+
+fn commit_mod_inline_colon_body<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let ambient_scope = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_inline_canonical_statement_ambient_scope(
+                crate::session::InlineStatementOwnerKind::ModColonBody,
+            )
+    });
+    let mut statement_committed = commit_canonical_statement(operators, LeadingTrivia::None, committed);
+    if !statement_committed {
         match mod_body_error_retry(operators, committed) {
             Some(true) => {
                 commit_canonical_statement(operators, LeadingTrivia::None, committed)
                     .then_some(())
                     .expect("a retried Mod colon body must commit");
+                statement_committed = true;
             }
-            Some(false) => return,
+            Some(false) => {}
             None => {
                 emit_mod_missing(committed, ModRole::Body, ExpectedSyntax::Statement);
-                return;
             }
         }
     }
-    if let Some(semicolon) = commit_character(committed, ';') {
+    if statement_committed && let Some(semicolon) = commit_character(committed, ';') {
         committed.token(SyntaxKind::Semicolon, semicolon);
     }
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
+}
+
+fn commit_mod_inline_statement<'parse, 'source, 'local, E, O>(
+    operators: &crate::operator::OperatorTable,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let ambient_scope = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .push_inline_canonical_statement_ambient_scope(
+                crate::session::InlineStatementOwnerKind::ModColonBody,
+            )
+    });
+    let committed_statement = commit_canonical_statement(operators, LeadingTrivia::None, committed);
+    committed.probe(|probe| {
+        assert_eq!(
+            probe.input().local.pop_ambient_owner_scope(),
+            Some(ambient_scope),
+        );
+    });
+    committed_statement
 }
 
 fn commit_binding_body<'parse, 'source, 'local, E, O>(
@@ -7119,6 +7191,25 @@ where
     Some(ModDeclaration { visibility, test_marker, name, body, range: start..end })
 }
 
+fn parse_mod_inline_statement_ast<'source, E>(
+    table: &crate::operator::OperatorTable,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Statement<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let ambient_scope = i
+        .local
+        .push_inline_canonical_statement_ambient_scope(
+            crate::session::InlineStatementOwnerKind::ModColonBody,
+        );
+    let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)));
+    assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
+    statement
+}
+
 fn parse_mod_body_ast<'source, E>(
     table: &crate::operator::OperatorTable,
     mod_base: usize,
@@ -7139,14 +7230,14 @@ where
             i.rollback(checkpoint);
             return None;
         }
-        if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+        if let Some(statement) = parse_mod_inline_statement_ast(table, i) {
             return Some(ModBody::Colon {
                 colon: Recovered::Incomplete,
                 body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
             });
         }
         if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
-            let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)))?;
+            let statement = parse_mod_inline_statement_ast(table, i)?;
             return Some(ModBody::Colon {
                 colon: Recovered::Incomplete,
                 body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
@@ -7172,14 +7263,14 @@ where
             if !allow_missing_colon_retry {
                 return None;
             }
-            if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+            if let Some(statement) = parse_mod_inline_statement_ast(table, i) {
                 return Some(ModBody::Colon {
                     colon: Recovered::Incomplete,
                     body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
                 });
             }
             if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
-                let statement = i.run(from_fn(|i| parse_canonical_statement(table, i)))?;
+                let statement = parse_mod_inline_statement_ast(table, i)?;
                 return Some(ModBody::Colon {
                     colon: Recovered::Incomplete,
                     body: Recovered::Complete(ModColonBody::Inline { statement: Box::new(statement) }),
@@ -7213,18 +7304,27 @@ where
             block: parse_indented_mod_body(table, trivia, mod_base, block_indent, i),
         });
     }
-    let statement = if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i)) ) {
-        statement
+    let ambient_scope = i
+        .local
+        .push_inline_canonical_statement_ambient_scope(
+            crate::session::InlineStatementOwnerKind::ModColonBody,
+        );
+    let statement = if let Some(statement) = i.run(from_fn(|i| parse_canonical_statement(table, i))) {
+        Some(statement)
     } else if mod_statement_error_retry_ast(table, i).is_some_and(|retry| retry) {
-        i.run(from_fn(|i| parse_canonical_statement(table, i)))?
+        i.run(from_fn(|i| parse_canonical_statement(table, i)))
     } else {
-        return None;
+        None
     };
-    let terminal = i.checkpoint();
-    if i.run(scan_punctuation).is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon) {
-        i.rollback(terminal);
-    }
-    Some(ModColonBody::Inline { statement: Box::new(statement) })
+    let body = statement.map(|statement| {
+        let terminal = i.checkpoint();
+        if i.run(scan_punctuation).is_none_or(|punctuation| punctuation.kind() != PunctuationKind::Semicolon) {
+            i.rollback(terminal);
+        }
+        ModColonBody::Inline { statement: Box::new(statement) }
+    });
+    assert_eq!(i.local.pop_ambient_owner_scope(), Some(ambient_scope));
+    body
 }
 
 /// AST parsing keeps recovery diagnostics in the direct-CST channel, but it
@@ -8793,6 +8893,47 @@ mod tests {
                 .descendants()
                 .any(|node| node.kind() == SyntaxKind::Error)
         );
+    }
+
+    #[test]
+    fn root_ambient_scope_is_balanced_after_normal_and_recovery_root_loops() {
+        for source in ["struct Marker;", "@\nstruct Marker;"] {
+            let mut local = ParseLocal::new();
+            let output = parse_direct_root_candidate_with_local(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &mut local,
+            );
+            assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+            assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
+            assert_eq!(local.ambient_owner_scope(), None, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn mod_inline_ambient_scope_is_balanced_after_ast_and_direct_bodies() {
+        let source = "mod outer: my item = value;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let table = crate::operator::OperatorTable::empty();
+        i.run(from_fn(|i| parse_mod_declaration_with_operators(&table, i)))
+            .expect("Mod inline AST body");
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.ambient_owner_scope_depth(), 0);
+
+        let source = "mod outer: @my item = value;";
+        let mut local = ParseLocal::new();
+        let output = parse_direct_root_candidate_with_local(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &mut local,
+        );
+        assert_eq!(SyntaxNode::new_root(output.green().clone()).to_string(), source);
+        assert_eq!(local.ambient_owner_scope_depth(), 0);
     }
 
     #[test]
