@@ -29,11 +29,12 @@ use crate::{
         AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin, BracedStatementBlockRole, ColonApplicationRole,
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
         ExpressionDelimitedOwner,
+        IfExpressionCompanionId,
         InlineStatementOwnerKind,
         CaseLikeRole, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, IfExpressionRole, IndentationBaseline,
         IndentationBaselineKind, Probe, RecoveryKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole,
+        UnexpectedSyntax, WithBodyRole, if_continuation_owner,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1674,24 +1675,81 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = keyword.range().start;
+    let mut companion_scope = Some(push_if_expression_companion_scope(base_indent, i));
     let mut arms = vec![parse_if_arm(table, IfArmKeyword::If(keyword), base_indent, i)];
     let mut else_arm = None;
-    while let Some(keyword) = recognize_if_arm_continuation(base_indent, i) {
+    while let Some(keyword) = recognize_if_arm_continuation(
+        base_indent,
+        companion_scope
+            .expect("an if companion frame stays active through all elsif arms")
+            .id,
+        i,
+    ) {
         match keyword {
             IfContinuationKeyword::Elsif { keyword, .. } => {
                 arms.push(parse_if_arm(table, IfArmKeyword::Elsif(keyword), base_indent, i));
             }
             IfContinuationKeyword::Else { keyword, .. } => {
+                pop_if_expression_companion_scope(
+                    companion_scope
+                        .take()
+                        .expect("own else closes the active if companion frame"),
+                    i,
+                );
                 else_arm = Some(parse_else_arm(table, keyword, base_indent, i));
                 break;
             }
         }
+    }
+    if let Some(scope) = companion_scope {
+        pop_if_expression_companion_scope(scope, i);
     }
     let end = else_arm.as_ref().map_or_else(
         || arms.last().expect("if has an initial arm").range.end,
         |arm| arm.range.end,
     );
     IfExpression { arms, else_arm, base_indent, range: start..end }
+}
+
+const IF_EXPRESSION_COMPANION_WORDS: &[&str] = &["elsif", "else"];
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct IfExpressionCompanionScope {
+    id: IfExpressionCompanionId,
+    entry_depth: usize,
+    if_base_indent: usize,
+}
+
+fn push_if_expression_companion_scope<E>(
+    if_base_indent: usize,
+    i: &mut SynIn<E>,
+) -> IfExpressionCompanionScope
+where
+    E: ErrorSink<usize>,
+{
+    let entry_depth = i.local.if_expression_companion_depth();
+    let id = i
+        .local
+        .push_if_expression_companion(if_base_indent, IF_EXPRESSION_COMPANION_WORDS);
+    assert_eq!(i.local.if_expression_companion_depth(), entry_depth + 1);
+    IfExpressionCompanionScope { id, entry_depth, if_base_indent }
+}
+
+fn pop_if_expression_companion_scope<E>(
+    scope: IfExpressionCompanionScope,
+    i: &mut SynIn<E>,
+) where
+    E: ErrorSink<usize>,
+{
+    assert_eq!(i.local.if_expression_companion_depth(), scope.entry_depth + 1);
+    let frame = i
+        .local
+        .pop_if_expression_companion()
+        .expect("an accepted if expression owns one companion frame");
+    assert_eq!(frame.id(), scope.id);
+    assert_eq!(frame.if_base_indent(), scope.if_base_indent);
+    assert_eq!(frame.exact_words(), IF_EXPRESSION_COMPANION_WORDS);
+    assert_eq!(i.local.if_expression_companion_depth(), scope.entry_depth);
 }
 
 fn parse_case_expression<'source, E>(table: &OperatorTable, keyword: WordSpan<'source>, base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> CaseExpression<'source>
@@ -2065,12 +2123,19 @@ enum IfContinuationKeyword<'source> {
     Else { keyword: WordSpan<'source>, trivia: TriviaRun },
 }
 
-fn recognize_if_arm_continuation<'source, E>(base_indent: usize, i: &mut SynIn<'_, 'source, '_, E>) -> Option<IfContinuationKeyword<'source>>
+fn recognize_if_arm_continuation<'source, E>(
+    base_indent: usize,
+    own_id: IfExpressionCompanionId,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<IfContinuationKeyword<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if if_continuation_owner(i) != Some(own_id) {
+        return None;
+    }
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i)?;
     if trivia_has_physical_newline(&trivia) && i.local.line().line_indent < base_indent {
@@ -4374,10 +4439,19 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     committed.start_node(SyntaxKind::IfExpression);
+    let mut companion_scope = Some(committed.probe(|probe| {
+        push_if_expression_companion_scope(base_indent, probe.input())
+    }));
     commit_if_arm(table, IfArmKeyword::If(keyword), base_indent, committed);
     loop {
         let Some(continuation) = committed.probe(|probe| {
-            recognize_if_arm_continuation(base_indent, probe.input())
+            recognize_if_arm_continuation(
+                base_indent,
+                companion_scope
+                    .expect("an if companion frame stays active through all elsif arms")
+                    .id,
+                probe.input(),
+            )
         }) else { break; };
         match continuation {
             IfContinuationKeyword::Elsif { keyword, trivia } => {
@@ -4388,10 +4462,21 @@ fn commit_if_expression<'parse, 'source, 'local, E, O>(
             IfContinuationKeyword::Else { keyword, trivia } => {
                 cut_after_acceptance(committed);
                 committed.emit_trivia(&trivia);
-                commit_else_arm(table, keyword, base_indent, committed);
+                commit_else_arm(
+                    table,
+                    keyword,
+                    base_indent,
+                    companion_scope
+                        .take()
+                        .expect("own else closes the active if companion frame"),
+                    committed,
+                );
                 break;
             }
         }
+    }
+    if let Some(scope) = companion_scope {
+        committed.probe(|probe| pop_if_expression_companion_scope(scope, probe.input()));
     }
     committed.finish_node();
 }
@@ -4449,6 +4534,7 @@ fn commit_else_arm<'parse, 'source, 'local, E, O>(
     table: &OperatorTable,
     keyword: WordSpan<'source>,
     base_indent: usize,
+    companion_scope: IfExpressionCompanionScope,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) where
     E: ErrorSink<usize>,
@@ -4458,6 +4544,9 @@ fn commit_else_arm<'parse, 'source, 'local, E, O>(
 {
     committed.start_node(SyntaxKind::ElseArm);
     committed.token(SyntaxKind::ElseKw, keyword.range());
+    committed.probe(|probe| {
+        pop_if_expression_companion_scope(companion_scope, probe.input())
+    });
     let trivia = commit_parenthesized_trivia(committed).expect("trivia scanning is total");
     committed.emit_trivia(&trivia);
     if let Some(colon) = committed.probe(|probe| recognize_arm_colon(probe.input())) {
@@ -7547,6 +7636,207 @@ mod tests {
     }
 
     #[test]
+    fn if_expression_uses_one_companion_identity_across_every_elsif_arm() {
+        let source = "if x:\n  1\nelsif y:\n  2\nelsif z:\n  3\nelse:\n  0";
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let expected_next = expected_if_companion_id_after_one_allocation(&mut local);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let chain = i
+            .run(from_fn(|i| parse_expression_with_operators(&table, i)))
+            .expect("if/elsif AST chain");
+        assert_eq!(i.input.remainder(), "");
+        assert_eq!(i.local.if_expression_companion_depth(), 0);
+        let actual_next = i
+            .local
+            .push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        assert_eq!(actual_next, expected_next);
+        assert_eq!(
+            i.local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(actual_next),
+        );
+        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items()
+        else {
+            panic!("expected one AST IfExpression");
+        };
+        assert_eq!(if_expression.arms.len(), 3);
+        assert!(if_expression.else_arm.is_some());
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let expected_next = expected_if_companion_id_after_one_allocation(&mut local);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+            .expect("if/elsif direct chain");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "",
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.if_expression_companion_depth()),
+            0,
+        );
+        let actual_next = committed.probe(|probe| {
+            probe
+                .input()
+                .local
+                .push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS)
+        });
+        assert_eq!(actual_next, expected_next);
+        committed.probe(|probe| {
+            assert_eq!(
+                probe
+                    .input()
+                    .local
+                    .pop_if_expression_companion()
+                    .map(|frame| frame.id()),
+                Some(actual_next),
+            );
+        });
+        committed.finish_node();
+        assert_eq!(
+            SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(),
+            source,
+        );
+    }
+
+    #[test]
+    fn nested_if_arm_continuation_keeps_ancestor_and_inner_identities_distinct() {
+        let source = "if outer:\n  if inner:\n    value\nelse: 0";
+        let table = canonical_operator_table();
+        let chain = parse(source, &table);
+        let [OperatorChainItem::Primary(PrimaryExpression::If(outer))] = chain.items() else {
+            panic!("expected outer AST IfExpression");
+        };
+        assert!(outer.else_arm.is_some());
+        let Recovered::Complete(outer_body) = &outer.arms[0].body else {
+            panic!("expected outer body");
+        };
+        let Recovered::Complete(ArmBodyRhs::Indented(block)) = &outer_body.rhs else {
+            panic!("expected outer indented body");
+        };
+        let [Recovered::Complete(Statement::Expression(inner_chain))] = block.statements() else {
+            panic!("expected one nested expression statement");
+        };
+        let [OperatorChainItem::Primary(PrimaryExpression::If(inner))] = inner_chain.items() else {
+            panic!("expected inner AST IfExpression");
+        };
+        assert!(inner.else_arm.is_none());
+
+        let root = parse_direct(source, &table);
+        let if_expressions = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::IfExpression)
+            .collect::<Vec<_>>();
+        assert_eq!(if_expressions.len(), 2);
+        assert_eq!(
+            if_expressions[0]
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            if_expressions[1]
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            0,
+        );
+    }
+
+    #[test]
+    fn if_arm_continuation_only_commits_the_matching_frame_identity() {
+        let mut source_input = SourceInput::new("\nelse");
+        let mut local = ParseLocal::new();
+        let outer = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        let inner = local.push_if_expression_companion(2, IF_EXPRESSION_COMPANION_WORDS);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+
+        assert_eq!(if_continuation_owner(&mut i), Some(outer));
+        assert_eq!(recognize_if_arm_continuation(2, inner, &mut i), None);
+        assert_eq!(i.pos(), 0);
+        assert_eq!(
+            i.local
+                .pop_if_expression_companion()
+                .map(|frame| frame.id()),
+            Some(inner),
+        );
+        assert!(matches!(
+            recognize_if_arm_continuation(0, outer, &mut i),
+            Some(IfContinuationKeyword::Else { .. }),
+        ));
+        assert_eq!(i.input.remainder(), "");
+    }
+
+    #[test]
+    fn if_companion_frames_balance_across_ast_and_direct_recovery_exits() {
+        let table = canonical_operator_table();
+        for source in ["if value: body", "if : 1", "if value", "if value:"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
+                .expect("recovered AST IfExpression");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+            assert_eq!(i.local.if_expression_companion_depth(), 0, "{source:?}");
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+                .expect("recovered direct IfExpression");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "{source:?}",
+            );
+            assert_eq!(
+                committed
+                    .probe(|probe| probe.input().local.if_expression_companion_depth()),
+                0,
+                "{source:?}",
+            );
+            committed.finish_node();
+            assert_eq!(
+                SyntaxNode::new_root(committed.into_output().finish_complete()).to_string(),
+                source,
+            );
+        }
+    }
+
+    #[test]
     fn else_if_is_a_nested_if_primary_not_an_elsif_arm() {
         let root = parse_direct("if x: 1 else if y: 2", &canonical_operator_table());
         assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfExpression).count(), 2);
@@ -8153,6 +8443,24 @@ mod tests {
             ),
         ])
         .expect("canonical operators should be valid")
+    }
+
+    fn expected_if_companion_id_after_one_allocation(
+        local: &mut ParseLocal,
+    ) -> IfExpressionCompanionId {
+        let checkpoint = local.checkpoint();
+        let first = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(first),
+        );
+        let expected = local.push_if_expression_companion(0, IF_EXPRESSION_COMPANION_WORDS);
+        assert_eq!(
+            local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(expected),
+        );
+        local.rollback(checkpoint);
+        expected
     }
 
     fn range_operator_table() -> OperatorTable {
