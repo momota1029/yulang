@@ -36,7 +36,7 @@ use crate::{
         ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind,
         LayoutDelimitedBoundary, LayoutDelimitedFrame, PatternRole, Probe, RecoveryKind,
         RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
+        UnexpectedSyntax, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -778,6 +778,9 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if any_ambient_owner_claims(i) {
+            return false;
+        }
         let Some(character) = i.input.remainder().chars().next() else {
             return false;
         };
@@ -853,6 +856,9 @@ where
     } else {
         loop {
             items.push(parse_item(i));
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let trivia = consume_trivia(i);
             if let Some(comma) = i.run(recognize_comma) {
                 consume_trivia(i);
@@ -893,6 +899,9 @@ where
 {
     let start = i.pos();
     loop {
+        if any_ambient_owner_claims(i) {
+            return false;
+        }
         let Some(character) = i.input.remainder().chars().next() else {
             return false;
         };
@@ -1054,6 +1063,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if any_ambient_owner_claims(&mut i) {
+        return None;
+    }
     if minimum <= PatternPrecedence::Alias {
         let checkpoint = i.checkpoint();
         let leading = consume_trivia(&mut i);
@@ -1915,6 +1927,11 @@ fn commit_direct_pattern_delimited_items<'parse, 'source, 'local, E, O>(
 
     loop {
         commit_direct_pattern_delimited_item(table, policy, committed);
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_pattern_delimited_close_missing(policy, committed);
+            finish_pattern_delimited_scope(policy, layout, committed);
+            return;
+        }
         let trivia = consume_direct_trivia(committed);
         committed.emit_trivia(&trivia);
         if let Some(comma) = direct_comma(committed) {
@@ -2101,6 +2118,9 @@ where
     let start = probe.input().pos();
     let mut end = start;
     loop {
+        if any_ambient_owner_claims(probe.input()) {
+            return (start < end).then_some((start..end, false));
+        }
         let i = probe.input();
         let Some(character) = i.input.remainder().chars().next() else {
             return (start < end).then_some((start..end, false));
@@ -2175,6 +2195,10 @@ fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
     UnexpectedEndOfInput: Into<E::Error>,
 {
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_pattern_delimited_close_missing(policy, committed);
+            return;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
             emit_pattern_delimited_close_missing(policy, committed);
             return;
@@ -2243,6 +2267,19 @@ where
 {
     let mut start = None;
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(
+                    committed,
+                    PatternRole::ListSeparator,
+                    start..end,
+                    ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Comma),
+                );
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
+            return false;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty())
             || committed.probe(|probe| outer_arm_stop_pending(outer_stops, probe.input()))
         {
@@ -2311,6 +2348,14 @@ where
 {
     let mut start = None;
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            if let Some(start) = start {
+                let end = committed_position(committed);
+                emit_pattern_error(committed, PatternRole::RecordSeparator, start..end, ExpectedSyntax::DelimitedSequenceSeparator);
+            }
+            emit_pattern_delimited_close_missing(policy, committed);
+            return false;
+        }
         if committed.probe(|probe| probe.input().input.remainder().is_empty())
             || committed.probe(|probe| outer_arm_stop_pending(outer_stops, probe.input()))
         {
@@ -2706,6 +2751,70 @@ mod tests {
         let root = parse_direct("[..a | b, c]");
         let spread = root.descendants().find(|node| node.kind() == SyntaxKind::ListPatternSpreadItem).expect("spread");
         assert!(spread.descendants().any(|node| node.kind() == SyntaxKind::PatternAlternationTail));
+    }
+
+    #[test]
+    fn ambient_if_companion_vetoes_every_pattern_delimited_implicit_newline() {
+        for (source, close_role) in [
+            ("(x\nelse: 0", GrammarRole::ClosingDelimiter { owner: ConstructRole::ParenthesizedPattern, delimiter: Delimiter::Parenthesis }),
+            ("[x\nelse: 0", GrammarRole::ClosingDelimiter { owner: ConstructRole::ListPattern, delimiter: Delimiter::Bracket }),
+            ("{x\nelse: 0", GrammarRole::ClosingDelimiter { owner: ConstructRole::RecordPattern, delimiter: Delimiter::Brace }),
+        ] {
+            let (pattern, remainder) = parse_with_active_if_companion(source);
+            assert_eq!(remainder, "\nelse: 0", "AST keeps the original gap: {source:?}");
+            match &pattern.head {
+                Recovered::Complete(PatternPrimary::Parenthesized(group)) => {
+                    assert_eq!(group.elements().len(), 1, "{source:?}");
+                    assert!(matches!(group.close, Recovered::Incomplete), "{source:?}");
+                }
+                Recovered::Complete(PatternPrimary::List(list)) => {
+                    assert_eq!(list.items().len(), 1, "{source:?}");
+                    assert!(matches!(list.close, Recovered::Incomplete), "{source:?}");
+                }
+                Recovered::Complete(PatternPrimary::Record(record)) => {
+                    assert_eq!(record.items().len(), 1, "{source:?}");
+                    assert!(matches!(record.close, Recovered::Incomplete), "{source:?}");
+                }
+                other => panic!("delimited pattern expected for {source:?}: {other:#?}"),
+            }
+            let (remainder, recoveries) = parse_direct_with_active_if_companion(source);
+            assert_eq!(remainder, "\nelse: 0", "direct CST keeps the original gap: {source:?}");
+            assert!(matches!(recoveries.as_slice(),
+                [CommittedRecoveryRecord { kind: RecoveryKind::Missing, site, .. }]
+                    if site.role == close_role && site.range == (2..2)
+            ), "{source:?}: {recoveries:#?}");
+        }
+    }
+
+    #[test]
+    fn binding_list_pattern_preserves_else_arm_after_an_ambient_veto() {
+        let source = "if condition:\n  my [x\nelse: 0";
+        let root = parse_direct_expression(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ElseArm).count(), 1, "{root:#?}");
+        let list = root.descendants().find(|node| node.kind() == SyntaxKind::ListPattern).expect("binding target ListPattern");
+        assert_eq!(list.children().filter(|node| node.kind() == SyntaxKind::Missing).count(), 1);
+    }
+
+    #[test]
+    fn pattern_delimited_malformed_recovery_returns_the_same_ambient_gap() {
+        for (source, separator_role, close_role) in [
+            ("(x @\nelse: 0", GrammarRole::ClosingDelimiter { owner: ConstructRole::ParenthesizedPattern, delimiter: Delimiter::Parenthesis }, GrammarRole::ClosingDelimiter { owner: ConstructRole::ParenthesizedPattern, delimiter: Delimiter::Parenthesis }),
+            ("[x @\nelse: 0", GrammarRole::Pattern(PatternRole::ListSeparator), GrammarRole::ClosingDelimiter { owner: ConstructRole::ListPattern, delimiter: Delimiter::Bracket }),
+            ("{x @\nelse: 0", GrammarRole::Pattern(PatternRole::RecordSeparator), GrammarRole::ClosingDelimiter { owner: ConstructRole::RecordPattern, delimiter: Delimiter::Brace }),
+        ] {
+            let (remainder, recoveries) = parse_direct_with_active_if_companion(source);
+            assert_eq!(remainder, "\nelse: 0", "{source:?}");
+            assert!(matches!(recoveries.as_slice(),
+                [first, close]
+                    if first.kind == RecoveryKind::Error
+                        && first.site.role == separator_role
+                        && first.site.range == (3..4)
+                        && close.kind == RecoveryKind::Missing
+                        && close.site.role == close_role
+                        && close.site.range == (4..4)
+            ), "{source:?}: {recoveries:#?}");
+        }
     }
 
     #[test]
@@ -3274,6 +3383,50 @@ mod tests {
             );
         }
         (None, remainder, recoveries)
+    }
+
+    fn parse_with_active_if_companion<'source>(source: &'source str) -> (Pattern<'source>, &'source str) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let block_scope = local.push_indented_statement_ambient_scope(2);
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let (pattern, remainder) = {
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let pattern = i.run(from_fn(|i| parse_pattern(&OperatorTable::default(), i))).expect("pattern AST");
+            (pattern, i.input.remainder())
+        };
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(block_scope));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        (pattern, remainder)
+    }
+
+    fn parse_direct_with_active_if_companion<'source>(source: &'source str) -> (&'source str, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let block_scope = local.push_indented_statement_ambient_scope(2);
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let (remainder, recoveries) = {
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_pattern(&OperatorTable::default(), LeadingTrivia::None, &mut committed).expect("direct pattern");
+            let remainder = committed.probe(|probe| probe.input().input.remainder());
+            let recoveries = committed.into_output().committed_recoveries().to_vec();
+            (remainder, recoveries)
+        };
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(block_scope));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        (remainder, recoveries)
     }
 
     fn only_child(node: &SyntaxNode, expected: SyntaxKind) -> SyntaxNode {
