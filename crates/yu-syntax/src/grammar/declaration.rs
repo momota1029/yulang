@@ -44,7 +44,7 @@ use crate::{
         ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
         ModRole, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, SynIn,
-        SyntaxExpectation, TypeDelimitedOwner, UnexpectedSyntax,
+        SyntaxExpectation, TypeDelimitedOwner, UnexpectedSyntax, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1282,7 +1282,7 @@ fn commit_struct_named_indented_body<'parse, 'source, 'local, E, O>(
             }
         }
 
-        if !commit_struct_named_field(committed) {
+        if !commit_struct_named_field(false, committed) {
             if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
                 emit_struct_error(
                     committed,
@@ -1414,6 +1414,14 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 range,
                 actual,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close_for(
+                    committed,
+                    ConstructRole::StructTupleFields,
+                    Delimiter::Parenthesis,
+                );
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -1445,6 +1453,14 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 semicolon,
                 ExpectedSyntax::DelimitedSequenceSeparator,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close_for(
+                    committed,
+                    ConstructRole::StructTupleFields,
+                    Delimiter::Parenthesis,
+                );
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -1452,6 +1468,14 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
         }
 
         commit_struct_tuple_field(committed);
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_struct_missing_close_for(
+                committed,
+                ConstructRole::StructTupleFields,
+                Delimiter::Parenthesis,
+            );
+            break;
+        }
         let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
             .expect("trivia is total");
         committed.emit_trivia(&trivia);
@@ -1511,6 +1535,14 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 range,
                 actual,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close_for(
+                    committed,
+                    ConstructRole::StructTupleFields,
+                    Delimiter::Parenthesis,
+                );
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -1523,6 +1555,14 @@ fn commit_struct_tuple_body<'parse, 'source, 'local, E, O>(
                 semicolon,
                 ExpectedSyntax::DelimitedSequenceSeparator,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close_for(
+                    committed,
+                    ConstructRole::StructTupleFields,
+                    Delimiter::Parenthesis,
+                );
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -5447,7 +5487,7 @@ where
             }
         }
 
-        let field = if let Some(field) = parse_struct_named_field_ast(i) {
+        let field = if let Some(field) = parse_struct_named_field_ast(false, i) {
             Recovered::Complete(field)
         } else if scan_struct_field_invalid_run(false, i).is_some() {
             Recovered::Incomplete
@@ -5545,6 +5585,9 @@ where
             break Recovered::Incomplete;
         }
         if scan_struct_mismatched_close_for(Delimiter::Parenthesis, i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
@@ -5557,6 +5600,9 @@ where
             continue;
         }
         if scan_struct_semicolon(i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
@@ -5575,6 +5621,10 @@ where
                 type_expr: Recovered::Complete(Box::new(type_expr)),
             })),
             Recovered::Incomplete => fields.push(Recovered::Incomplete),
+        }
+
+        if any_ambient_owner_claims(i) {
+            break Recovered::Incomplete;
         }
 
         let trivia = i.run(scan_trivia).expect("trivia is total");
@@ -5605,10 +5655,16 @@ where
             break Recovered::Incomplete;
         }
         if scan_struct_mismatched_close_for(Delimiter::Parenthesis, i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
         if scan_struct_semicolon(i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
@@ -5666,6 +5722,9 @@ where
             // A local mismatched closer belongs to this close slot.  Its
             // following trivia must not manufacture an empty field before
             // the retry reaches this frame's matching close.
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
@@ -5678,12 +5737,18 @@ where
             continue;
         }
         if scan_struct_semicolon(i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
-        let field = if let Some(field) = parse_struct_named_field_ast(i) {
+        let field = if let Some(field) = parse_struct_named_field_ast(true, i) {
             Recovered::Complete(field)
         } else if scan_struct_field_invalid_run(false, i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             Recovered::Incomplete
         } else {
@@ -5692,9 +5757,15 @@ where
         fields.push(field);
 
         if matches!(fields.last(), Some(Recovered::Incomplete)) {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             continue;
         }
 
+        if any_ambient_owner_claims(i) {
+            break Recovered::Incomplete;
+        }
         let trivia = i.run(scan_trivia).expect("trivia is total");
         if let Some(comma) = scan_struct_comma(i) {
             let post = i.run(scan_trivia).expect("trivia is total");
@@ -5728,10 +5799,16 @@ where
             break Recovered::Incomplete;
         }
         if scan_struct_mismatched_close(i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
         if scan_struct_semicolon(i).is_some() {
+            if any_ambient_owner_claims(i) {
+                break Recovered::Incomplete;
+            }
             let _ = i.run(scan_trivia).expect("trivia is total");
             continue;
         }
@@ -5749,6 +5826,7 @@ where
 }
 
 fn parse_struct_named_field_ast<'source, E>(
+    ambient_sensitive: bool,
     i: &mut SynIn<'_, 'source, '_, E>,
 ) -> Option<StructNamedField<'source>>
 where
@@ -5786,7 +5864,8 @@ where
     } else {
         Recovered::Incomplete
     };
-    let type_expr = if matches!(colon_recovery, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Boundary, .. }))
+    let type_expr = if (ambient_sensitive && any_ambient_owner_claims(i))
+        || matches!(colon_recovery, Some(StructFieldInvalidRun { target: StructFieldInvalidTarget::Boundary, .. }))
         || (matches!(colon, Recovered::Incomplete) && struct_field_boundary_pending(i))
     {
         Recovered::Incomplete
@@ -5867,6 +5946,10 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             emit_struct_mismatched_close(committed, range, actual);
             // Keep recovery at the close slot: trivia after a consumed local
             // mismatch precedes the next close retry, not a field slot.
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close(committed);
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -5894,12 +5977,16 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 semicolon,
                 ExpectedSyntax::DelimitedSequenceSeparator,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close(committed);
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
             continue;
         }
-        if !commit_struct_named_field(committed) {
+        if !commit_struct_named_field(true, committed) {
             if let Some(run) = committed.probe(|probe| scan_struct_field_invalid_run(false, probe.input())) {
                 emit_struct_error(
                     committed,
@@ -5907,6 +5994,10 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                     run.range,
                     ExpectedSyntax::Identifier,
                 );
+                if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                    emit_struct_missing_close(committed);
+                    break;
+                }
                 let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                     .expect("trivia is total");
                 committed.emit_trivia(&trivia);
@@ -5917,6 +6008,10 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
             }
         }
 
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            emit_struct_missing_close(committed);
+            break;
+        }
         let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
             .expect("trivia is total");
         committed.emit_trivia(&trivia);
@@ -5971,6 +6066,10 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
         }
         if let Some((range, actual)) = committed.probe(|probe| scan_struct_mismatched_close(probe.input())) {
             emit_struct_mismatched_close(committed, range, actual);
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close(committed);
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -5983,6 +6082,10 @@ fn commit_struct_named_braced_body<'parse, 'source, 'local, E, O>(
                 semicolon,
                 ExpectedSyntax::DelimitedSequenceSeparator,
             );
+            if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+                emit_struct_missing_close(committed);
+                break;
+            }
             let trivia = committed.probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia is total");
             committed.emit_trivia(&trivia);
@@ -6013,6 +6116,7 @@ fn commit_empty_struct_named_field<'parse, 'source, 'local, E, O>(
 }
 
 fn commit_struct_named_field<'parse, 'source, 'local, E, O>(
+    ambient_sensitive: bool,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
 ) -> bool
 where
@@ -6110,6 +6214,15 @@ where
             committed.finish_node();
             return true;
         }
+    }
+    if ambient_sensitive && committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        emit_struct_missing(
+            committed,
+            crate::session::StructRole::FieldType,
+            ExpectedSyntax::TypeExpression,
+        );
+        committed.finish_node();
+        return true;
     }
     if let Some(trivia) = committed.probe(|probe| consume_struct_field_type_trivia(probe.input())) {
         committed.emit_trivia(&trivia);
@@ -12690,6 +12803,216 @@ mod tests {
             parse_direct_root_candidate(source, &low, &[]).green(),
             parse_direct_root_candidate(source, &high, &[]).green(),
         );
+    }
+
+    fn parse_struct_with_if_companion_for_test<'source>(
+        source: &'source str,
+    ) -> (StructDeclaration<'source>, String) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let block_scope = local.push_indented_statement_ambient_scope(2);
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let _ = i.run(scan_trivia).expect("trivia is total");
+        let declaration = i
+            .run(parse_struct_declaration)
+            .expect("the Struct introduction must commit its header continuation");
+        let remainder = i.input.remainder().to_owned();
+        drop(i);
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(block_scope));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        (declaration, remainder)
+    }
+
+    #[test]
+    fn struct_lists_leave_ambient_if_companions_for_the_statement_owner() {
+        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
+            "  struct S { x: Int\nelse: 0",
+        );
+        assert_eq!(remainder, "\nelse: 0");
+        assert!(matches!(
+            declaration.body,
+            Recovered::Complete(StructBody::NamedBraced(ref body))
+                if body.fields.len() == 1 && matches!(body.close, Recovered::Incomplete)
+        ));
+
+        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
+            "  struct S { x: Int\n  else: Bool }",
+        );
+        assert_eq!(remainder, "\n  else: Bool }");
+        assert!(matches!(
+            declaration.body,
+            Recovered::Complete(StructBody::NamedBraced(ref body))
+                if body.fields.len() == 1 && matches!(body.close, Recovered::Incomplete)
+        ));
+
+        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
+            "  struct S { x: Int,\n  else: Bool }\nelse: 0",
+        );
+        assert_eq!(remainder, "\nelse: 0");
+        assert!(matches!(
+            declaration.body,
+            Recovered::Complete(StructBody::NamedBraced(ref body))
+                if body.fields.len() == 2 && matches!(body.close, Recovered::Complete(_))
+        ));
+
+        let (declaration, remainder) = parse_struct_with_if_companion_for_test(
+            "  struct S(Int\nelse: 0",
+        );
+        assert_eq!(remainder, "\nelse: 0");
+        assert!(matches!(
+            declaration.body,
+            Recovered::Complete(StructBody::Tuple(ref body))
+                if body.fields.len() == 1 && matches!(body.close, Recovered::Incomplete)
+        ));
+    }
+
+    #[test]
+    fn direct_struct_lists_keep_if_companions_and_comma_authority_distinct() {
+        let table = crate::operator::OperatorTable::empty();
+        for (source, fields, expected_close_role) in [
+            (
+                "if condition:\n  struct S { x: Int\nelse: 0",
+                1,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructNamedFields,
+                    delimiter: Delimiter::Brace,
+                },
+            ),
+            (
+                "if condition:\n  struct S(Int\nelse: 0",
+                1,
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructTupleFields,
+                    delimiter: Delimiter::Parenthesis,
+                },
+            ),
+        ] {
+            let (root, recoveries) = parse_direct_expression_for_struct_test(source, &table);
+            assert_eq!(root.to_string(), source, "{source:?}");
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| token.kind() == SyntaxKind::ElseKw)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            let declaration = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::StructDeclaration)
+                .expect("one Struct declaration");
+            assert_eq!(
+                declaration
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::StructField)
+                    .count(),
+                fields,
+                "{source:?}",
+            );
+            assert_eq!(
+                recoveries.iter().filter(|record| {
+                    record.kind == RecoveryKind::Missing && record.site.role == expected_close_role
+                }).count(),
+                1,
+                "{source:?}",
+            );
+        }
+
+        // The active If companion deliberately wins even at the Struct
+        // field-list column.  The recovered Struct leaves its unmatched `}`
+        // for the surrounding statement owner, so this direct expression
+        // probe intentionally observes that exact unconsumed tail.
+        let source = "if condition:\n  struct S { x: Int\n  else: Bool }";
+        let (remainder, recoveries) = parse_direct_expression_prefix_for_struct_test(source, &table);
+        assert_eq!(remainder, " }");
+        assert_eq!(
+            recoveries.iter().filter(|record| {
+                record.kind == RecoveryKind::Missing
+                    && record.site.role
+                        == GrammarRole::ClosingDelimiter {
+                            owner: ConstructRole::StructNamedFields,
+                            delimiter: Delimiter::Brace,
+                        }
+            }).count(),
+            1,
+        );
+
+        let source = "if condition:\n  struct S { x: Int,\n  else: Bool }\nelse: 0";
+        let (root, recoveries) = parse_direct_expression_for_struct_test(source, &table);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::ElseKw)
+                .count(),
+            1,
+        );
+        let declaration = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::StructDeclaration)
+            .expect("one Struct declaration");
+        assert_eq!(
+            declaration
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .count(),
+            2,
+        );
+        assert!(!recoveries.iter().any(|record| {
+            record.site.role
+                == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::StructNamedFields,
+                    delimiter: Delimiter::Brace,
+                }
+        }));
+    }
+
+    fn parse_direct_expression_for_struct_test(
+        source: &str,
+        table: &crate::operator::OperatorTable,
+    ) -> (SyntaxNode, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(table, LeadingTrivia::None, &mut committed)
+            .expect("direct If expression");
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        (root, recoveries)
+    }
+
+    fn parse_direct_expression_prefix_for_struct_test(
+        source: &str,
+        table: &crate::operator::OperatorTable,
+    ) -> (String, Vec<CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        parse_direct_expression_with_operators(table, LeadingTrivia::None, &mut committed)
+            .expect("direct If expression");
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.finish_node();
+        let output = committed.into_output();
+        (remainder, output.committed_recoveries().to_vec())
     }
 
     fn parse_struct_for_test<'source>(source: &'source str) -> (StructDeclaration<'source>, String) {
