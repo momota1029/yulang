@@ -1992,6 +1992,9 @@ fn commit_direct_named_record_type<'parse, 'source, 'local, E, O>(
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordField), ExpectedSyntax::Identifier);
             break;
         }
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            break;
+        }
         if committed.probe(|probe| type_malformed_caller_boundary_pending(probe.input())) {
             break;
         }
@@ -2088,7 +2091,9 @@ where
                 ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
             );
             type_expected = true;
-        } else if committed.probe(|probe| type_primary_candidate(probe.input())) {
+        } else if !committed.probe(|probe| any_ambient_owner_claims(probe.input()))
+            && committed.probe(|probe| type_primary_candidate(probe.input()))
+        {
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
             type_expected = true;
         } else if let Some(TypeInvalidRunRecovery {
@@ -2110,10 +2115,12 @@ where
                 committed.token(SyntaxKind::Colon, colon);
             }
             type_expected = has_recovered_colon
-                || committed.probe(|probe| type_primary_candidate(probe.input()));
+                || (!committed.probe(|probe| any_ambient_owner_claims(probe.input()))
+                    && committed.probe(|probe| type_primary_candidate(probe.input())));
         } else {
             emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldColon), ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
-            type_expected = committed.probe(|probe| type_primary_candidate(probe.input()));
+            type_expected = !committed.probe(|probe| any_ambient_owner_claims(probe.input()))
+                && committed.probe(|probe| type_primary_candidate(probe.input()));
         }
     } else {
         if let Some((range, colon)) = malformed_name {
@@ -2126,30 +2133,38 @@ where
         }
         type_expected = true;
     }
-    if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
-        committed.emit_trivia(&trivia);
-    }
-    if type_expected && commit_direct_type_expression(committed).is_none() {
-        match direct_required_type_item_error_retry(
+    if type_expected && committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        emit_type_missing(
             committed,
-            TypeRole::RecordFieldType,
-            None,
-        ) {
-            Some(TypeInvalidRunDisposition::RetryCurrent) => {
-                if commit_direct_type_expression(committed).is_none() {
+            GrammarRole::Type(TypeRole::RecordFieldType),
+            ExpectedSyntax::TypeExpression,
+        );
+    } else if type_expected {
+        if let Some(trivia) = consume_direct_type_chain_trivia(committed) {
+            committed.emit_trivia(&trivia);
+        }
+        if commit_direct_type_expression(committed).is_none() {
+            match direct_required_type_item_error_retry(
+                committed,
+                TypeRole::RecordFieldType,
+                None,
+            ) {
+                Some(TypeInvalidRunDisposition::RetryCurrent) => {
+                    if commit_direct_type_expression(committed).is_none() {
+                        emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+                    }
+                }
+                Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                    consume_direct_recovery_trivia(committed, &trivia);
+                    if commit_direct_type_expression(committed).is_none() {
+                        emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
+                    }
+                }
+                Some(TypeInvalidRunDisposition::BoundaryCurrent)
+                | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
+                None => {
                     emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
                 }
-            }
-            Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
-                consume_direct_recovery_trivia(committed, &trivia);
-                if commit_direct_type_expression(committed).is_none() {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
-                }
-            }
-            Some(TypeInvalidRunDisposition::BoundaryCurrent)
-            | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
-            None => {
-                emit_type_missing(committed, GrammarRole::Type(TypeRole::RecordFieldType), ExpectedSyntax::TypeExpression);
             }
         }
     }
@@ -2632,6 +2647,9 @@ where
         }
         if let Some(parsed_field) = parse_type_record_field(i) {
             fields.push(Recovered::Complete(parsed_field));
+            if any_ambient_owner_claims(i) {
+                break;
+            }
             if type_malformed_caller_boundary_pending(i) {
                 break;
             }
@@ -2735,7 +2753,7 @@ where
             (Recovered::Complete(name), Recovered::Complete(colon), true)
         } else if scan_exact_equals(i).is_some() {
             (Recovered::Complete(name), Recovered::Incomplete, true)
-        } else if type_primary_candidate(i) {
+        } else if !any_ambient_owner_claims(i) && type_primary_candidate(i) {
             (Recovered::Complete(name), Recovered::Incomplete, true)
         } else {
             if let Some(TypeInvalidRunRecovery {
@@ -2746,14 +2764,15 @@ where
                     consume_recovery_trivia(i, &trivia);
                 }
                 let recovered_colon = scan_exact_colon(i);
-                let type_expected = recovered_colon.is_some() || type_primary_candidate(i);
+                let type_expected = recovered_colon.is_some()
+                    || (!any_ambient_owner_claims(i) && type_primary_candidate(i));
                 (
                     Recovered::Complete(name),
                     recovered_colon.map_or(Recovered::Incomplete, Recovered::Complete),
                     type_expected,
                 )
             } else {
-                let type_expected = type_primary_candidate(i);
+                let type_expected = !any_ambient_owner_claims(i) && type_primary_candidate(i);
                 (Recovered::Complete(name), Recovered::Incomplete, type_expected)
             }
         }
@@ -2764,26 +2783,28 @@ where
     } else {
         return None;
     };
-    let _ = consume_type_chain_trivia(i);
-    let type_expr = if !type_expected {
+    let type_expr = if !type_expected || any_ambient_owner_claims(i) {
         Recovered::Incomplete
-    } else if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
-        Recovered::Complete(Box::new(value))
     } else {
-        match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
-            Some(TypeInvalidRunDisposition::RetryCurrent) => i
-                .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
-                .map(|value| Recovered::Complete(Box::new(value)))
-                .unwrap_or(Recovered::Incomplete),
-            Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
-                consume_recovery_trivia(i, &trivia);
-                i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+        let _ = consume_type_chain_trivia(i);
+        if let Some(value) = i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i))) {
+            Recovered::Complete(Box::new(value))
+        } else {
+            match recover_required_type_item_for_ast(i, None).map(|recovery| recovery.disposition) {
+                Some(TypeInvalidRunDisposition::RetryCurrent) => i
+                    .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
                     .map(|value| Recovered::Complete(Box::new(value)))
-                    .unwrap_or(Recovered::Incomplete)
+                    .unwrap_or(Recovered::Incomplete),
+                Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                    consume_recovery_trivia(i, &trivia);
+                    i.run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                        .map(|value| Recovered::Complete(Box::new(value)))
+                        .unwrap_or(Recovered::Incomplete)
+                }
+                Some(TypeInvalidRunDisposition::BoundaryCurrent)
+                | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_))
+                | None => Recovered::Incomplete,
             }
-            Some(TypeInvalidRunDisposition::BoundaryCurrent)
-            | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_))
-            | None => Recovered::Incomplete,
         }
     };
     let end = match &type_expr { Recovered::Complete(value) => value.range.end, Recovered::Incomplete => match &colon { Recovered::Complete(colon) => colon.end, Recovered::Incomplete => match &name { Recovered::Complete(name) => name.range().end, Recovered::Incomplete => start } } };
@@ -4175,6 +4196,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if any_ambient_owner_claims(i) {
+        return DelimitedRecoveryTarget::CallerOwnedMalformedBoundary;
+    }
     classify_type_delimited_recovery(
         DelimitedRecoverySpec {
             delimiter: Delimiter::Brace,
@@ -4603,6 +4627,145 @@ mod tests {
         assert!(output.committed_recoveries().is_empty());
         assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+    }
+
+    #[test]
+    fn named_record_preserves_a_live_if_companion_at_field_and_rhs_handoffs() {
+        for source in ["{ value: Int\nelse: 0", "{ value:\nelse: 0"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let expression = i.run(from_fn(parse_type_expression)).expect("named record prefix");
+            assert_eq!(i.input.remainder(), "\nelse: 0", "AST {source:?}");
+            assert!(matches!(expression.primary, TypePrimary::Record(NamedRecordType {
+                fields, close: Recovered::Incomplete, ..
+            }) if fields.len() == 1), "AST {source:?}");
+            drop(i);
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = local.push_root_statement_ambient_scope();
+            let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            commit_direct_type_expression(&mut committed).expect("direct named record prefix");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "\nelse: 0",
+                "direct {source:?}",
+            );
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries();
+            assert_eq!(
+                recoveries.iter().filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner: ConstructRole::NamedRecordType,
+                                delimiter: Delimiter::Brace,
+                            }
+                }).count(),
+                1,
+                "direct {source:?}",
+            );
+            if source.contains("value:") && !source.contains("value: Int") {
+                assert!(recoveries.iter().any(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role == GrammarRole::Type(TypeRole::RecordFieldType)
+                }));
+            }
+            drop(output);
+            assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+            assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+        }
+    }
+
+    #[test]
+    fn nested_named_record_and_struct_preserve_the_outer_else_boundary() {
+        let source = "if condition:\n  struct S { field: { value: Int\nelse: 0";
+        let table = crate::operator::OperatorTable::empty();
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        i.run(from_fn(|i| {
+            crate::grammar::expression::parse_expression_with_operators(&table, i)
+        }))
+        .expect("AST nested Struct expression");
+        assert_eq!(i.input.remainder(), "");
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        crate::grammar::expression::parse_direct_expression_with_operators(
+            &table,
+            crate::scan::operator::LeadingTrivia::None,
+            &mut committed,
+        )
+        .expect("direct nested Struct expression");
+        assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "");
+        committed.finish_node();
+        let output = committed.into_output();
+        let recoveries = output.committed_recoveries().to_vec();
+        let root = SyntaxNode::new_root(output.finish_complete());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::ElseKw)
+                .count(),
+            1,
+        );
+        for owner in [ConstructRole::NamedRecordType, ConstructRole::StructNamedFields] {
+            assert_eq!(
+                recoveries.iter().filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner,
+                                delimiter: Delimiter::Brace,
+                            }
+                }).count(),
+                1,
+                "{owner:?}: {recoveries:#?}",
+            );
+        }
     }
 
     fn parse_direct_recovered(source: &str) -> Vec<crate::session::CommittedRecoveryRecord> {
