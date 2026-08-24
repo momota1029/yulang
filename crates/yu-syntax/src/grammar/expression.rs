@@ -26,7 +26,7 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        AmbientOwnerScopeFrame, BindingRole, BracedStatementBlockRole, ColonApplicationRole,
+        AmbientOwnerScopeFrame, BindingRole, BracedBarrierOrigin, BracedStatementBlockRole, ColonApplicationRole,
         CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter,
         ExpressionDelimitedOwner,
         InlineStatementOwnerKind,
@@ -1773,7 +1773,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
 fn parse_catch_braced_block_ast<'source, E>(table: &OperatorTable, open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> CatchBlock<'source>
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error>,
 {
-    let scope = push_braced_statement_block_scope(i);
+    let scope = push_braced_statement_block_scope(i, BracedBarrierOrigin::CatchBracedArmSequence);
     consume_trivia(i).expect("trivia scanning is total");
     let arms = Recovered::Complete(parse_catch_arm_sequence_ast(table, ArmSequencePolicy::CatchBraced, i));
     consume_trivia(i).expect("trivia scanning is total");
@@ -3083,7 +3083,7 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let scope = push_braced_statement_block_scope(i);
+    let scope = push_braced_statement_block_scope(i, BracedBarrierOrigin::BracedStatementBlockExpression);
     consume_trivia(i).expect("trivia scanning is total");
     let statements = parse_statement_sequence(table, StatementSequencePolicy::BracedPrimary, i);
     consume_trivia(i).expect("trivia scanning is total");
@@ -3306,6 +3306,8 @@ struct IndentedStatementBlockScope {
 struct BracedStatementBlockScope {
     inline: bool,
     ml_arg: bool,
+    ambient_owner_scope: AmbientOwnerScopeFrame,
+    if_expression_companion_depth: usize,
 }
 
 fn braced_statement_block_stop_set() -> StopSet {
@@ -3315,13 +3317,24 @@ fn braced_statement_block_stop_set() -> StopSet {
         .with(StopKind::RightBrace)
 }
 
-fn push_braced_statement_block_scope<E>(i: &mut SynIn<E>) -> BracedStatementBlockScope
+fn push_braced_statement_block_scope<E>(
+    i: &mut SynIn<E>,
+    origin: BracedBarrierOrigin,
+) -> BracedStatementBlockScope
 where
     E: ErrorSink<usize>,
 {
+    let if_expression_companion_depth = i.local.if_expression_companion_depth();
+    let ambient_owner_scope = i.local.push_braced_ambient_owner_barrier(origin);
+    assert_eq!(
+        ambient_owner_scope.if_visibility_floor(),
+        Some(if_expression_companion_depth),
+    );
     let scope = BracedStatementBlockScope {
         inline: i.local.inline(),
         ml_arg: i.local.ml_arg(),
+        ambient_owner_scope,
+        if_expression_companion_depth,
     };
     i.local.push_delimiter(Delimiter::Brace);
     i.local.set_inline(true);
@@ -3334,6 +3347,14 @@ fn pop_braced_statement_block_scope<E>(i: &mut SynIn<E>, scope: BracedStatementB
 where
     E: ErrorSink<usize>,
 {
+    assert_eq!(
+        i.local.if_expression_companion_depth(),
+        scope.if_expression_companion_depth,
+    );
+    assert_eq!(
+        i.local.pop_ambient_owner_scope(),
+        Some(scope.ambient_owner_scope),
+    );
     assert_eq!(i.local.pop_stop_set(), Some(braced_statement_block_stop_set()));
     i.local.set_inline(scope.inline);
     i.local.set_ml_arg(scope.ml_arg);
@@ -3598,7 +3619,12 @@ pub(crate) fn commit_braced_statement_block_expression<'parse, 'source, 'local, 
 {
     committed.start_node(SyntaxKind::BracedStatementBlockExpression);
     committed.token(SyntaxKind::LBrace, open);
-    let scope = committed.probe(|probe| push_braced_statement_block_scope(probe.input()));
+    let scope = committed.probe(|probe| {
+        push_braced_statement_block_scope(
+            probe.input(),
+            BracedBarrierOrigin::BracedStatementBlockExpression,
+        )
+    });
     let opening_trivia = committed
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scanning is total");
@@ -4105,7 +4131,12 @@ fn commit_case_like_expression<'parse, 'source, 'local, E, O>(
     } else if family == CaseLikeFamily::Catch {
         if let Some(open) = committed.probe(|probe| probe.input().run(recognize_braced_statement_block_open)) {
             committed.start_node(SyntaxKind::CatchBlock); committed.token(SyntaxKind::LBrace, open);
-            let scope = committed.probe(|probe| push_braced_statement_block_scope(probe.input()));
+            let scope = committed.probe(|probe| {
+                push_braced_statement_block_scope(
+                    probe.input(),
+                    BracedBarrierOrigin::CatchBracedArmSequence,
+                )
+            });
             let trivia = consume_direct_trivia(committed); committed.emit_trivia(&trivia);
             commit_arm_sequence(table, family, ArmSequencePolicy::CatchBraced, committed);
             let trailing = consume_direct_trivia(committed); committed.emit_trivia(&trailing);
@@ -5960,8 +5991,8 @@ mod tests {
         input::SourceInput,
         operator::{BindingPower, OperatorDeclaration, OperatorFixities},
         session::{
-            AmbientOwnerScopeKind, CommittedRecoveryRecord, FullCstOutput, ModRole, ParseLocal,
-            Probe,
+            AmbientOwnerScopeKind, BracedBarrierOrigin, CommittedRecoveryRecord, FullCstOutput,
+            ModRole, ParseLocal, Probe, any_ambient_owner_claims, if_continuation_owner,
         },
     };
 
@@ -7975,6 +8006,117 @@ mod tests {
                 .probe(|probe| probe.input().run(scan_trivia))
                 .expect("trivia scanning is total");
             commit_indented_statement_block(&table, opening_trivia, 0, 2, &mut committed);
+            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn braced_barriers_suspend_outer_if_visibility_and_restore_both_owner_scopes() {
+        const IF_WORDS: &[&str] = &["else", "elsif"];
+        let table = canonical_operator_table();
+
+        let mut source_input = SourceInput::new(" else");
+        let mut local = ParseLocal::new();
+        local.push_root_statement_ambient_scope();
+        let outer = local.push_if_expression_companion(0, IF_WORDS);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+            .set_local(&mut local);
+        assert_eq!(if_continuation_owner(&mut i), Some(outer));
+        assert!(any_ambient_owner_claims(&mut i));
+
+        for origin in [
+            BracedBarrierOrigin::BracedStatementBlockExpression,
+            BracedBarrierOrigin::CatchBracedArmSequence,
+        ] {
+            let scope = push_braced_statement_block_scope(&mut i, origin);
+            assert!(matches!(
+                i.local.ambient_owner_scope().map(|frame| frame.kind()),
+                Some(AmbientOwnerScopeKind::BracedBarrier(actual)) if actual == origin,
+            ));
+            assert_eq!(
+                i.local
+                    .ambient_owner_scope()
+                    .and_then(|frame| frame.if_visibility_floor()),
+                Some(1),
+            );
+            assert_eq!(if_continuation_owner(&mut i), None);
+            assert!(!any_ambient_owner_claims(&mut i));
+
+            let inner = i.local.push_if_expression_companion(0, IF_WORDS);
+            assert_eq!(if_continuation_owner(&mut i), Some(inner));
+            assert!(any_ambient_owner_claims(&mut i));
+            assert_eq!(i.local.if_expression_companion_depth(), 2);
+            assert_eq!(
+                i.local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(inner),
+            );
+            pop_braced_statement_block_scope(&mut i, scope);
+            assert_eq!(if_continuation_owner(&mut i), Some(outer));
+            assert!(any_ambient_owner_claims(&mut i));
+        }
+        assert_eq!(i.local.ambient_owner_scope_depth(), 1);
+        assert_eq!(i.local.if_expression_companion_depth(), 1);
+
+        for source in ["{ value }", "{ value"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
+                .expect("braced statement block AST parse");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+            assert_eq!(i.local.ambient_owner_scope_depth(), 0, "{source:?}");
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+                .expect("braced statement block direct parse");
+            assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
+            committed.finish_node();
+            let output = committed.into_output();
+            assert_eq!(SyntaxNode::new_root(output.finish_complete()).to_string(), source);
+            assert_eq!(local.ambient_owner_scope_depth(), 0, "{source:?}");
+        }
+
+        for source in [
+            "catch action { err -> value }",
+            "catch action { err -> value",
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            i.run(from_fn(|i| parse_expression_with_operators(&table, i)))
+                .expect("Catch braced AST parse");
+            assert_eq!(i.input.remainder(), "", "{source:?}");
+            assert_eq!(i.local.ambient_owner_scope_depth(), 0, "{source:?}");
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            parse_direct_expression_with_operators(&table, LeadingTrivia::None, &mut committed)
+                .expect("Catch braced direct parse");
             assert_eq!(committed.probe(|probe| probe.input().input.remainder()), "", "{source:?}");
             committed.finish_node();
             let output = committed.into_output();
