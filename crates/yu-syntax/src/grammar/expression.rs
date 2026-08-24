@@ -1538,12 +1538,17 @@ where
     let mut arguments = vec![Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?)];
     loop {
         let checkpoint = i.checkpoint();
-        let trivia = consume_trivia(i)?;
+        let _trivia = consume_trivia(i)?;
         if i.run(recognize_parenthesized_comma).is_some() {
             consume_trivia(i)?;
             arguments.push(Recovered::Complete(i.run(from_fn(|i| parse_operator_chain(table, i)))?));
             continue;
         }
+        i.rollback(checkpoint.clone());
+        if any_ambient_owner_claims(i) {
+            return Some(arguments);
+        }
+        let trivia = consume_trivia(i)?;
         if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
             == LayoutDelimitedBoundary::ImplicitNewline
         {
@@ -3035,6 +3040,11 @@ fn commit_colon_application_tail<'parse, 'source, 'local, E, O>(
                             trailing: consume_trivia(i).expect("trivia scanning is total"),
                         });
                     }
+                    i.rollback(checkpoint.clone());
+                    if any_ambient_owner_claims(i) {
+                        return None;
+                    }
+                    let leading = consume_trivia(i).expect("trivia scanning is total");
                     if layout.boundary_after_trivia(&leading, i.local.line().line_indent)
                         == LayoutDelimitedBoundary::ImplicitNewline
                     {
@@ -7157,6 +7167,66 @@ mod tests {
                 SyntaxKind::OperatorChain,
             ]
         );
+    }
+
+    #[test]
+    fn colon_inline_returns_a_live_if_companion_gap_after_its_first_argument() {
+        let source = "if condition: f: x else: 0";
+        let chain = parse(source, &canonical_operator_table());
+        let [OperatorChainItem::Primary(PrimaryExpression::If(if_expression))] = chain.items() else {
+            panic!("expected IfExpression");
+        };
+        assert!(if_expression.else_arm.is_some());
+        let Recovered::Complete(ColonIntroducedArmBody {
+            rhs: Recovered::Complete(ArmBodyRhs::Inline(body)),
+            ..
+        }) = &if_expression.arms[0].body
+        else {
+            panic!("expected inline first arm body");
+        };
+        let [
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    ..
+                },
+            )),
+        ] = body.items()
+        else {
+            panic!("expected colon application in the first arm body");
+        };
+        assert_eq!(arguments.len(), 1);
+
+        let root = parse_direct(source, &canonical_operator_table());
+        assert_eq!(root.to_string(), source);
+        let if_expression = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::IfExpression)
+            .expect("direct IfExpression");
+        assert_eq!(
+            if_expression
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                .count(),
+            1,
+        );
+        let colon_tail = if_expression
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .expect("colon tail in the if arm");
+        assert_eq!(colon_tail.children().filter(|node| node.kind() == SyntaxKind::OperatorChain).count(), 1);
+
+        let no_owner = parse("f: x, y", &canonical_operator_table());
+        assert!(matches!(no_owner.items(), [
+            OperatorChainItem::Primary(_),
+            OperatorChainItem::TerminalOuter(TerminalOuterTail::ColonApplication(
+                ColonApplicationTail {
+                    rhs: Recovered::Complete(ColonApplicationRhs::Inline { arguments }),
+                    ..
+                }
+            )),
+        ] if arguments.len() == 2));
     }
 
     #[test]

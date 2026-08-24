@@ -1295,6 +1295,12 @@ where
     committed.probe(|probe| {
         let i = probe.input();
         let checkpoint = i.checkpoint();
+        // Forall advances only through its bounded trivia phases.  An If
+        // companion claims this original gap before the phase can consume it.
+        if any_ambient_owner_claims(i) {
+            i.rollback(checkpoint);
+            return None;
+        }
         let trivia = consume_trivia(i);
         if type_chain_trivia(i, &trivia) && (!required || !trivia.is_empty()) {
             Some(trivia)
@@ -1419,6 +1425,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if any_ambient_owner_claims(i) {
+        return None;
+    }
     let checkpoint = i.checkpoint();
     let recovery = match phase {
         ForallRecoveryPhase::FirstBinder => {
@@ -1446,6 +1455,9 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if any_ambient_owner_claims(i) {
+        return true;
+    }
     let checkpoint = i.checkpoint();
     let punctuation = i.run(scan_punctuation).map(|punctuation| punctuation.kind());
     i.rollback(checkpoint);
@@ -2473,6 +2485,12 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    // Keep a live statement-owner gap available to the enclosing owner rather
+    // than reclassifying it as Forall's binder, colon, or body continuation.
+    if any_ambient_owner_claims(i) {
+        i.rollback(checkpoint);
+        return None;
+    }
     let trivia = consume_trivia(i);
     if type_chain_trivia(i, &trivia) && (!required || !trivia.is_empty()) {
         Some(trivia)
@@ -4664,6 +4682,91 @@ mod tests {
         committed.finish_node();
         let output = committed.into_output();
         assert!(output.committed_recoveries().is_empty());
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+    }
+
+    #[test]
+    fn forall_bounded_phases_defer_a_live_if_companion_before_consuming_trivia() {
+        let source = "for 'a\n    else: 0";
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let expression = i.run(from_fn(parse_type_expression)).expect("forall type prefix");
+        assert!(matches!(expression.primary, TypePrimary::Forall(ForallType {
+            colon: Recovered::Incomplete,
+            body: Recovered::Incomplete,
+            ..
+        })));
+        assert_eq!(i.input.remainder(), "\n    else: 0");
+        drop(i);
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct forall type prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "\n    else: 0",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(output.committed_recoveries(), [record]
+            if record.kind == RecoveryKind::Missing
+                && record.site.role == GrammarRole::Type(TypeRole::ForallColon)
+                && record.site.range == (6..6)), "{:#?}", output.committed_recoveries());
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let source = "for 'a @\n    else: 0";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("recovered direct forall type prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "\n    else: 0",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(matches!(output.committed_recoveries(), [record]
+            if record.kind == RecoveryKind::Error
+                && record.site.role == GrammarRole::Type(TypeRole::ForallColon)
+                && record.site.range == (7..8)), "{:#?}", output.committed_recoveries());
         assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
         assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
     }
