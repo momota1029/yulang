@@ -19,7 +19,7 @@ use crate::{
         trivia::{TriviaRun, scan_comment, scan_trivia},
         word::{WordSpan, scan_path_segment, scan_word},
     },
-    session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeMalformedCallerBoundaryFence, TypeRole, UnexpectedCategory, UnexpectedSyntax},
+    session::{CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary, LayoutDelimitedFrame, PunctuationEvidence, RecoveryKind, RecoverySiteKey, StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner, TypeMalformedCallerBoundaryFence, TypeRole, UnexpectedCategory, UnexpectedSyntax, any_ambient_owner_claims},
     syntax_kind::SyntaxKind,
 };
 
@@ -272,6 +272,10 @@ where
     loop {
         let checkpoint = i.checkpoint();
         let boundary_start = i.pos();
+        if any_ambient_owner_claims(&mut i) {
+            i.rollback(checkpoint);
+            break;
+        }
         let trivia = consume_trivia(&mut i);
         if (trivia_has_newline(&trivia) && active_stop_set(&i).contains(StopKind::Newline))
             || is_outer_newline_boundary(&i, &trivia)
@@ -648,6 +652,10 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
+    if any_ambient_owner_claims(i) {
+        i.rollback(checkpoint);
+        return None;
+    }
     let leading = consume_trivia(i);
     if (trivia_has_newline(&leading) && active_stop_set(i).contains(StopKind::Newline))
         || is_outer_newline_boundary(i, &leading)
@@ -4546,6 +4554,55 @@ mod tests {
             assert_eq!(actual, remainder, "{source:?}");
             assert!(recoveries.is_empty(), "{source:?}");
         }
+    }
+
+    #[test]
+    fn type_tail_defers_a_live_if_companion_before_type_apply() {
+        let source = "Int\nelse: 0";
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let expression = i.run(from_fn(parse_type_expression)).expect("type expression prefix");
+        assert!(expression.postfix.is_empty());
+        assert_eq!(i.input.remainder(), "\nelse: 0");
+        drop(i);
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let root_scope = local.push_root_statement_ambient_scope();
+        let companion = local.push_if_expression_companion(0, &["elsif", "else"]);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("direct type expression prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "\nelse: 0",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert_eq!(local.pop_if_expression_companion().map(|frame| frame.id()), Some(companion));
+        assert_eq!(local.pop_ambient_owner_scope(), Some(root_scope));
     }
 
     fn parse_direct_recovered(source: &str) -> Vec<crate::session::CommittedRecoveryRecord> {
