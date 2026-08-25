@@ -19158,3 +19158,506 @@ implementation gateを次で固定する。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-24、ambient statement-owner boundaryとlayout-delimited implicit newlineのcollision authority追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`の`type` equality declaration grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-26）。
+
+Date: 2026-08-26。
+
+### Scope and authority
+
+本追補は、Yulang3 / `yu-syntax`にまだ存在しない`type` declarationのうち、Yulang2の
+equality formを新しいgrammar ownerとして設計し、root `Declaration`とnested canonical `Statement`へ
+同じ`TypeDeclaration`を接続する。対象は次だけである。
+
+- optional declaration visibility、exact `type` keyword、mandatory raw name。
+- Yulang2-compatible whitespace-separated same-line declaration type parameter list。
+- exact lone `=`とmandatory standalone `TypeExpression` RHS。
+- header / parameter / definition introducer / RHSのtyped recovery、AST / direct-CST shape。
+- root / nested declaration dispatch、header-discovery stop、ASOBに従うsingle mandatory type slot ownership。
+
+Yulang3 architectureは言語仕様、public contract、代表regression corpusを継承する一方、Yulang2の
+internal state / crate splitを移植しないと定める（`docs/yulang3-architecture.md:26`）。private diagnosticの
+perfect compatibilityも非目標である（`docs/yulang3-architecture.md:86-93`）。従ってvalid surfaceとobservable boundaryは
+oracleに根拠を置き、silent close / `InvalidToken`のinternal shapeはY3のtyped recovery invariantに置き換える。
+
+本追補はYulang2のbare nominal `type Name`、`impl` / `with` / colon / brace role-like body、
+pre/post-body `derives`、`struct self`、companion method、associated type assignment、constructor / module registration、
+alias / nominal semantics、HIR loweringを設計しない。これらをempty AST fieldやreserved CST wrapperとして先取りしない。
+
+本追補のBNF-equivalent grammarの唯一の正本は後述の`TD-G`である。recognition / dispatchは
+`TD-J`、TypeExpression / ASOB integrationは`TD-T`、typed recoveryは`TD-R`に一度だけ定義する。
+
+### Re-verified Yulang2 oracle facts
+
+`yulang2-oracle`と`main`はどちらもcommit `a58eefc31e22141574b6f20c6a5748151c6d79f1`を指した。
+実装とfixtureを同じtreeから再確認し、次をsurface / historical behaviorとして固定する。
+
+1. root statement dispatcherはbare `type`とvisibility-prefixed `my` / `our` / `pub` `type`を
+   `parse_type_decl`へ渡した（`yulang2-oracle:crates/parser/src/stmt/mod.rs:52-98,159-268`）。
+   `TypeDecl`はoptional visibility、`Type`、plain nameの順にemitし、nameがなければsilent closeした
+   （`crates/parser/src/stmt/type_decl.rs:24-42`）。`my`のcontextual declaration probeは後続に
+   `Ident | SigilIdent`がなければtype declarationへcommitしなかった（`stmt/mod.rs:310-316`）。
+   name slotは`scan_name_lex`からplain `scan_name`を使い、sigil nameをacceptしなかった。keyword tokenの
+   spellingはname positionで`Ident`に再分類できた
+   （`stmt/common.rs:30-36`, `crates/parser/src/scan/mod.rs:27-30,257-260`）。
+2. name後の`scan_decl_type_vars`はsame-lineの`Ident | SigilIdent`をzero-or-moreで`TypeVars`へ入れ、
+   newline / EOF / `derives` / `with` / `impl` / other tokenで終わった
+   （`stmt/type_decl.rs:210-250`）。angle bracket、square bracket、comma、kind annotation、bound、defaultはない。
+   surface design noteも`type id 't = 't`、`type T = Int;`、`type Box 't impl ...`を例示し、
+   `type_vars := (ident | sigil_ident)*`とした
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:380-419`）。
+3. historical `SigilIdent`は`$` / `&` / `_` / `'`のprefixを認識した
+   （`yulang2-oracle:crates/parser/src/scan/mod.rs:110-115`）。statement scannerは`scan_sigil_ident`を
+   `scan_ident_or_keyword`より先にprobeしたため、`_a`もYulang2 CSTでは`SigilIdent`になった
+   （`crates/parser/src/stmt/common.rs:14-27`）。ただしrepository内のdeclaration type parameter実例は
+   apostrophe formであり、`type box 'e 'a with:`がstable-core corpusにある
+   （`tests/yulang/regressions/effect/data_position_effect_function_public_signature.yu:4-10`,
+   `tests/yulang/cases.toml:2582-2590`）。
+4. name / type vars後はtail先頭を`impl`、`with`、`=`、その他role-like bodyの順でdispatchした
+   （`stmt/type_decl.rs:43-80`）。equality branchは`=`後に`parse_type_rhs`を呼び、With / Derives /
+   Semicolon / Colon / BraceL / Comma / ParenR / BracketR / BraceRをtype parser stopにした
+   （`stmt/type_decl.rs:129-175`）。RHS後は`with`、semicolon、colon declaration body、brace statement block、
+   outer list stopを別分岐とし、その他は`InvalidToken`にした
+   （`stmt/type_decl.rs:177-207`）。type-specific `where` clauseはない。
+5. parser public outputはtyped ASTではなくRowan `GreenNode`だった
+   （`yulang2-oracle:crates/parser/src/lib.rs:32-43,61-118`）。`EventSink`がstart / token / finish eventから
+   green treeを作った（`crates/parser/src/sink.rs:12-20,70-153`）。relevant node vocabularyは
+   `TypeDecl` / `TypeVars` / `TypeExpr`である
+   （`crates/parser/src/lex.rs:291-315,553,566`）。
+6. direct parser fixtureは三件だった。`type value\nour x = 1`はbodiless
+   `TypeDecl(Type, Ident, empty TypeVars)`とnext Bindingを分離した
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:441-465`）。`type T = Int;`は
+   `TypeDecl(Type, Ident, empty TypeVars, Equal, TypeExpr(Ident), Semicolon)`だった
+   （`stmt_grammar.rs:1335-1351`）。`my type T = Int;`はvisibility tokenをsame nodeに入れた
+   （`stmt_grammar.rs:2248-2265`）。parameter、missing name / `=` / RHS、`with` / `impl` / `derives`専用の
+   parser-tree fixtureはなかった。generic recovery suiteにも`type`専用caseはない
+   （`crates/parser/tests/recovery.rs:19-71`）。
+7. EOFでは`parse_type`の`scan_typ_nud(...)?`が`None`をpropagateし、`parse_type_from_nud`を呼ばなかった。
+   active stopでは`scan_typ_nud`が`TypNudTag::Stop`を返し、`parse_type_from_nud`が
+   `Some(Either::Right(nud.lex))`を返したtype node start前に終了した
+   （`yulang2-oracle:crates/parser/src/typ/parse.rs:11-33`, `crates/parser/src/typ/scan.rs:35-62`）。従って
+   `type T = ;`はsemicolon前でRHSなし、`type T =` EOFもRHSなしでcloseした。malformed internal
+   typeはgeneric `InvalidToken`をemitした（`typ/parse.rs:58-75,215-219`）。Missing / Error role、
+   retry cardinality、type-declaration-specific diagnosticはなかった。
+8. `DocComment`は`TypeDecl`のchildではなく、独立`DocCommentDecl`としてparseされた
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:101-156`）。module mapがpending docを後続`TypeDecl`へ紐づけた
+   （`crates/infer/src/module_map/mod.rs:262-299,435-460`）。visibility省略のsemantic defaultは`Our`だった
+   （`crates/infer/src/syntax.rs:1324-1333`）。
+9. Yulang2のinternal enumは`TypeDecl`を`ModuleTypeKind::TypeAlias`と呼んだ
+   （`yulang2-oracle:crates/infer/src/syntax.rs:1233-1241`）。しかしtop-level loweringは`=` RHSを読まず、
+   constructor / companion / derivesだけをlowerした
+   （`crates/infer/src/lowering/body/type_decl.rs:7-23,37-115`）。language reportもtop-level `type`をnominal typeとし、
+   equality RHSがalias expansionに使われないことを明記した
+   （`yulang2-oracle:notes/design/yulang-language-report.md:221-243,1105-1108,1195-1208`）。
+   equality RHSがsemantic assignmentになるのはrole impl body内である
+   （`crates/infer/src/module_map/mod.rs:696-711`, `crates/infer/src/lowering/mod.rs:1080-1104`,
+   `crates/infer/src/lowering/body/impl_decl.rs:831-844`）。従ってtop-level nodeを
+   `TypeAliasDeclaration`と呼ぶのはoracle semanticsを誤表示する。
+10. corpusは`my type hidden = int`をprivate visibility diagnosticに使った
+    （`yulang2-oracle:tests/yulang/regressions/diagnostics/my_private_type_declaration.yu:1-8`,
+    `tests/yulang/cases.toml:3773-3789`）。`type invalid = int derives ...`もactual sourceにある
+    （`tests/yulang/regressions/diagnostics/derive_invalid_target.yu:1`）。ただしこれらはparser recoveryの
+    byte-exact fixtureではなく、後段behaviorを固定するcorpusである。
+
+### Supersession and preservation boundary
+
+本追補は次の既決事項を維持する。
+
+- canonical `Statement` / root `Declaration`のshared intro recognition、root / nested同一declaration child、
+  nestedだけの`Statement` wrapper。
+- source-leading header discoveryがUse / operator headerだけをfactへprojectし、その他declaration familyで止まる境界。
+- standalone `TypeExpression`のfull core / exotic primary、BracketRow、fixed tail precedence、TMN、
+  mandatory outer missing-role override、positional fence、AST / direct-CST parity。
+- ASOBのambient owner predicate、original-gap-before-consume、active indentation baseline、
+  complete / malformed tail judgeのowner-safe ordering。
+- declaration visibilityのcurrent Yulang3 normalization。syntax ASTはabsenceを`Visibility::Private`にnormalizeし、
+  Yulang2のsemantic default `Our`をparserで再現しない。export semanticsはfuture HIR ownerに残す。
+
+次を本追補が限定してsupersedeする。
+
+- `Declaration` / `Statement` / `StatementIntro` / `StatementKind`のclosed sumへ`Type`を追加する。
+- Struct追補でfutureに残したtype-like declaration共通binder surfaceを
+  `DeclarationTypeParameterList`として初めて定義する。本追補ではTypeDeclarationだけに接続し、
+  Structへのattachmentは別追補に残す。
+- `SyntaxKind`、`DeclarationRole`、expected-syntax / keyword-evidence vocabularyを本追補のroleまで拡張する。
+
+### `TD-G`: single canonical surface grammar and layout definition
+
+```text
+TypeDeclaration :=
+    [ VisibilityKw Gtype+ ]
+    TypeKw Gtype+ TypeName
+    [ DeclarationTypeParameterList ]
+    Gtype* Equals Gtype-rhs
+    RequiredTypeExpression(TypeDeclaration::Rhs)
+
+VisibilityKw := MyKw | OurKw | PubKw
+
+TypeName := Identifier
+
+DeclarationTypeParameterList :=
+    Gtype-param DeclarationTypeParameter
+    { Gtype-param DeclarationTypeParameter }
+
+DeclarationTypeParameter :=
+    Identifier
+  | SigilIdentifier
+
+Gtype+ := non-empty TypeContinuationTrivia(type_base)
+Gtype* := empty or one TypeContinuationTrivia(type_base)
+Gtype-rhs := empty or one TypeContinuationTrivia(type_base), subject to TD-T ambient-owner check
+
+TypeContinuationTrivia(type_base) :=
+    NonEmptySameLineTrivia
+  | NonEmptyTriviaWithStrictlyDeeperFollowingIndent(type_base)
+
+Gtype-param := NonEmptySameLineTrivia
+```
+
+`type_base`はoptional visibilityより前、またはbare `type`より前のfirst declaration starter positionで取得する。
+keyword、name、`=`、RHSはsame lineまたはstrictly deeper continuationだけを消費し、equal-or-shallower
+newlineをouter Statement ownerへ返す。parameter listだけはYulang2どおりsame-line onlyである。
+
+parameter listはangle / square / parenthesized delimiter、comma、colon、kind、bound、defaultを持たない。
+first parameterをacceptしたときだけnodeを作り、zero parameterのempty wrapperを作らない。each
+`Gtype-param`は後続parameterと同じlist nodeが所有し、last parameter後の`=`前triviaはTypeDeclaration直下に置く。
+
+Yulang3はcontextual keyword scannerを使うため、parameter-positionの`Identifier`はoracleが`Ident`にした
+raw wordだけに限定するlocal predicateで決める。Yulang2 keyword vocabulary、exact tail introducer
+`impl` / `with` / `derives`、declaration starter、active outer stopをparameterに再分類しない。
+global lexer / global reserved-word stateは導入しない。
+`$a` / `&a` / `'a`は`SigilIdentifier`、`_a`はcurrent raw-word conventionに従い`Identifier`として保持する。
+current TypeExpressionがname atomに使えるsigilはapostrophe formだけなので、`$a` / `&a`のbinder semanticsと
+RHS reference可能性は本parser追補で解決しない。parserはsourceをlosslessに保持し、semantic validationに渡す。
+
+`Equals`はexact lone `=`であり、`==`、`=>`、operator runをsplitしない。Bindingが持つ
+exact definition-introducer scanner / evidenceをdeclaration-neutral primitiveに昇格して共有し、Type専用copyを作らない。
+
+semicolonはcanonical Statement sequenceのseparatorであり、`TypeDeclaration`のchildに入れない。
+RHS mandatory entryはactive `Semicolon` stopをinherit / pushし、valid RHSまたはrecoveryがsemicolon byteを消費しない。
+
+### `TD-J`: intro authority, dispatch, and header projection
+
+shared intro judgeは次のみを`StatementIntro::Type`とする。
+
+- current positionがexact `type` wordである。
+- current positionがexact `my` / `our` / `pub`で、`Gtype+`後がexact `type` wordである。
+
+intro authorityはname、parameter、`=`、RHSの成否に依存しない。exact `type`まで見えた時点で
+TypeDeclarationへcutし、Binding / OperatorChainへrollbackしない。これはYulang2のvisibility-prefixed `my`
+lookaheadよりstructured recoveryを強くするが、valid spellingのrecognitionは保つ。
+
+root `parse_declaration` / direct root loopはUse / Binding / OperatorHeader / Mod / Structと同じshared judgeから
+`Declaration::Type(TypeDeclaration)`を作る。nested full-Statement consumerは同じchildを
+`Statement::Type(TypeDeclaration)`として`Statement` wrapperへ入れる。OperatorChain-only inline slotはTypeをacceptしない。
+
+source-leading header discoveryはType introを見たら終了する。`HeaderDeclaration`にType variantを追加せず、
+import / operator fact、type-name fact、parameter fact、RHS factをprojectしない。この所有はUse / Mod / Structの
+root-dispatch / header-projection patternと同じである。
+
+### AST shape
+
+```rust
+pub struct TypeDeclaration<'source> {
+    pub visibility: Visibility,
+    pub name: Recovered<WordSpan<'source>>,
+    pub parameters: Vec<DeclarationTypeParameter<'source>>,
+    pub equals: Recovered<Range<usize>>,
+    pub rhs: Recovered<Box<TypeExpression<'source>>>,
+    pub range: Range<usize>,
+}
+
+pub enum DeclarationTypeParameter<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
+}
+```
+
+`TypeDeclaration`は`TypeAliasDeclaration`と呼ばない。ASTはsource syntaxとrecovery completionを保持し、
+top-level equality RHSのalias / nominal / opaque semanticsを決めない。parameterのduplicate、scope、kind、variance、
+unused / unreferenceable historical sigilもsyntax-validityから分離する。
+
+`name`、`equals`、`rhs`は独立mandatory slotである。no-cascadeによりupstream slotがmissingのまま
+same boundaryに到達したとき、後続slotへ同一原因のMissingを連鎖させず`Incomplete`に留める。
+
+### CST vocabulary, ownership, and worked examples
+
+new CST vocabularyは`TypeKw`、`TypeDeclaration`、`DeclarationTypeParameterList`のみである。
+`Identifier`、`SigilIdentifier`、`Equals`、`TypeExpression`、visibility token、trivia、`Missing`、`Error`は
+existing vocabularyを再利用する。`TypeHeader`、`TypeRhs`、`TypeAlias`、empty `TypeVars`、parameter item wrapperを作らない。
+
+#### Complete equality declaration with type parameters
+
+source bytes:
+
+```text
+type Pair 'left 'right = ('left, 'right)
+```
+
+byte-exact CST:
+
+```text
+TypeDeclaration 0..40
+  TypeKw 0..4 "type"
+  Trivia 4..5 " "
+  Identifier 5..9 "Pair"
+  DeclarationTypeParameterList 9..22
+    Trivia 9..10 " "
+    SigilIdentifier 10..15 "'left"
+    Trivia 15..16 " "
+    SigilIdentifier 16..22 "'right"
+  Trivia 22..23 " "
+  Equals 23..24 "="
+  Trivia 24..25 " "
+  TypeExpression 25..40
+    ParenthesizedTypeGroup 25..40
+      LParen 25..26 "("
+      TypeExpression 26..31
+        SigilIdentifier 26..31 "'left"
+      Comma 31..32 ","
+      Trivia 32..33 " "
+      TypeExpression 33..39
+        SigilIdentifier 33..39 "'right"
+      RParen 39..40 ")"
+```
+
+ASTは`name = Complete(Pair)`、two parameters、`equals = Complete(23..24)`、
+`rhs = Complete(ParenthesizedTypeGroup(...))`を持つ。parameter listはwhitespaceを含むsource range `9..22`を所有する。
+
+#### Mandatory RHS missing before statement separator
+
+source bytes:
+
+```text
+type Result 'a = ;
+```
+
+byte-exact CST:
+
+```text
+TypeDeclaration 0..17
+  TypeKw 0..4 "type"
+  Trivia 4..5 " "
+  Identifier 5..11 "Result"
+  DeclarationTypeParameterList 11..14
+    Trivia 11..12 " "
+    SigilIdentifier 12..14 "'a"
+  Trivia 14..15 " "
+  Equals 15..16 "="
+  Trivia 16..17 " "
+  TypeExpression 17..17
+    Missing(TypeDeclaration::Rhs, TypeExpression) 17..17
+Semicolon 17..18 ";"
+```
+
+ASTは`rhs = Incomplete`、recovery recordはone zero-width `Missing(TypeDeclaration::Rhs, TypeExpression)`だけを持つ。
+semicolonはTypeDeclaration range / nodeの外に留まり、outer Statement sequenceがconsumeする。
+
+#### Missing definition introducer with reusable RHS
+
+source bytes:
+
+```text
+type Id 'a 'a
+```
+
+AST / direct-CSTは`Id`をname、first `'a`をparameterとしてgreedyに受理するため、このsourceを
+missing-`=` + reusable RHSとは解釈できない。two `'a`はparameter listであり、EOFの
+`Missing(TypeDeclaration::DefinitionIntroducer, Equals)`一件で終わる。RHSはsame-cause cascadeを作らず
+`Incomplete`に留まる。missing-`=` retryが成立するのは、parameterにならないvalid TypePrimary
+（例: `type Id 'a ('a)`）が後続する場合である。その場合はzero-width Missing Equals後に
+same positionからparenthesized RHSをretryする。
+
+### `TD-T`: mandatory TypeExpression and ASOB composition
+
+RHSはStruct named field / tuple fieldと同じstandalone mandatory TypeExpression machineryを使う。
+
+- ASTは`parse_required_type_expression_with_outer_missing_role`、direct-CSTは
+  `commit_direct_type_expression_with_outer_missing_role`のordinary recovery contextをそのまま使う。
+- outer roleは`GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs))`である。
+  malformed primary / nested continuationがErrorを作った場合はexisting `TypeRole`を保ち、completely missing primaryだけ
+  outer Rhs roleにoverrideする。
+- dynamic operator tableを参照せず、core / path / call / ML apply / arrow / Forall / EffectRow /
+  PolymorphicVariant / NamedRecord / BracketRowのapproved full surfaceをそのまま受理する。
+- `RequiredTypeRecoveryContext::with_malformed_continuation_base`を使わない。Pattern annotationの
+  captured-base overrideはPattern owner固有であり、TypeDeclaration RHSはordinary declaration baseを使う。
+
+RHS entryの間は
+`IndentationBaseline { column: type_base, kind: IndentationBaselineKind::Introducer }`とincoming stop setに
+`Semicolon` / existing `StopKind::With`を追加したscopeをpushする。これによりY2 companionが
+scope外の間もRHS後の`with`をboundaryとしてnon-consumeで保存する。`derives`のattachmentもscope外なので、本追補のためだけに
+new global stopを追加しない。future derives addendumが所有とStopKindを同時に決める。
+
+Yulang2 `parse_type_rhs`が使ったColon / LeftBrace stopはYulang3のfull TypeExpressionと衝突する。
+NamedRecord / PolymorphicVariant / type applicationのvalid RHSを切らないため、それらをTypeDeclaration固有stopにしない。
+colon / brace role-like declaration tailとRHSの曖昧性は、そのtailをsalvageするfuture addendumが明示的に解決する。
+
+TypeDeclarationはsingle mandatory slot ownerであり、delimiter / field sequence / implicit item loopを持たない。
+従って`TypeDelimitedOwner::TypeDeclaration`、declaration-specific list driver、new positional fenceを追加しない。
+ただしASOBから自由ではない。`Gtype-rhs`をconsumeする前にoriginal gapの
+`any_ambient_owner_claims(...)`を呼び、trueならRHS missing boundaryとしてtrivia / tokenをouter ownerへ返す。
+TypeExpressionへcommitした後は、all normal / malformed primary and tail judgeがexisting ASOB predicate、active baseline、
+stop set、positional fenceを使う。post-newline re-probe、Type-specific ambient word list、caller side channelを追加しない。
+
+### `TD-R`: typed recovery and no-cascade contract
+
+new role vocabularyは次だけである。
+
+```rust
+enum TypeDeclarationRole {
+    Name,
+    DefinitionIntroducer,
+    Rhs,
+}
+```
+
+#### Header, parameter, and definition-introducer recovery
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `type` + EOF / outer boundary | name Incomplete、one `Missing(TypeDeclaration::Name, Identifier)` | equals / RHSはsame-cause cascadeを作らずIncomplete |
+| `type = Int` | zero-width Missing Name | exact `=`をconsumeしRHSへ |
+| malformed name run + valid raw name | maximal non-empty `Error(TypeDeclaration::Name)` | raw nameをsame slot retry |
+| malformed name run + exact `=` | one `Error(TypeDeclaration::Name)`、name Incomplete | `=`からdefinition / RHSを続行、additional Missing Nameなし |
+| complete name + zero parameters + exact `=` | parameter list absent、equals Complete | mandatory RHSへ |
+| complete name + one-or-more same-line parameters | one non-empty parameter-list node | first non-parameter positionからequals probe |
+| malformed bytes between parameters and exact `=` | maximal `Error(TypeDeclaration::DefinitionIntroducer)` | actual `=`をconsume、additional Missing Equalsなし |
+| no `=` + valid non-parameter TypePrimary | zero-width `Missing(TypeDeclaration::DefinitionIntroducer, Equals)` | same positionからmandatory RHS retry |
+| malformed introducer run + valid TypePrimary | one `Error(TypeDeclaration::DefinitionIntroducer)`、equals Incomplete | same positionからRHS retry、additional Missing Equalsなし |
+| no `=` + EOF / semicolon / equal-or-shallower newline / ambient outer boundary | one Missing DefinitionIntroducer | RHS Incomplete、boundary non-consume |
+| malformed introducer run reaches boundary | one maximal Error DefinitionIntroducer | equals / RHS Incomplete、same slot retryとadditional Missingなし |
+
+parameter list自体はoptionalであり、missing parameter recoveryを持たない。first parameter acceptance後は
+same-line trivia + next parameter candidateだけをgreedyに繰り返す。malformed runをparameterとしてrecoveryせず、
+DefinitionIntroducer slotへ所有を渡す。これによりoptional listがspeculative recoveryで`=` / RHSを飲まない。
+
+#### Mandatory RHS recovery
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| exact / recovered `=` + valid TypePrimary | RHS Complete | full canonical TypeExpressionをparse |
+| exact / recovered `=` + EOF / semicolon / outer boundary | RHS Incomplete、one zero-width `Missing(TypeDeclaration::Rhs, TypeExpression)` | boundary non-consume |
+| exact / recovered `=` + malformed primary + valid TypePrimary | one maximal `Error(Type::Primary, TypeExpression)` | same mandatory slot retry、RHS Complete |
+| exact / recovered `=` + malformed primary run reaches boundary | RHS Incomplete、one maximal `Error(Type::Primary)` | additional TypeDeclaration::Rhs Missingなし、boundary non-consume |
+| RHS内nested mandatory slot missing / malformed | existing nested `TypeRole` recovery | outer TypeDeclaration::Rhsへroleを潰さない |
+| `Gtype-rhs`がambient ownerにclaimされる | RHS Incomplete、one Missing TypeDeclaration::Rhs | original trivia / owner tokenをnon-consumeで返す |
+| equal-or-shallower newlineの後にvalid TypePrimary | RHS Incomplete、one Missing TypeDeclaration::Rhs | newlineをouter Statement boundaryへ返し、後続typeを飲まない |
+
+`=`をComplete / recovered anchorとしてacceptした後だけRHSがmandatoryになる。name / equalsの同一missing causeで
+RHS Missingを作らない。malformed primaryがown `TypeRole` Errorを作った場合もouter Missingを重ねない。
+one source range = one recovery node = one recovery recordとAST / direct-CST parityを維持する。
+
+### Shared Yulang3 machinery and explicit non-reuse
+
+implementationは次を再利用する。
+
+- `grammar/declaration.rs`のshared `StatementIntro`、root / nested dispatch、visibility recognition、
+  canonical/full slot filtering、header-projection boundary。current closed familyはUse / Binding / OperatorHeader / Mod / Struct、
+  header factはUse / OperatorHeaderだけである
+  （`crates/yu-syntax/src/grammar/declaration.rs:52-90`）。
+- Bindingのexact lone `=` recognition / evidenceをneutral scannerにしたもの。
+- Struct field type / Pattern annotationが使うstandalone mandatory TypeExpression AST / direct entries
+  （`crates/yu-syntax/src/grammar/type_expr.rs:409-472,843-910`）。optional standalone entryもoperator tableを受けない
+  （`type_expr.rs:240-266`）。
+- `TypeExpression` active stops、indentation baseline、TMN、ASOB、positional fence、recovery record machinery。
+- existing raw word / path-segment scanner、`WordSpan`、`Visibility`、`Recovered`、trivia emit、range composition。
+
+current codebaseにdeclaration-level generic list production / ASTはない。standalone `ForallType`のbinderは
+TypeExpression内のscope ownerであり、declaration header parameterに流用しない。
+`DeclarationTypeParameterList`はYulang2 surfaceを保つ最小のnew shared productionとし、Type専用名や
+Struct AST placeholderを作らない。
+
+NamedRecord / Struct fieldのdelimiter / list driver、`TypeDelimitedOwner`、Pattern captured-base recoveryは使わない。
+TypeDeclarationはone RHSだけを持つため、共有するのはmandatory entryとambient / baseline disciplineであり、
+field-list machineryではない。
+
+current session vocabularyも`DeclarationRole`と`StatementKind`をStructまでにし、keyword evidenceにTypeを持たない
+（`crates/yu-syntax/src/session.rs:991-1022,1274-1310`）。従ってType追加はexisting variantの読み替えではなく、
+closed vocabularyをgate 1で一括して拡張するchangeになる。
+
+### Explicit scope boundaries and Yulang2 divergences
+
+1. **Preserved equality surface:** optional `my` / `our` / `pub`、exact `type`、plain name、same-line whitespace-separated
+   `Ident | SigilIdent` parameters、exact `=`、full type RHSを保つ。angle / square generic syntaxを発明しない。
+2. **Temporary declaration-family scope divergence:** Yulang2はbodiless nominal、`impl`、`with`、colon / brace body、
+   derivesをsame `TypeDecl`に持った。本追補はequality formだけをcanonicalにし、残りをnamed future salvageにする。
+3. **No alias claim:** Yulang2のinternal `TypeAlias` labelはactual top-level loweringと一致しない。Y3 syntax nodeは
+   neutral `TypeDeclaration`とし、RHSのsemanticsをfuture resolver / HIR designへ残す。
+4. **Visibility normalization divergence:** Y2 absenceのsemantic defaultは`Our`だったが、Y3 parserのexisting
+   declaration normalization `Private`を保つ。source spellingのacceptanceは変えない。
+5. **Semicolon ownership divergence:** Y2はpost-RHS semicolonを`TypeDecl`内にemitした。Y3はcanonical
+   Statement separator ownerへ返し、TypeDeclarationはRHS終了位置でcloseする。
+6. **CST divergence:** Y2のalways-present empty `TypeVars`を作らず、non-empty
+   `DeclarationTypeParameterList`だけを作る。source token / triviaは全て保持する。
+7. **Recovery divergence:** Y2のsilent close / generic `InvalidToken`をrole-specific Missing / Error、same-slot retry、
+   no-cascade、owner-safe boundaryに置き換える。private diagnostic textを複製する必要はない。
+8. **Full TypeExpression preservation:** Y2のdeclaration-local Colon / BraceL stopをそのまま移植せず、
+   approved NamedRecord / PolymorphicVariant / BracketRowを含むfull RHSを保つ。legacy role-like tailの曖昧性は別追補で決める。
+9. **Historical sigil reference boundary:** parserはY2 parameter sigil spellingをlosslessに保つが、
+   `$` / `&`をcurrent TypeExpression reference atomへ拡張しない。binder semanticsはparser scope外である。
+10. **`_a` lexical-kind divergence:** Yulang2はstatement scannerのsigil-first orderにより`_a`を`SigilIdent`にしたが、
+    Yulang3はcurrent raw-word conventionに従いsame bytesを`Identifier`にする。source acceptance / losslessnessは保つが、
+    CST token kindとAST parameter variantは意図的に一致しない。
+11. **Doc / where boundary:** doc commentはseparate Statement declaration ownerのままで、TypeDeclaration childにしない。
+    Yulang2にtype-specific where clauseはなく、Y3も発明しない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへの本追補追加だけであり、`.rs` fileを変更しない。future implementationは
+equality-form syntax / AST / direct-CST / recovery / dispatchをone sliceで行い、nominal / companion / derives / semanticsを混ぜない。
+
+implementation gateを次で固定する。
+
+1. `TypeKw` / `TypeDeclaration` / `DeclarationTypeParameterList`、`Declaration::Type` / `Statement::Type`、
+   `StatementIntro::Type`、`StatementKind::TypeDeclaration`、Type declaration roles / expected syntax / keyword evidenceを追加する。
+2. shared sink-free exact-word intro judgeだけを実装し、bare `type` / `my type` / `our type` / `pub type`を
+   name / parameter / `=` / RHSの成否に依存せず`StatementIntro::Type`としてcommitする。fixtureはjudge関数を
+   directに呼び、Binding collisionとstate-neutral rejectionを固定する。本gateではroot `parse_declaration` / nested
+   full-Statement consumerへ接続せず、real parser entrypointからTypeDeclarationを到達可能にしない。
+3. shared `DeclarationTypeParameterList`はY2のsame-line whitespace-separated parameter spellingだけをgreedyにacceptし、
+   `$` / `&` / `'` formは`SigilIdentifier`、`_`-leading formはitem 10のdivergenceどおり`Identifier`にする。
+   zero parameter wrapper、delimiter、comma、kind / bound / defaultを作らない。
+4. exact lone `=`をBindingと共有するneutral primitiveで認識し、`TD-R` header / introducer表の
+   role、range、retry position、Complete / Incomplete cardinalityをAST / direct-CSTで固定する。
+5. RHS wiringとそのowner protectionをone atomic implementation sliceにする。`Gtype-rhs`消費前の
+   original-gap ASOB check、
+   `IndentationBaseline { column: type_base, kind: IndentationBaselineKind::Introducer }`、active `Semicolon` / `With` stopを
+   setupした後だけ、ordinary mandatory TypeExpressionのexact AST / direct entriesとType Rhs outer roleへ到達可能にする。
+   full exotic surface / BracketRow、no dynamic operator table、no Pattern captured-base override、all exitのexact restoreも同時に固定する。
+   ASOB / baseline / stop setupなしのRHS helperをreal dispatchから到達可能にしない。
+6. gate 5で接続済みのowner protectionをexhaustive boundary parity fixtureで検証する。AST / directの
+   original-gap ASOB、all TypeExpression judge point、equal-or-shallower statement、ambient Else / arm / declaration owner、
+   malformed tailがboundary byteをconsumeしないことを固定する。
+   TypeDeclaration専用delimited owner / list driver / positional fenceがないこともassertする。
+7. `TD-R` RHS表、two byte-exact CST worked sources、missing-`=` ambiguity sourceをfixtureにし、all trivia home、lossless round trip、balanced node、
+   one range = one recovery node = one record、AST / direct parity、semicolon outer ownershipをassertする。
+8. gate 2の`StatementIntro::Type`をroot `parse_declaration` / direct root loopとnested full-Statement consumerの
+   real dispatchへ接続し、actual parser entrypointから`Declaration::Type` / `Statement::Type`を初めて到達可能にする。
+   同じgateでsource-leading Typeがheader discoveryを終了し、HeaderDeclaration factを作らないことを固定する。
+   root / nested end-to-end、full / operator-only slotをfixture化し、existing Use / Binding / OperatorHeader / Mod / Struct /
+   TypeExpression fixtureを保つ。
+9. bare nominal、`impl` / `with` / colon / brace body、derives、self struct、doc attachment、associated type、
+   alias / nominal semantics、HIR / formatterを実装しないことをscope gateにする。
+
+### Closed decisions and Claude review focus
+
+本追補で次をclosed decisionとする。
+
+- canonical sliceは`type Name [params] = TypeExpression`であり、Yulang2の広いTypeDecl tail familyは別追補へ残す。
+- declaration parameterはYulang2どおりwhitespace-separated same-line listであり、generic delimiterを発明しない。
+- syntax nodeはneutral `TypeDeclaration`であり、top-level alias semanticsを宣言しない。
+- RHSはfull ordinary mandatory TypeExpressionであり、Pattern captured base / Struct list ownerを流用しない。
+- single slotでもRHS entry前とTypeExpression内のASOBを必須とし、new owner / fenceを作らない。
+- semicolonはouter Statement separator owner、doc commentはseparate declaration ownerである。
+- root / nestedはsame TypeDeclaration、header discoveryはType factを作らない。
+- recoveryはtyped、maximal、same-slot retry、no same-cause cascade、owner-safeである。
+
+Claude reviewでは特に、equality-only sliceがYulang2のbare nominal / companion familyに対するtemporary divergenceとして
+十分明示的か、`TypeAliasDeclaration`を避けるsemantic evidence、Y2のgreedy same-line parameter listと
+missing-`=` retryのambiguity、historical `$` / `&` parameter acceptanceとcurrent RHS reference surfaceの不一致、
+semicolonのouter ownership、Colon / LeftBrace stopを引き継がない理由、single RHS entryでのASOB call orderを確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-26、canonical Statement / root Declarationのtype equality declaration grammar追補案）。
