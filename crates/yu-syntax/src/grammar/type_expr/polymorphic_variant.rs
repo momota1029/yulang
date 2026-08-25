@@ -1028,7 +1028,7 @@ mod tests {
             .expect("polymorphic variant prefix");
         assert_eq!(i.input.remainder(), remainder, "AST {source:?}");
         assert!(matches!(
-            expression.primary,
+            expression.complete_primary(),
             TypePrimary::PolymorphicVariant(PolymorphicVariantType {
                 tags,
                 close: Recovered::Incomplete,
@@ -1321,7 +1321,7 @@ mod tests {
             .expect("complete polymorphic variant");
         assert_eq!(i.input.remainder(), "");
         assert!(matches!(
-            expression.primary,
+            expression.complete_primary(),
             TypePrimary::PolymorphicVariant(PolymorphicVariantType {
                 tags,
                 close: Recovered::Complete(_),

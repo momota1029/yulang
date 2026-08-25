@@ -25,7 +25,8 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TypeExpression<'source> {
-    primary: TypePrimary<'source>,
+    leading_effect_row: Option<BracketRow<'source>>,
+    primary: Recovered<TypePrimary<'source>>,
     postfix: Vec<TypePostfixTail<'source>>,
     arrow: Option<TypeArrowTail<'source>>,
     range: Range<usize>,
@@ -35,6 +36,22 @@ impl TypeExpression<'_> {
     pub(crate) fn range(&self) -> Range<usize> { self.range.clone() }
     pub(crate) fn postfix(&self) -> &[TypePostfixTail<'_>] { &self.postfix }
     pub(crate) fn arrow(&self) -> Option<&TypeArrowTail<'_>> { self.arrow.as_ref() }
+
+    #[cfg(test)]
+    fn complete_primary(&self) -> TypePrimary<'_> {
+        match &self.primary {
+            Recovered::Complete(primary) => primary.clone(),
+            Recovered::Incomplete => panic!("existing TypeExpression parser produced an incomplete primary"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct BracketRow<'source> {
+    open: Range<usize>,
+    items: Vec<Recovered<TypeExpression<'source>>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
 }
 
 /// Owner-captured inputs for the one outer mandatory TypeExpression recovery
@@ -133,7 +150,8 @@ pub(crate) struct TypeApplyArgument<'source> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TypeArrowTail<'source> {
-    arrow: Range<usize>,
+    argument_effect: Option<BracketRow<'source>>,
+    arrow: Recovered<Range<usize>>,
     rhs: Recovered<Box<TypeExpression<'source>>>,
     range: Range<usize>,
 }
@@ -265,7 +283,13 @@ where
         }))
     {
         let end = primary_range(&primary).end;
-        return Some(TypeExpression { primary, postfix: Vec::new(), arrow: None, range: start..end });
+        return Some(TypeExpression {
+            leading_effect_row: None,
+            primary: Recovered::Complete(primary),
+            postfix: Vec::new(),
+            arrow: None,
+            range: start..end,
+        });
     }
     let mut postfix = Vec::new();
     let mut arrow = None;
@@ -347,7 +371,13 @@ where
         || postfix.last().map_or_else(|| primary_range(&primary).end, postfix_range_end),
         |tail| tail.range.end,
     );
-    Some(TypeExpression { primary, postfix, arrow, range: start..end })
+    Some(TypeExpression {
+        leading_effect_row: None,
+        primary: Recovered::Complete(primary),
+        postfix,
+        arrow,
+        range: start..end,
+    })
 }
 
 /// Mandatory AST entry matching the direct-CST outer-slot contract.  AST
@@ -1498,6 +1528,7 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
             TypeDelimitedOwner::NamedRecord => TypeRole::RecordField,
             TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
+            TypeDelimitedOwner::BracketRow => TypeRole::BracketRowItem,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantPayload,
             TypeDelimitedOwner::StructNamedFields => {
                 unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
@@ -1511,6 +1542,7 @@ impl TypeDelimitedSpec {
             TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
             TypeDelimitedOwner::NamedRecord => TypeRole::RecordFieldSeparator,
             TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
+            TypeDelimitedOwner::BracketRow => TypeRole::BracketRowSeparator,
             TypeDelimitedOwner::PolymorphicVariant => TypeRole::PolymorphicVariantTagSeparator,
             TypeDelimitedOwner::StructNamedFields => {
                 unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
@@ -1526,6 +1558,7 @@ impl TypeDelimitedSpec {
                 TypeDelimitedOwner::ParenthesizedGroup => ConstructRole::ParenthesizedTypeGroup,
                 TypeDelimitedOwner::NamedRecord => ConstructRole::NamedRecordType,
                 TypeDelimitedOwner::EffectRow => ConstructRole::EffectRowType,
+                TypeDelimitedOwner::BracketRow => ConstructRole::BracketRow,
                 TypeDelimitedOwner::PolymorphicVariant => ConstructRole::PolymorphicVariantType,
                 TypeDelimitedOwner::StructNamedFields => {
                     unreachable!("Struct named fields are a TypeExpression tail marker, not a type-delimited owner")
@@ -2611,7 +2644,12 @@ where
         }
     };
     let end = match &rhs { Recovered::Complete(rhs) => rhs.range.end, Recovered::Incomplete => arrow.end };
-    TypeArrowTail { arrow: arrow.clone(), rhs, range: arrow.start..end }
+    TypeArrowTail {
+        argument_effect: None,
+        arrow: Recovered::Complete(arrow.clone()),
+        rhs,
+        range: arrow.start..end,
+    }
 }
 
 fn parse_type_call_tail<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypeCallTail<'source>
@@ -4703,7 +4741,7 @@ mod tests {
         )
         .set_local(&mut local);
         let expression = i.run(from_fn(parse_type_expression)).expect("forall type prefix");
-        assert!(matches!(expression.primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(expression.complete_primary(), TypePrimary::Forall(ForallType {
             colon: Recovered::Incomplete,
             body: Recovered::Incomplete,
             ..
@@ -4811,7 +4849,7 @@ mod tests {
             assert!(match expression {
                 TypeExpression {
                     postfix,
-                    primary: TypePrimary::Atom(_),
+                    primary: Recovered::Complete(TypePrimary::Atom(_)),
                     ..
                 } if matches!(postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
                     arguments,
@@ -4819,19 +4857,19 @@ mod tests {
                     ..
                 })] if arguments.len() == 1) => true,
                 TypeExpression {
-                    primary: TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+                    primary: Recovered::Complete(TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                         elements,
                         close: Recovered::Incomplete,
                         ..
-                    }),
+                    })),
                     ..
                 } if elements.len() == 1 => true,
                 TypeExpression {
-                    primary: TypePrimary::EffectRow(EffectRowType {
+                    primary: Recovered::Complete(TypePrimary::EffectRow(EffectRowType {
                         items,
                         close: Recovered::Incomplete,
                         ..
-                    }),
+                    })),
                     ..
                 } if items.len() == 1 => true,
                 _ => false,
@@ -4901,7 +4939,7 @@ mod tests {
             .set_local(&mut local);
             let expression = i.run(from_fn(parse_type_expression)).expect("named record prefix");
             assert_eq!(i.input.remainder(), "\nelse: 0", "AST {source:?}");
-            assert!(matches!(expression.primary, TypePrimary::Record(NamedRecordType {
+            assert!(matches!(expression.complete_primary(), TypePrimary::Record(NamedRecordType {
                 fields, close: Recovered::Incomplete, ..
             }) if fields.len() == 1), "AST {source:?}");
             drop(i);
@@ -5102,7 +5140,7 @@ mod tests {
     #[test]
     fn type_core_forms_keep_fixed_flat_structure() {
         let value = parse("List(Int)::Result Arg -> Out -> Final");
-        assert!(matches!(value.primary, TypePrimary::Atom(TypeAtom::Identifier(_))));
+        assert!(matches!(value.complete_primary(), TypePrimary::Atom(TypeAtom::Identifier(_))));
         assert!(matches!(value.postfix.as_slice(), [
             TypePostfixTail::Call(_),
             TypePostfixTail::Path(_),
@@ -5125,7 +5163,7 @@ mod tests {
         let call = parse("List(Int; String)");
         assert!(matches!(call.postfix.as_slice(), [TypePostfixTail::Call(tail)] if tail.arguments.len() == 2));
         let group = parse("(Int, String)");
-        assert!(matches!(group.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup { ref elements, .. }) if elements.len() == 2));
+        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup { ref elements, .. }) if elements.len() == 2));
         assert_eq!(parse_direct("List(Int; String)").to_string(), "List(Int; String)");
         assert_eq!(parse_direct("(Int, String)").to_string(), "(Int, String)");
         let trailing = parse("List(Int,)");
@@ -5136,7 +5174,7 @@ mod tests {
     #[test]
     fn type_groups_reuse_layout_boundaries_without_synthetic_separator_nodes() {
         let group = parse("(\n  A\n  B\n)");
-        assert!(matches!(group.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
         }) if elements.len() == 2));
         assert_eq!(parse_direct("(\n  A\n  B\n)").to_string(), "(\n  A\n  B\n)");
@@ -5180,8 +5218,8 @@ mod tests {
 
     #[test]
     fn type_primary_and_path_segments_keep_their_own_surface_categories() {
-        assert!(matches!(parse("'a").primary, TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
-        assert!(matches!(parse("42").primary, TypePrimary::Atom(TypeAtom::Number(_))));
+        assert!(matches!(parse("'a").complete_primary(), TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
+        assert!(matches!(parse("42").complete_primary(), TypePrimary::Atom(TypeAtom::Number(_))));
         let path = parse("A::'b");
         assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(TypePathTail {
             segment: Recovered::Complete(TypePathSegment::SigilIdentifier(_)), ..
@@ -5222,7 +5260,7 @@ mod tests {
         let (remainder, value) = parse_required_prefix("@A");
         assert_eq!(remainder, "");
         assert!(matches!(value, Recovered::Complete(TypeExpression {
-            primary: TypePrimary::Atom(TypeAtom::Identifier(_)),
+            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))),
             range,
             ..
         }) if range == (1..2)));
@@ -5250,7 +5288,7 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..6)));
 
-        assert!(matches!(parse("{name: @ A}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{name: @ A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(_),
             ref fields,
             ..
@@ -5352,7 +5390,7 @@ mod tests {
         let source = "for @ \n  'a: T";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  'a: T");
-        assert!(matches!(ast.primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
             binders, ..
         }) if matches!(binders.as_slice(), [Recovered::Incomplete])));
 
@@ -5456,7 +5494,7 @@ mod tests {
 
         let group = parse("G (F A)");
         assert!(matches!(group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 ref elements, ..
             }) if elements.len() == 2)));
         let group_recoveries = parse_direct_recovered("G (F A)");
@@ -5477,7 +5515,7 @@ mod tests {
 
         let deeper_group = parse("G (F\n  A)");
         assert!(matches!(deeper_group.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            if matches!(argument.argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 ref elements, ..
             }) if elements.len() == 2)));
         let deeper_group_recoveries = parse_direct_recovered("G (F\n  A)");
@@ -5488,7 +5526,7 @@ mod tests {
 
         let deeper_effect = parse("G '[F\n  A]");
         assert!(matches!(deeper_effect.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.primary, TypePrimary::EffectRow(EffectRowType {
+            if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
                 ref items, ..
             }) if items.len() == 2)));
         let deeper_effect_recoveries = parse_direct_recovered("G '[F\n  A]");
@@ -5520,7 +5558,7 @@ mod tests {
 
         let (group_remainder, group_ast) = parse_prefix_with_outer_stop("(@]", StopKind::RightBracket);
         assert_eq!(group_remainder, "]");
-        assert!(matches!(group_ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(group_ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             close: Recovered::Incomplete, ..
         })));
         let (group_remainder, group_recoveries) = parse_direct_prefix_with_outer_stop("(@]", StopKind::RightBracket);
@@ -5574,7 +5612,7 @@ mod tests {
 
         let (group_separator_remainder, group_separator_ast) = parse_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
         assert_eq!(group_separator_remainder, "]");
-        assert!(matches!(group_separator_ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(group_separator_ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, close: Recovered::Incomplete, ..
         }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
         let (group_separator_remainder, group_separator_recoveries) = parse_direct_prefix_with_outer_stop("(A;]", StopKind::RightBracket);
@@ -5596,7 +5634,7 @@ mod tests {
         for source in ["T(A,)", "(A;)", "T(A,\n)", "(A;\n)"] {
             assert!(parse_direct_recovered(source).is_empty(), "valid trailing boundary: {source}");
         }
-        assert!(matches!(parse("(A,)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(A,)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             trailing_explicit_separator: Some(TypeExplicitSeparator::Comma(_)), ..
         })));
 
@@ -5616,7 +5654,7 @@ mod tests {
                 && first.site.range == (1..1)
                 && second.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && second.site.range == (2..2)));
-        assert!(matches!(parse("(,,A)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(,,A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
         }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
 
@@ -5642,7 +5680,7 @@ mod tests {
                     delimiter: crate::session::Delimiter::Parenthesis,
                 })
                 && close.site.range == (3..3)));
-        assert!(matches!(parse("(A;").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(A;").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, close: Recovered::Incomplete, ..
         }) if matches!(elements.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
 
@@ -5651,7 +5689,7 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ParenthesizedItem)
                 && record.site.range == (1..2)
                 && record.kind == crate::session::RecoveryKind::Error));
-        assert!(matches!(parse("(@A)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(@A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             ref elements, ..
         }) if matches!(elements.as_slice(), [Recovered::Complete(_)])));
 
@@ -5669,7 +5707,7 @@ mod tests {
                 })
                 && missing.site.range == (3..3)
                 && missing.kind == crate::session::RecoveryKind::Missing));
-        assert!(matches!(parse("(A]").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(A]").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             close: Recovered::Incomplete, ..
         })));
     }
@@ -5727,7 +5765,7 @@ mod tests {
                 && error.site.range == (2..3)), "{call_recoveries:#?}");
 
         let group = parse("(@\n  A)");
-        assert!(matches!(group.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(group.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements,
             close: Recovered::Complete(close),
             ..
@@ -5740,7 +5778,7 @@ mod tests {
                 && error.site.range == (1..2)), "{group_recoveries:#?}");
 
         let effect = parse("'[@\n  A]");
-        assert!(matches!(effect.primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(effect.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items,
             close: Recovered::Complete(close),
             ..
@@ -5820,10 +5858,10 @@ mod tests {
         assert!(matches!(parse("T(@)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
         })] if matches!(arguments.as_slice(), [Recovered::Incomplete])));
-        assert!(matches!(parse("(@)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(@)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements, close: Recovered::Complete(_), ..
         }) if matches!(elements.as_slice(), [Recovered::Incomplete])));
-        assert!(matches!(parse("'[@]").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items, close: Recovered::Complete(_), ..
         }) if matches!(items.as_slice(), [Recovered::Incomplete])));
 
@@ -5890,10 +5928,10 @@ mod tests {
         assert!(matches!(parse("T(@, A)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Complete(_), ..
         })] if matches!(arguments.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
-        assert!(matches!(parse("(@, A)").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(@, A)").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements, close: Recovered::Complete(_), ..
         }) if matches!(elements.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
-        assert!(matches!(parse("'[@, A]").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[@, A]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items, close: Recovered::Complete(_), ..
         }) if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
     }
@@ -5953,19 +5991,19 @@ mod tests {
         assert!(matches!(parse("T(A] )").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Complete(close), ..
         })] if *close == (5..6)));
-        assert!(matches!(parse("(A] )").primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(parse("(A] )").complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             close: Recovered::Complete(close), ..
         }) if close == (4..5)));
-        assert!(matches!(parse("{a:A] }").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{a:A] }").complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(close), ..
         }) if close == (6..7)));
-        assert!(matches!(parse("'[A) ]").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[A) ]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             close: Recovered::Complete(close), ..
         }) if close == (5..6)));
         assert!(matches!(parse("T(A]/*c*/)").postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             close: Recovered::Complete(close), ..
         })] if *close == (9..10)));
-        assert!(matches!(parse(":{A] }").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(parse(":{A] }").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Complete(close), ..
         }) if close == (5..6)));
     }
@@ -5995,7 +6033,7 @@ mod tests {
 
         let (remainder, variant) = parse_prefix_with_outer_stop(":{A]\n}", StopKind::Newline);
         assert_eq!(remainder, "\n}");
-        assert!(matches!(variant.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(variant.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ..
         })));
         let (remainder, variant_recoveries) =
@@ -6203,10 +6241,10 @@ mod tests {
     #[test]
     fn named_record_types_are_primary_fields_with_comma_or_newline_boundaries() {
         let single = parse("{a: A, b: B}");
-        assert!(matches!(single.primary, TypePrimary::Record(NamedRecordType { ref fields, close: Recovered::Complete(_), .. })
+        assert!(matches!(single.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, close: Recovered::Complete(_), .. })
             if fields.len() == 2 && fields.iter().all(|field| matches!(field, Recovered::Complete(_)))));
         let newline = parse("{\n  a: A\n  b: B\n}");
-        assert!(matches!(newline.primary, TypePrimary::Record(NamedRecordType { ref fields, .. }) if fields.len() == 2));
+        assert!(matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. }) if fields.len() == 2));
         let direct = parse_direct("{a: A, b: B}");
         assert!(direct.descendants().any(|node| node.kind() == SyntaxKind::NamedRecordType));
         assert!(direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeRecordField).count() == 2);
@@ -6215,11 +6253,11 @@ mod tests {
     #[test]
     fn named_record_field_head_yields_before_type_apply() {
         let applied = parse("{a: F B}");
-        assert!(matches!(applied.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(matches!(applied.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. })]
                 if matches!(value.postfix.as_slice(), [TypePostfixTail::Apply(_)]))));
         let split = parse("{a: F b: B}");
-        assert!(matches!(split.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(matches!(split.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField { type_expr: Recovered::Complete(value), .. }), Recovered::Complete(_)]
                 if value.postfix.is_empty())));
         let recoveries = parse_direct_recovered("{a: F b: B}");
@@ -6262,7 +6300,7 @@ mod tests {
         assert!(matches!(separator.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error), "{separator:#?}");
-        assert!(matches!(parse("{@,}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{@,}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete])));
 
@@ -6270,7 +6308,7 @@ mod tests {
         assert!(matches!(continued.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error), "{continued:#?}");
-        assert!(matches!(parse("{@, a: A}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{@, a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
 
@@ -6291,12 +6329,12 @@ mod tests {
                 delimiter: Delimiter::Bracket,
             }
         )), "{outer_close:#?}");
-        assert!(matches!(parse("'[{@]").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[{@]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             close: Recovered::Complete(_),
             items,
             ..
         }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: TypePrimary::Record(NamedRecordType { close: Recovered::Incomplete, .. }), ..
+            primary: Recovered::Complete(TypePrimary::Record(NamedRecordType { close: Recovered::Incomplete, .. })), ..
         })])));
 
         let field_colon_outer_close = parse_direct_recovered("'[{name @]");
@@ -6319,14 +6357,14 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (3..4)), "{nested:#?}");
-        assert!(matches!(parse("'[{@ }]").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[{@ }]").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             close: Recovered::Complete(_),
             items,
             ..
         }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: TypePrimary::Record(NamedRecordType {
+            primary: Recovered::Complete(TypePrimary::Record(NamedRecordType {
                 fields, close: Recovered::Complete(_), ..
-            }), ..
+            })), ..
         })] if matches!(fields.as_slice(), [Recovered::Incomplete]))));
 
         let separator = parse_direct_recovered("{@ , a: A}");
@@ -6334,7 +6372,7 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::RecordField)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (1..2)), "{separator:#?}");
-        assert!(matches!(parse("{@ , a: A}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{@ , a: A}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
     }
@@ -6344,7 +6382,7 @@ mod tests {
         let source = "{@ \n  a:A}";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  a:A}");
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Incomplete, ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete])));
 
@@ -6368,7 +6406,7 @@ mod tests {
         let source = "{a @ \n  b:B}";
         let (remainder, ast) = parse_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(remainder, " \n  b:B}", "{ast:#?}");
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Incomplete, ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             name: Recovered::Complete(_), colon: Recovered::Incomplete, ..
@@ -6393,7 +6431,7 @@ mod tests {
     fn malformed_record_name_hands_plain_identifier_to_whole_field_recovery() {
         let source = "{@foo!: A}";
         let ast = parse(source);
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             ref fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete])), "{ast:#?}");
 
@@ -6471,7 +6509,7 @@ mod tests {
     fn malformed_record_item_retries_an_immediately_adjacent_complete_field() {
         let source = "{@a:A}";
         let ast = parse(source);
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             ref fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [
             Recovered::Incomplete,
@@ -6503,7 +6541,7 @@ mod tests {
                 delimiter: Delimiter::Brace,
             }
         ) && record.kind == RecoveryKind::Error && record.site.range == (2..3)), "{mismatch:#?}");
-        assert!(matches!(parse("{@]}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{@]}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(close), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete]) && close == (3..4)));
 
@@ -6522,7 +6560,7 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (1..7)));
         let spread_ast = parse("{..Type}");
-        assert!(matches!(spread_ast.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(matches!(spread_ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Incomplete])));
 
         let shorthand = parse_direct_recovered("{name}");
@@ -6537,7 +6575,7 @@ mod tests {
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (6..7)));
         let ast = parse("{name = Value}");
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType { ref fields, .. })
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { ref fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
                 colon: Recovered::Incomplete,
                 type_expr: Recovered::Complete(_),
@@ -6568,7 +6606,7 @@ mod tests {
                 && record.site.range == (7..8)));
 
         let recovered_ast = parse("{name: @A}");
-        assert!(matches!(recovered_ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(recovered_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             close: Recovered::Complete(_),
             ref fields,
             ..
@@ -6578,7 +6616,7 @@ mod tests {
         })] if type_expr.range == (8..9))));
 
         let recovered_colon_ast = parse("{name @: A}");
-        assert!(matches!(recovered_colon_ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(recovered_colon_ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
@@ -6591,7 +6629,7 @@ mod tests {
         assert!(direct.iter().any(|record|
             record.site.role == GrammarRole::Type(TypeRole::RecordFieldColon)
                 && record.kind == RecoveryKind::Error));
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType { fields, .. })
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType { fields, .. })
             if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
                 colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, ..
             })])));
@@ -6600,7 +6638,7 @@ mod tests {
     #[test]
     fn malformed_named_record_slots_retry_after_deeper_trivia() {
         let whole_field = parse("{@\n  a: A}");
-        assert!(matches!(whole_field.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(whole_field.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [
             Recovered::Incomplete,
@@ -6613,7 +6651,7 @@ mod tests {
                 && error.site.range == (1..2)), "{whole_field_recoveries:#?}");
 
         let rhs = parse("{name: @\n  A}");
-        assert!(matches!(rhs.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(rhs.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(value), ..
@@ -6625,7 +6663,7 @@ mod tests {
                 && error.site.range == (7..8)), "{rhs_recoveries:#?}");
 
         let colon = parse("{name @\n  A}");
-        assert!(matches!(colon.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(colon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             colon: Recovered::Incomplete,
@@ -6642,7 +6680,7 @@ mod tests {
     #[test]
     fn malformed_record_colon_leaves_outer_newlines_for_the_field_sequence() {
         for source in ["{name @\nA}", "{name @//x\nA}"] {
-            assert!(matches!(parse(source).primary, TypePrimary::Record(NamedRecordType {
+            assert!(matches!(parse(source).complete_primary(), TypePrimary::Record(NamedRecordType {
                 fields, close: Recovered::Complete(_), ..
             }) if matches!(fields.as_slice(), [
                 Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, .. }),
@@ -6664,7 +6702,7 @@ mod tests {
         }
 
         let continuation = parse("{name @:\n  A}");
-        assert!(matches!(continuation.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(continuation.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             colon: Recovered::Complete(_), type_expr: Recovered::Complete(_), ..
@@ -6678,7 +6716,7 @@ mod tests {
     #[test]
     fn named_record_field_colon_uses_one_chain_gap_policy_on_both_paths() {
         let after_colon = parse("{name:\nA: B}");
-        assert!(matches!(after_colon.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(after_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [
             Recovered::Complete(TypeRecordField { type_expr: Recovered::Incomplete, .. }),
@@ -6689,7 +6727,7 @@ mod tests {
             .count(), 2);
 
         let before_colon = parse("{name\nA: B}");
-        assert!(matches!(before_colon.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(before_colon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [
             Recovered::Complete(TypeRecordField { colon: Recovered::Incomplete, type_expr: Recovered::Incomplete, .. }),
@@ -6700,7 +6738,7 @@ mod tests {
             .count(), 2);
 
         let same_position = parse("{a A}");
-        assert!(matches!(same_position.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(same_position.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             colon: Recovered::Incomplete, type_expr: Recovered::Complete(_), ..
@@ -6715,7 +6753,7 @@ mod tests {
     #[test]
     fn named_record_comma_policy_and_close_recovery_are_typed() {
         let trailing = parse("{a: A,}");
-        assert!(matches!(trailing.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(trailing.complete_primary(), TypePrimary::Record(NamedRecordType {
             trailing_comma: Some(_), close: Recovered::Complete(_), ..
         })));
 
@@ -6754,7 +6792,7 @@ mod tests {
     #[test]
     fn named_record_sequence_classifies_recovery_gaps_before_consuming_them() {
         let newline = parse("{@\nA: B}");
-        assert!(matches!(newline.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(newline.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
         let newline_recoveries = parse_direct_recovered("{@\nA: B}");
@@ -6769,12 +6807,12 @@ mod tests {
                 owner: ConstructRole::NamedRecordType,
                 delimiter: Delimiter::Brace,
             }) && record.kind == RecoveryKind::Error && record.site.range == (1..2)), "{entry_mismatch:#?}");
-        assert!(matches!(parse("{]}").primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(parse("{]}").complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(close), ..
         }) if fields.is_empty() && close == (2..3)));
 
         let semicolon = parse("{a: A; \nB: C}");
-        assert!(matches!(semicolon.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(semicolon.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Complete(_), ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(_), Recovered::Complete(_)])));
         let semicolon_recoveries = parse_direct_recovered("{a: A; \nB: C}");
@@ -6787,13 +6825,13 @@ mod tests {
     #[test]
     fn forall_type_primary_owns_a_non_delimited_binder_sequence_and_body() {
         let single = parse("for 'a: 'a -> 'a");
-        assert!(matches!(single.primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(single.complete_primary(), TypePrimary::Forall(ForallType {
             ref binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
         }) if binders.len() == 1));
         assert!(single.postfix.is_empty() && single.arrow.is_none());
 
         let multiple = parse("for 'a 'b 'c: T");
-        assert!(matches!(multiple.primary, TypePrimary::Forall(ForallType { ref binders, .. })
+        assert!(matches!(multiple.complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. })
             if binders.len() == 3 && binders.iter().all(|binder| matches!(binder, Recovered::Complete(ForallTypeBinder { boundary: Recovered::Complete(_), .. })) )));
 
         let direct = parse_direct("for 'a 'b: T");
@@ -6814,7 +6852,7 @@ mod tests {
         let grouped = parse("(for 'a: T)::Result");
         assert!(matches!(grouped.postfix.as_slice(), [TypePostfixTail::Path(_)]));
         let (_, led) = parse_prefix("F for 'a: T");
-        assert!(!matches!(led.primary, TypePrimary::Forall(_)));
+        assert!(!matches!(led.complete_primary(), TypePrimary::Forall(_)));
         assert!(matches!(led.postfix.first(), Some(TypePostfixTail::Apply(_))));
     }
 
@@ -6859,7 +6897,7 @@ mod tests {
         assert!(matches!(colon_retry.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
                 && record.kind == RecoveryKind::Error), "{colon_retry:#?}");
-        assert!(matches!(parse("for 'a @T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for 'a @T").complete_primary(), TypePrimary::Forall(ForallType {
             colon: Recovered::Incomplete, body: Recovered::Complete(_), ..
         })));
 
@@ -6897,7 +6935,7 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..5)), "{binder_trivia:#?}");
-        assert!(matches!(parse("for @ 'a: T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for @ 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
         }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
 
@@ -6906,11 +6944,11 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..5)), "{recovered_colon:#?}");
-        assert!(matches!(parse("for @ : T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for @ : T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
         }) if matches!(binders.as_slice(), [Recovered::Incomplete])));
 
-        assert!(matches!(parse("for 'a: @ T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for 'a: @ T").complete_primary(), TypePrimary::Forall(ForallType {
             colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
         })));
 
@@ -6919,7 +6957,7 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::ForallBinder)
                 && record.kind == RecoveryKind::Error
                 && record.site.range == (4..5)), "{first_separator:#?}");
-        assert!(matches!(parse("for , 'a: T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for , 'a: T").complete_primary(), TypePrimary::Forall(ForallType {
             binders, colon: Recovered::Complete(_), body: Recovered::Complete(_), ..
         }) if matches!(binders.as_slice(), [Recovered::Incomplete, Recovered::Complete(_)])));
 
@@ -6927,14 +6965,14 @@ mod tests {
         assert!(matches!(missing_colon.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::ForallColon)
                 && record.kind == RecoveryKind::Missing && record.site.range == (7..7)));
-        assert!(matches!(parse("for 'a T").primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(parse("for 'a T").complete_primary(), TypePrimary::Forall(ForallType {
             colon: Recovered::Incomplete, body: Recovered::Complete(_), ..
         })));
 
         let comma = parse_direct_recovered("for 'a, 'b: T");
         assert!(comma.iter().any(|record| record.site.role == GrammarRole::Type(TypeRole::ForallBinderBoundary)
             && record.kind == RecoveryKind::Error && record.site.range == (6..7)));
-        assert!(matches!(parse("for 'a, 'b: T").primary, TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2));
+        assert!(matches!(parse("for 'a, 'b: T").complete_primary(), TypePrimary::Forall(ForallType { ref binders, .. }) if binders.len() == 2));
 
         let (remainder, outer_comma) = parse_direct_prefix_with_outer_stop("for 'a, T", StopKind::Comma);
         assert_eq!(remainder, ", T");
@@ -6948,7 +6986,7 @@ mod tests {
     #[test]
     fn malformed_forall_body_retries_after_deeper_trivia() {
         let ast = parse("for 'a: @\n  T");
-        assert!(matches!(ast.primary, TypePrimary::Forall(ForallType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Forall(ForallType {
             body: Recovered::Complete(body), ..
         }) if body.range == (12..13)));
         let recoveries = parse_direct_recovered("for 'a: @\n  T");
@@ -6961,39 +6999,39 @@ mod tests {
     #[test]
     fn effect_row_primary_is_adjacent_semantically_blind_and_composes_normally() {
         let empty = parse("'[]");
-        assert!(matches!(empty.primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(empty.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, close: Recovered::Complete(_), ..
         }) if items.is_empty()));
 
         let ordinary = parse("'[e]");
-        assert!(matches!(ordinary.primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(ordinary.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, ..
         }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: TypePrimary::Atom(TypeAtom::Identifier(_)), ..
+            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))), ..
         })])));
 
         let sigil = parse("'['e]");
-        assert!(matches!(sigil.primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(sigil.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, ..
         }) if matches!(items.as_slice(), [Recovered::Complete(TypeExpression {
-            primary: TypePrimary::Atom(TypeAtom::SigilIdentifier(_)), ..
+            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::SigilIdentifier(_))), ..
         })])));
 
         let multi = parse("'[A, B; C]");
-        assert!(matches!(multi.primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 3));
+        assert!(matches!(multi.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 3));
         let direct = parse_direct("'[A, B; C]");
         assert_eq!(direct.to_string(), "'[A, B; C]");
         assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::EffectRowType).count(), 1);
         let newline = parse("'[\n  A\n  B\n]");
-        assert!(matches!(newline.primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
+        assert!(matches!(newline.complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
         assert_eq!(parse_direct("'[\n  A\n  B\n]").to_string(), "'[\n  A\n  B\n]");
 
         let applied = parse("Foo '['e]");
         assert!(matches!(applied.postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.primary, TypePrimary::EffectRow(_))));
+            if matches!(argument.argument.complete_primary(), TypePrimary::EffectRow(_))));
         let called = parse("F('[e])");
         assert!(matches!(called.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail { arguments, .. })]
-            if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { primary: TypePrimary::EffectRow(_), .. })])));
+            if matches!(arguments.as_slice(), [Recovered::Complete(TypeExpression { primary: Recovered::Complete(TypePrimary::EffectRow(_)), .. })])));
         let path = parse("'[e]::Result");
         assert!(matches!(path.postfix.as_slice(), [TypePostfixTail::Path(_)]));
         assert!(parse("'[e] -> Out").arrow.is_some());
@@ -7001,7 +7039,7 @@ mod tests {
         assert!(!primary_candidate("'"));
         assert!(!primary_candidate("' [e]"));
         assert!(!primary_candidate("'/*c*/[e]"));
-        assert!(matches!(parse("'e").primary, TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
+        assert!(matches!(parse("'e").complete_primary(), TypePrimary::Atom(TypeAtom::SigilIdentifier(_))));
     }
 
     #[test]
@@ -7015,7 +7053,7 @@ mod tests {
                 && first.site.range == (2..2)
                 && second.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && second.site.range == (3..3)));
-        assert!(matches!(parse("'[,;A]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. })
+        assert!(matches!(parse("'[,;A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
             if matches!(items.as_slice(), [Recovered::Incomplete, Recovered::Incomplete, Recovered::Complete(_)])));
 
         let missing_separator = parse_direct_recovered("'[A{}]");
@@ -7023,14 +7061,14 @@ mod tests {
             if record.site.role == GrammarRole::Type(TypeRole::EffectRowSeparator)
                 && record.site.range == (3..3)
                 && record.kind == RecoveryKind::Missing));
-        assert!(matches!(parse("'[A{}]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
+        assert!(matches!(parse("'[A{}]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. }) if items.len() == 2));
 
         let malformed = parse_direct_recovered("'[@A]");
         assert!(matches!(malformed.as_slice(), [record]
             if record.site.role == GrammarRole::Type(TypeRole::EffectRowItem)
                 && record.site.range == (2..3)
                 && record.kind == RecoveryKind::Error));
-        assert!(matches!(parse("'[@A]").primary, TypePrimary::EffectRow(EffectRowType { ref items, .. })
+        assert!(matches!(parse("'[@A]").complete_primary(), TypePrimary::EffectRow(EffectRowType { ref items, .. })
             if matches!(items.as_slice(), [Recovered::Complete(_)])));
 
         let eof = parse_direct_recovered("'[A,");
@@ -7042,7 +7080,7 @@ mod tests {
                     delimiter: Delimiter::Bracket,
                 })
                 && close.site.range == (4..4)));
-        assert!(matches!(parse("'[A,").primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(parse("'[A,").complete_primary(), TypePrimary::EffectRow(EffectRowType {
             ref items, close: Recovered::Incomplete, ..
         }) if matches!(items.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
 
@@ -7069,17 +7107,17 @@ mod tests {
     #[test]
     fn polymorphic_variant_type_is_a_two_level_primary() {
         let paired = parse(":{A Int, B}");
-        assert!(matches!(paired.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(paired.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             ref tags, close: Recovered::Complete(_), ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. }), Recovered::Complete(PolymorphicVariantTag { payloads: empty, .. })]
             if payloads.len() == 1 && empty.is_empty())));
 
         let siblings = parse(":{A Int Bool}");
-        assert!(matches!(siblings.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(matches!(siblings.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
 
         let newline = parse(":{A Int\nB}");
-        assert!(matches!(newline.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+        assert!(matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
 
         let direct = parse_direct(":{A Int, B}");
         assert_eq!(direct.to_string(), ":{A Int, B}");
@@ -7090,15 +7128,15 @@ mod tests {
 
     #[test]
     fn polymorphic_variant_type_preserves_primary_and_ml_payload_boundaries() {
-        assert!(matches!(parse(":{}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.is_empty()));
-        assert!(matches!(parse(":{A,}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { trailing_comma: Some(_), close: Recovered::Complete(_), .. })));
+        assert!(matches!(parse(":{}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.is_empty()));
+        assert!(matches!(parse(":{A,}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { trailing_comma: Some(_), close: Recovered::Complete(_), .. })));
         let nested = parse(":{\n  A Pair(\n    Int,\n    Bool\n  )\n  B\n}");
-        assert!(matches!(nested.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+        assert!(matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
         let ml = parse(":{A Pair(Int, Bool) B}");
-        assert!(matches!(ml.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(matches!(ml.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })] if payloads.len() == 2)));
         assert!(matches!(parse("F :{A}").postfix.as_slice(), [TypePostfixTail::Apply(argument)]
-            if matches!(argument.argument.primary, TypePrimary::PolymorphicVariant(_))));
+            if matches!(argument.argument.complete_primary(), TypePrimary::PolymorphicVariant(_))));
         assert!(matches!(parse(":{A}::Result").postfix.as_slice(), [TypePostfixTail::Path(_)]));
         assert!(!primary_candidate(": {A}"));
     }
@@ -7154,7 +7192,7 @@ mod tests {
     fn polymorphic_variant_outer_judge_preserves_owner_boundaries_and_reentry_order() {
         let (remainder, caller_semicolon) = parse_prefix_with_outer_stop(":{A;", StopKind::Semicolon);
         assert_eq!(remainder, ";");
-        assert!(matches!(caller_semicolon.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(caller_semicolon.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ref tags, ..
         }) if tags.len() == 1));
         let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A;", StopKind::Semicolon);
@@ -7163,7 +7201,7 @@ mod tests {
 
         let (remainder, caller_close) = parse_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(matches!(caller_close.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(caller_close.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ref tags, ..
         }) if tags.len() == 1));
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A )", StopKind::RightParenthesis);
@@ -7171,7 +7209,7 @@ mod tests {
 
         let (remainder, required_tag) = parse_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
         assert_eq!(remainder, " )");
-        assert!(matches!(required_tag.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(required_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(_), Recovered::Incomplete])));
         let (remainder, records) = parse_direct_prefix_with_outer_stop(":{A, )", StopKind::RightParenthesis);
@@ -7182,14 +7220,14 @@ mod tests {
 
         let (remainder, left_brace) = parse_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
         assert_eq!(remainder, " {");
-        assert!(matches!(left_brace.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(left_brace.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ..
         })));
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A {", StopKind::LeftBrace);
         assert_eq!(remainder, " {");
         let (remainder, with) = parse_prefix_with_outer_stop(":{A with", StopKind::With);
         assert_eq!(remainder, " with");
-        assert!(matches!(with.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(with.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ..
         })));
         let (remainder, _) = parse_direct_prefix_with_outer_stop(":{A with", StopKind::With);
@@ -7197,7 +7235,7 @@ mod tests {
 
         for source in [":{A;B}", ":{A ; B}"] {
             let parsed = parse(source);
-            assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
+            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. }) if tags.len() == 2));
             let records = parse_direct_recovered(source);
             assert_eq!(records.iter().filter(|record|
                 record.site.role == GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator)
@@ -7209,7 +7247,7 @@ mod tests {
             owner: ConstructRole::PolymorphicVariantType,
             delimiter: Delimiter::Brace,
         }) && record.kind == RecoveryKind::Error && record.site.range == (4..5)));
-        assert!(matches!(parse(":{A ]}").primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(parse(":{A ]}").complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, close: Recovered::Complete(close), ..
         }) if tags.len() == 1 && close == (5..6)));
     }
@@ -7222,7 +7260,7 @@ mod tests {
         ] {
             let (remainder, value) = parse_prefix(source);
             assert_eq!(remainder, "\n  B}", "AST leaves the deep newline for {source:?}");
-            assert_eq!(match value.primary {
+            assert_eq!(match value.complete_primary() {
                 TypePrimary::PolymorphicVariant(PolymorphicVariantType {
                     close: Recovered::Incomplete,
                     tags,
@@ -7243,7 +7281,7 @@ mod tests {
     fn polymorphic_variant_retries_malformed_tag_and_payload_slots_in_place() {
         for source in [":{@123}", ":{@123 Int}"] {
             let parsed = parse(source);
-            let TypePrimary::PolymorphicVariant(PolymorphicVariantType { tags, .. }) = parsed.primary else {
+            let TypePrimary::PolymorphicVariant(PolymorphicVariantType { tags, .. }) = parsed.complete_primary() else {
                 panic!("expected polymorphic variant");
             };
             let [Recovered::Complete(PolymorphicVariantTag { name: Recovered::Incomplete, payloads, .. })] = tags.as_slice() else {
@@ -7267,7 +7305,7 @@ mod tests {
         assert_eq!(tags[0].descendants().filter(|node| node.kind() == SyntaxKind::Error).count(), 2);
 
         let parsed = parse(":{A@123}");
-        assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
                 if matches!(payloads.as_slice(), [Recovered::Complete(PolymorphicVariantPayload {
                     boundary: Recovered::Incomplete,
@@ -7289,7 +7327,7 @@ mod tests {
     #[test]
     fn polymorphic_variant_nt6_and_malformed_scanners_use_canonical_primaries() {
         let forall = parse(":{for 'a: T}");
-        assert!(matches!(forall.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(forall.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
@@ -7303,7 +7341,7 @@ mod tests {
                 && record.site.range == (2..11)));
 
         let malformed_tag = parse(":{@ 123}");
-        assert!(matches!(malformed_tag.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(malformed_tag.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
@@ -7321,7 +7359,7 @@ mod tests {
         assert_eq!(direct.descendants().filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag).count(), 1);
 
         let malformed_payload = parse(":{A @ 123}");
-        assert!(matches!(malformed_payload.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
+        assert!(matches!(malformed_payload.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType { ref tags, .. })
             if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag { payloads, .. })]
                 if matches!(payloads.as_slice(), [Recovered::Complete(PolymorphicVariantPayload {
                     boundary: Recovered::Complete(_),
@@ -7404,19 +7442,19 @@ mod tests {
             ":{@ /*x*/ 123}",
         ] {
             let parsed = parse(source);
-            assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(_)), "{source}");
+            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(_)), "{source}");
             assert_eq!(parse_direct(source).to_string(), source, "{source}");
         }
 
         let (remainder, newline) = parse_prefix(":{A Int\n B}");
         assert_eq!(remainder, "\n B}");
-        assert!(matches!(newline.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(newline.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             ref tags, close: Recovered::Incomplete, ..
         }) if tags.len() == 1));
         let (remainder, _) = parse_direct_prefix(":{A Int\n B}");
         assert_eq!(remainder, "\n B}");
         let nested = parse(":{:{A} B}");
-        assert!(matches!(nested.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        assert!(matches!(nested.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             tags, ..
         }) if matches!(tags.as_slice(), [Recovered::Complete(PolymorphicVariantTag {
             name: Recovered::Incomplete,
@@ -7431,7 +7469,7 @@ mod tests {
 
         let (remainder, comma_eof) = parse_prefix(":{,");
         assert_eq!(remainder, "");
-        assert!(matches!(comma_eof.primary, TypePrimary::PolymorphicVariant(
+        assert!(matches!(comma_eof.complete_primary(), TypePrimary::PolymorphicVariant(
             PolymorphicVariantType { close: Recovered::Incomplete, .. }
         )));
 
@@ -7475,7 +7513,7 @@ mod tests {
         ] {
             let (remainder, parsed) = parse_prefix_with_outer_stop(source, stop);
             assert_eq!(remainder, "", "AST {source}");
-            assert!(matches!(parsed.primary, TypePrimary::PolymorphicVariant(
+            assert!(matches!(parsed.complete_primary(), TypePrimary::PolymorphicVariant(
                 PolymorphicVariantType { close: Recovered::Complete(_), .. }
             )));
 
@@ -7580,7 +7618,7 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            if matches!(argument.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 close: Recovered::Incomplete, ..
             })))));
         assert_nested_fence_records(
@@ -7598,7 +7636,7 @@ mod tests {
         let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Incomplete, ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(value), ..
@@ -7620,10 +7658,10 @@ mod tests {
         let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A))");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
             elements, close: Recovered::Incomplete, ..
         }) if matches!(elements.as_slice(), [Recovered::Complete(element)]
-            if matches!(element.primary, TypePrimary::Parenthesized(ParenthesizedTypeGroup {
+            if matches!(element.complete_primary(), TypePrimary::Parenthesized(ParenthesizedTypeGroup {
                 close: Recovered::Incomplete, ..
             })))));
         assert_nested_fence_records(
@@ -7644,7 +7682,7 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.primary, TypePrimary::Forall(_)))));
+            if matches!(argument.complete_primary(), TypePrimary::Forall(_)))));
         assert_nested_fence_records(
             &records,
             TypeRole::ForallBinder,
@@ -7657,11 +7695,11 @@ mod tests {
         let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  B}}");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.primary, TypePrimary::Record(NamedRecordType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::Record(NamedRecordType {
             fields, close: Recovered::Incomplete, ..
         }) if matches!(fields.as_slice(), [Recovered::Complete(TypeRecordField {
             type_expr: Recovered::Complete(value), ..
-        })] if matches!(value.primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+        })] if matches!(value.complete_primary(), TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete, ..
         })))));
         assert_nested_fence_records(
@@ -7682,7 +7720,7 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.primary, TypePrimary::EffectRow(EffectRowType {
+            if matches!(argument.complete_primary(), TypePrimary::EffectRow(EffectRowType {
                 close: Recovered::Incomplete, ..
             })))));
         assert_nested_fence_records(
@@ -7700,7 +7738,7 @@ mod tests {
         let (direct_remainder, records) = parse_direct_prefix_with_outer_stop(source, StopKind::Newline);
         assert_eq!(ast_remainder, " \n  A)]");
         assert_eq!(direct_remainder, ast_remainder);
-        assert!(matches!(ast.primary, TypePrimary::EffectRow(EffectRowType {
+        assert!(matches!(ast.complete_primary(), TypePrimary::EffectRow(EffectRowType {
             items, close: Recovered::Incomplete, ..
         }) if matches!(items.as_slice(), [Recovered::Complete(item)]
             if matches!(item.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
@@ -7724,7 +7762,7 @@ mod tests {
         assert!(matches!(ast.postfix.as_slice(), [TypePostfixTail::Call(TypeCallTail {
             arguments, close: Recovered::Incomplete, ..
         })] if matches!(arguments.as_slice(), [Recovered::Complete(argument)]
-            if matches!(argument.primary, TypePrimary::Record(NamedRecordType {
+            if matches!(argument.complete_primary(), TypePrimary::Record(NamedRecordType {
                 close: Recovered::Incomplete, ..
             })))));
         assert_nested_fence_records(

@@ -867,6 +867,7 @@ pub(crate) enum TypeDelimitedOwner {
     ParenthesizedGroup,
     NamedRecord,
     EffectRow,
+    BracketRow,
     PolymorphicVariant,
     StructNamedFields,
 }
@@ -1072,6 +1073,7 @@ pub(crate) enum ConstructRole {
     ParenthesizedTypeGroup,
     NamedRecordType,
     EffectRowType,
+    BracketRow,
     PolymorphicVariantType,
     StructNamedFields,
     StructTupleFields,
@@ -1178,6 +1180,10 @@ pub(crate) enum TypeRole {
     ForallBody,
     EffectRowItem,
     EffectRowSeparator,
+    BracketRowItem,
+    BracketRowSeparator,
+    LeadingEffectTypeHead,
+    BracketRowArrow,
     PolymorphicVariantTag,
     PolymorphicVariantTagName,
     PolymorphicVariantPayload,
@@ -1239,6 +1245,7 @@ pub(crate) enum PunctuationEvidence {
     Star,
     Apostrophe,
     Backslash,
+    Arrow,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
