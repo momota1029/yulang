@@ -337,19 +337,11 @@ where
                 postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
                 continue;
             }
-            if bracket_arrow_happy_path_pending(&mut i) {
+            if bracket_arrow_closed_pending(&mut i) {
                 let open = scan_open_bracket(&mut i)
-                    .expect("the bracket-arrow happy-path probe accepted its opener");
+                    .expect("the closed bracket-arrow probe accepted its opener");
                 let argument_effect = parse_bracket_row(open, &mut i);
-                let _ = consume_type_chain_trivia(&mut i)
-                    .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
-                let arrow_range = scan_exact_arrow(&mut i)
-                    .expect("the bracket-arrow happy-path probe accepted its arrow");
-                arrow = Some(parse_type_arrow_tail_with_argument_effect(
-                    Some(argument_effect),
-                    arrow_range,
-                    &mut i,
-                ));
+                arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
                 break;
             }
         }
@@ -370,19 +362,11 @@ where
             postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
             continue;
         }
-        if bracket_arrow_happy_path_pending(&mut i) {
+        if bracket_arrow_closed_pending(&mut i) {
             let open = scan_open_bracket(&mut i)
-                .expect("the bracket-arrow happy-path probe accepted its opener");
+                .expect("the closed bracket-arrow probe accepted its opener");
             let argument_effect = parse_bracket_row(open, &mut i);
-            let _ = consume_type_chain_trivia(&mut i)
-                .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
-            let arrow_range = scan_exact_arrow(&mut i)
-                .expect("the bracket-arrow happy-path probe accepted its arrow");
-            arrow = Some(parse_type_arrow_tail_with_argument_effect(
-                Some(argument_effect),
-                arrow_range,
-                &mut i,
-            ));
+            arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
             break;
         }
         if named_record_next_field_candidate(&mut i, &trivia)
@@ -636,14 +620,7 @@ where
                     open,
                     committed,
                 );
-                let trivia = consume_direct_type_chain_trivia(committed)
-                    .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
-                committed.emit_trivia(&trivia);
-                let arrow = committed
-                    .probe(|probe| scan_exact_arrow(probe.input()))
-                    .expect("the bracket-arrow happy-path probe accepted its arrow");
-                committed.token(SyntaxKind::Arrow, arrow);
-                commit_direct_type_arrow_rhs(committed);
+                commit_direct_bracket_arrow_tail(committed);
                 committed.finish_node();
                 break;
             }
@@ -703,6 +680,80 @@ where
             }
             TypeInvalidRunDisposition::BoundaryCurrent
             | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => return None,
+        }
+    }
+}
+
+fn commit_direct_bracket_arrow_tail<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some(trivia) = consume_direct_type_chain_trivia(committed) else {
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::BracketRowArrow),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+        );
+        return;
+    };
+    committed.emit_trivia(&trivia);
+
+    let mut arrow_recovered_by_error = false;
+    loop {
+        match committed.probe(|probe| bracket_arrow_recovery_candidate(probe.input())) {
+            Some(BracketArrowRecoveryTarget::Arrow) => {
+                let arrow = committed
+                    .probe(|probe| scan_exact_arrow(probe.input()))
+                    .expect("the BR-A candidate accepted an exact arrow");
+                committed.token(SyntaxKind::Arrow, arrow);
+                commit_direct_type_arrow_rhs(committed);
+                return;
+            }
+            Some(BracketArrowRecoveryTarget::Rhs) => {
+                if !arrow_recovered_by_error {
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::BracketRowArrow),
+                        ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+                    );
+                }
+                commit_direct_type_expression(committed)
+                    .expect("the BR-A candidate accepted a TypeExpression RHS");
+                return;
+            }
+            Some(BracketArrowRecoveryTarget::Boundary) | None => {}
+        }
+
+        let Some(recovery) = committed
+            .probe(|probe| scan_bracket_arrow_invalid_run(probe.input()))
+        else {
+            if !arrow_recovered_by_error {
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::BracketRowArrow),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+                );
+            }
+            return;
+        };
+        emit_type_error(
+            committed,
+            TypeRole::BracketRowArrow,
+            recovery.error_range,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+        );
+        arrow_recovered_by_error = true;
+        match recovery.disposition {
+            TypeInvalidRunDisposition::RetryCurrent => {}
+            TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                consume_direct_recovery_trivia(committed, &trivia);
+            }
+            TypeInvalidRunDisposition::BoundaryCurrent
+            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => return,
         }
     }
 }
@@ -873,9 +924,9 @@ where
         if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
         if let Some(open) = scan_open_parenthesis(i) { return Some(DirectTypeTail::Call { leading, open }); }
         if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
-        if bracket_arrow_happy_path_pending(i) {
+        if bracket_arrow_closed_pending(i) {
             let open = scan_open_bracket(i)
-                .expect("the bracket-arrow happy-path probe accepted its opener");
+                .expect("the closed bracket-arrow probe accepted its opener");
             return Some(DirectTypeTail::BracketArrow { leading, open });
         }
     }
@@ -889,9 +940,9 @@ where
     }
     if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
     if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
-    if bracket_arrow_happy_path_pending(i) {
+    if bracket_arrow_closed_pending(i) {
         let open = scan_open_bracket(i)
-            .expect("the bracket-arrow happy-path probe accepted its opener");
+            .expect("the closed bracket-arrow probe accepted its opener");
         return Some(DirectTypeTail::BracketArrow { leading, open });
     }
     if named_record_next_field_candidate(i, &leading)
@@ -3074,6 +3125,83 @@ where
     }
 }
 
+fn parse_bracket_arrow_tail<'source, E>(
+    argument_effect: BracketRow<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeArrowTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = argument_effect.range.start;
+    let row_end = argument_effect.range.end;
+    if consume_type_chain_trivia(i).is_none() {
+        return TypeArrowTail {
+            argument_effect: Some(argument_effect),
+            arrow: Recovered::Incomplete,
+            rhs: Recovered::Incomplete,
+            range: start..row_end,
+        };
+    }
+
+    loop {
+        match bracket_arrow_recovery_candidate(i) {
+            Some(BracketArrowRecoveryTarget::Arrow) => {
+                let arrow = scan_exact_arrow(i)
+                    .expect("the BR-A candidate accepted an exact arrow");
+                return parse_type_arrow_tail_with_argument_effect(
+                    Some(argument_effect),
+                    arrow,
+                    i,
+                );
+            }
+            Some(BracketArrowRecoveryTarget::Rhs) => {
+                let rhs = i
+                    .run(from_fn(|i| parse_type_expression_with_outer_missing_role(None, i)))
+                    .map(|rhs| Recovered::Complete(Box::new(rhs)))
+                    .expect("the BR-A candidate accepted a TypeExpression RHS");
+                let end = match &rhs {
+                    Recovered::Complete(rhs) => rhs.range.end,
+                    Recovered::Incomplete => unreachable!("the accepted RHS is complete"),
+                };
+                return TypeArrowTail {
+                    argument_effect: Some(argument_effect),
+                    arrow: Recovered::Incomplete,
+                    rhs,
+                    range: start..end,
+                };
+            }
+            Some(BracketArrowRecoveryTarget::Boundary) | None => {}
+        }
+
+        let Some(recovery) = scan_bracket_arrow_invalid_run(i) else {
+            return TypeArrowTail {
+                argument_effect: Some(argument_effect),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                range: start..row_end,
+            };
+        };
+        let recovery_end = recovery.error_range.end;
+        match recovery.disposition {
+            TypeInvalidRunDisposition::RetryCurrent => {}
+            TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                consume_recovery_trivia(i, &trivia);
+            }
+            TypeInvalidRunDisposition::BoundaryCurrent
+            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => {
+                return TypeArrowTail {
+                    argument_effect: Some(argument_effect),
+                    arrow: Recovered::Incomplete,
+                    rhs: Recovered::Incomplete,
+                    range: start..recovery_end,
+                };
+            }
+        }
+    }
+}
+
 fn parse_type_call_tail<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> TypeCallTail<'source>
 where
     E: ErrorSink<usize>,
@@ -3134,7 +3262,7 @@ where
     }
 }
 
-fn bracket_arrow_happy_path_pending<E>(i: &mut SynIn<E>) -> bool
+fn bracket_arrow_closed_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -3147,12 +3275,72 @@ where
         if !matches!(row.close, Recovered::Complete(_)) {
             return None;
         }
-        consume_type_chain_trivia(i)?;
-        scan_exact_arrow(i)
+        Some(())
     })()
     .is_some();
     i.rollback(checkpoint);
     pending
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BracketArrowRecoveryTarget {
+    Arrow,
+    Rhs,
+    Boundary,
+}
+
+struct BracketArrowInvalidRunRecovery {
+    error_range: Range<usize>,
+    disposition: TypeInvalidRunDisposition,
+}
+
+fn bracket_arrow_recovery_candidate<E>(
+    i: &mut SynIn<E>,
+) -> Option<BracketArrowRecoveryTarget>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let target = if scan_exact_arrow(i).is_some() {
+        Some(BracketArrowRecoveryTarget::Arrow)
+    } else if direct_type_primary_candidate(i) {
+        Some(BracketArrowRecoveryTarget::Rhs)
+    } else if type_recovery_boundary_pending(i) {
+        Some(BracketArrowRecoveryTarget::Boundary)
+    } else {
+        None
+    };
+    i.rollback(checkpoint);
+    target
+}
+
+fn scan_bracket_arrow_invalid_run<E>(
+    i: &mut SynIn<E>,
+) -> Option<BracketArrowInvalidRunRecovery>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
+    let recovery = scan_type_item_invalid_run_with_disposition(
+        i,
+        newline_policy,
+        false,
+        |i| matches!(
+            bracket_arrow_recovery_candidate(i),
+            Some(BracketArrowRecoveryTarget::Arrow | BracketArrowRecoveryTarget::Rhs)
+        ),
+        type_recovery_boundary_pending,
+    )?;
+    Some(BracketArrowInvalidRunRecovery {
+        error_range: recovery.error_range,
+        disposition: recovery.disposition,
+    })
 }
 
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
@@ -4876,7 +5064,7 @@ mod tests {
     use crate::{
         SyntaxNode,
         input::SourceInput,
-        session::{FullCstOutput, GrammarRole, ParseLocal, StopKind, StopSet, TypeRole},
+        session::{FullCstOutput, GrammarRole, ParseLocal, PunctuationEvidence, StopKind, StopSet, TypeRole},
     };
 
     fn parse<'source>(source: &'source str) -> TypeExpression<'source> {
@@ -7735,12 +7923,122 @@ mod tests {
         ));
         assert_eq!(parse_direct("F ([e] T)").to_string(), "F ([e] T)");
 
-        let (remainder, no_arrow) = parse_prefix("F [e] T");
-        assert_eq!(remainder, " [e] T");
-        assert!(no_arrow.arrow.is_none());
-        let (direct_remainder, direct_recoveries) = parse_direct_prefix("F [e] T");
-        assert_eq!(direct_remainder, " [e] T");
-        assert!(direct_recoveries.is_empty());
+    }
+
+    #[test]
+    fn bracket_arrow_mandatory_slot_recovers_without_rhs_cascades() {
+        let missing_with_rhs = parse("F [e] T");
+        assert!(matches!(
+            missing_with_rhs.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(BracketRow {
+                    close: Recovered::Complete(ref close),
+                    ..
+                }),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Complete(ref rhs),
+                ref range,
+            }) if *close == (4..5)
+                && rhs.range == (6..7)
+                && *range == (2..7)
+        ));
+        let missing_with_rhs_direct = parse_direct("F [e] T");
+        assert_eq!(missing_with_rhs_direct.to_string(), "F [e] T");
+        assert_eq!(
+            missing_with_rhs_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .count(),
+            1,
+        );
+        let missing_with_rhs_recoveries = parse_direct_recovered("F [e] T");
+        assert!(matches!(missing_with_rhs_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (6..6)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
+            "{missing_with_rhs_recoveries:#?}");
+
+        let missing_at_boundary = parse("F [e]");
+        assert!(matches!(
+            missing_at_boundary.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                ref range,
+            }) if *range == (2..5)
+        ));
+        let missing_at_boundary_recoveries = parse_direct_recovered("F [e]");
+        assert!(matches!(missing_at_boundary_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (5..5)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
+            "{missing_at_boundary_recoveries:#?}");
+        assert!(!missing_at_boundary_recoveries.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)));
+
+        let malformed_arrow = parse("F [e] @ -> U");
+        assert!(matches!(
+            malformed_arrow.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Complete(ref arrow),
+                rhs: Recovered::Complete(ref rhs),
+                ..
+            }) if *arrow == (8..10) && rhs.range == (11..12)
+        ));
+        let malformed_arrow_recoveries = parse_direct_recovered("F [e] @ -> U");
+        assert!(matches!(malformed_arrow_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (6..8)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
+            "{malformed_arrow_recoveries:#?}");
+
+        let malformed_rhs = parse("F [e] @ T");
+        assert!(matches!(
+            malformed_rhs.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Complete(ref rhs),
+                ..
+            }) if rhs.range == (8..9)
+        ));
+        let malformed_rhs_recoveries = parse_direct_recovered("F [e] @ T");
+        assert!(matches!(malformed_rhs_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (6..8)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
+            "{malformed_rhs_recoveries:#?}");
+
+        let malformed_boundary = parse("F [e] @");
+        assert!(matches!(
+            malformed_boundary.arrow,
+            Some(TypeArrowTail {
+                argument_effect: Some(_),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                ref range,
+            }) if *range == (2..7)
+        ));
+        let malformed_boundary_recoveries = parse_direct_recovered("F [e] @");
+        assert!(matches!(malformed_boundary_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (6..7)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)),
+            "{malformed_boundary_recoveries:#?}");
+        assert!(!malformed_boundary_recoveries.iter().any(|record|
+            record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)));
     }
 
     #[test]
