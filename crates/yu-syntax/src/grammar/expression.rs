@@ -11,7 +11,8 @@ use chasa::{
 
 use crate::{
     grammar::declaration::{
-        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, UseDeclaration,
+        BindingDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, TypeDeclaration,
+        UseDeclaration,
         commit_binding_declaration, commit_use_declaration, parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
         parse_struct_declaration, parse_use_declaration,
@@ -207,6 +208,7 @@ pub(crate) enum Statement<'source> {
     Use(UseDeclaration<'source>),
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
+    Type(TypeDeclaration<'source>),
 }
 
 impl<'source> Statement<'source> {
@@ -217,6 +219,7 @@ impl<'source> Statement<'source> {
             Self::Use(declaration) => declaration.range(),
             Self::Mod(declaration) => declaration.range(),
             Self::Struct(declaration) => declaration.range(),
+            Self::Type(declaration) => declaration.range(),
         }
     }
 }
@@ -4032,7 +4035,7 @@ where
             let _ = commit_struct_declaration(committed, intro);
             true
         }
-        Some(StatementIntro::Operator(_)) | None => {
+        Some(StatementIntro::Operator(_) | StatementIntro::Type(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
         }
     }

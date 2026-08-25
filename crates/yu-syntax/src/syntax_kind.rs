@@ -27,6 +27,8 @@ pub enum SyntaxKind {
     ModDeclaration,
     StructDeclaration,
     StructField,
+    TypeDeclaration,
+    DeclarationTypeParameterList,
     TestModuleMarker,
     IntegerLiteral,
     IdentifierExpression,
@@ -99,6 +101,7 @@ pub enum SyntaxKind {
     UseKw,
     ModKw,
     StructKw,
+    TypeKw,
     ForKw,
     RealmKw,
     BandKw,
@@ -188,6 +191,10 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::ModDeclaration as u16 => SyntaxKind::ModDeclaration,
             value if value == SyntaxKind::StructDeclaration as u16 => SyntaxKind::StructDeclaration,
             value if value == SyntaxKind::StructField as u16 => SyntaxKind::StructField,
+            value if value == SyntaxKind::TypeDeclaration as u16 => SyntaxKind::TypeDeclaration,
+            value if value == SyntaxKind::DeclarationTypeParameterList as u16 => {
+                SyntaxKind::DeclarationTypeParameterList
+            }
             value if value == SyntaxKind::TestModuleMarker as u16 => SyntaxKind::TestModuleMarker,
             value if value == SyntaxKind::IntegerLiteral as u16 => SyntaxKind::IntegerLiteral,
             value if value == SyntaxKind::IdentifierExpression as u16 => {
@@ -272,6 +279,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::UseKw as u16 => SyntaxKind::UseKw,
             value if value == SyntaxKind::ModKw as u16 => SyntaxKind::ModKw,
             value if value == SyntaxKind::StructKw as u16 => SyntaxKind::StructKw,
+            value if value == SyntaxKind::TypeKw as u16 => SyntaxKind::TypeKw,
             value if value == SyntaxKind::ForKw as u16 => SyntaxKind::ForKw,
             value if value == SyntaxKind::RealmKw as u16 => SyntaxKind::RealmKw,
             value if value == SyntaxKind::BandKw as u16 => SyntaxKind::BandKw,

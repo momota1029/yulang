@@ -57,6 +57,7 @@ pub(crate) enum Declaration<'source> {
     OperatorHeader(OperatorHeaderDeclaration<'source>),
     Mod(ModDeclaration<'source>),
     Struct(StructDeclaration<'source>),
+    Type(TypeDeclaration<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -87,6 +88,7 @@ pub(crate) enum StatementIntro<'source> {
     Operator(OperatorStatementIntro<'source>),
     Mod(ModStatementIntro<'source>),
     Struct(StructStatementIntro<'source>),
+    Type(TypeStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -142,6 +144,19 @@ pub(crate) struct StructStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     struct_keyword: WordSpan<'source>,
     struct_base: usize,
+}
+
+/// The sink-free prefix reserved for the shared Type-declaration judge.
+///
+/// Gate 1 only establishes this carrier; Gate 2 supplies the exact-word
+/// recognition that fills it and commits the declaration authority.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TypeStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    type_keyword: WordSpan<'source>,
+    type_base: usize,
 }
 
 pub(crate) struct ParsedBindingDeclaration<'source, C> {
@@ -313,6 +328,7 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_struct_declaration(&mut committed, intro);
                 StatementKind::StructDeclaration
             }
+            StatementIntro::Type(_) => StatementKind::TypeDeclaration,
             StatementIntro::Operator(intro) => {
                 if matches!(
                     commit_operator_header(&mut committed, intro),
@@ -511,6 +527,10 @@ where
             return None;
         }
         StatementIntro::Struct(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Type(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -4812,6 +4832,32 @@ impl StructDeclaration<'_> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+}
+
+/// A parser-side equality declaration.  Its equality RHS remains syntax-only:
+/// alias, nominal, and opaque semantics belong to later HIR ownership.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TypeDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    equals: Recovered<Range<usize>>,
+    rhs: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+impl TypeDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum DeclarationTypeParameter<'source> {
+    Identifier(WordSpan<'source>),
+    SigilIdentifier(WordSpan<'source>),
 }
 
 #[allow(dead_code)]

@@ -994,6 +994,7 @@ pub(crate) enum DeclarationRole {
     Binding(BindingRole),
     Mod(ModRole),
     Struct(StructRole),
+    Type(TypeDeclarationRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1019,6 +1020,7 @@ pub(crate) enum StatementKind {
     BindingDeclaration,
     ModDeclaration,
     StructDeclaration,
+    TypeDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1054,6 +1056,13 @@ pub(crate) enum StructRole {
     FieldColon,
     FieldType,
     FieldSeparator,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum TypeDeclarationRole {
+    Name,
+    DefinitionIntroducer,
+    Rhs,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1296,6 +1305,7 @@ pub(crate) enum KeywordEvidence {
     Use,
     Mod,
     Struct,
+    Type,
     As,
     Without,
     With,
