@@ -1014,6 +1014,147 @@ where
     header
 }
 
+fn type_declaration_rhs_role() -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Type(
+        crate::session::TypeDeclarationRole::Rhs,
+    ))
+}
+
+/// Owns the complete Type-declaration RHS episode. No caller can enter the
+/// mandatory TypeExpression without first passing the original-gap ambient
+/// check and installing the declaration baseline and stop scope here.
+fn parse_type_declaration_rhs<'source, E>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<Box<TypeExpression<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry || any_ambient_owner_claims(i) {
+        return Recovered::Incomplete;
+    }
+    let trivia_checkpoint = i.checkpoint();
+    let Some(_) = mod_trivia(type_base, i) else {
+        i.rollback(trivia_checkpoint);
+        return Recovered::Incomplete;
+    };
+
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let stops = i
+        .local
+        .stop_set()
+        .unwrap_or_default()
+        .with(StopKind::Semicolon)
+        .with(StopKind::With);
+    i.local.push_indentation_baseline(baseline);
+    i.local.push_stop_set(stops);
+    let rhs = i
+        .run(from_fn(|i| {
+            Some(parse_required_type_expression_with_outer_missing_role(
+                Some(type_declaration_rhs_role()),
+                i,
+            ))
+        }))
+        .expect("the mandatory Type declaration RHS entry is total");
+    assert_eq!(i.local.pop_stop_set(), Some(stops));
+    assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+
+    match rhs {
+        Recovered::Complete(rhs) => Recovered::Complete(Box::new(rhs)),
+        Recovered::Incomplete => Recovered::Incomplete,
+    }
+}
+
+/// Direct-CST counterpart of [`parse_type_declaration_rhs`]. The same helper
+/// owns trivia emission, state setup, mandatory parsing, and exact teardown.
+fn commit_type_declaration_rhs<'parse, 'source, 'local, E, O>(
+    header: &ParsedTypeDeclarationHeader<'source>,
+    type_base: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if !header.rhs_retry {
+        return Recovered::Incomplete;
+    }
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at,
+            },
+        );
+        return Recovered::Incomplete;
+    }
+    let trivia = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let trivia = mod_trivia(type_base, i);
+        if trivia.is_none() {
+            i.rollback(checkpoint);
+        }
+        trivia
+    });
+    let Some(trivia) = trivia else {
+        let at = committed.probe(|probe| probe.input().pos());
+        emit_type_declaration_header_recovery(
+            committed,
+            TypeDeclarationHeaderRecovery::Missing {
+                role: crate::session::TypeDeclarationRole::Rhs,
+                at,
+            },
+        );
+        return Recovered::Incomplete;
+    };
+    committed.emit_trivia(&trivia);
+
+    let baseline = IndentationBaseline {
+        column: type_base,
+        kind: IndentationBaselineKind::Introducer,
+    };
+    let stops = committed.probe(|probe| {
+        probe
+            .input()
+            .local
+            .stop_set()
+            .unwrap_or_default()
+            .with(StopKind::Semicolon)
+            .with(StopKind::With)
+    });
+    committed.probe(|probe| {
+        let i = probe.input();
+        i.local.push_indentation_baseline(baseline);
+        i.local.push_stop_set(stops);
+    });
+    let rhs = commit_direct_type_expression_with_outer_missing_role(
+        Some(type_declaration_rhs_role()),
+        committed,
+    );
+    committed.probe(|probe| {
+        let i = probe.input();
+        assert_eq!(i.local.pop_stop_set(), Some(stops));
+        assert_eq!(i.local.pop_indentation_baseline(), Some(baseline));
+    });
+    let range = rhs.range();
+    if range.is_empty() {
+        Recovered::Incomplete
+    } else {
+        Recovered::Complete(range)
+    }
+}
+
 fn emit_type_declaration_header_recovery<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     recovery: TypeDeclarationHeaderRecovery,
@@ -8832,7 +8973,7 @@ mod tests {
         input::SourceInput,
         session::{
             CommitOutput, CommittedRecoveryRecord, ExpectedSyntax, FullCstOutput, HeaderOutput,
-            ParseLocal, Probe, TypeDeclarationRole,
+            ParseLocal, Probe, StopSet, TypeDeclarationRole,
         },
     };
 
@@ -12685,6 +12826,270 @@ mod tests {
             Some(companion)
         );
         assert_eq!(direct_local.pop_ambient_owner_scope(), Some(root_scope));
+    }
+
+    #[test]
+    fn type_declaration_rhs_wiring_is_atomic_typed_and_state_balanced() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+        let outer_baseline = IndentationBaseline {
+            column: 0,
+            kind: IndentationBaselineKind::Block,
+        };
+        let outer_stops = StopSet::default().with(StopKind::RightBracket);
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            ambient: bool,
+            outer_baseline: IndentationBaseline,
+            outer_stops: StopSet,
+        ) -> (Recovered<Box<TypeExpression<'source>>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_indentation_baseline(outer_baseline);
+            local.push_stop_set(outer_stops);
+            let ambient_scope = ambient.then(|| local.push_root_statement_ambient_scope());
+            let companion = ambient.then(|| local.push_if_expression_companion(0, IF_WORDS));
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let rhs = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("Type introduction is recognized in the isolated RHS harness");
+                let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
+                parse_type_declaration_rhs(&header, intro.type_base, &mut i)
+            };
+            assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+            assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                    "{source:?}"
+                );
+            }
+            if let Some(ambient_scope) = ambient_scope {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(ambient_scope), "{source:?}");
+            }
+            assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
+            assert_eq!(
+                local.pop_indentation_baseline(),
+                Some(outer_baseline),
+                "{source:?}"
+            );
+            (rhs, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct<'source>(
+            source: &'source str,
+            ambient: bool,
+            outer_baseline: IndentationBaseline,
+            outer_stops: StopSet,
+        ) -> (Recovered<Range<usize>>, HeaderOutput, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_indentation_baseline(outer_baseline);
+            local.push_stop_set(outer_stops);
+            let ambient_scope = ambient.then(|| local.push_root_statement_ambient_scope());
+            let companion = ambient.then(|| local.push_if_expression_companion(0, IF_WORDS));
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized in the isolated direct RHS harness");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let header = commit_type_declaration_header_slots(&intro, &mut committed);
+            let rhs = commit_type_declaration_rhs(&header, intro.type_base, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+
+            assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+            assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                    "{source:?}"
+                );
+            }
+            if let Some(ambient_scope) = ambient_scope {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(ambient_scope), "{source:?}");
+            }
+            assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
+            assert_eq!(
+                local.pop_indentation_baseline(),
+                Some(outer_baseline),
+                "{source:?}"
+            );
+            (rhs, output, remainder)
+        }
+
+        let cases = [
+            (
+                "type",
+                false,
+                None,
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::Name,
+                    )),
+                    4..4,
+                )],
+            ),
+            (
+                "type = Int",
+                false,
+                Some(7..10),
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::Name,
+                    )),
+                    5..5,
+                )],
+            ),
+            ("type Id = Int", false, Some(10..13), "", vec![]),
+            ("type Id = [e] T", false, Some(10..15), "", vec![]),
+            (
+                "type Id ('a)",
+                false,
+                Some(8..12),
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::DefinitionIntroducer,
+                    )),
+                    8..8,
+                )],
+            ),
+            (
+                "type Id =",
+                false,
+                None,
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    type_declaration_rhs_role(),
+                    9..9,
+                )],
+            ),
+            (
+                "type Id =;",
+                false,
+                None,
+                ";",
+                vec![(
+                    RecoveryKind::Missing,
+                    type_declaration_rhs_role(),
+                    9..9,
+                )],
+            ),
+            (
+                "type Id = @Int",
+                false,
+                Some(11..14),
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    10..11,
+                )],
+            ),
+            (
+                "type Id = @;",
+                false,
+                None,
+                ";",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    10..11,
+                )],
+            ),
+            (
+                "type Id = else: 0",
+                true,
+                None,
+                " else: 0",
+                vec![(
+                    RecoveryKind::Missing,
+                    type_declaration_rhs_role(),
+                    9..9,
+                )],
+            ),
+            (
+                "type Id = with tail",
+                false,
+                None,
+                "with tail",
+                vec![(
+                    RecoveryKind::Missing,
+                    type_declaration_rhs_role(),
+                    10..10,
+                )],
+            ),
+            ("type Id =\n  [e] T", false, Some(12..17), "", vec![]),
+            (
+                "type Id =\nInt",
+                false,
+                None,
+                "\nInt",
+                vec![(
+                    RecoveryKind::Missing,
+                    type_declaration_rhs_role(),
+                    9..9,
+                )],
+            ),
+        ];
+
+        for (source, ambient, expected_range, expected_remainder, expected_records) in cases {
+            let (ast_rhs, ast_remainder) =
+                parse_ast(source, ambient, outer_baseline, outer_stops);
+            let (direct_rhs, output, direct_remainder) =
+                parse_direct(source, ambient, outer_baseline, outer_stops);
+            let ast_range = match &ast_rhs {
+                Recovered::Complete(rhs) => Some(rhs.range()),
+                Recovered::Incomplete => None,
+            };
+            let direct_range = match direct_rhs {
+                Recovered::Complete(range) => Some(range),
+                Recovered::Incomplete => None,
+            };
+            assert_eq!(ast_range, expected_range, "{source:?}");
+            assert_eq!(direct_range, expected_range, "{source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "{source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "{source:?}");
+            if source == "type Id = [e] T" {
+                assert!(
+                    format!("{ast_rhs:?}").contains("leading_effect_row: Some"),
+                    "the full BracketRow surface must remain available to Type declarations"
+                );
+            }
+
+            let actual_records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect::<Vec<_>>();
+            assert_eq!(actual_records, expected_records, "{source:?}");
+        }
     }
 
     #[test]
