@@ -13419,6 +13419,348 @@ mod tests {
     }
 
     #[test]
+    fn type_declaration_td_r_worked_examples_are_lossless_and_byte_exact() {
+        fn parse_ast<'source>(
+            source: &'source str,
+        ) -> (
+            ParsedTypeDeclarationHeader<'source>,
+            Vec<TypeDeclarationHeaderRecovery>,
+            Recovered<Box<TypeExpression<'source>>>,
+            String,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (header, recoveries, rhs) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("Type introduction is recognized in the worked-example harness");
+                let (header, recoveries) = parse_type_declaration_header_slots(&intro, &mut i);
+                let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
+                (header, recoveries, rhs)
+            };
+            (header, recoveries, rhs, source_input.remainder().to_owned())
+        }
+
+        fn emit_pair_header<'parse, 'source, 'local, E, O>(
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+        {
+            committed.token(SyntaxKind::Whitespace, 4..5);
+            committed.token(SyntaxKind::Identifier, 5..9);
+            committed.start_node(SyntaxKind::DeclarationTypeParameterList);
+            committed.token(SyntaxKind::Whitespace, 9..10);
+            committed.token(SyntaxKind::SigilIdentifier, 10..15);
+            committed.token(SyntaxKind::Whitespace, 15..16);
+            committed.token(SyntaxKind::SigilIdentifier, 16..22);
+            committed.finish_node();
+            committed.token(SyntaxKind::Whitespace, 22..23);
+            committed.token(SyntaxKind::Equals, 23..24);
+        }
+
+        fn emit_result_header<'parse, 'source, 'local, E, O>(
+            committed: &mut Committed<'parse, 'source, 'local, E, O>,
+        ) where
+            E: ErrorSink<usize>,
+            O: CommitOutput<'source>,
+        {
+            committed.token(SyntaxKind::Whitespace, 4..5);
+            committed.token(SyntaxKind::Identifier, 5..11);
+            committed.start_node(SyntaxKind::DeclarationTypeParameterList);
+            committed.token(SyntaxKind::Whitespace, 11..12);
+            committed.token(SyntaxKind::SigilIdentifier, 12..14);
+            committed.finish_node();
+            committed.token(SyntaxKind::Whitespace, 14..15);
+            committed.token(SyntaxKind::Equals, 15..16);
+        }
+
+        fn parse_direct<'source>(
+            source: &'source str,
+        ) -> (
+            ParsedTypeDeclarationHeader<'source>,
+            Recovered<Range<usize>>,
+            Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
+            String,
+            SyntaxNode,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized in the direct worked-example harness");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            committed.start_node(SyntaxKind::TypeDeclaration);
+            committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+            let header = commit_type_declaration_header_slots(&intro, &mut committed);
+            match source {
+                "type Pair 'left 'right = ('left, 'right)" => emit_pair_header(&mut committed),
+                "type Result 'a = ;" => emit_result_header(&mut committed),
+                _ => unreachable!("only addendum worked examples use this direct CST harness"),
+            }
+            let rhs = commit_type_declaration_rhs(&header, intro.type_base, &mut committed);
+            committed.finish_node();
+            if source == "type Result 'a = ;" {
+                committed.token(SyntaxKind::Semicolon, 17..18);
+            }
+            committed.finish_node();
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            (header, rhs, records, remainder, root)
+        }
+
+        fn parse_direct_header_and_rhs<'source>(
+            source: &'source str,
+        ) -> (
+            ParsedTypeDeclarationHeader<'source>,
+            Recovered<Range<usize>>,
+            Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
+            String,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized in the parity harness");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let header = commit_type_declaration_header_slots(&intro, &mut committed);
+            let rhs = commit_type_declaration_rhs(&header, intro.type_base, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed
+                .into_output()
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            (header, rhs, records, remainder)
+        }
+
+        let pair = "type Pair 'left 'right = ('left, 'right)";
+        let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(pair);
+        let (direct_header, direct_rhs, direct_records, direct_remainder, root) = parse_direct(pair);
+        assert_eq!(ast_header, direct_header);
+        assert!(ast_recoveries.is_empty());
+        assert!(matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Pair" && name.range() == (5..9)));
+        assert!(matches!(ast_header.parameters.as_slice(), [
+            DeclarationTypeParameter::SigilIdentifier(left),
+            DeclarationTypeParameter::SigilIdentifier(right),
+        ] if left.range() == (10..15) && right.range() == (16..22)));
+        assert_eq!(ast_header.equals, Recovered::Complete(23..24));
+        assert!(matches!(ast_rhs, Recovered::Complete(ref rhs) if rhs.range() == (25..40)));
+        assert_eq!(direct_rhs, Recovered::Complete(25..40));
+        assert_eq!(ast_remainder, "");
+        assert_eq!(direct_remainder, "");
+        assert!(direct_records.is_empty());
+        assert_eq!(root.to_string(), pair);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeDeclaration, 0..40),
+                (SyntaxKind::DeclarationTypeParameterList, 9..22),
+                (SyntaxKind::TypeExpression, 25..40),
+                (SyntaxKind::ParenthesizedTypeGroup, 25..40),
+                (SyntaxKind::TypeExpression, 26..31),
+                (SyntaxKind::TypeExpression, 33..39),
+            ]
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
+                (SyntaxKind::Whitespace, " ".to_owned(), 4..5),
+                (SyntaxKind::Identifier, "Pair".to_owned(), 5..9),
+                (SyntaxKind::Whitespace, " ".to_owned(), 9..10),
+                (SyntaxKind::SigilIdentifier, "'left".to_owned(), 10..15),
+                (SyntaxKind::Whitespace, " ".to_owned(), 15..16),
+                (SyntaxKind::SigilIdentifier, "'right".to_owned(), 16..22),
+                (SyntaxKind::Whitespace, " ".to_owned(), 22..23),
+                (SyntaxKind::Equals, "=".to_owned(), 23..24),
+                (SyntaxKind::Whitespace, " ".to_owned(), 24..25),
+                (SyntaxKind::LParen, "(".to_owned(), 25..26),
+                (SyntaxKind::SigilIdentifier, "'left".to_owned(), 26..31),
+                (SyntaxKind::Comma, ",".to_owned(), 31..32),
+                (SyntaxKind::Whitespace, " ".to_owned(), 32..33),
+                (SyntaxKind::SigilIdentifier, "'right".to_owned(), 33..39),
+                (SyntaxKind::RParen, ")".to_owned(), 39..40),
+            ]
+        );
+
+        let result = "type Result 'a = ;";
+        let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(result);
+        let (direct_header, direct_rhs, direct_records, direct_remainder, root) = parse_direct(result);
+        assert_eq!(ast_header, direct_header);
+        assert!(ast_recoveries.is_empty());
+        assert!(matches!(ast_header.name, Recovered::Complete(name) if name.text() == "Result" && name.range() == (5..11)));
+        assert!(matches!(ast_header.parameters.as_slice(), [
+            DeclarationTypeParameter::SigilIdentifier(parameter),
+        ] if parameter.range() == (12..14)));
+        assert_eq!(ast_header.equals, Recovered::Complete(15..16));
+        assert!(matches!(ast_rhs, Recovered::Incomplete));
+        assert_eq!(direct_rhs, Recovered::Incomplete);
+        assert_eq!(ast_remainder, ";");
+        assert_eq!(direct_remainder, ";");
+        assert_eq!(direct_records, vec![
+            (RecoveryKind::Missing, type_declaration_rhs_role(), 17..17),
+        ]);
+        assert_eq!(root.to_string(), result);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeDeclaration, 0..17),
+                (SyntaxKind::DeclarationTypeParameterList, 11..14),
+                (SyntaxKind::TypeExpression, 17..17),
+                (SyntaxKind::Missing, 17..17),
+            ]
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
+                (SyntaxKind::Whitespace, " ".to_owned(), 4..5),
+                (SyntaxKind::Identifier, "Result".to_owned(), 5..11),
+                (SyntaxKind::Whitespace, " ".to_owned(), 11..12),
+                (SyntaxKind::SigilIdentifier, "'a".to_owned(), 12..14),
+                (SyntaxKind::Whitespace, " ".to_owned(), 14..15),
+                (SyntaxKind::Equals, "=".to_owned(), 15..16),
+                (SyntaxKind::Whitespace, " ".to_owned(), 16..17),
+                (SyntaxKind::Semicolon, ";".to_owned(), 17..18),
+            ]
+        );
+        assert_eq!(
+            root.children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![(SyntaxKind::Semicolon, 17..18)],
+            "the isolated root owns the statement separator outside TypeDeclaration"
+        );
+
+        // TD-R permits distinct slots to recover together, but never lets one
+        // slot duplicate its own Missing/Error. Gates 4--6 already exhaust the
+        // individual rows; these three cases make the composition explicit.
+        for (source, expected_records, expected_remainder) in [
+            (
+                "type =;",
+                vec![
+                    (RecoveryKind::Missing, GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Name)), 5..5),
+                    (RecoveryKind::Missing, type_declaration_rhs_role(), 6..6),
+                ],
+                ";",
+            ),
+            (
+                "type Id = @;",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    10..11,
+                )],
+                ";",
+            ),
+            (
+                "type Id @;",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::DefinitionIntroducer)),
+                    8..9,
+                )],
+                ";",
+            ),
+        ] {
+            let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(source);
+            let (direct_header, direct_rhs, direct_records, direct_remainder) =
+                parse_direct_header_and_rhs(source);
+            assert_eq!(ast_header, direct_header, "header parity for {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct {source:?}");
+            assert_eq!(direct_records, expected_records, "direct records for {source:?}");
+            assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
+            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert_eq!(
+                ast_recoveries.len(),
+                expected_records
+                    .iter()
+                    .filter(|(_, role, _)| {
+                        matches!(
+                            role,
+                            GrammarRole::Declaration(DeclarationRole::Type(
+                                TypeDeclarationRole::Name | TypeDeclarationRole::DefinitionIntroducer
+                            ))
+                        )
+                    })
+                    .count(),
+                "AST header records for {source:?}",
+            );
+        }
+
+        let source = "type Id 'a ('a)";
+        let (ast_header, ast_recoveries, ast_rhs, ast_remainder) = parse_ast(source);
+        let (direct_header, direct_rhs, direct_records, direct_remainder) =
+            parse_direct_header_and_rhs(source);
+        assert_eq!(ast_header, direct_header);
+        assert_eq!(ast_recoveries.len(), 1);
+        assert!(matches!(ast_rhs, Recovered::Complete(ref rhs) if rhs.range() == (11..15)));
+        assert_eq!(direct_rhs, Recovered::Complete(11..15));
+        assert_eq!(ast_remainder, "");
+        assert_eq!(direct_remainder, "");
+        assert_eq!(
+            direct_records,
+            vec![(
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::DefinitionIntroducer)),
+                11..11,
+            )],
+            "the missing '=' retries the RHS at the same parenthesized primary"
+        );
+    }
+
+    #[test]
     fn struct_intro_commits_exact_keywords_before_binding_and_expression_fallback() {
         let table = crate::operator::OperatorTable::empty();
         let recognizes_struct = |source: &str| {
