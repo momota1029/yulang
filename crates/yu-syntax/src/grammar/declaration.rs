@@ -699,6 +699,53 @@ where
     })
 }
 
+/// Recognizes the sink-free prefix reserved for a Type declaration.
+///
+/// This remains deliberately separate from `recognize_statement_intro` until
+/// the later dispatch gate.  An exact `type` keyword is enough to establish
+/// declaration authority; all mandatory declaration slots belong to the
+/// committed continuation introduced later.
+fn recognize_type_statement_intro<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeStatementIntro<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let start = i.pos();
+    let first = i.run(scan_word)?;
+    let type_base = i
+        .local
+        .indentation_baseline()
+        .map_or(0, |baseline| baseline.column);
+    let (visibility, after_visibility, keyword) = if let Some(visibility) = visibility_prefix(first) {
+        let Some(trivia) = mod_trivia(type_base, &mut i) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        let Some(keyword) = i.run(scan_word) else {
+            i.rollback(checkpoint);
+            return None;
+        };
+        (Some(visibility), Some(trivia), keyword)
+    } else {
+        (None, None, first)
+    };
+    if keyword.text() != "type" {
+        i.rollback(checkpoint);
+        return None;
+    }
+    Some(TypeStatementIntro {
+        start,
+        visibility,
+        after_visibility,
+        type_keyword: keyword,
+        type_base,
+    })
+}
+
 fn recognize_mod_statement_intro<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ModStatementIntro<'source>>
@@ -11671,6 +11718,70 @@ mod tests {
         let root = SyntaxNode::new_root(output.green().clone());
         assert!(root.descendants().any(|node| node.kind() == SyntaxKind::ModDeclaration));
         assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
+    }
+
+    #[test]
+    fn type_intro_judge_recognizes_exact_keyword_with_optional_visibility() {
+        for (source, expected_visibility, visibility_range, trivia_range, keyword_range, remainder) in [
+            ("type", None, None, None, 0..4, ""),
+            ("type = Missing", None, None, None, 0..4, " = Missing"),
+            ("my type", Some(Visibility::Private), Some(0..2), Some(2..3), 3..7, ""),
+            ("our type", Some(Visibility::Our), Some(0..3), Some(3..4), 4..8, ""),
+            ("pub type", Some(Visibility::Public), Some(0..3), Some(3..4), 4..8, ""),
+            ("my\n  type", Some(Visibility::Private), Some(0..2), Some(2..5), 5..9, ""),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let intro = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                i.run(recognize_type_statement_intro)
+                    .expect("exact Type declaration introduction")
+            };
+
+            assert_eq!(intro.start, 0, "{source:?}");
+            assert_eq!(intro.type_base, 0, "{source:?}");
+            assert_eq!(intro.type_keyword.range(), keyword_range, "{source:?}");
+            assert_eq!(
+                intro.visibility.as_ref().map(|visibility| visibility.visibility),
+                expected_visibility,
+                "{source:?}"
+            );
+            assert_eq!(
+                intro.visibility.as_ref().map(|visibility| visibility.keyword.range()),
+                visibility_range,
+                "{source:?}"
+            );
+            assert_eq!(
+                intro.after_visibility.as_ref().map(TriviaRun::range),
+                trivia_range,
+                "{source:?}"
+            );
+            assert_eq!(source_input.remainder(), remainder, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn type_intro_judge_rejects_non_type_without_state_or_input_changes() {
+        for source in ["my x = 1", "structure", "my\ntype", "pub type_name"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let line_before = local.line();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let intro = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                i.run(recognize_type_statement_intro)
+            };
+
+            assert!(intro.is_none(), "{source:?}");
+            assert_eq!(source_input.remainder(), source, "{source:?}");
+            assert_eq!(local.line(), line_before, "{source:?}");
+            assert!(!is_cut, "{source:?}");
+        }
     }
 
     #[test]
