@@ -5218,6 +5218,39 @@ mod tests {
         (i.input.remainder(), value)
     }
 
+    fn parse_prefix_with_continuation_base<'source>(
+        source: &'source str,
+        continuation_base: usize,
+    ) -> (&'source str, TypeExpression<'source>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_indentation_baseline(IndentationBaseline {
+            column: continuation_base,
+            kind: IndentationBaselineKind::Block,
+        });
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let value = i
+            .run(from_fn(parse_type_expression))
+            .expect("type expression AST prefix with continuation base");
+        let remainder = i.input.remainder();
+        assert_eq!(
+            i.local.pop_indentation_baseline(),
+            Some(IndentationBaseline {
+                column: continuation_base,
+                kind: IndentationBaselineKind::Block,
+            }),
+            "BracketRow must restore the caller continuation baseline",
+        );
+        (remainder, value)
+    }
+
     fn parse_prefix_with_outer_stop<'source>(
         source: &'source str,
         stop: StopKind,
@@ -5911,6 +5944,44 @@ mod tests {
         committed.finish_node();
         let recoveries = committed.into_output().committed_recoveries().to_vec();
         (remainder, recoveries)
+    }
+
+    fn parse_direct_prefix_with_continuation_base(
+        source: &str,
+        continuation_base: usize,
+    ) -> (String, Vec<crate::session::CommittedRecoveryRecord>) {
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_indentation_baseline(IndentationBaseline {
+            column: continuation_base,
+            kind: IndentationBaselineKind::Block,
+        });
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed)
+            .expect("direct type expression prefix with continuation base");
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        committed.probe(|probe| {
+            assert_eq!(
+                probe.input().local.indentation_baseline(),
+                Some(IndentationBaseline {
+                    column: continuation_base,
+                    kind: IndentationBaselineKind::Block,
+                }),
+                "BracketRow must restore the caller continuation baseline",
+            );
+        });
+        committed.finish_node();
+        let output = committed.into_output();
+        (remainder, output.committed_recoveries().to_vec())
     }
 
     #[test]
@@ -7949,10 +8020,24 @@ mod tests {
 
     #[test]
     fn leading_bracket_row_preserves_terminal_recovered_head_dispositions() {
-        let forall = parse("[e] for 'a: T");
+        let bare_forall = parse("for 'a: T");
+        let forall_source = "[e] for 'a: T";
+        let forall = parse(forall_source);
         assert!(forall.leading_effect_row.is_some());
         assert!(matches!(forall.complete_primary(), TypePrimary::Forall(ForallType { .. })));
-        assert_eq!(parse_direct("[e] for 'a: T").to_string(), "[e] for 'a: T");
+        assert!(forall.postfix.is_empty() && forall.arrow.is_none());
+        assert!(matches!(bare_forall.complete_primary(), TypePrimary::Forall(ForallType { .. })));
+        assert!(bare_forall.postfix.is_empty() && bare_forall.arrow.is_none());
+        assert_eq!(parse_direct(forall_source).to_string(), forall_source);
+        assert!(parse_direct_recovered("for 'a: T").is_empty());
+        assert!(parse_direct_recovered(forall_source).is_empty());
+
+        let bare_variant_source = ":{A Int\n B}";
+        let (bare_variant_remainder, bare_variant) = parse_prefix(bare_variant_source);
+        assert_eq!(bare_variant_remainder, "\n B}");
+        assert!(matches!(bare_variant.complete_primary(), TypePrimary::PolymorphicVariant(
+            PolymorphicVariantType { close: Recovered::Incomplete, .. }
+        )));
 
         let variant_source = "[e] :{A Int\n B}";
         let (variant_remainder, variant) = parse_prefix(variant_source);
@@ -7961,7 +8046,65 @@ mod tests {
         assert!(matches!(variant.complete_primary(), TypePrimary::PolymorphicVariant(
             PolymorphicVariantType { close: Recovered::Incomplete, .. }
         )));
-        assert_eq!(parse_direct_prefix(variant_source).0, "\n B}");
+        assert!(variant.postfix.is_empty() && variant.arrow.is_none());
+
+        let (bare_direct_remainder, bare_direct_recoveries) = parse_direct_prefix(bare_variant_source);
+        assert_eq!(bare_direct_remainder, "\n B}");
+        assert!(matches!(bare_direct_recoveries.as_slice(), [record]
+            if matches!(record.site.role, GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }) && record.kind == RecoveryKind::Missing && record.site.range == (7..7)),
+            "{bare_direct_recoveries:#?}");
+        let (direct_remainder, direct_recoveries) = parse_direct_prefix(variant_source);
+        assert_eq!(direct_remainder, "\n B}");
+        assert!(matches!(direct_recoveries.as_slice(), [record]
+            if matches!(record.site.role, GrammarRole::ClosingDelimiter {
+                owner: ConstructRole::PolymorphicVariantType,
+                delimiter: Delimiter::Brace,
+            }) && record.kind == RecoveryKind::Missing && record.site.range == (11..11)),
+            "{direct_recoveries:#?}");
+    }
+
+    #[test]
+    fn bracket_row_attachment_precedence_keeps_leading_and_trailing_rows_distinct() {
+        let leading = parse("[e] F A -> U");
+        assert!(matches!(leading, TypeExpression {
+            leading_effect_row: Some(BracketRow { close: Recovered::Complete(_), .. }),
+            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
+            postfix,
+            arrow: Some(TypeArrowTail {
+                argument_effect: None,
+                arrow: Recovered::Complete(_),
+                rhs: Recovered::Complete(_),
+                ..
+            }),
+            ..
+        } if head.text() == "F" && matches!(postfix.as_slice(), [TypePostfixTail::Apply(argument)]
+            if matches!(argument.argument.complete_primary(),
+                TypePrimary::Atom(TypeAtom::Identifier(ref applied)) if applied.text() == "A"))));
+        let leading_direct = parse_direct("[e] F A -> U");
+        assert_eq!(leading_direct.to_string(), "[e] F A -> U");
+        assert_eq!(leading_direct.descendants().filter(|node| node.kind() == SyntaxKind::BracketRow).count(), 1);
+        assert_eq!(leading_direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeArrowTail).count(), 1);
+
+        let trailing = parse("T[e]->U");
+        assert!(matches!(trailing, TypeExpression {
+            leading_effect_row: None,
+            primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
+            postfix,
+            arrow: Some(TypeArrowTail {
+                argument_effect: Some(BracketRow { close: Recovered::Complete(_), .. }),
+                arrow: Recovered::Complete(_),
+                rhs: Recovered::Complete(_),
+                ..
+            }),
+            ..
+        } if head.text() == "T" && postfix.is_empty()));
+        let trailing_direct = parse_direct("T[e]->U");
+        assert_eq!(trailing_direct.to_string(), "T[e]->U");
+        assert_eq!(trailing_direct.descendants().filter(|node| node.kind() == SyntaxKind::BracketRow).count(), 1);
+        assert_eq!(trailing_direct.descendants().filter(|node| node.kind() == SyntaxKind::TypeArrowTail).count(), 1);
     }
 
     #[test]
@@ -8041,6 +8184,91 @@ mod tests {
         ));
         assert_eq!(parse_direct("F ([e] T)").to_string(), "F ([e] T)");
 
+    }
+
+    #[test]
+    fn bracket_row_post_close_trivia_is_bounded_for_heads_and_arrows() {
+        for source in ["[e]T", "[e] T", "[e]\n T"] {
+            let ast = parse(source);
+            assert!(matches!(ast, TypeExpression {
+                leading_effect_row: Some(BracketRow { close: Recovered::Complete(_), .. }),
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
+                ..
+            } if head.text() == "T"), "AST {source}: {ast:#?}");
+            assert_eq!(parse_direct(source).to_string(), source, "direct {source}");
+        }
+
+        let (head_equal_remainder, head_equal) = parse_prefix("[e]\nT");
+        assert_eq!(head_equal_remainder, "\nT");
+        assert!(matches!(head_equal, TypeExpression {
+            leading_effect_row: Some(_),
+            primary: Recovered::Incomplete,
+            postfix,
+            arrow: None,
+            ..
+        } if postfix.is_empty()));
+        let (head_equal_direct_remainder, head_equal_recoveries) = parse_direct_prefix("[e]\nT");
+        assert_eq!(head_equal_direct_remainder, "\nT");
+        assert!(matches!(head_equal_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Missing && record.site.range == (3..3)),
+            "{head_equal_recoveries:#?}");
+
+        let (head_shallower_remainder, head_shallower) =
+            parse_prefix_with_continuation_base("[e]\nT", 1);
+        assert_eq!(head_shallower_remainder, "\nT");
+        assert!(matches!(head_shallower.primary, Recovered::Incomplete));
+        let (head_shallower_direct_remainder, head_shallower_recoveries) =
+            parse_direct_prefix_with_continuation_base("[e]\nT", 1);
+        assert_eq!(head_shallower_direct_remainder, "\nT");
+        assert!(matches!(head_shallower_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Missing && record.site.range == (3..3)),
+            "{head_shallower_recoveries:#?}");
+
+        for source in ["T[e]->U", "T [e] -> U", "T [e]\n -> U"] {
+            let ast = parse(source);
+            assert!(matches!(ast.arrow, Some(TypeArrowTail {
+                argument_effect: Some(BracketRow { close: Recovered::Complete(_), .. }),
+                arrow: Recovered::Complete(_),
+                rhs: Recovered::Complete(_),
+                ..
+            })), "AST {source}: {ast:#?}");
+            assert_eq!(parse_direct(source).to_string(), source, "direct {source}");
+        }
+
+        let (arrow_equal_remainder, arrow_equal) = parse_prefix("T [e]\n-> U");
+        assert_eq!(arrow_equal_remainder, "\n-> U");
+        assert!(matches!(arrow_equal.arrow, Some(TypeArrowTail {
+            argument_effect: Some(_),
+            arrow: Recovered::Incomplete,
+            rhs: Recovered::Incomplete,
+            ..
+        })));
+        let (arrow_equal_direct_remainder, arrow_equal_recoveries) =
+            parse_direct_prefix("T [e]\n-> U");
+        assert_eq!(arrow_equal_direct_remainder, "\n-> U");
+        assert!(matches!(arrow_equal_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Missing && record.site.range == (5..5)),
+            "{arrow_equal_recoveries:#?}");
+
+        let (arrow_shallower_remainder, arrow_shallower) =
+            parse_prefix_with_continuation_base("T [e]\n-> U", 1);
+        assert_eq!(arrow_shallower_remainder, "\n-> U");
+        assert!(matches!(arrow_shallower.arrow, Some(TypeArrowTail {
+            argument_effect: Some(_),
+            arrow: Recovered::Incomplete,
+            rhs: Recovered::Incomplete,
+            ..
+        })));
+        let (arrow_shallower_direct_remainder, arrow_shallower_recoveries) =
+            parse_direct_prefix_with_continuation_base("T [e]\n-> U", 1);
+        assert_eq!(arrow_shallower_direct_remainder, "\n-> U");
+        assert!(matches!(arrow_shallower_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && record.kind == RecoveryKind::Missing && record.site.range == (5..5)),
+            "{arrow_shallower_recoveries:#?}");
     }
 
     #[test]
