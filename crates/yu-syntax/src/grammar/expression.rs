@@ -13,9 +13,10 @@ use crate::{
     grammar::declaration::{
         BindingDeclaration, ModDeclaration, Recovered, StatementIntro, StructDeclaration, TypeDeclaration,
         UseDeclaration,
-        commit_binding_declaration, commit_use_declaration, parse_binding_declaration_with_operators,
+        commit_binding_declaration, commit_type_declaration, commit_use_declaration,
+        parse_binding_declaration_with_operators,
         commit_mod_declaration, commit_struct_declaration, parse_mod_declaration_with_operators,
-        parse_struct_declaration, parse_use_declaration,
+        parse_struct_declaration, parse_type_declaration, parse_use_declaration,
         recognize_statement_intro,
     },
     grammar::pattern::{Pattern, parse_direct_pattern, parse_pattern, pattern_nud_candidate_input},
@@ -1488,6 +1489,7 @@ where
             .run(from_fn(|i| parse_mod_declaration_with_operators(table, i)))
             .map(Statement::Mod),
         Some(StatementIntro::Struct(_)) => i.run(parse_struct_declaration).map(Statement::Struct),
+        Some(StatementIntro::Type(_)) => i.run(parse_type_declaration).map(Statement::Type),
         _ => i.run(from_fn(|i| parse_operator_chain(table, i))).map(Statement::Expression),
     }
 }
@@ -4011,6 +4013,7 @@ where
                     | StatementIntro::Use(_)
                     | StatementIntro::Mod(_)
                     | StatementIntro::Struct(_)
+                    | StatementIntro::Type(_)
             )
         ) {
             i.rollback(checkpoint);
@@ -4035,7 +4038,11 @@ where
             let _ = commit_struct_declaration(committed, intro);
             true
         }
-        Some(StatementIntro::Operator(_) | StatementIntro::Type(_)) | None => {
+        Some(StatementIntro::Type(intro)) => {
+            let _ = commit_type_declaration(committed, intro);
+            true
+        }
+        Some(StatementIntro::Operator(_)) | None => {
             parse_direct_operator_chain(table, leading, committed).is_some()
         }
     }
@@ -4060,6 +4067,7 @@ where
                 | StatementIntro::Use(_)
                 | StatementIntro::Mod(_)
                 | StatementIntro::Struct(_)
+                | StatementIntro::Type(_)
         )
     );
     i.rollback(checkpoint);

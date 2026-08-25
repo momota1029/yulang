@@ -328,7 +328,10 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_struct_declaration(&mut committed, intro);
                 StatementKind::StructDeclaration
             }
-            StatementIntro::Type(_) => StatementKind::TypeDeclaration,
+            StatementIntro::Type(intro) => {
+                let _ = commit_type_declaration(&mut committed, intro);
+                StatementKind::TypeDeclaration
+            }
             StatementIntro::Operator(intro) => {
                 if matches!(
                     commit_operator_header(&mut committed, intro),
@@ -581,6 +584,10 @@ where
 
     if let Some(intro) = i.run(recognize_mod_statement_intro) {
         return Some(StatementIntro::Mod(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_type_statement_intro) {
+        return Some(StatementIntro::Type(intro));
     }
 
     if binding_statement_selected(&mut i) {
@@ -1152,6 +1159,235 @@ where
         Recovered::Incomplete
     } else {
         Recovered::Complete(range)
+    }
+}
+
+pub(crate) fn parse_type_declaration<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_type_statement_intro)?;
+    let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
+    let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
+    let range = intro.start..i.pos();
+    Some(TypeDeclaration {
+        visibility: intro
+            .visibility
+            .map_or(Visibility::Private, |prefix| prefix.visibility),
+        name: header.name,
+        parameters: header.parameters,
+        equals: header.equals,
+        rhs,
+        range,
+    })
+}
+
+/// Emits the production CST continuation selected by the shared Type intro.
+/// Header recognition remains sink-free, then this adapter replays only the
+/// accepted source spans in source order before entering the atomic RHS owner.
+pub(crate) fn commit_type_declaration<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: TypeStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::TypeDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+
+    let (header, recoveries, header_end) = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let (header, recoveries) = parse_type_declaration_header_slots(&intro, i);
+        let end = i.pos();
+        i.rollback(checkpoint);
+        (header, recoveries, end)
+    });
+    commit_type_declaration_header_surface(
+        intro.type_base,
+        &header,
+        recoveries,
+        header_end,
+        committed,
+    );
+    let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
+    let end = committed.probe(|probe| probe.input().pos());
+    committed.finish_node();
+    Recovered::Complete(intro.start..end)
+}
+
+fn commit_type_declaration_header_surface<'parse, 'source, 'local, E, O>(
+    type_base: usize,
+    header: &ParsedTypeDeclarationHeader<'source>,
+    recoveries: Vec<TypeDeclarationHeaderRecovery>,
+    header_end: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let name_recovery = recoveries.iter().find(|recovery| {
+        type_declaration_header_recovery_role(recovery)
+            == crate::session::TypeDeclarationRole::Name
+    });
+    let definition_recovery = recoveries.iter().find(|recovery| {
+        type_declaration_header_recovery_role(recovery)
+            == crate::session::TypeDeclarationRole::DefinitionIntroducer
+    });
+
+    let name_target = name_recovery
+        .map(type_declaration_header_recovery_start)
+        .or_else(|| match &header.name {
+            Recovered::Complete(name) => Some(name.range().start),
+            Recovered::Incomplete => None,
+        })
+        .or_else(|| definition_recovery.map(type_declaration_header_recovery_start))
+        .or_else(|| match &header.equals {
+            Recovered::Complete(equals) => Some(equals.start),
+            Recovered::Incomplete => None,
+        })
+        .unwrap_or(header_end);
+    commit_type_declaration_continuation_trivia_until(type_base, name_target, committed);
+    if let Some(recovery) = name_recovery {
+        commit_type_declaration_header_recovery(recovery.clone(), committed);
+    }
+    if let Recovered::Complete(expected) = &header.name {
+        let actual = commit_word(committed).expect("accepted Type name remains at the cursor");
+        debug_assert_eq!(actual.range(), expected.range());
+        committed.token(SyntaxKind::Identifier, actual.range());
+    }
+
+    if !header.parameters.is_empty() {
+        committed.start_node(SyntaxKind::DeclarationTypeParameterList);
+        for parameter in &header.parameters {
+            let trivia = committed
+                .probe(|probe| scan_required_inline_trivia(probe.input()))
+                .expect("an accepted Type parameter retains its same-line separator");
+            committed.emit_trivia(&trivia);
+            let actual = committed
+                .probe(|probe| probe.input().run(scan_path_segment))
+                .expect("an accepted Type parameter remains at the cursor");
+            debug_assert_eq!(actual.range(), declaration_type_parameter_range(parameter));
+            committed.token(declaration_type_parameter_kind(parameter), actual.range());
+        }
+        committed.finish_node();
+    }
+
+    let definition_target = definition_recovery
+        .map(type_declaration_header_recovery_start)
+        .or_else(|| match &header.equals {
+            Recovered::Complete(equals) => Some(equals.start),
+            Recovered::Incomplete => None,
+        })
+        .unwrap_or(header_end);
+    commit_type_declaration_continuation_trivia_until(
+        type_base,
+        definition_target,
+        committed,
+    );
+    if let Some(recovery) = definition_recovery {
+        commit_type_declaration_header_recovery(recovery.clone(), committed);
+    }
+    if let Recovered::Complete(expected) = &header.equals {
+        let actual = committed
+            .probe(|probe| probe.input().run(scan_declaration_exact_equals))
+            .expect("accepted Type definition introducer remains at the cursor");
+        debug_assert_eq!(&actual, expected);
+        committed.token(SyntaxKind::Equals, actual);
+    }
+    debug_assert_eq!(committed.probe(|probe| probe.input().pos()), header_end);
+}
+
+fn commit_type_declaration_continuation_trivia_until<'parse, 'source, 'local, E, O>(
+    type_base: usize,
+    target: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let current = committed.probe(|probe| probe.input().pos());
+    if current == target {
+        return;
+    }
+    let trivia = committed
+        .probe(|probe| mod_trivia(type_base, probe.input()))
+        .expect("accepted Type header trivia remains at the cursor");
+    debug_assert_eq!(trivia.range(), current..target);
+    committed.emit_trivia(&trivia);
+}
+
+fn commit_type_declaration_header_recovery<'parse, 'source, 'local, E, O>(
+    recovery: TypeDeclarationHeaderRecovery,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let TypeDeclarationHeaderRecovery::Error { range, .. } = &recovery {
+        committed.probe(|probe| {
+            let i = probe.input();
+            debug_assert_eq!(i.pos(), range.start);
+            while i.pos() < range.end {
+                i.input
+                    .next()
+                    .expect("a selected Type header error range remains available");
+                let mut line = i.local.line();
+                line.at_line_start = false;
+                i.local.set_line(line);
+            }
+            debug_assert_eq!(i.pos(), range.end);
+        });
+    }
+    emit_type_declaration_header_recovery(committed, recovery);
+}
+
+fn type_declaration_header_recovery_role(
+    recovery: &TypeDeclarationHeaderRecovery,
+) -> crate::session::TypeDeclarationRole {
+    match recovery {
+        TypeDeclarationHeaderRecovery::Missing { role, .. }
+        | TypeDeclarationHeaderRecovery::Error { role, .. } => *role,
+    }
+}
+
+fn type_declaration_header_recovery_start(recovery: &TypeDeclarationHeaderRecovery) -> usize {
+    match recovery {
+        TypeDeclarationHeaderRecovery::Missing { at, .. } => *at,
+        TypeDeclarationHeaderRecovery::Error { range, .. } => range.start,
+    }
+}
+
+fn declaration_type_parameter_range(parameter: &DeclarationTypeParameter<'_>) -> Range<usize> {
+    match parameter {
+        DeclarationTypeParameter::Identifier(word)
+        | DeclarationTypeParameter::SigilIdentifier(word) => word.range(),
+    }
+}
+
+fn declaration_type_parameter_kind(parameter: &DeclarationTypeParameter<'_>) -> SyntaxKind {
+    match parameter {
+        DeclarationTypeParameter::Identifier(_) => SyntaxKind::Identifier,
+        DeclarationTypeParameter::SigilIdentifier(_) => SyntaxKind::SigilIdentifier,
     }
 }
 
@@ -5497,7 +5733,6 @@ impl StructDeclaration<'_> {
 
 /// A parser-side equality declaration.  Its equality RHS remains syntax-only:
 /// alias, nominal, and opaque semantics belong to later HIR ownership.
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TypeDeclaration<'source> {
     visibility: Visibility,
@@ -5514,7 +5749,6 @@ impl TypeDeclaration<'_> {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DeclarationTypeParameter<'source> {
     Identifier(WordSpan<'source>),
@@ -6035,6 +6269,7 @@ where
 {
     i.choice((
         parse_struct_declaration.map(Declaration::Struct),
+        parse_type_declaration.map(Declaration::Type),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
@@ -13757,6 +13992,261 @@ mod tests {
                 11..11,
             )],
             "the missing '=' retries the RHS at the same parenthesized primary"
+        );
+    }
+
+    #[test]
+    fn type_declaration_is_reachable_from_root_and_nested_full_statement_dispatch() {
+        fn parse_root_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Some(Declaration::Type(declaration)) = i.run(parse_declaration) else {
+                panic!("the root declaration dispatcher must select Type");
+            };
+            (declaration, i.input.remainder().to_owned())
+        }
+
+        fn parse_nested_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let table = crate::operator::OperatorTable::empty();
+            let Some(Statement::Type(declaration)) =
+                i.run(from_fn(|i| parse_canonical_statement(&table, i)))
+            else {
+                panic!("the nested canonical Statement dispatcher must select Type");
+            };
+            (declaration, i.input.remainder().to_owned())
+        }
+
+        let source = "type Pair 'left 'right = ('left, 'right)";
+        let (root_declaration, root_remainder) = parse_root_ast(source);
+        let (nested_declaration, nested_remainder) = parse_nested_ast(source);
+        assert_eq!(root_declaration, nested_declaration);
+        assert_eq!(root_remainder, "");
+        assert_eq!(nested_remainder, "");
+        assert_eq!(root_declaration.range, 0..40);
+        assert!(matches!(root_declaration.name, Recovered::Complete(ref name) if name.range() == (5..9)));
+        assert!(matches!(root_declaration.parameters.as_slice(), [
+            DeclarationTypeParameter::SigilIdentifier(left),
+            DeclarationTypeParameter::SigilIdentifier(right),
+        ] if left.range() == (10..15) && right.range() == (16..22)));
+        assert_eq!(root_declaration.equals, Recovered::Complete(23..24));
+        assert!(matches!(root_declaration.rhs, Recovered::Complete(ref rhs) if rhs.range() == (25..40)));
+
+        let output = parse_direct_root_candidate(
+            source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert!(output.committed_recoveries().is_empty());
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![0..40],
+        );
+
+        let source_text: Arc<crate::SourceText> = Arc::from(source);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+        let parsed = crate::parse_file(
+            Arc::clone(&source_text),
+            Arc::clone(&header),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert!(parsed.diagnostics().is_empty());
+        assert_eq!(SyntaxNode::new_root(parsed.green().clone()).to_string(), source);
+
+        // A real braced Statement sequence proves the direct nested consumer
+        // wraps the same declaration node rather than falling back to an
+        // OperatorChain.  The following Binding also proves dispatch resumes.
+        let nested_source = concat!(
+            "my block = { type Pair 'left 'right = ('left, 'right); ",
+            "my value = 1 }"
+        );
+        let nested_output = parse_direct_root_candidate(
+            nested_source,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert!(nested_output.committed_recoveries().is_empty());
+        let nested_root = SyntaxNode::new_root(nested_output.green().clone());
+        assert_eq!(nested_root.to_string(), nested_source);
+        let nested_type = nested_root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .expect("the braced full-Statement sequence contains TypeDeclaration");
+        assert_eq!(
+            nested_type.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::Statement),
+        );
+        assert_eq!(
+            nested_root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .count(),
+            2,
+            "the outer and nested bindings both remain reachable",
+        );
+    }
+
+    #[test]
+    fn type_declaration_real_root_dispatch_preserves_semicolon_and_interleaving() {
+        let result = "type Result 'a = ;";
+        let mut source_input = SourceInput::new(result);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let Some(Declaration::Type(declaration)) = i.run(parse_declaration) else {
+            panic!("the recovery worked example must select Type at root");
+        };
+        assert_eq!(declaration.range, 0..17);
+        assert!(matches!(declaration.rhs, Recovered::Incomplete));
+        assert_eq!(i.input.remainder(), ";");
+
+        let output = parse_direct_root_candidate(
+            result,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), result);
+        assert_eq!(
+            root.descendants()
+                .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .map(|node| syntax_range(node.text_range())),
+            Some(0..17),
+        );
+        assert_eq!(
+            root.children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![(SyntaxKind::Semicolon, 17..18)],
+            "the real root Statement loop, not TypeDeclaration, owns ';'",
+        );
+        let [record] = output.committed_recoveries() else {
+            panic!("the missing RHS must produce exactly one recovery record");
+        };
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        assert_eq!(record.site.role, type_declaration_rhs_role());
+        assert_eq!(record.site.range, 17..17);
+
+        let interleaved = "my type Pair = Int;\nmy value = 1";
+        let output = parse_direct_root_candidate(
+            interleaved,
+            &crate::operator::OperatorTable::empty(),
+            &[],
+        );
+        assert!(output.committed_recoveries().is_empty());
+        let root = SyntaxNode::new_root(output.green().clone());
+        assert_eq!(root.to_string(), interleaved);
+        assert_eq!(
+            root.children()
+                .filter(|node| {
+                    matches!(
+                        node.kind(),
+                        SyntaxKind::TypeDeclaration | SyntaxKind::BindingStatement
+                    )
+                })
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            vec![SyntaxKind::TypeDeclaration, SyntaxKind::BindingStatement],
+            "Type dispatch must leave the following root Binding candidate intact",
+        );
+    }
+
+    #[test]
+    fn type_declaration_stops_header_discovery_and_is_absent_from_operator_only_slots() {
+        let source: Arc<crate::SourceText> = Arc::from("type Pair = Int\nuse std::data\n");
+        let header = crate::scan_header(source);
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage().range(), &(0..0));
+        assert!(header.imports().is_empty());
+        assert!(header.operators().is_empty());
+
+        // Inline If bodies are real OperatorChain-only slots.  They may read
+        // `type Pair` as ordinary expression words, but must never construct a
+        // declaration or consume the exact-equals tail as one.
+        let inline = "if condition: type Pair = Int";
+        let mut source_input = SourceInput::new(inline);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        assert!(
+            i.run(from_fn(|i| parse_expression_with_operators(
+                &crate::operator::OperatorTable::empty(),
+                i,
+            )))
+            .is_some()
+        );
+        assert_eq!(i.input.remainder(), " = Int");
+
+        let mut source_input = SourceInput::new(inline);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let mut committed = Probe::new(i).commit(RecordingOutput {
+            calls: Rc::clone(&calls),
+        });
+        committed.start_node(SyntaxKind::Root);
+        assert!(
+            parse_direct_expression_with_operators(
+                &crate::operator::OperatorTable::empty(),
+                LeadingTrivia::None,
+                &mut committed,
+            )
+            .is_some()
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            " = Int",
+        );
+        committed.finish_node();
+        let _ = committed.into_output();
+        assert!(
+            !calls
+                .borrow()
+                .iter()
+                .any(|call| *call == OutputCall::Start(SyntaxKind::TypeDeclaration))
         );
     }
 
