@@ -275,7 +275,10 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let primary = parse_type_primary_in_context(allow_forall, &mut i)?;
+    let (leading_effect_row, primary) = parse_type_expression_start_in_context(
+        TypePrimaryContext::from_allow_forall(allow_forall),
+        &mut i,
+    )?;
     if matches!(&primary, TypePrimary::Forall(_))
         || matches!(&primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete,
@@ -284,7 +287,7 @@ where
     {
         let end = primary_range(&primary).end;
         return Some(TypeExpression {
-            leading_effect_row: None,
+            leading_effect_row,
             primary: Recovered::Complete(primary),
             postfix: Vec::new(),
             arrow: None,
@@ -372,7 +375,7 @@ where
         |tail| tail.range.end,
     );
     Some(TypeExpression {
-        leading_effect_row: None,
+        leading_effect_row,
         primary: Recovered::Complete(primary),
         postfix,
         arrow,
@@ -472,11 +475,49 @@ where
 {
     let start = committed.probe(|probe| probe.input().pos());
     committed.start_node(SyntaxKind::TypeExpression);
-    let primary = match commit_direct_type_primary(allow_forall, committed) {
-        Some(primary) => primary,
+    let context = TypePrimaryContext::from_allow_forall(allow_forall);
+    let leading_bracket_row_happy = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let leading_bracket_row = matches!(
+            recognize_type_expression_head(context, i),
+            Some(TypeExpressionHead::LeadingBracketRow(_))
+        );
+        i.rollback(checkpoint);
+        leading_bracket_row && leading_bracket_row_happy_path_pending(context, i)
+    });
+    let head = match committed.probe(|probe| recognize_type_expression_head(context, probe.input())) {
+        Some(head) => head,
         None => {
             committed.finish_node();
             return None;
+        }
+    };
+    let primary = match head {
+        TypeExpressionHead::Primary(head) => commit_direct_type_primary_head(head, committed),
+        TypeExpressionHead::LeadingBracketRow(open) => {
+            if !leading_bracket_row_happy {
+                committed.finish_node();
+                return None;
+            }
+            commit_direct_type_delimited(
+                TypeDelimitedOwner::BracketRow,
+                TypeDelimitedShape::Bracket,
+                SyntaxKind::BracketRow,
+                None,
+                open,
+                committed,
+            );
+            let trivia = consume_direct_type_chain_trivia(committed)
+                .expect("the leading bracket row happy-path probe accepted head trivia");
+            committed.emit_trivia(&trivia);
+            let TypeExpressionHead::Primary(head) = committed
+                .probe(|probe| recognize_type_expression_head(context.after_leading_bracket_row(), probe.input()))
+                .expect("the leading bracket row happy-path probe accepted a head")
+            else {
+                unreachable!("the leading bracket row head disables recursive bracket rows")
+            };
+            commit_direct_type_primary_head(head, committed)
         }
     };
     if primary != DirectTypePrimary::Ordinary {
@@ -735,6 +776,7 @@ enum DirectTypePrimary {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TypePrimaryContext {
     Leading,
+    LeadingAfterBracketRow,
     Applied,
 }
 
@@ -744,8 +786,21 @@ impl TypePrimaryContext {
     }
 
     fn allows_forall(self) -> bool {
+        self != Self::Applied
+    }
+
+    fn allows_leading_bracket_row(self) -> bool {
         self == Self::Leading
     }
+
+    fn after_leading_bracket_row(self) -> Self {
+        Self::LeadingAfterBracketRow
+    }
+}
+
+enum TypeExpressionHead<'source> {
+    LeadingBracketRow(Range<usize>),
+    Primary(TypePrimaryHead<'source>),
 }
 
 enum TypePrimaryHead<'source> {
@@ -1015,21 +1070,20 @@ where
     target
 }
 
-fn commit_direct_type_primary<'parse, 'source, 'local, E, O>(
-    allow_forall: bool,
+fn commit_direct_type_primary_head<'parse, 'source, 'local, E, O>(
+    head: TypePrimaryHead<'source>,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-) -> Option<DirectTypePrimary>
+) -> DirectTypePrimary
 where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    match committed.probe(|probe| recognize_type_primary_head(context, probe.input()))? {
+    match head {
         TypePrimaryHead::Forall(keyword) => {
             commit_direct_forall_type(keyword, committed);
-            Some(DirectTypePrimary::TerminalForall)
+            DirectTypePrimary::TerminalForall
         }
         TypePrimaryHead::EffectRow { apostrophe, open } => {
             commit_direct_type_delimited(
@@ -1040,23 +1094,23 @@ where
                 open,
                 committed,
             );
-            Some(DirectTypePrimary::Ordinary)
+            DirectTypePrimary::Ordinary
         }
         TypePrimaryHead::PolymorphicVariant { colon, open } => {
             let closed = polymorphic_variant::commit_direct(colon, open, committed);
-            Some(if closed {
+            if closed {
                 DirectTypePrimary::Ordinary
             } else {
                 DirectTypePrimary::TerminalIncompletePolymorphicVariant
-            })
+            }
         }
         TypePrimaryHead::Name(name) => {
             committed.token(type_name_kind(name), type_name_range(name));
-            Some(DirectTypePrimary::Ordinary)
+            DirectTypePrimary::Ordinary
         }
         TypePrimaryHead::Number(number) => {
             committed.token(SyntaxKind::Integer, number.range);
-            Some(DirectTypePrimary::Ordinary)
+            DirectTypePrimary::Ordinary
         }
         TypePrimaryHead::Parenthesized(open) => {
             commit_direct_type_delimited(
@@ -1067,11 +1121,11 @@ where
                 open,
                 committed,
             );
-            Some(DirectTypePrimary::Ordinary)
+            DirectTypePrimary::Ordinary
         }
         TypePrimaryHead::Record(open) => {
             commit_direct_named_record_type(open, committed);
-            Some(DirectTypePrimary::Ordinary)
+            DirectTypePrimary::Ordinary
         }
     }
 }
@@ -2258,6 +2312,88 @@ where
 
 
 
+fn parse_type_expression_start_in_context<'source, E>(
+    context: TypePrimaryContext,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<(Option<BracketRow<'source>>, TypePrimary<'source>)>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    match recognize_type_expression_head(context, i)? {
+        TypeExpressionHead::Primary(head) => Some((None, parse_type_primary_head(head, i))),
+        TypeExpressionHead::LeadingBracketRow(open) => {
+            // BR-H recovery is intentionally deferred.  Until it exists, a
+            // bare row becomes authoritative only when its mandatory head is
+            // fully known, so an unfinished row/head cannot consume bytes.
+            let row = parse_bracket_row(open, i);
+            if !matches!(&row.close, Recovered::Complete(_)) {
+                i.rollback(checkpoint);
+                return None;
+            }
+            if consume_type_chain_trivia(i).is_none() {
+                i.rollback(checkpoint);
+                return None;
+            }
+            let Some(TypeExpressionHead::Primary(head)) =
+                recognize_type_expression_head(context.after_leading_bracket_row(), i)
+            else {
+                i.rollback(checkpoint);
+                return None;
+            };
+            Some((Some(row), parse_type_primary_head(head, i)))
+        }
+    }
+}
+
+fn leading_bracket_row_happy_path_pending<E>(
+    context: TypePrimaryContext,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = parse_type_expression_start_in_context(context, i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn parse_type_primary_head<'source, E>(
+    head: TypePrimaryHead<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypePrimary<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    match head {
+        TypePrimaryHead::Forall(keyword) => TypePrimary::Forall(parse_forall_type(keyword, i)),
+        TypePrimaryHead::EffectRow { apostrophe, open } => {
+            TypePrimary::EffectRow(parse_effect_row_type(apostrophe, open, i))
+        }
+        TypePrimaryHead::PolymorphicVariant { colon, open } => {
+            TypePrimary::PolymorphicVariant(polymorphic_variant::parse(colon, open, i))
+        }
+        TypePrimaryHead::Name(name) => TypePrimary::Atom(match name {
+            TypeName::Identifier(word) => TypeAtom::Identifier(word),
+            TypeName::SigilIdentifier(word) => TypeAtom::SigilIdentifier(word),
+        }),
+        TypePrimaryHead::Number(number) => TypePrimary::Atom(TypeAtom::Number(number)),
+        TypePrimaryHead::Parenthesized(open) => {
+            TypePrimary::Parenthesized(parse_parenthesized_type_group(open, i))
+        }
+        TypePrimaryHead::Record(open) => TypePrimary::Record(parse_named_record_type(open, i)),
+    }
+}
+
+/// The polymorphic-variant payload driver owns its own fresh-primary phase.
+/// It deliberately keeps bare bracket rows out until BR-RP wires that phase.
 fn parse_type_primary_in_context<'source, E>(
     allow_forall: bool,
     i: &mut SynIn<'_, 'source, '_, E>,
@@ -2268,34 +2404,21 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    match recognize_type_primary_head(context, i)? {
-        TypePrimaryHead::Forall(keyword) => {
-            Some(TypePrimary::Forall(parse_forall_type(keyword, i)))
-        }
-        TypePrimaryHead::EffectRow { apostrophe, open } => {
-            Some(TypePrimary::EffectRow(parse_effect_row_type(apostrophe, open, i)))
-        }
-        TypePrimaryHead::PolymorphicVariant { colon, open } => {
-            Some(TypePrimary::PolymorphicVariant(polymorphic_variant::parse(colon, open, i)))
-        }
-        TypePrimaryHead::Name(name) => Some(TypePrimary::Atom(match name {
-            TypeName::Identifier(word) => TypeAtom::Identifier(word),
-            TypeName::SigilIdentifier(word) => TypeAtom::SigilIdentifier(word),
-        })),
-        TypePrimaryHead::Number(number) => Some(TypePrimary::Atom(TypeAtom::Number(number))),
-        TypePrimaryHead::Parenthesized(open) => {
-            Some(TypePrimary::Parenthesized(parse_parenthesized_type_group(open, i)))
-        }
-        TypePrimaryHead::Record(open) => {
-            Some(TypePrimary::Record(parse_named_record_type(open, i)))
-        }
+    let checkpoint = i.checkpoint();
+    let primary = match recognize_type_expression_head(context, i) {
+        Some(TypeExpressionHead::Primary(head)) => Some(parse_type_primary_head(head, i)),
+        Some(TypeExpressionHead::LeadingBracketRow(_)) | None => None,
+    };
+    if primary.is_none() {
+        i.rollback(checkpoint);
     }
+    primary
 }
 
-fn recognize_type_primary_head<'source, E>(
+fn recognize_type_expression_head<'source, E>(
     context: TypePrimaryContext,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> Option<TypePrimaryHead<'source>>
+) -> Option<TypeExpressionHead<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2315,30 +2438,35 @@ where
     }
     if context.allows_forall() {
         if let Some(keyword) = scan_forall_keyword(i) {
-            return Some(TypePrimaryHead::Forall(keyword));
+            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Forall(keyword)));
         }
     }
     if let Some((apostrophe, open)) = scan_effect_row_open(i) {
-        return Some(TypePrimaryHead::EffectRow { apostrophe, open });
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::EffectRow { apostrophe, open }));
     }
     if let Some((colon, open)) = scan_polymorphic_variant_open(i) {
-        return Some(TypePrimaryHead::PolymorphicVariant { colon, open });
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::PolymorphicVariant { colon, open }));
+    }
+    if context.allows_leading_bracket_row() {
+        if let Some(open) = scan_open_bracket(i) {
+            return Some(TypeExpressionHead::LeadingBracketRow(open));
+        }
     }
     if let Some(name) = scan_type_name(i) {
-        return Some(TypePrimaryHead::Name(name));
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::Name(name)));
     }
     if i.input.remainder().chars().next().is_some_and(|character| character.is_ascii_digit()) {
         if let Some(integer) = i.run(parse_integer_literal) {
-            return Some(TypePrimaryHead::Number(TypeNumberAtom {
+            return Some(TypeExpressionHead::Primary(TypePrimaryHead::Number(TypeNumberAtom {
                 text: integer.text(),
                 range: integer.range(),
-            }));
+            })));
         }
     }
     if let Some(open) = scan_open_parenthesis(i) {
-        return Some(TypePrimaryHead::Parenthesized(open));
+        return Some(TypeExpressionHead::Primary(TypePrimaryHead::Parenthesized(open)));
     }
-    scan_open_brace(i).map(TypePrimaryHead::Record)
+    scan_open_brace(i).map(|open| TypeExpressionHead::Primary(TypePrimaryHead::Record(open)))
 }
 
 fn parse_forall_type<'source, E>(keyword: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> ForallType<'source>
@@ -2687,6 +2815,29 @@ where
     let (items, _, close) = parse_type_delimited_items(TypeDelimitedOwner::EffectRow, TypeDelimitedShape::Bracket, i);
     let end = match &close { Recovered::Complete(close) => close.end, Recovered::Incomplete => i.pos() };
     EffectRowType { apostrophe: apostrophe.clone(), open, items, close, range: apostrophe.start..end }
+}
+
+fn parse_bracket_row<'source, E>(
+    open: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> BracketRow<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let (items, _, close) =
+        parse_type_delimited_items(TypeDelimitedOwner::BracketRow, TypeDelimitedShape::Bracket, i);
+    let end = match &close {
+        Recovered::Complete(close) => close.end,
+        Recovered::Incomplete => i.pos(),
+    };
+    BracketRow {
+        open: open.clone(),
+        items,
+        close,
+        range: open.start..end,
+    }
 }
 
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
@@ -3089,9 +3240,13 @@ fn type_primary_candidate_in_context<E>(allow_forall: bool, i: &mut SynIn<E>) ->
 where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
     let checkpoint = i.checkpoint();
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    let candidate = recognize_type_primary_head(context, i).is_some();
+    let head = recognize_type_expression_head(context, i);
     i.rollback(checkpoint);
-    candidate
+    match head {
+        Some(TypeExpressionHead::LeadingBracketRow(_)) => leading_bracket_row_happy_path_pending(context, i),
+        Some(TypeExpressionHead::Primary(_)) => true,
+        None => false,
+    }
 }
 
 fn direct_type_primary_candidate<E>(i: &mut SynIn<E>) -> bool
@@ -3111,6 +3266,16 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
         return None;
     };
     if punctuation.kind() == PunctuationKind::Open(Delimiter::Parenthesis) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
+}
+
+fn scan_open_bracket<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInput: Into<E::Error> {
+    let checkpoint = i.checkpoint();
+    let Some(punctuation) = i.run(scan_punctuation) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    if punctuation.kind() == PunctuationKind::Open(Delimiter::Bracket) { Some(punctuation.range()) } else { i.rollback(checkpoint); None }
 }
 
 fn scan_open_brace<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
@@ -6994,6 +7159,55 @@ mod tests {
             if error.site.role == GrammarRole::Type(TypeRole::ForallBody)
                 && error.kind == RecoveryKind::Error
                 && error.site.range == (8..9)), "{recoveries:#?}");
+    }
+
+    #[test]
+    fn leading_bracket_row_is_a_fresh_type_expression_prefix() {
+        for (source, expected_items) in [("[e] T", 1), ("[e, f] T", 2), ("[] T", 0)] {
+            let ast = parse(source);
+            assert!(matches!(
+                ast,
+                TypeExpression {
+                    leading_effect_row: Some(BracketRow {
+                        ref items,
+                        close: Recovered::Complete(_),
+                        ..
+                    }),
+                    primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(_))),
+                    ..
+                } if items.len() == expected_items
+            ));
+
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source);
+            assert_eq!(
+                direct
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                    .count(),
+                1,
+            );
+        }
+
+        let effect_row = parse("'[e] T");
+        assert!(effect_row.leading_effect_row.is_none());
+        assert!(matches!(
+            effect_row.complete_primary(),
+            TypePrimary::EffectRow(EffectRowType { .. })
+        ));
+        let direct_effect_row = parse_direct("'[e] T");
+        assert_eq!(direct_effect_row.to_string(), "'[e] T");
+        assert_eq!(
+            direct_effect_row
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                .count(),
+            0,
+        );
+
+        // BR-H recovery is a later slice: a row without its mandatory head
+        // remains unaccepted rather than consuming its incomplete prefix.
+        assert!(!primary_candidate("[e]"));
     }
 
     #[test]
