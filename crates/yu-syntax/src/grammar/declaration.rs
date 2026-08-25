@@ -8972,8 +8972,9 @@ mod tests {
         SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxNode,
         input::SourceInput,
         session::{
-            CommitOutput, CommittedRecoveryRecord, ExpectedSyntax, FullCstOutput, HeaderOutput,
-            ParseLocal, Probe, StopSet, TypeDeclarationRole,
+            AmbientOwnerScopeFrame, CommitOutput, CommittedRecoveryRecord, ExpectedSyntax,
+            FullCstOutput, HeaderOutput, IfExpressionCompanionId, ParseLocal, Probe, StopSet,
+            TypeDeclarationRole, if_continuation_owner,
         },
     };
 
@@ -13089,6 +13090,331 @@ mod tests {
                 .map(|record| (record.kind, record.site.role, record.site.range.clone()))
                 .collect::<Vec<_>>();
             assert_eq!(actual_records, expected_records, "{source:?}");
+        }
+    }
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum TypeDeclarationRhsBoundaryOwner {
+        None,
+        NestedIf,
+        StrictIndentedDedent,
+    }
+
+    fn install_type_declaration_rhs_boundary_owner(
+        local: &mut ParseLocal,
+        owner: TypeDeclarationRhsBoundaryOwner,
+    ) -> (Vec<AmbientOwnerScopeFrame>, Vec<IfExpressionCompanionId>) {
+        let mut scopes = Vec::new();
+        let mut companions = Vec::new();
+        match owner {
+            TypeDeclarationRhsBoundaryOwner::None => {}
+            TypeDeclarationRhsBoundaryOwner::NestedIf => {
+                scopes.push(local.push_root_statement_ambient_scope());
+                scopes.push(local.push_indented_statement_ambient_scope(2));
+                companions.push(local.push_if_expression_companion(0, &["elsif", "else"]));
+                companions.push(local.push_if_expression_companion(0, &["elsif", "else"]));
+            }
+            TypeDeclarationRhsBoundaryOwner::StrictIndentedDedent => {
+                scopes.push(local.push_root_statement_ambient_scope());
+                scopes.push(local.push_indented_statement_ambient_scope(2));
+            }
+        }
+        (scopes, companions)
+    }
+
+    fn restore_type_declaration_rhs_boundary_owner(
+        local: &mut ParseLocal,
+        mut scopes: Vec<AmbientOwnerScopeFrame>,
+        mut companions: Vec<IfExpressionCompanionId>,
+    ) {
+        while let Some(expected) = companions.pop() {
+            assert_eq!(
+                local.pop_if_expression_companion().map(|frame| frame.id()),
+                Some(expected),
+            );
+        }
+        while let Some(expected) = scopes.pop() {
+            assert_eq!(local.pop_ambient_owner_scope(), Some(expected));
+        }
+    }
+
+    fn parse_type_declaration_rhs_boundary_ast<'source>(
+        source: &'source str,
+        type_base: usize,
+        outer_stop: StopKind,
+        owner: TypeDeclarationRhsBoundaryOwner,
+    ) -> (Recovered<Box<TypeExpression<'source>>>, String) {
+        let outer_baseline = IndentationBaseline {
+            column: type_base,
+            kind: IndentationBaselineKind::Block,
+        };
+        let outer_stops = StopSet::default().with(outer_stop);
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_indentation_baseline(outer_baseline);
+        local.push_stop_set(outer_stops);
+        let (scopes, companions) = install_type_declaration_rhs_boundary_owner(&mut local, owner);
+        let innermost = companions.last().copied();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let rhs = {
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let intro = i
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized in the boundary harness");
+            let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
+            if let Some(innermost) = innermost && any_ambient_owner_claims(&mut i) {
+                assert_eq!(if_continuation_owner(&mut i), Some(innermost), "{source:?}");
+            }
+            parse_type_declaration_rhs(&header, intro.type_base, &mut i)
+        };
+        assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+        assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
+        restore_type_declaration_rhs_boundary_owner(&mut local, scopes, companions);
+        assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
+        assert_eq!(
+            local.pop_indentation_baseline(),
+            Some(outer_baseline),
+            "{source:?}"
+        );
+        (rhs, source_input.remainder().to_owned())
+    }
+
+    fn parse_type_declaration_rhs_boundary_direct<'source>(
+        source: &'source str,
+        type_base: usize,
+        outer_stop: StopKind,
+        owner: TypeDeclarationRhsBoundaryOwner,
+    ) -> (
+        Recovered<Range<usize>>,
+        Vec<(RecoveryKind, GrammarRole, Range<usize>)>,
+        String,
+    ) {
+        let outer_baseline = IndentationBaseline {
+            column: type_base,
+            kind: IndentationBaselineKind::Block,
+        };
+        let outer_stops = StopSet::default().with(outer_stop);
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_indentation_baseline(outer_baseline);
+        local.push_stop_set(outer_stops);
+        let (scopes, companions) = install_type_declaration_rhs_boundary_owner(&mut local, owner);
+        let innermost = companions.last().copied();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_type_statement_intro)
+            .expect("Type introduction is recognized in the direct boundary harness");
+        let mut committed = probe.commit(HeaderOutput::new());
+        let header = commit_type_declaration_header_slots(&intro, &mut committed);
+        if let Some(innermost) = innermost
+            && committed.probe(|probe| any_ambient_owner_claims(probe.input()))
+        {
+            assert_eq!(
+                committed.probe(|probe| if_continuation_owner(probe.input())),
+                Some(innermost),
+                "{source:?}"
+            );
+        }
+        let rhs = commit_type_declaration_rhs(&header, intro.type_base, &mut committed);
+        let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+        let output = committed.into_output();
+        let records = output
+            .committed_recoveries()
+            .iter()
+            .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+            .collect();
+
+        assert_eq!(local.indentation_baseline(), Some(outer_baseline), "{source:?}");
+        assert_eq!(local.stop_set(), Some(outer_stops), "{source:?}");
+        restore_type_declaration_rhs_boundary_owner(&mut local, scopes, companions);
+        assert_eq!(local.pop_stop_set(), Some(outer_stops), "{source:?}");
+        assert_eq!(
+            local.pop_indentation_baseline(),
+            Some(outer_baseline),
+            "{source:?}"
+        );
+        (rhs, records, remainder)
+    }
+
+    #[test]
+    fn type_declaration_rhs_boundary_parity_exhausts_outer_owner_gaps() {
+        let rhs_role = type_declaration_rhs_role();
+        let missing_rhs = |at| vec![(RecoveryKind::Missing, rhs_role, at..at)];
+
+        // These distinguish Type's two added stops from already-active outer
+        // stops; all must remain live again after the nested RHS scope exits.
+        for (source, outer_stop, remainder, at) in [
+            ("type Id =", StopKind::Semicolon, "", 9),
+            ("type Id =", StopKind::With, "", 9),
+            ("type Id =", StopKind::Arrow, "", 9),
+            ("type Id =", StopKind::RightBrace, "", 9),
+            ("type Id =; tail", StopKind::Semicolon, "; tail", 9),
+            ("type Id = with Tail", StopKind::With, "with Tail", 10),
+            ("type Id = -> Tail", StopKind::Arrow, "-> Tail", 10),
+            ("type Id = }", StopKind::RightBrace, "}", 10),
+        ] {
+            let (ast_rhs, ast_remainder) = parse_type_declaration_rhs_boundary_ast(
+                source,
+                0,
+                outer_stop,
+                TypeDeclarationRhsBoundaryOwner::None,
+            );
+            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
+                source,
+                0,
+                outer_stop,
+                TypeDeclarationRhsBoundaryOwner::None,
+            );
+            assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
+            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert_eq!(ast_remainder, remainder, "AST {source:?}");
+            assert_eq!(direct_remainder, remainder, "direct {source:?}");
+            assert_eq!(records, missing_rhs(at), "direct {source:?}");
+        }
+
+        // An inner If frame owns both companion spellings, while a visible
+        // indented statement owner independently claims its strict dedent.
+        for source in ["type Id = else: 0", "type Id = elsif: 0"] {
+            let (ast_rhs, ast_remainder) = parse_type_declaration_rhs_boundary_ast(
+                source,
+                0,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::NestedIf,
+            );
+            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
+                source,
+                0,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::NestedIf,
+            );
+            assert!(matches!(ast_rhs, Recovered::Incomplete), "AST {source:?}");
+            assert!(matches!(direct_rhs, Recovered::Incomplete), "direct {source:?}");
+            assert_eq!(ast_remainder, &source[9..], "AST {source:?}");
+            assert_eq!(direct_remainder, &source[9..], "direct {source:?}");
+            assert_eq!(records, missing_rhs(9), "direct {source:?}");
+        }
+        let source = "type Id =\nelse: 0";
+        let (ast_rhs, ast_remainder) = parse_type_declaration_rhs_boundary_ast(
+            source,
+            0,
+            StopKind::RightBracket,
+            TypeDeclarationRhsBoundaryOwner::StrictIndentedDedent,
+        );
+        let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
+            source,
+            0,
+            StopKind::RightBracket,
+            TypeDeclarationRhsBoundaryOwner::StrictIndentedDedent,
+        );
+        assert!(matches!(ast_rhs, Recovered::Incomplete));
+        assert!(matches!(direct_rhs, Recovered::Incomplete));
+        assert_eq!(ast_remainder, "\nelse: 0");
+        assert_eq!(direct_remainder, "\nelse: 0");
+        assert_eq!(records, missing_rhs(9));
+
+        // The RHS continuation baseline accepts only strictly deeper lines.
+        for (source, expected_complete, expected_remainder) in [
+            ("type Id =\n   Int", true, ""),
+            ("type Id =\n  Int", false, "\n  Int"),
+            ("type Id =\n Int", false, "\n Int"),
+            ("type Id =\n   F\n    Int", true, ""),
+            ("type Id =\n   Int ->\n    [e] T", true, ""),
+        ] {
+            let (ast_rhs, ast_remainder) = parse_type_declaration_rhs_boundary_ast(
+                source,
+                2,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::None,
+            );
+            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
+                source,
+                2,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::None,
+            );
+            assert_eq!(matches!(ast_rhs, Recovered::Complete(_)), expected_complete, "AST {source:?}");
+            assert_eq!(matches!(direct_rhs, Recovered::Complete(_)), expected_complete, "direct {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct {source:?}");
+            assert_eq!(
+                records,
+                if expected_complete { vec![] } else { missing_rhs(9) },
+                "direct {source:?}"
+            );
+        }
+
+        // Each nested TypeExpression owner must leave the same companion gap
+        // to Type's caller, including the malformed path-tail retry.
+        for source in [
+            "type Id = Int\nelse: 0",
+            "type Id = F(X\nelse: 0",
+            "type Id = (X\nelse: 0",
+            "type Id = '[X\nelse: 0",
+            "type Id = { value: Int\nelse: 0",
+            "type Id = :{A\nelse: 0",
+            "type Id = [e\nelse: 0",
+            "type Id = T [e]\nelse: 0",
+            "type Id = for 'a\nelse: 0",
+            "type Id = Int ->\nelse: 0",
+            "type Id = A::@\nelse: 0",
+        ] {
+            let (ast_rhs, ast_remainder) = parse_type_declaration_rhs_boundary_ast(
+                source,
+                0,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::NestedIf,
+            );
+            let (direct_rhs, records, direct_remainder) = parse_type_declaration_rhs_boundary_direct(
+                source,
+                0,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::NestedIf,
+            );
+            assert!(matches!(ast_rhs, Recovered::Complete(_)), "AST {source:?}");
+            assert!(matches!(direct_rhs, Recovered::Complete(_)), "direct {source:?}");
+            assert_eq!(ast_remainder, "\nelse: 0", "AST {source:?}");
+            assert_eq!(direct_remainder, "\nelse: 0", "direct {source:?}");
+            assert!(
+                !records.iter().any(|(_, role, _)| *role == rhs_role),
+                "nested recovery must retain its Type role: {source:?} => {records:#?}"
+            );
+            if source == "type Id = A::@\nelse: 0" {
+                assert!(
+                    records.iter().any(|(kind, role, range)| *kind == RecoveryKind::Error
+                        && *role == GrammarRole::Type(crate::session::TypeRole::PathSegment)
+                        && *range == (13..14)),
+                    "malformed tail must not consume the companion boundary: {records:#?}"
+                );
+            }
+        }
+
+        // Fresh ParseLocals on consecutive runs prove the setup has no static
+        // owner or stop-set residue between declarations.
+        for _ in 0..2 {
+            let (rhs, records, remainder) = parse_type_declaration_rhs_boundary_direct(
+                "type Id = else: 0",
+                0,
+                StopKind::RightBracket,
+                TypeDeclarationRhsBoundaryOwner::NestedIf,
+            );
+            assert!(matches!(rhs, Recovered::Incomplete));
+            assert_eq!(remainder, " else: 0");
+            assert_eq!(records, missing_rhs(9));
         }
     }
 
