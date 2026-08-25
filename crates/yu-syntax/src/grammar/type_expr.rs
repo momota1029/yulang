@@ -633,6 +633,14 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+            ExpectedSyntax::TypeExpression,
+        );
+        return None;
+    }
     let Some(trivia) = consume_direct_type_chain_trivia(committed) else {
         emit_type_missing(
             committed,
@@ -643,7 +651,18 @@ where
     };
     committed.emit_trivia(&trivia);
 
+    let mut head_recovered_by_error = false;
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            if !head_recovered_by_error {
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                    ExpectedSyntax::TypeExpression,
+                );
+            }
+            return None;
+        }
         if let Some(TypeExpressionHead::Primary(head)) = committed
             .probe(|probe| recognize_type_expression_head(context, probe.input()))
         {
@@ -665,6 +684,7 @@ where
             recovery.error_range,
             ExpectedSyntax::TypeExpression,
         );
+        head_recovered_by_error = true;
         match recovery.disposition {
             TypeInvalidRunDisposition::RetryCurrent => {}
             TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
@@ -684,6 +704,14 @@ fn commit_direct_bracket_arrow_tail<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::BracketRowArrow),
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+        );
+        return;
+    }
     let Some(trivia) = consume_direct_type_chain_trivia(committed) else {
         emit_type_missing(
             committed,
@@ -696,6 +724,16 @@ fn commit_direct_bracket_arrow_tail<'parse, 'source, 'local, E, O>(
 
     let mut arrow_recovered_by_error = false;
     loop {
+        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+            if !arrow_recovered_by_error {
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::BracketRowArrow),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
+                );
+            }
+            return;
+        }
         match committed.probe(|probe| bracket_arrow_recovery_candidate(probe.input())) {
             Some(BracketArrowRecoveryTarget::Arrow) => {
                 let arrow = committed
@@ -1284,6 +1322,15 @@ where
     let start = i.pos();
     let mut end = start;
     loop {
+        if end > start
+            && !bracket_row_local_punctuation_after_gap_pending(i)
+            && any_ambient_owner_claims(i)
+        {
+            return Some(BracketRowMalformedRecovery {
+                error_range: start..end,
+                outcome: BracketRowMalformedOutcome::TerminalBoundary,
+            });
+        }
         if end > start {
             let outcome = if direct_type_primary_candidate(i) {
                 Some(BracketRowMalformedOutcome::RetryPrimary)
@@ -1353,6 +1400,23 @@ where
         line.at_line_start = false;
         i.local.set_line(line);
     }
+}
+
+/// Matching close, local mismatch, and explicit separator retain their
+/// ASOB-P priority even when trivia separates them from a recovered item.
+fn bracket_row_local_punctuation_after_gap_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let _ = consume_trivia(i);
+    let pending = separator_pending(i)
+        || close_delimiter_pending(TypeDelimitedShape::Bracket, i)
+        || local_mismatched_close_pending(TypeDelimitedShape::Bracket, i);
+    i.rollback(checkpoint);
+    pending
 }
 
 fn commit_direct_type_primary_head<'parse, 'source, 'local, E, O>(
@@ -1759,6 +1823,7 @@ where
         i,
         newline_policy,
         true,
+        false,
         |i| forall_recovery_candidate(phase, i).is_some(),
         |i| forall_recovery_boundary_pending(phase, i),
     )?;
@@ -1851,13 +1916,14 @@ impl TypeDelimitedSpec {
     /// ASOB currently delegates bare inter-item gaps for these shared
     /// expression-like type lists to an enclosing statement owner.  Named
     /// records and polymorphic variants retain their separately-specified
-    /// recovery drivers, while bracket rows are wired in their own gate.
+    /// recovery drivers.
     fn defers_bare_gap_to_ambient_owner(self) -> bool {
         matches!(
             self.owner,
             TypeDelimitedOwner::Call
                 | TypeDelimitedOwner::ParenthesizedGroup
                 | TypeDelimitedOwner::EffectRow
+                | TypeDelimitedOwner::BracketRow
         )
     }
 
@@ -2185,7 +2251,10 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    spec.defers_bare_gap_to_ambient_owner() && any_ambient_owner_claims(i)
+    spec.defers_bare_gap_to_ambient_owner()
+        && (!spec.uses_bracket_row_alignment()
+            || !bracket_row_local_punctuation_after_gap_pending(i))
+        && any_ambient_owner_claims(i)
 }
 
 fn close_delimiter_pending<E>(shape: TypeDelimitedShape, i: &mut SynIn<E>) -> bool
@@ -2674,6 +2743,9 @@ where
         }
         TypeExpressionHead::LeadingBracketRow(open) => {
             let row = parse_bracket_row(open, i);
+            if any_ambient_owner_claims(i) {
+                return Some((Some(row), Recovered::Incomplete));
+            }
             if consume_type_chain_trivia(i).is_none() {
                 return Some((Some(row), Recovered::Incomplete));
             }
@@ -2733,6 +2805,7 @@ where
         i,
         newline_policy,
         false,
+        true,
         leading_effect_type_head_candidate,
         type_recovery_boundary_pending,
     )
@@ -3262,6 +3335,14 @@ where
 {
     let start = argument_effect.range.start;
     let row_end = argument_effect.range.end;
+    if any_ambient_owner_claims(i) {
+        return TypeArrowTail {
+            argument_effect: Some(argument_effect),
+            arrow: Recovered::Incomplete,
+            rhs: Recovered::Incomplete,
+            range: start..row_end,
+        };
+    }
     if consume_type_chain_trivia(i).is_none() {
         return TypeArrowTail {
             argument_effect: Some(argument_effect),
@@ -3272,6 +3353,14 @@ where
     }
 
     loop {
+        if any_ambient_owner_claims(i) {
+            return TypeArrowTail {
+                argument_effect: Some(argument_effect),
+                arrow: Recovered::Incomplete,
+                rhs: Recovered::Incomplete,
+                range: start..row_end,
+            };
+        }
         match bracket_arrow_recovery_candidate(i) {
             Some(BracketArrowRecoveryTarget::Arrow) => {
                 let arrow = scan_exact_arrow(i)
@@ -3449,6 +3538,7 @@ where
         i,
         newline_policy,
         false,
+        true,
         |i| matches!(
             bracket_arrow_recovery_candidate(i),
             Some(BracketArrowRecoveryTarget::Arrow | BracketArrowRecoveryTarget::Rhs)
@@ -4513,6 +4603,7 @@ where
         i,
         newline_policy,
         false,
+        false,
         direct_type_primary_candidate,
         type_recovery_boundary_pending,
     )
@@ -4531,6 +4622,7 @@ where
         i,
         newline_policy,
         false,
+        false,
         direct_type_primary_candidate,
         type_recovery_boundary_pending,
     )
@@ -4543,6 +4635,7 @@ fn scan_type_item_invalid_run_with_disposition<E, Candidate, Boundary>(
     i: &mut SynIn<E>,
     newline_policy: TypeMalformedNewlinePolicy,
     retry_after_same_line_trivia: bool,
+    defer_malformed_gap_to_ambient_owner: bool,
     mut candidate: Candidate,
     mut boundary: Boundary,
 ) -> Option<TypeInvalidRunRecovery>
@@ -4569,6 +4662,12 @@ where
         }
 
         if end > start {
+            if defer_malformed_gap_to_ambient_owner && any_ambient_owner_claims(i) {
+                return Some(TypeInvalidRunRecovery {
+                    error_range: start..end,
+                    disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+                });
+            }
             // One maximal trivia run must reach the full TMN-C classifier
             // before this caller's same-line boundary predicate. In
             // particular, horizontal trivia may prefix a physical newline.
@@ -4969,6 +5068,7 @@ where
         i,
         newline_policy,
         false,
+        false,
         type_name_pending,
         type_path_invalid_boundary_pending,
     )
@@ -4990,6 +5090,7 @@ where
         i,
         newline_policy,
         true,
+        false,
         record_field_head_candidate,
         record_invalid_boundary_pending,
     )
@@ -5003,6 +5104,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let recovery = scan_type_item_invalid_run_with_disposition(
         i,
         newline_policy,
+        false,
         false,
         |i| exact_colon_pending(i) || type_primary_candidate(i),
         record_colon_invalid_boundary_pending,
@@ -5876,6 +5978,158 @@ mod tests {
                 }).count(),
                 1,
                 "{owner:?}: {recoveries:#?}",
+            );
+        }
+    }
+
+    #[test]
+    fn bracket_row_judges_preserve_the_outer_else_boundary_end_to_end() {
+        let cases = [
+            (
+                "if condition:\n  struct S { field: [e\nelse: 0",
+                TypeRole::LeadingEffectTypeHead,
+                true,
+                None,
+            ),
+            (
+                "if condition:\n  struct S { field: [e] else: 0",
+                TypeRole::LeadingEffectTypeHead,
+                false,
+                None,
+            ),
+            (
+                "if condition:\n  struct S { field: T [e] else: 0",
+                TypeRole::BracketRowArrow,
+                false,
+                None,
+            ),
+            (
+                "if condition:\n  struct S { field: [@ else: 0",
+                TypeRole::LeadingEffectTypeHead,
+                true,
+                Some(TypeRole::BracketRowItem),
+            ),
+        ];
+        let table = crate::operator::OperatorTable::empty();
+
+        for (source, mandatory_role, missing_row_close, malformed_item_role) in cases {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            i.run(from_fn(|i| {
+                crate::grammar::expression::parse_expression_with_operators(&table, i)
+            }))
+            .expect("AST IfExpression containing BracketRow");
+            assert_eq!(i.input.remainder(), "", "AST {source:?}");
+
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            crate::grammar::expression::parse_direct_expression_with_operators(
+                &table,
+                crate::scan::operator::LeadingTrivia::None,
+                &mut committed,
+            )
+            .expect("direct IfExpression containing BracketRow");
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder()),
+                "",
+                "direct {source:?}",
+            );
+            committed.finish_node();
+            let output = committed.into_output();
+            let recoveries = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert_eq!(root.to_string(), source);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::ElseArm)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role == GrammarRole::Type(mandatory_role)
+                    })
+                    .count(),
+                1,
+                "{source:?}: {recoveries:#?}",
+            );
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role
+                                == GrammarRole::ClosingDelimiter {
+                                    owner: ConstructRole::BracketRow,
+                                    delimiter: Delimiter::Bracket,
+                                }
+                    })
+                    .count(),
+                usize::from(missing_row_close),
+                "{source:?}: {recoveries:#?}",
+            );
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                    })
+                    .count(),
+                0,
+                "ambient-vetoed bare gaps never open a missing row item: {source:?}",
+            );
+            if let Some(role) = malformed_item_role {
+                let at = source.find('@').expect("malformed row item");
+                assert!(recoveries.iter().any(|record| {
+                    record.kind == RecoveryKind::Error
+                        && record.site.role == GrammarRole::Type(role)
+                        && record.site.range == (at..at + 1)
+                }), "{source:?}: {recoveries:#?}");
+            }
+            assert_eq!(
+                recoveries
+                    .iter()
+                    .filter(|record| {
+                        record.kind == RecoveryKind::Missing
+                            && record.site.role
+                                == GrammarRole::ClosingDelimiter {
+                                    owner: ConstructRole::StructNamedFields,
+                                    delimiter: Delimiter::Brace,
+                                }
+                    })
+                    .count(),
+                1,
+                "{source:?}: {recoveries:#?}",
             );
         }
     }
