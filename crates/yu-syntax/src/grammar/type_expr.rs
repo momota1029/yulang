@@ -328,6 +328,21 @@ where
                 postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
                 continue;
             }
+            if bracket_arrow_happy_path_pending(&mut i) {
+                let open = scan_open_bracket(&mut i)
+                    .expect("the bracket-arrow happy-path probe accepted its opener");
+                let argument_effect = parse_bracket_row(open, &mut i);
+                let _ = consume_type_chain_trivia(&mut i)
+                    .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
+                let arrow_range = scan_exact_arrow(&mut i)
+                    .expect("the bracket-arrow happy-path probe accepted its arrow");
+                arrow = Some(parse_type_arrow_tail_with_argument_effect(
+                    Some(argument_effect),
+                    arrow_range,
+                    &mut i,
+                ));
+                break;
+            }
         }
 
         if i.local.type_ml_arg() && !trivia.is_empty() {
@@ -345,6 +360,21 @@ where
         if let Some(separator) = scan_exact_colon_colon(&mut i) {
             postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
             continue;
+        }
+        if bracket_arrow_happy_path_pending(&mut i) {
+            let open = scan_open_bracket(&mut i)
+                .expect("the bracket-arrow happy-path probe accepted its opener");
+            let argument_effect = parse_bracket_row(open, &mut i);
+            let _ = consume_type_chain_trivia(&mut i)
+                .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
+            let arrow_range = scan_exact_arrow(&mut i)
+                .expect("the bracket-arrow happy-path probe accepted its arrow");
+            arrow = Some(parse_type_arrow_tail_with_argument_effect(
+                Some(argument_effect),
+                arrow_range,
+                &mut i,
+            ));
+            break;
         }
         if named_record_next_field_candidate(&mut i, &trivia)
             || struct_named_fields_next_field_candidate(&mut i, &trivia)
@@ -589,36 +619,29 @@ where
                 committed.emit_trivia(&leading);
                 committed.start_node(SyntaxKind::TypeArrowTail);
                 committed.token(SyntaxKind::Arrow, arrow);
-                let rhs_trivia = consume_direct_type_chain_trivia(committed);
-                if let Some(rhs_trivia) = rhs_trivia.as_ref() {
-                    committed.emit_trivia(rhs_trivia);
-                }
-                if rhs_trivia.is_none() {
-                    emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
-                } else if commit_direct_type_expression(committed).is_none() {
-                    match direct_required_type_item_error_retry(
-                        committed,
-                        TypeRole::ArrowRhs,
-                        None,
-                    ) {
-                        Some(TypeInvalidRunDisposition::RetryCurrent) => {
-                            if commit_direct_type_expression(committed).is_none() {
-                                emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
-                            }
-                        }
-                        Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
-                            consume_direct_recovery_trivia(committed, &trivia);
-                            if commit_direct_type_expression(committed).is_none() {
-                                emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
-                            }
-                        }
-                        Some(TypeInvalidRunDisposition::BoundaryCurrent)
-                        | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
-                        None => {
-                            emit_type_missing(committed, GrammarRole::Type(TypeRole::ArrowRhs), ExpectedSyntax::TypeExpression);
-                        }
-                    }
-                }
+                commit_direct_type_arrow_rhs(committed);
+                committed.finish_node();
+                break;
+            }
+            DirectTypeTail::BracketArrow { leading, open } => {
+                committed.emit_trivia(&leading);
+                committed.start_node(SyntaxKind::TypeArrowTail);
+                commit_direct_type_delimited(
+                    TypeDelimitedOwner::BracketRow,
+                    TypeDelimitedShape::Bracket,
+                    SyntaxKind::BracketRow,
+                    None,
+                    open,
+                    committed,
+                );
+                let trivia = consume_direct_type_chain_trivia(committed)
+                    .expect("the bracket-arrow happy-path probe accepted its arrow trivia");
+                committed.emit_trivia(&trivia);
+                let arrow = committed
+                    .probe(|probe| scan_exact_arrow(probe.input()))
+                    .expect("the bracket-arrow happy-path probe accepted its arrow");
+                committed.token(SyntaxKind::Arrow, arrow);
+                commit_direct_type_arrow_rhs(committed);
                 committed.finish_node();
                 break;
             }
@@ -627,6 +650,58 @@ where
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
     Some(ParsedTypeExpression { range: start..end, marker: PhantomData })
+}
+
+fn commit_direct_type_arrow_rhs<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let rhs_trivia = consume_direct_type_chain_trivia(committed);
+    if let Some(rhs_trivia) = rhs_trivia.as_ref() {
+        committed.emit_trivia(rhs_trivia);
+    }
+    if rhs_trivia.is_none() {
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::ArrowRhs),
+            ExpectedSyntax::TypeExpression,
+        );
+    } else if commit_direct_type_expression(committed).is_none() {
+        match direct_required_type_item_error_retry(committed, TypeRole::ArrowRhs, None) {
+            Some(TypeInvalidRunDisposition::RetryCurrent) => {
+                if commit_direct_type_expression(committed).is_none() {
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::ArrowRhs),
+                        ExpectedSyntax::TypeExpression,
+                    );
+                }
+            }
+            Some(TypeInvalidRunDisposition::RetryAfterTrivia(trivia)) => {
+                consume_direct_recovery_trivia(committed, &trivia);
+                if commit_direct_type_expression(committed).is_none() {
+                    emit_type_missing(
+                        committed,
+                        GrammarRole::Type(TypeRole::ArrowRhs),
+                        ExpectedSyntax::TypeExpression,
+                    );
+                }
+            }
+            Some(TypeInvalidRunDisposition::BoundaryCurrent)
+            | Some(TypeInvalidRunDisposition::BoundaryAfterTrivia(_)) => {}
+            None => {
+                emit_type_missing(
+                    committed,
+                    GrammarRole::Type(TypeRole::ArrowRhs),
+                    ExpectedSyntax::TypeExpression,
+                );
+            }
+        }
+    }
 }
 
 /// Mandatory direct entry whose optional role override affects exactly the
@@ -714,6 +789,7 @@ enum DirectTypeTail {
     Call { leading: TriviaRun, open: Range<usize> },
     Apply { boundary: TriviaRun },
     Arrow { leading: TriviaRun, arrow: Range<usize> },
+    BracketArrow { leading: TriviaRun, open: Range<usize> },
 }
 
 fn recognize_direct_type_tail<'source, E>(i: &mut SynIn<'_, 'source, '_, E>) -> Option<DirectTypeTail>
@@ -742,6 +818,11 @@ where
         if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
         if let Some(open) = scan_open_parenthesis(i) { return Some(DirectTypeTail::Call { leading, open }); }
         if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
+        if bracket_arrow_happy_path_pending(i) {
+            let open = scan_open_bracket(i)
+                .expect("the bracket-arrow happy-path probe accepted its opener");
+            return Some(DirectTypeTail::BracketArrow { leading, open });
+        }
     }
     if i.local.type_ml_arg() && !leading.is_empty() {
         i.rollback(checkpoint);
@@ -753,6 +834,11 @@ where
     }
     if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
     if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
+    if bracket_arrow_happy_path_pending(i) {
+        let open = scan_open_bracket(i)
+            .expect("the bracket-arrow happy-path probe accepted its opener");
+        return Some(DirectTypeTail::BracketArrow { leading, open });
+    }
     if named_record_next_field_candidate(i, &leading)
         || struct_named_fields_next_field_candidate(i, &leading)
     {
@@ -2749,6 +2835,19 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    parse_type_arrow_tail_with_argument_effect(None, arrow, i)
+}
+
+fn parse_type_arrow_tail_with_argument_effect<'source, E>(
+    argument_effect: Option<BracketRow<'source>>,
+    arrow: Range<usize>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeArrowTail<'source>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
     let checkpoint = i.checkpoint();
     let trivia = consume_trivia(i);
     if !type_chain_trivia(i, &trivia) { i.rollback(checkpoint); }
@@ -2771,12 +2870,13 @@ where
             | None => Recovered::Incomplete,
         }
     };
+    let start = argument_effect.as_ref().map_or(arrow.start, |row| row.range.start);
     let end = match &rhs { Recovered::Complete(rhs) => rhs.range.end, Recovered::Incomplete => arrow.end };
     TypeArrowTail {
-        argument_effect: None,
+        argument_effect,
         arrow: Recovered::Complete(arrow.clone()),
         rhs,
-        range: arrow.start..end,
+        range: start..end,
     }
 }
 
@@ -2838,6 +2938,27 @@ where
         close,
         range: open.start..end,
     }
+}
+
+fn bracket_arrow_happy_path_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = (|| {
+        let open = scan_open_bracket(i)?;
+        let row = parse_bracket_row(open, i);
+        if !matches!(row.close, Recovered::Complete(_)) {
+            return None;
+        }
+        consume_type_chain_trivia(i)?;
+        scan_exact_arrow(i)
+    })()
+    .is_some();
+    i.rollback(checkpoint);
+    pending
 }
 
 fn parse_named_record_type<'source, E>(open: Range<usize>, i: &mut SynIn<'_, 'source, '_, E>) -> NamedRecordType<'source>
@@ -7208,6 +7329,91 @@ mod tests {
         // BR-H recovery is a later slice: a row without its mandatory head
         // remains unaccepted rather than consuming its incomplete prefix.
         assert!(!primary_candidate("[e]"));
+    }
+
+    #[test]
+    fn trailing_bracket_row_is_an_arrow_effect_and_not_a_type_apply_argument() {
+        for (source, expected_items) in [
+            ("T [e] -> U", 1),
+            ("T [e, f] -> U", 2),
+            ("T [] -> U", 0),
+        ] {
+            let ast = parse(source);
+            assert!(matches!(
+                ast.arrow,
+                Some(TypeArrowTail {
+                    argument_effect: Some(BracketRow {
+                        ref items,
+                        close: Recovered::Complete(_),
+                        ..
+                    }),
+                    arrow: Recovered::Complete(_),
+                    rhs: Recovered::Complete(_),
+                    range,
+                }) if items.len() == expected_items && range.start == 2
+            ));
+
+            let direct = parse_direct(source);
+            assert_eq!(direct.to_string(), source);
+            assert_eq!(
+                direct
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                    .count(),
+                1,
+            );
+            assert_eq!(
+                direct
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                    .count(),
+                1,
+            );
+        }
+
+        let ordinary_arrow = parse("T -> U");
+        assert!(matches!(
+            ordinary_arrow.arrow,
+            Some(TypeArrowTail {
+                argument_effect: None,
+                arrow: Recovered::Complete(_),
+                rhs: Recovered::Complete(_),
+                ..
+            })
+        ));
+        assert_eq!(parse_direct("T -> U").to_string(), "T -> U");
+
+        let ordinary_apply = parse("F Int Bool");
+        assert!(matches!(
+            ordinary_apply.postfix.as_slice(),
+            [TypePostfixTail::Apply(_), TypePostfixTail::Apply(_)]
+        ));
+        assert_eq!(parse_direct("F Int Bool").to_string(), "F Int Bool");
+
+        let parenthesized_effectful_argument = parse("F ([e] T)");
+        assert!(matches!(
+            parenthesized_effectful_argument.postfix.as_slice(),
+            [TypePostfixTail::Apply(argument)]
+                if matches!(
+                    argument.argument.complete_primary(),
+                    TypePrimary::Parenthesized(ParenthesizedTypeGroup { elements, .. })
+                        if matches!(
+                            elements.as_slice(),
+                            [Recovered::Complete(TypeExpression {
+                                leading_effect_row: Some(_),
+                                ..
+                            })]
+                        )
+                )
+        ));
+        assert_eq!(parse_direct("F ([e] T)").to_string(), "F ([e] T)");
+
+        let (remainder, no_arrow) = parse_prefix("F [e] T");
+        assert_eq!(remainder, " [e] T");
+        assert!(no_arrow.arrow.is_none());
+        let (direct_remainder, direct_recoveries) = parse_direct_prefix("F [e] T");
+        assert_eq!(direct_remainder, " [e] T");
+        assert!(direct_recoveries.is_empty());
     }
 
     #[test]
