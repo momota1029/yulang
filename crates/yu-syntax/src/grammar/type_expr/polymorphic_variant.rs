@@ -540,8 +540,13 @@ where
     let boundary = if trivia.is_empty() {
         owner_boundary_pending(origin, i).then_some(GapBoundary::Owner)
     } else if trivia_has_newline(&trivia) {
-        let caller_owns = active_stop_set(i).contains(StopKind::Newline);
-        if !caller_owns
+        // A local tag head owns a qualifying newline even if an enclosing
+        // type slot happens to carry `StopKind::Newline`.  A matching local
+        // close remains different: that whole newline gap belongs to the
+        // caller's close recovery and must stay intact.
+        let caller_owns_local_close = active_stop_set(i).contains(StopKind::Newline)
+            && scan_close_brace(i).is_some();
+        if !caller_owns_local_close
             && layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
                 == LayoutDelimitedBoundary::ImplicitNewline
         {
@@ -1278,6 +1283,76 @@ mod tests {
             boundary("", StopSet::default().with(StopKind::With)),
             Some(TypeBoundary::Eof),
         );
+    }
+
+    #[test]
+    fn qualifying_tag_newline_remains_local_under_an_active_newline_stop() {
+        let source = ":{\n  A Pair(Int)\n  B\n}";
+        let stops = StopSet::default().with(StopKind::Newline);
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let expression = i
+            .run(from_fn(parse_type_expression))
+            .expect("polymorphic variant AST prefix");
+        assert_eq!(i.input.remainder(), "\n}");
+        assert!(matches!(
+            expression.complete_primary(),
+            TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+                tags,
+                close: Recovered::Incomplete,
+                ..
+            }) if tags.len() == 2
+        ));
+        drop(i);
+        assert_eq!(local.pop_stop_set(), Some(stops));
+
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        local.push_stop_set(stops);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let mut committed = crate::session::Probe::new(i).commit(FullCstOutput::new(source));
+        committed.start_node(SyntaxKind::Root);
+        commit_direct_type_expression(&mut committed).expect("polymorphic variant direct prefix");
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            "\n}",
+        );
+        committed.finish_node();
+        let output = committed.into_output();
+        assert_eq!(
+            output
+                .committed_recoveries()
+                .iter()
+                .filter(|record| {
+                    record.kind == RecoveryKind::Missing
+                        && record.site.role
+                            == GrammarRole::ClosingDelimiter {
+                                owner: ConstructRole::PolymorphicVariantType,
+                                delimiter: Delimiter::Brace,
+                            }
+                })
+                .count(),
+            1,
+        );
+        drop(output);
+        assert_eq!(local.pop_stop_set(), Some(stops));
     }
 
     #[test]
