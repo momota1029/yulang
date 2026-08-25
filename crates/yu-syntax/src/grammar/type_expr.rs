@@ -275,20 +275,29 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let start = i.pos();
-    let (leading_effect_row, primary) = parse_type_expression_start_in_context(
+    let (leading_effect_row, recovered_primary) = parse_type_expression_start_in_context(
         TypePrimaryContext::from_allow_forall(allow_forall),
         &mut i,
     )?;
-    if matches!(&primary, TypePrimary::Forall(_))
-        || matches!(&primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
+    let Recovered::Complete(primary) = &recovered_primary else {
+        return Some(TypeExpression {
+            leading_effect_row,
+            primary: recovered_primary,
+            postfix: Vec::new(),
+            arrow: None,
+            range: start..i.pos(),
+        });
+    };
+    if matches!(primary, TypePrimary::Forall(_))
+        || matches!(primary, TypePrimary::PolymorphicVariant(PolymorphicVariantType {
             close: Recovered::Incomplete,
             ..
         }))
     {
-        let end = primary_range(&primary).end;
+        let end = primary_range(primary).end;
         return Some(TypeExpression {
             leading_effect_row,
-            primary: Recovered::Complete(primary),
+            primary: recovered_primary,
             postfix: Vec::new(),
             arrow: None,
             range: start..end,
@@ -401,12 +410,12 @@ where
         break;
     }
     let end = arrow.as_ref().map_or_else(
-        || postfix.last().map_or_else(|| primary_range(&primary).end, postfix_range_end),
+        || postfix.last().map_or_else(|| primary_range(primary).end, postfix_range_end),
         |tail| tail.range.end,
     );
     Some(TypeExpression {
         leading_effect_row,
-        primary: Recovered::Complete(primary),
+        primary: recovered_primary,
         postfix,
         arrow,
         range: start..end,
@@ -506,15 +515,9 @@ where
     let start = committed.probe(|probe| probe.input().pos());
     committed.start_node(SyntaxKind::TypeExpression);
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    let leading_bracket_row_happy = committed.probe(|probe| {
+    let leading_bracket_row_closed = committed.probe(|probe| {
         let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let leading_bracket_row = matches!(
-            recognize_type_expression_head(context, i),
-            Some(TypeExpressionHead::LeadingBracketRow(_))
-        );
-        i.rollback(checkpoint);
-        leading_bracket_row && leading_bracket_row_happy_path_pending(context, i)
+        leading_bracket_row_closed_pending(context, i)
     });
     let head = match committed.probe(|probe| recognize_type_expression_head(context, probe.input())) {
         Some(head) => head,
@@ -524,9 +527,9 @@ where
         }
     };
     let primary = match head {
-        TypeExpressionHead::Primary(head) => commit_direct_type_primary_head(head, committed),
+        TypeExpressionHead::Primary(head) => Some(commit_direct_type_primary_head(head, committed)),
         TypeExpressionHead::LeadingBracketRow(open) => {
-            if !leading_bracket_row_happy {
+            if !leading_bracket_row_closed {
                 committed.finish_node();
                 return None;
             }
@@ -538,17 +541,16 @@ where
                 open,
                 committed,
             );
-            let trivia = consume_direct_type_chain_trivia(committed)
-                .expect("the leading bracket row happy-path probe accepted head trivia");
-            committed.emit_trivia(&trivia);
-            let TypeExpressionHead::Primary(head) = committed
-                .probe(|probe| recognize_type_expression_head(context.after_leading_bracket_row(), probe.input()))
-                .expect("the leading bracket row happy-path probe accepted a head")
-            else {
-                unreachable!("the leading bracket row head disables recursive bracket rows")
-            };
-            commit_direct_type_primary_head(head, committed)
+            commit_direct_leading_effect_type_head(
+                context.after_leading_bracket_row(),
+                committed,
+            )
         }
+    };
+    let Some(primary) = primary else {
+        committed.finish_node();
+        let end = committed.probe(|probe| probe.input().pos());
+        return Some(ParsedTypeExpression { range: start..end, marker: PhantomData });
     };
     if primary != DirectTypePrimary::Ordinary {
         committed.finish_node();
@@ -650,6 +652,59 @@ where
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
     Some(ParsedTypeExpression { range: start..end, marker: PhantomData })
+}
+
+fn commit_direct_leading_effect_type_head<'parse, 'source, 'local, E, O>(
+    context: TypePrimaryContext,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> Option<DirectTypePrimary>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let Some(trivia) = consume_direct_type_chain_trivia(committed) else {
+        emit_type_missing(
+            committed,
+            GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+            ExpectedSyntax::TypeExpression,
+        );
+        return None;
+    };
+    committed.emit_trivia(&trivia);
+
+    loop {
+        if let Some(TypeExpressionHead::Primary(head)) = committed
+            .probe(|probe| recognize_type_expression_head(context, probe.input()))
+        {
+            return Some(commit_direct_type_primary_head(head, committed));
+        }
+        let Some(recovery) = committed
+            .probe(|probe| scan_leading_effect_type_head_invalid_run(probe.input()))
+        else {
+            emit_type_missing(
+                committed,
+                GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
+                ExpectedSyntax::TypeExpression,
+            );
+            return None;
+        };
+        emit_type_error(
+            committed,
+            TypeRole::LeadingEffectTypeHead,
+            recovery.error_range,
+            ExpectedSyntax::TypeExpression,
+        );
+        match recovery.disposition {
+            TypeInvalidRunDisposition::RetryCurrent => {}
+            TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                consume_direct_recovery_trivia(committed, &trivia);
+            }
+            TypeInvalidRunDisposition::BoundaryCurrent
+            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => return None,
+        }
+    }
 }
 
 fn commit_direct_type_arrow_rhs<'parse, 'source, 'local, E, O>(
@@ -2401,7 +2456,7 @@ where
 fn parse_type_expression_start_in_context<'source, E>(
     context: TypePrimaryContext,
     i: &mut SynIn<'_, 'source, '_, E>,
-) -> Option<(Option<BracketRow<'source>>, TypePrimary<'source>)>
+) -> Option<(Option<BracketRow<'source>>, Recovered<TypePrimary<'source>>)>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -2409,32 +2464,162 @@ where
 {
     let checkpoint = i.checkpoint();
     match recognize_type_expression_head(context, i)? {
-        TypeExpressionHead::Primary(head) => Some((None, parse_type_primary_head(head, i))),
+        TypeExpressionHead::Primary(head) => {
+            Some((None, Recovered::Complete(parse_type_primary_head(head, i))))
+        }
         TypeExpressionHead::LeadingBracketRow(open) => {
-            // BR-H recovery is intentionally deferred.  Until it exists, a
-            // bare row becomes authoritative only when its mandatory head is
-            // fully known, so an unfinished row/head cannot consume bytes.
             let row = parse_bracket_row(open, i);
             if !matches!(&row.close, Recovered::Complete(_)) {
                 i.rollback(checkpoint);
                 return None;
             }
             if consume_type_chain_trivia(i).is_none() {
-                i.rollback(checkpoint);
-                return None;
+                return Some((Some(row), Recovered::Incomplete));
             }
-            let Some(TypeExpressionHead::Primary(head)) =
-                recognize_type_expression_head(context.after_leading_bracket_row(), i)
-            else {
-                i.rollback(checkpoint);
-                return None;
-            };
-            Some((Some(row), parse_type_primary_head(head, i)))
+            let primary = parse_leading_effect_type_head_for_ast(
+                context.after_leading_bracket_row(),
+                i,
+            );
+            Some((Some(row), primary))
         }
     }
 }
 
-fn leading_bracket_row_happy_path_pending<E>(
+fn parse_leading_effect_type_head_for_ast<'source, E>(
+    context: TypePrimaryContext,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypePrimary<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    loop {
+        if let Some(TypeExpressionHead::Primary(head)) = recognize_type_expression_head(context, i) {
+            return Recovered::Complete(parse_type_primary_head(head, i));
+        }
+        let Some(recovery) = scan_leading_effect_type_head_invalid_run(i) else {
+            return Recovered::Incomplete;
+        };
+        match recovery.disposition {
+            TypeInvalidRunDisposition::RetryCurrent => {}
+            TypeInvalidRunDisposition::RetryAfterTrivia(trivia) => {
+                consume_recovery_trivia(i, &trivia);
+            }
+            TypeInvalidRunDisposition::BoundaryCurrent
+            | TypeInvalidRunDisposition::BoundaryAfterTrivia(_) => {
+                return Recovered::Incomplete;
+            }
+        }
+    }
+}
+
+fn scan_leading_effect_type_head_invalid_run<E>(
+    i: &mut SynIn<E>,
+) -> Option<TypeInvalidRunRecovery>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if let Some(recovery) = scan_disabled_leading_bracket_row(i) {
+        return Some(recovery);
+    }
+    let newline_policy = TypeMalformedNewlinePolicy::ContinuationQualified {
+        continuation_base: active_type_continuation_base(i),
+    };
+    scan_type_item_invalid_run_with_disposition(
+        i,
+        newline_policy,
+        false,
+        leading_effect_type_head_candidate,
+        type_recovery_boundary_pending,
+    )
+}
+
+/// BR-H disables another leading row as a recursive head.  A balanced row is
+/// one malformed unit; an unclosed row remains one unit through the boundary
+/// found by the ordinary bracket-row owner.
+fn scan_disabled_leading_bracket_row<E>(
+    i: &mut SynIn<E>,
+) -> Option<TypeInvalidRunRecovery>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(open) = scan_open_bracket(i) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    let start = open.start;
+    let row = parse_bracket_row(open, i);
+    if !matches!(row.close, Recovered::Complete(_)) {
+        return Some(TypeInvalidRunRecovery {
+            error_range: start..i.pos(),
+            disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+        });
+    }
+
+    let error_range = start..row.range.end;
+    if leading_effect_type_head_candidate(i) {
+        return Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition: TypeInvalidRunDisposition::RetryCurrent,
+        });
+    }
+    if type_recovery_boundary_pending(i) {
+        return Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+        });
+    }
+    let trivia_checkpoint = i.checkpoint();
+    let Some(trivia) = consume_type_chain_trivia(i) else {
+        i.rollback(trivia_checkpoint);
+        return Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition: TypeInvalidRunDisposition::BoundaryCurrent,
+        });
+    };
+    if !trivia.is_empty() && leading_effect_type_head_candidate(i) {
+        i.rollback(trivia_checkpoint);
+        return Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition: TypeInvalidRunDisposition::RetryAfterTrivia(trivia),
+        });
+    }
+    if !trivia.is_empty() && type_recovery_boundary_pending(i) {
+        i.rollback(trivia_checkpoint);
+        return Some(TypeInvalidRunRecovery {
+            error_range,
+            disposition: TypeInvalidRunDisposition::BoundaryAfterTrivia(trivia),
+        });
+    }
+    i.rollback(trivia_checkpoint);
+    Some(TypeInvalidRunRecovery {
+        error_range,
+        disposition: TypeInvalidRunDisposition::RetryCurrent,
+    })
+}
+
+fn leading_effect_type_head_candidate<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let candidate = matches!(
+        recognize_type_expression_head(TypePrimaryContext::LeadingAfterBracketRow, i),
+        Some(TypeExpressionHead::Primary(_))
+    );
+    i.rollback(checkpoint);
+    candidate
+}
+
+fn leading_bracket_row_closed_pending<E>(
     context: TypePrimaryContext,
     i: &mut SynIn<E>,
 ) -> bool
@@ -2444,7 +2629,16 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = parse_type_expression_start_in_context(context, i).is_some();
+    let pending = (|| {
+        let TypeExpressionHead::LeadingBracketRow(open) =
+            recognize_type_expression_head(context, i)?
+        else {
+            return None;
+        };
+        let row = parse_bracket_row(open, i);
+        matches!(row.close, Recovered::Complete(_)).then_some(())
+    })()
+    .is_some();
     i.rollback(checkpoint);
     pending
 }
@@ -3364,7 +3558,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let head = recognize_type_expression_head(context, i);
     i.rollback(checkpoint);
     match head {
-        Some(TypeExpressionHead::LeadingBracketRow(_)) => leading_bracket_row_happy_path_pending(context, i),
+        Some(TypeExpressionHead::LeadingBracketRow(_)) => leading_bracket_row_closed_pending(context, i),
         Some(TypeExpressionHead::Primary(_)) => true,
         None => false,
     }
@@ -7326,9 +7520,142 @@ mod tests {
             0,
         );
 
-        // BR-H recovery is a later slice: a row without its mandatory head
-        // remains unaccepted rather than consuming its incomplete prefix.
-        assert!(!primary_candidate("[e]"));
+        // Once its own close is known, BR-H makes the row authoritative even
+        // when the mandatory head must recover.
+        assert!(primary_candidate("[e]"));
+    }
+
+    #[test]
+    fn leading_bracket_row_mandatory_head_recovery_is_typed_and_non_cascading() {
+        let missing = parse("[e]");
+        assert!(matches!(
+            missing,
+            TypeExpression {
+                leading_effect_row: Some(BracketRow {
+                    close: Recovered::Complete(ref close),
+                    ..
+                }),
+                primary: Recovered::Incomplete,
+                ref postfix,
+                arrow: None,
+                ref range,
+            } if *close == (2..3) && postfix.is_empty() && *range == (0..3)
+        ));
+        let missing_recoveries = parse_direct_recovered("[e]");
+        assert!(matches!(missing_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (3..3)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::TypeExpression), "{missing_recoveries:#?}");
+        let (boundary_remainder, boundary_ast) =
+            parse_prefix_with_outer_stop("[e]\nT", StopKind::Newline);
+        assert_eq!(boundary_remainder, "\nT");
+        assert!(matches!(boundary_ast.primary, Recovered::Incomplete));
+        let (boundary_remainder, boundary_recoveries) =
+            parse_direct_prefix_with_outer_stop("[e]\nT", StopKind::Newline);
+        assert_eq!(boundary_remainder, "\nT");
+        assert!(matches!(boundary_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (3..3)), "{boundary_recoveries:#?}");
+
+        let nested = parse("[e][f]T");
+        assert!(matches!(
+            nested,
+            TypeExpression {
+                leading_effect_row: Some(_),
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
+                ref range,
+                ..
+            } if head.text() == "T" && head.range() == (6..7) && *range == (0..7)
+        ));
+        let nested_direct = parse_direct("[e][f]T");
+        assert_eq!(nested_direct.to_string(), "[e][f]T");
+        assert_eq!(
+            nested_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            nested_direct
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Error)
+                .count(),
+            1,
+        );
+        let nested_recoveries = parse_direct_recovered("[e][f]T");
+        assert!(matches!(nested_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..6)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::TypeExpression), "{nested_recoveries:#?}");
+
+        let nested_at_boundary = parse("[e][f]");
+        assert!(matches!(nested_at_boundary.primary, Recovered::Incomplete));
+        let nested_boundary_recoveries = parse_direct_recovered("[e][f]");
+        assert!(matches!(nested_boundary_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..6)), "{nested_boundary_recoveries:#?}");
+
+        let repeated = parse("[e][f][g]T");
+        assert!(matches!(repeated.primary,
+            Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head)))
+                if head.text() == "T" && head.range() == (9..10)));
+        let repeated_recoveries = parse_direct_recovered("[e][f][g]T");
+        assert!(matches!(repeated_recoveries.as_slice(), [first, second]
+            if first.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && first.kind == RecoveryKind::Error
+                && first.site.range == (3..6)
+                && second.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && second.kind == RecoveryKind::Error
+                && second.site.range == (6..9)), "{repeated_recoveries:#?}");
+
+        let malformed = parse("[e]@");
+        assert!(matches!(malformed, TypeExpression {
+            leading_effect_row: Some(_),
+            primary: Recovered::Incomplete,
+            ref range,
+            ..
+        } if *range == (0..4)));
+        let malformed_recoveries = parse_direct_recovered("[e]@");
+        assert!(matches!(malformed_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)
+                && record.expectations[record.primary_expectation].expected
+                    == ExpectedSyntax::TypeExpression), "{malformed_recoveries:#?}");
+
+        let retried = parse("[e]@T");
+        assert!(matches!(retried.primary,
+            Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head)))
+                if head.text() == "T" && head.range() == (4..5)));
+        let retried_recoveries = parse_direct_recovered("[e]@T");
+        assert!(matches!(retried_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::LeadingEffectTypeHead)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)), "{retried_recoveries:#?}");
+    }
+
+    #[test]
+    fn leading_bracket_row_preserves_terminal_recovered_head_dispositions() {
+        let forall = parse("[e] for 'a: T");
+        assert!(forall.leading_effect_row.is_some());
+        assert!(matches!(forall.complete_primary(), TypePrimary::Forall(ForallType { .. })));
+        assert_eq!(parse_direct("[e] for 'a: T").to_string(), "[e] for 'a: T");
+
+        let variant_source = "[e] :{A Int\n B}";
+        let (variant_remainder, variant) = parse_prefix(variant_source);
+        assert_eq!(variant_remainder, "\n B}");
+        assert!(variant.leading_effect_row.is_some());
+        assert!(matches!(variant.complete_primary(), TypePrimary::PolymorphicVariant(
+            PolymorphicVariantType { close: Recovered::Incomplete, .. }
+        )));
+        assert_eq!(parse_direct_prefix(variant_source).0, "\n B}");
     }
 
     #[test]
