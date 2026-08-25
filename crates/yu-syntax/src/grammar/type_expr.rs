@@ -8149,15 +8149,112 @@ mod tests {
 
         let ordinary_arrow = parse("T -> U");
         assert!(matches!(
-            ordinary_arrow.arrow,
-            Some(TypeArrowTail {
-                argument_effect: None,
-                arrow: Recovered::Complete(_),
-                rhs: Recovered::Complete(_),
-                ..
-            })
+            ordinary_arrow,
+            TypeExpression {
+                leading_effect_row: None,
+                primary: Recovered::Complete(TypePrimary::Atom(TypeAtom::Identifier(ref head))),
+                ref postfix,
+                arrow: Some(TypeArrowTail {
+                    argument_effect: None,
+                    arrow: Recovered::Complete(ref arrow),
+                    rhs: Recovered::Complete(ref rhs),
+                    ref range,
+                }),
+                range: ref expression_range,
+            } if head.text() == "T"
+                && head.range() == (0..1)
+                && postfix.is_empty()
+                && *arrow == (2..4)
+                && rhs.range == (5..6)
+                && *range == (2..6)
+                && *expression_range == (0..6)
         ));
-        assert_eq!(parse_direct("T -> U").to_string(), "T -> U");
+        assert!(parse_direct_recovered("T -> U").is_empty());
+        let ordinary_direct = parse_direct("T -> U");
+        assert_eq!(ordinary_direct.to_string(), "T -> U");
+        let ordinary_expression = ordinary_direct
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("ordinary TypeExpression node");
+        assert_eq!(
+            ordinary_expression
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::Whitespace,
+                SyntaxKind::TypeArrowTail,
+            ],
+        );
+        let ordinary_tail = ordinary_expression
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+            .expect("ordinary TypeArrowTail node");
+        assert_eq!(
+            ordinary_tail
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Arrow,
+                SyntaxKind::Whitespace,
+                SyntaxKind::TypeExpression,
+            ],
+        );
+
+        let row_direct = parse_direct("T [e] -> U");
+        let row_expression = row_direct
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeExpression)
+            .expect("row-present TypeExpression node");
+        assert_eq!(
+            row_expression
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::Identifier,
+                SyntaxKind::Whitespace,
+                SyntaxKind::TypeArrowTail,
+            ],
+        );
+        let row_tail = row_expression
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+            .expect("row-present TypeArrowTail node");
+        assert_eq!(
+            row_tail
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::BracketRow,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Arrow,
+                SyntaxKind::Whitespace,
+                SyntaxKind::TypeExpression,
+            ],
+        );
+
+        let implicit_row = parse_direct("T [A\nB] -> U")
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracketRow)
+            .expect("implicit-newline BracketRow node");
+        assert_eq!(implicit_row.to_string(), "[A\nB]");
+        assert_eq!(
+            implicit_row
+                .children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::LBracket,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Newline,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::RBracket,
+            ],
+        );
 
         let ordinary_apply = parse("F Int Bool");
         assert!(matches!(
