@@ -14251,6 +14251,108 @@ mod tests {
     }
 
     #[test]
+    fn type_declaration_scope_gate_keeps_deferred_yulang2_family_surfaces_outside_the_grammar() {
+        // TD scope boundary: this addendum owns only `type Name params = TypeExpression`.
+        // These public-entrypoint fixtures deliberately pin the deferred Yulang2 family
+        // until a signed salvage/semantic addendum assigns each form an owner.
+        let parse_public = |source: &str| {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            SyntaxNode::new_root(parsed.green().clone())
+        };
+        let type_declaration = |root: &SyntaxNode| {
+            root.descendants()
+                .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .expect("the exact `type` prefix still owns its equality-form header")
+        };
+        let has = |root: &SyntaxNode, kind| root.descendants().any(|node| node.kind() == kind);
+        let ranges = |root: &SyntaxNode, kind| {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>()
+        };
+
+        // Bare nominal declarations stay an incomplete equality declaration, not a nominal node.
+        let source = "type Point";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
+        assert_eq!(ranges(&root, SyntaxKind::Missing), vec![source.len()..source.len()]);
+        assert!(!has(&root, SyntaxKind::TypeExpression));
+
+        // `impl` remains a deferred role-like tail.  TD-R's ordinary RHS retry may consume
+        // its word-shaped prefix, but no `impl` declaration owner is synthesized.
+        let source = "type Box 't impl Pick Int:";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..25);
+        assert_eq!(ranges(&root, SyntaxKind::TypeExpression), vec![12..25, 17..21, 22..25]);
+        assert_eq!(ranges(&root, SyntaxKind::Error), vec![25..26]);
+        assert!(!has(&root, SyntaxKind::BindingStatement));
+
+        // `with:` owns neither a companion body nor `struct self` here: TD-T installs the
+        // existing With stop so the entire deferred tail remains outside TypeDeclaration.
+        let source = "type box 'e 'a with:\n  struct self:";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..15);
+        assert_eq!(ranges(&root, SyntaxKind::Missing), vec![15..15, 15..15]);
+        assert_eq!(ranges(&root, SyntaxKind::Error), vec![15..source.len()]);
+        assert!(!has(&root, SyntaxKind::StructDeclaration));
+
+        // Colon bodies are not type-declaration bodies.  The colon is introducer recovery,
+        // while the indented binding remains trailing root recovery rather than a child body.
+        let source = "type Point:\n  my value = 1";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..11);
+        assert_eq!(ranges(&root, SyntaxKind::Error), vec![10..11, 14..source.len()]);
+        assert!(!has(&root, SyntaxKind::BindingStatement));
+
+        // Brace bodies intentionally retain full-TypeExpression precedence: this is the
+        // existing NamedRecordType recovery surface, never a declaration role body.
+        let source = "type Point { my value = 1 }";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..22);
+        assert!(has(&root, SyntaxKind::NamedRecordType));
+        assert_eq!(ranges(&root, SyntaxKind::Error), vec![22..source.len()]);
+        assert!(!has(&root, SyntaxKind::BindingStatement));
+
+        // TD-T deliberately adds no global `derives` stop.  Until derives has its own owner,
+        // those words remain ordinary full-RHS TypeApply input, not a derives clause.
+        let source = "type point = int derives Eq";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
+        assert_eq!(ranges(&root, SyntaxKind::TypeApplyArgument), vec![16..24, 24..27]);
+        assert!(ranges(&root, SyntaxKind::Missing).is_empty());
+        assert!(ranges(&root, SyntaxKind::Error).is_empty());
+
+        // Associated-type assignment has no `impl` statement owner yet, so its nested `type`
+        // spelling cannot reach TypeDeclaration dispatch independently.
+        let source = "impl Pick Int:\n  type Item = Int";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert!(!has(&root, SyntaxKind::TypeDeclaration));
+        assert_eq!(ranges(&root, SyntaxKind::Error), vec![0..source.len()]);
+
+        // Doc attachment stays outside the declaration node, and equality syntax remains the
+        // neutral CST `TypeDeclaration`: no alias/nominal/HIR meaning is introduced here.
+        let source = "// doc\ntype Alias = Int";
+        let root = parse_public(source);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(syntax_range(type_declaration(&root).text_range()), 7..source.len());
+        assert_eq!(ranges(&root, SyntaxKind::TypeExpression), vec![20..source.len()]);
+    }
+
+    #[test]
     fn struct_intro_commits_exact_keywords_before_binding_and_expression_fallback() {
         let table = crate::operator::OperatorTable::empty();
         let recognizes_struct = |source: &str| {
