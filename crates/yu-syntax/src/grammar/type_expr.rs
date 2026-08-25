@@ -337,9 +337,9 @@ where
                 postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
                 continue;
             }
-            if bracket_arrow_closed_pending(&mut i) {
+            if bracket_arrow_pending(&mut i) {
                 let open = scan_open_bracket(&mut i)
-                    .expect("the closed bracket-arrow probe accepted its opener");
+                    .expect("the bracket-arrow probe accepted its opener");
                 let argument_effect = parse_bracket_row(open, &mut i);
                 arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
                 break;
@@ -362,9 +362,9 @@ where
             postfix.push(TypePostfixTail::Path(parse_type_path_tail(separator, &mut i)));
             continue;
         }
-        if bracket_arrow_closed_pending(&mut i) {
+        if bracket_arrow_pending(&mut i) {
             let open = scan_open_bracket(&mut i)
-                .expect("the closed bracket-arrow probe accepted its opener");
+                .expect("the bracket-arrow probe accepted its opener");
             let argument_effect = parse_bracket_row(open, &mut i);
             arrow = Some(parse_bracket_arrow_tail(argument_effect, &mut i));
             break;
@@ -499,10 +499,6 @@ where
     let start = committed.probe(|probe| probe.input().pos());
     committed.start_node(SyntaxKind::TypeExpression);
     let context = TypePrimaryContext::from_allow_forall(allow_forall);
-    let leading_bracket_row_closed = committed.probe(|probe| {
-        let i = probe.input();
-        leading_bracket_row_closed_pending(context, i)
-    });
     let head = match committed.probe(|probe| recognize_type_expression_head(context, probe.input())) {
         Some(head) => head,
         None => {
@@ -513,10 +509,6 @@ where
     let primary = match head {
         TypeExpressionHead::Primary(head) => Some(commit_direct_type_primary_head(head, committed)),
         TypeExpressionHead::LeadingBracketRow(open) => {
-            if !leading_bracket_row_closed {
-                committed.finish_node();
-                return None;
-            }
             commit_direct_type_delimited(
                 TypeDelimitedOwner::BracketRow,
                 TypeDelimitedShape::Bracket,
@@ -924,9 +916,9 @@ where
         if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
         if let Some(open) = scan_open_parenthesis(i) { return Some(DirectTypeTail::Call { leading, open }); }
         if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
-        if bracket_arrow_closed_pending(i) {
+        if bracket_arrow_pending(i) {
             let open = scan_open_bracket(i)
-                .expect("the closed bracket-arrow probe accepted its opener");
+                .expect("the bracket-arrow probe accepted its opener");
             return Some(DirectTypeTail::BracketArrow { leading, open });
         }
     }
@@ -940,9 +932,9 @@ where
     }
     if let Some(arrow) = scan_exact_arrow(i) { return Some(DirectTypeTail::Arrow { leading, arrow }); }
     if let Some(separator) = scan_exact_colon_colon(i) { return Some(DirectTypeTail::Path { leading, separator }); }
-    if bracket_arrow_closed_pending(i) {
+    if bracket_arrow_pending(i) {
         let open = scan_open_bracket(i)
-            .expect("the closed bracket-arrow probe accepted its opener");
+            .expect("the bracket-arrow probe accepted its opener");
         return Some(DirectTypeTail::BracketArrow { leading, open });
     }
     if named_record_next_field_candidate(i, &leading)
@@ -1260,6 +1252,107 @@ where
     };
     i.rollback(checkpoint);
     target
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BracketRowMalformedOutcome {
+    RetryPrimary,
+    RetrySeparator,
+    RetryImplicitNewline,
+    MatchingClose,
+    LocalMismatchedClose,
+    TerminalBoundary,
+}
+
+struct BracketRowMalformedRecovery {
+    error_range: Range<usize>,
+    outcome: BracketRowMalformedOutcome,
+}
+
+/// BR-RP1 owns one maximal malformed item run and leaves its retry point
+/// untouched.  In particular, qualifying newlines remain list boundaries,
+/// while deeper continuation trivia stays inside the malformed Error range.
+fn scan_bracket_row_item_invalid_run<E>(
+    layout: LayoutDelimitedFrame,
+    i: &mut SynIn<E>,
+) -> Option<BracketRowMalformedRecovery>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    let mut end = start;
+    loop {
+        if end > start {
+            let outcome = if direct_type_primary_candidate(i) {
+                Some(BracketRowMalformedOutcome::RetryPrimary)
+            } else if separator_pending(i) {
+                Some(BracketRowMalformedOutcome::RetrySeparator)
+            } else if close_delimiter_pending(TypeDelimitedShape::Bracket, i) {
+                Some(BracketRowMalformedOutcome::MatchingClose)
+            } else if local_mismatched_close_pending(TypeDelimitedShape::Bracket, i) {
+                Some(BracketRowMalformedOutcome::LocalMismatchedClose)
+            } else if type_recovery_boundary_pending(i) {
+                Some(BracketRowMalformedOutcome::TerminalBoundary)
+            } else {
+                None
+            };
+            if let Some(outcome) = outcome {
+                return Some(BracketRowMalformedRecovery {
+                    error_range: start..end,
+                    outcome,
+                });
+            }
+        } else if direct_type_primary_candidate(i)
+            || separator_pending(i)
+            || close_delimiter_pending(TypeDelimitedShape::Bracket, i)
+            || local_mismatched_close_pending(TypeDelimitedShape::Bracket, i)
+            || type_recovery_boundary_pending(i)
+        {
+            return None;
+        }
+
+        let trivia_checkpoint = i.checkpoint();
+        let trivia = consume_trivia(i);
+        if !trivia.is_empty() {
+            if trivia_has_newline(&trivia) && active_stop_set(i).contains(StopKind::Newline) {
+                i.rollback(trivia_checkpoint);
+                if end > start {
+                    mark_type_malformed_caller_boundary(i);
+                    return Some(BracketRowMalformedRecovery {
+                        error_range: start..end,
+                        outcome: BracketRowMalformedOutcome::TerminalBoundary,
+                    });
+                }
+                return None;
+            }
+            if layout.boundary_after_trivia(&trivia, i.local.line().line_indent)
+                == LayoutDelimitedBoundary::ImplicitNewline
+            {
+                i.rollback(trivia_checkpoint);
+                return (end > start).then_some(BracketRowMalformedRecovery {
+                    error_range: start..end,
+                    outcome: BracketRowMalformedOutcome::RetryImplicitNewline,
+                });
+            }
+            end = i.pos();
+            continue;
+        }
+        i.rollback(trivia_checkpoint);
+
+        let Some(_) = i.input.remainder().chars().next() else {
+            return (end > start).then_some(BracketRowMalformedRecovery {
+                error_range: start..end,
+                outcome: BracketRowMalformedOutcome::TerminalBoundary,
+            });
+        };
+        i.input.next()?;
+        end = i.pos();
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
 }
 
 fn commit_direct_type_primary_head<'parse, 'source, 'local, E, O>(
@@ -1768,6 +1861,10 @@ impl TypeDelimitedSpec {
         )
     }
 
+    fn uses_bracket_row_alignment(self) -> bool {
+        self.owner == TypeDelimitedOwner::BracketRow
+    }
+
     fn item_role(self) -> TypeRole {
         match self.owner {
             TypeDelimitedOwner::Call => TypeRole::CallArgument,
@@ -1867,7 +1964,13 @@ where
     context.with_input(|i| push_layout(layout, i));
 
     loop {
-        if context.with_input(|i| type_delimited_close_or_mismatch_pending(spec.shape, i)) {
+        if context.with_input(|i| close_delimiter_pending(spec.shape, i)) {
+            break;
+        }
+        if context.with_input(|i| local_mismatched_close_pending(spec.shape, i)) {
+            if spec.uses_bracket_row_alignment() {
+                context.emit_incomplete_item(spec.item_role());
+            }
             break;
         }
         if context.with_input(separator_pending) {
@@ -1880,6 +1983,46 @@ where
             continue;
         }
         if !context.parse_item() {
+            if spec.uses_bracket_row_alignment() {
+                let Some(recovery) = context
+                    .with_input(|i| scan_bracket_row_item_invalid_run(layout, i))
+                else {
+                    context.emit_incomplete_item(spec.item_role());
+                    break;
+                };
+                context.emit_item_error(spec.item_role(), recovery.error_range);
+                match recovery.outcome {
+                    BracketRowMalformedOutcome::RetryPrimary => continue,
+                    BracketRowMalformedOutcome::RetrySeparator => {
+                        context.emit_malformed_item();
+                        let separator = context.with_input(scan_separator)
+                            .expect("BR-RP1 accepted an explicit separator");
+                        context.emit_separator(separator);
+                        let trailing = context.with_input(consume_trivia);
+                        context.emit_trivia(&trailing);
+                        continue;
+                    }
+                    BracketRowMalformedOutcome::RetryImplicitNewline => {
+                        context.emit_malformed_item();
+                        let trivia = context.with_input(consume_trivia);
+                        debug_assert_eq!(
+                            context.with_input(|i| layout.boundary_after_trivia(
+                                &trivia,
+                                i.local.line().line_indent,
+                            )),
+                            LayoutDelimitedBoundary::ImplicitNewline,
+                        );
+                        context.emit_trivia(&trivia);
+                        continue;
+                    }
+                    BracketRowMalformedOutcome::MatchingClose
+                    | BracketRowMalformedOutcome::LocalMismatchedClose => break,
+                    BracketRowMalformedOutcome::TerminalBoundary => {
+                        context.emit_malformed_item();
+                        break;
+                    }
+                }
+            }
             let recovered = context.with_input(scan_type_delimited_item_invalid_run);
             let Some(TypeInvalidRunRecovery {
                 error_range,
@@ -2066,6 +2209,18 @@ where
     let checkpoint = i.checkpoint();
     let pending = scan_close_delimiter(shape, i).is_some()
         || scan_mismatched_close_for(shape.delimiter(), i).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn local_mismatched_close_pending<E>(shape: TypeDelimitedShape, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = scan_mismatched_close_for(shape.delimiter(), i).is_some();
     i.rollback(checkpoint);
     pending
 }
@@ -2513,17 +2668,12 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let checkpoint = i.checkpoint();
     match recognize_type_expression_head(context, i)? {
         TypeExpressionHead::Primary(head) => {
             Some((None, Recovered::Complete(parse_type_primary_head(head, i))))
         }
         TypeExpressionHead::LeadingBracketRow(open) => {
             let row = parse_bracket_row(open, i);
-            if !matches!(&row.close, Recovered::Complete(_)) {
-                i.rollback(checkpoint);
-                return None;
-            }
             if consume_type_chain_trivia(i).is_none() {
                 return Some((Some(row), Recovered::Incomplete));
             }
@@ -2668,30 +2818,6 @@ where
     );
     i.rollback(checkpoint);
     candidate
-}
-
-fn leading_bracket_row_closed_pending<E>(
-    context: TypePrimaryContext,
-    i: &mut SynIn<E>,
-) -> bool
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let checkpoint = i.checkpoint();
-    let pending = (|| {
-        let TypeExpressionHead::LeadingBracketRow(open) =
-            recognize_type_expression_head(context, i)?
-        else {
-            return None;
-        };
-        let row = parse_bracket_row(open, i);
-        matches!(row.close, Recovered::Complete(_)).then_some(())
-    })()
-    .is_some();
-    i.rollback(checkpoint);
-    pending
 }
 
 fn parse_type_primary_head<'source, E>(
@@ -3262,22 +3388,14 @@ where
     }
 }
 
-fn bracket_arrow_closed_pending<E>(i: &mut SynIn<E>) -> bool
+fn bracket_arrow_pending<E>(i: &mut SynIn<E>) -> bool
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let checkpoint = i.checkpoint();
-    let pending = (|| {
-        let open = scan_open_bracket(i)?;
-        let row = parse_bracket_row(open, i);
-        if !matches!(row.close, Recovered::Complete(_)) {
-            return None;
-        }
-        Some(())
-    })()
-    .is_some();
+    let pending = scan_open_bracket(i).is_some();
     i.rollback(checkpoint);
     pending
 }
@@ -3746,7 +3864,7 @@ where E: ErrorSink<usize>, Unexpected<char>: Into<E::Error>, UnexpectedEndOfInpu
     let head = recognize_type_expression_head(context, i);
     i.rollback(checkpoint);
     match head {
-        Some(TypeExpressionHead::LeadingBracketRow(_)) => leading_bracket_row_closed_pending(context, i),
+        Some(TypeExpressionHead::LeadingBracketRow(_)) => true,
         Some(TypeExpressionHead::Primary(_)) => true,
         None => false,
     }
@@ -8039,6 +8157,343 @@ mod tests {
             "{malformed_boundary_recoveries:#?}");
         assert!(!malformed_boundary_recoveries.iter().any(|record|
             record.site.role == GrammarRole::Type(TypeRole::ArrowRhs)));
+    }
+
+    #[test]
+    fn bracket_row_rp1_classifies_every_malformed_item_retry() {
+        for (source, error_range, item_count, incomplete_count) in [
+            ("T [:] -> U", 3..4, 0, 0),
+            ("T [@ A] -> U", 3..5, 1, 0),
+            ("T [@\nA] -> U", 3..4, 2, 1),
+            ("T [@\n  A] -> U", 3..7, 1, 0),
+            ("T [@/**/ A] -> U", 3..9, 1, 0),
+            ("T [@/*\n*/ A] -> U", 3..10, 1, 0),
+        ] {
+            let ast = parse(source);
+            let tail = ast.arrow.as_ref().expect("bracket-arrow tail");
+            let row = tail.argument_effect.as_ref().expect("argument effect row");
+            assert_eq!(row.items.len(), item_count, "{source}");
+            assert_eq!(
+                row.items.iter().filter(|item| matches!(item, Recovered::Incomplete)).count(),
+                incomplete_count,
+                "{source}",
+            );
+            assert!(matches!(row.close, Recovered::Complete(_)), "{source}");
+            assert!(matches!(tail.arrow, Recovered::Complete(_)), "{source}");
+
+            let recoveries = parse_direct_recovered(source);
+            assert!(matches!(recoveries.as_slice(), [record]
+                if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                    && record.kind == RecoveryKind::Error
+                    && record.site.range == error_range
+                    && record.expectations[record.primary_expectation].expected
+                        == ExpectedSyntax::TypeExpression),
+                "{source}: {recoveries:#?}");
+        }
+
+        let separator = parse("T [@, A] -> U");
+        let separator_row = separator
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("separator recovery row");
+        assert!(matches!(separator_row.items.as_slice(), [
+            Recovered::Incomplete,
+            Recovered::Complete(_),
+        ]));
+        let separator_recoveries = parse_direct_recovered("T [@, A] -> U");
+        assert!(matches!(separator_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)),
+            "{separator_recoveries:#?}");
+
+        let matching = parse("T [@] -> U");
+        let matching_row = matching
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("matching-close recovery row");
+        assert!(matching_row.items.is_empty());
+        assert!(matches!(matching_row.close, Recovered::Complete(ref close) if *close == (4..5)));
+        let matching_recoveries = parse_direct_recovered("T [@] -> U");
+        assert!(matches!(matching_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (3..4)),
+            "{matching_recoveries:#?}");
+
+        let terminal = parse("T [@");
+        let terminal_tail = terminal.arrow.as_ref().expect("terminal recovery tail");
+        let terminal_row = terminal_tail.argument_effect.as_ref().expect("terminal recovery row");
+        assert!(matches!(terminal_row.items.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(terminal_row.close, Recovered::Incomplete));
+        let terminal_recoveries = parse_direct_recovered("T [@");
+        assert!(matches!(terminal_recoveries.as_slice(), [item, close, arrow]
+            if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && item.kind == RecoveryKind::Error
+                && item.site.range == (3..4)
+                && close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && close.kind == RecoveryKind::Missing
+                && close.site.range == (4..4)
+                && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && arrow.kind == RecoveryKind::Missing
+                && arrow.site.range == (4..4)),
+            "{terminal_recoveries:#?}");
+    }
+
+    #[test]
+    fn bracket_row_rp2_rp3_rp4_converge_item_and_close_slots() {
+        let initial_mismatch = parse("T [)] -> U");
+        let initial_tail = initial_mismatch.arrow.as_ref().expect("initial mismatch tail");
+        let initial_row = initial_tail.argument_effect.as_ref().expect("initial mismatch row");
+        assert!(matches!(initial_row.items.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(initial_row.close, Recovered::Complete(ref close) if *close == (4..5)));
+        let initial_recoveries = parse_direct_recovered("T [)] -> U");
+        assert!(matches!(initial_recoveries.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && item.kind == RecoveryKind::Missing
+                && item.site.range == (3..3)
+                && close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && close.kind == RecoveryKind::Error
+                && close.site.range == (3..4)),
+            "{initial_recoveries:#?}");
+
+        let deeper_close = parse("T [A\n  ] -> U");
+        let deeper_row = deeper_close
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("deeper close row");
+        assert!(matches!(deeper_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(deeper_row.close, Recovered::Complete(ref close) if *close == (7..8)));
+        assert!(parse_direct_recovered("T [A\n  ] -> U").is_empty());
+
+        let deeper_mismatch = parse("T [A\n  )] -> U");
+        let deeper_mismatch_row = deeper_mismatch
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("deeper mismatch row");
+        assert!(matches!(deeper_mismatch_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(deeper_mismatch_row.close, Recovered::Complete(ref close) if *close == (8..9)));
+        let deeper_mismatch_recoveries = parse_direct_recovered("T [A\n  )] -> U");
+        assert!(matches!(deeper_mismatch_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (7..8)),
+            "{deeper_mismatch_recoveries:#?}");
+
+        let malformed_mismatch = parse("T [@)] -> U");
+        let malformed_mismatch_row = malformed_mismatch
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("malformed mismatch row");
+        assert!(malformed_mismatch_row.items.is_empty());
+        assert!(matches!(malformed_mismatch_row.close, Recovered::Complete(ref close) if *close == (5..6)));
+        let malformed_mismatch_recoveries = parse_direct_recovered("T [@)] -> U");
+        assert!(matches!(malformed_mismatch_recoveries.as_slice(), [item, close]
+            if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && item.kind == RecoveryKind::Error
+                && item.site.range == (3..4)
+                && close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && close.kind == RecoveryKind::Error
+                && close.site.range == (4..5)),
+            "{malformed_mismatch_recoveries:#?}");
+
+        let post_item_mismatch = parse("T [A)] -> U");
+        let post_item_row = post_item_mismatch
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("post-item mismatch row");
+        assert!(matches!(post_item_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(post_item_row.close, Recovered::Complete(ref close) if *close == (5..6)));
+        let post_item_recoveries = parse_direct_recovered("T [A)] -> U");
+        assert!(matches!(post_item_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && record.kind == RecoveryKind::Error
+                && record.site.range == (4..5)),
+            "{post_item_recoveries:#?}");
+
+        let post_item_eof = parse("T [A)");
+        let post_item_eof_tail = post_item_eof.arrow.as_ref().expect("post-item EOF tail");
+        let post_item_eof_row = post_item_eof_tail
+            .argument_effect
+            .as_ref()
+            .expect("post-item EOF row");
+        assert!(matches!(post_item_eof_row.items.as_slice(), [Recovered::Complete(_)]));
+        assert!(matches!(post_item_eof_row.close, Recovered::Incomplete));
+        let post_item_eof_recoveries = parse_direct_recovered("T [A)");
+        assert!(matches!(post_item_eof_recoveries.as_slice(), [mismatch, close, arrow]
+            if mismatch.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && mismatch.kind == RecoveryKind::Error
+                && mismatch.site.range == (4..5)
+                && close.site.role == mismatch.site.role
+                && close.kind == RecoveryKind::Missing
+                && close.site.range == (5..5)
+                && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && arrow.kind == RecoveryKind::Missing
+                && arrow.site.range == (5..5)),
+            "{post_item_eof_recoveries:#?}");
+
+        let missing = parse("T [");
+        let missing_tail = missing.arrow.as_ref().expect("unclosed row tail");
+        let missing_row = missing_tail.argument_effect.as_ref().expect("unclosed row");
+        assert!(matches!(missing_row.items.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(missing_row.close, Recovered::Incomplete));
+        let missing_recoveries = parse_direct_recovered("T [");
+        assert!(matches!(missing_recoveries.as_slice(), [item, close, arrow]
+            if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && item.kind == RecoveryKind::Missing
+                && item.site.range == (3..3)
+                && close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && close.kind == RecoveryKind::Missing
+                && close.site.range == (3..3)
+                && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && arrow.kind == RecoveryKind::Missing
+                && arrow.site.range == (3..3)),
+            "{missing_recoveries:#?}");
+
+        let separator_eof = parse("T [A,");
+        let separator_eof_tail = separator_eof.arrow.as_ref().expect("separator EOF tail");
+        let separator_eof_row = separator_eof_tail
+            .argument_effect
+            .as_ref()
+            .expect("separator EOF row");
+        assert!(matches!(separator_eof_row.items.as_slice(), [
+            Recovered::Complete(_),
+            Recovered::Incomplete,
+        ]));
+        let separator_eof_recoveries = parse_direct_recovered("T [A,");
+        assert!(matches!(separator_eof_recoveries.as_slice(), [item, close, arrow]
+            if item.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && item.kind == RecoveryKind::Missing
+                && item.site.range == (5..5)
+                && close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::BracketRow,
+                    delimiter: Delimiter::Bracket,
+                }
+                && close.kind == RecoveryKind::Missing
+                && close.site.range == (5..5)
+                && arrow.site.role == GrammarRole::Type(TypeRole::BracketRowArrow)
+                && arrow.kind == RecoveryKind::Missing
+                && arrow.site.range == (5..5)),
+            "{separator_eof_recoveries:#?}");
+    }
+
+    #[test]
+    fn bracket_row_sequence_matrix_keeps_shared_normal_behavior() {
+        for (source, item_count) in [
+            ("T [] -> U", 0),
+            ("T [A, B] -> U", 2),
+            ("T [A; B] -> U", 2),
+            ("T [A\nB] -> U", 2),
+            ("T [A,] -> U", 1),
+            ("T [A;] -> U", 1),
+            ("T [A,\nB] -> U", 2),
+        ] {
+            let ast = parse(source);
+            let row = ast
+                .arrow
+                .as_ref()
+                .and_then(|tail| tail.argument_effect.as_ref())
+                .expect("normal bracket row");
+            assert_eq!(row.items.len(), item_count, "{source}");
+            assert!(
+                row.items.iter().all(|item| matches!(item, Recovered::Complete(_))),
+                "{source}",
+            );
+            assert!(matches!(row.close, Recovered::Complete(_)), "{source}");
+            assert!(parse_direct_recovered(source).is_empty(), "{source}");
+        }
+
+        let leading = parse("T [,;A] -> U");
+        let leading_row = leading
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("leading separator row");
+        assert!(matches!(leading_row.items.as_slice(), [
+            Recovered::Incomplete,
+            Recovered::Incomplete,
+            Recovered::Complete(_),
+        ]));
+        let leading_recoveries = parse_direct_recovered("T [,;A] -> U");
+        assert!(matches!(leading_recoveries.as_slice(), [first, second]
+            if first.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && first.kind == RecoveryKind::Missing
+                && first.site.range == (3..3)
+                && second.site.role == GrammarRole::Type(TypeRole::BracketRowItem)
+                && second.kind == RecoveryKind::Missing
+                && second.site.range == (4..4)),
+            "{leading_recoveries:#?}");
+
+        let missing_separator = parse("T [A{}] -> U");
+        let missing_separator_row = missing_separator
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("same-line missing separator row");
+        assert_eq!(missing_separator_row.items.len(), 2);
+        let missing_separator_recoveries = parse_direct_recovered("T [A{}] -> U");
+        assert!(matches!(missing_separator_recoveries.as_slice(), [record]
+            if record.site.role == GrammarRole::Type(TypeRole::BracketRowSeparator)
+                && record.kind == RecoveryKind::Missing
+                && record.site.range == (4..4)),
+            "{missing_separator_recoveries:#?}");
+
+        let apply = parse("T [F A] -> U");
+        let apply_row = apply
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("TypeApply row");
+        assert_eq!(apply_row.items.len(), 1);
+        assert!(parse_direct_recovered("T [F A] -> U").is_empty());
+
+        let terminal_source = "T [:{A Int\n  B] -> U";
+        let terminal = parse(terminal_source);
+        let terminal_row = terminal
+            .arrow
+            .as_ref()
+            .and_then(|tail| tail.argument_effect.as_ref())
+            .expect("terminal-item deeper candidate row");
+        assert_eq!(terminal_row.items.len(), 2);
+        let terminal_recoveries = parse_direct_recovered(terminal_source);
+        assert!(matches!(terminal_recoveries.as_slice(), [variant_close, separator]
+            if variant_close.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::PolymorphicVariantType,
+                    delimiter: Delimiter::Brace,
+                }
+                && variant_close.kind == RecoveryKind::Missing
+                && variant_close.site.range == (10..10)
+                && separator.site.role == GrammarRole::Type(TypeRole::BracketRowSeparator)
+                && separator.kind == RecoveryKind::Missing
+                && separator.site.range == (13..13)),
+            "{terminal_recoveries:#?}");
     }
 
     #[test]
