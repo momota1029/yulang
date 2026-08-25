@@ -846,6 +846,379 @@ fn type_declaration_parameter_raw_word(word: WordSpan<'_>) -> bool {
     )
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ParsedTypeDeclarationHeader<'source> {
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    equals: Recovered<Range<usize>>,
+    rhs_retry: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum TypeDeclarationHeaderRecovery {
+    Missing {
+        role: crate::session::TypeDeclarationRole,
+        at: usize,
+    },
+    Error {
+        role: crate::session::TypeDeclarationRole,
+        range: Range<usize>,
+    },
+}
+
+/// Parses Type's pre-RHS slots without making the declaration reachable from a
+/// real statement consumer.  Gate 5 owns the mandatory RHS itself; this helper
+/// reports only whether that later slot may retry at the current cursor.
+fn parse_type_declaration_header_slots<'source, E>(
+    intro: &TypeStatementIntro<'source>,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> (ParsedTypeDeclarationHeader<'source>, Vec<TypeDeclarationHeaderRecovery>)
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let mut recoveries = Vec::new();
+    let name_boundary = any_ambient_owner_claims(i);
+    if !name_boundary {
+        let _ = mod_trivia(intro.type_base, i);
+    }
+    let mut name_incomplete = false;
+    let name = if name_boundary {
+        name_incomplete = true;
+        recoveries.push(TypeDeclarationHeaderRecovery::Missing {
+            role: crate::session::TypeDeclarationRole::Name,
+            at: i.pos(),
+        });
+        Recovered::Incomplete
+    } else if let Some(name) = i.run(scan_word) {
+        Recovered::Complete(name)
+    } else {
+        match scan_type_declaration_name_invalid_run(i) {
+            Some(recovery) => {
+                recoveries.push(TypeDeclarationHeaderRecovery::Error {
+                    role: crate::session::TypeDeclarationRole::Name,
+                    range: recovery.range,
+                });
+                match recovery.target {
+                    TypeDeclarationInvalidTarget::RawName => Recovered::Complete(
+                        i.run(scan_word)
+                            .expect("a Type name retry must leave its raw word at the cursor"),
+                    ),
+                    TypeDeclarationInvalidTarget::Equals | TypeDeclarationInvalidTarget::Boundary => {
+                        name_incomplete = true;
+                        Recovered::Incomplete
+                    }
+                    TypeDeclarationInvalidTarget::Rhs => {
+                        unreachable!("name recovery never retries a RHS")
+                    }
+                }
+            }
+            None => {
+                name_incomplete = true;
+                recoveries.push(TypeDeclarationHeaderRecovery::Missing {
+                    role: crate::session::TypeDeclarationRole::Name,
+                    at: i.pos(),
+                });
+                Recovered::Incomplete
+            }
+        }
+    };
+
+    let parameters = if matches!(name, Recovered::Complete(_)) {
+        scan_declaration_type_parameter_list(i).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let definition_boundary = any_ambient_owner_claims(i);
+    if !definition_boundary {
+        let continuation_checkpoint = i.checkpoint();
+        if mod_trivia(intro.type_base, i).is_none() {
+            i.rollback(continuation_checkpoint);
+        }
+    }
+
+    let (equals, rhs_retry) = if let Some(equals) = i.run(scan_declaration_exact_equals) {
+        (Recovered::Complete(equals), true)
+    } else if name_incomplete {
+        (Recovered::Incomplete, false)
+    } else if definition_boundary {
+        recoveries.push(TypeDeclarationHeaderRecovery::Missing {
+            role: crate::session::TypeDeclarationRole::DefinitionIntroducer,
+            at: i.pos(),
+        });
+        (Recovered::Incomplete, false)
+    } else {
+        match scan_type_declaration_definition_invalid_run(intro.type_base, i) {
+            Some(recovery) => {
+                recoveries.push(TypeDeclarationHeaderRecovery::Error {
+                    role: crate::session::TypeDeclarationRole::DefinitionIntroducer,
+                    range: recovery.range,
+                });
+                match recovery.target {
+                    TypeDeclarationInvalidTarget::Equals => {
+                        let equals = i
+                            .run(scan_declaration_exact_equals)
+                            .expect("definition-introducer retry must leave exact equals at the cursor");
+                        (Recovered::Complete(equals), true)
+                    }
+                    TypeDeclarationInvalidTarget::Rhs => (Recovered::Incomplete, true),
+                    TypeDeclarationInvalidTarget::Boundary => (Recovered::Incomplete, false),
+                    TypeDeclarationInvalidTarget::RawName => {
+                        unreachable!("definition-introducer recovery never retries a declaration name")
+                    }
+                }
+            }
+            None if type_declaration_rhs_candidate_pending(i) => {
+                recoveries.push(TypeDeclarationHeaderRecovery::Missing {
+                    role: crate::session::TypeDeclarationRole::DefinitionIntroducer,
+                    at: i.pos(),
+                });
+                (Recovered::Incomplete, true)
+            }
+            None => {
+                recoveries.push(TypeDeclarationHeaderRecovery::Missing {
+                    role: crate::session::TypeDeclarationRole::DefinitionIntroducer,
+                    at: i.pos(),
+                });
+                (Recovered::Incomplete, false)
+            }
+        }
+    };
+
+    (
+        ParsedTypeDeclarationHeader { name, parameters, equals, rhs_retry },
+        recoveries,
+    )
+}
+
+/// Direct-CST's isolated header harness shares the AST scanner and merely
+/// realizes its selected recoveries as committed typed records.
+fn commit_type_declaration_header_slots<'parse, 'source, 'local, E, O>(
+    intro: &TypeStatementIntro<'source>,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeDeclarationHeader<'source>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let (header, recoveries) = committed.probe(|probe| {
+        parse_type_declaration_header_slots(intro, probe.input())
+    });
+    for recovery in recoveries {
+        emit_type_declaration_header_recovery(committed, recovery);
+    }
+    header
+}
+
+fn emit_type_declaration_header_recovery<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    recovery: TypeDeclarationHeaderRecovery,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    let (kind, role, range, unexpected) = match recovery {
+        TypeDeclarationHeaderRecovery::Missing { role, at } => {
+            (RecoveryKind::Missing, role, at..at, Arc::from([]))
+        }
+        TypeDeclarationHeaderRecovery::Error { role, range } => {
+            let unexpected = Arc::from([crate::session::UnexpectedSyntax::Token {
+                range: range.clone(),
+                category: crate::session::UnexpectedCategory::OtherCharacter,
+            }]);
+            (RecoveryKind::Error, role, range, unexpected)
+        }
+    };
+    let record = committed.probe(|probe| {
+        let i = probe.input();
+        let role = GrammarRole::Declaration(DeclarationRole::Type(role));
+        let expected = match role {
+            GrammarRole::Declaration(DeclarationRole::Type(
+                crate::session::TypeDeclarationRole::Name,
+            )) => ExpectedSyntax::Identifier,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                crate::session::TypeDeclarationRole::DefinitionIntroducer,
+            )) => ExpectedSyntax::Punctuation(crate::session::PunctuationEvidence::Equals),
+            GrammarRole::Declaration(DeclarationRole::Type(
+                crate::session::TypeDeclarationRole::Rhs,
+            )) => ExpectedSyntax::TypeExpression,
+            _ => unreachable!("Type header recovery has only Type declaration roles"),
+        };
+        CommittedRecoveryRecord::new(
+            i.local,
+            RecoverySiteKey { role, range: range.clone() },
+            kind,
+            unexpected,
+            Arc::from([SyntaxExpectation {
+                role,
+                expected,
+                range: range.clone(),
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
+    match kind {
+        RecoveryKind::Missing => committed.emit_missing(record),
+        RecoveryKind::Error => committed.emit_error(record),
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDeclarationInvalidTarget {
+    RawName,
+    Equals,
+    Rhs,
+    Boundary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TypeDeclarationInvalidRun {
+    range: Range<usize>,
+    target: TypeDeclarationInvalidTarget,
+}
+
+fn scan_type_declaration_name_invalid_run<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclarationInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    scan_type_declaration_invalid_run(i, |i| {
+        type_declaration_raw_name_pending(i).then_some(TypeDeclarationInvalidTarget::RawName)
+    })
+}
+
+fn scan_type_declaration_definition_invalid_run<'source, E>(
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<TypeDeclarationInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    scan_type_declaration_invalid_run(i, |i| {
+        if type_declaration_terminal_boundary_pending(type_base, i) {
+            Some(TypeDeclarationInvalidTarget::Boundary)
+        } else if type_declaration_rhs_candidate_pending(i) {
+            Some(TypeDeclarationInvalidTarget::Rhs)
+        } else {
+            None
+        }
+    })
+}
+
+fn scan_type_declaration_invalid_run<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+    retry_candidate: impl Fn(&mut SynIn<'_, 'source, '_, E>) -> Option<TypeDeclarationInvalidTarget>,
+) -> Option<TypeDeclarationInvalidRun>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let start = i.pos();
+    loop {
+        if declaration_exact_equals_pending(i) {
+            return (start < i.pos()).then_some(TypeDeclarationInvalidRun {
+                range: start..i.pos(),
+                target: TypeDeclarationInvalidTarget::Equals,
+            });
+        }
+        if let Some(target) = retry_candidate(i) {
+            return (start < i.pos()).then_some(TypeDeclarationInvalidRun {
+                range: start..i.pos(),
+                target,
+            });
+        }
+        if type_declaration_terminal_boundary_pending(usize::MAX, i) {
+            return (start < i.pos()).then_some(TypeDeclarationInvalidRun {
+                range: start..i.pos(),
+                target: TypeDeclarationInvalidTarget::Boundary,
+            });
+        }
+        let character = i.input.remainder().chars().next()?;
+        if matches!(character, '\r' | '\n') {
+            return (start < i.pos()).then_some(TypeDeclarationInvalidRun {
+                range: start..i.pos(),
+                target: TypeDeclarationInvalidTarget::Boundary,
+            });
+        }
+        i.input.next()?;
+        let mut line = i.local.line();
+        line.at_line_start = false;
+        i.local.set_line(line);
+    }
+}
+
+fn type_declaration_raw_name_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_word).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn declaration_exact_equals_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_declaration_exact_equals).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn type_declaration_rhs_candidate_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(parse_type_expression).is_some();
+    i.rollback(checkpoint);
+    pending
+}
+
+fn type_declaration_terminal_boundary_pending<E>(type_base: usize, i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty()
+        || matches!(i.input.remainder().chars().next(), Some(';'))
+        || any_ambient_owner_claims(i)
+    {
+        return true;
+    }
+    if type_base == usize::MAX {
+        return false;
+    }
+    let checkpoint = i.checkpoint();
+    let trivia = i.run(scan_trivia);
+    let pending = trivia.is_some_and(|trivia| {
+        i.input.source()[trivia.range()].contains(['\r', '\n'])
+            && i.local.line().line_indent <= type_base
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
 fn recognize_mod_statement_intro<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ModStatementIntro<'source>>
@@ -915,7 +1288,7 @@ where
             let definition_checkpoint = i.checkpoint();
             let binding_base = i.local.indentation_baseline().map_or(0, |baseline| baseline.column);
             let is_binding_definition = binding_trivia(binding_base, i).is_some()
-                && i.run(scan_binding_exact_equals).is_some();
+                && i.run(scan_declaration_exact_equals).is_some();
             i.rollback(definition_checkpoint);
             return is_binding_definition;
         }
@@ -1065,7 +1438,7 @@ where
             i.rollback(checkpoint);
             return None;
         };
-        let Some(equals) = i.run(scan_binding_exact_equals) else {
+        let Some(equals) = i.run(scan_declaration_exact_equals) else {
             i.rollback(checkpoint);
             return None;
         };
@@ -7418,7 +7791,7 @@ where
         if binding_trivia(binding_base, &mut i).is_none() {
             i.rollback(checkpoint);
             None
-        } else if let Some(equals) = i.run(scan_binding_exact_equals) {
+        } else if let Some(equals) = i.run(scan_declaration_exact_equals) {
             let body_start = equals.start;
             let body = parse_binding_body_ast(table, binding_base, &mut i)
                 .map_or(Recovered::Incomplete, Recovered::Complete);
@@ -7749,7 +8122,9 @@ where
     Some(trivia)
 }
 
-fn scan_binding_exact_equals<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
+/// Scans a declaration definition introducer only when the entire contiguous
+/// operator run is the lone `=` spelling.
+fn scan_declaration_exact_equals<'source, E>(mut i: SynIn<'_, 'source, '_, E>) -> Option<Range<usize>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -7757,7 +8132,7 @@ where
 {
     let checkpoint = i.checkpoint();
     let start = i.pos();
-    while i.input.remainder().chars().next().is_some_and(binding_operator_character) {
+    while i.input.remainder().chars().next().is_some_and(declaration_operator_character) {
         i.input.next()?;
     }
     let end = i.pos();
@@ -7771,7 +8146,7 @@ where
     Some(start..end)
 }
 
-fn binding_operator_character(character: char) -> bool {
+fn declaration_operator_character(character: char) -> bool {
     !character.is_whitespace()
         && !character.is_ascii_digit()
         && character != '_'
@@ -8457,7 +8832,7 @@ mod tests {
         input::SourceInput,
         session::{
             CommitOutput, CommittedRecoveryRecord, ExpectedSyntax, FullCstOutput, HeaderOutput,
-            ParseLocal, Probe,
+            ParseLocal, Probe, TypeDeclarationRole,
         },
     };
 
@@ -11953,6 +12328,363 @@ mod tests {
             Some([DeclarationTypeParameter::SigilIdentifier(word)]) if word.text() == "'a"
         ));
         assert_eq!(remainder, "\n  'b = Int");
+    }
+
+    #[test]
+    fn type_declaration_header_slots_follow_td_r_name_and_equals_recovery() {
+        fn parse_ast<'source>(
+            source: &'source str,
+        ) -> (
+            ParsedTypeDeclarationHeader<'source>,
+            Vec<TypeDeclarationHeaderRecovery>,
+            String,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (header, recoveries) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("Type introduction is recognized in the isolated header harness");
+                parse_type_declaration_header_slots(&intro, &mut i)
+            };
+            (header, recoveries, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct<'source>(
+            source: &'source str,
+        ) -> (ParsedTypeDeclarationHeader<'source>, HeaderOutput, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized in the isolated direct harness");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let header = commit_type_declaration_header_slots(&intro, &mut committed);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            (header, committed.into_output(), remainder)
+        }
+
+        let cases = [
+            (
+                "type",
+                None,
+                0,
+                Recovered::Incomplete,
+                false,
+                "",
+                vec![(RecoveryKind::Missing, TypeDeclarationRole::Name, 4..4)],
+            ),
+            (
+                "type = Int",
+                None,
+                0,
+                Recovered::Complete(5..6),
+                true,
+                " Int",
+                vec![(RecoveryKind::Missing, TypeDeclarationRole::Name, 5..5)],
+            ),
+            (
+                "type @Name = Int",
+                Some(("Name", 6..10)),
+                0,
+                Recovered::Complete(11..12),
+                true,
+                " Int",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::Name, 5..6)],
+            ),
+            (
+                "type @= Int",
+                None,
+                0,
+                Recovered::Complete(6..7),
+                true,
+                " Int",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::Name, 5..6)],
+            ),
+            (
+                "type Id = Int",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Complete(8..9),
+                true,
+                " Int",
+                vec![],
+            ),
+            (
+                "type Id 'a 'b = Int",
+                Some(("Id", 5..7)),
+                2,
+                Recovered::Complete(14..15),
+                true,
+                " Int",
+                vec![],
+            ),
+            (
+                "type Id 'a @= Int",
+                Some(("Id", 5..7)),
+                1,
+                Recovered::Complete(12..13),
+                true,
+                " Int",
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    11..12,
+                )],
+            ),
+            (
+                "type Id ('a)",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                true,
+                "('a)",
+                vec![(
+                    RecoveryKind::Missing,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..8,
+                )],
+            ),
+            (
+                "type Id @('a)",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                true,
+                "('a)",
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..9,
+                )],
+            ),
+            (
+                "type Id",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                false,
+                "",
+                vec![(
+                    RecoveryKind::Missing,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    7..7,
+                )],
+            ),
+            (
+                "type Id;",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                false,
+                ";",
+                vec![(
+                    RecoveryKind::Missing,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    7..7,
+                )],
+            ),
+            (
+                "type Id\nInt",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                false,
+                "\nInt",
+                vec![(
+                    RecoveryKind::Missing,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    7..7,
+                )],
+            ),
+            (
+                "type Id @",
+                Some(("Id", 5..7)),
+                0,
+                Recovered::Incomplete,
+                false,
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    TypeDeclarationRole::DefinitionIntroducer,
+                    8..9,
+                )],
+            ),
+        ];
+
+        for (source, expected_name, parameter_count, expected_equals, rhs_retry, remainder, expected_records) in cases {
+            let (ast, ast_recoveries, ast_remainder) = parse_ast(source);
+            let (direct, output, direct_remainder) = parse_direct(source);
+
+            assert_eq!(ast, direct, "AST/direct header slots diverged for {source:?}");
+            match (&ast.name, expected_name) {
+                (Recovered::Incomplete, None) => {}
+                (Recovered::Complete(actual), Some((text, range))) => {
+                    assert_eq!(actual.text(), text, "{source:?}");
+                    assert_eq!(actual.range(), range, "{source:?}");
+                }
+                _ => panic!("unexpected declaration name recovery for {source:?}: {:?}", ast.name),
+            }
+            assert_eq!(ast.parameters.len(), parameter_count, "{source:?}");
+            assert_eq!(ast.equals, expected_equals, "{source:?}");
+            assert_eq!(ast.rhs_retry, rhs_retry, "{source:?}");
+            assert_eq!(ast_remainder, remainder, "{source:?}");
+            assert_eq!(direct_remainder, remainder, "{source:?}");
+
+            let direct_records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| {
+                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role else {
+                        panic!("unexpected recovery role for {source:?}: {:?}", record.site.role);
+                    };
+                    (record.kind, role, record.site.range.clone())
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(direct_records, expected_records, "{source:?}");
+            assert_eq!(ast_recoveries.len(), expected_records.len(), "{source:?}");
+            for (recovery, (kind, role, range)) in ast_recoveries.iter().zip(&expected_records) {
+                match recovery {
+                    TypeDeclarationHeaderRecovery::Missing { role: actual, at } => {
+                        assert_eq!(*kind, RecoveryKind::Missing, "{source:?}");
+                        assert_eq!(actual, role, "{source:?}");
+                        assert_eq!((*at)..(*at), range.clone(), "{source:?}");
+                    }
+                    TypeDeclarationHeaderRecovery::Error { role: actual, range: actual_range } => {
+                        assert_eq!(*kind, RecoveryKind::Error, "{source:?}");
+                        assert_eq!(actual, role, "{source:?}");
+                        assert_eq!(actual_range, range, "{source:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn declaration_exact_equals_scanner_accepts_only_the_lone_operator_run() {
+        for (source, accepted, remainder) in [
+            ("= Int", Some(0..1), " Int"),
+            ("== Int", None, "== Int"),
+            ("=> Int", None, "=> Int"),
+            ("=+ Int", None, "=+ Int"),
+        ] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let result = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                i.run(scan_declaration_exact_equals)
+            };
+            assert_eq!(result, accepted, "{source:?}");
+            assert_eq!(source_input.remainder(), remainder, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn type_declaration_definition_introducer_leaves_a_live_outer_else_gap_unconsumed() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+        let source = "type Id else: 0";
+
+        let mut ast_source = SourceInput::new(source);
+        let mut ast_local = ParseLocal::new();
+        let root_scope = ast_local.push_root_statement_ambient_scope();
+        let companion = ast_local.push_if_expression_companion(0, IF_WORDS);
+        let mut ast_expectations = chasa::LatestSink::new();
+        let mut ast_cut = false;
+        let (ast_header, ast_recoveries) = {
+            let mut i = In::new(
+                &mut ast_source,
+                &mut ast_expectations,
+                IsCut::new(&mut ast_cut),
+            )
+            .set_local(&mut ast_local);
+            let intro = i
+                .run(recognize_type_statement_intro)
+                .expect("Type introduction is recognized");
+            parse_type_declaration_header_slots(&intro, &mut i)
+        };
+        assert_eq!(ast_source.remainder(), " else: 0");
+        assert!(matches!(ast_header.name, Recovered::Complete(word) if word.text() == "Id"));
+        assert!(matches!(ast_header.equals, Recovered::Incomplete));
+        assert!(!ast_header.rhs_retry);
+        assert_eq!(
+            ast_recoveries,
+            vec![TypeDeclarationHeaderRecovery::Missing {
+                role: TypeDeclarationRole::DefinitionIntroducer,
+                at: 7,
+            }]
+        );
+        assert_eq!(
+            ast_local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
+        assert_eq!(ast_local.pop_ambient_owner_scope(), Some(root_scope));
+
+        let mut direct_source = SourceInput::new(source);
+        let mut direct_local = ParseLocal::new();
+        let root_scope = direct_local.push_root_statement_ambient_scope();
+        let companion = direct_local.push_if_expression_companion(0, IF_WORDS);
+        let mut direct_expectations = chasa::LatestSink::new();
+        let mut direct_cut = false;
+        let i = In::new(
+            &mut direct_source,
+            &mut direct_expectations,
+            IsCut::new(&mut direct_cut),
+        )
+        .set_local(&mut direct_local);
+        let mut probe = Probe::new(i);
+        let intro = probe
+            .input()
+            .run(recognize_type_statement_intro)
+            .expect("Type introduction is recognized");
+        let mut committed = probe.commit(HeaderOutput::new());
+        let direct_header = commit_type_declaration_header_slots(&intro, &mut committed);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder()),
+            " else: 0"
+        );
+        assert_eq!(direct_header, ast_header);
+        let output = committed.into_output();
+        let [record] = output.committed_recoveries() else {
+            panic!("one DefinitionIntroducer Missing record expected");
+        };
+        assert_eq!(record.kind, RecoveryKind::Missing);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::DefinitionIntroducer,
+            ))
+        );
+        assert_eq!(record.site.range, 7..7);
+        assert_eq!(
+            direct_local.pop_if_expression_companion().map(|frame| frame.id()),
+            Some(companion)
+        );
+        assert_eq!(direct_local.pop_ambient_owner_scope(), Some(root_scope));
     }
 
     #[test]
