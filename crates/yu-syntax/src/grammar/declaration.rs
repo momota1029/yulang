@@ -36,7 +36,7 @@ use crate::{
         operator::LeadingTrivia,
         punctuation::{PunctuationKind, scan_punctuation},
         trivia::{TriviaPartKind, TriviaRun, scan_trivia},
-        word::{WordSpan, scan_word},
+        word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
         BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
@@ -744,6 +744,106 @@ where
         type_keyword: keyword,
         type_base,
     })
+}
+
+/// Scans the optional, same-line-only declaration parameter production.
+///
+/// A missing first item rolls back its leading trivia and leaves no list for
+/// the enclosing declaration.  Once an item has been accepted, the same
+/// transaction is repeated greedily; a non-parameter head belongs to the
+/// following definition-introducer slot rather than parameter recovery.
+fn scan_declaration_type_parameter_list<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<Vec<DeclarationTypeParameter<'source>>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let list_checkpoint = i.checkpoint();
+    let mut parameters = Vec::new();
+
+    loop {
+        let checkpoint = i.checkpoint();
+        if scan_required_inline_trivia(i).is_none() {
+            i.rollback(checkpoint);
+            break;
+        }
+        let Some(parameter) = scan_declaration_type_parameter(i) else {
+            i.rollback(checkpoint);
+            break;
+        };
+        parameters.push(parameter);
+    }
+
+    if parameters.is_empty() {
+        i.rollback(list_checkpoint);
+        None
+    } else {
+        Some(parameters)
+    }
+}
+
+/// Applies Type-declaration's local raw-word policy after the shared path
+/// segment scanner has preserved any historical sigil spelling.
+fn scan_declaration_type_parameter<'source, E>(
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<DeclarationTypeParameter<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let Some(word) = i.run(scan_path_segment) else {
+        i.rollback(checkpoint);
+        return None;
+    };
+    match word.text().chars().next() {
+        Some('$' | '&' | '\'') => Some(DeclarationTypeParameter::SigilIdentifier(word)),
+        _ if type_declaration_parameter_raw_word(word) => {
+            Some(DeclarationTypeParameter::Identifier(word))
+        }
+        _ => {
+            i.rollback(checkpoint);
+            None
+        }
+    }
+}
+
+/// This is intentionally local rather than a global reserved-word state:
+/// declaration parameters accept only words that the historical scanner would
+/// have classified as ordinary identifiers at this grammar position.
+fn type_declaration_parameter_raw_word(word: WordSpan<'_>) -> bool {
+    !matches!(
+        word.text(),
+        "use"
+            | "mod"
+            | "struct"
+            | "type"
+            | "for"
+            | "realm"
+            | "band"
+            | "as"
+            | "without"
+            | "with"
+            | "infix"
+            | "my"
+            | "pub"
+            | "our"
+            | "lazy"
+            | "prefix"
+            | "suffix"
+            | "nullfix"
+            | "if"
+            | "case"
+            | "catch"
+            | "where"
+            | "elsif"
+            | "else"
+            | "impl"
+            | "derives"
+    )
 }
 
 fn recognize_mod_statement_intro<'source, E>(
@@ -11782,6 +11882,77 @@ mod tests {
             assert_eq!(local.line(), line_before, "{source:?}");
             assert!(!is_cut, "{source:?}");
         }
+    }
+
+    #[test]
+    fn declaration_type_parameter_list_is_optional_same_line_and_lossless() {
+        fn scan_after_type_name<'source>(
+            source: &'source str,
+        ) -> (Option<Vec<DeclarationTypeParameter<'source>>>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parameters = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                assert!(matches!(i.run(scan_word), Some(word) if word.text() == "type"));
+                assert!(i.run(scan_trivia).is_some());
+                assert!(matches!(i.run(scan_word), Some(word) if word.text() == "Name"));
+                scan_declaration_type_parameter_list(&mut i)
+            };
+            (parameters, source_input.remainder().to_owned())
+        }
+
+        let (parameters, remainder) = scan_after_type_name("type Name = Int");
+        assert!(parameters.is_none());
+        assert_eq!(remainder, " = Int");
+
+        let (parameters, remainder) = scan_after_type_name("type Name 'a = Int");
+        assert!(matches!(
+            parameters.as_deref(),
+            Some([DeclarationTypeParameter::SigilIdentifier(word)]) if word.text() == "'a"
+        ));
+        assert_eq!(remainder, " = Int");
+
+        let (parameters, remainder) = scan_after_type_name("type Name 'left 'right = Int");
+        assert!(matches!(
+            parameters.as_deref(),
+            Some([
+                DeclarationTypeParameter::SigilIdentifier(left),
+                DeclarationTypeParameter::SigilIdentifier(right),
+            ]) if left.text() == "'left" && right.text() == "'right"
+        ));
+        assert_eq!(remainder, " = Int");
+
+        let (parameters, remainder) = scan_after_type_name("type Name $a &a 'a _a = Int");
+        assert!(matches!(
+            parameters.as_deref(),
+            Some([
+                DeclarationTypeParameter::SigilIdentifier(dollar),
+                DeclarationTypeParameter::SigilIdentifier(ampersand),
+                DeclarationTypeParameter::SigilIdentifier(apostrophe),
+                DeclarationTypeParameter::Identifier(underscore),
+            ]) if dollar.text() == "$a"
+                && ampersand.text() == "&a"
+                && apostrophe.text() == "'a"
+                && underscore.text() == "_a"
+        ));
+        assert_eq!(remainder, " = Int");
+
+        let (parameters, remainder) = scan_after_type_name("type Name 'a with = Int");
+        assert!(matches!(
+            parameters.as_deref(),
+            Some([DeclarationTypeParameter::SigilIdentifier(word)]) if word.text() == "'a"
+        ));
+        assert_eq!(remainder, " with = Int");
+
+        let (parameters, remainder) = scan_after_type_name("type Name 'a\n  'b = Int");
+        assert!(matches!(
+            parameters.as_deref(),
+            Some([DeclarationTypeParameter::SigilIdentifier(word)]) if word.text() == "'a"
+        ));
+        assert_eq!(remainder, "\n  'b = Int");
     }
 
     #[test]
