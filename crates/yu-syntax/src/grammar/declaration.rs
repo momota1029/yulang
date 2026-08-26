@@ -1174,14 +1174,21 @@ where
     let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
     let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
     let range = intro.start..i.pos();
+    let form = if matches!(&header.name, Recovered::Complete(_)) && header.rhs_retry {
+        Recovered::Complete(TypeDeclarationForm::Equality {
+            equals: header.equals,
+            rhs,
+        })
+    } else {
+        Recovered::Incomplete
+    };
     Some(TypeDeclaration {
         visibility: intro
             .visibility
             .map_or(Visibility::Private, |prefix| prefix.visibility),
         name: header.name,
         parameters: header.parameters,
-        equals: header.equals,
-        rhs,
+        form,
         range,
     })
 }
@@ -5731,15 +5738,14 @@ impl StructDeclaration<'_> {
     }
 }
 
-/// A parser-side equality declaration.  Its equality RHS remains syntax-only:
-/// alias, nominal, and opaque semantics belong to later HIR ownership.
+/// A parser-side Type declaration.  Its form remains syntax-only: alias,
+/// nominal, and opaque semantics belong to later HIR ownership.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TypeDeclaration<'source> {
     visibility: Visibility,
     name: Recovered<WordSpan<'source>>,
     parameters: Vec<DeclarationTypeParameter<'source>>,
-    equals: Recovered<Range<usize>>,
-    rhs: Recovered<Box<TypeExpression<'source>>>,
+    form: Recovered<TypeDeclarationForm<'source>>,
     range: Range<usize>,
 }
 
@@ -5747,6 +5753,15 @@ impl TypeDeclaration<'_> {
     pub(crate) fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum TypeDeclarationForm<'source> {
+    Nominal,
+    Equality {
+        equals: Recovered<Range<usize>>,
+        rhs: Recovered<Box<TypeExpression<'source>>>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14046,8 +14061,13 @@ mod tests {
             DeclarationTypeParameter::SigilIdentifier(left),
             DeclarationTypeParameter::SigilIdentifier(right),
         ] if left.range() == (10..15) && right.range() == (16..22)));
-        assert_eq!(root_declaration.equals, Recovered::Complete(23..24));
-        assert!(matches!(root_declaration.rhs, Recovered::Complete(ref rhs) if rhs.range() == (25..40)));
+        assert!(matches!(
+            root_declaration.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: Recovered::Complete(ref equals),
+                rhs: Recovered::Complete(ref rhs),
+            }) if equals == &(23..24) && rhs.range() == (25..40)
+        ));
 
         let output = parse_direct_root_candidate(
             source,
@@ -14126,7 +14146,13 @@ mod tests {
             panic!("the recovery worked example must select Type at root");
         };
         assert_eq!(declaration.range, 0..17);
-        assert!(matches!(declaration.rhs, Recovered::Incomplete));
+        assert!(matches!(
+            declaration.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: Recovered::Complete(ref equals),
+                rhs: Recovered::Incomplete,
+            }) if equals == &(15..16)
+        ));
         assert_eq!(i.input.remainder(), ";");
 
         let output = parse_direct_root_candidate(
@@ -14278,7 +14304,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        // Bare nominal declarations stay an incomplete equality declaration, not a nominal node.
+        // Bare nominal declarations stay an incomplete TypeDeclaration, not a nominal node.
         let source = "type Point";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
