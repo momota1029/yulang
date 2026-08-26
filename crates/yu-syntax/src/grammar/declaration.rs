@@ -1207,10 +1207,9 @@ where
     }
 }
 
-/// The isolated form-aware AST continuation prepared for the later dispatch
-/// gate.  The live equality adapter below intentionally remains unchanged
-/// until that gate swaps this construction into the real statement path.
-fn parse_type_declaration_form_aware_isolated<'source, E>(
+/// Parses the shared Type declaration header, then gives exact equality or
+/// caller-owned terminal evidence its form-specific continuation.
+pub(crate) fn parse_type_declaration<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeDeclaration<'source>>
 where
@@ -1269,11 +1268,11 @@ where
     })
 }
 
-/// Direct-CST counterpart of [`parse_type_declaration_form_aware_isolated`].
-/// It probes the shared header and form exactly once, then either replays that
-/// shared surface alone or delegates Equality recovery/RHS ownership to the
-/// established committed primitives.
-fn commit_type_declaration_form_aware_isolated<'parse, 'source, 'local, E, O>(
+/// Direct-CST counterpart of [`parse_type_declaration`].
+/// It selects the form exactly once, then either replays the shared surface
+/// alone or delegates Equality header/RHS ownership to the established
+/// committed primitives.
+pub(crate) fn commit_type_declaration<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: TypeStatementIntro<'source>,
 ) -> Recovered<Range<usize>>
@@ -1341,87 +1340,27 @@ where
             );
         }
         TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
-            let header = commit_type_declaration_header_slots(&intro, committed);
+            let (header, recoveries, header_end) = committed.probe(|probe| {
+                let i = probe.input();
+                let checkpoint = i.checkpoint();
+                let (header, recoveries) = parse_type_declaration_header_slots(&intro, i);
+                let end = i.pos();
+                i.rollback(checkpoint);
+                (header, recoveries, end)
+            });
+            commit_type_declaration_header_surface(
+                intro.type_base,
+                &header,
+                recoveries,
+                header_end,
+                committed,
+            );
             if header.rhs_retry {
                 let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
             }
         }
     }
 
-    let end = committed.probe(|probe| probe.input().pos());
-    committed.finish_node();
-    Recovered::Complete(intro.start..end)
-}
-
-pub(crate) fn parse_type_declaration<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
-) -> Option<TypeDeclaration<'source>>
-where
-    E: ErrorSink<usize>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    let intro = i.run(recognize_type_statement_intro)?;
-    let (header, _) = parse_type_declaration_header_slots(&intro, &mut i);
-    let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
-    let range = intro.start..i.pos();
-    let form = if matches!(&header.name, Recovered::Complete(_)) && header.rhs_retry {
-        Recovered::Complete(TypeDeclarationForm::Equality {
-            equals: header.equals,
-            rhs,
-        })
-    } else {
-        Recovered::Incomplete
-    };
-    Some(TypeDeclaration {
-        visibility: intro
-            .visibility
-            .map_or(Visibility::Private, |prefix| prefix.visibility),
-        name: header.name,
-        parameters: header.parameters,
-        form,
-        range,
-    })
-}
-
-/// Emits the production CST continuation selected by the shared Type intro.
-/// Header recognition remains sink-free, then this adapter replays only the
-/// accepted source spans in source order before entering the atomic RHS owner.
-pub(crate) fn commit_type_declaration<'parse, 'source, 'local, E, O>(
-    committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    intro: TypeStatementIntro<'source>,
-) -> Recovered<Range<usize>>
-where
-    E: ErrorSink<usize>,
-    O: CommitOutput<'source>,
-    Unexpected<char>: Into<E::Error>,
-    UnexpectedEndOfInput: Into<E::Error>,
-{
-    committed.start_node(SyntaxKind::TypeDeclaration);
-    if let Some(visibility) = &intro.visibility {
-        emit_visibility(committed, visibility);
-        if let Some(trivia) = &intro.after_visibility {
-            committed.emit_trivia(trivia);
-        }
-    }
-    committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
-
-    let (header, recoveries, header_end) = committed.probe(|probe| {
-        let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let (header, recoveries) = parse_type_declaration_header_slots(&intro, i);
-        let end = i.pos();
-        i.rollback(checkpoint);
-        (header, recoveries, end)
-    });
-    commit_type_declaration_header_surface(
-        intro.type_base,
-        &header,
-        recoveries,
-        header_end,
-        committed,
-    );
-    let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
     let end = committed.probe(|probe| probe.input().pos());
     committed.finish_node();
     Recovered::Complete(intro.start..end)
@@ -13365,7 +13304,7 @@ mod tests {
     }
 
     #[test]
-    fn isolated_type_declaration_form_aware_ast_construction_reuses_tnd_j_once() {
+    fn type_declaration_form_aware_ast_construction_reuses_tnd_j_once() {
         fn parse_form_aware<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
@@ -13374,8 +13313,7 @@ mod tests {
             let declaration = {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                parse_type_declaration_form_aware_isolated(i)
-                    .expect("the isolated form-aware entry recognizes Type")
+                parse_type_declaration(i).expect("the form-aware entry recognizes Type")
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
@@ -13424,24 +13362,10 @@ mod tests {
             }) if format!("{rhs:?}").contains("leading_effect_row: Some")
         ));
 
-        // Gate 3 deliberately leaves the live equality adapter in place.
-        let mut source_input = SourceInput::new("type Point");
-        let mut local = ParseLocal::new();
-        let mut expectations = chasa::LatestSink::new();
-        let mut is_cut = false;
-        let legacy = {
-            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
-                .set_local(&mut local);
-            parse_type_declaration(i).expect("the current equality adapter recognizes Type")
-        };
-        assert!(matches!(legacy.form, Recovered::Incomplete));
-        assert_eq!(source_input.remainder(), "");
-        assert!(expectations.take_merged().is_none());
-        assert!(!is_cut);
     }
 
     #[test]
-    fn isolated_type_declaration_form_aware_direct_cst_is_byte_exact_and_parity_checked() {
+    fn type_declaration_form_aware_direct_cst_is_byte_exact_and_parity_checked() {
         fn parse_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
@@ -13450,7 +13374,7 @@ mod tests {
             let declaration = {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                parse_type_declaration_form_aware_isolated(i).unwrap()
+                parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none());
             assert!(!is_cut);
@@ -13471,10 +13395,10 @@ mod tests {
             let intro = probe
                 .input()
                 .run(recognize_type_statement_intro)
-                .expect("the isolated direct fixture starts with Type");
+                .expect("the direct fixture starts with Type");
             let mut committed = probe.commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             if let Some(semicolon) = outer_semicolon {
                 committed.token(SyntaxKind::Semicolon, semicolon);
             }
@@ -13574,7 +13498,7 @@ mod tests {
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             assert!(committed.into_output().committed_recoveries().is_empty());
             range
         };
@@ -13597,7 +13521,7 @@ mod tests {
             let declaration = {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                parse_type_declaration_form_aware_isolated(i).unwrap()
+                parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
@@ -13618,7 +13542,7 @@ mod tests {
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(FullCstOutput::new(source));
             committed.start_node(SyntaxKind::Root);
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             if let Some(semicolon) = outer_semicolon {
                 committed.token(SyntaxKind::Semicolon, semicolon);
             }
@@ -13670,7 +13594,7 @@ mod tests {
             let declaration = {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                parse_type_declaration_form_aware_isolated(i).unwrap()
+                parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
@@ -13689,7 +13613,7 @@ mod tests {
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed
                 .into_output()
@@ -13855,7 +13779,7 @@ mod tests {
             let declaration = {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                parse_type_declaration_form_aware_isolated(i).unwrap()
+                parse_type_declaration(i).unwrap()
             };
             assert!(expectations.take_merged().is_none(), "{source:?}");
             assert!(!is_cut, "{source:?}");
@@ -13873,7 +13797,7 @@ mod tests {
             let mut probe = Probe::new(i);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed.into_output().committed_recoveries().to_vec();
             assert!(expectations.take_merged().is_none(), "{source:?}");
@@ -14070,7 +13994,7 @@ mod tests {
                     .set_local(&mut local);
                 skip_same_line_prefix(prefix_len, &mut i);
                 let before_after_prefix = snapshot(i.local);
-                let declaration = parse_type_declaration_form_aware_isolated(i)
+                let declaration = parse_type_declaration(i)
                     .expect("the fixture prefix is followed by Type");
                 assert_eq!(snapshot(&local), before_after_prefix, "AST state: {source:?}");
                 declaration
@@ -14104,7 +14028,7 @@ mod tests {
             let before_after_prefix = snapshot(probe.input().local);
             let intro = probe.input().run(recognize_type_statement_intro).unwrap();
             let mut committed = probe.commit(HeaderOutput::new());
-            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let range = commit_type_declaration(&mut committed, intro);
             let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
             let records = committed.into_output().committed_recoveries().to_vec();
             assert_eq!(snapshot(&local), before_after_prefix, "direct state: {source:?}");
@@ -14346,7 +14270,7 @@ mod tests {
             {
                 let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
                     .set_local(&mut local);
-                let _ = parse_type_declaration_form_aware_isolated(i).unwrap();
+                let _ = parse_type_declaration(i).unwrap();
             }
             source_input.rollback(input_checkpoint);
             local.rollback(local_checkpoint);
@@ -15915,6 +15839,129 @@ mod tests {
     }
 
     #[test]
+    fn nominal_type_declaration_is_reachable_from_public_root_and_braced_dispatch() {
+        let source = "pub type Phantom 'a;";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let declaration = {
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Some(Declaration::Type(declaration)) = i.run(parse_declaration) else {
+                panic!("the root dispatcher must select the nominal Type declaration");
+            };
+            declaration
+        };
+        assert_eq!(declaration.visibility, Visibility::Public);
+        assert!(matches!(
+            declaration.name,
+            Recovered::Complete(ref name) if name.text() == "Phantom" && name.range() == (9..16)
+        ));
+        assert!(matches!(
+            declaration.parameters.as_slice(),
+            [DeclarationTypeParameter::SigilIdentifier(parameter)]
+                if parameter.text() == "'a" && parameter.range() == (17..19)
+        ));
+        assert!(matches!(
+            declaration.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
+        assert_eq!(declaration.range, 0..19);
+        assert_eq!(source_input.remainder(), ";");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        let parse_public = |source: &str| {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                Arc::clone(&header),
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            assert!(parsed.diagnostics().is_empty(), "{source:?}");
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            assert_eq!(root.to_string(), source);
+            (header, root)
+        };
+
+        let (_, root) = parse_public(source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![0..19],
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::DeclarationTypeParameterList)
+                .map(|node| syntax_range(node.text_range()))
+                .collect::<Vec<_>>(),
+            vec![16..19],
+        );
+        assert!(root.descendants().all(|node| !matches!(
+            node.kind(),
+            SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::TypeExpression
+        )));
+        assert_eq!(
+            root.children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![(SyntaxKind::Semicolon, 19..20)],
+        );
+
+        let interleaved = "type Point\nmy value = 1";
+        let (_, root) = parse_public(interleaved);
+        assert_eq!(
+            root.children()
+                .filter(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::TypeDeclaration | SyntaxKind::BindingStatement
+                ))
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            vec![SyntaxKind::TypeDeclaration, SyntaxKind::BindingStatement],
+        );
+
+        let braced = "my block = { type Point\n  my value = 1 }";
+        let (_, root) = parse_public(braced);
+        let nested_type = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
+            .expect("the braced Statement sequence contains the nominal declaration");
+        assert_eq!(
+            nested_type.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::Statement),
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::BindingStatement)
+                .count(),
+            2,
+        );
+
+        let source_leading = "type Point\nuse std::data\n";
+        let (header, root) = parse_public(source_leading);
+        assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+        assert_eq!(header.coverage().range(), &(0..0));
+        assert!(header.imports().is_empty());
+        assert!(header.operators().is_empty());
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeDeclaration)
+                .count(),
+            1,
+        );
+    }
+
+    #[test]
     fn type_declaration_stops_header_discovery_and_is_absent_from_operator_only_slots() {
         let source: Arc<crate::SourceText> = Arc::from("type Pair = Int\nuse std::data\n");
         let header = crate::scan_header(source);
@@ -16001,7 +16048,7 @@ mod tests {
         let type_declaration = |root: &SyntaxNode| {
             root.descendants()
                 .find(|node| node.kind() == SyntaxKind::TypeDeclaration)
-                .expect("the exact `type` prefix still owns its equality-form header")
+                .expect("the exact `type` prefix owns the shared declaration header")
         };
         let has = |root: &SyntaxNode, kind| root.descendants().any(|node| node.kind() == kind);
         let ranges = |root: &SyntaxNode, kind| {
@@ -16011,13 +16058,35 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        // Bare nominal declarations stay an incomplete TypeDeclaration, not a nominal node.
+        // The nominal addendum supersedes the equality scope gate's one bare-header
+        // recovery case atomically with the real form-aware dispatch switch.
         let source = "type Point";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
         assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
-        assert_eq!(ranges(&root, SyntaxKind::Missing), vec![source.len()..source.len()]);
+        assert!(ranges(&root, SyntaxKind::Missing).is_empty());
+        assert!(ranges(&root, SyntaxKind::Error).is_empty());
         assert!(!has(&root, SyntaxKind::TypeExpression));
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let mut i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let Some(Declaration::Type(declaration)) = i.run(parse_declaration) else {
+            panic!("the bare nominal source must remain a Type declaration");
+        };
+        assert!(matches!(
+            declaration.form,
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        ));
+        assert_eq!(i.input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
 
         // `impl` remains a deferred role-like tail.  TD-R's ordinary RHS retry may consume
         // its word-shaped prefix, but no `impl` declaration owner is synthesized.
