@@ -70,6 +70,15 @@ enum PatternDelimitedPolicy {
     Record,
 }
 
+/// One sink-free decision in ParenthesizedPattern's post-item close recovery.
+/// `Complete` and `Error` consume exactly the bytes reported; `Missing` keeps
+/// the caller-owned terminal position untouched.
+enum ParenthesizedPatternCloseRecoveryStep {
+    Complete { close: Range<usize> },
+    Error { range: Range<usize>, unexpected: UnexpectedCategory },
+    Missing { at: usize },
+}
+
 impl PatternDelimitedPolicy {
     fn delimiter(self) -> Delimiter {
         match self {
@@ -917,7 +926,7 @@ where
     let close = if let Some(close) = i.run(from_fn(|i| recognize_pattern_delimited_close(policy, i))) {
         Recovered::Complete(close)
     } else {
-        loop {
+        'items: loop {
             items.push(parse_item(i));
             if any_ambient_owner_claims(i) {
                 break Recovered::Incomplete;
@@ -940,6 +949,17 @@ where
             if policy.ast_next_item_pending(i) {
                 continue;
             }
+            if policy == PatternDelimitedPolicy::Parenthesized {
+                match drive_parenthesized_pattern_close_recovery(i) {
+                    ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
+                        break 'items Recovered::Complete(close);
+                    }
+                    ParenthesizedPatternCloseRecoveryStep::Error { .. } => continue,
+                    ParenthesizedPatternCloseRecoveryStep::Missing { .. } => {
+                        break 'items Recovered::Incomplete;
+                    }
+                };
+            }
             if policy.recover_ast_separator_or_close(i) {
                 continue;
             }
@@ -949,6 +969,51 @@ where
         }
     };
     (items, trailing_comma, close)
+}
+
+/// Shares the direct Parenthesized close scanner's cursor decisions with the
+/// AST path.  It intentionally has no sink: callers decide how an Error or a
+/// Missing becomes their own AST/CST representation.
+fn drive_parenthesized_pattern_close_recovery<E>(
+    i: &mut SynIn<E>,
+) -> ParenthesizedPatternCloseRecoveryStep
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let at = i.pos();
+    if any_ambient_owner_claims(i) || i.input.remainder().is_empty() {
+        return ParenthesizedPatternCloseRecoveryStep::Missing { at };
+    }
+    if let Some(punctuation) = i.run(scan_punctuation) {
+        return match punctuation.kind() {
+            PunctuationKind::Close(Delimiter::Parenthesis) => {
+                ParenthesizedPatternCloseRecoveryStep::Complete {
+                    close: punctuation.range(),
+                }
+            }
+            PunctuationKind::Close(actual) => ParenthesizedPatternCloseRecoveryStep::Error {
+                range: punctuation.range(),
+                unexpected: UnexpectedCategory::Punctuation(
+                    crate::session::PunctuationEvidence::Close(actual),
+                ),
+            },
+            _ => ParenthesizedPatternCloseRecoveryStep::Error {
+                range: punctuation.range(),
+                unexpected: UnexpectedCategory::OtherCharacter,
+            },
+        };
+    }
+    i.input.next().expect("the non-EOF close-recovery byte exists");
+    let range = at..i.pos();
+    let mut line = i.local.line();
+    line.at_line_start = false;
+    i.local.set_line(line);
+    ParenthesizedPatternCloseRecoveryStep::Error {
+        range,
+        unexpected: UnexpectedCategory::OtherCharacter,
+    }
 }
 
 /// AST recovery mirrors the direct mandatory-primary retry without recording a
@@ -2380,59 +2445,21 @@ fn recover_pattern_delimited_close<'parse, 'source, 'local, E, O>(
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
+    debug_assert_eq!(policy, PatternDelimitedPolicy::Parenthesized);
     loop {
-        if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-            emit_pattern_delimited_close_missing(policy, committed);
-            return;
-        }
-        if committed.probe(|probe| probe.input().input.remainder().is_empty()) {
-            emit_pattern_delimited_close_missing(policy, committed);
-            return;
-        }
-        let punctuation = committed.probe(|probe| probe.input().run(scan_punctuation));
-        if let Some(punctuation) = punctuation {
-            match punctuation.kind() {
-                PunctuationKind::Close(delimiter) if delimiter == policy.delimiter() => {
-                    committed.token(policy.close_syntax_kind(), punctuation.range());
-                    return;
-                }
-                PunctuationKind::Close(actual) => {
-                    emit_pattern_delimited_close_error(
-                        policy,
-                        committed,
-                        punctuation.range(),
-                        UnexpectedCategory::Punctuation(
-                            crate::session::PunctuationEvidence::Close(actual),
-                        ),
-                    );
-                }
-                _ => emit_pattern_delimited_close_error(
-                    policy,
-                    committed,
-                    punctuation.range(),
-                    UnexpectedCategory::OtherCharacter,
-                ),
+        match committed.probe(|probe| drive_parenthesized_pattern_close_recovery(probe.input())) {
+            ParenthesizedPatternCloseRecoveryStep::Complete { close } => {
+                committed.token(SyntaxKind::RParen, close);
+                return;
             }
-            continue;
-        }
-        let range = committed.probe(|probe| {
-            let i = probe.input();
-            let start = i.pos();
-            let character = i.input.next()?;
-            let end = i.pos();
-            let mut line = i.local.line();
-            line.at_line_start = false;
-            i.local.set_line(line);
-            let _ = character;
-            Some(start..end)
-        });
-        if let Some(range) = range {
-            emit_pattern_delimited_close_error(
-                policy,
-                committed,
-                range,
-                UnexpectedCategory::OtherCharacter,
-            );
+            ParenthesizedPatternCloseRecoveryStep::Error { range, unexpected } => {
+                emit_pattern_delimited_close_error(policy, committed, range, unexpected);
+            }
+            ParenthesizedPatternCloseRecoveryStep::Missing { at } => {
+                debug_assert_eq!(at, committed_position(committed));
+                emit_pattern_delimited_close_missing(policy, committed);
+                return;
+            }
         }
     }
 }
@@ -2919,6 +2946,39 @@ mod tests {
         let (root, recoveries) = parse_direct_recovered("(a\nb)");
         assert_eq!(root.to_string(), "(a\nb)");
         assert!(recoveries.is_empty());
+    }
+
+    #[test]
+    fn parenthesized_close_recovery_converges_ast_onto_existing_direct_ownership() {
+        let source = "((x @))";
+        let pattern = parse(source);
+        let Pattern {
+            head: Recovered::Complete(PatternPrimary::Parenthesized(outer)),
+            ..
+        } = pattern else {
+            panic!("outer parenthesized pattern expected: {pattern:#?}");
+        };
+        let [Recovered::Complete(inner_pattern)] = outer.elements() else {
+            panic!("one outer element expected: {outer:#?}");
+        };
+        let Pattern {
+            head: Recovered::Complete(PatternPrimary::Parenthesized(inner)),
+            ..
+        } = inner_pattern else {
+            panic!("inner parenthesized pattern expected: {inner_pattern:#?}");
+        };
+        assert!(matches!(&inner.close, Recovered::Complete(close) if close == &(5..6)));
+        assert!(matches!(&outer.close, Recovered::Complete(close) if close == &(6..7)));
+
+        let (root, recoveries) = parse_direct_recovered(source);
+        assert_eq!(root.to_string(), source);
+        assert!(matches!(recoveries.as_slice(), [record]
+            if record.kind == RecoveryKind::Error
+                && record.site.role == GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ParenthesizedPattern,
+                    delimiter: Delimiter::Parenthesis,
+                }
+                && record.site.range == (4..5)), "{recoveries:#?}");
     }
 
     #[test]
