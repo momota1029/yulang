@@ -19641,6 +19641,18 @@ implementation gateを次で固定する。
 9. bare nominal、`impl` / `with` / colon / brace body、derives、self struct、doc attachment、associated type、
    alias / nominal semantics、HIR / formatterを実装しないことをscope gateにする。
 
+> **後続Proposalへのcross-reference（2026-08-26）:** 本document末尾の
+> 「canonical `Statement` / root `Declaration`のbare nominal `type` declaration grammar」追補案は、
+> 承認・実装された時点で、name slotがComplete（literalまたはsame-slot retry）かつoptional parameter scan後に
+> malformed introducer evidenceなしでEOF / outer semicolon / equal-or-shallower newline / braced Statement-sequence newline /
+> inline canonical Statement経由のCatch braced arm-sequence newline / active fixed Statement boundary /
+> ambient owner boundaryへ達する**complete-header terminal family全体**を、
+> missing-`=` equality recoveryからvalid Nominalへsupersedeする。`type Point`はその一例にすぎない。
+> EOF familyには、maximal strictly-deeper trailing triviaの後にfollowing tokenなしでEOFへ達するcaseも含む。
+> exact `=`、missing-`=` + reusable RHS、malformed introducer recoveryを持つgenuine equality familyと、
+> `impl` / `with` / colon / brace body / derives / associated type / semanticsに関する本gateのscope boundaryは維持する。
+> Proposal段階ではcurrent Authoritative behaviorを変更しない。
+
 ### Closed decisions and Claude review focus
 
 本追補で次をclosed decisionとする。
@@ -19661,3 +19673,604 @@ semicolonのouter ownership、Colon / LeftBrace stopを引き継がない理由�
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-26、canonical Statement / root Declarationのtype equality declaration grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のbare nominal `type` declaration grammar
+
+Status: Authoritative（ユーザ承認済み、2026-08-26）。
+
+Date: 2026-08-26。
+
+### Scope and authority
+
+本追補は、直前のAuthoritativeなtype equality declaration追補が意図的にfuture salvageへ残した
+Yulang2のbare nominal formを、同じneutral `TypeDeclaration` ownerのsecond formとして設計する。
+対象は次だけである。
+
+- optional visibility、exact `type`、mandatory raw name、same-line declaration type parametersから成る
+  existing shared header。
+- complete header直後のterminal statement boundaryを根拠に、RHSを持たないnominal formを選ぶ
+  sink-free post-header form judge。
+- equality formとのpriority、AST / direct-CST shape、typed recovery、ASOB / layout / separator ownership。
+- root / nested canonical Statementでのsame declaration child、header discovery boundary、existing equality formとのparity。
+
+本追補は`impl` / `with` / colon / brace role-like body、pre/post-body `derives`、`struct self`、companion method、
+associated-type declaration / assignmentのowner、constructor / module registration、nominal identity、visibility semantics、
+HIR lowering、resolver、formatterを設計しない。bare formの導入を理由にそれらのtailをempty fieldやreserved wrapperとして
+先取りしない。
+
+本追補のBNF-equivalent grammarの唯一の正本は`TND-G`、intro / form authorityは`TND-J`、
+TypeExpression / ASOB compositionは`TND-T`、typed recoveryは`TND-R`である。直前追補の`TD-G/J/T/R`を
+全面複製せず、共有する箇所と限定supersessionする箇所を各sectionで明記する。
+
+### Problem statement and limited supersession
+
+type equality declaration追補のimplementation gate 9は、source `type Point`を
+`TypeDeclaration 0..10`としてrecognizeしながら、EOF `10..10`にone
+`Missing(TypeDeclaration::DefinitionIntroducer, Equals)`を置き、RHSを`Incomplete`にするscope fixtureを固定した。
+これはequality-only sliceを閉じる時点では正しかったが、Yulang2 oracleのvalid bare nominal surfaceとは異なる。
+
+同じAuthoritative `TD-R`は、この一例だけでなく、complete name / parameters後に`=`なしでEOF / semicolon /
+equal-or-shallower newline / ambient outer boundaryへ達するfamily全体をone Missing DefinitionIntroducerとして固定する。
+本追補は承認・実装時に、そのfull complete-header terminal familyと、本追補が追加するbraced Statement-sequence newline /
+inline canonical Statement経由のCatch arm-sequence newline / precise active fixed Statement boundary /
+deeper-trivia-then-EOF familyだけをvalid nominal formへreclassifyする。
+次はsupersedeしない。
+
+- name自体がmissing / malformedのheader recovery。
+- exact `=`、missing `=` + reusable TypePrimary、malformed definition-introducer runを持つequality evidence / recovery。
+- `impl` / `with` / derives / colon / brace bodyなどfuture tail familyのcurrent scope boundary。
+- equality RHSの`TD-T` mandatory TypeExpression ownershipと`TD-R` recovery。
+
+従って「`=`が見つからなければnominal」とはしない。valid complete headerの直後に、byteをconsumeせず確認できる
+terminal owner boundaryがある場合だけnominalである。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`はcommit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`を指した（tag objectは
+`1ec55fdfd33df836ffc216b7075f11ffe260cef4f`）。
+parser implementation、parser-tree fixture、representative corpusを同じtreeから再確認し、次をground truthとする。
+
+1. `parse_type_decl`はvisibilityと`type`をemitした後、plain nameをmandatory-likeにscanし、nameがなければ
+   tailへ進まず同じ`TypeDecl`をsilent closeした
+   （`yulang2-oracle:crates/parser/src/stmt/type_decl.rs:24-42`）。name後は
+   `scan_decl_type_vars`を必ず呼び、same-lineの`Ident | SigilIdent`をzero-or-moreで同じ`TypeVars`へ入れた
+   （同`:43-44,210-250`）。bare nominal専用node / entrypointはなく、equalityと同じheaderだった。
+2. header後のdispatchはheader derives、`impl`、`with`、exact `=`、role-like bodyの順だった。
+   どれも選ばれなければ`i.env.inline = true`として`parse_role_like_body`へ入り、その結果で同じ`TypeDecl`をcloseした
+   （`type_decl.rs:46-126`）。inline role-like bodyはEOFとequal-or-shallower newlineをnon-consuming boundaryとして返した
+   （`yulang2-oracle:crates/parser/src/stmt/role_decl.rs:84-99`）。従ってbare nominalは
+   「equality formから`=`だけを省いたalias」ではなく、shared headerがtailなしでterminal boundaryへ達したformである。
+3. direct parser fixture `type value\nour x = 1`は、first `TypeDecl`を
+   `Type`, `Ident`, empty `TypeVars`だけでcloseし、newline後をseparate Bindingにした
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:440-465`）。surface design noteも
+   `type_decl = visibility? "type" ident type_vars type_tail`、
+   `type_tail = impl | with | = type_rhs | role-like body | nothing`と記録する
+   （`yulang2-oracle:spec/2026-06-06-syntax-design.md:380-419`）。
+4. actual corpusにはroot `type handled`
+   （`yulang2-oracle:tests/yulang/regressions/effect/effectful_parameter_forwarding.yu:1`）と、
+   root visibility form `pub type listener` / `pub type request_meta` / `pub type respond_slot`
+   （`yulang2-oracle:lib/std/io/net.yu:5-7`）がある。role bodyにはbare `type value`、impl bodyには
+   equality `type value = 'left` / `type value = 'right`がある
+   （`yulang2-oracle:tests/yulang/regressions/runtime/attached_impl_pick.yu:3-14`）。後者はsurface evidenceだが、
+   role / impl owner自体はcurrent Yulang3 grammarにないため本追補のdispatch scopeへ入れない。
+5. bare form独自のparameter syntax、`where` / bound / kind / default、attribute、doc childはなかった。
+   visibilityとsame-line parametersはequalityと同じscannerの結果であり、bare専用header divergenceはない。
+   Yulang2はtyped Missing / Errorやnominal-vs-missing-equals recovery factを持たなかったため、Y3の判定は
+   observable terminal boundaryとexisting typed-recovery invariantsから定義する必要がある。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- `StatementIntro::Type`、`TypeStatementIntro`、root / nested shared dispatch、Type introでheader discoveryを終了し
+  `HeaderDeclaration` factを作らない規則。
+- `Visibility`、`TypeName`、`DeclarationTypeParameterList`、`Gtype+` / `Gtype-param`、raw-word policy、
+  historical sigil spelling、`_a` divergence。
+- exact lone `=` evidence、ordinary mandatory TypeExpression、TD-T baseline / stop / ASOB setup、TD-R equality recovery。
+- semicolonをouter canonical Statement sequenceが所有する規則、losslessness、AST / direct-CST parity、
+  one source range = one recovery node = one record。
+
+限定してsupersedeするのは次だけである。
+
+- name slotがComplete（literalまたはsame-slot retry）でoptional parameter scan後にmalformed introducer evidenceがなく、
+  EOF / outer statement separator / equal-or-shallower newline / braced Statement-sequence newline /
+  inline canonical Statement経由のCatch arm-sequence newline / precise active fixed Statement boundary /
+  active ambient owner boundaryへ達するfull familyを、
+  missing DefinitionIntroducerではなくvalid nominal formのterminal boundaryとする。
+- maximal strictly-deeper trailing triviaの後にtokenなしでEOFへ達するcaseもvalid nominalとし、triviaを
+  TypeDeclaration内へ一度だけ保持する。
+- `TypeDeclaration` ASTのalways-equality fieldsをneutral form sumへ移し、valid nominalとincomplete equality recoveryを
+  structuralに区別する。CST root kind `TypeDeclaration`は共有し、新しいnominal wrapper nodeを作らない。
+
+### `TND-G`: unified TypeDeclaration surface and terminal layout
+
+```text
+TypeDeclaration :=
+    TypeDeclarationHeader TypeDeclarationForm
+
+TypeDeclarationHeader :=
+    [ VisibilityKw Gtype+ ]
+    TypeKw Gtype+ TypeName
+    [ DeclarationTypeParameterList ]
+
+TypeDeclarationForm :=
+    NominalTypeDeclarationEnd
+  | EqualityTypeDeclarationDefinition
+
+NominalTypeDeclarationEnd :=
+    Gtype-terminal NominalStatementBoundary
+  | MaximalStrictlyDeeperTrailingTriviaBeforeEOF EOF
+
+EqualityTypeDeclarationDefinition :=
+    Gtype* Equals Gtype-rhs
+    RequiredTypeExpression(TypeDeclaration::Rhs)
+
+NominalStatementBoundary :=
+    EOF
+  | OuterStatementSemicolon
+  | EqualOrShallowerStatementNewline(type_base)
+  | BracedStatementSequenceNewline
+  | CatchArmSequenceNewlineThroughInlineCanonicalStatement
+  | ActiveOuterFixedStatementBoundary
+  | AmbientStatementOwnerBoundary
+
+Gtype-terminal :=
+    empty
+  | NonEmptySameLineTrivia
+
+ActiveOuterFixedStatementBoundary :=
+    ActiveStop(Comma)
+  | ActiveStop(RightParenthesis)
+  | ActiveStop(RightBracket)
+  | ActiveStop(RightBrace)
+```
+
+`VisibilityKw`、`TypeName`、`DeclarationTypeParameterList`、`DeclarationTypeParameter`、`Gtype+`、
+`Gtype*`、`Gtype-rhs`、`Gtype-param`、`type_base`は`TD-G`の定義をそのまま共有する。
+このsectionが承認された後は、上記のunified `TypeDeclaration` / `TypeDeclarationForm`だけがtype declaration全体の
+canonical grammarになり、`TD-G`のequality productionは`EqualityTypeDeclarationDefinition`の正本として残る。
+
+`NominalStatementBoundary`はsource childではなくowner handoff resultである。EOFはtokenを作らず、semicolon、newline、
+fixed punctuation、ambient companionのtrivia / token byteはconsumeしない。same-line triviaの後がEOF / semicolonなら
+`Gtype-terminal`をTypeDeclarationが所有できる。一方、physical newlineを含むoriginal gapは分割せず、
+equal-or-shallower / braced-sequence / ambient boundaryならtrivia全体をouter ownerへ返す。
+
+fixed punctuationのsubsetを曖昧な「outer close」にしない。semicolonは`OuterStatementSemicolon`が別に所有し、
+`ActiveOuterFixedStatementBoundary`はcurrent incoming stop setでactiveな
+`Comma | RightParenthesis | RightBracket | RightBrace`だけである。`Comma`はauthoritative braced Statement grammarの
+explicit separatorなので含める。`Newline`、`Colon`、`LeftBrace`、`Equal`、`Arrow`、`ArmGuardIf`、
+`ArmGuardWhere`、`Elsif`、`Else`、`With`は含めない。spellingだけでなくcorresponding stopがactiveであるときだけ
+fixed boundaryになり、contextual companionはidentity-bearing ambient queryまたはfuture ownerが裁定する。
+
+二つのbraced newline branchは、original gapがphysical newlineを含むとき、ambient owner stackをtop-downに一度読み、
+次のidentity-bearing resultを返すshared sink-free queryで裁定する。
+
+```rust
+enum TypeDeclarationBracedNewlineOwner {
+    BracedStatementSequence,
+    CatchArmSequenceThroughInlineCanonicalStatement,
+}
+```
+
+- `InlineCanonicalStatement(_)`はtransparentにskipし、その枚数を保持する。first non-inline ownerが
+  `BracedBarrier(BracedStatementBlockExpression)`なら、skip枚数に関係なく`BracedStatementSequence`を返す。
+- first non-inline ownerが`BracedBarrier(CatchBracedArmSequence)`なら、one-or-more inline frameをskipした場合だけ
+  `CatchArmSequenceThroughInlineCanonicalStatement`を返す。zero skipのCatch barrierは返さない。
+- `IndentedStatement` / `RootStatement`が先、またはstack endならNoneを返す。
+
+Catchの限定条件は、braced Catch owner自体がcanonical Statementをarm itemとして直接parseせず、reachable
+TypeDeclarationがarm bodyのOperatorChainから`WithBodyTail`（またはその内側の`ModColonBody`）の
+inline full-Statement consumerへ入った場合に限ることを表す。Catch braced policyはphysical newlineをindent非依存の
+next-arm separatorとしてownするため、このreachable inline episodeだけはNominalをcloseしてgapをarm sequenceへ返す
+（`crates/yu-syntax/src/grammar/expression.rs:1414-1430,1899-1905,1941-1958`）。futureにCatch top-levelが
+canonical Statementを直接acceptするならzero-skip caseは別design reviewなしに有効化しない。
+
+raw `StopKind::Newline`、indent guess、bare「barrierあり」boolでは代用しない。このqueryはexisting rollback-owned stackを
+readし、probe resultにかかわらずoriginal gap / stack / sinkをexact rollbackする。
+これはauthoritative brace grammarの`Gnl` separatorと、ASOBが既知residualとして記録したbraced current-depth newlineを
+TypeDeclaration form slotでcompositionする規則である（本document:6193-6242, 19010-19029）。
+
+maximal triviaがstrictly-deeper newlineを含んでも、後続tokenがなくEOFへ達するなら
+`MaximalStrictlyDeeperTrailingTriviaBeforeEOF EOF` branchである。
+これはcurrent equality implementationの`mod_trivia`がdeeper trailing triviaをacceptし、header surfaceが一度emitしてから
+EOF Missing Equalsへ達するownershipを保つ（`crates/yu-syntax/src/grammar/declaration.rs:8431-8444`）。Authoritative TD-Rは
+このtrivia subtypeを独立rowにしていないが、`no = + EOF` rowへ収束するcurrent behaviorである。本追補では
+recoveryだけをNominalへ変え、triviaはTypeDeclaration child / rangeに残す。EOF自体はtokenを持たない。
+
+strictly-deeper newlineの後にtokenがある場合は、まずTND-J priority 2の`Gtype* + exact =` probeを行う。
+これがacceptならcontextを問わずEqualityへcutする。probeがreject / rollbackした後、shared typed queryが上記どちらかの
+braced newline ownerを返すならnewlineをそのouter sequenceへ返す。それ以外はexisting
+`TypeContinuationTrivia(type_base)` authorityの下でTD-R definition recoveryへ進む。
+これによりlayout-delimited continuationとstatement terminationをcolumn guessで混同しない。
+
+parameter listは引き続きsame-lineだけをgreedyに取る。従って`type Phantom 'a` EOFはone-parameter nominal、
+`type Id 'a ('a)`はfirst `'a`をparameter、`('a)`をmissing-`=` reusable RHSとする。
+
+### `TND-J`: shared intro authority and post-header form judge
+
+intro judgeはexisting `TD-J`を完全共有する。bare nominal専用`StatementIntro`、second `type` spelling matcher、
+root-only lookaheadを追加しない。exact `type`またはvisibility + `Gtype+` + exact `type`が見えた時点で、
+後続formに関係なくsame `StatementIntro::Type`へcutする。
+
+nominal / equalityのdivergenceは、name recoveryとgreedy same-line parameter scanが終わった直後の
+`TypeDeclarationFormJudge`だけが決める。judgeはsink-freeで、input、line state、all rollback-owned ParseLocal stack、
+sinkをcheckpointし、original gapのone maximal trivia runとfollowing one token / maximal wordだけをprobeして必ずexact rollbackする。
+arbitrary distanceの`=` searchやfull TypeExpression speculative parseをしない。
+
+priorityを次で固定する。
+
+1. **Incomplete header:** nameが`Incomplete`ならnominal authorityを与えない。exact `=` evidenceがあれば
+   equality recoveryへ進み、それ以外はexisting TD-R name / definition no-cascade dispositionを保つ。
+2. **Local exact equality authority:** complete header後、original gapがambient ownerにclaimされず、
+   accepted `Gtype*`直後にexact lone `=`があるなら`Equality`。explicit local introducerはbraced newlineを含む
+   terminal inferenceより先に勝つ。一度`=`をacceptした後はform judgeへ戻らず、TD-T RHS ownerへ入る。
+3. **Nominal terminal authority:** complete header後、original gapがequal-or-shallower newline、typed
+   `BracedStatementSequenceNewline` / `CatchArmSequenceNewlineThroughInlineCanonicalStatement`、precise active fixed
+   Statement boundary、ambient owner、`Gtype-terminal + EOF / outer semicolon`、または
+   `MaximalStrictlyDeeperTrailingTriviaBeforeEOF EOF`を満たすなら`Nominal`。boundary byteはconsumeしない。
+4. **Equality recovery authority:** それ以外はexisting TD-R DefinitionIntroducer slotへ渡す。valid non-parameter
+   TypePrimaryならzero-width Missing `=` + same-position RHS retry、malformed runならmaximal Error + selected retryを保つ。
+
+judge resultはidentity-bearingなform decisionであり、boolの`has_equals`やEOF-only special caseへeraseしない。
+suggested internal shapeは次である。concrete Rust nameはmodule conventionに合わせてよい。
+
+```rust
+enum TypeDeclarationFormDecision {
+    Nominal,
+    Equality,
+    EqualityRecovery,
+    Incomplete,
+}
+```
+
+`any_ambient_owner_claims`はoriginal gapに対してだけ呼ぶ。trueならcomplete headerはvalid Nominalとなり、同じgapを
+outer If / statement / delimiter ownerが再質問できる。malformed byteを一度consumeした後でboundaryをre-probeして
+Nominalへupgradeしてはならない。従って`type Point @` EOFはnominalではなくDefinitionIntroducer Errorである。
+
+shared typed braced-newline-owner queryもsame original gapで、exact equality probeがreject / rollbackした後だけ呼ぶ。
+従って`type Id =\n   Int`は`=`accept時点でEqualityへcutし、newlineはexisting mandatory RHSのdeeper continuationとして
+parseされる。`type Id\n   = Int`もexisting `Gtype*`がexact `=`までqualifyできる場合はlocal equality authorityが先に勝つ。
+一方、`{ type Point\n      our x = 1 }`はexact `=` evidenceがないためbraced sequence newlineがNominalをcloseし、
+newline全体をbrace Statement separatorへ返す。Catch inline episodeもsame equality-first orderを使う。
+
+### AST / CST shape
+
+existing `SyntaxKind::TypeDeclaration`、`TypeKw`、`DeclarationTypeParameterList`を共有する。
+`NominalTypeDeclaration`、`TypeDeclarationHeader`、`TypeDeclarationForm`、empty body、empty RHS wrapperの
+new CST kindは作らない。valid nominal CSTはTypeDeclaration node内にvisibility / `type` / name / non-empty parameter list /
+owned terminal trivia（same-line、またはfollowing tokenなしでEOFへ達するstrictly-deeper trivia）だけをsource orderで持つ。
+
+ASTはvalid nominalとequality recoveryを区別するneutral sumへmigrateする。
+
+```rust
+struct TypeDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    form: Recovered<TypeDeclarationForm<'source>>,
+    range: Range<usize>,
+}
+
+enum TypeDeclarationForm<'source> {
+    Nominal,
+    Equality {
+        equals: Recovered<Range<usize>>,
+        rhs: Recovered<Box<TypeExpression<'source>>>,
+    },
+}
+```
+
+`form = Incomplete`は、name incompleteかmalformed DefinitionIntroducer runがterminal boundaryへ達し、
+nominal / equalityどちらのpositive evidenceもないrecoveryに限る。exact `=`、missing `=` + reusable RHS、
+malformed introducer + exact `=` / reusable RHSは`Complete(Equality { ... })`を持つ。
+valid nominalにdummy `equals = Incomplete` / `rhs = Incomplete`を埋めず、absenceとrecovery failureを混同しない。
+
+#### Complete bare nominal
+
+source bytes:
+
+```text
+type Point
+```
+
+byte-exact CST:
+
+```text
+TypeDeclaration 0..10
+  TypeKw 0..4 "type"
+  Trivia 4..5 " "
+  Identifier 5..10 "Point"
+```
+
+ASTは`name = Complete(Point)`、zero parameters、`form = Complete(Nominal)`、range `0..10`を持つ。
+Missing / Error / TypeExpressionはzeroである。これはequality追補のcomplete-header terminal familyを
+限定supersedeする一例である。
+
+#### Visibility and parameter nominal with outer semicolon
+
+source bytes:
+
+```text
+pub type Phantom 'a;
+```
+
+byte-exact CST:
+
+```text
+TypeDeclaration 0..19
+  PubKw 0..3 "pub"
+  Trivia 3..4 " "
+  TypeKw 4..8 "type"
+  Trivia 8..9 " "
+  Identifier 9..16 "Phantom"
+  DeclarationTypeParameterList 16..19
+    Trivia 16..17 " "
+    SigilIdentifier 17..19 "'a"
+Semicolon 19..20 ";"
+```
+
+ASTはone parameter、`form = Complete(Nominal)`、range `0..19`を持つ。semicolonはouter Statement separatorであり、
+TypeDeclaration child / rangeへ入らない。
+
+#### Nominal before the next statement
+
+source bytes:
+
+```text
+type value
+our x = 1
+```
+
+first TypeDeclarationは`0..10`でcloseし、newline byte `10..11`をouter root sequenceへ返す。
+second statementはexisting Bindingとして`11..20`をparseする。first declarationにMissing Equals / RHSを作らない。
+
+#### Nominal in a braced Statement sequence
+
+```text
+{
+  type Point
+      our x = 1
+}
+```
+
+`type Point`はcomplete header後にexact `=`を持たず、nearest typed statement ownerが
+`BracedBarrier(BracedStatementBlockExpression)`なので`Complete(Nominal)`でcloseする。newline / indentation triviaは
+TypeDeclarationへ入れず、brace sequenceのimplicit Statement separatorが一度だけ所有する。`our x = 1`はindent値に
+かかわらずnext canonical Statementとして開始する。
+
+#### Nominal in an inline canonical Statement inside a Catch arm
+
+```text
+catch action {
+  A -> value with: type Point
+  B -> fallback
+}
+```
+
+`type Point`のform judgeからambient stackをtop-downに読むと、one
+`InlineCanonicalStatement(WithBodyTail)`をskipした後に`BracedBarrier(CatchBracedArmSequence)`へ達する。
+typed resultは`CatchArmSequenceThroughInlineCanonicalStatement`であり、exact `=` evidenceがないため
+`Complete(Nominal)`でcloseする。newline gapをconsumeせずWith body / first armから順にunwindし、Catch braced sequenceが
+一度だけnext-arm separatorとして所有する。`B -> fallback`をmissing-`=` reusable TypePrimaryへ入れない。
+
+#### Strictly-deeper trailing trivia reaching EOF
+
+source representation:
+
+```text
+type Point\n␠␠␠␠
+```
+
+maximal trailing triviaの後にtokenがなくEOFへ達するため`Complete(Nominal)`である。equal-or-shallower / braced / ambient
+ownerがないこのcaseではtriviaをTypeDeclarationが所有し、rangeはEOFまでになる。Missing DefinitionIntroducer / Rhsはzero。
+
+### `TND-T`: no TypeExpression episode and ASOB composition
+
+Nominal formはTypeExpression slotを持たない。`parse_type_declaration_rhs` /
+`commit_type_declaration_rhs`、RHS `IndentationBaseline`、RHS-local `Semicolon` / `With` stop scope、
+mandatory outer roleを呼ばない。valid nominalのためにempty TypeExpression、Missing Rhs、
+`TypeDelimitedOwner`、new positional fenceを作らない。
+
+TypeExpressionとのcompositionはform selectionのnegative sideだけにある。
+
+- exact `=`またはDefinitionIntroducer recoveryがEqualityを選んだ後は、existing `TD-T`をbyte-for-byte再利用する。
+- form judgeはoriginal gapを`any_ambient_owner_claims`へ渡す。complete headerへのambient claimはNominal terminal authorityであり、
+  trivia / companion wordをconsumeしない。
+- equal-or-shallower newline / typed braced Statement-sequence or Catch-inline-arm newline /
+  active `Comma | RightParenthesis | RightBracket | RightBrace`もsame caller-owned boundaryとして返す。
+- semicolonはseparate outer Statement separatorであり、exact spellingをnon-consumeで返す。
+- strictly-deeper trailing trivia後にEOFならNominal自身がtriviaを所有し、outer boundary recordを作らない。
+- strictly-deeper continuationでequality recoveryへ入った後は、existing baseline / stop / TypeExpression judgeを使う。
+
+nominal pathではRHS scopeをpushしないためpopもない。form judgeのcheckpoint / rollbackがinput、line、ambient / If、
+delimiter、stop、indentation、type-owner、ML、positional fence、sinkをexact restoreする。equality pathのnormal / recovery /
+rollback restoration contractはTD-Tから変更しない。
+
+### `TND-R`: shared-header and form recovery contract
+
+new `TypeDeclarationRole`は追加しない。Nameはshared mandatory header slot、DefinitionIntroducer / Rhsは
+Equality formだけのslotである。Nominalにはbody / terminator / RHS recovery roleがない。
+
+#### Header and form selection
+
+| input state | AST / recovery | form / retry / ownership |
+| --- | --- | --- |
+| `type Point` + EOF | name Complete、zero recovery | `Complete(Nominal)`、EOF non-consume |
+| `type Point;` | name Complete、zero recovery | `Complete(Nominal)`、semicolon outer owner |
+| `type Point` + equal-or-shallower newline / ambient owner | name Complete、zero recovery | `Complete(Nominal)`、original gap non-consume |
+| direct braced Statementのcomplete header + physical newline、exact `=` candidateなし | name Complete、zero recovery | `Complete(Nominal)`、whole gapをbrace implicit separatorへnon-consumeで返す |
+| Catch braced arm内のone-or-more inline canonical Statement経由complete header + physical newline、exact `=` candidateなし | name Complete、zero recovery | `Complete(Nominal)`、whole gapをCatch next-arm separatorへnon-consumeで返す |
+| complete header + active `Comma | RightParenthesis | RightBracket | RightBrace` | name Complete、zero recovery | `Complete(Nominal)`、exact active punctuationをcallerへnon-consumeで返す |
+| complete header + maximal strictly-deeper trailing trivia + EOF、following tokenなし | name Complete、zero recovery | `Complete(Nominal)`、triviaはTypeDeclarationが一度所有しrangeはEOFまで |
+| complete name + same-line parameters + terminal boundary | parameters Complete、zero recovery | `Complete(Nominal)`、no empty body / RHS |
+| complete header + exact `=` | zero new nominal recovery | `Complete(Equality)`、TD-R RHSへ |
+| complete header + valid non-parameter TypePrimary、no `=` | one zero-width Missing DefinitionIntroducer | `Complete(Equality)`、same positionからRHS retry |
+| malformed introducer run + exact `=` | one maximal Error DefinitionIntroducer | `Complete(Equality)`、actual `=`をconsume、additional Missingなし |
+| malformed introducer run + valid TypePrimary | one maximal Error DefinitionIntroducer | `Complete(Equality)`、same positionからRHS retry |
+| malformed introducer run reaches terminal boundary | one maximal Error DefinitionIntroducer | form Incomplete、Nominalへupgradeせず、additional Missingなし |
+| `type` + terminal boundary | one Missing Name | form Incomplete、Nominal / Equals / RHS Missingをcascadeしない |
+| malformed name run + valid raw name + terminal boundary | one maximal Error Name、retried name Complete | `Complete(Nominal)`、Name Missingを重ねない |
+| malformed name run + exact `=` | one maximal Error Name、name Incomplete | `Complete(Equality)`、existing TD-R equality / RHSへ |
+| malformed name run reaches boundary | one maximal Error Name、name Incomplete | form Incomplete、Nominal / Definition / RHS Missingを重ねない |
+
+`type Point @` EOFはmalformed DefinitionIntroducerでありNominalではない。`type Point ('a)`はmissing `=`を持つ
+Equality recoveryでありNominalではない。`type Point = ;`はEquality、one Missing Rhsであり、Nominal fallbackを試さない。
+一度form authorityをEquality / recoveryへcutした後、downstream boundaryでNominalへ戻らない。
+
+#### Recovery cardinality and convergence
+
+- valid Nominalはzero recovery record、zero recovery node。
+- invalid shared Nameだけが原因ならName recovery one、form / Definition / Rhs same-cause Missing zero。
+- malformed post-header runがboundaryへ達した場合はDefinitionIntroducer Error one、Missing Equals / Rhs zero。
+- positive equality evidence後はTD-Rのone-slot cardinalityをそのまま使い、Nominal recoveryを追加しない。
+- complete-header terminal familyに対する旧TD-R Missing DefinitionIntroducerはzeroになり、family全体をgate 8で
+  atomic migrateする。一部fixtureだけ先にNominalへ変えない。
+- AST / direct-CSTはsame form decision、same Complete / Incomplete slot、same source range、same recovery recordを持つ。
+- form judgeはsink-freeであり、committed adapterだけがselected trivia / token / recoveryを一度emitする。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `recognize_type_statement_intro` / `TypeStatementIntro`、visibility、type_base、root / nested dispatch。
+- `parse_type_declaration_header_slots`のName / parameter policyを、form divergence前のshared header ownerへ整理したもの。
+- `DeclarationTypeParameter` / list、exact equals scanner、TD-R typed recovery、TD-T RHS episode。
+- `any_ambient_owner_claims`、active fixed stop / newline classifier、checkpoint / rollback、canonical Statement semicolon owner。
+- existing `AmbientOwnerScopeFrame` / `BracedBarrierOrigin` / skipped inline-frame countをtypedに読み、
+  `Option<TypeDeclarationBracedNewlineOwner>`を返すshared sink-free query。new stack / bool side channelは作らない。
+- `SyntaxKind::TypeDeclaration`、`Declaration::Type` / `Statement::Type`、header discovery stop。
+
+次を共有・追加しない。
+
+- bare nominal専用keyword / StatementIntro / SyntaxKind / recovery role。
+- `TypeDelimitedOwner`、list driver、body wrapper、empty TypeExpression、nominal terminator token。
+- arbitrary future `=` search、root-only second parser、Yulang2 EventSink state、semantic type registry。
+
+current `ParsedTypeDeclarationHeader`が`equals` / `rhs_retry`まで含む形はequality-only implementation detailである。
+実装時はshared `name` / `parameters` header resultとpost-header form resultを責務分離し、AST / direct-CSTで
+form judgeを二重実装しない。shared sink-free driver + thin committed adapterを使う。
+
+#### Ambient-owner vocabulary exhaustiveness
+
+current `session.rs`のclosed vocabularyを全列挙し、Nominal boundaryとの関係を次で固定する
+（`crates/yu-syntax/src/session.rs:158-229`）。
+
+| ambient kind | nested TypeDeclarationのreachable path | nominal newline authority |
+| --- | --- | --- |
+| `RootStatement` | full root driverのdirect canonical Statement | baseline 0のequal-or-shallower、EOF / separator / fixed boundary |
+| `IndentedStatement` | shared indented Statement blockのdirect canonical Statement | captured baselineのequal-or-shallower / dedent、ambient companion |
+| `InlineCanonicalStatement(WithBodyTail)` | With inline full-Statement consumer | frameをtransparentにskipし、nearest non-inline ownerへdelegate |
+| `InlineCanonicalStatement(ModColonBody)` | Mod inline colon-body full-Statement consumer | frameをtransparentにskipし、nearest non-inline ownerへdelegate |
+| `BracedBarrier(BracedStatementBlockExpression)` | direct braced Statement、またはone-or-more inline frame内 | `BracedStatementSequence` newline result |
+| `BracedBarrier(CatchBracedArmSequence)` | Catch arm OperatorChainのWith / nested Mod inline full-Statement経由だけ | one-or-more inline frameをskipした場合だけ`CatchArmSequenceThroughInlineCanonicalStatement`。zero skipはNone |
+
+`AmbientOwnerScopeKind`はRoot / Indented / BracedBarrier / InlineCanonicalStatementのfour variants、
+`BracedBarrierOrigin`はBracedStatementBlockExpression / CatchBracedArmSequenceのtwo variants、
+`InlineStatementOwnerKind`はWithBodyTail / ModColonBodyのtwo variantsだけである。上表に未分類variantはない。
+productionのroot / nested full-Statement entryは必ずいずれかのowner scope内にあり、stack endまでinline frameだけが続くcaseは
+isolated fixture以外では到達しない。queryはそのcaseをNoneとして安全側にrejectする。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Shared valid header preserved:** optional `my` / `our` / `pub`、plain name、same-line whitespace-separated
+   `Ident | SigilIdent` parametersをequalityと同じsurfaceで保つ。
+2. **Typed form evidence:** Y2はsame TypeDeclをsilent closeし、missing-equalsとのtyped distinctionを持たなかった。
+   Y3はterminal owner boundaryをpositive Nominal evidenceとし、malformed post-header runをnominalへfoldしない。
+3. **Layout boundary divergence:** Y2 `scan_decl_type_vars`はany newlineでparameter scanを止めたが、inline role-like bodyは
+   deeper newlineの次tokenをlocalにscanできた。Y3はexisting type_base disciplineを保ち、root / indentedでは
+   equal-or-shallower / ambientをnominal terminal、strictly deeper + following tokenをcontinuationとする。
+   authoritative braced Statement sequence直下だけはindentに依存しないnewline separator authorityをtyped queryで追加する。
+   Catch braced armではone-or-more inline canonical Statement frame経由のreachable TypeDeclarationだけを同じtyped queryで
+   next-arm newlineへ返し、zero-skip Catch barrierはfuture grammarとして無効のままにする。
+   following tokenなしでdeeper triviaがEOFへ達した場合はNominalがtriviaを所有する。
+4. **Semicolon ownership divergence:** Y2 role-like bodyはsemicolonをTypeDecl内でconsumeした。Y3はouter canonical
+   Statement sequenceへ返し、nominal rangeをsemicolon前でcloseする。
+5. **CST divergence:** Y2のalways-present empty `TypeVars`を作らない。nominal専用empty body / form wrapperも作らない。
+6. **Neutral syntax, no semantics:** `Nominal`はsurface form labelであり、nominal identity、constructor registration、
+   opaque / alias meaning、default visibilityをparserが決める宣言ではない。
+7. **Companion-family exclusion:** `impl` / `with` / derives / colon / brace role-like body / `struct self`は本追補で
+   nominal continuationにならない。current equality scope-gate behaviorをbare terminal以外で変更しない。
+8. **Associated-type owner exclusion:** Y2 role bodyの`type value`とimpl bodyの`type value = 'left`はoracle surfaceだが、
+   current Y3にrole / impl statement ownerがない。本追補はroot / already-authorized canonical Statement slotだけを使い、
+   associated-type grammar / semanticsを先取りしない。
+9. **No added parameter surface:** kind、bound、default、angle / square delimiter、comma、`where`を追加しない。
+   `$` / `&` / `_` parameter divergenceはTD item 9 / 10をそのまま維持する。
+10. **Doc / HIR boundary:** doc commentはseparate declaration owner、HIR / resolver / formatterはscope外である。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは
+form AST migration、isolated form judge、recovery parity、real dispatch switchを小さいgateに分ける。
+gate 8まではcurrent public parserのcomplete-header terminal family behaviorを一件も変更しない。
+
+implementation gateを次で固定する。
+
+1. `TypeDeclarationForm::{Nominal, Equality { equals, rhs }}`と
+   `TypeDeclaration.form: Recovered<TypeDeclarationForm>`を追加し、existing equality constructor / fixtureを
+   `Complete(Equality { ... })`へmechanical migrateする。new SyntaxKind / StatementIntro / roleを追加せず、
+   public parse / CST / recovery behaviorをbyte-identicalに保つ。
+2. `TD-J`を再利用するshared sink-free `TypeDeclarationFormJudge`と、existing typed ambient stackから
+   skipped-inline count込みの`Option<TypeDeclarationBracedNewlineOwner>`を返すqueryをisolated実装する。exact `=`、EOF、semicolon、
+   equal-or-shallower newline、direct braced newline、one/multiple-inline-through-Catch newline、zero-inline Catch rejection、
+   active `Comma | RightParenthesis | RightBracket | RightBrace`、nested ambient owner、strictly-deeper continuation /
+   trailing EOF、valid RHS candidate、malformed byteのdecisionと
+   all-state exact rollbackをdirect fixtureで固定する。real dispatchからはまだ呼ばない。
+3. existing header scannerをName / parametersまでのshared header phaseとDefinition / RHS form phaseへ責務分離し、
+   AST isolated harnessでNominal / Equality / EqualityRecovery / Incompleteを作る。current public equality pathは旧adapterを通して
+   observable behaviorを維持し、no arbitrary lookahead / no duplicated AST/direct judgeをassertする。
+4. direct-CST thin adapterをisolated harnessへ追加し、`type Point`、`pub type Phantom 'a;`、
+   `type value\nour x = 1`のbyte-exact CST、all trivia home、semicolon / newline outer ownership、lossless round trip、
+   AST / direct form parityを固定する。
+5. `TND-R`全行をfixture化する。malformed Name retry + Nominal、exact `=`、missing `=` + reusable RHS、
+   malformed Definition retry / terminal、missing Name、multi-slot no-cascadeについてone range = one node = one recordと
+   Complete / Incomplete parityを確認する。production behaviorはまだ切り替えない。
+6. form judgeのboundary matrixをexhaustive fixture化する。root / indented / braced / inline canonical Statement、
+   depth-2+ ambient / If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline /
+   direct braced newline / Catch braced armの`value with: type Point\n B -> fallback` / nested
+   `WithBodyTail + ModColonBody`からCatch barrierへ達するmultiple-inline case / zero-inline Catch negative case /
+   strictly-deeper continuation / strictly-deeper trailing trivia + EOF、normal / recovery / rollbackで
+   input、sink、ambient / If、delimiter、stop、indentation、type-owner、ML、positional fenceがexact restoreされることを固定する。
+   `type Id =\n   Int`をbraced / non-braced両contextでfixture化し、form選択後のmultiline equality RHSを切らないことも固定する。
+7. existing equality TD-G/T/R fixtureのうち、exact `=`、missing-`=` + reusable RHS、malformed introducer + recoveryという
+   **positive equality evidence family**をunmodifiedで全再実行し、full exotic RHS、missing / malformed RHS、ASOB、
+   header discovery、root / nested、semicolon ownershipがregressしないことを確認する。complete-header terminal boundaryだけで
+   Missing DefinitionIntroducerを期待する旧fixtureは本gateの「unmodified」集合から明示的に除外し、gate 8のatomic migration
+   inventoryへ列挙する。new recovery vocabulary、TypeDelimitedOwner、synthetic separatorがないことをscope auditする。
+8. shared root / nested Type dispatchをpost-header form judgeへ切り替え、Nominalをactual parser entrypointから初めて到達可能にする。
+   同じatomic changeで、gate 7がinventory化したname Complete + optional parameters + no malformed introducerから
+   EOF / semicolon / equal-or-shallower newline / direct braced newline / inline-through-Catch arm newline /
+   active comma or right delimiter / ambient owner /
+   strictly-deeper trailing trivia + EOFへ達する**全旧Missing-DefinitionIntroducer fixture**を
+   `Complete(Nominal)` / zero DefinitionIntroducer recoveryへ一括migrateする。`type Point`だけを先行変更するwindowを作らない。
+   `impl` / `with` / colon / brace / derives / associated-type scope fixtureとpositive equality evidence fixtureは変更しない。
+   source-leading nominalもheader discoveryを終了し、HeaderDeclaration factを作らないことをend-to-endで固定する。
+9. root / nested interleaving、visibility / parameter nominal、outer semicolon、ambient companion、malformed boundary、
+   direct braced newline、inline-through-Catch arm newline、active comma / right delimiter、deeper-trivia EOF、
+   equality coexistenceをfinal regression matrixにし、
+   nominal semantics / constructor / associated type / companion family /
+   HIR / resolver / formatterを実装しないscope gateを固定する。full `yu-syntax` suiteとAST / direct parityを閉じる。
+
+### Closed design decisions and Claude review focus
+
+本Proposalで次をdesign decision候補として固定する。
+
+- nominalとequalityはsame `StatementIntro::Type` / header / CST `TypeDeclaration`を共有し、post-header formだけで分岐する。
+- exact `=`がlocal authority、complete header直後のterminal owner boundaryだけがNominal authority、それ以外はTD-R recoveryである。
+- valid Nominalはequals / RHS dummy Incompleteを持たず、neutral recovered form sumで表す。
+- nominal pathはTypeExpression / RHS scopeを一切開かず、equality pathはTD-Tを変更しない。
+- malformed post-header contentをterminal boundaryでNominalへupgradeしない。
+- exact equality authorityはtyped braced / Catch-inline newline authorityより先に勝ち、form選択後のmultiline RHSを切らない。
+- semicolon / equal-shallower / direct-braced / inline-through-Catch newline / active comma or right delimiter / ambient companionは
+  outer ownerへnon-consumeで返す。
+- following tokenなしでstrictly-deeper trailing triviaがEOFへ達した場合はNominalがtriviaを所有する。
+- companion type familyとnominal / associated-type semanticsは別追補へ残す。
+
+Claude reviewでは特に、`form: Recovered<TypeDeclarationForm>`がinvalid shared headerを最小かつ明確に表すか、
+exact `=` / braced or Catch-inline newline / nominal boundary / equality recoveryのpriority、skipped-inline countを含む
+closed ambient-owner vocabularyのexhaustiveness、precise active fixed-stop subset、
+same-line / deeper-EOF trailing triviaとphysical newlineのownership、malformed-to-boundary no-cascade、gate 8までpublic behaviorを
+変えないisolation discipline、complete-header terminal fixture familyのatomic migration範囲を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
+（2026-08-26、canonical Statement / root Declarationのbare nominal `type` declaration grammar追補案）。
