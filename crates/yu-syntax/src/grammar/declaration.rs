@@ -1257,6 +1257,67 @@ where
     })
 }
 
+/// Direct-CST counterpart of [`parse_type_declaration_form_aware_isolated`].
+/// It probes the shared header and form exactly once, then either replays that
+/// shared surface alone or delegates Equality recovery/RHS ownership to the
+/// established committed primitives.
+fn commit_type_declaration_form_aware_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: TypeStatementIntro<'source>,
+) -> Recovered<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::TypeDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
+
+    let (shared, recoveries, disposition, shared_end) = committed.probe(|probe| {
+        let i = probe.input();
+        let checkpoint = i.checkpoint();
+        let mut recoveries = Vec::new();
+        let shared = parse_type_declaration_shared_header_phase(&intro, i, &mut recoveries);
+        let disposition = classify_type_declaration_form(&shared.name, intro.type_base, i);
+        let end = i.pos();
+        i.rollback(checkpoint);
+        (shared, recoveries, disposition, end)
+    });
+
+    match disposition {
+        TypeDeclarationFormDisposition::Nominal | TypeDeclarationFormDisposition::Incomplete => {
+            let header = ParsedTypeDeclarationHeader {
+                name: shared.name,
+                parameters: shared.parameters,
+                equals: Recovered::Incomplete,
+                rhs_retry: false,
+            };
+            commit_type_declaration_header_surface(
+                intro.type_base,
+                &header,
+                recoveries,
+                shared_end,
+                committed,
+            );
+        }
+        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
+            let header = commit_type_declaration_header_slots(&intro, committed);
+            let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
+        }
+    }
+
+    let end = committed.probe(|probe| probe.input().pos());
+    committed.finish_node();
+    Recovered::Complete(intro.start..end)
+}
+
 pub(crate) fn parse_type_declaration<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeDeclaration<'source>>
@@ -13259,6 +13320,153 @@ mod tests {
         };
         assert!(matches!(legacy.form, Recovered::Incomplete));
         assert_eq!(source_input.remainder(), "");
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+    }
+
+    #[test]
+    fn isolated_type_declaration_form_aware_direct_cst_is_byte_exact_and_parity_checked() {
+        fn parse_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_type_declaration_form_aware_isolated(i).unwrap()
+            };
+            assert!(expectations.take_merged().is_none());
+            assert!(!is_cut);
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct_tree(
+            source: &str,
+            outer_semicolon: Option<Range<usize>>,
+        ) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String, SyntaxNode) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_type_statement_intro)
+                .expect("the isolated direct fixture starts with Type");
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            if let Some(semicolon) = outer_semicolon {
+                committed.token(SyntaxKind::Semicolon, semicolon);
+            }
+            committed.finish_node();
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let records = output.committed_recoveries().to_vec();
+            let root = SyntaxNode::new_root(output.finish_complete());
+            assert!(!is_cut);
+            (range, records, remainder, root)
+        }
+
+        let (ast, ast_remainder) = parse_ast("type Point");
+        let (direct_range, records, direct_remainder, root) =
+            parse_direct_tree("type Point", None);
+        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert_eq!(ast.range, 0..10);
+        assert_eq!(direct_range, Recovered::Complete(0..10));
+        assert_eq!(ast_remainder, "");
+        assert_eq!(direct_remainder, "");
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), "type Point");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![(SyntaxKind::TypeDeclaration, 0..10)],
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeKw, "type".to_owned(), 0..4),
+                (SyntaxKind::Whitespace, " ".to_owned(), 4..5),
+                (SyntaxKind::Identifier, "Point".to_owned(), 5..10),
+            ],
+        );
+
+        let source = "pub type Phantom 'a;";
+        let (ast, ast_remainder) = parse_ast(source);
+        let (direct_range, records, direct_remainder, root) =
+            parse_direct_tree(source, Some(19..20));
+        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert_eq!(ast.range, 0..19);
+        assert_eq!(direct_range, Recovered::Complete(0..19));
+        assert_eq!(ast_remainder, ";");
+        assert_eq!(direct_remainder, ";");
+        assert!(records.is_empty());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() != SyntaxKind::Root)
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::TypeDeclaration, 0..19),
+                (SyntaxKind::DeclarationTypeParameterList, 16..19),
+            ],
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), token.text().to_owned(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::PubKw, "pub".to_owned(), 0..3),
+                (SyntaxKind::Whitespace, " ".to_owned(), 3..4),
+                (SyntaxKind::TypeKw, "type".to_owned(), 4..8),
+                (SyntaxKind::Whitespace, " ".to_owned(), 8..9),
+                (SyntaxKind::Identifier, "Phantom".to_owned(), 9..16),
+                (SyntaxKind::Whitespace, " ".to_owned(), 16..17),
+                (SyntaxKind::SigilIdentifier, "'a".to_owned(), 17..19),
+                (SyntaxKind::Semicolon, ";".to_owned(), 19..20),
+            ],
+        );
+        assert_eq!(
+            root.children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .map(|token| (token.kind(), syntax_range(token.text_range())))
+                .collect::<Vec<_>>(),
+            vec![(SyntaxKind::Semicolon, 19..20)],
+            "the isolated root owns the nominal statement separator",
+        );
+
+        let source = "type value\nour x = 1";
+        let (ast, ast_remainder) = parse_ast(source);
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let direct_range = {
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe.input().run(recognize_type_statement_intro).unwrap();
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            assert!(committed.into_output().committed_recoveries().is_empty());
+            range
+        };
+        assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert_eq!(ast.range, 0..10);
+        assert_eq!(direct_range, Recovered::Complete(0..10));
+        assert_eq!(ast_remainder, "\nour x = 1");
+        assert_eq!(source_input.remainder(), "\nour x = 1");
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
     }
