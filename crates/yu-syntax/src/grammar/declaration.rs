@@ -1368,72 +1368,21 @@ where
     }
 }
 
-/// Parses the shared Type declaration header, then gives exact equality or
-/// caller-owned terminal evidence its form-specific continuation.
+/// Parses the shared Type declaration, including header/trailing derives
+/// attachments selected by the form-aware promotion core.
 pub(crate) fn parse_type_declaration<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
+    i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let intro = i.run(recognize_type_statement_intro)?;
-    let mut recoveries = Vec::new();
-    let shared = parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
-    let disposition = classify_type_declaration_form(&shared.name, intro.type_base, &mut i);
-    let form = match disposition {
-        TypeDeclarationFormDisposition::Nominal {
-            owns_trailing_trivia_through,
-        } => {
-            consume_type_declaration_nominal_trailing_trivia_until(
-                owns_trailing_trivia_through,
-                &mut i,
-            );
-            Recovered::Complete(TypeDeclarationForm::Nominal)
-        }
-        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
-            let (equals, rhs_retry) = parse_type_declaration_definition_phase(
-                &intro,
-                &shared.name,
-                &mut i,
-                &mut recoveries,
-            );
-            let header = ParsedTypeDeclarationHeader {
-                name: shared.name.clone(),
-                parameters: shared.parameters.clone(),
-                equals,
-                rhs_retry,
-            };
-            if header.rhs_retry {
-                let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
-                Recovered::Complete(TypeDeclarationForm::Equality {
-                    equals: header.equals,
-                    rhs,
-                })
-            } else {
-                Recovered::Incomplete
-            }
-        }
-        TypeDeclarationFormDisposition::Incomplete => Recovered::Incomplete,
-    };
-    let range = intro.start..i.pos();
-    Some(TypeDeclaration {
-        visibility: intro
-            .visibility
-            .map_or(Visibility::Private, |prefix| prefix.visibility),
-        name: shared.name,
-        parameters: shared.parameters,
-        derives: Vec::new(),
-        form,
-        range,
-    })
+    parse_type_declaration_with_derives_isolated(i)
 }
 
-/// Direct-CST counterpart of [`parse_type_declaration`].
-/// It selects the form exactly once, then either replays the shared surface
-/// alone or delegates Equality header/RHS ownership to the established
-/// committed primitives.
+/// Direct-CST counterpart of [`parse_type_declaration`], promoted atomically
+/// through the same derives-aware core used by the pre-promotion harness.
 pub(crate) fn commit_type_declaration<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: TypeStatementIntro<'source>,
@@ -1444,93 +1393,12 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.start_node(SyntaxKind::TypeDeclaration);
-    if let Some(visibility) = &intro.visibility {
-        emit_visibility(committed, visibility);
-        if let Some(trivia) = &intro.after_visibility {
-            committed.emit_trivia(trivia);
-        }
-    }
-    committed.token(SyntaxKind::TypeKw, intro.type_keyword.range());
-
-    let (shared, recoveries, disposition, shared_end) = committed.probe(|probe| {
-        let i = probe.input();
-        let checkpoint = i.checkpoint();
-        let mut recoveries = Vec::new();
-        let shared = parse_type_declaration_shared_header_phase(&intro, i, &mut recoveries);
-        let disposition = classify_type_declaration_form(&shared.name, intro.type_base, i);
-        let end = i.pos();
-        i.rollback(checkpoint);
-        (shared, recoveries, disposition, end)
-    });
-
-    match disposition {
-        TypeDeclarationFormDisposition::Nominal {
-            owns_trailing_trivia_through,
-        } => {
-            let header = ParsedTypeDeclarationHeader {
-                name: shared.name,
-                parameters: shared.parameters,
-                equals: Recovered::Incomplete,
-                rhs_retry: false,
-            };
-            commit_type_declaration_header_surface(
-                intro.type_base,
-                &header,
-                recoveries,
-                shared_end,
-                committed,
-            );
-            commit_type_declaration_nominal_trailing_trivia_until(
-                owns_trailing_trivia_through,
-                committed,
-            );
-        }
-        TypeDeclarationFormDisposition::Incomplete => {
-            let header = ParsedTypeDeclarationHeader {
-                name: shared.name,
-                parameters: shared.parameters,
-                equals: Recovered::Incomplete,
-                rhs_retry: false,
-            };
-            commit_type_declaration_header_surface(
-                intro.type_base,
-                &header,
-                recoveries,
-                shared_end,
-                committed,
-            );
-        }
-        TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
-            let (header, recoveries, header_end) = committed.probe(|probe| {
-                let i = probe.input();
-                let checkpoint = i.checkpoint();
-                let (header, recoveries) = parse_type_declaration_header_slots(&intro, i);
-                let end = i.pos();
-                i.rollback(checkpoint);
-                (header, recoveries, end)
-            });
-            commit_type_declaration_header_surface(
-                intro.type_base,
-                &header,
-                recoveries,
-                header_end,
-                committed,
-            );
-            if header.rhs_retry {
-                let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
-            }
-        }
-    }
-
-    let end = committed.probe(|probe| probe.input().pos());
-    committed.finish_node();
-    Recovered::Complete(intro.start..end)
+    commit_type_declaration_with_derives_isolated(committed, intro).0
 }
 
-/// Gate-7 isolated promotion candidate for Type derives attachments.  Header
-/// clauses run after the shared name/parameter phase and before TND form
-/// selection; trailing clauses run only after a selected Equality RHS episode.
+/// Shared promotion core for Type derives attachments. Header clauses run
+/// after the shared name/parameter phase and before TND form selection;
+/// trailing clauses run only after a selected Equality RHS episode.
 fn parse_type_declaration_with_derives_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<TypeDeclaration<'source>>
@@ -2382,6 +2250,7 @@ fn derives_role_episode_spec(
     spec: DerivesDriverSpec,
     incoming: StopSet,
     current_episode_depth: usize,
+    ambient_newline_owner: Option<DeclarationBracedNewlineOwner>,
 ) -> DerivesRoleEpisodeSpec {
     let mut stops = incoming
         .with(StopKind::Comma)
@@ -2390,6 +2259,14 @@ fn derives_role_episode_spec(
     let mut scoped_stops = StopSet::default()
         .with(StopKind::Derives)
         .with(StopKind::Via);
+    if ambient_newline_owner.is_some() {
+        // A RoleRef discovers this boundary only after parsing its first
+        // primary. Keep it visible to that outer episode, while the scoped
+        // frame suspends it inside parentheses, arrows, forall bodies, and
+        // every other recursively-owned TypeExpression episode.
+        stops = stops.with(StopKind::Newline);
+        scoped_stops = scoped_stops.with(StopKind::Newline);
+    }
     let mut policy = TypeExpressionEpisodePolicy::default();
     if spec.owner_tail_classifier == DerivesOwnerTailClassifier::StructHeader {
         for stop in [
@@ -2635,7 +2512,14 @@ where
     UnexpectedEndOfInput: Into<E::Error>,
 {
     let incoming = i.local.stop_set().unwrap_or_default();
-    let episode = derives_role_episode_spec(spec, incoming, i.local.type_expression_episode_depth());
+    let ambient_newline_owner =
+        declaration_braced_newline_owner_for_physical_newline(i.local);
+    let episode = derives_role_episode_spec(
+        spec,
+        incoming,
+        i.local.type_expression_episode_depth(),
+        ambient_newline_owner,
+    );
     i.local.push_stop_set(episode.stops);
     i.local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
     let role = i
@@ -2888,10 +2772,12 @@ where
 {
     let incoming = committed.probe(|probe| probe.input().local.stop_set().unwrap_or_default());
     let episode = committed.probe(|probe| {
+        let i = probe.input();
         derives_role_episode_spec(
             spec,
             incoming,
-            probe.input().local.type_expression_episode_depth(),
+            i.local.type_expression_episode_depth(),
+            declaration_braced_newline_owner_for_physical_newline(i.local),
         )
     });
     committed.probe(|probe| {
@@ -3195,6 +3081,12 @@ fn declaration_braced_newline_owner_from_stack(
     if !has_physical_newline {
         return None;
     }
+    declaration_braced_newline_owner_for_physical_newline(local)
+}
+
+fn declaration_braced_newline_owner_for_physical_newline(
+    local: &ParseLocal,
+) -> Option<DeclarationBracedNewlineOwner> {
     let mut skipped_inline = 0;
     for frame in local.ambient_owner_scope_frames() {
         match frame.kind() {
@@ -3687,9 +3579,8 @@ where
     Recovered::Complete(())
 }
 
-/// Commits the selected Struct prefix while the declaration body parser is
-/// introduced in later slices. The selected keyword is never returned to the
-/// binding or expression alternatives.
+/// Commits the selected Struct declaration through the derives-aware
+/// promotion core. The selected keyword is never returned to later choices.
 pub(crate) fn commit_struct_declaration<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: StructStatementIntro<'source>,
@@ -3700,57 +3591,12 @@ where
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    committed.start_node(SyntaxKind::StructDeclaration);
-    if let Some(visibility) = &intro.visibility {
-        emit_visibility(committed, visibility);
-        if let Some(trivia) = &intro.after_visibility {
-            committed.emit_trivia(trivia);
-        }
-    }
-    committed.token(SyntaxKind::StructKw, intro.struct_keyword.range());
-
-    if let Some(trivia) = committed.probe(|probe| {
-        struct_continuation_trivia(intro.struct_base, probe.input())
-    }) {
-        committed.emit_trivia(&trivia);
-    }
-
-    let mut name_incomplete = false;
-    if let Some(name) = commit_word(committed) {
-        committed.token(SyntaxKind::Identifier, name.range());
-    } else {
-        match struct_name_error_retry(committed) {
-            Some(true) => {
-                let name = commit_word(committed)
-                    .expect("a Struct name retry must leave its raw word at the cursor");
-                committed.token(SyntaxKind::Identifier, name.range());
-            }
-            Some(false) => {
-                name_incomplete = true;
-            }
-            None => {
-                name_incomplete = true;
-                emit_struct_missing(committed, crate::session::StructRole::Name, ExpectedSyntax::Identifier);
-            }
-        }
-    }
-
-    let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
-    if !name_incomplete || body_starter_pending {
-        if let Some(trivia) = committed.probe(|probe| {
-            struct_continuation_trivia(intro.struct_base, probe.input())
-        }) {
-            committed.emit_trivia(&trivia);
-        }
-        commit_struct_body_introducer(intro.struct_base, committed);
-    }
-    committed.finish_node();
-    Recovered::Complete(())
+    commit_struct_declaration_with_derives_isolated(committed, intro).0
 }
 
-/// Isolated direct-CST counterpart of
-/// [`parse_struct_declaration_with_derives_isolated`].  It is deliberately
-/// not called by the public Struct continuation before Gate 8.
+/// Direct-CST counterpart of
+/// [`parse_struct_declaration_with_derives_isolated`]. The public entry and
+/// the focused harness both use this one attachment-owning core.
 fn commit_struct_declaration_with_derives_isolated<'parse, 'source, 'local, E, O>(
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: StructStatementIntro<'source>,
@@ -8097,67 +7943,20 @@ where
     ))
 }
 
-/// Parses the committed Struct header and its body introducer. Field sequences
-/// remain deliberately unparsed until their dedicated declaration drivers
-/// land, but a recognized introducer fixes the body family immediately.
+/// Parses the Struct declaration through the derives-aware promotion core.
 pub(crate) fn parse_struct_declaration<'source, E>(
-    mut i: SynIn<'_, 'source, '_, E>,
+    i: SynIn<'_, 'source, '_, E>,
 ) -> Option<StructDeclaration<'source>>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    let intro = i.run(recognize_struct_statement_intro)?;
-    let _ = struct_continuation_trivia(intro.struct_base, &mut i);
-    let mut name_incomplete = false;
-    let name = if let Some(name) = i.run(scan_word) {
-        Recovered::Complete(name)
-    } else {
-        match struct_name_error_retry_ast(&mut i) {
-            Some(true) => Recovered::Complete(
-                i.run(scan_word)
-                    .expect("a Struct name retry must leave its raw word at the cursor"),
-            ),
-            Some(false) => {
-                name_incomplete = true;
-                Recovered::Incomplete
-            }
-            None => {
-                name_incomplete = true;
-                Recovered::Incomplete
-            }
-        }
-    };
-    let body_starter_pending = struct_body_starter_pending(&mut i);
-    let body = if !name_incomplete || body_starter_pending {
-        let _ = struct_continuation_trivia(intro.struct_base, &mut i);
-        parse_struct_body_ast(intro.struct_base, &mut i).map_or(Recovered::Incomplete, Recovered::Complete)
-    } else {
-        Recovered::Incomplete
-    };
-    let end = match &body {
-        Recovered::Complete(StructBody::Bodyless { semicolon }) => semicolon.end,
-        Recovered::Complete(StructBody::NamedBraced(body)) => body.range.end,
-        Recovered::Complete(StructBody::NamedIndented(body)) => body.range.end,
-        Recovered::Complete(StructBody::Tuple(body)) => body.range.end,
-        Recovered::Incomplete => match &name {
-            Recovered::Complete(name) => name.range().end,
-            Recovered::Incomplete => intro.struct_keyword.range().end,
-        },
-    };
-    Some(StructDeclaration {
-        visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
-        name,
-        derives: Vec::new(),
-        body,
-        range: intro.start..end,
-    })
+    parse_struct_declaration_with_derives_isolated(i)
 }
 
-/// Gate-6 isolated promotion candidate for Struct derives attachments.  The
-/// public Struct continuation remains derives-unaware until the later atomic
-/// dispatch switch; this sibling shares its name/body machinery verbatim.
+/// Shared promotion core for Struct derives attachments. Keeping header/body
+/// ownership here gives the public entry and focused harness one code path.
 fn parse_struct_declaration_with_derives_isolated<'source, E>(
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<StructDeclaration<'source>>
@@ -14796,6 +14595,7 @@ mod tests {
                 driver,
                 incoming,
                 local.type_expression_episode_depth(),
+                None,
             );
             local.push_stop_set(episode.stops);
             local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
@@ -14875,7 +14675,7 @@ mod tests {
             DerivesAttachmentPosition::Header,
             0,
         );
-        let episode = derives_role_episode_spec(driver, incoming, 0);
+        let episode = derives_role_episode_spec(driver, incoming, 0, None);
         local.push_stop_set(episode.stops);
         local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
         let mut expectations = chasa::LatestSink::new();
@@ -14930,7 +14730,7 @@ mod tests {
                 DerivesAttachmentPosition::Trailing,
                 0,
             );
-            let episode = derives_role_episode_spec(driver, incoming, 0);
+            let episode = derives_role_episode_spec(driver, incoming, 0, None);
             local.push_stop_set(episode.stops);
             local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
             let mut expectations = chasa::LatestSink::new();
@@ -16795,6 +16595,419 @@ mod tests {
             );
             assert!(expectations.take_merged().is_none());
             assert!(!is_cut);
+        }
+    }
+
+    #[test]
+    fn derives_role_episode_defers_ambient_newline_for_every_owner_and_position() {
+        #[derive(Clone, Copy, Debug)]
+        enum Context {
+            BracedStatementSequence,
+            CatchArmThroughInline,
+        }
+
+        fn install_context(local: &mut ParseLocal, context: Context) {
+            local.push_stop_set(StopSet::default().with(StopKind::RightBracket));
+            local.push_root_statement_ambient_scope();
+            match context {
+                Context::BracedStatementSequence => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Context::CatchArmThroughInline => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+            }
+            assert!(
+                !local.type_ml_arg(),
+                "the real-dispatch condition must not inherit Gate 7's ML-argument shortcut",
+            );
+        }
+
+        fn snapshot(
+            local: &ParseLocal,
+        ) -> (
+            Option<StopSet>,
+            usize,
+            Vec<TypeExpressionScopedStopFrame>,
+            Vec<AmbientOwnerScopeFrame>,
+        ) {
+            (
+                local.stop_set(),
+                local.type_expression_episode_depth(),
+                local
+                    .type_expression_scoped_stop_frames()
+                    .copied()
+                    .collect(),
+                local.ambient_owner_scope_frames().copied().collect(),
+            )
+        }
+
+        fn parse_ast(
+            source: &str,
+            spec: DerivesDriverSpec,
+            context: Context,
+        ) -> (Range<usize>, String, LineState) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context);
+            let before = snapshot(&local);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let (range, remainder, line) = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let Recovered::Complete(role) = parse_required_derives_role(spec, &mut i) else {
+                    panic!("the RoleReference should be complete: {source:?}");
+                };
+                assert_eq!(snapshot(i.local), before, "AST episode state: {source:?}");
+                (
+                    role.range(),
+                    i.input.remainder().to_owned(),
+                    i.local.line(),
+                )
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (range, remainder, line)
+        }
+
+        fn parse_direct(
+            source: &str,
+            spec: DerivesDriverSpec,
+            context: Context,
+        ) -> (Range<usize>, String, LineState) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context);
+            let before = snapshot(&local);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut committed = Probe::new(i).commit(HeaderOutput::new());
+            let Recovered::Complete(range) = commit_required_derives_role(spec, &mut committed)
+            else {
+                panic!("the direct RoleReference should be complete: {source:?}");
+            };
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let line = committed.probe(|probe| probe.input().local.line());
+            let output = committed.into_output();
+            assert!(
+                output.committed_recoveries().is_empty(),
+                "direct recovery: {source:?}: {:?}",
+                output.committed_recoveries(),
+            );
+            assert_eq!(snapshot(&local), before, "direct episode state: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            (range, remainder, line)
+        }
+
+        for context in [
+            Context::BracedStatementSequence,
+            Context::CatchArmThroughInline,
+        ] {
+            for (owner, position) in [
+                (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Header),
+                (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Trailing),
+                (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header),
+                (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Trailing),
+            ] {
+                let spec = DerivesDriverSpec::new(owner, position, 0);
+                for (source, expected_end) in [
+                    ("Eq\n  Next -> Tail", 2),
+                    ("(Eq\n  Next)\n  Arm -> Tail", 11),
+                ] {
+                    let ast = parse_ast(source, spec, context);
+                    let direct = parse_direct(source, spec, context);
+                    assert_eq!(ast, direct, "AST/direct parity: {owner:?}/{position:?}/{context:?}");
+                    assert_eq!(ast.0, 0..expected_end, "RoleReference range: {source:?}");
+                    assert_eq!(ast.1, &source[expected_end..], "caller-owned newline: {source:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn derives_gate_8_real_dispatch_is_atomic_across_every_owner_and_position() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum Owner {
+            Struct,
+            Type,
+        }
+
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery-node parity: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::DerivesClause),
+                node_ranges(&direct_root, SyntaxKind::DerivesClause),
+                "public/direct derives range parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct)
+        }
+
+        fn parse_root_ast<'source>(
+            source: &'source str,
+        ) -> (Owner, Vec<DerivesAttachmentPosition>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let (owner, positions) = match i
+                .run(parse_declaration)
+                .expect("the root declaration intro is recognized")
+            {
+                Declaration::Struct(declaration) => (
+                    Owner::Struct,
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.position)
+                        .collect(),
+                ),
+                Declaration::Type(declaration) => (
+                    Owner::Type,
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.position)
+                        .collect(),
+                ),
+                declaration => panic!("unexpected declaration: {declaration:?}"),
+            };
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            (owner, positions)
+        }
+
+        // Each owner/position reaches both the promoted AST entry and the real
+        // public/direct CST entries without recovery.
+        for (source, owner, position) in [
+            (
+                "struct Header derives Eq;",
+                Owner::Struct,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "struct Trailing(Int) derives Eq",
+                Owner::Struct,
+                DerivesAttachmentPosition::Trailing,
+            ),
+            (
+                "type Header derives Eq",
+                Owner::Type,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "type Trailing = Int derives Eq",
+                Owner::Type,
+                DerivesAttachmentPosition::Trailing,
+            ),
+        ] {
+            assert_eq!(parse_root_ast(source), (owner, vec![position]), "{source:?}");
+            let (root, direct) = parse_public_and_direct(source);
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "{source:?}: {:?}",
+                direct.committed_recoveries(),
+            );
+            assert_eq!(node_ranges(&root, SyntaxKind::DerivesClause).len(), 1);
+            assert!(recovery_nodes(&root).is_empty(), "{source:?}");
+        }
+
+        // The four promoted paths retain their typed slot ownership when the
+        // attachment or the Type RHS needs recovery.
+        for (source, owner, position, kind, role, range) in [
+            (
+                "struct Header derives @;",
+                Owner::Struct,
+                DerivesAttachmentPosition::Header,
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                22..23,
+            ),
+            (
+                "struct Trailing(Int) derives @",
+                Owner::Struct,
+                DerivesAttachmentPosition::Trailing,
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                29..30,
+            ),
+            (
+                "type Header derives @",
+                Owner::Type,
+                DerivesAttachmentPosition::Header,
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                20..21,
+            ),
+            (
+                "type Trailing = derives Eq",
+                Owner::Type,
+                DerivesAttachmentPosition::Trailing,
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)),
+                16..16,
+            ),
+        ] {
+            assert_eq!(parse_root_ast(source), (owner, vec![position]), "{source:?}");
+            let (root, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&root, SyntaxKind::DerivesClause).len(), 1);
+            let [record] = direct.committed_recoveries() else {
+                panic!("one recovery record expected: {source:?}");
+            };
+            assert_eq!((record.kind, record.site.role, record.site.range.clone()), (kind, role, range));
+        }
+
+        // Both real nested block drivers reach every owner/position. Struct
+        // headers use their bodyless semicolon; the focused RoleReference
+        // matrix above separately proves that a newline immediately after the
+        // role is caller-owned for this position too.
+        for (source, owner, declaration_kind, boundary_marker) in [
+            (
+                "my block = { struct Header derives Eq;\n  my value = 1 }",
+                Owner::Struct,
+                SyntaxKind::StructDeclaration,
+                "\n  my value",
+            ),
+            (
+                "my block = { struct Trailing(Int) derives Eq\n  my value = 1 }",
+                Owner::Struct,
+                SyntaxKind::StructDeclaration,
+                "\n  my value",
+            ),
+            (
+                "my block = { type Header derives Eq\n  my value = 1 }",
+                Owner::Type,
+                SyntaxKind::TypeDeclaration,
+                "\n  my value",
+            ),
+            (
+                "my block = { type Trailing = Int derives Eq\n  my value = 1 }",
+                Owner::Type,
+                SyntaxKind::TypeDeclaration,
+                "\n  my value",
+            ),
+            (
+                "my result = catch action {\n  A -> value with: struct Header derives Eq;\n  B -> fallback}",
+                Owner::Struct,
+                SyntaxKind::StructDeclaration,
+                "\n  B ->",
+            ),
+            (
+                "my result = catch action {\n  A -> value with: struct Trailing(Int) derives Eq\n  B -> fallback}",
+                Owner::Struct,
+                SyntaxKind::StructDeclaration,
+                "\n  B ->",
+            ),
+            (
+                "my result = catch action {\n  A -> value with: type Header derives Eq\n  B -> fallback}",
+                Owner::Type,
+                SyntaxKind::TypeDeclaration,
+                "\n  B ->",
+            ),
+            (
+                "my result = catch action {\n  A -> value with: type Trailing = Int derives Eq\n  B -> fallback}",
+                Owner::Type,
+                SyntaxKind::TypeDeclaration,
+                "\n  B ->",
+            ),
+        ] {
+            let (root, direct) = parse_public_and_direct(source);
+            assert!(
+                direct.committed_recoveries().is_empty(),
+                "{source:?}: {:?}",
+                direct.committed_recoveries(),
+            );
+            let declaration_start = source
+                .find(match owner {
+                    Owner::Struct => "struct",
+                    Owner::Type => "type",
+                })
+                .unwrap();
+            let boundary = source.find(boundary_marker).unwrap();
+            assert_eq!(
+                node_ranges(&root, declaration_kind),
+                vec![declaration_start..boundary],
+                "caller-owned nested boundary: {owner:?}: {source:?}",
+            );
+            assert_eq!(node_ranges(&root, SyntaxKind::DerivesClause).len(), 1, "{source:?}");
+            assert!(recovery_nodes(&root).is_empty(), "{source:?}");
+        }
+
+        // Header discovery still stops before either declaration and projects
+        // no derives-related header fact.
+        for source in ["struct Header derives Eq;", "type Header derives Eq"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
         }
     }
 
@@ -20099,13 +20312,15 @@ mod tests {
         assert_eq!(ranges(&root, SyntaxKind::Error), vec![22..source.len()]);
         assert!(!has(&root, SyntaxKind::BindingStatement));
 
-        // TD-T deliberately adds no global `derives` stop.  Until derives has its own owner,
-        // those words remain ordinary full-RHS TypeApply input, not a derives clause.
+        // The shared derives addendum atomically supersedes the former scope-gate
+        // expectation: the RHS stops after `int` and the trailing words now form
+        // one dedicated clause rather than two TypeApply arguments.
         let source = "type point = int derives Eq";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
         assert_eq!(syntax_range(type_declaration(&root).text_range()), 0..source.len());
-        assert_eq!(ranges(&root, SyntaxKind::TypeApplyArgument), vec![16..24, 24..27]);
+        assert_eq!(ranges(&root, SyntaxKind::DerivesClause), vec![16..27]);
+        assert!(ranges(&root, SyntaxKind::TypeApplyArgument).is_empty());
         assert!(ranges(&root, SyntaxKind::Missing).is_empty());
         assert!(ranges(&root, SyntaxKind::Error).is_empty());
 
