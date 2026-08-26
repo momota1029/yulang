@@ -21642,3 +21642,635 @@ header-stop範囲を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-26、canonical Statement / root Declarationのstandalone `impl` declaration shell grammar追補案）。
+
+## 追補案: canonical `Statement` / root `Declaration`のstandalone `cast` declaration grammar
+
+Status: Proposal（Claude査読待ち）。
+
+Date: 2026-08-27。
+
+### Scope and authority
+
+本追補は、Authoritativeなcanonical Statement / root Declaration grammarがfuture declaration kindへ残した
+standalone `cast` declarationを、root / nestedで同じsyntax ownerとして設計する。対象は次だけである。
+
+- optional declaration visibilityとexact maximal word `cast`から成るstatement intro。
+- Cast-owned parenthesized group内のmandatory one ordinary canonical `Pattern`。Pattern自身のtrailing
+  `TypeExpression` annotationを含む。
+- pattern group後のmandatory target colonとone full ordinary `TypeExpression` target。
+- bodyless semicolon、またはexact `=`後のone inline `OperatorChain` / strictly-deeper
+  `IndentedStatementBlock` body。
+- pattern opener / pattern / close / target introducer / target type / body introducer / bodyのtyped recovery、
+  ASOB、outer Statement boundary、AST / direct-CST parity。
+- root / nested shared dispatchと、source-leading header discoveryを終了するno-fact behavior。
+
+本追補は次を設計しない。
+
+- cast rule登録、source / target type extraction、duplicate / overlap / ambiguity / coherence検査、rule selection priority。
+- expected-type boundaryでのimplicit conversion insertion、conversion chain探索、cycle検出、expression rewrite。
+- Pattern annotation必須性、body resultとtarget typeの一致、visibility meaningその他のsemantic validation。
+- preludeのexplicit `.cast` method family / `Cast` roleとの関係、通常関数によるexplicit conversion policy。
+- HIR lowering、name / type resolution、inference、monomorphization、diagnostics wording、formatter。
+
+本追補のBNF-equivalent grammarの唯一の正本は`CAST-G`、intro / slot / form authorityは`CAST-J`、
+typed AST / direct-CSTとPattern / TypeExpression / body compositionは`CAST-T`、typed recoveryは`CAST-R`である。
+`CAST`はCast Declarationの略で、current documentの`SD` / `TD` / `TND` / `DRV` / `IMD` / `ASOB`
+その他のprefixと衝突しない。
+
+### Problem statement and supersession boundary
+
+current Yulang3の`Declaration` / `Statement` / `StatementIntro` / `StatementKind`にはCast variantがなく、
+statement positionのexact word `cast`はdeclaration authorityを得ない。Pattern annotationとstandalone
+TypeExpressionは実装済みだが、それらを`cast(pattern): target`のsource orderで所有し、bodyless / definition formへ
+接続するdeclaration ownerがない。foundational TypeExpression追補はこのuse-siteを
+`cast (pattern) :` ownerがtype slotとdefinition boundaryを所有するfuture wiringとして明示的に残した
+（本document:12754-12767）。
+
+本追補は承認・実装時に次だけをsupersedeする。
+
+- statement positionのbare exact `cast`と、`my` / `our` / `pub` + declaration-continuing trivia + exact `cast`を、
+  expression / Binding fallbackより先に`StatementIntro::Cast`へ分類する。
+- root `Declaration` / nested `Statement`のclosed sumへsame `CastDeclaration`を追加する。
+- source-leading Castをfull parseではacceptしつつ、header discoveryでは`FirstNonHeader`として終了する。
+- cast keyword後のpattern group、target type、semicolon / equals / body bytesをone declaration nodeが所有する。
+
+次はsupersedeしない。
+
+- Struct / Type / Mod / Impl / Use / Binding / OperatorHeaderのintro priorityとobservable parse / recovery。
+- canonical Patternのown primary / tail / type-annotation grammar、standalone TypeExpressionのordinary / exotic surface。
+- BindingのAST / recovery identity。Cast bodyは同じbody driver shapeを共有しても`BindingBody`を偽装しない。
+- canonical Statement sequenceのseparator、indent / dedent、ASOB / If companion authority。
+
+### Re-verified Yulang2 oracle facts and semantic intent
+
+調査時点のannotated tag `yulang2-oracle`はcommit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`を指した。parser implementation、direct parser fixture、
+representative corpusをsame treeから再確認し、次をsyntax ground truthとする。
+
+1. root / nested statement dispatcherはbare `Cast`を`parse_cast_decl`へ渡し、visibility dispatcherも
+   `my` / `our` / `pub`後の`Cast`をsame entryへ渡した
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:64-85,235-268`）。parserはone `CastDecl` nodeへ
+   optional visibility、cast keyword、continuationをsource orderでemitした
+   （`crates/parser/src/stmt/cast_decl.rs:17-31`）。
+2. cast keyword後はliteral `(`を要求し、その内側でone ordinary Patternをparseし、literal `)`を要求した。
+   comma-list / empty tupleをCast parameterへ昇格せず、Pattern parserがright parenthesisをouter stopとして返した
+   （`cast_decl.rs:33-65`）。canonical corpusのPatternは`x: source_type`であるが、parserは
+   Pattern annotationの存在をCast syntax条件として検査しなかった。
+3. close後はliteral colonを要求し、colon + one ordinary full type parser resultを`TypeAnn` nodeへemitした。
+   type parserへ渡したouter stopsはexact `Equal | Semicolon`であった
+   （`cast_decl.rs:67-91`）。従ってtargetはraw identifierでなくordinary TypeExpression surfaceである。
+4. target後のexact semicolonはbodyless CastとしてCastDecl内へconsumeした。exact `=`はmandatory bodyを開始し、
+   equals後にphysical newlineがなければone ordinary expression、newlineがありfollowing indentがdeclaration baseより
+   strictly deeperならordinary indented Statement blockをparseした。equal-or-shallower newlineではbody missingだった
+   （`cast_decl.rs:89-125`）。indented bodyもCast-specific member listでなくordinary statement dispatcherを使った
+   （`crates/parser/src/stmt/block.rs:242-284`）。
+5. direct fixturesは`cast(x: user_id): int = x.raw`と
+   `pub cast(x: int): user_id = user_id { raw: x }`を`CastDecl`として固定した
+   （`crates/parser/tests/stmt_grammar.rs:949-1029`）。後者のbraceはdeclaration body openerでなく、
+   equals後のordinary expressionに属するbrace applicationである。
+6. representative corpusは同じsurfaceをstdlibのpath-to-bytes、int-to-frac、int-to-float、frac-to-float conversionへ使った
+   （`yulang2-oracle:lib/std/core/convert.yu:5-8`; `examples/12_cast.yu:3-9`）。
+7. Y2 scannerは`cast`をglobal `SyntaxKind::Cast` tokenとして予約した
+   （`crates/parser/src/lex.rs:185`; `crates/parser/src/scan/mod.rs:281,328`）。current Y3はdeclaration wordsを
+   statement-position exact contextual wordとして扱うため、本追補はglobal lexical reservationを継承しない。
+8. Y2のmissing / malformed slotはgeneric `InvalidToken` / silent closeを使い、pattern / target / bodyのcauseを
+   typedに区別しなかった。本追補はsource surfaceを保ちながらcurrent Y3のMissing / Error / same-slot retry / no-cascadeへ置き換える。
+
+Claude persistent project memory
+`project_cast_decl.md`は、`cast(x: from_ty): to_ty = body`がtop-level implicit-conversion ruleを登録し、
+variable declaration / function argument / returnその他のexpected-type boundaryで自動適用されるというユーザ意図を記録する。
+同memoryはpreludeのexplicit `.cast` method family / `Cast` roleを別機構とする。本追補はlater semantic layerが
+source Pattern、target TypeExpression、body、visibility、各rangeを直接受け取れるASTを保持するが、rule登録や自動適用を
+syntax parserへ入れない。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- current exact-word statement-intro discipline、sink-free recognition、accepted intro後のcut、root / nested shared continuation。
+- canonical Patternのfull surface、terminal type annotation、nested delimiter / recovery / layout authority。
+- full ordinary standalone TypeExpression surface、mandatory outer missing-role override、nested TypeRole recovery、
+  TypeExpression episode / delimiter / ML / positional-fence invariants。
+- BindingとExpressionが既に使うone inline `OperatorChain` / indented canonical Statement block machinery。
+- root / indented / braced / inline canonical Statement owner、ASOB original-gap ordering、If companion / Catch barrier visibility。
+- actual punctuation / separator / closeのone-owner rule、lossless trivia、one range = one recovery node = one record。
+- header discoveryがUse / OperatorHeaderだけをfactへprojectし、first full-only declarationで停止するtwo-phase architecture。
+- `cast`がstatement introにならないidentifier / field / Pattern / TypeExpression / expression positionでordinary wordであること。
+
+限定して追加するのは次である。
+
+- `SyntaxKind::CastDeclaration` / `CastPattern` / `CastTarget` / `CastBody` / `CastKw`、Cast AST / session typed vocabulary。
+- `Declaration::Cast` / `Statement::Cast` / `StatementIntro::Cast` / `StatementKind::CastDeclaration`。
+- Cast-owned parenthesized Pattern groupのdelimiter identity。
+- outermost target TypeExpression episodeだけに見える`Equal | Semicolon`と、必要なambient physical-newline stop。
+- Cast body用のdistinct recovery identityを受けるthin Binding-style inline / indented body adapter。
+
+### `CAST-G`: standalone Cast grammar and layout
+
+```text
+CastDeclaration :=
+    [ VisibilityKw Gcast+ ]
+    CastKw Gcast-pattern
+    CastPatternGroup Gcast-target
+    CastTarget Gcast-form
+    CastForm
+
+CastPatternGroup :=
+    RecoveredLParen(Cast::PatternIntroducer)
+    Gcast-delimited*
+    RequiredPattern(Cast::Pattern)
+    Gcast-delimited*
+    RecoveredRParen(CastPattern)
+
+CastTarget :=
+    RecoveredTargetColon(Cast::TargetIntroducer)
+    Gcast-type
+    RequiredTypeExpression(Cast::TargetType)
+
+CastForm :=
+    BodylessSemicolon
+  | DefinitionEquals CastDefinitionBody
+
+CastDefinitionBody :=
+    Gcast-inline RequiredOperatorChain(Cast::Body)
+  | Gcast-indent IndentedStatementBlock(Cast::IndentedStatement)
+
+VisibilityKw := MyKw | OurKw | PubKw
+CastKw := exact maximal word "cast"
+
+Gcast+ := non-empty TypeChainTrivia(cast_base)
+Gcast-pattern := TypeChainTrivia(cast_base)
+Gcast-target := TypeChainTrivia(cast_base)
+Gcast-type := TypeChainTrivia(cast_base)
+Gcast-form := TypeChainTrivia(cast_base)
+Gcast-inline := maximal trivia containing no physical newline
+Gcast-indent := NonEmptyStrictlyDeeperContinuationTrivia(cast_base)
+Gcast-delimited* := existing delimiter-owned Pattern trivia
+```
+
+`cast_base`はfirst declaration starter（visibilityがあればそのkeyword、なければ`cast`）をstatement positionで
+acceptした時点のactive `IndentationBaseline.column`で、frameがなければ0である。visibility--`cast`間はnon-emptyの
+same-lineまたはstrictly-deeper continuationを要求する。`cast`--pattern opener、pattern close--target colon、
+target colon--type、target type--form間はempty / same-line / strictly-deeper continuationをacceptし、
+equal-or-shallower newline / ambient owner gapをconsumeしない。`cast(`をvalidとし、`casting` / `castaway` / `my_cast`を
+prefix splitしない。
+
+Cast-owned parenthesesはone mandatory canonical Patternだけを包む。`cast()`をempty tuple Patternとしてacceptせず、
+one Missing Patternを置く。`cast(x, y): T;`のcommaをCast parameter list separatorにしない。multiple source valuesを表す
+Patternが必要ならcanonical Pattern自身の明示的なnested group / record / list surfaceを使う。Pattern内の
+`x: Source`はexisting terminal `PatternTypeAnnotation`であり、right parenthesis stopを越えてouter target colonを奪わない。
+syntax parserはannotation presenceをCast acceptance条件にせず、`cast(x): T;`もshapeとして保持する。
+
+`CastTarget`はliteral or recovered colonとmandatory full ordinary TypeExpressionを持つ。outer target episodeではexact
+`Equal | Semicolon`をCast form stopとして同じepisode-scoped frameへ渡す。両stopとambient physical-newline stopは
+outer episodeにだけvisibleで、Arrow RHS / Forall body / TypeApply argument / Parenthesized / Call / NamedRecord /
+EffectRow / BracketRow / PolymorphicVariantのrecursive episodeではsuspendされる。target fresh primaryに対する
+special local ownershipはなく、fresh `=` / `;`はMissing TargetType後にCastFormへsame positionで返る。
+
+`BodylessSemicolon`はCastDeclarationが所有する。definitionはliteral exact `=`を必須とし、その後がsame-lineなら
+one ordinary `OperatorChain`、physical newlineを含みfollowing indentが`cast_base`よりstrictly deeperなら
+existing non-empty `IndentedStatementBlock`を所有する。equal-or-shallower newlineはbodyへ入れずwhole gapをouter ownerへ返す。
+inline expressionに現れるbrace application、colon application、with tailはExpression自身のsurfaceであり、Cast body formを
+brace / colon declaration bodyへ拡張しない。inline / indented definition body後のterminal semicolon / newline / dedentは
+outer canonical Statement separator ownerへ残し、bodyless semicolonだけがCast-ownedである。
+
+### `CAST-J`: intro authority and phase judge order
+
+sink-free `recognize_cast_statement_intro`はcurrent positionのbare exact `cast`、またはexact `my | our | pub` +
+non-empty declaration-continuing trivia + exact `cast`だけをacceptする。pattern / target / formのsuccessをintro条件にせず、
+accepted keyword後はCast continuationへcutする。resultは次の情報を保持する。
+
+```rust
+struct CastStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    cast_keyword: WordSpan<'source>,
+    cast_base: usize,
+}
+```
+
+updated `recognize_statement_intro` priorityを次で固定する。
+
+1. caller-owned EOF / statement separator / matching close / dedent / active ambient companionはexisting outer judgeが先に保持する。
+2. existing `recognize_struct_statement_intro`。
+3. existing `recognize_mod_statement_intro`。
+4. existing `recognize_type_statement_intro`。
+5. existing `recognize_impl_statement_intro`。
+6. new `recognize_cast_statement_intro`。
+7. existing `binding_statement_selected` + Binding intro。
+8. existing Use / Mod fallback、OperatorHeader、ordinary OperatorChain fallback。
+
+bare `cast`は他のdeclaration keywordとmaximal-word collisionを持たない。placement上の実質的制約はvisibility-led inputであり、
+Cast judgeをBinding selectionより前へ置くことで`my cast = value`をBinding targetでなくaccepted malformed Castへ一意にcutする。
+Struct / Mod / Type / Implのexisting priorityを動かさず、その直後へstrict additiveに挿す。statement position外の
+`cast` spelling、`Cast` role identifier、field name、Pattern name、Type nameはordinary lexical policyを変更しない。
+
+accepted intro後のphase priorityを次で固定する。
+
+1. keyword後のoriginal gapをASOB / caller boundaryへ問い、claimならPatternIntroducer Missingだけを置いてnon-consume returnする。
+2. exact `(`があればCast pattern-group authorityへcutする。openerなしでone canonical Pattern NUDがreusableなら
+   zero-width Missing PatternIntroducerを置きsame positionからPatternをretryする。malformed runはexact `(`または
+   reusable Pattern NUDまでone maximal Error PatternIntroducerとし、terminal boundaryをconsumeしない。
+3. group内はCast-owned delimiter / layout scopeとactive `RightParenthesis` stopの下でone mandatory Patternをparseする。
+   Pattern NUD / malformed recoveryはcanonical Patternへdelegateし、Cast layerがnested PatternRole recordをduplicateしない。
+4. Pattern後はexact `)`をcloseとしてconsumeする。target colonがsame positionにあるmissing-close caseでは
+   one `ClosingDelimiter { owner: CastPattern, Parenthesis }` Missingを置き、same colonからtargetをretryする。
+   malformed close run + actual `)`はone maximal closing-delimiter Error、terminalではone recordだけで後続slotへcascadeしない。
+5. complete / recoverable group後はexact target colonが勝つ。colonなしでTypePrimaryがreusableならMissing TargetIntroducer、
+   malformed run + exact colon / reusable TypePrimaryならone Error TargetIntroducerを置き、same target slotをretryする。
+6. Target TypeExpressionはouter `Equal | Semicolon` scoped stopsとdefault fresh-primary policyを使う。targetのcomplete /
+   malformed retry後、same original gapにexact `;` / `=`があればCastForm authorityへ返す。braced / Catch inline ownerが
+   physical newlineをclaimするcontextでは、derives RoleRefで確立済みの
+   `declaration_braced_newline_owner_for_physical_newline` evidenceをdepth-fenced `Newline` stopへ変換し、outer target episodeだけを止める。
+7. exact semicolonはBodylessへcutする。exact equalsはDefinitionへcutし、body layoutをone maximal post-equals trivia runから
+   inline / indented / outer-boundaryの三つへ一度だけ分類する。body parse failureを理由にbodyless / declaration fallbackへ戻らない。
+8. form starterがなければtyped BodyIntroducer recovery。target TypeExpressionとbody expressionのword surfaceが重なるため、
+   punctuationなしのword列をmissing-equals bodyへheuristic splitしない。
+
+AST / direct-CSTはone shared intro result、one pattern-group delimiter policy、one target episode spec、one form / body-layout decisionを使う。
+root / nested / direct callerへspelling judge、target-stop probe、post-equals layout classifierをcopyしない。newlineやmalformed byteを
+consumeした後にASOBをre-probeしてowner authorityをretroactively変えない。
+
+### `CAST-T`: typed AST / direct-CST shape and shared composition
+
+```rust
+struct CastDeclaration<'source> {
+    visibility: Visibility,
+    pattern: Recovered<CastPattern<'source>>,
+    target: Recovered<CastTarget<'source>>,
+    form: Recovered<CastForm<'source>>,
+    range: Range<usize>,
+}
+
+struct CastPattern<'source> {
+    open: Recovered<Range<usize>>,
+    value: Recovered<Box<Pattern<'source>>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+struct CastTarget<'source> {
+    colon: Recovered<Range<usize>>,
+    value: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+enum CastForm<'source> {
+    Bodyless {
+        semicolon: Range<usize>,
+    },
+    Definition {
+        equals: Range<usize>,
+        body: Recovered<CastBody<'source>>,
+        range: Range<usize>,
+    },
+}
+
+enum CastBody<'source> {
+    Inline {
+        expression: OperatorChain<'source>,
+    },
+    Indented {
+        block: IndentedStatementBlock<'source>,
+    },
+}
+```
+
+`pattern: Incomplete`はkeyword後にgroup / reusable Pattern evidenceがなくsame boundaryへ達したcaseである。
+exact / recovered openerがあれば`CastPattern`は存在し、その内側のmandatory Pattern / closeがIncompleteでもsource-owned
+group shapeを保つ。`target: Incomplete`はupstream same-cause terminalまたはtarget evidenceなしのcaseで、exact / recovered colonか
+reusable TypeExpression evidenceがあれば`CastTarget`を作り、そのindividual slotをRecoveredで保持する。
+`form: Incomplete`は`;` / `=`をfinishできないcaseで、dummy semicolon / equals / empty bodyを作らない。
+
+rangeはactual source ownershipだけから作る。`CastPattern.range`はactual openerがあればそのstart、なければreused Patternのstartから、
+actual close / Pattern value / openerのうち最後に所有したendまでである。`CastTarget.range`もactual colonがあればそのstart、
+なければreused TypeExpressionのstartから、value / colonのlast owned endまでである。`CastDeclaration.range`はkeyword / pattern /
+target / formのlast owned endで終わり、definition body後のouter semicolon / newline / dedentを含めない。Incomplete childのために
+rangeをcaller-owned boundaryまで延長せず、Missing zero-width nodeだけがそのboundary positionを保持する。
+
+new CST vocabularyは`CastDeclaration` / `CastPattern` / `CastTarget` / `CastBody` nodeと`CastKw` tokenだけである。
+`CastSignature` / `CastDefinition` / conversion-rule / source-type synthetic nodeを作らない。existing visibility、LParen / RParen、
+Pattern / PatternTypeAnnotation、Colon、TypeExpression、Semicolon、Equals、OperatorChain、IndentedStatementBlock、Statement、
+Missing / Error、trivia tokenをreuseする。CastPatternはcomma-list wrapperでなくone Pattern delimiter ownerである。
+
+#### Bodyless worked example
+
+source `cast(x: A): B;`のbytesは0..14である。
+
+```text
+CastDeclaration 0..14
+  CastKw 0..4 "cast"
+  CastPattern 4..10
+    LParen 4..5 "("
+    Pattern 5..9
+      IdentifierPattern 5..6 "x"
+      PatternTypeAnnotation 6..9
+        Colon 6..7 ":"
+        Trivia 7..8 " "
+        TypeExpression 8..9 "A"
+    RParen 9..10 ")"
+  CastTarget 10..13
+    Colon 10..11 ":"
+    Trivia 11..12 " "
+    TypeExpression 12..13 "B"
+  Semicolon 13..14 ";"
+```
+
+ASTは`range = 0..14`、`pattern.range = 4..10`、`pattern.value = Complete(5..9)`、
+`target.range = 10..13`、`form = Complete(Bodyless { semicolon: 13..14 })`である。
+
+#### Visibility + inline body worked example
+
+source `pub cast(x: A): B = x`のbytesは0..21である。
+
+```text
+CastDeclaration 0..21
+  PubKw 0..3 "pub"
+  Trivia 3..4 " "
+  CastKw 4..8 "cast"
+  CastPattern 8..14
+    LParen 8..9 "("
+    Pattern 9..13 "x: A"
+    RParen 13..14 ")"
+  CastTarget 14..17
+    Colon 14..15 ":"
+    Trivia 15..16 " "
+    TypeExpression 16..17 "B"
+  Trivia 17..18 " "
+  Equals 18..19 "="
+  CastBody 19..21
+    Trivia 19..20 " "
+    OperatorChain 20..21 "x"
+```
+
+ASTは`visibility = Public`、`range = 0..21`、`target.value = Complete(16..17)`、
+`form = Complete(Definition { equals: 18..19, body: Complete(Inline 20..21), range: 18..21 })`である。
+
+#### Strictly-deeper body worked example
+
+source `cast(x: A): B =\n  x`のbytesは0..19である。
+
+```text
+CastDeclaration 0..19
+  CastKw 0..4 "cast"
+  CastPattern 4..10 "(x: A)"
+  CastTarget 10..13 ": B"
+  Trivia 13..14 " "
+  Equals 14..15 "="
+  CastBody 15..19
+    Trivia 15..18 "\n  "
+    IndentedStatementBlock 18..19
+      Statement 18..19
+        OperatorChain 18..19 "x"
+```
+
+ASTは`range = 0..19`、`form = Complete(Definition { equals: 14..15,
+body: Complete(Indented { block: 18..19 }), range: 14..19 })`である。opening triviaはlossless CSTのCastBody childで、
+AST block rangeをtrivia込みへ偽装しない。
+
+#### Pattern, TypeExpression, and body composition
+
+Cast pattern groupはCast-owned LParen / RParen、existing delimiter / layout stacks、active `RightParenthesis` boundaryをpushし、
+inner valueだけを`parse_pattern_with_outer_missing_role` /
+`parse_direct_pattern_with_outer_missing_role`へ渡す。existing `ParenthesizedPattern`をCast groupとしてreuseしない。
+それをreuseするとempty / comma-list ParenthesizedPatternまでCast parameterとしてacceptし、Y2のone Pattern groupと異なるためである。
+Cast-specific Pattern parser / annotation parserは作らない。
+
+targetは`parse_required_type_expression_with_outer_missing_role_and_policy`とdirect counterpartを、
+`GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType))`、default fresh-primary policy、
+outer `Equal | Semicolon | conditional Newline` scoped frameで呼ぶ。nested TypeExpressionのown TypeRole recoveryを
+CastRoleへflattenしない。raw `active_stop_set(...).contains(...)` queryを新設せず、Gate 1a由来の
+`type_stop_is_active_in_current_episode`だけを使う。
+
+bodyはBindingのexisting body layout / expression / indented Statement sequence control flowをneutral helperとして共有する。
+`BindingBody` AST / `BindingRole` / `SyntaxKind::BindingBody`をCastへ流用せず、same decisionにCastBody builder / emitterと
+`CastRole::Body | IndentedStatement`を渡すthin adapterにする。inline bodyはcanonical Statementでなくone OperatorChainであり、
+indented bodyだけがcanonical Statement sequenceである。Cast-specific statement list、separator、dedent driverを作らない。
+
+normal / missing / malformed retry / early boundaryのevery exitで、input / line / sink cut、ambient / If、delimiter、stop、
+indentation baseline、Pattern layout、expression / type owner、ML、positional fence、TypeExpression episode depth / scoped frameを
+entry時のdepthへexact restoreする。
+
+### `CAST-R`: typed recovery and owner convergence
+
+new recovery vocabularyを次で固定する。
+
+```rust
+enum CastRole {
+    PatternIntroducer,
+    Pattern,
+    TargetIntroducer,
+    TargetType,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+DeclarationRole::Cast(CastRole)
+ConstructRole::CastPattern
+```
+
+CastはType delimiter ownerでないためnew `TypeDelimitedOwner`を作らない。pattern closeはexisting
+`GrammarRole::ClosingDelimiter { owner: ConstructRole::CastPattern, delimiter: Parenthesis }`を使う。
+body punctuationはactual tokenで、synthetic separator / terminatorを作らない。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `cast(x: A): B;` | pattern / target / Bodyless Complete | zero recovery、semicolon Cast-owned |
+| `cast(x: A): B = x` | pattern / target / inline body Complete | zero recovery、terminal separator outer-owned |
+| `cast(x: A): B =\n  statement` | pattern / target / indented body Complete | existing block separator / dedent authority |
+| exact `cast` + EOF / owner boundary | one zero-width Missing PatternIntroducer | pattern / target / form Incomplete、same-cause downstream Missingなし |
+| exact `cast` + reusable Pattern NUD without `(` | one Missing PatternIntroducer | opener Incomplete、same-position Pattern retry |
+| malformed opener run + exact `(` | one maximal Error PatternIntroducer | actual opener consume、Pattern slotへ進む |
+| malformed opener run + reusable Pattern NUD | one maximal Error PatternIntroducer | opener Incomplete、same-position Pattern retry |
+| malformed opener run reaches boundary | one maximal Error PatternIntroducer | downstream Missingなし、boundary non-consume |
+| exact opener + EOF / owner boundary | one zero-width Missing Pattern | close / target / form Missingをsame causeへcascadeしない |
+| exact opener + immediate `)` | one Missing Pattern | close consume、target phaseへ進む |
+| malformed Pattern run + valid Pattern NUD | nested maximal `Error(Pattern::Primary)` one | same Pattern slot retry、value Complete |
+| malformed Pattern run reaches `)` | nested maximal `Error(Pattern::Primary)` one | value Incomplete、close retry、outer Pattern Missingなし |
+| complete Pattern + exact `)` | close Complete | target phaseへ進む |
+| complete Pattern + EOF / owner boundary before close | one zero-width Missing closing delimiter | target / form Missingをsame causeへcascadeしない |
+| complete Pattern + target colon before close | one zero-width Missing closing delimiter | colon non-consume、same-position target retry |
+| malformed close run + exact `)` | one maximal Error closing delimiter | actual close consume、additional Missingなし |
+| malformed close reaches owner boundary | one maximal Error closing delimiter | target / form cascadeなし、boundary non-consume |
+| complete group + exact target colon + valid TypeExpression | target Complete | target outer episode owns only its scoped stops |
+| complete group + reusable TypePrimary without colon | one Missing TargetIntroducer | colon Incomplete、same-position target retry |
+| malformed target-introducer run + exact colon | one maximal Error TargetIntroducer | actual colon consume、target retry |
+| malformed target-introducer run + valid TypePrimary | one maximal Error TargetIntroducer | colon Incomplete、same-position target retry |
+| target-introducer run reaches boundary | one Error TargetIntroducer、またはemptyならone Missing | target / form Incomplete、no cascade |
+| exact / recovered colon + EOF / owner boundary | one zero-width Missing TargetType | form Missingをsame causeへcascadeしない、boundary non-consume |
+| exact / recovered colon + exact `=` / `;` | one zero-width Missing TargetType | form starter non-consume、same-position form retry |
+| malformed target run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same target slot retry、value Complete |
+| malformed target run reaches form starter | nested maximal `Error(Type::Primary)` one | value Incomplete、starter non-consume、TargetType Missingなし |
+| malformed target run reaches owner boundary | nested maximal `Error(Type::Primary)` one | form Missingをsame causeへcascadeしない |
+| complete / recovered target + exact `;` | Bodyless Complete | actual semicolon Cast-owned |
+| complete / recovered target + exact `=` | Definition selected | mandatory bodyへcut |
+| complete target + EOF / owner boundary | one zero-width Missing BodyIntroducer | form Incomplete、boundary non-consume |
+| malformed body-introducer run + exact `;` / `=` | one maximal Error BodyIntroducer | actual starterからform retry、additional Missingなし |
+| malformed body-introducer reaches boundary | one maximal Error BodyIntroducer | form Incomplete、additional Missingなし |
+| exact `=` + inline OperatorChain | Body Inline Complete | expression owns its nested recovery |
+| exact `=` + strictly-deeper non-empty block | Body Indented Complete | existing Statement recovery / separators |
+| exact `=` + EOF / semicolon / comma / matching close | one Missing Body | boundary non-consume、outer separatorをCastが奪わない |
+| exact `=` + equal-or-shallower newline | one Missing Body | post-equals trivia rollback、newline / next statement outer-owned |
+| inline body malformed run + valid Expression | one maximal Error Body | same body slot retry、additional Missingなし |
+| inline malformed run reaches boundary | one maximal Error Body | body Incomplete、additional Missingなし |
+| indented first statement missing / malformed | existing IndentedStatement recovery one | Cast Body Missingをduplicateしない |
+| body内nested malformed Statement / Expression | inner owner recovery only | same rangeへCast Missing / Errorを重ねない |
+
+one accepted `cast` = one CastDeclaration nodeである。one committed Missing / Error record = one recovery node。
+upstream slotがsame terminal boundaryへ達したとき、後続slotのMissingをcascadeしない。ただしactual `)` / colon / `;` / `=`の
+positive evidenceが現れた後のdistinct mandatory slot failureは別causeであり、one recordずつ保持できる。Pattern / TypeExpression /
+Expressionのmalformed recoveryはそれぞれのnested roleを保ち、CastRoleへduplicate / relabelしない。
+
+invalid-run scannerはoriginal gapのASOB、equal-or-shallower newline、active comma / matching right delimiter、Cast-owned exact punctuation、
+valid same-slot retry candidateをsafe pointとする。scannerごとにword / punctuation policyをcopyせず、existing declaration invalid-run
+classifierとPattern / TypeExpression / Expression mandatory entriesをcompositionする。
+
+### Root / nested dispatch and header discovery
+
+root / nested relationshipを次で固定する。
+
+| caller | behavior |
+| --- | --- |
+| source-leading header discovery | exact Cast introでheader runを`FirstNonHeader`として終了。Castをparse / projectせずinputをrollback |
+| full root loop | `Declaration::Cast`を選び、CastDeclarationをRoot直下へemit |
+| nested canonical Statement | `Statement::Cast`を選び、same CastDeclarationをone Statement wrapper直下へemit |
+| Cast indented body | same canonical Statement entryを再帰的に使い、current full Statement familyをaccept |
+| Cast inline body | ordinary OperatorChain entryを使い、Statement-level declarationへ拡張しない |
+
+`HeaderDeclaration` / `HeaderStatementIntro`へCast variantを追加しない。`commit_header_statement`は
+`StatementIntro::Cast`をBinding / Mod / Struct / Type / Implと同じfull-only branchとしてrollback + Noneにし、header coverageを
+`HeaderStop::FirstNonHeader`で閉じる。Castはimport route、operator BP、module header fact、implicit-conversion factをparser phaseで
+生成しない。source-leading visibility-prefixed Castも同じである。
+
+CastはStatement-level ownerであり、OperatorChain primary / LED、ML argument、TypeDeclaration / Impl tailとしてacceptしない。
+if / case / catchのOperatorChain-only inline armやColonApplication inline argumentをCastのためにfull Statementへ拡張しない。
+既にfull canonical Statementを呼ぶroot、indented block、braced block、WithBodyTail inline / indented、Mod body、
+Binding / Impl / Cast indented bodyだけがsame dispatch追加でCastを受け取る。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word` / visibility prefix / declaration-continuing trivia / checkpoint rollback、source range / line state。
+- one shared `recognize_statement_intro`、root / nested AST and direct-CST dispatch、header discovery stop。
+- canonical Pattern mandatory entry、Pattern type annotation、delimiter / layout / right-close recovery。
+- ordinary mandatory TypeExpression、typed outer missing-role、episode-scoped stop activation / recovery classifier。
+- Binding-style inline Expression / indented Statement-body decisionとgeneric indented Statement sequence。
+- `parse_canonical_statement` / `commit_canonical_statement` / direct candidate for indented body items。
+- `any_ambient_owner_claims`、declaration braced / Catch physical-newline evidence、If companion / positional fence。
+
+次を共有・追加しない。
+
+- `BindingDeclaration` / `BindingBody` AST、`BindingRole`、`SyntaxKind::BindingBody`をCast value / recovery identityとして偽装すること。
+- `ParenthesizedPattern`をCastPattern groupとして流用し、empty / comma listをCast surfaceへ拡張すること。
+- Cast-specific Pattern / TypeExpression / expression parser、statement list、separator / indentation driver。
+- `TypeDelimitedOwner::Cast`、Cast body delimiter wrapper、synthetic equals / semicolon / separator。
+- `HeaderDeclaration::Cast`、parser-time cast registry / expected-type fact。
+- explicit `.cast` role / method syntax、conversion priority / chain / semantic diagnostics。
+
+### Named Yulang2 divergences and explicit future scope
+
+1. **Surface family preserved:** optional `my` / `our` / `pub`、exact `cast`、one parenthesized Pattern、target colon +
+   full TypeExpression、bodyless semicolon / exact-equals inline or indented bodyを保つ。
+2. **Contextual word:** Y2のglobal reserved `Cast` tokenを復活させず、statement-position exact maximal wordだけをCastKwへcommitする。
+   attachment position外の`cast` identifier acceptanceを維持する。
+3. **Typed recovery:** Y2のgeneric InvalidToken / silent closeをCastRole / nested PatternRole / TypeRole / closing delimiter別の
+   Missing / Error、same-slot retry、no-cascadeへ置き換える。
+4. **One Pattern group:** Cast-owned parentheses内はone mandatory Patternであり、existing ParenthesizedPatternのempty /
+   comma-list surfaceをCast parameter listとして採用しない。
+5. **Annotation semantic deferred:** canonical source spellingは`x: From`だが、Y2 parser同様、Pattern annotationの存在や
+   source type抽出可能性をsyntax validity条件にしない。
+6. **Full target TypeExpression:** outer `=` / `;` stopsはone logical target episodeだけに見え、nested exotic TypeExpressionを切らない。
+7. **Body family:** brace / colon declaration bodyを追加しない。`= constructor { ... }`のbraceはordinary expression syntaxである。
+8. **No punctuation-free split:** target TypeExpressionとbody expressionのword surfaceをheuristicに分割せず、body definitionには
+   actual exact `=` evidenceを要求する。
+9. **Semicolon ownership:** bodyless semicolonだけCast-owned。definition body後のsemicolonはouter Statement separatorである。
+10. **Header architecture:** Castはfull syntaxではvalidだがheader factではなく、source-leading occurrenceはFirstNonHeaderである。
+11. **No semantic boundary crossing:** rule registration、implicit application、expected-type boundary、ambiguity / coherence、
+    HIR / resolver / inference / monomorphization / formatterはfuture addenda / layersへ残す。
+12. **Explicit Cast role remains separate:** preludeのexplicit `.cast` method familyを本declarationのparser syntax / ASTへ統合しない。
+
+future semantic addendumは少なくとも、Patternからのsource type contract、target type resolution、body checking、visibility / scope、
+rule identity、duplicate / overlap / ambiguity、application boundary、single-step / chain policy、diagnostic span、HIR / resolver / inference ownershipを
+一括して決める。本syntax addendumはそのplaceholder registryやsemantic flagを先取りしない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは
+vocabulary、isolated intro、isolated pattern / target slots、isolated AST/direct declaration、recovery matrix、pre-promotion state matrix、
+atomic dispatch + real nested-context matrix、final scope gateへ分ける。Gate 7までcurrent public parser behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `CastDeclaration` / `CastPattern` / `CastTarget` / `CastBody` / `CastKw` SyntaxKind、
+   `CastDeclaration` / `CastPattern` / `CastTarget` / `CastForm` / `CastBody` AST、
+   `Declaration::Cast` / `Statement::Cast`、`StatementIntro::Cast` carrier、`StatementKind::CastDeclaration`、
+   `DeclarationRole::Cast(CastRole)`、`ConstructRole::CastPattern`を追加する。existing exhaustive matchへ
+   unreachable-from-dispatchなmechanical armだけを足し、no TypeDelimitedOwner / HeaderDeclaration / behavior change、
+   full suite byte-identicalを固定する。
+2. sink-free `recognize_cast_statement_intro`をisolated実装し、bare / my / our / pub exact recognition、cast_base、
+   empty adjacency `cast(x: T): U;`、strictly-deeper keyword continuation、EOF independent cut、`casting` / `castaway` /
+   `my castish` rejection、`my cast = value`のCast selection、Struct / Mod / Type / Impl / Binding / Use / Operator non-collision、
+   all-state exact rollbackをdirect fixture化する。real `recognize_statement_intro`へはまだ接続しない。
+3. CastPattern groupとCastTarget mandatory slotsをisolated AST/direct adapterとして実装する。Cast-owned opener / one Pattern /
+   close、missing opener + reusable Pattern、Pattern annotation + RightParenthesis boundary、missing close + target-colon retry、
+   target-colon missing / malformed retry、outer `Equal | Semicolon | conditional Newline` episode-scoped stops、full/exotic target、
+   nested stop suspension、normal / recovery / rollback parityを固定する。Pattern / TypeExpression shared codeへCast-specific branchを入れない。
+4. target後のsemicolon / exact-equals form judge、inline / indented body layout、form-aware AST isolated adapterを実装する。
+   bodyless、inline expression、strictly-deeper multi-Statement body、equal-or-shallower body boundary、missing target / form / bodyの
+   AST shape / rangeを固定する。Binding body decisionをneutral helperへparameterizeする必要があれば、Binding behaviorを
+   byte-identicalに保つmechanical extractionだけをsame coherent sliceで行う。existing public dispatchは変更しない。
+5. direct-CST thin adapterをisolated harnessへ追加し、`cast(x: A): B;`、`pub cast(x: A): B = x`、
+   `cast(x: A): B =\n  x`のchild order / byte range、all trivia home、lossless round trip、no BindingBody /
+   synthetic wrapper / separator、AST-direct parityをbyte-exactに固定する。
+6. `CAST-R`全rowをfixture化する。pattern introducer / Pattern / close / target introducer / target type / body introducer / bodyの
+   Missing / malformed retry / terminal、target-stop nested suspension、form starter preservation、indented Statement recovery、
+   one range = one node = one record、same-cause no-cascadeをAST/directで閉じる。production behaviorはまだ変えない。
+7. real dispatch switch前にisolated declaration adapterをdirect root / indented / braced / inline ambient frameで包み、
+   depth-2+ ambient / If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline、
+   strictly-deeper pattern / target / body、normal / recovery / rollbackのdeclaration-state matrixを閉じる。
+   input / line / sink / ambient / If / delimiter / stop / indentation / Pattern layout / expression-type owner / ML /
+   positional fence / TypeExpression episode depthをevery exitでexact restoreする。actual block-driverからのnested Cast acceptanceは
+   Gate 8のatomic matrixへ残し、current public parserはまだ変えない。
+8. `recognize_statement_intro`のImpl後 / Binding前へCast introを挿し、root `parse_declaration` / direct root loop、
+   `parse_canonical_statement` / `commit_canonical_statement` / direct candidateをsame isolated adapterへatomic switchする。
+   source-leading Castがheader discoveryを`FirstNonHeader`で終了しfactを作らないこともsame changeでwireする。
+   **同じGate / same atomic change内で**Gate 7 suiteをunmodified再実行し、root / indented / braced / With inline /
+   Mod inline / Catch-inline-through-owner、depth-2+ ambient / If companion、all active fixed boundaries、normal / recovery /
+   rollback、Cast indented body内Expression / Binding / Use / Mod / Struct / Type / Impl / nested Castのfull AST/direct matrixを
+   real block-driverとpublic `parse_file`から閉じる。このmatrixがgreenになるまでdispatch switchをland済みと扱わない。
+   existing non-Cast intro priority / fixtureを変更しない。
+9. final public regression matrixでall visibility、annotated / unannotated / nested / malformed Pattern、full/exotic target、
+   bodyless / inline / multi-Statement indented body、root / nested interleaving、outer semicolon / ambient companion、
+   every missing / malformed boundary、AST/direct parity、losslessness、one record = one node、all state restoration、
+   full `yu-syntax` suiteを閉じる。`cast`がidentifier / field / Pattern / TypeExpression / expression positionでordinary wordのまま、
+   Cast role / rule registration / implicit application / expected-type semantics / HIR / resolver / inference / formatterが未実装である
+   scope gateを固定する。Gate 8でpre-provenになったpublic nested matrixを再実行し、本Gateはnew contextのfirst-time coverageを持たない。
+
+### Closed design decisions and Claude review focus
+
+本Proposalで次をdesign decision候補として固定する。
+
+- standalone Castはroot `Declaration::Cast` / nested `Statement::Cast`がsame AST / CST ownerを共有する。
+- exact bare / visibility-prefixed `cast`はmandatory slotsの成否に依存せずstatement authorityを得て、Impl後 / Binding前へ入る。
+- Cast owns one parenthesized canonical Pattern。existing ParenthesizedPatternのempty / comma-list surfaceを流用しない。
+- Pattern annotationはcanonical source type spellingだがsyntax mandatoryにせず、semantic validationへ残す。
+- target colonとfull mandatory TypeExpressionをdistinct typed slotsとし、outer `Equal | Semicolon | conditional Newline` stopsを
+  one TypeExpression episodeだけにdepth-fenceする。
+- formはbodyless semicolon、またはexact equals + inline OperatorChain / strictly-deeper canonical Statement blockである。
+- Cast bodyはBinding-style driverだけを共有し、Binding AST / role / CST nodeを偽装しない。
+- targetとbodyのword surfaceをmissing-equals heuristicでsplitしない。
+- bodyless semicolonだけCast-ownedで、definition body後のseparatorはouter ownerへ返す。
+- source-leading Castはheader discoveryをFirstNonHeaderで終了し、HeaderDeclaration / conversion factを作らない。
+- implicit conversion semanticsとexplicit Cast role familyをsyntax addendumから完全に分離する。
+
+Claude reviewでは特に、CastPattern delimiterをexisting ParenthesizedPatternへ統合しない根拠、annotationをsyntax mandatoryにしない
+oracle parity、visibility-led CastをBinding前へ置くpriority、target-colon missing / malformed retry、target TypeExpressionの
+Equal / Semicolon / ambient Newline stop leakage、bodyless semicolonとouter separatorのownership、Binding helper extractionの
+identity separation、upstream terminal failureのno-cascade、Gate 7 isolated matrixとGate 8 same-change real block-driver matrix、
+semantic future scopeの閉じ方を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+（2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
