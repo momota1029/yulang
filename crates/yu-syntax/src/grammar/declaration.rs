@@ -1223,7 +1223,15 @@ where
     let shared = parse_type_declaration_shared_header_phase(&intro, &mut i, &mut recoveries);
     let disposition = classify_type_declaration_form(&shared.name, intro.type_base, &mut i);
     let form = match disposition {
-        TypeDeclarationFormDisposition::Nominal => Recovered::Complete(TypeDeclarationForm::Nominal),
+        TypeDeclarationFormDisposition::Nominal {
+            owns_trailing_trivia_through,
+        } => {
+            consume_type_declaration_nominal_trailing_trivia_until(
+                owns_trailing_trivia_through,
+                &mut i,
+            );
+            Recovered::Complete(TypeDeclarationForm::Nominal)
+        }
         TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
             let (equals, rhs_retry) = parse_type_declaration_definition_phase(
                 &intro,
@@ -1237,11 +1245,15 @@ where
                 equals,
                 rhs_retry,
             };
-            let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
-            Recovered::Complete(TypeDeclarationForm::Equality {
-                equals: header.equals,
-                rhs,
-            })
+            if header.rhs_retry {
+                let rhs = parse_type_declaration_rhs(&header, intro.type_base, &mut i);
+                Recovered::Complete(TypeDeclarationForm::Equality {
+                    equals: header.equals,
+                    rhs,
+                })
+            } else {
+                Recovered::Incomplete
+            }
         }
         TypeDeclarationFormDisposition::Incomplete => Recovered::Incomplete,
     };
@@ -1292,7 +1304,28 @@ where
     });
 
     match disposition {
-        TypeDeclarationFormDisposition::Nominal | TypeDeclarationFormDisposition::Incomplete => {
+        TypeDeclarationFormDisposition::Nominal {
+            owns_trailing_trivia_through,
+        } => {
+            let header = ParsedTypeDeclarationHeader {
+                name: shared.name,
+                parameters: shared.parameters,
+                equals: Recovered::Incomplete,
+                rhs_retry: false,
+            };
+            commit_type_declaration_header_surface(
+                intro.type_base,
+                &header,
+                recoveries,
+                shared_end,
+                committed,
+            );
+            commit_type_declaration_nominal_trailing_trivia_until(
+                owns_trailing_trivia_through,
+                committed,
+            );
+        }
+        TypeDeclarationFormDisposition::Incomplete => {
             let header = ParsedTypeDeclarationHeader {
                 name: shared.name,
                 parameters: shared.parameters,
@@ -1309,7 +1342,9 @@ where
         }
         TypeDeclarationFormDisposition::Equality | TypeDeclarationFormDisposition::EqualityRecovery => {
             let header = commit_type_declaration_header_slots(&intro, committed);
-            let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
+            if header.rhs_retry {
+                let _ = commit_type_declaration_rhs(&header, intro.type_base, committed);
+            }
         }
     }
 
@@ -1495,6 +1530,49 @@ fn commit_type_declaration_continuation_trivia_until<'parse, 'source, 'local, E,
         .expect("accepted Type header trivia remains at the cursor");
     debug_assert_eq!(trivia.range(), current..target);
     committed.emit_trivia(&trivia);
+}
+
+/// Replays only the trailing trivia whose ownership the sink-free nominal form
+/// judge already established.  This deliberately does not classify the gap a
+/// second time: the reported endpoint is the complete ownership decision.
+fn commit_type_declaration_nominal_trailing_trivia_until<'parse, 'source, 'local, E, O>(
+    target: usize,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let current = committed.probe(|probe| probe.input().pos());
+    if current == target {
+        return;
+    }
+    let trivia = committed
+        .probe(|probe| probe.input().run(scan_trivia))
+        .expect("the nominal form judge reported remaining trailing trivia");
+    debug_assert_eq!(trivia.range(), current..target);
+    committed.emit_trivia(&trivia);
+}
+
+/// Consumes only the trailing trivia whose ownership the sink-free nominal
+/// form judge already established.  It is replay, not a second form probe.
+fn consume_type_declaration_nominal_trailing_trivia_until<E>(
+    target: usize,
+    i: &mut SynIn<E>,
+) where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let current = i.pos();
+    if current == target {
+        return;
+    }
+    let trivia = i
+        .run(scan_trivia)
+        .expect("the nominal form judge reported remaining trailing trivia");
+    debug_assert_eq!(trivia.range(), current..target);
 }
 
 fn commit_type_declaration_header_recovery<'parse, 'source, 'local, E, O>(
@@ -1764,7 +1842,9 @@ where
 /// dispatch gate selects a committed declaration continuation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TypeDeclarationFormDisposition {
-    Nominal,
+    /// The exclusive endpoint of terminal trivia the declaration owns.  A
+    /// caller-owned boundary reports the shared-header end instead.
+    Nominal { owns_trailing_trivia_through: usize },
     Equality,
     EqualityRecovery,
     Incomplete,
@@ -1800,9 +1880,12 @@ where
     } else {
         let ambient_boundary = any_ambient_owner_claims(i);
         if ambient_boundary {
-            TypeDeclarationFormDisposition::Nominal
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: i.pos(),
+            }
         } else {
             let gap_checkpoint = i.checkpoint();
+            let shared_end = i.pos();
             let trivia = i
                 .run(scan_trivia)
                 .expect("the maximal Type form gap trivia scan is total");
@@ -1810,20 +1893,28 @@ where
             let accepted_continuation = !has_physical_newline || i.local.line().line_indent > type_base;
             let disposition = if accepted_continuation && declaration_exact_equals_pending(i) {
                 TypeDeclarationFormDisposition::Equality
-            } else if type_declaration_braced_newline_owner_from_stack(
-                has_physical_newline,
-                i.local,
-            )
-            .is_some()
-                || type_declaration_nominal_terminal_boundary_after_trivia(
-                    type_base,
-                    has_physical_newline,
-                    i,
-                )
-            {
-                TypeDeclarationFormDisposition::Nominal
             } else {
-                TypeDeclarationFormDisposition::EqualityRecovery
+                let owns_trailing_trivia_through = if type_declaration_braced_newline_owner_from_stack(
+                    has_physical_newline,
+                    i.local,
+                )
+                .is_some()
+                {
+                    Some(shared_end)
+                } else {
+                    type_declaration_nominal_terminal_trivia_end_after_trivia(
+                        type_base,
+                        shared_end,
+                        has_physical_newline,
+                        i,
+                    )
+                };
+                match owns_trailing_trivia_through {
+                    Some(owns_trailing_trivia_through) => TypeDeclarationFormDisposition::Nominal {
+                        owns_trailing_trivia_through,
+                    },
+                    None => TypeDeclarationFormDisposition::EqualityRecovery,
+                }
             };
             i.rollback(gap_checkpoint);
             disposition
@@ -1897,26 +1988,30 @@ fn type_declaration_braced_newline_owner_from_stack(
 }
 
 /// The non-ambient terminal alternatives for a complete nominal header.
-fn type_declaration_nominal_terminal_boundary_after_trivia<E>(
+fn type_declaration_nominal_terminal_trivia_end_after_trivia<E>(
     type_base: usize,
+    shared_end: usize,
     has_physical_newline: bool,
     i: &mut SynIn<E>,
-) -> bool
+) -> Option<usize>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
     UnexpectedEndOfInput: Into<E::Error>,
 {
-    if i.input.remainder().is_empty() {
+    if has_physical_newline && i.local.line().line_indent <= type_base {
+        // The entire equal-or-shallower physical gap belongs to the caller,
+        // even when that newline is immediately followed by EOF.
+        Some(shared_end)
+    } else if i.input.remainder().is_empty() {
         // Empty/same-line terminal trivia and maximal strictly-deeper
-        // trailing trivia both end a nominal declaration at EOF.
-        true
+        // trailing trivia both end a nominal declaration at EOF.  In these
+        // EOF cases the declaration owns the already-probed gap.
+        Some(i.pos())
     } else if matches!(i.input.remainder().chars().next(), Some(';')) {
-        !has_physical_newline
-    } else if has_physical_newline && i.local.line().line_indent <= type_base {
-        true
+        (!has_physical_newline).then_some(i.pos())
     } else {
-        type_declaration_active_fixed_statement_boundary_pending(i)
+        type_declaration_active_fixed_statement_boundary_pending(i).then_some(shared_end)
     }
 }
 
@@ -13128,14 +13223,18 @@ mod tests {
             "type Point",
             Owner::None,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
             "type Point;",
             Owner::None,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
@@ -13156,14 +13255,18 @@ mod tests {
             "type Point\n  our x = 1",
             Owner::BracedStatementSequence,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             Some(TypeDeclarationBracedNewlineOwner::BracedStatementSequence),
         );
         run_complete_header_case(
             "type Point\n  B -> fallback",
             Owner::CatchArmThroughInline,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             Some(TypeDeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement),
         );
         run_complete_header_case(
@@ -13186,42 +13289,54 @@ mod tests {
             "type Point, tail",
             Owner::None,
             StopSet::default().with(StopKind::Comma),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
             "type Point]",
             Owner::None,
             StopSet::default().with(StopKind::RightBracket),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
             "type Point)",
             Owner::None,
             StopSet::default().with(StopKind::RightParenthesis),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
             "type Point}",
             Owner::None,
             StopSet::default().with(StopKind::RightBrace),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
         run_complete_header_case(
             "type Point\n    ",
             Owner::None,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 15,
+            },
             None,
         );
         run_complete_header_case(
             "type Point else: 0",
             Owner::AmbientIf,
             StopSet::default(),
-            TypeDeclarationFormDisposition::Nominal,
+            TypeDeclarationFormDisposition::Nominal {
+                owns_trailing_trivia_through: 10,
+            },
             None,
         );
 
@@ -13469,6 +13584,331 @@ mod tests {
         assert_eq!(source_input.remainder(), "\nour x = 1");
         assert!(expectations.take_merged().is_none());
         assert!(!is_cut);
+    }
+
+    #[test]
+    fn nominal_type_terminal_trivia_ownership_is_exact_in_ast_and_direct_cst() {
+        fn parse_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_type_declaration_form_aware_isolated(i).unwrap()
+            };
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(
+            source: &str,
+            outer_semicolon: Option<Range<usize>>,
+        ) -> (Recovered<Range<usize>>, String, SyntaxNode) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe.input().run(recognize_type_statement_intro).unwrap();
+            let mut committed = probe.commit(FullCstOutput::new(source));
+            committed.start_node(SyntaxKind::Root);
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            if let Some(semicolon) = outer_semicolon {
+                committed.token(SyntaxKind::Semicolon, semicolon);
+            }
+            committed.finish_node();
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            assert!(output.committed_recoveries().is_empty(), "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (range, remainder, SyntaxNode::new_root(output.finish_complete()))
+        }
+
+        for (source, expected_range, expected_remainder, semicolon) in [
+            ("type Point ", 0..11, "", None),
+            ("type Point ;", 0..11, ";", Some(11..12)),
+            ("type Point\n    ", 0..15, "", None),
+        ] {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_remainder, root) = parse_direct(source, semicolon);
+            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert_eq!(ast.range, expected_range, "{source:?}");
+            assert_eq!(direct_range, Recovered::Complete(expected_range), "{source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "{source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "{source:?}");
+            assert_eq!(root.to_string(), source, "{source:?}");
+        }
+
+        // A caller-owned equal-or-shallower newline remains wholly outside
+        // the declaration even when EOF follows it immediately.
+        let (ast, ast_remainder) = parse_ast("type Point\n");
+        assert_eq!(ast.range, 0..10);
+        assert_eq!(ast_remainder, "\n");
+    }
+
+    #[test]
+    fn type_declaration_form_aware_tnd_r_recovery_matrix_is_complete_and_non_cascading() {
+        #[derive(Clone, Copy, Debug)]
+        enum ExpectedForm {
+            Nominal,
+            Equality,
+            Incomplete,
+        }
+
+        fn parse_ast<'source>(source: &'source str) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_type_declaration_form_aware_isolated(i).unwrap()
+            };
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(
+            source: &str,
+        ) -> (Recovered<Range<usize>>, Vec<(RecoveryKind, TypeDeclarationRole, Range<usize>)>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe.input().run(recognize_type_statement_intro).unwrap();
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed
+                .into_output()
+                .committed_recoveries()
+                .iter()
+                .map(|record| {
+                    let GrammarRole::Declaration(DeclarationRole::Type(role)) = record.site.role else {
+                        panic!("unexpected recovery role for {source:?}: {:?}", record.site.role);
+                    };
+                    (record.kind, role, record.site.range.clone())
+                })
+                .collect();
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (range, records, remainder)
+        }
+
+        let cases = [
+            ("type Point", ExpectedForm::Nominal, 0..10, "", vec![]),
+            ("type Point;", ExpectedForm::Nominal, 0..10, ";", vec![]),
+            ("type Point\n    ", ExpectedForm::Nominal, 0..15, "", vec![]),
+            ("type Id 'a", ExpectedForm::Nominal, 0..10, "", vec![]),
+            ("type Id = Int", ExpectedForm::Equality, 0..13, "", vec![]),
+            (
+                "type Id ('a)",
+                ExpectedForm::Equality,
+                0..12,
+                "",
+                vec![(RecoveryKind::Missing, TypeDeclarationRole::DefinitionIntroducer, 8..8)],
+            ),
+            (
+                "type Id @= Int",
+                ExpectedForm::Equality,
+                0..14,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+            ),
+            (
+                "type Id @('a)",
+                ExpectedForm::Equality,
+                0..13,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+            ),
+            (
+                "type Id @",
+                ExpectedForm::Incomplete,
+                0..9,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::DefinitionIntroducer, 8..9)],
+            ),
+            (
+                "type",
+                ExpectedForm::Incomplete,
+                0..4,
+                "",
+                vec![(RecoveryKind::Missing, TypeDeclarationRole::Name, 4..4)],
+            ),
+            (
+                "type @Name",
+                ExpectedForm::Nominal,
+                0..10,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::Name, 5..6)],
+            ),
+            (
+                "type @= Int",
+                ExpectedForm::Equality,
+                0..11,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::Name, 5..6)],
+            ),
+            (
+                "type =",
+                ExpectedForm::Equality,
+                0..6,
+                "",
+                vec![
+                    (RecoveryKind::Missing, TypeDeclarationRole::Name, 5..5),
+                    (RecoveryKind::Missing, TypeDeclarationRole::Rhs, 6..6),
+                ],
+            ),
+            (
+                "type @",
+                ExpectedForm::Incomplete,
+                0..6,
+                "",
+                vec![(RecoveryKind::Error, TypeDeclarationRole::Name, 5..6)],
+            ),
+        ];
+
+        for (source, expected_form, expected_range, expected_remainder, expected_records) in cases {
+            let (ast, ast_remainder) = parse_ast(source);
+            let (direct_range, direct_records, direct_remainder) = parse_direct(source);
+            match expected_form {
+                ExpectedForm::Nominal => assert!(matches!(
+                    ast.form,
+                    Recovered::Complete(TypeDeclarationForm::Nominal)
+                )),
+                ExpectedForm::Equality => assert!(matches!(
+                    ast.form,
+                    Recovered::Complete(TypeDeclarationForm::Equality { .. })
+                )),
+                ExpectedForm::Incomplete => {
+                    assert!(matches!(ast.form, Recovered::Incomplete), "{source:?}")
+                }
+            }
+            assert_eq!(ast.range, expected_range, "AST range: {source:?}");
+            assert_eq!(direct_range, Recovered::Complete(expected_range), "direct range: {source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            assert_eq!(direct_records, expected_records, "direct recoveries: {source:?}");
+            assert!(
+                direct_records
+                    .iter()
+                    .all(|record| direct_records.iter().filter(|other| other == &record).count() == 1),
+                "each TND-R slot failure is exactly one node/record: {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn type_declaration_form_aware_nominal_boundaries_return_the_original_gap() {
+        #[derive(Clone, Copy)]
+        enum Boundary {
+            Root,
+            BracedStatementSequence,
+            CatchArmThroughInline,
+            AmbientIf,
+            Stop(StopKind),
+        }
+
+        fn install(local: &mut ParseLocal, boundary: Boundary) {
+            match boundary {
+                Boundary::Root => {}
+                Boundary::BracedStatementSequence => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Boundary::CatchArmThroughInline => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Boundary::AmbientIf => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_if_expression_companion(0, &["elsif", "else"]);
+                }
+                Boundary::Stop(stop) => local.push_stop_set(StopSet::default().with(stop)),
+            }
+        }
+
+        fn parse_ast<'source>(source: &'source str, boundary: Boundary) -> (TypeDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install(&mut local, boundary);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                parse_type_declaration_form_aware_isolated(i).unwrap()
+            };
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(source: &str, boundary: Boundary) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install(&mut local, boundary);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe.input().run(recognize_type_statement_intro).unwrap();
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed.into_output().committed_recoveries().to_vec();
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            (range, records, remainder)
+        }
+
+        let cases = [
+            ("type Point\nour x = 1", Boundary::Root, "\nour x = 1"),
+            (
+                "type Point\n  our x = 1",
+                Boundary::BracedStatementSequence,
+                "\n  our x = 1",
+            ),
+            (
+                "type Point\n  B -> fallback",
+                Boundary::CatchArmThroughInline,
+                "\n  B -> fallback",
+            ),
+            ("type Point else: 0", Boundary::AmbientIf, " else: 0"),
+            ("type Point, tail", Boundary::Stop(StopKind::Comma), ", tail"),
+            ("type Point) tail", Boundary::Stop(StopKind::RightParenthesis), ") tail"),
+            ("type Point] tail", Boundary::Stop(StopKind::RightBracket), "] tail"),
+            ("type Point} tail", Boundary::Stop(StopKind::RightBrace), "} tail"),
+        ];
+
+        for (source, boundary, expected_remainder) in cases {
+            let (ast, ast_remainder) = parse_ast(source, boundary);
+            let (direct_range, records, direct_remainder) = parse_direct(source, boundary);
+            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert_eq!(ast.range, 0..10, "{source:?}");
+            assert_eq!(direct_range, Recovered::Complete(0..10), "{source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "{source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "{source:?}");
+            assert!(records.is_empty(), "{source:?}");
+        }
     }
 
     #[test]
