@@ -20274,3 +20274,732 @@ same-line / deeper-EOF trailing triviaとphysical newlineのownership、malforme
 
 著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-26、canonical Statement / root Declarationのbare nominal `type` declaration grammar追補案）。
+
+## 追補案: canonical `StructDeclaration` / `TypeDeclaration`のshared `derives` clause attachment grammar
+
+Status: Proposal（Claude査読待ち）。
+
+Date: 2026-08-26。
+
+### Scope and authority
+
+本追補は、AuthoritativeなStruct declaration追補とtype equality / bare nominal declaration追補が
+future declaration-owned authorityへ意図的に残した`derives` surfaceを、current Yulang3で実装済みの
+`StructDeclaration` / `TypeDeclaration`に共有attachmentとして設計する。対象は次だけである。
+
+- exact contextual word `derives`、one-or-more ordinary `TypeExpression` role reference、literal comma separator、
+  optional exact contextual word `via` + mandatory raw field identifier。
+- Structのname後/body前header positionと、actual completed braced / tuple body後のtrailing position。
+- Typeのshared name / parameter header後/form選択前header positionと、Equality RHS episode後のtrailing position。
+- repeated clauseのsource order、AST / direct-CST shape、typed recovery、TypeExpression / ASOB / outer Statement boundaryとのcomposition。
+- root / nested canonical Statementでのowner parity、header discoveryの不変、existing Struct / Type recoveryとのno-cascade。
+
+本追補はdeclaration companion `with:` block内のstandalone derives item、Enum / Error / Actへのattachment、
+Role / Implへのattachment、derive request登録、role resolution、generated impl / method、`Eq` / `Debug`の意味、
+`via` field検証、nominal identity、constructor / module registration、HIR lowering、resolver、inference、formatterを設計しない。
+parserはType targetもsyntaxとして保持するが、そのdeclaration kindにderiveを許すsemantic claimをしない。
+
+本追補のBNF-equivalent grammarの唯一の正本は`DRV-G`、contextual authority / attachment pointは`DRV-J`、
+TypeExpression / owner compositionは`DRV-T`、typed recoveryは`DRV-R`である。Struct固有のbody grammarは`SD-G/J/T/R`、
+Type固有のform / RHS grammarは`TD-G/J/T/R` + `TND-G/J/T/R`を保ち、本追補はattachment episodeだけを追加する。
+
+### Problem statement and superseded temporary behavior
+
+Struct追補は、current designにderives-clause authorityがないため、header / body後の`derives`を
+`StructDeclaration`がconsumeせず、future addendumがpre-body / post-body / companion positionとrecoveryを一箇所で
+決めることを固定した（本document:18246-18254）。Type equality追補の最終scope fixtureも
+`type point = int derives Eq`の`derives Eq`をRHSのordinary `TypeApplyArgument`として保持し、
+declaration-owned derives stopを作らないtemporary behaviorを明示した
+（`crates/yu-syntax/src/grammar/declaration.rs:16331-16340`）。
+
+本追補は承認・実装時に次だけをsupersedeする。
+
+- Structのcomplete shared headerとbody authorityの間にあるqualifying exact `derives`。
+- actual completed braced / tuple Struct bodyの後、outer Statement boundaryの前にあるqualifying exact `derives`。
+- Typeのnameがliteralまたはsame-slot retry後にCompleteとなったshared headerと
+  TND form judgeの間にあるqualifying exact `derives`。
+- Equality RHSのcomplete / recovered mandatory slot後にあるqualifying exact `derives`。この家族では
+  active declaration-owned stopがexisting TypeApplyより先に勝つ。
+
+`derives`がその他のidentifier positionにあるcase、missing Struct closeの内側、Struct indented bodyの
+equal-or-shallower dedent後、Type header / RHSのmalformed runの途中にあるcaseを、spelling一致だけで
+derives attachmentへupgradeしない。
+
+### Re-verified Yulang2 oracle facts
+
+調査時点のannotated tag `yulang2-oracle`はcommit
+`a58eefc31e22141574b6f20c6a5748151c6d79f1`を指した。parser implementation、parser-tree fixture、
+surface design note、representative corpusをsame treeから再確認し、次をground truthとする。
+
+1. shared surface grammarは`DerivesClause ::= "derives" RoleRef ("," RoleRef)* ["via" ViaTarget]`であり、
+   `via`はclause全体へ掛かる（`yulang2-oracle:notes/design/2026-07-26-derives-clause-design.md:58-70`）。
+   implementationは`DerivesClause`をstartし、RoleRefをordinary type parserへ渡し、comma / `via` / next `derives` /
+   caller-specific outer stopで戻した（`yulang2-oracle:crates/parser/src/stmt/type_decl.rs:384-447`）。
+   従ってRoleRefはraw nameに限定されず、path / application / groupを含むordinary type surfaceである。
+2. `derives`はglobal keywordではなく、`Ident` textのexact contextual matchだった
+   （`type_decl.rs:348-364`）。`my derives = 1`はordinary Binding identifierのままであるfixtureがある
+   （`yulang2-oracle:crates/parser/tests/stmt_grammar.rs:1443-1463`）。`via`はclause内でtokenとして認識され、
+   後続はone `Ident`だけをtargetとした（`type_decl.rs:407-438`）。Y2 scannerの`via`は
+   global `Via` keyword tokenだったが（`yulang2-oracle:crates/parser/src/lex.rs:166`）、current Y3にその
+   declaration surfaceはない。本追補はaccepted clause内でだけexact contextual `ViaKw`としてcommitする。
+3. one attachment pointでadjacent `derives` clauseをzero-or-more追加でき、source orderを保ち、
+   duplicate roleをdeduplicateしなかった（`type_decl.rs:366-382`;
+   `stmt_grammar.rs:1412-1441`）。header / post-body / companion blockの三positionはsame
+   `DerivesClause` CST shapeを作った（`stmt_grammar.rs:1376-1409`）。
+4. Structはname / historical type vars後、body opener前にheader derivesを許し、body parse後の
+   `finish_with_or_stmt_stop`でtrailing derivesを許した
+   （`yulang2-oracle:crates/parser/src/stmt/struct_decl.rs:14-60,113-124`;
+   `type_decl.rs:278-346`）。header derivesへ渡すouter stopには`ParenL`も明示的に含まれ、
+   tuple body openerをRoleRef continuationより先にownerへ返した（`struct_decl.rs:42-48`）。
+   Typeはname / type vars後、`impl` / `with` / exact `=` / role-like body前に
+   header derivesを許し、equality RHSのtype parserに`Derives`をstopとして渡した後、
+   trailing derivesをparseした（`type_decl.rs:24-80,129-174`）。
+5. direct ownerのexhaustive checkではStruct / TypeのほかEnum / Error / Actがheader and/or post-body derivesに
+   `parse_header_derives` / `finish_with_or_stmt_stop`を使った
+   （`yulang2-oracle:crates/parser/src/stmt/enum_decl.rs:17-62,132-143`;
+   `error_decl.rs:12-48,114-118`; `act_decl.rs:14-49`）。Role / Impl / Cast / Mod / Binding / Use /
+   operator definitionはこのdirect attachment helperを使わなかった。Implの`via`は別の
+   unimplemented syntax errorでありderives ownerではない
+   （`yulang2-oracle:crates/parser/src/stmt/impl_decl.rs:29-55,76-95`）。
+6. companion Statement parserはordinary statement dispatchの前にexact contextual `derives`をspecial itemとして認識した
+   （`yulang2-oracle:crates/parser/src/stmt/mod.rs:39-50`）。current Yulang3にdeclaration companion-module ownerが
+   ないため、このpositionは本追補のvalid dispatchに入れない。
+7. corpusはnamed / tuple / zero-field Struct、Enum、Errorの`Eq` / `Debug`、Structの`via field`を持つ。
+   `type point = int derives Eq`もparser syntaxを通るがsemantic invalid-target regressionとして置かれていた
+   （`yulang2-oracle:tests/yulang/regressions/diagnostics/derive_invalid_target.yu:1`）。
+   従ってcurrent parser addendumはType attachmentをsyntaxとして保持しつつ、valid semantic targetとは断定しない。
+8. oracleのsemantic designはRoleRefをordinary type namespace reference、ViaTargetをone unqualified direct named-field
+   identifierとし、nested path / tuple index / representation typeを許さなかった
+   （`yulang2-oracle:notes/design/2026-07-26-derives-clause-design.md:674-687,831-843`）。
+   本追補が継承するはそのsource shapeとspanだけで、resolution / validationは別scopeである。
+
+### Preservation boundary
+
+本追補は次を維持する。
+
+- existing `StatementIntro::Struct` / `StatementIntro::Type`、root / nested dispatch priority、visibility / name /
+  Type declaration parameters、header discovery termination。`derives`自体はStatement introにならない。
+- Structのfour body forms、field-list authority / close / recovery、Type fieldのfull mandatory TypeExpression、
+  TypeのNominal / Equality form judgeとequality header / RHS recovery。
+- actual punctuation / separator / close、ASOB original-gap ordering、outer semicolon / newline ownership、
+  lossless trivia、one source range = one recovery node = one record。
+- `derives`がattachment slotにない全positionでordinary Identifierであること。
+- source orderをAST / CSTで保ち、same RoleRef / repeated clauseをparserがdeduplicateしないこと。
+
+限定して変更するのは次である。
+
+- exact attachment authorityのある`derives`と、そのclauseが所有するtrivia / comma / `via` / target bytes。
+- Type equality RHS内のactive declaration-owned `Derives` stop。このstopはRHSがまだ開始できないcaseを含む
+  mandatory RHS boundaryとして機能し、clause adapterがsame positionから`derives`をconsumeする。
+- Struct / Type ASTのshared derives attachment collectionと、direct declaration childとしての
+  `DerivesClause` CST。
+
+### `DRV-G`: shared clause grammar and owner-specific attachment surface
+
+```text
+StructDeclarationWithDerives :=
+    StructSharedHeader
+    [ HeaderDerivesAttachment(Struct) ]
+    StructBody
+    [ TrailingDerivesAttachment(Struct) ]
+
+TypeDeclarationWithDerives :=
+    TypeDeclarationHeader
+    [ HeaderDerivesAttachment(Type) ]
+    TypeDeclarationForm
+    [ TrailingDerivesAttachment(Type) ]
+
+HeaderDerivesAttachment(Owner) :=
+    DerivesAttachmentTrivia(owner_base)
+    DerivesClause
+    { DerivesAttachmentTrivia(owner_base) DerivesClause }
+
+TrailingDerivesAttachment(Owner) :=
+    DerivesAttachmentTrivia(owner_base)
+    DerivesClause
+    { DerivesAttachmentTrivia(owner_base) DerivesClause }
+
+DerivesClause :=
+    DerivesKw
+    DerivesRoleTrivia(owner_base)
+    RequiredTypeExpression(Derives::RoleReference)
+    {
+        DerivesRoleGap(owner_base)
+        Comma
+        DerivesRoleTrivia(owner_base)
+        RequiredTypeExpression(Derives::RoleReference)
+    }
+    [
+        DerivesRoleGap(owner_base)
+        ViaKw
+        DerivesViaTrivia(owner_base)
+        RequiredRawIdentifier(Derives::ViaTarget)
+    ]
+
+DerivesKw := exact contextual word "derives"
+ViaKw := exact contextual word "via" inside an accepted DerivesClause
+
+DerivesAttachmentTrivia(base) :=
+    empty
+  | NonEmptySameLineTrivia
+  | NonEmptyStrictlyDeeperContinuationTrivia(base)
+
+DerivesRoleTrivia(base) := TypeChainTrivia(base)
+DerivesRoleGap(base) := TypeChainTrivia(base)
+DerivesViaTrivia(base) := TypeChainTrivia(base)
+```
+
+`DerivesClause` listのseparatorはliteral commaだけである。whitespace / newlineだけでnext RoleRefを
+発明しない。`derives Eq Debug`はone ordinary TypeApply RoleRefでありtwo roleではない。
+comma後はmandatory new RoleRef slotであり、matching owner boundary直前のliteral commaをsilent trailing commaにしない。
+
+`TypeChainTrivia(base)`はstandalone TypeExpressionのapproved ruleどおり、empty / same-line /
+strictly-deeper continuationをacceptし、equal-or-shallower physical newline / active caller boundary / ambient owner claimを
+original gapのまま返す。exact comma / `via` / next `derives`はactive clause-local stopとして
+TypeApplyより先に勝つ。actual outer close / Statement separatorはclauseより先にconsumeせずcallerへ返す。
+
+`DerivesAttachmentTrivia`はphysical newlineをcolumnだけでacceptしない。original gapを
+`any_ambient_owner_claims`、active caller boundary、typed braced / Catch statement-sequence newline ownerへ先に問い、
+owner claimがあればwhole gapをnon-consumeで返す。これによりroot / indented / braced / Catch内の
+next canonical Statementをattachmentに変えない。
+
+owner-specific surfaceを次で固定する。
+
+- **Struct header:** shared name slotがCompleteまたはsame-slot retry後にCompleteで、body-introducer recoveryが
+  byteをconsumeする前にqualifying exact `derives`があるときだけ。clauses後はexisting body judgeを
+  same positionから実行する。`struct S derives Eq;`、`struct S derives Eq { x: Int }`、
+  `struct S derives Eq:\n  x: Int`はvalidである。
+  Header RoleRef episodeではStruct ownerが`LeftBrace` / `LeftParenthesis` / `Colon` / `Semicolon`を
+  body-starter stopとして**同じepisode-scoped frame**へ渡す。four stopsすべてがnested TypeExpression episodeで
+  suspendされる。outer episodeでは`LeftBrace` / `Colon` / `Semicolon`をStruct ownershipとし、
+  `LeftParenthesis`だけは`DRV-T`のphase-local ruleでfresh RoleRef primaryではlocal ownership、
+  complete outer RoleRefのtailではStruct ownershipとする。
+- **Struct trailing:** NamedBraced / Tuple bodyのactual matching closeがCompleteで、close後の
+  qualifying gapにexact `derives`があるときだけ。Bodyless semicolon後、NamedIndented dedent後、
+  missing / mismatched braced or tuple close後は選ばない。これはfield-list内のshape-valid
+  `derives` nameと、outer statementの`derives` spellingをmissing close越しで奪わないためである。
+- **Type header:** shared Nameがliteralまたはsame-slot retry後にCompleteとなった後のsame-line
+  parameter scanの後、TND form judge前のqualifying exact `derives`。name Incompleteのheaderはattachment
+  authorityを得ず、existing TND-J tier 1 / TD-R no-cascadeへ進む。
+  `type Point derives Eq`はclauses後のEOF authorityでNominal、`type Id derives Eq = Int`は
+  clauses後のexact equality authorityでEqualityである。parameter predicateのexisting contextual
+  `derives` exclusionを保つ（`crates/yu-syntax/src/grammar/declaration.rs:829-865`）。
+- **Type trailing:** `TypeDeclarationForm::Equality`がexact `=` / equality recoveryでselected済みのとき、
+  mandatory RHSのComplete / Incompleteを問わず、active `StopKind::Derives`がsame cursorに返した
+  exact wordから開始する。`type Id = Int derives Eq`はvalidで、`type Id = derives Eq`は
+  one Missing Rhsとone valid clauseをdistinct slotとして持つ。Nominalにtrailing phaseはなく、
+  post-header clauseはすべてheader attachmentである。
+
+### `DRV-J`: contextual authority, attachment position, and shared driver
+
+`derives`を`StatementIntro`、global reserved word、ordinary TypePrimaryのpermanent stopにしない。
+shared sink-free `recognize_derives_attachment_start(owner, position, base)`は、owner adapterが明示的に開いた
+attachment pointでだけ呼び、original gapとfollowing one maximal wordをprobeし、input / line / all ParseLocal stack /
+sinkをexact rollbackする。resultはboolでなく次のidentityを保持する。
+
+```rust
+enum DerivesAttachmentOwner {
+    Struct,
+    Type,
+}
+
+enum DerivesAttachmentPosition {
+    Header,
+    Trailing,
+}
+
+struct DerivesAttachmentStart {
+    owner: DerivesAttachmentOwner,
+    position: DerivesAttachmentPosition,
+    keyword: Range<usize>,
+    owner_base: usize,
+}
+```
+
+authority priorityを次で固定する。
+
+1. **Existing owner terminal:** actual Struct close / bodyless semicolon、Type exact `=` acceptance、outer explicit Statement
+   separator / matching close、typed braced / Catch newline、ASOB ambient claimはそれぞれexisting ownerの順序を保つ。
+   attachment judgeはcaller-owned original gapをconsumeしない。
+2. **Exact attachment authority:** owner / positionが`DRV-G`でvalid、gapがqualify、following maximal wordが
+   exact `derives`ならcutする。一度keywordをacceptした後はmandatory RoleRef recoveryを行い、
+   declaration / expression fallbackへ戻さない。
+3. **Owner continuation:** no derivesならStruct headerはbody judge、Type headerはTND form judge、
+   Type trailing / Struct trailingはouter Statement ownerへsame cursorで返る。
+4. **No authority:** owner / positionがinvalid、headerがmalformed terminal、Struct closeがIncomplete、または
+   original gapがcaller-ownedならNone。spellingを後段で再probeしない。
+
+accepted start後はAST / direct-CST共有の`drive_derives_clauses(spec)`がclause / comma / via / repeated-clause /
+boundary decisionを一度だけ行う。`DerivesDriverSpec`はowner / position / owner_base /
+owner-tail classifier / outer roleをtypedで持つが、Struct / Type ASTやCSTを偽装しない。AST builderとdirect emitterは
+same decision streamを受けるthin adapterにする。
+
+attachmentのheader / trailing distinctionはsource orderとfuture semantic ownershipに必要なためeraseしない。
+Struct / Typeの各parserにexact-word scanner / comma loop / malformed scannerをcopyせず、異なるのは
+attachment startの有効条件とclause後のowner continuationだけにする。
+
+Struct headerの`(` ambiguityは次のone ruleで固定する。Header RoleRefのfresh primary slotではactive
+`StopKind::LeftParenthesis`を`TypeBoundaryPolicy::locally_owned_stops`へ入れ、`derives (Eq(Int))`の先頭groupを
+ordinary RoleRefとして開始できる。一方、one complete outer RoleRefのtail judgeでは同じstopを
+TypeCall / TypeApply continuationより先に返し、Struct body judgeがsame `(`をconsumeする。従って
+`struct S derives Eq(Int)`と`struct S derives Eq (Int)`はいずれもRoleRef `Eq` + tuple body `(Int)`である。
+RoleRef自体へcallを含めたいsourceはgroupでscopeを明示し、
+`struct S derives (Eq(Int)) (Field)`をRoleRef `(Eq(Int))` + tuple body `(Field)`と書く。
+four-stop frameはStruct Header attachmentのouter RoleRef episodeだけにpushし、Struct trailing / Type
+header / Type trailingでは作らない。nested TypeExpression episodeではfour stopsすべてをactiveにしない。
+`LeftBrace` / `Colon` / `Semicolon`もsame frameでdepth-fenceするため、outer RoleRefではStruct bodyへ返る一方、
+`struct S derives ({ x: Int }) (Field)`のNamedRecordType、
+`struct S derives (:{ A }) (Field)`のPolymorphicVariantType、nested group / delimited item内のsemicolonは
+ordinary nested TypeExpression surfaceを保つ。
+
+### AST / direct-CST shape
+
+```rust
+struct DerivesAttachment<'source> {
+    position: DerivesAttachmentPosition,
+    clause: DerivesClause<'source>,
+}
+
+struct DerivesClause<'source> {
+    keyword: Range<usize>,
+    roles: Vec<Recovered<Box<TypeExpression<'source>>>>,
+    via: Option<DerivesVia<'source>>,
+    range: Range<usize>,
+}
+
+struct DerivesVia<'source> {
+    keyword: Range<usize>,
+    target: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+struct StructDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    body: Recovered<StructBody<'source>>,
+    range: Range<usize>,
+}
+
+struct TypeDeclaration<'source> {
+    visibility: Visibility,
+    name: Recovered<WordSpan<'source>>,
+    parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
+    form: Recovered<TypeDeclarationForm<'source>>,
+    range: Range<usize>,
+}
+```
+
+exact `derives`をacceptしたclauseは必ずone mandatory role slotを持つ。roleがmissingなら
+`roles = [Recovered::Incomplete]`であり、empty clause wrapperにしない。repeated clauseは
+one `DerivesAttachment` per source clauseで、positionとsource orderを保つ。comma rangeはlossless CSTが所有し、
+ASTにsynthetic separator / duplicate comma vectorを作らない。
+
+new CST vocabularyは`DerivesClause` node、`DerivesKw` / `ViaKw` tokenだけである。
+declaration内のheader / trailing source positionに`DerivesClause`をdirect childとしてemitし、
+`DerivesAttachmentList`、`HeaderDerives`、`TrailingDerives`、empty wrapper、synthetic `Separator`は作らない。
+`DerivesAttachmentPosition`はAST identityでありCST nodeではない。
+
+representative sourceのchild orderを次で固定する。triviaはその後ろのsource childへonce emitする。
+
+```text
+struct Point derives Eq, Debug via key { value: Int }
+StructDeclaration(
+  StructKw, Identifier,
+  DerivesClause(DerivesKw, TypeExpression(Eq), Comma,
+                TypeExpression(Debug), ViaKw, Identifier(key)),
+  LBrace, StructField, RBrace)
+
+struct Point { value: Int } derives Eq
+StructDeclaration(
+  StructKw, Identifier, LBrace, StructField, RBrace,
+  DerivesClause(DerivesKw, TypeExpression(Eq)))
+
+type Id derives Eq = Int derives Debug
+TypeDeclaration(
+  TypeKw, Identifier,
+  DerivesClause(DerivesKw, TypeExpression(Eq)),
+  Equals, TypeExpression(Int),
+  DerivesClause(DerivesKw, TypeExpression(Debug)))
+```
+
+declaration rangeはcommitted shared header / header clause、existing body / form、last trailing clauseの
+各endの最大値である。normal header attachmentでは後続body / form endが勝ち、header-only clauseが
+`struct Point derives Eq { value: Int }`や`type Id derives Eq = Int`のrangeをclause endへtruncateしない。
+body / form recoveryがbyteをconsumeしないcaseでは、最後に実際にcommitしたheader clause endがrangeを保てる。
+outer semicolon / equal-or-shallower newline / companion word / active closeはrangeに入らない。
+
+### `DRV-T`: ordinary TypeExpression and scoped stop composition
+
+RoleRefはordinary mandatory TypeExpressionである。ASTは
+`parse_required_type_expression_with_outer_missing_role`、direct-CSTは
+`commit_direct_type_expression_with_outer_missing_role`を使い、completely missing primaryだけを
+`GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference))`へoverrideする。
+malformed primary / TypeApply / ArrowRhs / NamedRecord / Forall / EffectRow / PolymorphicVariant / BracketRowの
+nested Errorはexisting `TypeRole`を保つ。Derives専用TypeExpression subsetを作らない。
+
+one RoleRef episodeはincoming stop setを保ち、次をscoped addする。
+
+- existing `Comma`。
+- new contextual `StopKind::Via`。
+- new contextual `StopKind::Derives`。
+- Struct Header ownerだけが**one scoped frameへ一緒に**渡すnew `StopKind::LeftParenthesis`と、
+  existing `LeftBrace` / `Colon` / `Semicolon`。
+- Type ownerのexact `=` judge / outer Statement boundaryのexisting stop。
+
+`StopKind::Via` / `StopKind::Derives`はexact maximal wordのみにmatchし、clause / Type equality RHS scope内でだけ
+activeである。`StopKind::LeftParenthesis`はactual `(`だけにmatchし、Struct Header RoleRef scope内だけactiveである。
+global word tableやTypePrimary candidate setを変えない。role parserがstopを返した後、
+shared clause driverがcomma / via / repeated derivesをsame positionからconsumeする。
+
+plain `StopSet` bitだけではouter declarationのcontextual wordがnested parenthesized / named-record /
+effect-row / bracket-row / polymorphic-variant itemだけでなく、delimiterを開かないArrow RHS / Forall body /
+TypeApply argumentのfresh TypeExpressionにも漏れる。current codeにはすべてのfresh TypeExpression entryを
+数えるidentityはなく、`type_delimited_owners`はdelimiter itemだけ、`type_ml_arg`はTypeApplyだけを表す。
+従ってdelimiter depthで代用せず、次のgeneral-purpose rollback-owned counter / frameを追加する。
+
+```rust
+struct TypeExpressionScopedStopFrame {
+    stops: StopSet,
+    visible_episode_depth: usize,
+}
+
+struct TypeExpressionEpisodePolicy {
+    fresh_primary_locally_owned_stops: StopSet,
+}
+```
+
+ここでepisode boundaryはinner TypeExpression parserだけでなく、**one logical TypeExpression slotのcandidate probe、
+actual parse / commit、mandatory malformed-run scanner、same-slot retryを全部含む**。current direct mandatory entryは
+`direct_type_primary_candidate`を先にprobeしてから`commit_direct_type_expression`を呼び、AST mandatory entryも
+optional parse失敗後に`recover_required_type_item_for_ast`を呼ぶため、inner parserだけをpushするとprobe / recoveryと
+actual parseのdepthがずれる。このshapeは禁止する。
+
+`ParseLocal`は`type_expression_episode_depth`を持ち、one `with_type_expression_episode` boundaryがpush / popを所有する。
+AST / directのoptional entryとrecursive TypeApply / Arrow RHS / Forall body / delimited item entryはこのwrapperを通す。
+mandatory AST `parse_required_type_expression_with_recovery_context`とdirect
+`commit_direct_type_expression_with_recovery_context`は、それぞれfunction全体をone episodeで包み、candidate、
+`parse/commit_type_expression_in_current_episode`、malformed scanner、recovery retryをsame depthで実行する。
+inner parserはepisodeを再pushしない。early returnごとにpopをcopyせず、wrapper + innerのone boundaryで
+normal / recovery / rollback / panic-free `expect`前提をexact restoreする。
+
+episode wrapperは`TypeExpressionEpisodePolicy`もone valueとして固定する。ordinary entryはempty policy、
+Struct Header RoleRefだけは`fresh_primary_locally_owned_stops = { LeftParenthesis }`を渡す。initial candidate、
+actual head classifier、malformed-run後のretry candidate / boundary classifierは同じpolicyを受け、別々に
+`locally_owned_stops`を再構成しない。これにより`struct S derives @ (Eq) (Field)`のsame-slot recoveryでも
+`(`をRoleRef retry primaryとして扱い、probe / recovery / commit間のownership driftを作らない。
+
+direct pathではcandidate probeと、その成功後のcommitted inner parserが同じepisode policy / depthを見る。
+従ってprobeがordinary identifierとしてacceptしたbyteをinner parserだけがactive stopとしてrejectする状態を作らず、
+`expect("the sink-free type primary probe accepted a primary")`の前提を保つ。AST / directのmalformed scannerも
+same episode内で`Derives` / `Via` / Struct body starterをboundaryとして返すため、clause ownerのbyteをError runへ
+consumeしない。retry後のfresh-primary policyもinitial candidateと同一である。
+
+これによりArrow RHS、Forall body、TypeApply argument、Parenthesized / Call / NamedRecord / EffectRow /
+BracketRow / PolymorphicVariant itemのどのrecursive entryもone deeper episodeとなる。
+
+RoleRef / Type RHS ownerはouter mandatory episode wrapperの直前に`visible_episode_depth = current + 1`をcaptureし、
+scoped stop frameをpushする。caller ownershipの唯一のmembership queryを
+`type_stop_is_active_in_current_episode(i, stop)`とする。このqueryはまずraw StopSet bitを確認し、
+そのstopを含むinnermost `TypeExpressionScopedStopFrame`があればframeのvisible depthとcurrent episode depthが
+等しいときだけtrue、matching frameがなければraw membershipをそのまま返す。
+
+`classify_type_boundary` / lexical `stop_kind_pending`の組は必ずこのactivation queryを先に通す。
+token / punctuationをcallerがすでにscan済みのownership checkも同じqueryだけを使う。
+`active_stop_set(i).contains(stop)`をcaller-ownership decisionへ直接使わない。`active_stop_set`を直接読むのは
+new setを`with` / `difference`で組み立てるnon-decision operationだけに限定する。このため
+`Derives` / `Via`、およびStruct Header frameに入れた`LeftBrace` / `LeftParenthesis` / `Colon` / `Semicolon`は
+全judgeで同じvisibilityを持ち、matching scoped frameがないexisting stop useは従来どおりである。outer RoleRef /
+RHSのown tailではstopが有効、そこから開いた**すべて**のnested TypeExpression episodeではsuspend、
+episodeがnormal / recovery / rollbackで終了しcaptured depthへ戻ったとき再び有効になる。
+
+current codeのraw ownership sitesは次のように一括migrateする。
+
+- polymorphic-variant tag loopのexact semicolon (`type_expr/polymorphic_variant.rs:329`): activeならcallerへ返し、
+  inactiveならlocal malformed separatorとしてconsumeするため、depth-aware queryが必要である。
+- direct Forallのunowned separator (`type_expr.rs:1640-1641`): scanned comma / semicolonをcallerへ返す判定であり、
+  both branchesをsame queryへ移す。Commaはmatching frameがないためbehavior不変、Semicolonだけnested Struct
+  episodeでsuspendする。
+- Forall first-binder recovery boundary (`type_expr.rs:1900-1903`): comma / semicolonをmalformed binder bytesにするか
+  caller boundaryにするかの判定であり、both branchesをsame queryへ移す。
+- AST Forallのunowned separator (`type_expr.rs:3118-3119`): direct counterpartと同じqueryへ移し、AST/direct parityを保つ。
+
+同じauditでtype grammar内のraw Newline / right-close ownership checksもqueryへmechanical migrateする。
+本追補はNewline / right-closeをscoped frameへ入れないためresultはraw membershipと常に同じだが、future scoped stopが
+同じbypassを再発させないAPI invariantを先に固定する。local separator / matching closeのpriority判定と、
+StopSet constructionはこのownership migrationの対象ではない。
+
+`LeftParenthesis`だけはouter episode内でもjudge phaseでownershipが異なる。fresh-primary
+candidate / actual parse / malformed-retryが共有するepisode policyの
+`TypeBoundaryPolicy::locally_owned_stops`はこれをlocally ownedとしてParenthesizedTypeGroupを開始できるが、complete operand後の
+tail policyはlocally ownedにせずactive stopをTypeCall / TypeApplyより先に返す。このphase splitにより
+RoleRefの先頭groupを壊さず、Struct tuple body openerもRoleRef continuationへ吸われない。nested episodeでは
+four Struct stopsのdepth fenceが先にsuspendするため、group内部のordinary call / application / NamedRecord /
+PolymorphicVariant / local separatorは従来どおりである。
+
+このshapeはexisting ambient-owner / If-companionがrollback-owned stack depthをcaptureし、nested episode内の
+visibilityをidentity comparisonで決めるpattern（`ASOB-G`）をTypeExpression entryへ適用したものである。
+raw delimiter count、`allow_forall`、`type_ml_arg`、source position比較、call-site-specific boolで代用しない。
+
+current `StopSet`は`u16`で、existing `StopKind`はdeclaration orderどおり0..14の15 variantsを使う。
+本追補の`Derives` / `Via` / `LeftParenthesis`を加えると18 variantsになり、bit 16 / 17は`u16`へ入らない。
+従ってGate 1でbacking storageを`u32`へwidenし、new variantsはexisting `With`の後へ
+`Derives = 15`、`Via = 16`、`LeftParenthesis = 17`の順でappendする。existing 0..14をrenumberせず、
+`with` / `without` / `contains`のmaskは`1u32 << (stop as u8)`で作り、`difference` / `Default` / Copy semanticsを保つ。
+`StopKind::ALL`はexisting declaration-generated listを保ち、18 variants / 32 bitsなので14 bitsのheadroomを持つ。
+`StopSet`はcrate-private transient parser stateでserialized ABIを持たないため、このwidth changeはexisting grammarの
+bit identity / behaviorを変えないmechanical capacity migrationである。
+
+Type Equality RHSはexisting `TD-T` atomic episodeのstop setに`StopKind::Derives`を追加する。
+ASOB check、`IndentationBaseline { column: type_base, kind: Introducer }`、Semicolon / With stops、mandatory entry、
+pop / restoreを分割せず同じfunction内でatomicに変更する。TypeExpression自身のtail judgeは
+actual arrow / call / pathのexisting priorityを保ち、active exact Derives stopをTypeApply ML candidateより先に返す。
+RHS adapterが戻った後だけType trailing attachmentをcommitする。
+
+`type Id = F derives Eq`は`F`だけがRHS、`derives Eq`がclauseである。
+`type Id = F (derives Eq)`のparenthesized inner TypeExpressionではdeclaration-owned stopを
+episode-fenced frameがsuspendし、inner `derives Eq`はordinary nested TypeExpressionのままである。
+close後の`type Id = F (A) derives Eq`ではcaptured depthへ戻るためtrailing clauseを選ぶ。
+RoleRef内の`derives F (via T)`もsame ruleでinner `via`をordinary identifierとして保つ。
+delimiterを開かない`type F = Int -> derives Eq`のArrow RHS、
+`type F = for 'a: derives Eq`のForall bodyもfresh episodeなのでsameにordinary identifierとなる。
+Arrow / Forall全体の後へdeclaration trailing clauseを意図するsourceはouter episodeへ明示的に戻し、
+`type F = (Int -> String) derives Eq`、`type F = (for 'a: T) derives Eq`とgroupする。これにより
+identifier spellingとattachment authorityをlook-behindやarrow-shape heuristicで切り替えない。
+
+attachment / role / via gapはすべてoriginal unconsumed gapに対してactual local punctuation / exact contextual
+continuation、active caller boundary、`any_ambient_owner_claims`の順を一度だけ判定する。
+newlineをlocal continuationとしてconsumeした後にambient ownerをre-probeしない。
+
+`via` targetはTypeExpressionではなくone raw Identifier slotである。path / sigil / number / tuple indexを
+parserがvalid targetへwidenしない。parserはdirect field存在、named Structか、RoleRefがroleかを検証しない。
+
+### `DRV-R`: typed recovery and owner convergence
+
+new shared recovery vocabularyを次で固定する。
+
+```rust
+enum DerivesRole {
+    RoleReference,
+    ViaTarget,
+}
+
+DeclarationRole::Derives(DerivesRole)
+```
+
+`DerivesClause`はdelimiter ownerではないためnew `ConstructRole` / `TypeDelimitedOwner`を作らない。
+commaはactual token、missing separatorはML TypeApplyとsurface ambiguityがあるため`DerivesRole::Separator`を
+作らない。`ViaKw`はoptional positive evidenceでありMissing Via keyword slotを作らない。
+
+| input state | AST / recovery | retry / ownership |
+| --- | --- | --- |
+| `derives Eq` | one complete RoleReference | clause complete、owner tailへ |
+| `derives Eq, Debug` | two complete RoleReference、comma actual | source orderを保つ |
+| `derives Eq derives Debug` | two complete clauses | first clauseがnext exact Derives stopへyield |
+| `derives Eq via key` | one role + complete ViaTarget | `via` / targetはclause child |
+| exact `derives` + owner boundary | one zero-width Missing RoleReference | boundary non-consume、clause complete |
+| exact `derives` + malformed bytes + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same mandatory role slotをretry、role Complete |
+| exact `derives` + malformed run reaches owner boundary | nested maximal `Error(Type::Primary)` one | role Incomplete、same-cause Derives Missingを追加しない |
+| leading / repeated comma | one zero-width Missing RoleReference per committed empty item | comma actualをconsume、next role retry |
+| comma後にowner boundary / next `derives` / `via` | one Missing RoleReference | boundary / contextual wordをsame positionでclause tailへ |
+| exact `via` + raw Identifier | ViaTarget Complete | following owner tail / next derivesへ |
+| exact `via` + boundary | one zero-width Missing ViaTarget | boundary non-consume、RoleReference Missingを追加しない |
+| exact `via` + malformed bytes + raw Identifier | one maximal Error ViaTarget | identifierをsame slot retry、additional Missingなし |
+| exact `via` + malformed run reaches boundary | one maximal Error ViaTarget | target Incomplete、additional Missingなし |
+| complete RoleReference後のnon-comma TypePrimary | no Missing separator | existing TypeApply continuationでsame RoleReference |
+| Struct Header RoleRefのnested `({ x: Int })` / `(:{ A })` | one complete exotic RoleReference | four body-starter stopsはnested episodeでsuspend、outer group close後に再開 |
+| attachment gapがouter / ambient owner boundary | no clause / no derives recovery | whole gap non-consume |
+| Struct body close Incompleteの内側の`derives` | no trailing attachment authority | existing Struct field / close recoveryを保つ |
+| Type exact `=` + RHS boundary `derives Eq` | one Missing TypeDeclaration::Rhs + valid clause | distinct mandatory RHS / clause slots |
+| Type malformed RHS + retry before `derives` | existing nested Type Error only + valid clause | same-cause outer Missing Rhsを追加しない |
+| clause後のStruct `{` / `(` / `:` / `;` body starter、Type exact `=`、Statement boundary | zero derives recovery | owner adapterがsame cursorから継続。Struct Headerの`(`はcomplete outer RoleRef tailでbody側が勝つ |
+
+one exact `derives` keyword = one `DerivesClause` nodeである。one committed Missing / Error record = one
+recovery nodeで、same source rangeへDerives outer roleとnested Type roleを重ねない。explicit comma後の
+missing roleとouter declarationの別slot recovery（例: missing Struct body introducer）は原因が異なるため
+distinct recordを持てる。
+
+malformed scannerはRoleRef positionとViaTarget positionの二つだけで、どちらもactual comma /
+next derives / via / owner continuation / active close / outer boundaryをconsumeせずsafe pointとする。
+AST / direct-CSTはsame shared classifierのsame safe pointを使う。
+
+### Shared machinery and explicit non-reuse
+
+implementationは次を共有する。
+
+- `scan_word`のexact contextual spelling probe、`scan_trivia`、checkpoint / rollback、source range / line state。
+- ordinary mandatory TypeExpression entry、Type continuation / ML / delimiter owner stack、typed outer missing-role override。
+- `any_ambient_owner_claims`、active stop set、IndentationBaseline、existing Struct / Type owner base。
+- general-purpose rollback-owned `type_expression_episode_depth` counterと`TypeExpressionScopedStopFrame`。
+  logical mandatory episode全体を包む`with_type_expression_episode` / `TypeExpressionEpisodePolicy`と、
+  existing ambient / If visibility depth patternをreuseし、delimiter-owner stackとは独立させる。
+- all type-grammar caller ownershipが使うone `type_stop_is_active_in_current_episode` query。
+  raw `active_stop_set().contains(...)`はownership decisionから排除し、set compositionだけに残す。
+- Struct Header RoleRefだけのone episode-scoped frameに入る`LeftBrace` / `LeftParenthesis` / `Colon` / `Semicolon`。
+  four stopsをnested episodeで一律suspendし、`LeftParenthesis`だけfresh primaryでは
+  `TypeBoundaryPolicy::locally_owned_stops`、complete operand tailではowner stopとして扱う。
+- `StopSet` backingの`u16`から`u32`へのcapacity migration。existing StopKind 0..14を保ち、new threeを
+  15..17へappendする。
+- one `drive_derives_clauses` decision driver、one malformed RoleRef scanner、one ViaTarget scanner、
+  AST / direct-CST thin adapters。
+- Struct / Typeのexisting intro / header / body / form / RHS parserとroot / nested dispatch。
+
+次は共有・追加しない。
+
+- `StatementIntro::Derives`、`StatementKind::Derives`、root `Declaration::Derives`、companion item parser。
+- `TypeDelimitedOwner::Derives`、new delimiter / close owner、implicit separator、synthetic comma / wrapper。
+- Struct field-list driver / NamedRecordType driverへのglobal `derives` special case。
+- TypeとStructの別々のclause parser / recovery table、AST/directの別々のjudge。
+- RoleRef resolver、supported-role table、derive plan、generated impl、field lookup、semantic diagnostic。
+
+`StopKind::Derives` / `StopKind::Via`はepisode-fenced scoped contextual continuation vocabulary、
+`StopKind::LeftParenthesis`はStruct Header専用のepisode-fenced owner punctuationとして追加する。
+existing `LeftBrace` / `Colon` / `Semicolon`も同じStruct Header frame内だけepisode visibilityを受けるが、
+matching frameのない既存callerでの意味は変えない。
+`SyntaxKind::DerivesKw` / `ViaKw`はaccepted clauseのcommitted outputだけである。scannerがsource-wideに
+`derives` / `via`をkeyword化しない。
+
+### Named Yulang2 divergences and explicit scope boundaries
+
+1. **Current-owner subset:** oracleのdirect targetはStruct / Type / Enum / Error / Actだったが、current Yulang3で
+   canonical declaration ownerがあるStruct / Typeだけを接続する。future Enum / Error / Act addendumは
+   same shared clause driver / ASTをreuseできるが、そのownerのないままintro / placeholderを作らない。
+2. **Companion position deferred:** oracleの`with:` companion block内standalone clauseはcurrent Yulang3の
+   declaration companion ownerがないためacceptしない。generic expression `WithBodyTail`へdesugarしない。
+3. **Struct trailing safety:** oracle helperはcompleted body後のcommon tailでderivesを試みたが、Y3は
+   actual matching braced / tuple close後だけtrailing authorityを与える。indent bodyはheader positionを使い、
+   dedentを越えてnext Statementをattachしない。missing close越しのheuristic attachmentもしない。
+4. **Type syntax without semantic endorsement:** oracle corpusのType targetはsemantic invalid fixtureだったが、parserは
+   clause CSTを作った。Y3もsurfaceを保つが、Typeがderive可能、alias / nominalのどちらが有効と
+   parserが判定しない。
+5. **Contextual spelling:** `derives`はattachment slotsだけ、`via`はaccepted clause内だけkeywordである。
+   `my derives = 1`、type / field / binding nameのordinary useを保つ。Y2のglobal `Via` lexical keywordを
+   source-wideに復活させず、current Y3のunrelated identifier positionを変えない。
+6. **Full RoleRef surface:** RoleRefはordinary TypeExpressionで、raw role-name listではない。commaだけが
+   multi-role separatorで、whitespace-separated TypePrimaryはTypeApplyである。
+7. **Via surface only:** ViaTargetはone raw Identifierに限定するが、direct named fieldか、tuple / Enum /
+   Error / Type targetでvalidかのsemantic validationをしない。nested path / number / sigilをsyntaxでwidenしない。
+8. **No source normalization:** three oracle positionsをsemantic request listへnormalizeしたY2 loweringはscope外である。
+   parser ASTはposition / source order / duplicateを保つ。
+9. **Typed recovery divergence:** Y2のempty `InvalidToken` / silent closeではなく、DerivesRole別
+   Missing / Error、same-slot retry、maximal safe run、no-cascadeを使う。
+10. **Outer ownership:** semicolon / equal-or-shallower newline / braced Statement separator / Catch arm separator /
+    active close / ambient companionをclauseがconsumeしない。Y2のEventSink trivia handoffをY3のtyped owner stackで表す。
+11. **No semantics:** RoleRef resolution、Eq / Debug / arbitrary role support、prerequisite、duplicate conflict、via delegation、
+    generated methods、diagnostics、cache、HIR / resolver / formatterは別designである。
+12. **Struct tuple-body precedence:** oracleがheader RoleRefへ`ParenL` outer stopを渡したruleを保ち、
+    complete outer RoleRef直後の`(`はadjacencyを問わずtuple body starterとする。RoleRef callをheader positionで
+    意図するときはRoleRef全体をparenthesizeする。これはType owner / trailing attachmentへ拡張しない。
+
+### Implementation boundary and gates
+
+本taskはdesign documentへのProposal追加だけであり、`.rs` fileを変更しない。future implementationは
+shared clause core、owner-specific isolated integration、real dispatch switch、scope gateを分ける。gate 7まで
+current public Struct / Type behaviorを変えない。
+
+implementation gateを次で固定する。
+
+1. `DerivesClause` / `DerivesKw` / `ViaKw` SyntaxKind、`DerivesAttachment` / `DerivesAttachmentPosition` /
+   `DerivesClause` / `DerivesVia` AST、Struct / Typeの`derives` field、`DeclarationRole::Derives(DerivesRole)`、
+   `StopKind::Derives` / `StopKind::Via` / `StopKind::LeftParenthesis`、rollback-owned `type_expression_episode_depth` /
+   `TypeExpressionScopedStopFrame` / `TypeExpressionEpisodePolicy`を追加する。`StopSet(u16)`は`StopSet(u32)`へ
+   widenし、existing StopKind 0..14のdeclaration order / bit positionを不変にしたままnew variantsを15..17へ
+   appendする。with / without / contains / difference / `StopKind::ALL`をexisting各singleton / new singleton /
+   representative multi-stop compositionでfixture化する。AST / directのoptional / mandatory TypeExpression entryは
+   wrapper + in-current-episode innerへmechanical splitし、Gate 1ではempty episode policyだけを渡して
+   candidate / parse / recovery / retryのobservable behaviorをbyte-identicalに保つ。
+   同Gateで`type_stop_is_active_in_current_episode`を追加し、type_expr.rs / polymorphic_variant.rsの
+   caller-ownership raw membershipを一括migrateする。少なくともpolymorphic-variant semicolon、AST/direct Forall
+   unowned comma / semicolon、Forall first-binder recovery、raw Newline / right-close ownershipをinventory fixture化する。
+   scoped frameがまだemptyなGate 1では全queryが旧raw membershipと一致することをassertし、
+   ownership以外のStopSet construction / local separator / matching close priorityは変更しない。
+   existing constructorはempty Vecへmechanical migrateし、
+   no StatementIntro / StatementKind / TypeDelimitedOwner / behavior change、full suite byte-identicalを固定する。
+2. shared sink-free `recognize_derives_attachment_start` / `DerivesDriverSpec`と、comma / via / repeated-clause /
+   owner-tailを裁定するone decision driverをisolated実装する。contextual exact-word collision、same-line /
+   deeper / equal-shallower gap、ASOB / braced / Catch / active close、Arrow / Forall / TypeApply / nested delimiter
+   episodeでのDerives / Via / Struct-header LeftBrace / LeftParenthesis / Colon / Semicolon suspension、
+   mandatory candidate / actual entry / malformed scanner / retryのsame-depth・same-policy parity、direct pre-probeから
+   commitへの`expect` safetyを`type Id = derives Eq`、malformed handoffを`type Id = @ derives Eq`、
+   comma後のboundaryを`derives Eq, derives Debug` / `derives Eq, via key`でfixture化する。
+   nested Struct RoleRef内のpolymorphic-variant semicolon、AST/direct Forall separator / first-binder recoveryでは
+   outer Semicolon frameがsuspendし、outer episodeへ戻るとcaller-ownedへ復帰することも固定する。
+   all-state rollbackも固定する。existing Type-specific braced-newline stack queryはbehaviorを変えず
+   declaration-attachmentからもreuseできるneutral typed queryへ一度だけgeneralizeする。
+3. ordinary mandatory TypeExpressionを使うshared AST clause parserをisolated実装し、single / comma-list /
+   repeated clause / full exotic RoleRef / whitespace TypeApply / optional via happy pathとsource orderを固定する。
+   AST / directでjudgeを二重実装しない。
+4. direct-CST thin adapterをisolated harnessへ追加し、三representative sourceのchild order / range /
+   all trivia home / lossless round trip / no wrapper / no synthetic separator / AST-direct parityをbyte-exactに固定する。
+5. `DRV-R`全rowをAST / direct-CSTでfixture化する。missing / malformed RoleRef、leading / repeated /
+   terminal comma、via target missing / malformed / retry、next derives、owner tailのone range = one node = one record、
+   Complete / Incomplete、no-cascadeを確認する。production behaviorはまだ変えない。
+6. Struct form-aware isolated adapterにheader attachmentとactual-complete braced / tuple trailing attachmentを接続する。
+   bodyless / named brace / tuple / named indent、missing / mismatched close、header-clause + body recovery、
+   trailing-clause + outer semicolon / newline / ambient companion、field named `derives`、root / nested AST-direct parityを固定する。
+   Header RoleRefの`LeftParenthesis`をfresh primaryではlocal、complete outer tailではbody starterとするpriorityを、
+   `struct S derives Eq(Int)` / `struct S derives Eq (Int)` / `struct S derives (Eq(Int)) (Field)`で固定する。
+   `({ x: Int })` / `(:{ A })` / nested semicolon itemではfour Struct stopsがsuspendし、outer episodeへ戻ると
+   `{` / `(` / `:` / `;` body judgeが再開することをnormal / malformed-retry両方で固定する。
+   current public Struct entryは変えない。
+7. Type form-aware isolated adapterにheader attachmentをTND form judgeの前で接続し、TD-Tのatomic RHS scopeに
+   scoped `StopKind::Derives`を含めたtrailing attachmentを接続する。Nominal / Equality、header + trailing
+   coexistence、full exotic RHS / RoleRef、missing / malformed RHS + clause、multiline RHS、episode-fenced
+   Arrow / Forall / TypeApply / inner-delimiter stop suspension、groupでouter episodeへ戻したArrow / Forall後のclause、
+   ASOB、all pushed state exact restoreを固定する。さらにGate 6のStruct adapterと本GateのType adapterを使い、
+   **real dispatch switch前に**Struct header / trailing、Type header / trailing、root / indented / braced /
+   Catch-inline、depth-2+ ambient、outer semicolon / comma / each active right delimiter / equal-shallower newline、
+   normal / recovery / rollbackのfull boundary matrixをAST / direct-CST両方で閉じる。input / line / sink / ambient /
+   If / delimiter / stop / indentation / type owner / ML / positional fence / TypeExpression episode depthを
+   every exitでexact restoreし、losslessnessとone record = one nodeを確認する。current public Type / Struct entryと
+   `type point = int derives Eq`のscope fixtureはまだ変えない。
+8. shared root / nested Struct / Type dispatchのexisting entry bodiesをform-aware derives adaptersへatomic switchする。
+   same changeで`type point = int derives Eq`の旧TypeApply fixtureと、Gate 6 / 7がinventoryした全attachment-shaped
+   temporary fixtureをdedicated clausesへ一括migrateする。一owner / one positionだけ先行させない。
+   header discoveryはStruct / Type introで従来どおり終了し、new header factを作らない。同Gate内でGate 6 / 7の
+   isolated suitesをunmodified再実行し、各owner / positionのhappy path、one recovery path、one nested-boundary pathを
+   real public entrypointでも代表確認する。full context matrixを初めてpublic switch後へ延期しない。
+9. Gate 7でpre-provenなboundary matrixとGate 8のpublic promotion結果をfinal auditとして再確認する。
+   contextual-stop frame / TypeExpression episode depthを含むexisting Struct / Type / TypeExpression / ASOB full suite、
+   AST-direct parity、losslessness、one record = one node、stack restorationを閉じる。本Gateは新contextの
+   first-time coverageを持たず、Enum / Error / Act / companion item / semantic derive / HIR / resolver / formatterを
+   実装しないscope gateを固定する。
+
+### Closed design decisions and Claude review focus
+
+本Proposalで次をdesign decision候補として固定する。
+
+- clause grammar / AST / CST / recoveryはone shared driver、attachment eligibility / continuationはStruct / Typeの
+  typed owner specに分ける。owner-specific parser copyは作らない。
+- `derives`はexplicit owner slotだけのcontextual wordで、standalone Statementやglobal Type stopではない。
+- RoleRefはfull ordinary mandatory TypeExpression、multi-role separatorはliteral commaだけである。
+- Struct headerはbody judge前、Struct trailingはactual completed braced / tuple close後だけで、
+  missing close / indented dedentを越えない。
+- Type headerはcomplete NameのTND form judge前、Type trailingはselected Equality mandatory RHS後で、
+  episode-fenced scoped Derives stopがouter TypeApplyより先に勝つが、Arrow / Forall / TypeApply /
+  delimited itemの全nested TypeExpression episodeではsuspendする。
+- Struct Headerの`LeftBrace` / `LeftParenthesis` / `Colon` / `Semicolon`はone scoped frameで全nested episodeから
+  suspendする。`LeftParenthesis`だけouter RoleRefのfresh-primary / completed-tail phaseを分け、parenthesized
+  RoleRefは許しつつcomplete RoleRef後のtuple body openerをTypeCallへ吸わせない。
+- logical episodeはmandatory candidate / parse / malformed recovery / retry全体を包み、direct pre-probeと
+  committed parser、AST initial parseとrecovery scannerのdepth / local-ownership policyを一致させる。
+- type grammarのcaller-owned stop membershipはone depth-aware activation queryだけを使う。
+  polymorphic-variant / Forallを含むexisting raw `.contains` ownership branchを残さない。
+- `StopSet`は18 StopKindsを保持する`u32`へwidenするが、existing 15 variantsのbit positionを変えない。
+- exact `via`はoptional positive evidence、後続はone raw Identifierだけで、semantic field validationはしない。
+- repeated clauses / duplicate RoleRef / attachment position / source orderをparserが保ち、normalize / deduplicateしない。
+- current owner subsetはStruct / Typeだけで、Enum / Error / Act / companion positionはowner addendumまでdeferする。
+- semantics / derive generation / role resolutionをsyntax addendumへ混ぜない。
+
+Claude reviewでは特に、logical episode boundaryがmandatory pre-probe / parse / malformed recovery / retryを一貫して包むか、
+Type RHSのscoped `Derives` stopがArrow / Forall / TypeApply / inner delimiterを過剰に切らないか、
+Struct Headerのepisode-scoped four stopsがnested exotic RoleRefでsuspendし、`LeftParenthesis`がfresh groupを壊さず
+tuple bodyへ収束するか、`StopSet(u32)` migrationがexisting bit identityを保つか、
+header / trailingのpriorityとoriginal-gap ASOB ordering、actual-complete Struct closeだけにtrailingを制限する根拠、
+RoleRefのcomma-vs-ML ambiguity、missing RHS + valid clauseのcardinality、Type targetをsyntax-onlyで保持するscope、
+future Enum / Error / Act / companion ownerがshared driverをreuseできるか、Gate 7 pre-promotion matrixと
+Gate 8のatomic migration範囲を確認対象にする。
+
+著者: Codex gpt-5.6-sol（xhigh）が起案中、Claude査読・ユーザ承認待ち
+（2026-08-26、canonical Struct / Type Declarationのshared `derives` clause attachment grammar追補案）。
