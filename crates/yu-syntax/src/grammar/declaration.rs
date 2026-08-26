@@ -17012,6 +17012,256 @@ mod tests {
     }
 
     #[test]
+    fn derives_gate_9_final_public_boundary_matrix_closes_scope_and_parity() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum Owner {
+            Struct,
+            Type,
+        }
+
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn token_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == kind)
+                .map(|token| syntax_range(token.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery-node parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast<'source>(
+            source: &'source str,
+        ) -> (Owner, Vec<DerivesAttachmentPosition>, Vec<Range<usize>>, Range<usize>) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let summary = match i
+                .run(parse_declaration)
+                .expect("the root declaration intro is recognized")
+            {
+                Declaration::Struct(declaration) => (
+                    Owner::Struct,
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.position)
+                        .collect(),
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.clause.keyword.clone())
+                        .collect(),
+                    declaration.range,
+                ),
+                Declaration::Type(declaration) => (
+                    Owner::Type,
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.position)
+                        .collect(),
+                    declaration
+                        .derives
+                        .iter()
+                        .map(|attachment| attachment.clause.keyword.clone())
+                        .collect(),
+                    declaration.range,
+                ),
+                declaration => panic!("unexpected declaration: {declaration:?}"),
+            };
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            summary
+        }
+
+        // Re-audit all four valid owner/position surfaces at the real root
+        // entrypoint.  This intentionally uses different visibility, comma,
+        // via, and parameter combinations than Gate 8's promotion fixtures.
+        for (source, expected_owner, expected_position) in [
+            (
+                "pub struct Header derives Eq, Debug via key;",
+                Owner::Struct,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "struct Trailing(Int) derives Eq, Debug via key",
+                Owner::Struct,
+                DerivesAttachmentPosition::Trailing,
+            ),
+            (
+                "pub type Header 'a derives Eq, Debug via key = Int",
+                Owner::Type,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "type Trailing = Int derives Eq, Debug via key",
+                Owner::Type,
+                DerivesAttachmentPosition::Trailing,
+            ),
+        ] {
+            let (owner, positions, ast_clause_keywords, ast_range) = parse_root_ast(source);
+            assert_eq!(owner, expected_owner, "AST owner: {source:?}");
+            assert_eq!(positions, vec![expected_position], "AST position: {source:?}");
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+            assert_eq!(
+                token_ranges(&public, SyntaxKind::DerivesKw),
+                ast_clause_keywords,
+                "AST/public keyword ranges: {source:?}",
+            );
+            assert_eq!(
+                token_ranges(&direct_root, SyntaxKind::DerivesKw),
+                ast_clause_keywords,
+                "AST/direct keyword ranges: {source:?}",
+            );
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::DerivesClause).len(),
+                ast_clause_keywords.len(),
+                "AST/public clause count: {source:?}",
+            );
+            let declaration_kind = match owner {
+                Owner::Struct => SyntaxKind::StructDeclaration,
+                Owner::Type => SyntaxKind::TypeDeclaration,
+            };
+            assert_eq!(
+                node_ranges(&public, declaration_kind),
+                vec![ast_range],
+                "AST/public declaration range: {source:?}",
+            );
+        }
+
+        // The promoted entries retain one independently-owned recovery slot
+        // in every owner/position; the public and direct paths keep exactly
+        // the same one-record/one-node shape.
+        for (source, expected_owner, expected_position) in [
+            (
+                "struct Header derives @;",
+                Owner::Struct,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "struct Trailing(Int) derives @",
+                Owner::Struct,
+                DerivesAttachmentPosition::Trailing,
+            ),
+            (
+                "type Header derives @",
+                Owner::Type,
+                DerivesAttachmentPosition::Header,
+            ),
+            (
+                "type Trailing = derives Eq",
+                Owner::Type,
+                DerivesAttachmentPosition::Trailing,
+            ),
+        ] {
+            let (owner, positions, ast_clause_keywords, _) = parse_root_ast(source);
+            assert_eq!(owner, expected_owner, "AST owner: {source:?}");
+            assert_eq!(positions, vec![expected_position], "AST position: {source:?}");
+            let (public, direct_root, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                token_ranges(&public, SyntaxKind::DerivesKw),
+                ast_clause_keywords,
+                "AST/public keyword ranges: {source:?}",
+            );
+            assert_eq!(
+                token_ranges(&direct_root, SyntaxKind::DerivesKw),
+                ast_clause_keywords,
+                "AST/direct keyword ranges: {source:?}",
+            );
+            assert_eq!(direct.committed_recoveries().len(), 1, "{source:?}");
+        }
+
+        // `derives` and `via` are contextual only inside an accepted clause.
+        // These are real parser entrypoints, not isolated clause probes; even
+        // a malformed Struct close must not invent a trailing attachment.
+        for source in [
+            "my derives = 1\nmy via = 2",
+            "struct Fields { derives: Int, via: String }",
+            "type Nested = (derives via)",
+            "struct Open { field: Int derives Eq",
+            "my result = value with: derives Eq",
+            "enum E derives Eq",
+            "impl Eq derives Debug",
+        ] {
+            let (public, direct_root, _) = parse_public_and_direct(source);
+            for root in [&public, &direct_root] {
+                assert!(
+                    node_ranges(root, SyntaxKind::DerivesClause).is_empty(),
+                    "no attachment outside its owner slot: {source:?}",
+                );
+                assert!(
+                    node_ranges(root, SyntaxKind::DerivesKw).is_empty(),
+                    "no contextual derives token outside a clause: {source:?}",
+                );
+                assert!(
+                    node_ranges(root, SyntaxKind::ViaKw).is_empty(),
+                    "no contextual via token outside a clause: {source:?}",
+                );
+                for token in root
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .filter(|token| matches!(token.text(), "derives" | "via"))
+                {
+                    assert_eq!(token.kind(), SyntaxKind::Identifier, "{source:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn type_declaration_form_judge_follows_tnd_j_and_restores_every_probe_state() {
         const IF_WORDS: &[&str] = &["elsif", "else"];
 
