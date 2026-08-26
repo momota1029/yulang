@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-27
+更新: 2026-08-27（後半）
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -37,6 +37,16 @@
   (state-restoration matrix)で2件、実バグを発見・修正(いずれもisolated adapter局所、
   共有TypeExpression episode機構自体は無傷)。Type-attached `impl`・`with:` companion・
   Type colon/brace role-like body・Impl-specific `via`は別addendumへ明示的にdefer。
+- standalone `cast`宣言文法(CAST-G/J/T/R、13 gate計画)がAuthoritative化済み(2026-08-27)、
+  実装は未着手。yulang2の`cast(x: from_ty): to_ty = body`構文を土台に設計。独立レビュー
+  11巡を要した(derives 5巡・impl-shell 3巡より大幅に多い)——CastのPattern-slot recovery
+  がPattern annotation・nested delimiter・arm-sequence newline authorityと絡む部分が
+  難所で、round 4〜7は既知residualの正確な境界線を閉じた表からcondition-based記述へ
+  転換する過程、round 8〜10はGate 3の実装契約(shared driver・outer_stops伝播範囲)の
+  精密化だった。副産物でPattern本体の既存バグ(`ParenthesizedPattern`のAST/direct
+  不一致、`c852d878`まで遡る既存gap)も発見し、Gate 3a-ii(neutral convergence)として
+  修正計画に組み込み済み。Cast-specific `via`・rule登録・暗黙変換適用・expected-type
+  境界処理・coherence・HIR/resolver/inference/formatterは明示的にscope外。
 
 ## 既知の未修正バグ
 
@@ -47,14 +57,17 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `TypeExpression`の各use-site配線(残り)**: cast宣言・role signature・
-   where節・act signature。pattern型注釈とstruct field(`StructNamedField`が
-   `Identifier : RequiredTypeExpression`済み)は完了、残り4件が本体作業。
+0. **standalone `cast`宣言の実装(13 gate)**: Authoritative設計済み・未着手。derivesの
+   Gate 1a・impl shellの実装パターン(isolated harness→atomic promotion)を踏襲。
+   Gate 3a-ii(Parenthesized close-recovery neutral convergence)はPattern本体の
+   pre-existing bug修正を兼ねるため、他gateより先に着手する価値がある。
+1. **standalone `TypeExpression`の各use-site配線(残り)**: role signature・where節・
+   act signature。pattern型注釈・struct field・cast(設計完了)は完了、残り3件が本体作業。
 2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/`role`/
-   `cast`/`act`/`for`文/declaration-level `where`/doc-comment宣言。`type`/`struct`/`mod`/
-   `impl`(shellのみ)/演算子定義(`OperatorHeader`+`commit_operator_definition_body`で
-   real root dispatch済み)は完了。derivesとimplのshellが着地した今、role/impl/enum系の
-   ownerがderives clauseやimpl本体の共有driverをどこまで再利用できるか、着手前に要調査。
+   `act`/`for`文/declaration-level `where`/doc-comment宣言。`type`/`struct`/`mod`/
+   `impl`(shellのみ)/`cast`(設計完了、実装待ち)/演算子定義は完了・設計完了。
+   derives・impl・castが着地した今、role/impl/enum系のownerがそれらの共有driverを
+   どこまで再利用できるか、着手前に要調査。
 3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
 4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
