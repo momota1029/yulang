@@ -357,8 +357,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_type_declaration(&mut committed, intro);
                 StatementKind::TypeDeclaration
             }
-            StatementIntro::Impl(_) => {
-                unreachable!("Impl dispatch is introduced in its Gate 8 promotion")
+            StatementIntro::Impl(intro) => {
+                let _ = commit_impl_declaration_isolated(operators, &mut committed, intro);
+                StatementKind::ImplDeclaration
             }
             StatementIntro::Operator(intro) => {
                 if matches!(
@@ -620,6 +621,10 @@ where
 
     if let Some(intro) = i.run(recognize_type_statement_intro) {
         return Some(StatementIntro::Type(intro));
+    }
+
+    if let Some(intro) = i.run(recognize_impl_statement_intro) {
+        return Some(StatementIntro::Impl(intro));
     }
 
     if binding_statement_selected(&mut i) {
@@ -967,9 +972,10 @@ where
     }
 }
 
-/// Gate 4's AST-only Impl continuation. It deliberately remains outside the
-/// root and canonical Statement dispatch until the later atomic promotion.
-fn parse_impl_declaration_isolated<'source, E>(
+/// Shared AST Impl continuation used by root and canonical Statement dispatch.
+/// The isolated name remains so the pre-promotion Gate 4-7 fixtures exercise
+/// exactly the same core promoted by Gate 8.
+pub(crate) fn parse_impl_declaration_isolated<'source, E>(
     table: &crate::operator::OperatorTable,
     mut i: SynIn<'_, 'source, '_, E>,
 ) -> Option<ImplDeclaration<'source>>
@@ -1150,11 +1156,9 @@ where
     body
 }
 
-/// Gate 5's direct-CST counterpart of [`parse_impl_declaration_isolated`].
-/// It remains outside root and canonical Statement dispatch until the later
-/// atomic promotion, while replaying the same isolated head, description, and
-/// body decisions into one lossless ImplDeclaration node.
-fn commit_impl_declaration_isolated<'parse, 'source, 'local, E, O>(
+/// Direct-CST counterpart of [`parse_impl_declaration_isolated`], shared by
+/// root and canonical Statement dispatch after Gate 8's atomic promotion.
+pub(crate) fn commit_impl_declaration_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
     intro: ImplStatementIntro<'source>,
@@ -8930,6 +8934,8 @@ where
     i.choice((
         parse_struct_declaration.map(Declaration::Struct),
         parse_type_declaration.map(Declaration::Type),
+        from_fn(|i| parse_impl_declaration_isolated(&crate::operator::OperatorTable::empty(), i))
+            .map(Declaration::Impl),
         parse_use_declaration.map(Declaration::Use),
         parse_operator_header.map(Declaration::OperatorHeader),
         parse_binding_declaration.map(Declaration::Binding),
@@ -21568,13 +21574,15 @@ mod tests {
         assert!(ranges(&root, SyntaxKind::Missing).is_empty());
         assert!(ranges(&root, SyntaxKind::Error).is_empty());
 
-        // Associated-type assignment has no `impl` statement owner yet, so its nested `type`
-        // spelling cannot reach TypeDeclaration dispatch independently.
+        // The standalone Impl shell now owns an ordinary canonical Statement body.  The nested
+        // Type declaration is syntax-only here: this does not add associated-type semantics.
         let source = "impl Pick Int:\n  type Item = Int";
         let root = parse_public(source);
         assert_eq!(root.to_string(), source);
-        assert!(!has(&root, SyntaxKind::TypeDeclaration));
-        assert_eq!(ranges(&root, SyntaxKind::Error), vec![0..source.len()]);
+        assert_eq!(ranges(&root, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
+        assert_eq!(ranges(&root, SyntaxKind::TypeDeclaration), vec![17..source.len()]);
+        assert!(ranges(&root, SyntaxKind::Missing).is_empty());
+        assert!(ranges(&root, SyntaxKind::Error).is_empty());
 
         // Doc attachment stays outside the declaration node, and equality syntax remains the
         // neutral CST `TypeDeclaration`: no alias/nominal/HIR meaning is introduced here.
@@ -24295,5 +24303,243 @@ mod tests {
             "",
         )
         .is_empty());
+    }
+
+    #[test]
+    fn impl_gate_8_real_dispatch_is_atomic_across_root_and_canonical_owners() {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum BodyKind {
+            Bodyless,
+            Braced,
+            ColonInline,
+            ColonIndented,
+            Incomplete,
+        }
+
+        fn node_ranges(root: &SyntaxNode, kind: SyntaxKind) -> Vec<Range<usize>> {
+            root.descendants()
+                .filter(|node| node.kind() == kind)
+                .map(|node| syntax_range(node.text_range()))
+                .collect()
+        }
+
+        fn recovery_nodes(root: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+            root.descendants()
+                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .map(|node| (node.kind(), syntax_range(node.text_range())))
+                .collect()
+        }
+
+        fn parse_public_and_direct(
+            source: &str,
+        ) -> (SyntaxNode, SyntaxNode, DirectRootCandidateOutput) {
+            let source_text: Arc<crate::SourceText> = Arc::from(source);
+            let header = Arc::new(crate::scan_header(Arc::clone(&source_text)));
+            let parsed = crate::parse_file(
+                source_text,
+                header,
+                Arc::new(crate::SyntaxEnvironment::empty()),
+            );
+            let public = SyntaxNode::new_root(parsed.green().clone());
+            let direct = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let direct_root = SyntaxNode::new_root(direct.green().clone());
+            assert_eq!(public.to_string(), source, "public losslessness: {source:?}");
+            assert_eq!(direct_root.to_string(), source, "direct losslessness: {source:?}");
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration),
+                node_ranges(&direct_root, SyntaxKind::ImplDeclaration),
+                "public/direct Impl range parity: {source:?}",
+            );
+            assert_eq!(
+                recovery_nodes(&public),
+                recovery_nodes(&direct_root),
+                "public/direct recovery parity: {source:?}",
+            );
+            assert_eq!(
+                direct.committed_recoveries().len(),
+                recovery_nodes(&direct_root).len(),
+                "one record = one recovery node: {source:?}",
+            );
+            (public, direct_root, direct)
+        }
+
+        fn parse_root_ast(source: &str) -> (Range<usize>, bool, BodyKind) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let mut i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let Declaration::Impl(declaration) = i
+                .run(parse_declaration)
+                .expect("the promoted root parser recognizes Impl")
+            else {
+                panic!("the exact Impl intro must win root declaration dispatch")
+            };
+            let body = match declaration.body {
+                Recovered::Complete(ImplBody::Bodyless { .. }) => BodyKind::Bodyless,
+                Recovered::Complete(ImplBody::Braced { .. }) => BodyKind::Braced,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Complete(ImplColonBody::Inline { .. }),
+                    ..
+                }) => BodyKind::ColonInline,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Complete(ImplColonBody::Indented { .. }),
+                    ..
+                }) => BodyKind::ColonIndented,
+                Recovered::Complete(ImplBody::Colon {
+                    body: Recovered::Incomplete,
+                    ..
+                })
+                | Recovered::Incomplete => BodyKind::Incomplete,
+            };
+            let summary = (
+                declaration.range(),
+                declaration.description.is_some(),
+                body,
+            );
+            assert_eq!(i.input.remainder(), "", "AST remainder: {source:?}");
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            summary
+        }
+
+        for (source, has_description, body) in [
+            ("impl Eq;", false, BodyKind::Bodyless),
+            ("pub impl Head: Description;", true, BodyKind::Bodyless),
+            ("impl Eq { my value = 1 }", false, BodyKind::Braced),
+            ("impl Eq: Description: my value = 1;", true, BodyKind::ColonInline),
+            ("impl Eq:\n  my value = 1", false, BodyKind::ColonIndented),
+        ] {
+            assert_eq!(
+                parse_root_ast(source),
+                (0..source.len(), has_description, body),
+                "root AST: {source:?}",
+            );
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+        }
+
+        for (source, kind, role, range) in [
+            (
+                "impl",
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
+                4..4,
+            ),
+            (
+                "impl T @;",
+                RecoveryKind::Error,
+                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer)),
+                7..8,
+            ),
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(node_ranges(&public, SyntaxKind::ImplDeclaration), vec![0..source.len()]);
+            let [record] = direct.committed_recoveries() else {
+                panic!("one promoted recovery expected: {source:?}")
+            };
+            assert_eq!(
+                (record.kind, record.site.role, record.site.range.clone()),
+                (kind, role, range),
+                "typed recovery: {source:?}",
+            );
+        }
+
+        // Every real canonical Statement owner reaches the same promoted Impl
+        // adapter. Catch + With also proves the depth-2 inline owner walk.
+        for (source, expected_impls) in [
+            ("my block = { impl Eq;\n  my value = 1 }", 1),
+            ("impl Outer:\n  impl Eq;\n  my value = 1", 2),
+            ("my value = base with: impl Eq;", 1),
+            ("mod Outer: impl Eq;", 1),
+            (
+                "my result = catch action {\n  A -> value with: impl Eq;\n  B -> fallback}",
+                1,
+            ),
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert_eq!(
+                node_ranges(&public, SyntaxKind::ImplDeclaration).len(),
+                expected_impls,
+                "real nested owner: {source:?}",
+            );
+            assert!(direct.committed_recoveries().is_empty(), "{source:?}");
+        }
+
+        for source in [
+            "my block = { impl T @;\n  my value = 1 }",
+            "impl Outer:\n  impl T @;\n  my value = 1",
+            "my value = base with: impl T @;",
+            "mod Outer: impl T @;",
+            "my result = catch action {\n  A -> value with: impl T @;\n  B -> fallback}",
+        ] {
+            let (public, _, direct) = parse_public_and_direct(source);
+            assert!(!node_ranges(&public, SyntaxKind::ImplDeclaration).is_empty());
+            let [record] = direct.committed_recoveries() else {
+                panic!("one nested Impl recovery expected: {source:?}")
+            };
+            let error_start = source.find('@').expect("fixture has one malformed byte");
+            assert_eq!(
+                (record.kind, record.site.role, record.site.range.clone()),
+                (
+                    RecoveryKind::Error,
+                    GrammarRole::Declaration(DeclarationRole::Impl(
+                        ImplRole::BodyIntroducer,
+                    )),
+                    error_start..error_start + 1,
+                ),
+                "nested typed recovery: {source:?}",
+            );
+        }
+
+        // Impl bodies reuse the canonical Statement sequence without a member
+        // subgrammar: every already-shipped statement family, including Impl,
+        // remains independently dispatched inside the brace owner.
+        let source = concat!(
+            "impl Container {\n",
+            "  value;\n",
+            "  my item = value;\n",
+            "  use std;\n",
+            "  mod NestedMod;\n",
+            "  struct NestedStruct;\n",
+            "  type NestedType;\n",
+            "  impl NestedImpl;\n",
+            "}",
+        );
+        let (public, direct_root, direct) = parse_public_and_direct(source);
+        assert!(direct.committed_recoveries().is_empty());
+        for (kind, count) in [
+            (SyntaxKind::ImplDeclaration, 2),
+            (SyntaxKind::BindingStatement, 1),
+            (SyntaxKind::UseDeclaration, 1),
+            (SyntaxKind::ModDeclaration, 1),
+            (SyntaxKind::StructDeclaration, 1),
+            (SyntaxKind::TypeDeclaration, 1),
+        ] {
+            assert_eq!(node_ranges(&public, kind).len(), count, "public {kind:?}");
+            assert_eq!(node_ranges(&direct_root, kind).len(), count, "direct {kind:?}");
+        }
+        assert!(!node_ranges(&public, SyntaxKind::OperatorChain).is_empty());
+
+        // Impl remains a non-header declaration: source-leading recognition
+        // stops discovery without producing any HeaderDeclaration fact.
+        for source in ["impl Eq;", "pub impl Head: Description;"] {
+            let source: Arc<crate::SourceText> = Arc::from(source);
+            let header = crate::scan_header(source);
+            assert_eq!(header.coverage().stop(), crate::HeaderStop::FirstNonHeader);
+            assert_eq!(header.coverage().range(), &(0..0));
+            assert!(header.imports().is_empty());
+            assert!(header.operators().is_empty());
+        }
     }
 }
