@@ -21793,7 +21793,10 @@ CastForm :=
 
 CastDefinitionBody :=
     Gcast-inline RequiredOperatorChain(Cast::Body)
-  | Gcast-indent IndentedStatementBlock(Cast::IndentedStatement)
+  | IndentedStatementBlock(
+        opening := Gcast-indent,
+        item-role := Cast::IndentedStatement
+    )
 
 VisibilityKw := MyKw | OurKw | PubKw
 CastKw := exact maximal word "cast"
@@ -21804,7 +21807,8 @@ Gcast-target := TypeChainTrivia(cast_base)
 Gcast-type := TypeChainTrivia(cast_base)
 Gcast-form := TypeChainTrivia(cast_base)
 Gcast-inline := maximal trivia containing no physical newline
-Gcast-indent := NonEmptyStrictlyDeeperContinuationTrivia(cast_base)
+Gcast-indent := NonEmptyStrictlyDeeperContinuationTrivia(cast_base),
+                owned as the first child and range prefix of IndentedStatementBlock
 Gcast-delimited* := existing delimiter-owned Pattern trivia
 ```
 
@@ -21829,7 +21833,9 @@ special local ownershipはなく、fresh `=` / `;`はMissing TargetType後にCas
 
 `BodylessSemicolon`はCastDeclarationが所有する。definitionはliteral exact `=`を必須とし、その後がsame-lineなら
 one ordinary `OperatorChain`、physical newlineを含みfollowing indentが`cast_base`よりstrictly deeperなら
-existing non-empty `IndentedStatementBlock`を所有する。equal-or-shallower newlineはbodyへ入れずwhole gapをouter ownerへ返す。
+existing non-empty `IndentedStatementBlock`を所有する。post-equals triviaのclassificationはsink-freeで行い、
+indented branchでは同じrunをblock driverへreplayする。そのopening triviaは`IndentedStatementBlock`の先頭childとrange prefixであり、
+CastBody直下のblock siblingにしない。equal-or-shallower newlineはbodyへ入れずwhole gapをouter ownerへ返す。
 inline expressionに現れるbrace application、colon application、with tailはExpression自身のsurfaceであり、Cast body formを
 brace / colon declaration bodyへ拡張しない。inline / indented definition body後のterminal semicolon / newline / dedentは
 outer canonical Statement separator ownerへ残し、bodyless semicolonだけがCast-ownedである。
@@ -21871,14 +21877,18 @@ accepted intro後のphase priorityを次で固定する。
 1. keyword後のoriginal gapをASOB / caller boundaryへ問い、claimならPatternIntroducer Missingだけを置いてnon-consume returnする。
 2. exact `(`があればCast pattern-group authorityへcutする。openerなしでone canonical Pattern NUDがreusableなら
    zero-width Missing PatternIntroducerを置きsame positionからPatternをretryする。malformed runはexact `(`または
-   reusable Pattern NUDまでone maximal Error PatternIntroducerとし、terminal boundaryをconsumeしない。
+   reusable Pattern NUDまでone maximal Error PatternIntroducerとする。subsequent Cast punctuationへ達した場合は後述の
+   prefix recovery latticeに従い、そのpunctuationをconsumeせず次のactual slot evidenceへ返す。
 3. group内はCast-owned delimiter / layout scopeとactive `RightParenthesis` stopの下でone mandatory Patternをparseする。
    Pattern NUD / malformed recoveryはcanonical Patternへdelegateし、Cast layerがnested PatternRole recordをduplicateしない。
 4. Pattern後はexact `)`をcloseとしてconsumeする。target colonがsame positionにあるmissing-close caseでは
    one `ClosingDelimiter { owner: CastPattern, Parenthesis }` Missingを置き、same colonからtargetをretryする。
-   malformed close run + actual `)`はone maximal closing-delimiter Error、terminalではone recordだけで後続slotへcascadeしない。
+   malformed close run + actual `)`はone maximal closing-delimiter Errorとする。colon / `;` / `=`へ達した場合も
+   same runのErrorはone件に限り、actual punctuationをそれぞれtarget / formへ返す。
 5. complete / recoverable group後はexact target colonが勝つ。colonなしでTypePrimaryがreusableならMissing TargetIntroducer、
    malformed run + exact colon / reusable TypePrimaryならone Error TargetIntroducerを置き、same target slotをretryする。
+   `;` / `=`へ達したときはTargetIntroducerのMissing / Errorだけを置き、TargetType Missingを重ねず、
+   starterをconsumeせずsame-position CastForm retryへ進む。
 6. Target TypeExpressionはouter `Equal | Semicolon` scoped stopsとdefault fresh-primary policyを使う。targetのcomplete /
    malformed retry後、same original gapにexact `;` / `=`があればCastForm authorityへ返す。braced / Catch inline ownerが
    physical newlineをclaimするcontextでは、derives RoleRefで確立済みの
@@ -21891,6 +21901,33 @@ accepted intro後のphase priorityを次で固定する。
 AST / direct-CSTはone shared intro result、one pattern-group delimiter policy、one target episode spec、one form / body-layout decisionを使う。
 root / nested / direct callerへspelling judge、target-stop probe、post-equals layout classifierをcopyしない。newlineやmalformed byteを
 consumeした後にASOBをre-probeしてowner authorityをretroactively変えない。
+
+#### Prefix recovery boundary lattice
+
+PatternIntroducer / Pattern / pattern close / TargetIntroducerは、それぞれのslot開始時に一度だけ
+original gapとASOBを固定し、same-slot retry candidateまたは最初のactual subsequent punctuation
+`) | : | ; | =`までをone maximal invalid runとしてscanする。runがnon-emptyなら現在slotのone Error、
+emptyのまま後続punctuationに達したら現在slotのone Missingを記録する。actual punctuationはscannerが
+consumeせず、次の表でauthorityを与えたphaseだけがconsumeする。current slotの不成立と同じcauseで
+skipされるintermediate slotに追加Missingを積まない。Pattern rowのpunctuation判定はcanonical Pattern entryが
+自身のannotation / tail authorityを尽くしてreturnした後にだけ行い、inner Pattern colonをtarget colonとして先取りしない。
+
+| current prefix slot | same-slot evidence / retry | actual subsequent `)` | actual subsequent `:` | actual subsequent `;` / `=` | outer terminal boundary |
+| --- | --- | --- | --- | --- | --- |
+| PatternIntroducer | exact `(`はopenerとしてconsume。reusable Pattern NUDはMissing / Error PatternIntroducer oneの後にsame-position retry | Missing / Error PatternIntroducer one、`CastPattern { open: Incomplete, value: Incomplete, close: Complete }`をactual `)` rangeで保持しtargetへ | Missing / Error PatternIntroducer one、pattern Incomplete、colonをtargetへnon-consume retry | Missing / Error PatternIntroducer one、pattern / targetはIncomplete、starterをformへnon-consume retry | Missing / Error PatternIntroducer one、pattern / target / form Incomplete、boundary non-consume |
+| mandatory Pattern | valid Pattern NUDはretryし、nested recoveryはPatternRoleを保持 | Missing Patternまたはnested `Error(Pattern::Primary)` one、`)`をcloseとしてconsume | Missing Patternまたはnested Error one、close Incomplete、colonをtargetへnon-consume retry | Missing Patternまたはnested Error one、close / target Incomplete、starterをformへnon-consume retry | Missing Patternまたはnested Error one、close / target / formへcascadeなし、boundary non-consume |
+| pattern close | exact `)`はcloseとしてconsume | malformed runがあればclosing-delimiter Error oneの後、actual `)`をconsume | Missing / Error closing delimiter one、colonをtargetへnon-consume retry | Missing / Error closing delimiter one、target Incomplete、starterをformへnon-consume retry | Missing / Error closing delimiter one、target / formへcascadeなし、boundary non-consume |
+| TargetIntroducer | exact `:`はtarget colonとしてconsume。reusable TypePrimaryはMissing / Error TargetIntroducer oneの後にsame-position retry | `)`はcaller / active-close boundaryとしてownerへ返し、TargetIntroducer Missing / Error oneだけ | malformed runがあればError TargetIntroducer oneの後、actual colonをconsume | Missing / Error TargetIntroducer one、TargetType Missingなし、starterをformへnon-consume retry | Missing / Error TargetIntroducer one、target / formへcascadeなし、boundary non-consume |
+
+`cast(x: A);`はTargetIntroducerのempty runがactual `;`に達するcaseである。zero-width
+Missing TargetIntroducerをone件置き、`target = Incomplete`のまま`;`をCastFormへ返すため、
+`form = Complete(Bodyless)`となる。TargetType Missingを重ねない。`cast(x @ : B;`はcomplete Pattern `x`後の
+close invalid run ` @ `がactual target colonへ達するcaseである。そのrunへone maximal closing-delimiter Errorを置き、
+colonはnon-consumeでtarget phaseへ返し、`B`と`;`を通常どおり保持する。
+
+actual subsequent punctuationが出た後のnext mandatory slot failureは別causeである。例えばprefix recovery後のactual `:`の
+後にTypePrimaryがなければTargetType Missing、actual `=`の後にbodyがなければBody Missingをそれぞれone件持てる。
+same run / same absent-prefix causeだけをcollapseし、actual punctuationが確立した後のdistinct slot evidenceは握りつぶさない。
 
 ### `CAST-T`: typed AST / direct-CST shape and shared composition
 
@@ -21937,14 +21974,17 @@ enum CastBody<'source> {
 }
 ```
 
-`pattern: Incomplete`はkeyword後にgroup / reusable Pattern evidenceがなくsame boundaryへ達したcaseである。
-exact / recovered openerがあれば`CastPattern`は存在し、その内側のmandatory Pattern / closeがIncompleteでもsource-owned
-group shapeを保つ。`target: Incomplete`はupstream same-cause terminalまたはtarget evidenceなしのcaseで、exact / recovered colonか
+`pattern: Incomplete`はkeyword後にopener / reusable Pattern / actual closeのいずれのevidenceもなくsame boundaryへ
+達したcaseである。exact / recovered openerまたはactual close evidenceがあれば`CastPattern`は存在し、
+その内側のmandatory Pattern / opposite delimiterがIncompleteでもsource-owned group shapeを保つ。openerなしで
+actual closeのみがあるcaseの`CastPattern.range`はactual closeのrangeである。`target: Incomplete`はupstream
+same-cause terminalまたはtarget evidenceなしのcaseで、exact / recovered colonか
 reusable TypeExpression evidenceがあれば`CastTarget`を作り、そのindividual slotをRecoveredで保持する。
 `form: Incomplete`は`;` / `=`をfinishできないcaseで、dummy semicolon / equals / empty bodyを作らない。
 
-rangeはactual source ownershipだけから作る。`CastPattern.range`はactual openerがあればそのstart、なければreused Patternのstartから、
-actual close / Pattern value / openerのうち最後に所有したendまでである。`CastTarget.range`もactual colonがあればそのstart、
+rangeはactual source ownershipだけから作る。`CastPattern.range`はactual openerがあればそのstart、なければ
+reused Pattern、それもなければactual closeのstartから、actual close / Pattern value / openerのうち最後に
+所有したendまでである。`CastTarget.range`もactual colonがあればそのstart、
 なければreused TypeExpressionのstartから、value / colonのlast owned endまでである。`CastDeclaration.range`はkeyword / pattern /
 target / formのlast owned endで終わり、definition body後のouter semicolon / newline / dedentを含めない。Incomplete childのために
 rangeをcaller-owned boundaryまで延長せず、Missing zero-width nodeだけがそのboundary positionを保持する。
@@ -22019,15 +22059,16 @@ CastDeclaration 0..19
   Trivia 13..14 " "
   Equals 14..15 "="
   CastBody 15..19
-    Trivia 15..18 "\n  "
-    IndentedStatementBlock 18..19
+    IndentedStatementBlock 15..19
+      Trivia 15..18 "\n  "
       Statement 18..19
         OperatorChain 18..19 "x"
 ```
 
 ASTは`range = 0..19`、`form = Complete(Definition { equals: 14..15,
-body: Complete(Indented { block: 18..19 }), range: 14..19 })`である。opening triviaはlossless CSTのCastBody childで、
-AST block rangeをtrivia込みへ偽装しない。
+body: Complete(Indented { block: 15..19 }), range: 14..19 })`である。opening triviaはexisting
+`IndentedStatementBlock`の先頭childとして一度だけemitし、block rangeはそのtriviaを含む15..19である。
+`CastBody`がopening triviaをblockの外の別siblingとして所有するnew conventionは作らない。
 
 #### Pattern, TypeExpression, and body composition
 
@@ -22084,21 +22125,32 @@ body punctuationはactual tokenで、synthetic separator / terminatorを作ら�
 | exact `cast` + reusable Pattern NUD without `(` | one Missing PatternIntroducer | opener Incomplete、same-position Pattern retry |
 | malformed opener run + exact `(` | one maximal Error PatternIntroducer | actual opener consume、Pattern slotへ進む |
 | malformed opener run + reusable Pattern NUD | one maximal Error PatternIntroducer | opener Incomplete、same-position Pattern retry |
-| malformed opener run reaches boundary | one maximal Error PatternIntroducer | downstream Missingなし、boundary non-consume |
+| missing / malformed opener reaches actual `)` | one Missing / maximal Error PatternIntroducer | `CastPattern` exists with open / value Incomplete and actual close Complete、consume後targetへ、intermediate Missingなし |
+| missing / malformed opener reaches actual `:` | one Missing / maximal Error PatternIntroducer | pattern Incomplete、colon non-consumeでtarget retry、intermediate Missingなし |
+| missing / malformed opener reaches actual `;` / `=` | one Missing / maximal Error PatternIntroducer | pattern / target Incomplete、starter non-consumeでform retry、intermediate Missingなし |
+| malformed opener run reaches outer boundary | one maximal Error PatternIntroducer | downstream Missingなし、boundary non-consume |
 | exact opener + EOF / owner boundary | one zero-width Missing Pattern | close / target / form Missingをsame causeへcascadeしない |
 | exact opener + immediate `)` | one Missing Pattern | close consume、target phaseへ進む |
 | malformed Pattern run + valid Pattern NUD | nested maximal `Error(Pattern::Primary)` one | same Pattern slot retry、value Complete |
 | malformed Pattern run reaches `)` | nested maximal `Error(Pattern::Primary)` one | value Incomplete、close retry、outer Pattern Missingなし |
+| missing / malformed Pattern reaches actual `:` | one Missing Pattern / nested maximal Error one | close Incomplete、colon non-consumeでtarget retry、closing Missingなし |
+| missing / malformed Pattern reaches actual `;` / `=` | one Missing Pattern / nested maximal Error one | close / target Incomplete、starter non-consumeでform retry、intermediate Missingなし |
 | complete Pattern + exact `)` | close Complete | target phaseへ進む |
 | complete Pattern + EOF / owner boundary before close | one zero-width Missing closing delimiter | target / form Missingをsame causeへcascadeしない |
 | complete Pattern + target colon before close | one zero-width Missing closing delimiter | colon non-consume、same-position target retry |
+| complete Pattern + `;` / `=` before close | one zero-width Missing closing delimiter | target Incomplete、starter non-consumeでform retry、TargetIntroducer Missingなし |
 | malformed close run + exact `)` | one maximal Error closing delimiter | actual close consume、additional Missingなし |
-| malformed close reaches owner boundary | one maximal Error closing delimiter | target / form cascadeなし、boundary non-consume |
+| malformed close run reaches actual `:` | one maximal Error closing delimiter | colon non-consumeでtarget retry、additional Missingなし |
+| malformed close run reaches actual `;` / `=` | one maximal Error closing delimiter | target Incomplete、starter non-consumeでform retry、TargetIntroducer Missingなし |
+| malformed close reaches outer boundary | one maximal Error closing delimiter | target / form cascadeなし、boundary non-consume |
 | complete group + exact target colon + valid TypeExpression | target Complete | target outer episode owns only its scoped stops |
 | complete group + reusable TypePrimary without colon | one Missing TargetIntroducer | colon Incomplete、same-position target retry |
 | malformed target-introducer run + exact colon | one maximal Error TargetIntroducer | actual colon consume、target retry |
 | malformed target-introducer run + valid TypePrimary | one maximal Error TargetIntroducer | colon Incomplete、same-position target retry |
-| target-introducer run reaches boundary | one Error TargetIntroducer、またはemptyならone Missing | target / form Incomplete、no cascade |
+| complete group + immediate `;` (`cast(x: A);`) | one zero-width Missing TargetIntroducer | target Incomplete、semicolon non-consumeでBodyless Complete、TargetType Missingなし |
+| complete group + immediate `=` | one zero-width Missing TargetIntroducer | target Incomplete、equals non-consumeでDefinition retry、TargetType Missingなし |
+| malformed target-introducer run reaches actual `;` / `=` | one maximal Error TargetIntroducer | target Incomplete、starter non-consumeでform retry、TargetType Missingなし |
+| target-introducer run reaches outer boundary | one Error TargetIntroducer、またはemptyならone Missing | target / form Incomplete、no cascade |
 | exact / recovered colon + EOF / owner boundary | one zero-width Missing TargetType | form Missingをsame causeへcascadeしない、boundary non-consume |
 | exact / recovered colon + exact `=` / `;` | one zero-width Missing TargetType | form starter non-consume、same-position form retry |
 | malformed target run + valid TypePrimary | nested maximal `Error(Type::Primary)` one | same target slot retry、value Complete |
@@ -22123,9 +22175,11 @@ upstream slotがsame terminal boundaryへ達したとき、後続slotのMissing�
 positive evidenceが現れた後のdistinct mandatory slot failureは別causeであり、one recordずつ保持できる。Pattern / TypeExpression /
 Expressionのmalformed recoveryはそれぞれのnested roleを保ち、CastRoleへduplicate / relabelしない。
 
-invalid-run scannerはoriginal gapのASOB、equal-or-shallower newline、active comma / matching right delimiter、Cast-owned exact punctuation、
-valid same-slot retry candidateをsafe pointとする。scannerごとにword / punctuation policyをcopyせず、existing declaration invalid-run
-classifierとPattern / TypeExpression / Expression mandatory entriesをcompositionする。
+invalid-run scannerはoriginal gapのASOB、equal-or-shallower newline、active comma / matching right delimiter、
+first actual subsequent Cast punctuation `) | : | ; | =`、valid same-slot retry candidateをsafe pointとする。punctuation safe pointは
+non-consumeで返し、CAST-Jのprefix recovery latticeが固定した次phaseだけが所有する。scannerごとにword /
+punctuation policyをcopyせず、existing declaration invalid-run classifierとPattern / TypeExpression / Expression mandatory
+entriesをcompositionする。
 
 ### Root / nested dispatch and header discovery
 
@@ -22218,10 +22272,19 @@ implementation gateを次で固定する。
    close、missing opener + reusable Pattern、Pattern annotation + RightParenthesis boundary、missing close + target-colon retry、
    target-colon missing / malformed retry、outer `Equal | Semicolon | conditional Newline` episode-scoped stops、full/exotic target、
    nested stop suspension、normal / recovery / rollback parityを固定する。Pattern / TypeExpression shared codeへCast-specific branchを入れない。
-4. target後のsemicolon / exact-equals form judge、inline / indented body layout、form-aware AST isolated adapterを実装する。
-   bodyless、inline expression、strictly-deeper multi-Statement body、equal-or-shallower body boundary、missing target / form / bodyの
-   AST shape / rangeを固定する。Binding body decisionをneutral helperへparameterizeする必要があれば、Binding behaviorを
-   byte-identicalに保つmechanical extractionだけをsame coherent sliceで行う。existing public dispatchは変更しない。
+4. Gate 4を次のtwo ordered atomic subgatesへ分ける。
+   **Gate 4a — Neutral Binding-style body decision extraction.** Bindingのexisting inline / indented
+   body-layout decisionを、owner-specific AST / CST builder、recovery role、indentation identityをparameterに取る
+   neutral helperへmechanical extractionする。このsliceでCast caller / Cast vocabularyをhelperへ接続せず、
+   Binding自身のAST shape、direct child order、range、trivia ownership、Missing / Error、inline / indented /
+   outer-boundary decision、rollback stateがextraction前後でbyte-identicalであることをdedicated fixtureで証明する。
+   full `yu-syntax` suiteも同数greenで閉じる。production surfaceとdispatchは不変とし、independent commit-worthy
+   shared-infrastructure sliceとする。
+   **Gate 4b — Cast-specific isolated AST consumer.** Gate 4aのneutral helper上にCastのsemicolon /
+   exact-equals form judge、Cast-specific AST builder identity、inline / indented body layout、form-aware AST isolated
+   adapterを実装する。bodyless、inline expression、strictly-deeper multi-Statement body、equal-or-shallower
+   body boundary、missing target / form / bodyのAST shape / rangeを固定する。Binding AST / CST / roleをCastへ
+   流用せず、existing public dispatchは変更しない。Gate 4aを完了してからGate 4bへ進む。
 5. direct-CST thin adapterをisolated harnessへ追加し、`cast(x: A): B;`、`pub cast(x: A): B = x`、
    `cast(x: A): B =\n  x`のchild order / byte range、all trivia home、lossless round trip、no BindingBody /
    synthetic wrapper / separator、AST-direct parityをbyte-exactに固定する。
@@ -22272,5 +22335,5 @@ Equal / Semicolon / ambient Newline stop leakage、bodyless semicolonとouter se
 identity separation、upstream terminal failureのno-cascade、Gate 7 isolated matrixとGate 8 same-change real block-driver matrix、
 semantic future scopeの閉じ方を確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定
+著者: Codex gpt-5.6-sol（xhigh）が起案（Claude査読・確定前、ユーザ未承認）
 （2026-08-27、canonical Statement / root Declarationのstandalone `cast` declaration grammar追補案）。
