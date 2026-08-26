@@ -21885,6 +21885,14 @@ Gate 3a-iiでこれをneutral `outer_pattern_stop_pending`へ拡張し、existin
 `outer_stops`が含むexact `RightParenthesis | RightBracket | RightBrace` punctuationを判定する。
 Parenthesized / List / RecordのAST / direct recoveryはすべて、own matching closeを先に判定し、次にこのone queryで
 caller-owned active closeをnon-consume returnし、その後だけ各ownerのexisting mismatched / invalid fallbackへ進む。
+nested ParenthesizedPatternのmalformed close recoveryにはpre-existing AST/direct gapがある。ASTの
+`PatternDelimitedPolicy::Parenthesized::recover_ast_separator_or_close`はscanせず`false`を返す一方、directの
+`recover_pattern_delimited_close`はinvalid runを進みmatching `)`をconsumeする。この差はfirst Pattern追補が要求する
+malformed-close AST/direct parityに反し、ASOB known-residual sectionにもaccept済みgapとして記録されていない。
+Gate 3a-iiはcurrent direct cursor decisionをneutral sink-free `drive_parenthesized_pattern_close_recovery` equivalentへ抽出し、
+AST / directのthin adapterを両方通す。own matching close / carried caller close / ASOB / EOF / malformed byteのpriorityはone driverだけが
+持つ。directはexisting Error / Missing emissionをbyte-identicalに保ち、ASTはError nodeを投影せずsame cursor / close
+Complete-Incompleteだけへ収束する。List / Recordのexisting recovery driverは変更しない。
 nested annotation TypeExpressionは継承済みraw close bitを
 existing `type_stop_is_active_in_current_episode` / `classify_type_boundary`で読む。new Pattern episode counter、
 Cast-specific scanner、parallel delimiter owner stackは作らない。
@@ -22244,8 +22252,9 @@ new adapterを使わないためbehavior不変である。existing `Parenthesize
 それをreuseするとempty / comma-list ParenthesizedPatternまでCast parameterとしてacceptし、Y2のone Pattern groupと異なるためである。
 Cast-specific Pattern parser / annotation parser、Pattern episode-depth stateは作らない。neutral Pattern delimiter scopeは
 incoming active right-close bitsだけをown stop setへcarryし、shared `outer_pattern_stop_pending`でown matching closeより後、
-existing owner-specific invalid fallbackより前にcaller closeをreturnする。これによりnested Pattern containerとannotation TypeExpressionが
-同じCast close evidenceを共有し、Cast outer adapterだけが最後にconsumeする。
+existing owner-specific invalid fallbackより前にcaller closeをreturnする。Parenthesized malformed closeはGate 3a-iiの
+shared neutral driverでAST/directのcursorとclose ownershipを一致させる。これによりnested Pattern containerとannotation
+TypeExpressionが同じCast close evidenceを共有し、Cast outer adapterだけが最後にconsumeする。
 
 targetは`parse_required_type_expression_with_outer_missing_role_and_policy`とdirect counterpartを、
 `GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType))`、default fresh-primary policy、
@@ -22302,6 +22311,7 @@ body punctuationはactual tokenで、synthetic separator / terminatorを作ら�
 | exact opener + immediate local `)` | one Missing Pattern | this Castのframeとmatch、close consume / frame pop後target phaseへ進む |
 | malformed Pattern run + valid Pattern NUD | nested maximal `Error(Pattern::Primary)` one | same Pattern slot retry、value Complete |
 | malformed Pattern run reaches this Cast-local `)` (`cast(@): B;`) | nested maximal `Error(Pattern::Primary)` one | value Incomplete、local close consume / frame pop、target retry、outer Pattern Missingなし |
+| nested ParenthesizedPattern malformed close run + one `)` (`cast((x @): B;`) | directは`@`へone `Error(ClosingDelimiter { ParenthesizedPattern })`、ASTはsame runをsource-freeにadvance。inner close Complete | one `)`はdelimiter current-topのnested ParenthesizedPatternがconsume。Cast own closeはcolon位置でone Missing、colon non-consume target retry。AST/direct cursor / close ownership一致 |
 | nested List Pattern missing `]` reaches this Cast-local `)` (`cast([x): B;`) | nested one Missing closing delimiter for ListPattern | active `RightParenthesis`で`)`をnon-consume returnし、Cast frame / stopを維持。Cast closeがconsume、additional Cast Pattern recoveryなし |
 | nested Record Pattern missing `}` reaches this Cast-local `)` (`cast({x): B;`) | nested one Missing closing delimiter for RecordPattern | active `RightParenthesis`で`)`をnon-consume returnし、Cast closeがconsume。AST / directでsame remainder / range |
 | Pattern annotation TypeExpressionのnested close missing reaches this Cast-local `)` (`cast(x: '[A): B;`) | nested Type ownerのMissing closing delimiter only | `type_stop_is_active_in_current_episode(RightParenthesis)`で`)`をnon-consume returnし、Cast close Complete。CastRole Error / Missingをduplicateしない |
@@ -22365,21 +22375,23 @@ latticeが固定した次phaseだけが所有する。scannerごとにword /
 punctuation policyをcopyせず、existing declaration invalid-run classifierとPattern / TypeExpression / Expression mandatory
 entriesをcompositionする。
 
-#### Known residual: caller boundary hidden behind a missing nested Pattern / annotation TypeExpression delimiter
+#### Known residual: caller boundary hidden behind a missing Cast-contained Pattern / TypeExpression delimiter
 
 本追補後にも、ambient statement-owner boundary追補が一般条件とrepresentative fixtureで記録したknown residual familyの
 Cast-specific instanceが残る。closed product tableや「exact N cases」として列挙せず、次の四条件をすべて満たす
 nested-owner episodeを**known residual bug / ambiguity**として固定する。
 
-1. Castのcanonical Pattern slot内で、missing local closeを持つnested Pattern owner、またはPattern annotation内の
-   nested TypeExpression ownerがactiveであり、次のいずれかのphaseにいる。
+1. Castのcanonical Pattern slot内のnested Pattern owner、Pattern annotation内のTypeExpression delimited owner、または
+   CastTarget自身のtop-level TypeExpressionから入ったdelimited ownerがmissing local closeのままactiveであり、
+   次のいずれかのphaseにいる。
    - malformed item / separator / close recoveryが継続中である。
    - complete local itemをaccept済みだがlocal closeはまだなく、post-item separator / close driverが次boundaryを裁定中である。
-     このphaseではunclaimed equal-indent newlineをclean local `ImplicitNewline` separatorとしてacceptできる。
+     このphaseではqualifying unclaimed equal-or-shallower newlineをclean local `ImplicitNewline` separatorとしてacceptできる。
 2. current gap / punctuationは、root / indented / braced canonical Statement sequence、Case / Catch arm sequence、その他の
    enclosing sequenceにとってnext candidateへ返すべきboundaryである。
 3. そのboundaryがnested owner driver / recoveryへcaller-ownedとして見えない。具体的には、strict visible-statement dedent / active If
-   companionとして`any_ambient_owner_claims`にclaimされず、Gate 3a-iiがcarryするactive right-close bitにも含まれないか、
+   companionとして`any_ambient_owner_claims`にclaimされず、Gate 3a-iiがcarryするactive right-closeやCastTarget contextが
+   current TypeExpression episodeへ与えるconditional `Newline`等のactive caller stopにも含まれないか、
    またはcommaのようにnested ownerがsame spellingのlocal separator authorityをcallerより先に持つ。
 4. nested owner driver / recoveryに、そのboundaryをmalformed runへconsumeするかlocal separator / implicit newlineとして再解釈し、
    next outer candidateの一部をlocal Pattern / TypeExpression candidateとして継続できる実経路がある。
@@ -22406,14 +22418,11 @@ catch action:
   B -> fallback
 ```
 
-これは`ParenthesizedPattern` + CatchIndented arm-indent newlineの**direct-CST-only representative**である。
-equal arm indentはstrict dedentでない。direct pathはpost-item `@`で
-`recover_pattern_delimited_separator_or_close(Parenthesized)`から`recover_pattern_delimited_close`へ入り、newlineがASOBに
-claimされないためnext arm candidateまでclose recoveryを進め得る。一方AST pathは
-`PatternDelimitedPolicy::Parenthesized::recover_ast_separator_or_close == false`により最初の`@`でinner closeをIncompleteとして
-Cast outer close phaseへ戻る。Castのequal-or-shallower-newline safe pointがそこで働くため、next armを同じ形では吞み込まない。
-従ってこのfixtureにAST/direct parityを要求せず、Gate 8 / 9はdirectのcurrent outcomeとASTのdistinct remainder /
-arm discoveryを別々にcharacterizeし、この既存divergenceを正常化して隠さない。
+これは`ParenthesizedPattern` + CatchIndented arm-indent newlineのrepresentativeである。このsourceのarm newlineは
+following indentがlocal base以下のqualifying equal-or-shallower側にあり、strict dedentとしてclaimされない。
+Gate 3a-iiのshared Parenthesized close-recovery driverによりAST/directともpost-item `@`から同じcursor decisionを通り、newlineが
+ASOBにclaimされないためnext arm candidateまでlocal close recoveryを進め得る。このfixtureはknown residualの
+AST/direct parityを要求し、pre-existing no-scan AST fallbackへ戻さない。
 
 ```yu
 cast({x
@@ -22434,10 +22443,21 @@ case action:
 
 Pattern annotation TypeExpressionのEffectRow + CaseIndented arm-indent newlineの代表である。malformed **first** item `@`を使う。
 completed item後の`x: '[A @`はshared type-delimited driverがclose slotのclean Missingへ進み得るため、この経路の
-characterization fixtureにはしない。一方、complete item直後の`x: '[A\n  B`はpost-item driverがequal-indent newlineを
+characterization fixtureにはしない。一方、complete item直後の`x: '[A\n  B`はpost-item driverがqualifying
+equal-or-shallower newlineを
 clean local `ImplicitNewline` separatorとしてacceptし得るため、condition 1のsecond phaseに含む。
 `x: F(@`のCall、`x: (@`のParenthesizedGroup、`x: [@`のBracketRow等、同じ
 conditionを満たすannotation TypeExpression ownerもこのgeneral residualに含むが、owner variantの網羅表は作らない。
+
+```yu
+cast(x): '[A
+B
+```
+
+CastTarget自身のtop-level TypeExpressionから入るEffectRow + root same-indent canonical Statement newlineの代表である。
+root contextではCastTargetのconditional `Newline` stopを作るambient braced / Catch-inline owner evidenceがなく、EffectRowの
+complete item `A`後のqualifying equal-or-shallower newlineをlocal `ImplicitNewline` separatorとしてacceptして`B`を
+second target-type itemへ取り込み得る。Pattern annotationだけでなくCastTargetのdelimited TypeExpressionもcondition 1に含む。
 
 ```yu
 case value: A -> value with: cast([x @, B -> fallback
@@ -22455,9 +22475,8 @@ Pattern / TypeExpression / enclosing sequence全体のowner collisionを局所�
 missing nested delimiter、local candidate / same-spelling separatorのpriorityを別のsigned addendumで一般化する必要がある。
 
 Gate 8 / 9は上記four-condition predicateを満たすcaseだけをsuccess matrixから除外し、representative fixtureでcurrent
-remainder / recovery、outer candidateのdiscovery数、byte-exact losslessnessをknown-residualとしてcharacterizeする。
-AST/direct parityは両pathが同じoutcomeを持つfixtureでassertし、上記Parenthesized + CatchIndented fixtureはdistinct final
-outcomeを両方固定するexplicit parity exceptionとする。これをcorrect parseやgreen successとは呼ばない。
+remainder / recovery、outer candidateのdiscovery数、AST/direct parity、byte-exact losslessnessをknown-residualとして
+characterizeする。これをcorrect parseやgreen successとは呼ばない。
 well-delimited nested owner、Gate 3a-iiでpropagateされる
 caller-owned right-close、strict dedent、active If companion、およびmissing delimiter後のboundaryがnested owner driver / recoveryへ
 caller-ownedとして実際に見えるcaseはpredicateを満たさず、success matrixから除外しない。
@@ -22570,16 +22589,21 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
    判定しない現状を、AST/direct shared `outer_pattern_stop_pending`へ置き換える。Parenthesized / List / Record scopeは
    incoming active `RightParenthesis | RightBracket | RightBrace`だけをown stop frameへcarryし、own matching closeを第一、
    carried caller closeを第二、existing owner-specific invalid fallbackを第三に判定する。nested Pattern annotation TypeExpressionも
-   carried bitをexisting type-boundary queryで読む。Cast vocabulary / branchは入れない。active outer closeなしの
-   current Pattern AST / CST / recoveryをbyte-identicalに保ち、各active right close下のlist / record / parenthesized /
-   annotation TypeExpressionでAST/directがboundaryをnon-consumeするneutral fixtureを先にgreenにする。
+   carried bitをexisting type-boundary queryで読む。加えてcurrent direct `recover_pattern_delimited_close`のcursor decisionを
+   neutral sink-free Parenthesized close-recovery driverへ抽出し、ASTのhistorical no-scan fallbackも同driverへ通す。
+   Cast vocabulary / branchは入れない。current direct CST / recovery、well-formed Pattern AST、List / Record recoveryは
+   byte-identicalに保つ。意図的に変えるのはpre-existing contract違反だったmalformed Parenthesized AST cursor / close stateだけで、
+   existing direct outcomeへ収束させる。standalone `((x @))`とactive caller `)`下のnested ParenthesizedをAST/direct parity fixtureにし、
+   各active right close下のlist / record / parenthesized / annotation TypeExpressionがcaller boundaryをnon-consumeするneutral fixtureも
+   same Gateで先にgreenにする。
    **Gate 3b — CastPattern / CastTarget isolated consumer.** Gate 3a-i / 3a-iiのneutral infrastructure上にCastPattern groupと
    CastTarget mandatory slotsをisolated AST/direct adapterとして実装する。canonical Pattern slotは常にincoming +
    `RightParenthesis` stop frameをpushし、actual opener pathだけがCast-local delimiter frameもpushする。missing opener +
    reusable Patternはstop-onlyで、synthetic delimiter authorityを得ない。standalone
    `cast(@): B;`のlocal close consumeとincoming Parenthesis frame下の`cast @ )`のouter close non-consume、
    `cast([x): B;` / `cast({x): B;`のnested Pattern missing-close handoff、`cast(x: '[A): B;`のannotation
-   TypeExpression missing-close handoff、one full Pattern、missing opener + reusable Pattern、Pattern annotation / nested record
+   TypeExpression missing-close handoff、`cast((x @): B;`のnested Parenthesized close / Cast close ownership parity、
+   one full Pattern、missing opener + reusable Pattern、Pattern annotation / nested record
    default、fresh malformed run + target colon / form equals handoff、missing close + target-colon retry、target-colon missing /
    malformed retry、outer `Equal | Semicolon | conditional Newline` episode-scoped stops、full/exotic target、nested stop suspension、
    normal / recovery / rollback parityを固定する。nested ownerは`)`をnon-consumeしCast framesを維持、Cast close judgeは
@@ -22609,7 +22633,7 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
    Missing / malformed retry / terminal、target-stop nested suspension、form starter preservation、indented Statement recovery、
    fresh Pattern malformed runのColon / Equal / local close / outer terminal handoff、PatternIntroducer / Pattern / close /
    TargetIntroducer各slotのthis Cast-local vs outer-owned / unowned `)` split、nested List / Record / annotation TypeExpressionの
-   caller-owned `)` handoff、one range = one node = one record、
+   caller-owned `)` handoff、nested Parenthesized malformed-close / Cast-close ownership、one range = one node = one record、
    same-cause no-cascadeをAST/directで閉じる。production behaviorはまだ変えない。
 7. real dispatch switch前にisolated declaration adapterをdirect root / indented / braced / inline ambient frameで包み、
    depth-2+ ambient / If companion、EOF / semicolon / comma / each active right delimiter / equal-shallower newline、
@@ -22629,17 +22653,14 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
    満たし、condition 4の実経路をfixtureでcharacterizeできるcaseだけはsuccess matrixから除外する。
    arm-indent / CatchBraced newline、root / indented same-indent newline、
    braced current-depth newline、CaseInline same-spelling commaのeach boundary familyからat least one representative public
-   fixtureを選び、Parenthesized / List / Record Patternとannotation TypeExpression ownerをnon-exhaustiveに含める。
-   各fixtureのcurrent remainder / recovery、outer candidateのdiscovery数、AST/directそれぞれのoutcome、byte-exact
-   losslessnessをknown-residual characterizationとして固定し、green successとして数えない。両pathが同じoutcomeを持つ
-   fixtureはparityをassertする。Parenthesized + CatchIndented direct-CST-only representativeはASTが最初のinvalid byteで
-   inner closeをIncompleteとして戻すdistinct outcomeも同Gateで固定し、parity assertionから明示的に外す。
+   fixtureを選び、Parenthesized / List / Record Pattern、annotation TypeExpression、CastTarget TypeExpression ownerを
+   non-exhaustiveに含める。各fixtureのcurrent remainder / recovery、outer candidateのdiscovery数、AST/direct parity、
+   byte-exact losslessnessをknown-residual characterizationとして固定し、green successとして数えない。
    well-delimited inner owner、caller-owned right-close handoff、strict dedent、active If companion、およびnested owner driver /
    recoveryへcaller-owned boundaryが実際に見えるmissing-delimiter caseはsuccess matrixに含める。
 9. final public regression matrixでall visibility、annotated / unannotated / nested / malformed Pattern、full/exotic target、
    bodyless / inline / multi-Statement indented body、root / nested interleaving、outer semicolon / ambient companion、
-   every missing / malformed boundary、AST/direct parity（documented residual explicit divergenceを除く）、losslessness、
-   one record = one node、all state restoration、
+   every missing / malformed boundary、AST/direct parity、losslessness、one record = one node、all state restoration、
    full `yu-syntax` suiteを閉じる。`cast`がidentifier / field / Pattern / TypeExpression / expression positionでordinary wordのまま、
    Cast role / rule registration / implicit application / expected-type semantics / HIR / resolver / inference / formatterが未実装である
    scope gateを固定する。Gate 8でpre-provenになったpublic nested matrixとknown-residual characterization fixtureを再実行し、
@@ -22663,14 +22684,16 @@ Gate 5-9のfive slicesからなる、合計**12 atomic implementation slices**�
   caller-owned closeとしてnon-consumeで返し、actual-opener Cast自身はdelimiter current-top authorityをstop bitより先に取り
   同じ`)`をconsumeする。missing-opener Castはdelimiter authorityを持たず`)`をnon-consumeで返す。
   outer-owned / unowned `)`はどのprefix slotからもnon-consumeで返す。
-- missing nested Pattern / annotation TypeExpression delimiterの背後でcaller boundaryがnested owner driver / recoveryへ見えず、
+- ParenthesizedPatternのpre-existing AST no-scan / direct close-scan gapはGate 3a-iiのneutral shared driverでconvergeし、
+  current direct CST / recoveryを保ったままAST cursor / close ownershipを合わせる。`cast((x @): B;`ではinner `)`を
+  nested Parenthesizedがownし、Cast closeはcolon位置でMissingとなるone resultだけを持つ。
+- missing Cast-contained Pattern / annotation TypeExpression / CastTarget TypeExpression delimiterの背後でcaller boundaryが
+  nested owner driver / recoveryへ見えず、
   local driver / recoveryがboundaryとnext outer candidateをconsume / reinterpretできるcaseは、existing ASOB known-residual familyとして
   condition-basedに残す。Gate 8 / 9はroot / indented / braced Statement newline、Case / Catch arm newline、CaseInline comma、
-  Pattern / annotation TypeExpression ownerからnon-exhaustive representative characterization fixtureを持つ。
+  Pattern / annotation TypeExpression / CastTarget TypeExpression ownerからnon-exhaustive representative characterization fixtureを持つ。
   nested ownerへNewline / all outer separatorをunconditionally carryせず、right-close / strict dedent / active If companion /
   well-delimited owner / caller boundaryがnested owner driver / recoveryへ見えるcaseのsuccess contractとは分離する。
-  Parenthesized + CatchIndentedのdirect close recoveryとAST no-scan fallbackはdistinct final outcomeを持つため、このone
-  representativeは両outcomeを別々に固定し、AST/direct parityを偽装しない。
 - target colonとfull mandatory TypeExpressionをdistinct typed slotsとし、outer `Equal | Semicolon | conditional Newline` stopsを
   one TypeExpression episodeだけにdepth-fenceする。
 - formはbodyless semicolon、またはexact equals + inline OperatorChain / strictly-deeper canonical Statement blockである。
@@ -22688,7 +22711,8 @@ Equal / Semicolon / ambient Newline stop leakage、bodyless semicolonとouter se
 identity separation、upstream terminal failureのno-cascade、Gate 7 isolated matrixとGate 8 same-change real block-driver matrix、
 known residualのfour-condition predicateが実装のASOB / propagated-stop / local-separator priorityと一致し、有限なowner tableで
 過少列挙せずpredicate外へ過剰なexemptionも広げないこと、clean implicit-separator pathをmalformed-only predicateから
-漏らさずParenthesized direct/AST final-outcome divergenceをparity claimで隠さないこと、
+漏らさずPattern annotationだけでなくCastTarget TypeExpressionもcoverすること、Parenthesized close-recovery neutral
+convergenceがdirect behaviorを変えずAST側のpre-existing gapだけを閉じること、
 semantic future scopeの閉じ方を確認対象にする。
 
 著者: Codex gpt-5.6-sol（xhigh）が起案（Claude査読・確定前、ユーザ未承認）
