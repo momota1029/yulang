@@ -67,6 +67,7 @@ pub(crate) enum Declaration<'source> {
     Struct(StructDeclaration<'source>),
     Type(TypeDeclaration<'source>),
     Impl(ImplDeclaration<'source>),
+    Cast(CastDeclaration<'source>),
 }
 
 /// A declaration shape that can contribute a source-leading header fact.
@@ -100,6 +101,8 @@ pub(crate) enum StatementIntro<'source> {
     Type(TypeStatementIntro<'source>),
     #[allow(dead_code)]
     Impl(ImplStatementIntro<'source>),
+    #[allow(dead_code)]
+    Cast(CastStatementIntro<'source>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -109,6 +112,20 @@ pub(crate) struct UseStatementIntro<'source> {
     after_visibility: Option<TriviaRun>,
     use_keyword: WordSpan<'source>,
     after_use: Option<TriviaRun>,
+}
+
+/// The sink-free prefix reserved for standalone Cast declarations.
+///
+/// Gate 1 carries this source shape only. Gate 2 supplies recognition, and
+/// Gate 8 connects it to shared statement dispatch.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CastStatementIntro<'source> {
+    start: usize,
+    visibility: Option<VisibilityPrefix<'source>>,
+    after_visibility: Option<TriviaRun>,
+    cast_keyword: WordSpan<'source>,
+    cast_base: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -361,6 +378,9 @@ fn parse_direct_root_candidate_with_local(
                 let _ = commit_impl_declaration_isolated(operators, &mut committed, intro);
                 StatementKind::ImplDeclaration
             }
+            StatementIntro::Cast(_) => {
+                unreachable!("Cast dispatch is introduced in its Gate 8 promotion")
+            }
             StatementIntro::Operator(intro) => {
                 if matches!(
                     commit_operator_header(&mut committed, intro),
@@ -567,6 +587,10 @@ where
             return None;
         }
         StatementIntro::Impl(_) => {
+            probe.input().rollback(checkpoint);
+            return None;
+        }
+        StatementIntro::Cast(_) => {
             probe.input().rollback(checkpoint);
             return None;
         }
@@ -8334,6 +8358,61 @@ pub(crate) enum ImplBody<'source> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ImplColonBody<'source> {
     Inline { statement: Box<Statement<'source>> },
+    Indented { block: IndentedStatementBlock<'source> },
+}
+
+/// A standalone Cast declaration shared by root and canonical Statements.
+///
+/// Gate 1 establishes only the approved AST shape. Recognition and body
+/// parsing remain unreachable until their later dedicated gates.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CastDeclaration<'source> {
+    visibility: Visibility,
+    pattern: Recovered<CastPattern<'source>>,
+    target: Recovered<CastTarget<'source>>,
+    form: Recovered<CastForm<'source>>,
+    range: Range<usize>,
+}
+
+impl CastDeclaration<'_> {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CastPattern<'source> {
+    open: Recovered<Range<usize>>,
+    value: Recovered<Box<Pattern<'source>>>,
+    close: Recovered<Range<usize>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CastTarget<'source> {
+    colon: Recovered<Range<usize>>,
+    value: Recovered<Box<TypeExpression<'source>>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum CastForm<'source> {
+    Bodyless { semicolon: Range<usize> },
+    Definition {
+        equals: Range<usize>,
+        body: Recovered<CastBody<'source>>,
+        range: Range<usize>,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum CastBody<'source> {
+    Inline { expression: OperatorChain<'source> },
     Indented { block: IndentedStatementBlock<'source> },
 }
 

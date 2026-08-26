@@ -1091,6 +1091,7 @@ pub(crate) enum DeclarationRole {
     Struct(StructRole),
     Type(TypeDeclarationRole),
     Impl(ImplRole),
+    Cast(CastRole),
     Derives(DerivesRole),
 }
 
@@ -1119,6 +1120,7 @@ pub(crate) enum StatementKind {
     StructDeclaration,
     TypeDeclaration,
     ImplDeclaration,
+    CastDeclaration,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1173,6 +1175,17 @@ pub(crate) enum ImplRole {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum CastRole {
+    PatternIntroducer,
+    Pattern,
+    TargetIntroducer,
+    TargetType,
+    BodyIntroducer,
+    Body,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum DerivesRole {
     RoleReference,
     ViaTarget,
@@ -1191,6 +1204,7 @@ pub(crate) enum ConstructRole {
     ParenthesizedPattern,
     ListPattern,
     RecordPattern,
+    CastPattern,
     TypeCall,
     ParenthesizedTypeGroup,
     NamedRecordType,
