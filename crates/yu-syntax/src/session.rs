@@ -529,6 +529,13 @@ impl ParseLocal {
         self.ambient_owner_scopes.last().copied()
     }
 
+    /// Iterates ambient statement-owner scopes from innermost to outermost.
+    pub(crate) fn ambient_owner_scope_frames(
+        &self,
+    ) -> impl Iterator<Item = &AmbientOwnerScopeFrame> + '_ {
+        self.ambient_owner_scopes.values().iter().rev()
+    }
+
     pub(crate) fn ambient_owner_scope_depth(&self) -> usize {
         self.ambient_owner_scopes.len()
     }

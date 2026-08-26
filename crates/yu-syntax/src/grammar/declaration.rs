@@ -39,11 +39,13 @@ use crate::{
         word::{WordSpan, scan_path_segment, scan_word},
     },
     session::{
-        BindingRole, CommitOutput, Committed, CommittedRecoveryRecord, ConstructRole,
+        AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CommitOutput, Committed,
+        CommittedRecoveryRecord, ConstructRole,
         DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
         ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
-        ModRole, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole, StopKind, SynIn,
+        ModRole, ParseLocal, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole,
+        StopKind, SynIn,
         SyntaxExpectation, TypeDelimitedOwner, UnexpectedSyntax, any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
@@ -1598,6 +1600,190 @@ where
     let pending = trivia.is_some_and(|trivia| {
         i.input.source()[trivia.range()].contains(['\r', '\n'])
             && i.local.line().line_indent <= type_base
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+/// The isolated nominal-versus-equality disposition after Type's shared name
+/// and parameter header.  This is deliberately sink-free until the later
+/// dispatch gate selects a committed declaration continuation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDeclarationFormDisposition {
+    Nominal,
+    Equality,
+    EqualityRecovery,
+    Incomplete,
+}
+
+/// A braced statement sequence whose physical newline gives a completed Type
+/// header nominal terminal authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeDeclarationBracedNewlineOwner {
+    BracedStatementSequence,
+    CatchArmSequenceThroughInlineCanonicalStatement,
+}
+
+/// Classifies the Type-declaration form without consuming the post-header
+/// gap.  The committed nominal/equality continuations remain a later gate.
+fn classify_type_declaration_form<'source, E>(
+    name: &Recovered<WordSpan<'source>>,
+    type_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> TypeDeclarationFormDisposition
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let disposition = if !matches!(name, Recovered::Complete(_)) {
+        if type_declaration_exact_equals_after_continuation_pending(type_base, i) {
+            TypeDeclarationFormDisposition::EqualityRecovery
+        } else {
+            TypeDeclarationFormDisposition::Incomplete
+        }
+    } else {
+        let ambient_boundary = any_ambient_owner_claims(i);
+        if ambient_boundary {
+            TypeDeclarationFormDisposition::Nominal
+        } else {
+            let gap_checkpoint = i.checkpoint();
+            let trivia = i
+                .run(scan_trivia)
+                .expect("the maximal Type form gap trivia scan is total");
+            let has_physical_newline = i.input.source()[trivia.range()].contains(['\r', '\n']);
+            let accepted_continuation = !has_physical_newline || i.local.line().line_indent > type_base;
+            let disposition = if accepted_continuation && declaration_exact_equals_pending(i) {
+                TypeDeclarationFormDisposition::Equality
+            } else if type_declaration_braced_newline_owner_from_stack(
+                has_physical_newline,
+                i.local,
+            )
+            .is_some()
+                || type_declaration_nominal_terminal_boundary_after_trivia(
+                    type_base,
+                    has_physical_newline,
+                    i,
+                )
+            {
+                TypeDeclarationFormDisposition::Nominal
+            } else {
+                TypeDeclarationFormDisposition::EqualityRecovery
+            };
+            i.rollback(gap_checkpoint);
+            disposition
+        }
+    };
+    i.rollback(checkpoint);
+    disposition
+}
+
+/// Probes an exact lone `=` after Type's ordinary continuation trivia.
+fn type_declaration_exact_equals_after_continuation_pending<E>(
+    type_base: usize,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let accepted = mod_trivia(type_base, i).is_some() && declaration_exact_equals_pending(i);
+    i.rollback(checkpoint);
+    accepted
+}
+
+/// Reads the ambient owner stack without changing it.  A braced statement
+/// block owns its own physical-newline statement boundary; a catch barrier
+/// does so only after crossing an inline canonical arm-body frame.
+fn type_declaration_braced_newline_owner<E>(
+    i: &mut SynIn<E>,
+) -> Option<TypeDeclarationBracedNewlineOwner>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let has_physical_newline = i.run(scan_trivia).is_some_and(|trivia| {
+        i.input.source()[trivia.range()].contains(['\r', '\n'])
+    });
+    let owner = type_declaration_braced_newline_owner_from_stack(has_physical_newline, i.local);
+    i.rollback(checkpoint);
+    owner
+}
+
+fn type_declaration_braced_newline_owner_from_stack(
+    has_physical_newline: bool,
+    local: &ParseLocal,
+) -> Option<TypeDeclarationBracedNewlineOwner> {
+    if !has_physical_newline {
+        return None;
+    }
+    let mut skipped_inline = 0;
+    for frame in local.ambient_owner_scope_frames() {
+        match frame.kind() {
+            AmbientOwnerScopeKind::InlineCanonicalStatement(_) => skipped_inline += 1,
+            AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::BracedStatementBlockExpression) => {
+                return Some(TypeDeclarationBracedNewlineOwner::BracedStatementSequence);
+            }
+            AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::CatchBracedArmSequence) => {
+                return (skipped_inline > 0).then_some(
+                    TypeDeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement,
+                );
+            }
+            AmbientOwnerScopeKind::RootStatement | AmbientOwnerScopeKind::IndentedStatement => {
+                return None;
+            }
+        }
+    }
+    None
+}
+
+/// The non-ambient terminal alternatives for a complete nominal header.
+fn type_declaration_nominal_terminal_boundary_after_trivia<E>(
+    type_base: usize,
+    has_physical_newline: bool,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    if i.input.remainder().is_empty() {
+        // Empty/same-line terminal trivia and maximal strictly-deeper
+        // trailing trivia both end a nominal declaration at EOF.
+        true
+    } else if matches!(i.input.remainder().chars().next(), Some(';')) {
+        !has_physical_newline
+    } else if has_physical_newline && i.local.line().line_indent <= type_base {
+        true
+    } else {
+        type_declaration_active_fixed_statement_boundary_pending(i)
+    }
+}
+
+/// Active caller punctuation has statement-boundary authority only for this
+/// fixed subset; semicolon remains its own terminal alternative above.
+fn type_declaration_active_fixed_statement_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        let stop = match punctuation.kind() {
+            PunctuationKind::Comma => StopKind::Comma,
+            PunctuationKind::Close(crate::session::Delimiter::Parenthesis) => StopKind::RightParenthesis,
+            PunctuationKind::Close(crate::session::Delimiter::Bracket) => StopKind::RightBracket,
+            PunctuationKind::Close(crate::session::Delimiter::Brace) => StopKind::RightBrace,
+            _ => return false,
+        };
+        i.local.stop_set().is_some_and(|stops| stops.contains(stop))
     });
     i.rollback(checkpoint);
     pending
@@ -9222,8 +9408,9 @@ mod tests {
         SyntaxDiagnostic, SyntaxDiagnosticCause, SyntaxNode,
         input::SourceInput,
         session::{
-            AmbientOwnerScopeFrame, CommitOutput, CommittedRecoveryRecord, ExpectedSyntax,
-            FullCstOutput, HeaderOutput, IfExpressionCompanionId, ParseLocal, Probe, StopSet,
+            AmbientOwnerScopeFrame, BracedBarrierOrigin, CommitOutput, CommittedRecoveryRecord,
+            ExpectedSyntax, ExpressionDelimitedOwner, FullCstOutput, HeaderOutput,
+            IfExpressionCompanionId, InlineStatementOwnerKind, ParseLocal, Probe, StopSet,
             TypeDeclarationRole, if_continuation_owner,
         },
     };
@@ -12649,6 +12836,262 @@ mod tests {
             assert_eq!(local.line(), line_before, "{source:?}");
             assert!(!is_cut, "{source:?}");
         }
+    }
+
+    #[test]
+    fn type_declaration_form_judge_follows_tnd_j_and_restores_every_probe_state() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Copy)]
+        enum Owner {
+            None,
+            BracedStatementSequence,
+            CatchArmThroughInline,
+            CatchWithoutInline,
+            AmbientIf,
+        }
+
+        fn run_complete_header_case(
+            source: &str,
+            owner: Owner,
+            stops: StopSet,
+            expected: TypeDeclarationFormDisposition,
+            expected_braced_owner: Option<TypeDeclarationBracedNewlineOwner>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let baseline = IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            };
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(stops);
+            local.push_delimiter(crate::session::Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+
+            let root = local.push_root_statement_ambient_scope();
+            let mut pushed_scopes = vec![root];
+            let mut companion = None;
+            match owner {
+                Owner::None => {}
+                Owner::BracedStatementSequence => pushed_scopes.push(
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    ),
+                ),
+                Owner::CatchArmThroughInline => {
+                    pushed_scopes.push(local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    ));
+                    pushed_scopes.push(local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    ));
+                }
+                Owner::CatchWithoutInline => pushed_scopes.push(
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    ),
+                ),
+                Owner::AmbientIf => {
+                    companion = Some(local.push_if_expression_companion(0, IF_WORDS));
+                }
+            }
+
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let intro = i
+                    .run(recognize_type_statement_intro)
+                    .expect("the isolated form harness starts at Type");
+                assert!(mod_trivia(intro.type_base, &mut i).is_some(), "{source:?}");
+                let name = Recovered::Complete(
+                    i.run(scan_word)
+                        .expect("the complete-header form fixtures have a name"),
+                );
+                let pos = i.pos();
+                let line = i.local.line();
+                let ambient = i
+                    .local
+                    .ambient_owner_scope_frames()
+                    .copied()
+                    .collect::<Vec<_>>();
+                let companion_depth = i.local.if_expression_companion_depth();
+
+                assert_eq!(
+                    type_declaration_braced_newline_owner(&mut i),
+                    expected_braced_owner,
+                    "{source:?}",
+                );
+                assert_eq!(
+                    classify_type_declaration_form(&name, intro.type_base, &mut i),
+                    expected,
+                    "{source:?}",
+                );
+
+                assert_eq!(i.pos(), pos, "input position: {source:?}");
+                assert_eq!(i.local.line(), line, "line state: {source:?}");
+                assert_eq!(i.local.indentation_baseline(), Some(baseline), "baseline: {source:?}");
+                assert_eq!(i.local.stop_set(), Some(stops), "stop set: {source:?}");
+                assert_eq!(i.local.delimiter(), Some(crate::session::Delimiter::Parenthesis));
+                assert_eq!(i.local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+                assert_eq!(i.local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+                assert!(i.local.inline());
+                assert!(i.local.ml_arg());
+                assert!(i.local.type_ml_arg());
+                assert_eq!(i.local.if_expression_companion_depth(), companion_depth);
+                assert_eq!(
+                    i.local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(),
+                    ambient,
+                    "ambient stack: {source:?}",
+                );
+            }
+            assert!(expectations.take_merged().is_none(), "sink: {source:?}");
+            assert!(!is_cut, "cut state: {source:?}");
+
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                );
+            }
+            while let Some(scope) = pushed_scopes.pop() {
+                assert_eq!(local.pop_ambient_owner_scope(), Some(scope));
+            }
+            assert_eq!(local.pop_type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.pop_expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.pop_delimiter(), Some(crate::session::Delimiter::Parenthesis));
+            assert_eq!(local.pop_stop_set(), Some(stops));
+            assert_eq!(local.pop_indentation_baseline(), Some(baseline));
+        }
+
+        run_complete_header_case(
+            "type Point",
+            Owner::None,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point;",
+            Owner::None,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Id = Int",
+            Owner::None,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Equality,
+            None,
+        );
+        run_complete_header_case(
+            "type Id ('a)",
+            Owner::None,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::EqualityRecovery,
+            None,
+        );
+        run_complete_header_case(
+            "type Point\n  our x = 1",
+            Owner::BracedStatementSequence,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            Some(TypeDeclarationBracedNewlineOwner::BracedStatementSequence),
+        );
+        run_complete_header_case(
+            "type Point\n  B -> fallback",
+            Owner::CatchArmThroughInline,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            Some(TypeDeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement),
+        );
+        run_complete_header_case(
+            "type Point\n  B -> fallback",
+            Owner::CatchWithoutInline,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::EqualityRecovery,
+            None,
+        );
+        for owner in [Owner::None, Owner::BracedStatementSequence] {
+            run_complete_header_case(
+                "type Id =\n   Int",
+                owner,
+                StopSet::default(),
+                TypeDeclarationFormDisposition::Equality,
+                None,
+            );
+        }
+        run_complete_header_case(
+            "type Point, tail",
+            Owner::None,
+            StopSet::default().with(StopKind::Comma),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point]",
+            Owner::None,
+            StopSet::default().with(StopKind::RightBracket),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point)",
+            Owner::None,
+            StopSet::default().with(StopKind::RightParenthesis),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point}",
+            Owner::None,
+            StopSet::default().with(StopKind::RightBrace),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point\n    ",
+            Owner::None,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+        run_complete_header_case(
+            "type Point else: 0",
+            Owner::AmbientIf,
+            StopSet::default(),
+            TypeDeclarationFormDisposition::Nominal,
+            None,
+        );
+
+        // Tier 1 never manufactures nominal authority for an incomplete
+        // header, but retains local exact-equals evidence for TD-R recovery.
+        let mut source_input = SourceInput::new("type = Int");
+        let mut local = ParseLocal::new();
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        {
+            let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let intro = i.run(recognize_type_statement_intro).unwrap();
+            let pos = i.pos();
+            let line = i.local.line();
+            assert_eq!(
+                classify_type_declaration_form(&Recovered::Incomplete, intro.type_base, &mut i),
+                TypeDeclarationFormDisposition::EqualityRecovery,
+            );
+            assert_eq!(i.pos(), pos);
+            assert_eq!(i.local.line(), line);
+        }
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
     }
 
     #[test]
