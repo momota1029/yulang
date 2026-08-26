@@ -1213,7 +1213,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         result
     });
     let Some((leading, colon)) = description else {
-        commit_impl_body_isolated(table, impl_base, committed);
+        commit_impl_body_isolated(table, impl_base, committed, false);
         return;
     };
 
@@ -1232,12 +1232,17 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         .probe(|probe| probe.input().run(scan_trivia))
         .expect("trivia scan is total");
     committed.emit_trivia(&trivia);
-    let _ = commit_required_impl_type_expression_isolated(
+    let description = commit_required_impl_type_expression_isolated(
         ImplTypeExpressionSlot::Description,
         committed,
     );
     committed.finish_node();
-    commit_impl_body_isolated(table, impl_base, committed);
+    commit_impl_body_isolated(
+        table,
+        impl_base,
+        committed,
+        matches!(description, Recovered::Incomplete),
+    );
 }
 
 #[derive(Clone)]
@@ -1251,6 +1256,7 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     impl_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    description_terminated_incomplete: bool,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1279,16 +1285,19 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     });
     let Some((trivia, starter)) = starter else {
         let Some(trivia) = committed.probe(|probe| mod_trivia(impl_base, probe.input())) else {
-            emit_impl_body_introducer_missing(committed);
+            if !description_terminated_incomplete {
+                emit_impl_body_introducer_missing(committed);
+            }
             return;
         };
         committed.emit_trivia(&trivia);
         match impl_body_introducer_error_retry(committed) {
             Some(true) => {
-                commit_impl_body_isolated(table, impl_base, committed);
+                commit_impl_body_isolated(table, impl_base, committed, description_terminated_incomplete);
             }
             Some(false) => {}
-            None => emit_impl_body_introducer_missing(committed),
+            None if !description_terminated_incomplete => emit_impl_body_introducer_missing(committed),
+            None => {}
         }
         return;
     };
@@ -23904,6 +23913,51 @@ mod tests {
                 0..24,
                 "",
                 vec![(RecoveryKind::Error, role(ImplRole::Body), 11..12)],
+            ),
+            (
+                "impl T:",
+                0..7,
+                "",
+                vec![(RecoveryKind::Missing, role(ImplRole::Description), 7..7)],
+            ),
+            (
+                "impl T: @",
+                0..9,
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    8..9,
+                )],
+            ),
+            (
+                "impl T: @;",
+                0..10,
+                "",
+                vec![(
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    8..9,
+                )],
+            ),
+            (
+                "impl T: @D",
+                0..10,
+                "",
+                vec![
+                    (
+                        RecoveryKind::Error,
+                        GrammarRole::Type(crate::session::TypeRole::Primary),
+                        8..9,
+                    ),
+                    (RecoveryKind::Missing, role(ImplRole::BodyIntroducer), 10..10),
+                ],
+            ),
+            (
+                "impl T: D",
+                0..9,
+                "",
+                vec![(RecoveryKind::Missing, role(ImplRole::BodyIntroducer), 9..9)],
             ),
         ] {
             let (ast, ast_remainder) = parse_ast(source);
