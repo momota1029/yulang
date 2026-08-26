@@ -20277,7 +20277,7 @@ same-line / deeper-EOF trailing triviaとphysical newlineのownership、malforme
 
 ## 追補案: canonical `StructDeclaration` / `TypeDeclaration`のshared `derives` clause attachment grammar
 
-Status: Proposal（Claude査読待ち）。
+Status: Authoritative（ユーザ承認済み、2026-08-26）。
 
 Date: 2026-08-26。
 
@@ -21005,12 +21005,12 @@ RoleRefのcomma-vs-ML ambiguity、missing RHS + valid clauseのcardinality、Typ
 future Enum / Error / Act / companion ownerがshared driverをreuseできるか、Gate 7 pre-promotion matrixと
 Gate 8のatomic migration範囲を確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案中、Claude査読・ユーザ承認待ち
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-26、canonical Struct / Type Declarationのshared `derives` clause attachment grammar追補案）。
 
 ## 追補案: canonical `Statement` / root `Declaration`のstandalone `impl` declaration shell grammar
 
-Status: Proposal（Claude査読待ち）。
+Status: Authoritative（ユーザ承認済み、2026-08-26）。
 
 Date: 2026-08-26。
 
@@ -21640,5 +21640,5 @@ Mod ASTを偽装せずcanonical Statement sequenceだけを共有するbody adap
 Gate 7 isolated declaration-state matrixと、Gate 8 same-change内のreal block-driver full matrix / atomic dispatch /
 header-stop範囲を確認対象にする。
 
-著者: Codex gpt-5.6-sol（xhigh）が起案中、Claude査読・ユーザ承認待ち
+著者: Codex gpt-5.6-sol（xhigh）が起案、Claude (Sonnet 5) が査読・確定、ユーザ承認済み
 （2026-08-26、canonical Statement / root Declarationのstandalone `impl` declaration shell grammar追補案）。
