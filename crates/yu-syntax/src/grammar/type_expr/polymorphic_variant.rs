@@ -1284,6 +1284,9 @@ mod tests {
             StopKind::ArmGuardIf => "if",
             StopKind::ArmGuardWhere => "where",
             StopKind::With => "with",
+            StopKind::Derives => "derives",
+            StopKind::Via => "via",
+            StopKind::LeftParenthesis => "(",
         }
     }
 

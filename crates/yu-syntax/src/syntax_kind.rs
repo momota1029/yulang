@@ -29,6 +29,7 @@ pub enum SyntaxKind {
     StructField,
     TypeDeclaration,
     DeclarationTypeParameterList,
+    DerivesClause,
     TestModuleMarker,
     IntegerLiteral,
     IdentifierExpression,
@@ -108,6 +109,8 @@ pub enum SyntaxKind {
     AsKw,
     WithoutKw,
     WithKw,
+    DerivesKw,
+    ViaKw,
     InfixKw,
     MyKw,
     PubKw,
@@ -195,6 +198,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::DeclarationTypeParameterList as u16 => {
                 SyntaxKind::DeclarationTypeParameterList
             }
+            value if value == SyntaxKind::DerivesClause as u16 => SyntaxKind::DerivesClause,
             value if value == SyntaxKind::TestModuleMarker as u16 => SyntaxKind::TestModuleMarker,
             value if value == SyntaxKind::IntegerLiteral as u16 => SyntaxKind::IntegerLiteral,
             value if value == SyntaxKind::IdentifierExpression as u16 => {
@@ -286,6 +290,8 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::AsKw as u16 => SyntaxKind::AsKw,
             value if value == SyntaxKind::WithoutKw as u16 => SyntaxKind::WithoutKw,
             value if value == SyntaxKind::WithKw as u16 => SyntaxKind::WithKw,
+            value if value == SyntaxKind::DerivesKw as u16 => SyntaxKind::DerivesKw,
+            value if value == SyntaxKind::ViaKw as u16 => SyntaxKind::ViaKw,
             value if value == SyntaxKind::InfixKw as u16 => SyntaxKind::InfixKw,
             value if value == SyntaxKind::MyKw as u16 => SyntaxKind::MyKw,
             value if value == SyntaxKind::PubKw as u16 => SyntaxKind::PubKw,

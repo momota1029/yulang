@@ -1263,6 +1263,7 @@ where
             .map_or(Visibility::Private, |prefix| prefix.visibility),
         name: shared.name,
         parameters: shared.parameters,
+        derives: Vec::new(),
         form,
         range,
     })
@@ -6102,6 +6103,7 @@ pub(crate) enum ModColonBody<'source> {
 pub(crate) struct StructDeclaration<'source> {
     visibility: Visibility,
     name: Recovered<WordSpan<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
     body: Recovered<StructBody<'source>>,
     range: Range<usize>,
 }
@@ -6119,6 +6121,7 @@ pub(crate) struct TypeDeclaration<'source> {
     visibility: Visibility,
     name: Recovered<WordSpan<'source>>,
     parameters: Vec<DeclarationTypeParameter<'source>>,
+    derives: Vec<DerivesAttachment<'source>>,
     form: Recovered<TypeDeclarationForm<'source>>,
     range: Range<usize>,
 }
@@ -6142,6 +6145,34 @@ pub(crate) enum TypeDeclarationForm<'source> {
 pub(crate) enum DeclarationTypeParameter<'source> {
     Identifier(WordSpan<'source>),
     SigilIdentifier(WordSpan<'source>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DerivesAttachment<'source> {
+    position: DerivesAttachmentPosition,
+    clause: DerivesClause<'source>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DerivesClause<'source> {
+    keyword: Range<usize>,
+    roles: Vec<Recovered<Box<TypeExpression<'source>>>>,
+    via: Option<DerivesVia<'source>>,
+    range: Range<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DerivesVia<'source> {
+    keyword: Range<usize>,
+    target: Recovered<WordSpan<'source>>,
+    range: Range<usize>,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum DerivesAttachmentPosition {
+    Header,
+    Trailing,
 }
 
 #[allow(dead_code)]
@@ -6718,6 +6749,7 @@ where
     Some(StructDeclaration {
         visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
         name,
+        derives: Vec::new(),
         body,
         range: intro.start..end,
     })

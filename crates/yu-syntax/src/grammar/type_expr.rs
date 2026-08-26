@@ -5484,6 +5484,9 @@ where
         StopKind::ArmGuardIf => i.run(scan_word).is_some_and(|word| word.text() == "if"),
         StopKind::ArmGuardWhere => i.run(scan_word).is_some_and(|word| word.text() == "where"),
         StopKind::With => i.run(scan_word).is_some_and(|word| word.text() == "with"),
+        StopKind::Derives => i.run(scan_word).is_some_and(|word| word.text() == "derives"),
+        StopKind::Via => i.run(scan_word).is_some_and(|word| word.text() == "via"),
+        StopKind::LeftParenthesis => scan_open_parenthesis(i).is_some(),
     };
     i.rollback(checkpoint);
     pending

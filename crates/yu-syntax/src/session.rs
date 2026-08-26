@@ -858,21 +858,21 @@ pub(crate) enum IndentationBaselineKind {
 
 /// Compact grammar stops that can be suspended by pushing another frame.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub(crate) struct StopSet(u16);
+pub(crate) struct StopSet(u32);
 
 impl StopSet {
     pub(crate) fn with(mut self, stop: StopKind) -> Self {
-        self.0 |= 1 << (stop as u8);
+        self.0 |= 1u32 << (stop as u8);
         self
     }
 
     pub(crate) fn without(mut self, stop: StopKind) -> Self {
-        self.0 &= !(1 << (stop as u8));
+        self.0 &= !(1u32 << (stop as u8));
         self
     }
 
     pub(crate) fn contains(self, stop: StopKind) -> bool {
-        self.0 & (1 << (stop as u8)) != 0
+        self.0 & (1u32 << (stop as u8)) != 0
     }
 
     pub(crate) fn difference(self, other: Self) -> Self {
@@ -928,6 +928,9 @@ define_stop_kinds!(
     ArmGuardIf,
     ArmGuardWhere,
     With,
+    Derives,
+    Via,
+    LeftParenthesis,
 );
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1085,6 +1088,7 @@ pub(crate) enum DeclarationRole {
     Mod(ModRole),
     Struct(StructRole),
     Type(TypeDeclarationRole),
+    Derives(DerivesRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1153,6 +1157,12 @@ pub(crate) enum TypeDeclarationRole {
     Name,
     DefinitionIntroducer,
     Rhs,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum DerivesRole {
+    RoleReference,
+    ViaTarget,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1912,6 +1922,49 @@ mod tests {
         assert!(full_mode.syntax_environment().is_some());
         assert!(full_mode.operators().is_some());
         assert!(full_mode.header_info().is_some());
+    }
+
+    #[test]
+    fn stop_set_widening_preserves_existing_bits_and_appends_derives_vocabulary() {
+        let expected = [
+            StopKind::Newline,
+            StopKind::Comma,
+            StopKind::Semicolon,
+            StopKind::Colon,
+            StopKind::LeftBrace,
+            StopKind::Elsif,
+            StopKind::Else,
+            StopKind::RightParenthesis,
+            StopKind::RightBracket,
+            StopKind::RightBrace,
+            StopKind::Equal,
+            StopKind::Arrow,
+            StopKind::ArmGuardIf,
+            StopKind::ArmGuardWhere,
+            StopKind::With,
+            StopKind::Derives,
+            StopKind::Via,
+            StopKind::LeftParenthesis,
+        ];
+        assert_eq!(StopKind::ALL, expected.as_slice());
+        for (bit, stop) in StopKind::ALL.iter().copied().enumerate() {
+            assert_eq!(stop as u8, bit as u8);
+            let singleton = StopSet::default().with(stop);
+            assert!(singleton.contains(stop));
+            assert_eq!(singleton.without(stop), StopSet::default());
+        }
+
+        let existing = StopSet::default().with(StopKind::Newline).with(StopKind::With);
+        assert_eq!(existing.0, (1u32 << 0) | (1u32 << 14));
+        let extended = existing
+            .with(StopKind::Derives)
+            .with(StopKind::Via)
+            .with(StopKind::LeftParenthesis);
+        assert_eq!(extended.0, (1u32 << 0) | (1u32 << 14) | (1u32 << 15) | (1u32 << 16) | (1u32 << 17));
+        assert_eq!(extended.difference(existing), StopSet::default()
+            .with(StopKind::Derives)
+            .with(StopKind::Via)
+            .with(StopKind::LeftParenthesis));
     }
 
     #[test]
