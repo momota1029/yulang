@@ -3334,6 +3334,118 @@ where
     Recovered::Complete(())
 }
 
+/// Isolated direct-CST counterpart of
+/// [`parse_struct_declaration_with_derives_isolated`].  It is deliberately
+/// not called by the public Struct continuation before Gate 8.
+fn commit_struct_declaration_with_derives_isolated<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    intro: StructStatementIntro<'source>,
+) -> (Recovered<()>, Vec<DirectDerivesAttachment>)
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    committed.start_node(SyntaxKind::StructDeclaration);
+    if let Some(visibility) = &intro.visibility {
+        emit_visibility(committed, visibility);
+        if let Some(trivia) = &intro.after_visibility {
+            committed.emit_trivia(trivia);
+        }
+    }
+    committed.token(SyntaxKind::StructKw, intro.struct_keyword.range());
+    if let Some(trivia) = committed.probe(|probe| {
+        struct_continuation_trivia(intro.struct_base, probe.input())
+    }) {
+        committed.emit_trivia(&trivia);
+    }
+
+    let mut name_incomplete = false;
+    if let Some(name) = commit_word(committed) {
+        committed.token(SyntaxKind::Identifier, name.range());
+    } else {
+        let recovery = struct_name_error_retry(committed);
+        match recovery {
+            Some(true) => {
+                let name = commit_word(committed)
+                    .expect("a Struct name retry must leave its raw word at the cursor");
+                committed.token(SyntaxKind::Identifier, name.range());
+            }
+            Some(false) => {
+                name_incomplete = true;
+            }
+            None => {
+                name_incomplete = true;
+                emit_struct_missing(committed, crate::session::StructRole::Name, ExpectedSyntax::Identifier);
+            }
+        }
+    }
+
+    let mut derives = if !name_incomplete {
+        committed
+            .probe(|probe| {
+                recognize_derives_attachment_start(
+                    DerivesAttachmentOwner::Struct,
+                    DerivesAttachmentPosition::Header,
+                    intro.struct_base,
+                    probe.input(),
+                )
+            })
+            .map(|start| commit_derives_attachments_isolated(start, committed))
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let body_starter_pending = committed.probe(|probe| struct_body_starter_pending(probe.input()));
+    let mut body_starter = None;
+    if !name_incomplete || body_starter_pending {
+        if let Some(trivia) = committed.probe(|probe| {
+            struct_continuation_trivia(intro.struct_base, probe.input())
+        }) {
+            committed.emit_trivia(&trivia);
+        }
+        body_starter = committed.probe(|probe| struct_body_starter(probe.input()));
+        commit_struct_body_introducer(intro.struct_base, committed);
+    }
+    if committed_struct_body_has_actual_trailing_close(committed, body_starter) {
+        if let Some(start) = committed.probe(|probe| {
+            recognize_derives_attachment_start(
+                DerivesAttachmentOwner::Struct,
+                DerivesAttachmentPosition::Trailing,
+                intro.struct_base,
+                probe.input(),
+            )
+        }) {
+            derives.extend(commit_derives_attachments_isolated(start, committed));
+        }
+    }
+    committed.finish_node();
+    (Recovered::Complete(()), derives)
+}
+
+fn committed_struct_body_has_actual_trailing_close<'parse, 'source, 'local, E, O>(
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    starter: Option<StructBodyStarter>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+{
+    committed.probe(|probe| {
+        let i = probe.input();
+        let expected_close = match starter {
+            Some(StructBodyStarter::NamedBraced(_)) => b'}',
+            Some(StructBodyStarter::Tuple(_)) => b')',
+            Some(StructBodyStarter::Bodyless(_) | StructBodyStarter::NamedIndented(_)) | None => {
+                return false;
+            }
+        };
+        i.pos() > 0 && i.input.source().as_bytes().get(i.pos() - 1) == Some(&expected_close)
+    })
+}
+
 fn commit_struct_body_introducer<'parse, 'source, 'local, E, O>(
     struct_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
@@ -7627,6 +7739,99 @@ where
         body,
         range: intro.start..end,
     })
+}
+
+/// Gate-6 isolated promotion candidate for Struct derives attachments.  The
+/// public Struct continuation remains derives-unaware until the later atomic
+/// dispatch switch; this sibling shares its name/body machinery verbatim.
+fn parse_struct_declaration_with_derives_isolated<'source, E>(
+    mut i: SynIn<'_, 'source, '_, E>,
+) -> Option<StructDeclaration<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let intro = i.run(recognize_struct_statement_intro)?;
+    let _ = struct_continuation_trivia(intro.struct_base, &mut i);
+    let mut name_incomplete = false;
+    let name = if let Some(name) = i.run(scan_word) {
+        Recovered::Complete(name)
+    } else {
+        match struct_name_error_retry_ast(&mut i) {
+            Some(true) => Recovered::Complete(
+                i.run(scan_word)
+                    .expect("a Struct name retry must leave its raw word at the cursor"),
+            ),
+            Some(false) | None => {
+                name_incomplete = true;
+                Recovered::Incomplete
+            }
+        }
+    };
+
+    let mut derives = if matches!(name, Recovered::Complete(_)) {
+        recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+            intro.struct_base,
+            &mut i,
+        )
+        .map(|start| parse_derives_attachments_isolated(start, &mut i))
+        .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let body_starter_pending = struct_body_starter_pending(&mut i);
+    let body = if !name_incomplete || body_starter_pending {
+        let _ = struct_continuation_trivia(intro.struct_base, &mut i);
+        parse_struct_body_ast(intro.struct_base, &mut i).map_or(Recovered::Incomplete, Recovered::Complete)
+    } else {
+        Recovered::Incomplete
+    };
+    if struct_body_has_actual_trailing_close(&body) {
+        if let Some(start) = recognize_derives_attachment_start(
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Trailing,
+            intro.struct_base,
+            &mut i,
+        ) {
+            derives.extend(parse_derives_attachments_isolated(start, &mut i));
+        }
+    }
+
+    let body_end = match &body {
+        Recovered::Complete(StructBody::Bodyless { semicolon }) => semicolon.end,
+        Recovered::Complete(StructBody::NamedBraced(body)) => body.range.end,
+        Recovered::Complete(StructBody::NamedIndented(body)) => body.range.end,
+        Recovered::Complete(StructBody::Tuple(body)) => body.range.end,
+        Recovered::Incomplete => match &name {
+            Recovered::Complete(name) => name.range().end,
+            Recovered::Incomplete => intro.struct_keyword.range().end,
+        },
+    };
+    let derives_end = derives.last().map_or(0, |attachment| attachment.clause.range.end);
+    Some(StructDeclaration {
+        visibility: intro.visibility.map_or(Visibility::Private, |prefix| prefix.visibility),
+        name,
+        derives,
+        body,
+        range: intro.start..body_end.max(derives_end),
+    })
+}
+
+fn struct_body_has_actual_trailing_close(body: &Recovered<StructBody<'_>>) -> bool {
+    matches!(
+        body,
+        Recovered::Complete(StructBody::NamedBraced(StructNamedBracedBody {
+            close: Recovered::Complete(_),
+            ..
+        })) | Recovered::Complete(StructBody::Tuple(StructTupleBody {
+            close: Recovered::Complete(_),
+            ..
+        }))
+    )
 }
 
 fn parse_struct_body_ast<'source, E>(
@@ -15272,6 +15477,219 @@ mod tests {
             1,
             "one exact derives keyword = one DerivesClause node",
         );
+    }
+
+    #[test]
+    fn isolated_struct_derives_adapter_keeps_header_body_and_trailing_authority_separate() {
+        type Records = Vec<(RecoveryKind, GrammarRole, Range<usize>)>;
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            with_if_companion: bool,
+        ) -> (StructDeclaration<'source>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = with_if_companion.then(|| local.push_root_statement_ambient_scope());
+            let companion = with_if_companion.then(|| {
+                local.push_if_expression_companion(0, &["elsif", "else"])
+            });
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                parse_struct_declaration_with_derives_isolated(i)
+                    .expect("the isolated fixture starts with Struct")
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "AST episode: {source:?}");
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                    "AST companion: {source:?}",
+                );
+            }
+            if let Some(root_scope) = root_scope {
+                assert_eq!(
+                    local.pop_ambient_owner_scope(),
+                    Some(root_scope),
+                    "AST ambient scope: {source:?}",
+                );
+            }
+            (declaration, source_input.remainder().to_owned())
+        }
+
+        fn parse_direct(
+            source: &str,
+            with_if_companion: bool,
+        ) -> (Vec<DirectDerivesAttachment>, Records, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let root_scope = with_if_companion.then(|| local.push_root_statement_ambient_scope());
+            let companion = with_if_companion.then(|| {
+                local.push_if_expression_companion(0, &["elsif", "else"])
+            });
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            let intro = probe
+                .input()
+                .run(recognize_struct_statement_intro)
+                .expect("the isolated fixture starts with Struct");
+            let mut committed = probe.commit(HeaderOutput::new());
+            let (_, attachments) = commit_struct_declaration_with_derives_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let output = committed.into_output();
+            let records = output
+                .committed_recoveries()
+                .iter()
+                .map(|record| (record.kind, record.site.role, record.site.range.clone()))
+                .collect();
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "direct episode: {source:?}");
+            if let Some(companion) = companion {
+                assert_eq!(
+                    local.pop_if_expression_companion().map(|frame| frame.id()),
+                    Some(companion),
+                    "direct companion: {source:?}",
+                );
+            }
+            if let Some(root_scope) = root_scope {
+                assert_eq!(
+                    local.pop_ambient_owner_scope(),
+                    Some(root_scope),
+                    "direct ambient scope: {source:?}",
+                );
+            }
+            (attachments, records, remainder)
+        }
+
+        fn assert_parity(ast: &StructDeclaration<'_>, direct: &[DirectDerivesAttachment]) {
+            assert_eq!(ast.derives.len(), direct.len());
+            for (ast, direct) in ast.derives.iter().zip(direct) {
+                assert_eq!(ast.position, direct.position);
+                assert_eq!(ast.clause.keyword, direct.clause.keyword);
+                assert_eq!(ast.clause.range, direct.clause.range);
+                assert_eq!(ast.clause.roles.len(), direct.clause.roles.len());
+                for (ast_role, direct_role) in ast.clause.roles.iter().zip(&direct.clause.roles) {
+                    match (ast_role, direct_role) {
+                        (Recovered::Complete(ast_role), Recovered::Complete(direct_range)) => {
+                            assert_eq!(ast_role.range(), *direct_range)
+                        }
+                        (Recovered::Incomplete, Recovered::Incomplete) => {}
+                        _ => panic!("AST/direct derives RoleReference shape differs"),
+                    }
+                }
+            }
+        }
+
+        fn run_in_context<'source>(
+            source: &'source str,
+            expected_remainder: &str,
+            with_if_companion: bool,
+        ) -> (StructDeclaration<'source>, Records) {
+            let (ast, ast_remainder) = parse_ast(source, with_if_companion);
+            let (direct, records, direct_remainder) = parse_direct(source, with_if_companion);
+            assert_eq!(
+                ast.derives.len(),
+                direct.len(),
+                "derives parity source: {source:?}",
+            );
+            assert_parity(&ast, &direct);
+            assert_eq!(ast_remainder, expected_remainder, "AST remainder: {source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "direct remainder: {source:?}");
+            (ast, records)
+        }
+
+        fn run<'source>(
+            source: &'source str,
+            expected_remainder: &str,
+        ) -> (StructDeclaration<'source>, Records) {
+            run_in_context(source, expected_remainder, false)
+        }
+
+        let (bodyless, records) = run("struct S derives Eq;", "");
+        assert!(records.is_empty());
+        assert_eq!(bodyless.derives.len(), 1);
+        assert!(matches!(bodyless.body, Recovered::Complete(StructBody::Bodyless { .. })));
+
+        let (braced, records) = run("struct S derives Eq { x: Int }", "");
+        assert!(records.is_empty());
+        assert_eq!(braced.derives.len(), 1);
+        assert!(matches!(braced.body, Recovered::Complete(StructBody::NamedBraced(_))));
+
+        for source in [
+            "struct S derives Eq(Int)",
+            "struct S derives Eq (Int)",
+            "struct S derives (Eq(Int)) (Field)",
+        ] {
+            let (tuple, records) = run(source, "");
+            assert!(records.is_empty(), "{source:?}");
+            assert_eq!(tuple.derives.len(), 1, "{source:?}");
+            assert!(matches!(tuple.body, Recovered::Complete(StructBody::Tuple(_))), "{source:?}");
+        }
+
+        let (indented, records) = run("struct S derives Eq:\n  x: Int", "");
+        assert!(records.is_empty());
+        assert_eq!(indented.derives.len(), 1);
+        assert!(matches!(indented.body, Recovered::Complete(StructBody::NamedIndented(_))));
+
+        let (header_recovery, records) = run("struct S derives @ { x: Int }", "");
+        assert_eq!(header_recovery.derives.len(), 1);
+        assert!(matches!(header_recovery.derives[0].clause.roles.as_slice(), [Recovered::Incomplete]));
+        assert!(matches!(header_recovery.body, Recovered::Complete(StructBody::NamedBraced(_))));
+        assert_eq!(
+            records,
+            vec![(
+                RecoveryKind::Error,
+                GrammarRole::Type(crate::session::TypeRole::Primary),
+                17..18,
+            )],
+        );
+
+        let (trailing_brace, records) = run("struct S { x: Int } derives Eq;", ";");
+        assert!(records.is_empty());
+        assert!(matches!(trailing_brace.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+
+        let (trailing_tuple, records) = run("struct S(Int) derives Eq\nnext", "\nnext");
+        assert!(records.is_empty());
+        assert!(matches!(trailing_tuple.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+
+        let (trailing_ambient, records) = run_in_context(
+            "struct S { x: Int } derives Eq else: fallback",
+            " else: fallback",
+            true,
+        );
+        assert!(records.is_empty());
+        assert!(matches!(trailing_ambient.derives.as_slice(), [DerivesAttachment { position: DerivesAttachmentPosition::Trailing, .. }]));
+
+        let (missing_close, records) = run("struct S { x: Int derives Eq", "");
+        assert!(records.iter().any(|(kind, role, _)| *kind == RecoveryKind::Missing
+            && matches!(role, GrammarRole::ClosingDelimiter { .. })));
+        assert!(missing_close.derives.is_empty(), "missing close grants no trailing authority");
+
+        let (mismatched_close, records) = run("struct S(Int] derives Eq", "");
+        assert!(records.iter().any(|(kind, role, _)| *kind == RecoveryKind::Error
+            && matches!(role, GrammarRole::ClosingDelimiter { .. })));
+        assert!(mismatched_close.derives.is_empty(), "mismatched close grants no trailing authority");
+
+        let (field_named_derives, records) = run("struct S { derives: Int }", "");
+        assert!(records.is_empty());
+        assert!(field_named_derives.derives.is_empty());
+        assert!(matches!(field_named_derives.body, Recovered::Complete(StructBody::NamedBraced(_))));
     }
 
     #[test]
