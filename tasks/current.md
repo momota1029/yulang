@@ -1,6 +1,6 @@
 # 現在のタスク: yu-syntax parser構築の継続とgrammar/CST正規化サイトの起票
 
-更新: 2026-08-24
+更新: 2026-08-27
 
 このファイルは、着手中または直ちに着手できる作業だけを置く。完了履歴はGit、設計判断は
 `notes/design/`が正本。yulang3branchでは`tasks/`・`notes/progress/`を一旦削除してまっさらに
@@ -28,28 +28,36 @@
   `/home/momota1029/.claude/projects/-home-momota1029-rust-yulang/memory/feedback-two-level-judge-needs-shared-driver.md`
   に記録済み(二層judgeはAST/direct-CST両pathを別々に手書きせず、最初から共有driver+薄い
   adapterで書く)。
+- `StructDeclaration`/`TypeDeclaration`共有の`derives`clause attachment文法(DRV-G/J/T/R、
+  9 gate)がAuthoritative設計どおり実装・push済み。Gate 1a(neutral TypeExpression episode
+  infrastructure)は後続addendumからも再利用可能な形で切り出した。Gate 8(実dispatch
+  promotion)でCatch-inline文脈のambient newline所有権バグを発見・修正。
+- standalone `impl`宣言shell文法(IMD-G/J/T/R、9 gate)がAuthoritative設計どおり実装・
+  push済み。derivesのGate 1aに依存。Gate 6(recovery matrix)で4件、Gate 7
+  (state-restoration matrix)で2件、実バグを発見・修正(いずれもisolated adapter局所、
+  共有TypeExpression episode機構自体は無傷)。Type-attached `impl`・`with:` companion・
+  Type colon/brace role-like body・Impl-specific `via`は別addendumへ明示的にdefer。
 
-## 既知の未修正バグ(2026-08-24発見、今回のpositional fence作業とは無関係)
+## 既知の未修正バグ
 
-`crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs`の`classify_tag_boundary`が、
-壊れたバイトが一切ない正当な複数tag多相variant型本体(例: `:{\n  A Pair(Int);\n  B\n}`)を、
-active `StopKind::Newline`下でparseすると、1つ目のtagで止まってしまう
-(`active_stop_set(i).contains(StopKind::Newline)`を無条件にownerへのyield理由として扱ってる)。
-
-positional fence機構のGate 10 false-positive fixture作成中に発覚。commit `a0365f98`
-(fence作業着手前)の時点で同一コードが既に存在してたと確認済みで、fenceとは無関係な既存バグ。
-未着手、優先順位未確定。
+なし。旧「多相variant複数tag+active newline境界バグ」(`classify_tag_boundary`が
+`active_stop_set(i).contains(StopKind::Newline)`を無条件にownerへのyield理由として
+扱ってた件)は、commit `f4332308`(2026-08-26)で修正・回帰test
+(`qualifying_tag_newline_remains_local_under_an_active_newline_stop`)化済み。
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
 1. **standalone `TypeExpression`の各use-site配線(残り)**: struct field・cast宣言・role
    signature・where節・act signature等。pattern型注釈は完了、残りが本体作業。
-2. **canonical Statement / root Declarationの残りvariant**: `type`/`struct`/`enum`/
-   `error`/`role`/`impl`/`cast`/`act`/`for`文/演算子定義/`where`/doc-comment宣言。
-   `mod`宣言完了時点の調査で、`mod`と`for`以外は全部standalone TypeExpression待ちで
-   blockedと判明済み——1が先に進めば大半が着手可能になる。
+2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/`role`/
+   `cast`/`act`/`for`文/演算子定義/`where`/doc-comment宣言。`type`/`struct`/`mod`/`impl`
+   (shellのみ)は完了。derivesとimplのshellが着地した今、role/impl/enum系のownerが
+   derives clauseやimpl本体の共有driverをどこまで再利用できるか、着手前に要調査。
 3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
-4. **polymorphic variant複数tag+active newline境界バグ**(上記参照)。
+4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
+   Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
+   Type colon/brace role-like body。正本はどれも「別addendumへ」としか書いておらず、
+   相対的な実装順序は未決定。
 
 ## TODO: 文法・CSTをエラー含めて完全に規格化するサイトを作る
 
