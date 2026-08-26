@@ -26,7 +26,8 @@ use crate::{
             parse_pattern_with_outer_missing_role},
         type_expr::{
             TypeExpression, commit_direct_type_expression_with_outer_missing_role,
-            parse_required_type_expression_with_outer_missing_role, parse_type_expression,
+            parse_required_type_expression_with_outer_missing_role,
+            parse_type_expression, type_stop_is_active_in_current_episode,
         },
     },
     input::SourceInput,
@@ -41,12 +42,14 @@ use crate::{
     session::{
         AmbientOwnerScopeKind, BindingRole, BracedBarrierOrigin, CommitOutput, Committed,
         CommittedRecoveryRecord, ConstructRole,
-        DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, FullCstOutput, GrammarRole,
+        DeclarationRole, Delimiter, DerivesRole, ExpectationSources, ExpectedSyntax,
+        FullCstOutput, GrammarRole,
         ImportRole, IndentationBaseline, IndentationBaselineKind, LayoutDelimitedBoundary,
         LayoutDelimitedFrame, LayoutRole, OperatorHeaderRole, Probe, RecoveryKind, RecoverySiteKey,
         ModRole, ParseLocal, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole,
-        StopKind, SynIn,
-        SyntaxExpectation, TypeDelimitedOwner, UnexpectedSyntax, any_ambient_owner_claims,
+        StopKind, StopSet, SynIn, SyntaxExpectation, TypeDelimitedOwner,
+        TypeExpressionEpisodePolicy, TypeExpressionScopedStopFrame, UnexpectedSyntax,
+        any_ambient_owner_claims,
     },
     syntax_kind::SyntaxKind,
 };
@@ -1777,6 +1780,313 @@ where
     pending
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DerivesAttachmentOwner {
+    Struct,
+    Type,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DerivesAttachmentStart {
+    owner: DerivesAttachmentOwner,
+    position: DerivesAttachmentPosition,
+    keyword: Range<usize>,
+    owner_base: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DerivesOwnerTailClassifier {
+    StructHeader,
+    StructTrailing,
+    TypeHeader,
+    TypeTrailing,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DerivesOwnerTail {
+    StructBodyStarter,
+    TypeDefinitionIntroducer,
+    CallerBoundary,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DerivesDriverSpec {
+    owner: DerivesAttachmentOwner,
+    position: DerivesAttachmentPosition,
+    owner_base: usize,
+    owner_tail_classifier: DerivesOwnerTailClassifier,
+    outer_role: GrammarRole,
+}
+
+impl DerivesDriverSpec {
+    fn new(
+        owner: DerivesAttachmentOwner,
+        position: DerivesAttachmentPosition,
+        owner_base: usize,
+    ) -> Self {
+        let owner_tail_classifier = match (owner, position) {
+            (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Header) => {
+                DerivesOwnerTailClassifier::StructHeader
+            }
+            (DerivesAttachmentOwner::Struct, DerivesAttachmentPosition::Trailing) => {
+                DerivesOwnerTailClassifier::StructTrailing
+            }
+            (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Header) => {
+                DerivesOwnerTailClassifier::TypeHeader
+            }
+            (DerivesAttachmentOwner::Type, DerivesAttachmentPosition::Trailing) => {
+                DerivesOwnerTailClassifier::TypeTrailing
+            }
+        };
+        Self {
+            owner,
+            position,
+            owner_base,
+            owner_tail_classifier,
+            outer_role: GrammarRole::Declaration(DeclarationRole::Derives(
+                DerivesRole::RoleReference,
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DerivesDriverDecision {
+    Comma { leading: Range<usize>, comma: Range<usize> },
+    Via { leading: Range<usize>, keyword: Range<usize> },
+    RepeatedClause { leading: Range<usize>, start: DerivesAttachmentStart },
+    OwnerTail(DerivesOwnerTail),
+    Boundary,
+    NoContinuation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DerivesRoleEpisodeSpec {
+    stops: StopSet,
+    scoped_frame: TypeExpressionScopedStopFrame,
+    policy: TypeExpressionEpisodePolicy,
+    outer_role: GrammarRole,
+}
+
+/// Sink-free attachment authority at an owner-opened Struct/Type attachment
+/// point. The original gap and following maximal word are always rolled back.
+fn recognize_derives_attachment_start<'source, E>(
+    owner: DerivesAttachmentOwner,
+    position: DerivesAttachmentPosition,
+    owner_base: usize,
+    i: &mut SynIn<'_, 'source, '_, E>,
+) -> Option<DerivesAttachmentStart>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let result = (|| {
+        if any_ambient_owner_claims(i) {
+            return None;
+        }
+        let trivia = i
+            .run(scan_trivia)
+            .expect("the derives attachment gap trivia scan is total");
+        let has_physical_newline = struct_trivia_has_newline(&trivia);
+        if derives_gap_is_caller_owned(owner_base, has_physical_newline, i) {
+            return None;
+        }
+        let spec = DerivesDriverSpec::new(owner, position, owner_base);
+        if classify_derives_owner_tail(spec.owner_tail_classifier, i).is_some() {
+            return None;
+        }
+        let keyword = i.run(scan_word)?;
+        (keyword.text() == "derives").then(|| DerivesAttachmentStart {
+            owner,
+            position,
+            keyword: keyword.range(),
+            owner_base,
+        })
+    })();
+    i.rollback(checkpoint);
+    result
+}
+
+/// One sink-free clause-tail decision shared by the future AST and direct-CST
+/// adapters. Local comma/contextual continuations precede owner-tail handoff.
+fn drive_derives_clauses<E>(
+    spec: DerivesDriverSpec,
+    i: &mut SynIn<E>,
+) -> DerivesDriverDecision
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let decision = if any_ambient_owner_claims(i) {
+        DerivesDriverDecision::Boundary
+    } else {
+        let trivia = i
+            .run(scan_trivia)
+            .expect("the derives clause gap trivia scan is total");
+        let leading = trivia.range();
+        let has_physical_newline = struct_trivia_has_newline(&trivia);
+        if derives_gap_is_caller_owned(spec.owner_base, has_physical_newline, i) {
+            DerivesDriverDecision::Boundary
+        } else if i.input.remainder().is_empty() {
+            DerivesDriverDecision::Boundary
+        } else if let Some(comma) = scan_derives_comma(i) {
+            DerivesDriverDecision::Comma { leading, comma }
+        } else if let Some(word) = i.run(scan_word) {
+            match word.text() {
+                "via" => DerivesDriverDecision::Via {
+                    leading,
+                    keyword: word.range(),
+                },
+                "derives" => DerivesDriverDecision::RepeatedClause {
+                    leading,
+                    start: DerivesAttachmentStart {
+                        owner: spec.owner,
+                        position: spec.position,
+                        keyword: word.range(),
+                        owner_base: spec.owner_base,
+                    },
+                },
+                _ => DerivesDriverDecision::NoContinuation,
+            }
+        } else if let Some(tail) = classify_derives_owner_tail(spec.owner_tail_classifier, i) {
+            DerivesDriverDecision::OwnerTail(tail)
+        } else {
+            DerivesDriverDecision::NoContinuation
+        }
+    };
+    i.rollback(checkpoint);
+    decision
+}
+
+fn derives_role_episode_spec(
+    spec: DerivesDriverSpec,
+    incoming: StopSet,
+    current_episode_depth: usize,
+) -> DerivesRoleEpisodeSpec {
+    let mut stops = incoming
+        .with(StopKind::Comma)
+        .with(StopKind::Derives)
+        .with(StopKind::Via);
+    let mut scoped_stops = StopSet::default()
+        .with(StopKind::Derives)
+        .with(StopKind::Via);
+    let mut policy = TypeExpressionEpisodePolicy::default();
+    if spec.owner_tail_classifier == DerivesOwnerTailClassifier::StructHeader {
+        for stop in [
+            StopKind::LeftBrace,
+            StopKind::LeftParenthesis,
+            StopKind::Colon,
+            StopKind::Semicolon,
+        ] {
+            stops = stops.with(stop);
+            scoped_stops = scoped_stops.with(stop);
+        }
+        policy.fresh_primary_locally_owned_stops =
+            StopSet::default().with(StopKind::LeftParenthesis);
+    } else if spec.owner_tail_classifier == DerivesOwnerTailClassifier::TypeHeader {
+        stops = stops.with(StopKind::Equal);
+    }
+    DerivesRoleEpisodeSpec {
+        stops,
+        scoped_frame: TypeExpressionScopedStopFrame {
+            stops: scoped_stops,
+            visible_episode_depth: current_episode_depth + 1,
+        },
+        policy,
+        outer_role: spec.outer_role,
+    }
+}
+
+fn derives_gap_is_caller_owned<E>(
+    owner_base: usize,
+    has_physical_newline: bool,
+    i: &mut SynIn<E>,
+) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    has_physical_newline
+        && (i.local.line().line_indent <= owner_base
+            || type_stop_is_active_in_current_episode(i, StopKind::Newline)
+            || declaration_braced_newline_owner_from_stack(true, i.local).is_some())
+}
+
+fn derives_active_fixed_boundary_pending<E>(i: &mut SynIn<E>) -> bool
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let pending = i.run(scan_punctuation).is_some_and(|punctuation| {
+        let stop = match punctuation.kind() {
+            PunctuationKind::Comma => StopKind::Comma,
+            PunctuationKind::Semicolon => StopKind::Semicolon,
+            PunctuationKind::Close(Delimiter::Parenthesis) => StopKind::RightParenthesis,
+            PunctuationKind::Close(Delimiter::Bracket) => StopKind::RightBracket,
+            PunctuationKind::Close(Delimiter::Brace) => StopKind::RightBrace,
+            _ => return false,
+        };
+        type_stop_is_active_in_current_episode(i, stop)
+    });
+    i.rollback(checkpoint);
+    pending
+}
+
+fn classify_derives_owner_tail<E>(
+    classifier: DerivesOwnerTailClassifier,
+    i: &mut SynIn<E>,
+) -> Option<DerivesOwnerTail>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let owner_tail = match classifier {
+        DerivesOwnerTailClassifier::TypeHeader if declaration_exact_equals_pending(i) => {
+            Some(DerivesOwnerTail::TypeDefinitionIntroducer)
+        }
+        DerivesOwnerTailClassifier::StructHeader => i.run(scan_punctuation).and_then(|punctuation| {
+            matches!(
+                punctuation.kind(),
+                PunctuationKind::Open(Delimiter::Brace)
+                    | PunctuationKind::Open(Delimiter::Parenthesis)
+                    | PunctuationKind::Colon
+                    | PunctuationKind::Semicolon
+            )
+            .then_some(DerivesOwnerTail::StructBodyStarter)
+        }),
+        _ => None,
+    };
+    i.rollback(checkpoint);
+    owner_tail.or_else(|| {
+        derives_active_fixed_boundary_pending(i).then_some(DerivesOwnerTail::CallerBoundary)
+    })
+}
+
+fn scan_derives_comma<E>(i: &mut SynIn<E>) -> Option<Range<usize>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    let checkpoint = i.checkpoint();
+    let comma = i.run(scan_punctuation).and_then(|punctuation| {
+        (punctuation.kind() == PunctuationKind::Comma).then(|| punctuation.range())
+    });
+    if comma.is_none() {
+        i.rollback(checkpoint);
+    }
+    comma
+}
+
 /// The isolated nominal-versus-equality disposition after Type's shared name
 /// and parameter header.  This is deliberately sink-free until the later
 /// dispatch gate selects a committed declaration continuation.
@@ -1790,10 +2100,10 @@ enum TypeDeclarationFormDisposition {
     Incomplete,
 }
 
-/// A braced statement sequence whose physical newline gives a completed Type
-/// header nominal terminal authority.
+/// A braced statement sequence whose physical newline gives a declaration
+/// form or attachment judge terminal authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum TypeDeclarationBracedNewlineOwner {
+enum DeclarationBracedNewlineOwner {
     BracedStatementSequence,
     CatchArmSequenceThroughInlineCanonicalStatement,
 }
@@ -1834,7 +2144,7 @@ where
             let disposition = if accepted_continuation && declaration_exact_equals_pending(i) {
                 TypeDeclarationFormDisposition::Equality
             } else {
-                let owns_trailing_trivia_through = if type_declaration_braced_newline_owner_from_stack(
+                let owns_trailing_trivia_through = if declaration_braced_newline_owner_from_stack(
                     has_physical_newline,
                     i.local,
                 )
@@ -1883,9 +2193,9 @@ where
 /// Reads the ambient owner stack without changing it.  A braced statement
 /// block owns its own physical-newline statement boundary; a catch barrier
 /// does so only after crossing an inline canonical arm-body frame.
-fn type_declaration_braced_newline_owner<E>(
+fn declaration_braced_newline_owner<E>(
     i: &mut SynIn<E>,
-) -> Option<TypeDeclarationBracedNewlineOwner>
+) -> Option<DeclarationBracedNewlineOwner>
 where
     E: ErrorSink<usize>,
     Unexpected<char>: Into<E::Error>,
@@ -1895,15 +2205,15 @@ where
     let has_physical_newline = i.run(scan_trivia).is_some_and(|trivia| {
         i.input.source()[trivia.range()].contains(['\r', '\n'])
     });
-    let owner = type_declaration_braced_newline_owner_from_stack(has_physical_newline, i.local);
+    let owner = declaration_braced_newline_owner_from_stack(has_physical_newline, i.local);
     i.rollback(checkpoint);
     owner
 }
 
-fn type_declaration_braced_newline_owner_from_stack(
+fn declaration_braced_newline_owner_from_stack(
     has_physical_newline: bool,
     local: &ParseLocal,
-) -> Option<TypeDeclarationBracedNewlineOwner> {
+) -> Option<DeclarationBracedNewlineOwner> {
     if !has_physical_newline {
         return None;
     }
@@ -1912,11 +2222,11 @@ fn type_declaration_braced_newline_owner_from_stack(
         match frame.kind() {
             AmbientOwnerScopeKind::InlineCanonicalStatement(_) => skipped_inline += 1,
             AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::BracedStatementBlockExpression) => {
-                return Some(TypeDeclarationBracedNewlineOwner::BracedStatementSequence);
+                return Some(DeclarationBracedNewlineOwner::BracedStatementSequence);
             }
             AmbientOwnerScopeKind::BracedBarrier(BracedBarrierOrigin::CatchBracedArmSequence) => {
                 return (skipped_inline > 0).then_some(
-                    TypeDeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement,
+                    DeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement,
                 );
             }
             AmbientOwnerScopeKind::RootStatement | AmbientOwnerScopeKind::IndentedStatement => {
@@ -13060,6 +13370,461 @@ mod tests {
     }
 
     #[test]
+    fn derives_start_and_driver_follow_drv_j_and_restore_every_probe_state() {
+        #[derive(Clone, Copy)]
+        enum OwnerContext {
+            Root,
+            Braced,
+            CatchThroughInline,
+            AmbientIf,
+        }
+
+        fn install_context(local: &mut ParseLocal, context: OwnerContext, stops: StopSet) {
+            local.push_indentation_baseline(IndentationBaseline {
+                column: 0,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(stops);
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.push_root_statement_ambient_scope();
+            match context {
+                OwnerContext::Root => {}
+                OwnerContext::Braced => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                OwnerContext::CatchThroughInline => {
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                OwnerContext::AmbientIf => {
+                    local.push_if_expression_companion(0, &["elsif", "else"]);
+                }
+            }
+        }
+
+        fn recognize(
+            source: &str,
+            owner: DerivesAttachmentOwner,
+            position: DerivesAttachmentPosition,
+            context: OwnerContext,
+            stops: StopSet,
+        ) -> Option<DerivesAttachmentStart> {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stops);
+            let line = local.line();
+            let ambient = local.ambient_owner_scope_frames().copied().collect::<Vec<_>>();
+            let if_depth = local.if_expression_companion_depth();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let result = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                let pos = i.pos();
+                let result = recognize_derives_attachment_start(owner, position, 0, &mut i);
+                assert_eq!(i.pos(), pos, "input: {source:?}");
+                result
+            };
+            assert_eq!(source_input.remainder(), source, "remainder: {source:?}");
+            assert_eq!(local.line(), line, "line: {source:?}");
+            assert_eq!(local.indentation_baseline().map(|base| base.column), Some(0));
+            assert_eq!(local.stop_set(), Some(stops));
+            assert_eq!(local.delimiter(), Some(Delimiter::Parenthesis));
+            assert_eq!(local.expression_delimited_owner(), Some(ExpressionDelimitedOwner::Call));
+            assert_eq!(local.type_delimited_owner(), Some(TypeDelimitedOwner::Call));
+            assert_eq!(local.ambient_owner_scope_frames().copied().collect::<Vec<_>>(), ambient);
+            assert_eq!(local.if_expression_companion_depth(), if_depth);
+            assert_eq!(local.type_expression_episode_depth(), 0);
+            assert!(expectations.take_merged().is_none(), "sink: {source:?}");
+            assert!(!is_cut, "cut: {source:?}");
+            result
+        }
+
+        for (source, context, expected) in [
+            ("derives", OwnerContext::Root, Some(0..7)),
+            (" derives", OwnerContext::Root, Some(1..8)),
+            ("\n  derives", OwnerContext::Root, Some(3..10)),
+            ("\nderives", OwnerContext::Root, None),
+            ("\n  derives", OwnerContext::Braced, None),
+            ("\n  derives", OwnerContext::CatchThroughInline, None),
+            (" else", OwnerContext::AmbientIf, None),
+            ("derivesValue", OwnerContext::Root, None),
+            ("via", OwnerContext::Root, None),
+        ] {
+            assert_eq!(
+                recognize(
+                    source,
+                    DerivesAttachmentOwner::Type,
+                    DerivesAttachmentPosition::Header,
+                    context,
+                    StopSet::default(),
+                )
+                .map(|start| start.keyword),
+                expected,
+                "{source:?}",
+            );
+        }
+        assert!(recognize(
+            " = Int",
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            OwnerContext::Root,
+            StopSet::default(),
+        )
+        .is_none());
+        assert!(recognize(
+            " (Field)",
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+            OwnerContext::Root,
+            StopSet::default(),
+        )
+        .is_none());
+        assert!(recognize(
+            ") derives",
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Trailing,
+            OwnerContext::Root,
+            StopSet::default().with(StopKind::RightParenthesis),
+        )
+        .is_none());
+
+        fn decide(
+            source: &str,
+            spec: DerivesDriverSpec,
+            stops: StopSet,
+        ) -> DerivesDriverDecision {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            local.push_indentation_baseline(IndentationBaseline {
+                column: spec.owner_base,
+                kind: IndentationBaselineKind::Block,
+            });
+            local.push_stop_set(stops);
+            local.push_root_statement_ambient_scope();
+            let line = local.line();
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let decision = {
+                let mut i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                drive_derives_clauses(spec, &mut i)
+            };
+            assert_eq!(source_input.remainder(), source, "{source:?}");
+            assert_eq!(local.line(), line, "{source:?}");
+            assert_eq!(local.stop_set(), Some(stops), "{source:?}");
+            assert_eq!(local.type_expression_episode_depth(), 0, "{source:?}");
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            decision
+        }
+
+        let type_header = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Type,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
+        let struct_header = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
+        assert_eq!(
+            decide(", Debug", type_header, StopSet::default().with(StopKind::Comma)),
+            DerivesDriverDecision::Comma {
+                leading: 0..0,
+                comma: 0..1,
+            },
+        );
+        assert_eq!(
+            decide(" via key", type_header, StopSet::default()),
+            DerivesDriverDecision::Via {
+                leading: 0..1,
+                keyword: 1..4,
+            },
+        );
+        assert_eq!(
+            decide(" derives Debug", type_header, StopSet::default()),
+            DerivesDriverDecision::RepeatedClause {
+                leading: 0..1,
+                start: DerivesAttachmentStart {
+                    owner: DerivesAttachmentOwner::Type,
+                    position: DerivesAttachmentPosition::Header,
+                    keyword: 1..8,
+                    owner_base: 0,
+                },
+            },
+        );
+        assert_eq!(
+            decide(" = Int", type_header, StopSet::default()),
+            DerivesDriverDecision::OwnerTail(DerivesOwnerTail::TypeDefinitionIntroducer),
+        );
+        assert_eq!(
+            decide(" (Field)", struct_header, StopSet::default()),
+            DerivesDriverDecision::OwnerTail(DerivesOwnerTail::StructBodyStarter),
+        );
+        assert_eq!(
+            decide(")", type_header, StopSet::default().with(StopKind::RightParenthesis)),
+            DerivesDriverDecision::OwnerTail(DerivesOwnerTail::CallerBoundary),
+        );
+        assert_eq!(
+            decide("\nderives Debug", type_header, StopSet::default()),
+            DerivesDriverDecision::Boundary,
+        );
+        assert_eq!(
+            decide("", type_header, StopSet::default()),
+            DerivesDriverDecision::Boundary,
+        );
+        assert_eq!(
+            decide(" ordinary", type_header, StopSet::default()),
+            DerivesDriverDecision::NoContinuation,
+        );
+    }
+
+    #[test]
+    fn derives_role_episode_policy_fences_outer_stops_across_nested_type_episodes() {
+        fn parse_role(source: &str) -> (Range<usize>, String) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let incoming = StopSet::default().with(StopKind::RightBracket);
+            local.push_stop_set(incoming);
+            let driver = DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Struct,
+                DerivesAttachmentPosition::Header,
+                0,
+            );
+            let episode = derives_role_episode_spec(
+                driver,
+                incoming,
+                local.type_expression_episode_depth(),
+            );
+            local.push_stop_set(episode.stops);
+            local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let parsed = {
+                let i = In::new(
+                    &mut source_input,
+                    &mut expectations,
+                    IsCut::new(&mut is_cut),
+                )
+                .set_local(&mut local);
+                crate::grammar::type_expr::parse_required_type_expression_with_outer_missing_role_and_policy(
+                    Some(episode.outer_role),
+                    episode.policy,
+                    i,
+                )
+            };
+            assert_eq!(
+                local.pop_type_expression_scoped_stop_frame(),
+                Some(episode.scoped_frame),
+            );
+            assert_eq!(local.pop_stop_set(), Some(episode.stops));
+            assert_eq!(local.stop_set(), Some(incoming));
+            assert_eq!(local.type_expression_episode_depth(), 0);
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+            let Recovered::Complete(parsed) = parsed else {
+                panic!("the isolated RoleRef must complete: {source:?}");
+            };
+            (parsed.range(), source_input.remainder().to_owned())
+        }
+
+        for source in [
+            "Int -> derives Eq",
+            "for 'a: derives Eq",
+            "(for 'a; 'b: T)",
+            "(for @; 'b: T)",
+            "F X(derives Eq)",
+            "(derives Eq)",
+            "({ x: Int })",
+            "('[derives Eq])",
+            "([derives Eq] T)",
+            "(:{ A derives Eq })",
+            "(:{ A; B })",
+        ] {
+            let (range, remainder) = parse_role(source);
+            assert_eq!(range, 0..source.len(), "range: {source:?}");
+            assert_eq!(remainder, "", "remainder: {source:?}");
+        }
+
+        for (source, expected_range, expected_remainder) in [
+            ("Eq(Int)", 0..2, "(Int)"),
+            ("Eq (Int)", 0..2, " (Int)"),
+            ("(Eq(Int)) (Field)", 0..9, " (Field)"),
+            ("({ x: Int }) (Field)", 0..12, " (Field)"),
+            ("(:{ A }) (Field)", 0..8, " (Field)"),
+            ("Eq { x: Int }", 0..2, " { x: Int }"),
+            ("Eq: Field", 0..2, ": Field"),
+            ("Eq;", 0..2, ";"),
+            ("@ (Eq) (Field)", 2..6, " (Field)"),
+        ] {
+            let (range, remainder) = parse_role(source);
+            assert_eq!(range, expected_range, "range: {source:?}");
+            assert_eq!(remainder, expected_remainder, "remainder: {source:?}");
+        }
+
+        // The direct mandatory pre-probe and committed entry see the same
+        // fresh-primary policy, preserving the Gate 1a expect invariant.
+        let source = "(Eq) (Field)";
+        let mut source_input = SourceInput::new(source);
+        let mut local = ParseLocal::new();
+        let incoming = StopSet::default();
+        local.push_stop_set(incoming);
+        let driver = DerivesDriverSpec::new(
+            DerivesAttachmentOwner::Struct,
+            DerivesAttachmentPosition::Header,
+            0,
+        );
+        let episode = derives_role_episode_spec(driver, incoming, 0);
+        local.push_stop_set(episode.stops);
+        local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+        let mut expectations = chasa::LatestSink::new();
+        let mut is_cut = false;
+        let i = In::new(
+            &mut source_input,
+            &mut expectations,
+            IsCut::new(&mut is_cut),
+        )
+        .set_local(&mut local);
+        let probe = Probe::new(i);
+        let mut committed = probe.commit(HeaderOutput::new());
+        let parsed = crate::grammar::type_expr::commit_direct_type_expression_with_outer_missing_role_and_policy(
+            Some(episode.outer_role),
+            episode.policy,
+            &mut committed,
+        );
+        assert_eq!(parsed.range(), 0..4);
+        assert_eq!(
+            committed.probe(|probe| probe.input().input.remainder().to_owned()),
+            " (Field)",
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.pop_type_expression_scoped_stop_frame()),
+            Some(episode.scoped_frame),
+        );
+        assert_eq!(
+            committed.probe(|probe| probe.input().local.pop_stop_set()),
+            Some(episode.stops),
+        );
+        let output = committed.into_output();
+        assert!(output.committed_recoveries().is_empty());
+        assert!(expectations.take_merged().is_none());
+        assert!(!is_cut);
+
+        // Mandatory candidate, malformed recovery, and clause-tail handoff all
+        // observe the same outer episode. Contextual stops stay unconsumed so
+        // the shared driver can retry them at the identical source position.
+        fn assert_direct_role_boundary(
+            source: &str,
+            expected_remainder: &str,
+            expected_kind: RecoveryKind,
+            expected_role: GrammarRole,
+            expected_range: Range<usize>,
+        ) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            let incoming = StopSet::default();
+            local.push_stop_set(incoming);
+            let driver = DerivesDriverSpec::new(
+                DerivesAttachmentOwner::Type,
+                DerivesAttachmentPosition::Trailing,
+                0,
+            );
+            let episode = derives_role_episode_spec(driver, incoming, 0);
+            local.push_stop_set(episode.stops);
+            local.push_type_expression_scoped_stop_frame(episode.scoped_frame);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(
+                &mut source_input,
+                &mut expectations,
+                IsCut::new(&mut is_cut),
+            )
+            .set_local(&mut local);
+            let probe = Probe::new(i);
+            let mut committed = probe.commit(HeaderOutput::new());
+            crate::grammar::type_expr::commit_direct_type_expression_with_outer_missing_role_and_policy(
+                Some(episode.outer_role),
+                episode.policy,
+                &mut committed,
+            );
+            assert_eq!(
+                committed.probe(|probe| probe.input().input.remainder().to_owned()),
+                expected_remainder,
+            );
+            assert_eq!(
+                committed.probe(|probe| probe.input().local.pop_type_expression_scoped_stop_frame()),
+                Some(episode.scoped_frame),
+            );
+            assert_eq!(
+                committed.probe(|probe| probe.input().local.pop_stop_set()),
+                Some(episode.stops),
+            );
+            let output = committed.into_output();
+            let [record] = output.committed_recoveries() else {
+                panic!("one mandatory RoleRef recovery expected: {source:?}");
+            };
+            assert_eq!(record.kind, expected_kind, "{source:?}");
+            assert_eq!(record.site.role, expected_role, "{source:?}");
+            assert_eq!(record.site.range, expected_range, "{source:?}");
+            assert_eq!(local.stop_set(), Some(incoming));
+            assert_eq!(local.type_expression_episode_depth(), 0);
+            assert!(expectations.take_merged().is_none(), "{source:?}");
+            assert!(!is_cut, "{source:?}");
+        }
+
+        for source in ["derives Eq", "via key", ", derives Debug"] {
+            assert_direct_role_boundary(
+                source,
+                source,
+                RecoveryKind::Missing,
+                GrammarRole::Declaration(DeclarationRole::Derives(
+                    DerivesRole::RoleReference,
+                )),
+                0..0,
+            );
+        }
+        assert_direct_role_boundary(
+            "@ derives Eq",
+            " derives Eq",
+            RecoveryKind::Error,
+            GrammarRole::Type(crate::session::TypeRole::Primary),
+            0..1,
+        );
+
+        for source in ["my derives = 1", "my via = 1"] {
+            let output = parse_direct_root_candidate(
+                source,
+                &crate::operator::OperatorTable::empty(),
+                &[],
+            );
+            let root = SyntaxNode::new_root(output.green().clone());
+            assert!(root.descendants().any(|node| node.kind() == SyntaxKind::BindingStatement));
+            assert!(!root.descendants().any(|node| node.kind() == SyntaxKind::DerivesClause));
+            assert!(!root.descendants_with_tokens().any(|element| {
+                element.kind() == SyntaxKind::DerivesKw || element.kind() == SyntaxKind::ViaKw
+            }));
+        }
+    }
+
+    #[test]
     fn type_declaration_form_judge_follows_tnd_j_and_restores_every_probe_state() {
         const IF_WORDS: &[&str] = &["elsif", "else"];
 
@@ -13077,7 +13842,7 @@ mod tests {
             owner: Owner,
             stops: StopSet,
             expected: TypeDeclarationFormDisposition,
-            expected_braced_owner: Option<TypeDeclarationBracedNewlineOwner>,
+            expected_braced_owner: Option<DeclarationBracedNewlineOwner>,
         ) {
             let mut source_input = SourceInput::new(source);
             let mut local = ParseLocal::new();
@@ -13145,7 +13910,7 @@ mod tests {
                 let companion_depth = i.local.if_expression_companion_depth();
 
                 assert_eq!(
-                    type_declaration_braced_newline_owner(&mut i),
+                    declaration_braced_newline_owner(&mut i),
                     expected_braced_owner,
                     "{source:?}",
                 );
@@ -13230,7 +13995,7 @@ mod tests {
             TypeDeclarationFormDisposition::Nominal {
                 owns_trailing_trivia_through: 10,
             },
-            Some(TypeDeclarationBracedNewlineOwner::BracedStatementSequence),
+            Some(DeclarationBracedNewlineOwner::BracedStatementSequence),
         );
         run_complete_header_case(
             "type Point\n  B -> fallback",
@@ -13239,7 +14004,7 @@ mod tests {
             TypeDeclarationFormDisposition::Nominal {
                 owns_trailing_trivia_through: 10,
             },
-            Some(TypeDeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement),
+            Some(DeclarationBracedNewlineOwner::CatchArmSequenceThroughInlineCanonicalStatement),
         );
         run_complete_header_case(
             "type Point\n  B -> fallback",

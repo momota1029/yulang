@@ -487,6 +487,25 @@ where
     )
 }
 
+/// Mandatory AST entry for declaration-owned TypeExpression slots whose
+/// fresh-primary ownership differs from the ordinary empty policy.
+pub(crate) fn parse_required_type_expression_with_outer_missing_role_and_policy<'source, E>(
+    outer_missing_role: Option<crate::session::GrammarRole>,
+    policy: TypeExpressionEpisodePolicy,
+    i: SynIn<'_, 'source, '_, E>,
+) -> Recovered<TypeExpression<'source>>
+where
+    E: ErrorSink<usize>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    parse_required_type_expression_with_recovery_context_and_policy(
+        RequiredTypeRecoveryContext::ordinary(outer_missing_role),
+        policy,
+        i,
+    )
+}
+
 /// Mandatory AST entry with the recovery context captured by its owner.  The
 /// optional continuation-base override applies only to this entry's first
 /// malformed outer primary; retries and nested type recovery use their normal
@@ -1029,6 +1048,26 @@ where
 {
     commit_direct_type_expression_with_recovery_context(
         RequiredTypeRecoveryContext::ordinary(outer_missing_role),
+        committed,
+    )
+}
+
+/// Direct counterpart of
+/// [`parse_required_type_expression_with_outer_missing_role_and_policy`].
+pub(crate) fn commit_direct_type_expression_with_outer_missing_role_and_policy<'parse, 'source, 'local, E, O>(
+    outer_missing_role: Option<GrammarRole>,
+    policy: TypeExpressionEpisodePolicy,
+    committed: &mut Committed<'parse, 'source, 'local, E, O>,
+) -> ParsedTypeExpression<O::Checkpoint>
+where
+    E: ErrorSink<usize>,
+    O: CommitOutput<'source>,
+    Unexpected<char>: Into<E::Error>,
+    UnexpectedEndOfInput: Into<E::Error>,
+{
+    commit_direct_type_expression_with_recovery_context_and_policy(
+        RequiredTypeRecoveryContext::ordinary(outer_missing_role),
+        policy,
         committed,
     )
 }
