@@ -1169,17 +1169,19 @@ where
     }
     committed.token(SyntaxKind::ImplKw, intro.impl_keyword.range());
 
-    if !committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
-        if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input())) {
-            committed.emit_trivia(&trivia);
-            let _ = commit_required_impl_type_expression_isolated(
-                ImplTypeExpressionSlot::Head,
-                committed,
-            );
-        }
-    }
+    let head_terminated_incomplete = if committed.probe(|probe| any_ambient_owner_claims(probe.input())) {
+        true
+    } else if let Some(trivia) = committed.probe(|probe| mod_trivia(intro.impl_base, probe.input())) {
+        committed.emit_trivia(&trivia);
+        matches!(
+            commit_required_impl_type_expression_isolated(ImplTypeExpressionSlot::Head, committed),
+            Recovered::Incomplete
+        )
+    } else {
+        true
+    };
 
-    commit_impl_after_head_isolated(table, intro.impl_base, committed);
+    commit_impl_after_head_isolated(table, intro.impl_base, committed, head_terminated_incomplete);
     let end = committed_position(committed);
     committed.finish_node();
     Recovered::Complete(intro.start..end)
@@ -1189,6 +1191,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     impl_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
+    head_terminated_incomplete: bool,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1213,7 +1216,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         result
     });
     let Some((leading, colon)) = description else {
-        commit_impl_body_isolated(table, impl_base, committed, false);
+        commit_impl_body_isolated(table, impl_base, committed, head_terminated_incomplete);
         return;
     };
 
@@ -1241,7 +1244,7 @@ fn commit_impl_after_head_isolated<'parse, 'source, 'local, E, O>(
         table,
         impl_base,
         committed,
-        matches!(description, Recovered::Incomplete),
+        head_terminated_incomplete || matches!(description, Recovered::Incomplete),
     );
 }
 
@@ -1256,7 +1259,7 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     table: &crate::operator::OperatorTable,
     impl_base: usize,
     committed: &mut Committed<'parse, 'source, 'local, E, O>,
-    description_terminated_incomplete: bool,
+    upstream_slot_terminated_incomplete: bool,
 ) where
     E: ErrorSink<usize>,
     O: CommitOutput<'source>,
@@ -1285,7 +1288,7 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
     });
     let Some((trivia, starter)) = starter else {
         let Some(trivia) = committed.probe(|probe| mod_trivia(impl_base, probe.input())) else {
-            if !description_terminated_incomplete {
+            if !upstream_slot_terminated_incomplete {
                 emit_impl_body_introducer_missing(committed);
             }
             return;
@@ -1293,10 +1296,10 @@ fn commit_impl_body_isolated<'parse, 'source, 'local, E, O>(
         committed.emit_trivia(&trivia);
         match impl_body_introducer_error_retry(committed) {
             Some(true) => {
-                commit_impl_body_isolated(table, impl_base, committed, description_terminated_incomplete);
+                commit_impl_body_isolated(table, impl_base, committed, upstream_slot_terminated_incomplete);
             }
             Some(false) => {}
-            None if !description_terminated_incomplete => emit_impl_body_introducer_missing(committed),
+            None if !upstream_slot_terminated_incomplete => emit_impl_body_introducer_missing(committed),
             None => {}
         }
         return;
@@ -23890,6 +23893,22 @@ mod tests {
 
         let role = |role| GrammarRole::Declaration(DeclarationRole::Impl(role));
         for (source, expected_range, expected_remainder, expected_records) in [
+            (
+                "impl",
+                0..4,
+                "",
+                vec![(RecoveryKind::Missing, role(ImplRole::Head), 4..4)],
+            ),
+            (
+                "impl @",
+                0..6,
+                "",
+                vec![((
+                    RecoveryKind::Error,
+                    GrammarRole::Type(crate::session::TypeRole::Primary),
+                    5..6,
+                ))],
+            ),
             (
                 "impl T @;",
                 0..9,
