@@ -47,12 +47,14 @@
 
 ## 次の候補(優先順位未確定、着手時に選ぶ)
 
-1. **standalone `TypeExpression`の各use-site配線(残り)**: struct field・cast宣言・role
-   signature・where節・act signature等。pattern型注釈は完了、残りが本体作業。
+1. **standalone `TypeExpression`の各use-site配線(残り)**: cast宣言・role signature・
+   where節・act signature。pattern型注釈とstruct field(`StructNamedField`が
+   `Identifier : RequiredTypeExpression`済み)は完了、残り4件が本体作業。
 2. **canonical Statement / root Declarationの残りvariant**: `enum`/`error`/`role`/
-   `cast`/`act`/`for`文/演算子定義/`where`/doc-comment宣言。`type`/`struct`/`mod`/`impl`
-   (shellのみ)は完了。derivesとimplのshellが着地した今、role/impl/enum系のownerが
-   derives clauseやimpl本体の共有driverをどこまで再利用できるか、着手前に要調査。
+   `cast`/`act`/`for`文/declaration-level `where`/doc-comment宣言。`type`/`struct`/`mod`/
+   `impl`(shellのみ)/演算子定義(`OperatorHeader`+`commit_operator_definition_body`で
+   real root dispatch済み)は完了。derivesとimplのshellが着地した今、role/impl/enum系の
+   ownerがderives clauseやimpl本体の共有driverをどこまで再利用できるか、着手前に要調査。
 3. **grammar/CST/エラー回復の正規化サイト**(下記TODO参照)。
 4. **defer済み4 familyの優先順位決定**: derives ownerの拡張(Enum/Error/Act)・
    Type-attached `impl`(`type Name impl ...`)・shared declaration companion `with:`・
