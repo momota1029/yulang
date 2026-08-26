@@ -9659,8 +9659,9 @@ mod tests {
         session::{
             AmbientOwnerScopeFrame, BracedBarrierOrigin, CommitOutput, CommittedRecoveryRecord,
             ExpectedSyntax, ExpressionDelimitedOwner, FullCstOutput, HeaderOutput,
-            IfExpressionCompanionId, InlineStatementOwnerKind, ParseLocal, Probe, StopSet,
-            TypeDeclarationRole, if_continuation_owner,
+            IfExpressionCompanionId, InlineStatementOwnerKind, LineState, ParseLocal, Probe,
+            StopSet, TypeDeclarationRole, TypeMalformedCallerBoundaryFence,
+            if_continuation_owner,
         },
     };
 
@@ -13908,6 +13909,452 @@ mod tests {
             assert_eq!(ast_remainder, expected_remainder, "{source:?}");
             assert_eq!(direct_remainder, expected_remainder, "{source:?}");
             assert!(records.is_empty(), "{source:?}");
+        }
+    }
+
+    #[test]
+    fn type_declaration_form_aware_boundary_matrix_restores_deep_parser_state() {
+        const IF_WORDS: &[&str] = &["elsif", "else"];
+
+        #[derive(Clone, Copy)]
+        enum Context {
+            Root,
+            Indented,
+            Braced,
+            InlineCanonical,
+            NestedIf,
+            CatchOneInline,
+            CatchTwoInline,
+            CatchZeroInline,
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct State {
+            baseline: Option<IndentationBaseline>,
+            stops: Option<StopSet>,
+            delimiter: Option<Delimiter>,
+            expression_owner: Option<ExpressionDelimitedOwner>,
+            type_owner: Option<TypeDelimitedOwner>,
+            inline: bool,
+            ml_arg: bool,
+            type_ml_arg: bool,
+            positional_fence: Option<TypeMalformedCallerBoundaryFence>,
+            ambient: Vec<AmbientOwnerScopeFrame>,
+            if_depth: usize,
+            innermost_if: Option<IfExpressionCompanionId>,
+        }
+
+        fn snapshot(local: &ParseLocal) -> State {
+            State {
+                baseline: local.indentation_baseline(),
+                stops: local.stop_set(),
+                delimiter: local.delimiter(),
+                expression_owner: local.expression_delimited_owner(),
+                type_owner: local.type_delimited_owner(),
+                inline: local.inline(),
+                ml_arg: local.ml_arg(),
+                type_ml_arg: local.type_ml_arg(),
+                positional_fence: local.type_malformed_caller_boundary(),
+                ambient: local.ambient_owner_scope_frames().copied().collect(),
+                if_depth: local.if_expression_companion_depth(),
+                innermost_if: local.if_expression_companion().map(|frame| frame.id()),
+            }
+        }
+
+        fn type_base(context: Context) -> usize {
+            matches!(context, Context::Indented | Context::NestedIf).then_some(2).unwrap_or(0)
+        }
+
+        fn install_context(local: &mut ParseLocal, context: Context, stop: StopKind) {
+            let baseline = IndentationBaseline {
+                column: type_base(context),
+                kind: IndentationBaselineKind::Block,
+            };
+            local.push_indentation_baseline(baseline);
+            local.push_stop_set(StopSet::default().with(stop));
+            local.push_delimiter(Delimiter::Parenthesis);
+            local.push_expression_delimited_owner(ExpressionDelimitedOwner::Call);
+            local.push_type_delimited_owner(TypeDelimitedOwner::Call);
+            local.set_inline(true);
+            local.set_ml_arg(true);
+            local.set_type_ml_arg(true);
+            local.set_type_malformed_caller_boundary(Some(TypeMalformedCallerBoundaryFence {
+                trivia_start: usize::MAX,
+            }));
+
+            match context {
+                Context::Root => {
+                    local.push_root_statement_ambient_scope();
+                }
+                Context::Indented => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_indented_statement_ambient_scope(2);
+                }
+                Context::Braced => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::BracedStatementBlockExpression,
+                    );
+                }
+                Context::InlineCanonical => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Context::NestedIf => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_indented_statement_ambient_scope(2);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                    local.push_if_expression_companion(2, IF_WORDS);
+                }
+                Context::CatchOneInline => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                }
+                Context::CatchTwoInline => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::WithBodyTail,
+                    );
+                    local.push_inline_canonical_statement_ambient_scope(
+                        InlineStatementOwnerKind::ModColonBody,
+                    );
+                }
+                Context::CatchZeroInline => {
+                    local.push_root_statement_ambient_scope();
+                    local.push_braced_ambient_owner_barrier(
+                        BracedBarrierOrigin::CatchBracedArmSequence,
+                    );
+                }
+            }
+        }
+
+        fn skip_same_line_prefix<E>(prefix_len: usize, i: &mut SynIn<E>)
+        where
+            E: ErrorSink<usize>,
+            Unexpected<char>: Into<E::Error>,
+            UnexpectedEndOfInput: Into<E::Error>,
+        {
+            while i.pos() < prefix_len {
+                i.input.next().expect("the fixture prefix remains available");
+            }
+            i.local.set_line(LineState {
+                at_line_start: false,
+                ..i.local.line()
+            });
+        }
+
+        fn parse_ast<'source>(
+            source: &'source str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (TypeDeclaration<'source>, String, State) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let before = snapshot(&local);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let declaration = {
+                let mut i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                skip_same_line_prefix(prefix_len, &mut i);
+                let before_after_prefix = snapshot(i.local);
+                let declaration = parse_type_declaration_form_aware_isolated(i)
+                    .expect("the fixture prefix is followed by Type");
+                assert_eq!(snapshot(&local), before_after_prefix, "AST state: {source:?}");
+                declaration
+            };
+            assert!(expectations.take_merged().is_none(), "AST sink: {source:?}");
+            assert!(!is_cut, "AST cut: {source:?}");
+            assert_eq!(
+                before.positional_fence,
+                snapshot(&local).positional_fence,
+                "the positional fence survives AST construction: {source:?}",
+            );
+            (declaration, source_input.remainder().to_owned(), before)
+        }
+
+        fn parse_direct(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+        ) -> (Recovered<Range<usize>>, Vec<CommittedRecoveryRecord>, String, State) {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, context, stop);
+            let before = snapshot(&local);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                .set_local(&mut local);
+            let mut probe = Probe::new(i);
+            skip_same_line_prefix(prefix_len, probe.input());
+            let before_after_prefix = snapshot(probe.input().local);
+            let intro = probe.input().run(recognize_type_statement_intro).unwrap();
+            let mut committed = probe.commit(HeaderOutput::new());
+            let range = commit_type_declaration_form_aware_isolated(&mut committed, intro);
+            let remainder = committed.probe(|probe| probe.input().input.remainder().to_owned());
+            let records = committed.into_output().committed_recoveries().to_vec();
+            assert_eq!(snapshot(&local), before_after_prefix, "direct state: {source:?}");
+            assert!(expectations.take_merged().is_none(), "direct sink: {source:?}");
+            assert!(!is_cut, "direct cut: {source:?}");
+            (range, records, remainder, before)
+        }
+
+        fn assert_nominal_boundary(
+            source: &str,
+            prefix_len: usize,
+            context: Context,
+            stop: StopKind,
+            expected_remainder: &str,
+        ) {
+            let (ast, ast_remainder, _) = parse_ast(source, prefix_len, context, stop);
+            let (direct_range, records, direct_remainder, _) =
+                parse_direct(source, prefix_len, context, stop);
+            let start = prefix_len;
+            assert!(matches!(ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+            assert_eq!(ast.range, start..start + 10, "{source:?}");
+            assert_eq!(direct_range, Recovered::Complete(start..start + 10), "{source:?}");
+            assert_eq!(ast_remainder, expected_remainder, "{source:?}");
+            assert_eq!(direct_remainder, expected_remainder, "{source:?}");
+            assert!(records.is_empty(), "{source:?}");
+        }
+
+        assert_nominal_boundary("type Point", 0, Context::Root, StopKind::RightBracket, "");
+        assert_nominal_boundary("type Point;", 0, Context::Root, StopKind::RightBracket, ";");
+        assert_nominal_boundary(
+            "type Point\nnext",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+            "\nnext",
+        );
+        assert_nominal_boundary(
+            "type Point\n  sibling",
+            0,
+            Context::Indented,
+            StopKind::RightBracket,
+            "\n  sibling",
+        );
+        assert_nominal_boundary(
+            "type Point\n  sibling",
+            0,
+            Context::Braced,
+            StopKind::RightBracket,
+            "\n  sibling",
+        );
+        assert_nominal_boundary(
+            "type Point\nnext",
+            0,
+            Context::InlineCanonical,
+            StopKind::RightBracket,
+            "\nnext",
+        );
+        assert_nominal_boundary(
+            "type Point else: 0",
+            0,
+            Context::NestedIf,
+            StopKind::RightBracket,
+            " else: 0",
+        );
+
+        let catch_source = "value with: type Point\n  B -> fallback";
+        let catch_prefix = "value with: ".len();
+        assert_nominal_boundary(
+            catch_source,
+            catch_prefix,
+            Context::CatchOneInline,
+            StopKind::RightBracket,
+            "\n  B -> fallback",
+        );
+        assert_nominal_boundary(
+            "type Point\n  B -> fallback",
+            0,
+            Context::CatchTwoInline,
+            StopKind::RightBracket,
+            "\n  B -> fallback",
+        );
+
+        let (zero_inline_ast, zero_inline_remainder, _) = parse_ast(
+            "type Point\n  B",
+            0,
+            Context::CatchZeroInline,
+            StopKind::RightBracket,
+        );
+        assert!(matches!(
+            zero_inline_ast.form,
+            Recovered::Complete(TypeDeclarationForm::Equality { .. })
+        ));
+        assert_eq!(zero_inline_remainder, "");
+        let (zero_inline_direct, zero_inline_records, zero_inline_direct_remainder, _) = parse_direct(
+            "type Point\n  B",
+            0,
+            Context::CatchZeroInline,
+            StopKind::RightBracket,
+        );
+        assert_eq!(zero_inline_direct, Recovered::Complete(0..14));
+        assert_eq!(zero_inline_direct_remainder, "");
+        assert_eq!(zero_inline_records.len(), 1);
+        assert_eq!(zero_inline_records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            zero_inline_records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::DefinitionIntroducer,
+            )),
+        );
+        assert_eq!(zero_inline_records[0].site.range, 13..13);
+
+        let (deep_ast, deep_remainder, _) = parse_ast(
+            "type Point\n  T",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+        );
+        let (deep_direct, deep_records, deep_direct_remainder, _) = parse_direct(
+            "type Point\n  T",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+        );
+        assert!(matches!(
+            deep_ast.form,
+            Recovered::Complete(TypeDeclarationForm::Equality {
+                equals: Recovered::Incomplete,
+                rhs: Recovered::Complete(_),
+            })
+        ));
+        assert_eq!(deep_ast.range, 0..14);
+        assert_eq!(deep_remainder, "");
+        assert_eq!(deep_direct, Recovered::Complete(0..14));
+        assert_eq!(deep_direct_remainder, "");
+        assert_eq!(deep_records.len(), 1);
+        assert_eq!(deep_records[0].kind, RecoveryKind::Missing);
+        assert_eq!(
+            deep_records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::DefinitionIntroducer,
+            )),
+        );
+        assert_eq!(deep_records[0].site.range, 13..13);
+
+        for (source, stop, remainder) in [
+            ("type Point, tail", StopKind::Comma, ", tail"),
+            ("type Point) tail", StopKind::RightParenthesis, ") tail"),
+            ("type Point] tail", StopKind::RightBracket, "] tail"),
+            ("type Point} tail", StopKind::RightBrace, "} tail"),
+        ] {
+            assert_nominal_boundary(source, 0, Context::Root, stop, remainder);
+        }
+
+        for context in [Context::Root, Context::Braced] {
+            let (ast, ast_remainder, _) = parse_ast(
+                "type Id =\n   Int",
+                0,
+                context,
+                StopKind::RightBracket,
+            );
+            let (direct_range, records, direct_remainder, _) = parse_direct(
+                "type Id =\n   Int",
+                0,
+                context,
+                StopKind::RightBracket,
+            );
+            assert!(matches!(
+                ast.form,
+                Recovered::Complete(TypeDeclarationForm::Equality {
+                    equals: Recovered::Complete(_),
+                    rhs: Recovered::Complete(_),
+                })
+            ));
+            assert_eq!(ast.range, 0..16);
+            assert_eq!(direct_range, Recovered::Complete(0..16));
+            assert_eq!(ast_remainder, "");
+            assert_eq!(direct_remainder, "");
+            assert!(records.is_empty());
+        }
+
+        let (trailing_ast, trailing_remainder, _) = parse_ast(
+            "type Point\n    ",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+        );
+        assert!(matches!(trailing_ast.form, Recovered::Complete(TypeDeclarationForm::Nominal)));
+        assert_eq!(trailing_ast.range, 0..15);
+        assert_eq!(trailing_remainder, "");
+        let (trailing_direct, trailing_records, trailing_direct_remainder, _) = parse_direct(
+            "type Point\n    ",
+            0,
+            Context::Root,
+            StopKind::RightBracket,
+        );
+        assert_eq!(trailing_direct, Recovered::Complete(0..15));
+        assert_eq!(trailing_direct_remainder, "");
+        assert!(trailing_records.is_empty());
+
+        let (recovery_ast, recovery_remainder, _) = parse_ast(
+            "type Id @",
+            0,
+            Context::NestedIf,
+            StopKind::RightBracket,
+        );
+        let (recovery_direct, recovery_records, recovery_direct_remainder, _) = parse_direct(
+            "type Id @",
+            0,
+            Context::NestedIf,
+            StopKind::RightBracket,
+        );
+        assert!(matches!(recovery_ast.form, Recovered::Incomplete));
+        assert_eq!(recovery_ast.range, 0..9);
+        assert_eq!(recovery_remainder, "");
+        assert_eq!(recovery_direct, Recovered::Complete(0..9));
+        assert_eq!(recovery_direct_remainder, "");
+        assert_eq!(recovery_records.len(), 1);
+        assert_eq!(recovery_records[0].kind, RecoveryKind::Error);
+        assert_eq!(
+            recovery_records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Type(
+                TypeDeclarationRole::DefinitionIntroducer,
+            )),
+        );
+        assert_eq!(recovery_records[0].site.range, 8..9);
+
+        // A caller rollback around the complete isolated construction restores
+        // the same deep state after both normal and recovery outcomes.
+        for source in ["type Point", "type Id @"] {
+            let mut source_input = SourceInput::new(source);
+            let mut local = ParseLocal::new();
+            install_context(&mut local, Context::NestedIf, StopKind::RightBracket);
+            let mut expectations = chasa::LatestSink::new();
+            let mut is_cut = false;
+            let input_checkpoint = source_input.checkpoint();
+            let local_checkpoint = local.checkpoint();
+            let before = snapshot(&local);
+            let before_line = local.line();
+            {
+                let i = In::new(&mut source_input, &mut expectations, IsCut::new(&mut is_cut))
+                    .set_local(&mut local);
+                let _ = parse_type_declaration_form_aware_isolated(i).unwrap();
+            }
+            source_input.rollback(input_checkpoint);
+            local.rollback(local_checkpoint);
+            assert_eq!(source_input.remainder(), source, "rollback input: {source:?}");
+            assert_eq!(snapshot(&local), before, "rollback state: {source:?}");
+            assert_eq!(local.line(), before_line, "rollback line state: {source:?}");
+            assert!(expectations.take_merged().is_none(), "rollback sink: {source:?}");
+            assert!(!is_cut, "rollback cut: {source:?}");
         }
     }
 
